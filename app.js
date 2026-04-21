@@ -71,9 +71,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Body parser — large limit for passport base64 JSON on /api/scanner/*
-app.use(express.json({ limit: '25mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+// Body parser — passport photos are sent as base64 JSON (can be large)
+app.use(express.json({ limit: '60mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '60mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 // Passport scanner face-api models (served for web + mobile clients)
 app.use('/models', express.static(path.join(__dirname, 'passport-scanner-dist/models')));

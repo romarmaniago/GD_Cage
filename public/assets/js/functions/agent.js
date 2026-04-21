@@ -472,13 +472,43 @@ async function extractPassportFromFile(file) {
 		throw new Error('Please choose an image file.');
 	}
 	var dataUrl = await fileToDataUrl(file);
+
+	// Keep payload small: downscale + JPEG encode when needed.
+	// Base64 JSON overhead is big; large camera images can otherwise hit HTTP 413.
+	async function toReasonableJpegDataUrl(inputDataUrl) {
+		try {
+			var img = await window.faceapi.fetchImage(inputDataUrl);
+			var maxDim = 1600;
+			var w = img.naturalWidth || img.width;
+			var h = img.naturalHeight || img.height;
+			if (!w || !h) return inputDataUrl;
+			var scale = Math.min(1, maxDim / Math.max(w, h));
+			if (scale >= 0.999) return inputDataUrl;
+			var canvas = document.createElement('canvas');
+			canvas.width = Math.max(1, Math.round(w * scale));
+			canvas.height = Math.max(1, Math.round(h * scale));
+			var ctx = canvas.getContext('2d');
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			return canvas.toDataURL('image/jpeg', 0.85);
+		} catch (_) {
+			return inputDataUrl;
+		}
+	}
+
+	// If the original base64 is huge, compress. Threshold ~12MB base64 (≈9MB binary).
+	var rawBase64 = (dataUrl.split(',')[1] || '').trim();
+	if (!rawBase64) throw new Error('Invalid image.');
+	if (rawBase64.length > 12 * 1024 * 1024) {
+		dataUrl = await toReasonableJpegDataUrl(dataUrl);
+	}
+
 	var base64 = (dataUrl.split(',')[1] || '').trim();
 	if (!base64) throw new Error('Invalid image.');
 
 	var res = await fetch('/api/scanner/passport-extract-internal', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ imageBase64: base64, imageMimeType: file.type || 'image/jpeg' })
+		body: JSON.stringify({ imageBase64: base64, imageMimeType: 'image/jpeg' })
 	});
 	var json = await res.json().catch(function () { return null; });
 	if (!res.ok) {
