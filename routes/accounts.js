@@ -7,6 +7,9 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const path = require('path');
+const fs = require('fs/promises');
+const sharp = require('sharp');
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -124,10 +127,61 @@ const recordHistory = async ({
 const storage = multer.diskStorage({
 	destination: 'PassportUpload/',
 	filename: (req, file, cb) => {
-		const uniqueName = `${Date.now()}-${file.originalname}`; // Unique filename
+		// Avoid encoding issues from original filenames; extension is normalized later to .webp.
+		const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.upload`;
 		cb(null, uniqueName);
 	}
 });
+
+function collectMulterFiles(req) {
+	const out = [];
+	if (req.file) out.push(req.file);
+	if (req.files) {
+		if (Array.isArray(req.files)) out.push(...req.files);
+		else {
+			for (const k of Object.keys(req.files)) {
+				const arr = req.files[k];
+				if (Array.isArray(arr)) out.push(...arr);
+			}
+		}
+	}
+	return out;
+}
+
+async function convertPassportUploadsToWebp(req, res, next) {
+	try {
+		const files = collectMulterFiles(req);
+		for (const f of files) {
+			if (!f?.path) continue;
+			const inPath = f.path;
+			const dir = path.dirname(inPath);
+			const base = path.basename(inPath, path.extname(inPath));
+			const outName = `${base}.webp`;
+			const outPath = path.join(dir, outName);
+
+			await sharp(inPath)
+				.rotate()
+				.webp({ quality: 86 })
+				.toFile(outPath);
+
+			// Remove original upload bytes (jpg/png/gif/etc.)
+			try {
+				await fs.unlink(inPath);
+			} catch (_) {
+				/* ignore */
+			}
+
+			f.filename = outName;
+			f.path = outPath;
+			f.destination = dir;
+			f.mimetype = 'image/webp';
+		}
+		next();
+	} catch (err) {
+		console.error('WebP conversion failed:', err);
+		next(err);
+	}
+}
 
 
 const uploadPassportImg = multer({
@@ -242,7 +296,11 @@ router.put('/agency/remove/:id', async (req, res) => {
 
 
 // ADD AGENT
-router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }]), async (req, res) => {
+router.post(
+	'/add_agent',
+	uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }]),
+	convertPassportUploadsToWebp,
+	async (req, res) => {
 	// API key check for Passport Scanner app (no session)
 	const apiKey = req.headers['x-api-key'];
 	const validApiKey = process.env.SCANNER_API_KEY;
@@ -352,7 +410,7 @@ router.get('/agent_data/:id', async (req, res) => {
 
 
 // EDIT AGENT
-router.put('/agent/:id', uploadPassportImg.single('photo'), async (req, res) => {
+router.put('/agent/:id', uploadPassportImg.single('photo'), convertPassportUploadsToWebp, async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
 		const { txtAgenctCode, txtName, txtRemarks, txtTelegram, txtContact } = req.body;
@@ -1444,7 +1502,7 @@ router.put('/account/:accountId/agent_remarks', async (req, res) => {
 });
 
 // UPDATE ACCOUNT (AGENT) PHOTO from Guest Portal modal
-router.post('/account/:accountId/update_photo', uploadPassportImg.single('photo'), async (req, res) => {
+router.post('/account/:accountId/update_photo', uploadPassportImg.single('photo'), convertPassportUploadsToWebp, async (req, res) => {
 	try {
 		const accountId = req.params.accountId;
 		const file = req.file;

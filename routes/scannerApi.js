@@ -20,6 +20,13 @@ function requireScannerKey(req, res, next) {
   next();
 }
 
+function requireInternalSession(req, res, next) {
+  // For Cage web UI: allow extraction without exposing SCANNER_API_KEY to browser.
+  if (req.session?.user_id) return next();
+  if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) return next();
+  return res.status(401).json({ error: { message: 'Unauthorized' } });
+}
+
 async function resolveGeminiApiKey() {
   const fromEnv = (process.env.GEMINI_API_KEY || '').trim();
   if (fromEnv) return fromEnv;
@@ -57,7 +64,7 @@ CRITICAL for "document_type":
 - Examples: Korean passports often show "PM" or "P" next to 종류/Type — return "PM" or "P" exactly as shown. Many passports show a 1–3 character code (e.g. P, PM, CO, PD).
 - NEVER return the English word "Passport" or "Ordinary passport" for document_type unless that exact text is printed as the type code on the page. If you only see a code like PM, return "PM".`;
 
-router.post('/passport-extract', requireScannerKey, async (req, res) => {
+async function handlePassportExtract(req, res) {
   const imageBase64 = req.body?.imageBase64;
   const imageMimeType = (req.body?.imageMimeType || 'image/jpeg').toString().trim() || 'image/jpeg';
 
@@ -123,6 +130,12 @@ router.post('/passport-extract', requireScannerKey, async (req, res) => {
     console.error('passport-extract error:', err);
     return res.status(500).json({ error: { message: err.message || 'Extraction failed.' } });
   }
-});
+}
+
+// External/mobile apps: require x-api-key
+router.post('/passport-extract', requireScannerKey, handlePassportExtract);
+
+// Cage web UI: require session (no x-api-key in browser)
+router.post('/passport-extract-internal', requireInternalSession, handlePassportExtract);
 
 module.exports = router;

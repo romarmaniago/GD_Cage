@@ -828,7 +828,8 @@
 		"Remarks_placeholder": "备注",
 		"save": "保存",
 		"close": "关闭",
-		"Telegram_help": "modal_new_agent.Telegram_help"
+		"Telegram_help": "modal_new_agent.Telegram_help",
+		"change_passport": "更换护照"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "编辑客人",

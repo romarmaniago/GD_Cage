@@ -11,11 +11,72 @@
 			<div class="modal-body">
 				<form id="add_new_agent" enctype="multipart/form-data" method="POST" action="/add_agent">
 					<input type="hidden" name="txtAgencyLine" id="txtAgencyLine">
+					<input type="hidden" name="txtDocumentType" id="txtDocumentType">
+					<input type="hidden" name="txtCountryCode" id="txtCountryCode">
+					<input type="hidden" name="txtPassportNo" id="txtPassportNo">
+					<input type="hidden" name="txtNationality" id="txtNationality">
+					<input type="hidden" name="txtDateOfBirth" id="txtDateOfBirth">
+					<input type="hidden" name="txtExpiryDate" id="txtExpiryDate">
+					<input type="hidden" name="txtGender" id="txtGender">
+					<input type="hidden" name="txtMrzLine" id="txtMrzLine">
 					<div class="block-content">
 
 						<div class="row mb-2">
 							<div class="col-sm-12">
-								<input type="file" name="photo" class="form-control" />
+								<input type="file" name="photo" class="form-control js-passport-file" accept="image/*" />
+							</div>
+						</div>
+
+						<div id="new-guest-passport-preview" class="d-none mb-3">
+							<div class="rounded-3 border overflow-hidden bg-white" style="border-color: rgba(17,24,39,0.12);">
+								<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom" style="background: #eef2ff; border-color: rgba(99,102,241,0.35);">
+									<span id="ngp-country-title" class="fw-semibold text-uppercase small" style="color: #1e3a8a; letter-spacing: 0.04em;">—</span>
+									<div class="d-flex flex-wrap align-items-center gap-2">
+										<span id="ngp-doc-badge" class="badge rounded-pill fw-medium" style="background: #c7d2fe; color: #1e3a8a;">—</span>
+										<span id="ngp-expiry-badge" class="badge rounded-pill fw-medium" style="background: #dcfce7; color: #166534;">Valid</span>
+									</div>
+								</div>
+								<div class="p-3">
+									<div class="d-flex flex-column flex-sm-row gap-3 align-items-start">
+										<div class="flex-shrink-0 mx-auto mx-sm-0">
+											<img id="ngp-face-thumb" src="" alt="" width="72" height="90" class="rounded-2 border bg-light object-fit-cover" style="object-fit: cover; border-color: rgba(17,24,39,0.12);" />
+										</div>
+										<div class="flex-grow-1 min-w-0 w-100">
+											<p id="ngp-full-name" class="fw-bold mb-2 mb-sm-3" style="font-size: 1.1rem; color: #111827;">—</p>
+											<div class="row g-2 g-sm-3 small">
+												<div class="col-6">
+													<div class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.06em;">Passport No</div>
+													<div id="ngp-passport-no" class="fw-semibold" style="color: #2563eb;">—</div>
+												</div>
+												<div class="col-6">
+													<div class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.06em;">Gender</div>
+													<div id="ngp-gender" class="fw-semibold text-dark">—</div>
+												</div>
+												<div class="col-6">
+													<div class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.06em;">Date of Birth</div>
+													<div id="ngp-dob" class="fw-semibold text-dark">—</div>
+												</div>
+												<div class="col-6">
+													<div class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.06em;">Expiry</div>
+													<div id="ngp-expiry" class="fw-semibold">—</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="px-3 py-2 border-top" style="background: #fafafa; border-color: rgba(17,24,39,0.08);">
+									<div class="text-muted text-uppercase mb-1" style="font-size: 0.6rem; letter-spacing: 0.12em;">Machine Readable Zone</div>
+									<div id="ngp-mrz-1" class="font-monospace text-secondary mb-0" style="font-size: 0.65rem; line-height: 1.35; word-break: break-all;">—</div>
+									<div id="ngp-mrz-2" class="font-monospace text-secondary mb-0" style="font-size: 0.65rem; line-height: 1.35; word-break: break-all;">—</div>
+								</div>
+							</div>
+							<div class="d-flex justify-content-end flex-wrap gap-2 mt-2">
+								<button type="button" class="btn btn-sm btn-outline-secondary" id="btn-new-guest-reextract">
+									↻ Re-extract
+								</button>
+								<button type="button" class="btn btn-sm btn-outline-danger" id="btn-new-guest-change-passport">
+									<%= __('modal_new_agent.change_passport') %>
+								</button>
 							</div>
 						</div>
 
@@ -56,7 +117,7 @@
 					</div>
 
 					<div class="modal-footer">
-						<button type="submit" id="submit-new-agent-btn" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+						<button type="submit" id="submit-new-agent-btn" class="btn btn-sm btn-primary">
 							<%= __('modal_new_agent.save') %>
 						</button>
 						

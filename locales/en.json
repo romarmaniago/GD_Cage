@@ -827,7 +827,8 @@
 		"Contact_placeholder": "Contact Number",
 		"Remarks_placeholder": "Remarks",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"change_passport": "Change passport"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "Edit Guest",
@@ -1028,7 +1029,7 @@
 		"passport_empty": "No passport details on file for this agent.",
 		"passport_col_detail": "Detail",
 		"passport_col_value": "Value",
-		"passport_lbl_document_type": "Document type",
+		"passport_lbl_document_type": "Type",
 		"passport_lbl_country_code": "Country code",
 		"passport_lbl_passport_no": "Passport no.",
 		"passport_lbl_full_name": "Full name",

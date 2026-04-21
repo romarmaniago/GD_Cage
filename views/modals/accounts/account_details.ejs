@@ -838,17 +838,42 @@
     if (btnPassportDetails && modalPassportDetails) {
         btnPassportDetails.addEventListener('click', function () {
             var accountId = document.getElementById('account_id_add') && document.getElementById('account_id_add').value;
-            if (!accountId) {
-                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'No account', text: 'Please open an account first.' });
-                else alert('Please open an account first.');
-                return;
-            }
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
             if (Modal) Modal.getOrCreateInstance(modalPassportDetails).show();
             else $(modalPassportDetails).modal('show');
             document.getElementById('passport-details-loading').classList.remove('d-none');
             document.getElementById('passport-details-empty').classList.add('d-none');
             document.getElementById('passport-details-content').classList.add('d-none');
+
+            // If no account yet (New Guest flow) but we have a pending extraction from the upload, show it immediately.
+            if (!accountId && window.__pendingPassportExtract) {
+                document.getElementById('passport-details-loading').classList.add('d-none');
+                document.getElementById('passport-details-content').classList.remove('d-none');
+                var p = window.__pendingPassportExtract || {};
+                document.getElementById('p-doc-type').textContent = p.document_type || '—';
+                document.getElementById('p-country').textContent = p.country_code || '—';
+                document.getElementById('p-passport-no').textContent = p.passport_number || '—';
+                document.getElementById('p-full-name').textContent = p.full_name || '—';
+                document.getElementById('p-nationality').textContent = p.nationality || '—';
+                document.getElementById('p-dob').textContent = p.date_of_birth || '—';
+                document.getElementById('p-expiry').textContent = p.expiry_date || '—';
+                document.getElementById('p-gender').textContent = p.gender || '—';
+                var img = document.getElementById('passport-detail-image');
+                if (window.__pendingPassportImageDataUrl) {
+                    img.src = window.__pendingPassportImageDataUrl;
+                    img.style.display = '';
+                } else {
+                    img.style.display = 'none';
+                }
+                return;
+            }
+
+            if (!accountId) {
+                document.getElementById('passport-details-loading').classList.add('d-none');
+                document.getElementById('passport-details-empty').classList.remove('d-none');
+                return;
+            }
+
             fetch('/account_passport_details/' + accountId)
                 .then(function (res) { return res.json(); })
                 .then(function (data) {

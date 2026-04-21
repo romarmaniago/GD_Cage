@@ -828,7 +828,8 @@
 		"Remarks_placeholder": "발언",
 		"save": "저장",
 		"close": "닫기",
-		"Telegram_help": "텔레그램에서 @raw_data_bot을 방문하여 채팅 ID를 가져오세요. 그런 다음 채팅 ID를 복사하여 여기에 붙여넣으세요."
+		"Telegram_help": "텔레그램에서 @raw_data_bot을 방문하여 채팅 ID를 가져오세요. 그런 다음 채팅 ID를 복사하여 여기에 붙여넣으세요.",
+		"change_passport": "여권 변경"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "게스트 편집",

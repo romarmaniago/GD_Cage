@@ -828,7 +828,8 @@
 		"Remarks_placeholder": "備考",
 		"save": "保存",
 		"close": "閉じる",
-		"Telegram_help": "modal_new_agent.Telegram_help"
+		"Telegram_help": "modal_new_agent.Telegram_help",
+		"change_passport": "パスポートを変更"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "ゲストの編集",
