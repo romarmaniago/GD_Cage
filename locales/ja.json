@@ -1025,7 +1025,20 @@
 		"remarks": "備考",
 		"close": "閉じる",
 		"balance_check": "残高チェック",
-		"agent_remarks": "modal_account_details.agent_remarks"
+		"agent_remarks": "modal_account_details.agent_remarks",
+		"passport_details": "パスポート詳細",
+		"passport_loading": "パスポート情報を読み込み中…",
+		"passport_empty": "このエージェントのパスポート情報はありません。",
+		"passport_col_detail": "項目",
+		"passport_col_value": "内容",
+		"passport_lbl_document_type": "文書種別",
+		"passport_lbl_country_code": "国コード",
+		"passport_lbl_passport_no": "パスポート番号",
+		"passport_lbl_full_name": "氏名",
+		"passport_lbl_nationality": "国籍",
+		"passport_lbl_dob": "生年月日",
+		"passport_lbl_expiry": "有効期限",
+		"passport_lbl_gender": "性別"
 	},
 	"modal_change_status": {
 		"change_status": "ステータスの変更",

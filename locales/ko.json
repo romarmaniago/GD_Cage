@@ -1025,7 +1025,20 @@
 		"remarks": "발언",
 		"close": "닫기",
 		"balance_check": "잔액 확인",
-		"agent_remarks": "modal_account_details.agent_remarks"
+		"agent_remarks": "modal_account_details.agent_remarks",
+		"passport_details": "여권 상세",
+		"passport_loading": "여권 정보를 불러오는 중…",
+		"passport_empty": "이 에이전트의 여권 정보가 없습니다.",
+		"passport_col_detail": "항목",
+		"passport_col_value": "내용",
+		"passport_lbl_document_type": "문서 유형",
+		"passport_lbl_country_code": "국가 코드",
+		"passport_lbl_passport_no": "여권 번호",
+		"passport_lbl_full_name": "성명",
+		"passport_lbl_nationality": "국적",
+		"passport_lbl_dob": "생년월일",
+		"passport_lbl_expiry": "만료일",
+		"passport_lbl_gender": "성별"
 	},
 	"modal_change_status": {
 		"change_status": "상태 변경",

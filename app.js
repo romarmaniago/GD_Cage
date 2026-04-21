@@ -71,8 +71,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Body parser middleware for handling form submissions
-app.use(express.json());
+// Body parser — large limit for passport base64 JSON on /api/scanner/*
+app.use(express.json({ limit: '25mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 // Passport scanner face-api models (served for web + mobile clients)
@@ -168,6 +168,7 @@ app.get('/change-lang', (req, res) => {
 routes.forEach(router => app.use('/', router));
 // API for external apps (e.g. Flutter cageApp) — base path /api
 app.use('/api', require('./routes/api'));
+app.use('/api/scanner', require('./routes/scannerApi'));
 // Static file serving (for PassportUpload folder)
 app.use('/PassportUpload', express.static(path.join(__dirname, 'PassportUpload')));
 // Static file serving (for ReceiptUpload folder)

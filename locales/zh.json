@@ -1025,7 +1025,20 @@
 		"remarks": "备注",
 		"close": "关闭",
 		"balance_check": "余额检查",
-		"agent_remarks": "modal_account_details.agent_remarks"
+		"agent_remarks": "modal_account_details.agent_remarks",
+		"passport_details": "护照详情",
+		"passport_loading": "正在加载护照信息…",
+		"passport_empty": "该代理暂无护照存档信息。",
+		"passport_col_detail": "项目",
+		"passport_col_value": "内容",
+		"passport_lbl_document_type": "证件类型",
+		"passport_lbl_country_code": "国家代码",
+		"passport_lbl_passport_no": "护照号码",
+		"passport_lbl_full_name": "姓名",
+		"passport_lbl_nationality": "国籍",
+		"passport_lbl_dob": "出生日期",
+		"passport_lbl_expiry": "有效期限",
+		"passport_lbl_gender": "性别"
 	},
 	"modal_change_status": {
 		"change_status": "更改状态",

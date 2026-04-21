@@ -1022,7 +1022,20 @@
 		"remarks": "REMARKS",
 		"close": "Close",
 		"balance_check": "Balance Check",
-		"agent_remarks": "modal_account_details.agent_remarks"
+		"agent_remarks": "modal_account_details.agent_remarks",
+		"passport_details": "Passport details",
+		"passport_loading": "Loading passport details...",
+		"passport_empty": "No passport details on file for this agent.",
+		"passport_col_detail": "Detail",
+		"passport_col_value": "Value",
+		"passport_lbl_document_type": "Document type",
+		"passport_lbl_country_code": "Country code",
+		"passport_lbl_passport_no": "Passport no.",
+		"passport_lbl_full_name": "Full name",
+		"passport_lbl_nationality": "Nationality",
+		"passport_lbl_dob": "Date of birth",
+		"passport_lbl_expiry": "Expiry date",
+		"passport_lbl_gender": "Gender"
 	},
 	"modal_change_status": {
 		"change_status": "Change Status",

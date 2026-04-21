@@ -146,7 +146,6 @@
                             </div>
                                 <div class="card-body">
                                 <div class="text-end mb-4">
-                                   
                                     <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
                                     <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
                                     <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
@@ -155,8 +154,10 @@
                                     </button>
                                     <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
                                     <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="<%= __('modal_account_details.passport_details') %>">
+                                        <i class="fa fa-id-card me-1"></i><%= __('modal_account_details.passport_details') %>
+                                    </button>
                                     <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
-                                    <button class="btn btn-sm btn-secondary" id="btn-passport-details">Info</button>
                                 </div>
                                 <input type="hidden" id="account_id">
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
@@ -242,20 +243,20 @@
         <div class="modal-content passport-details-modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header passport-details-header py-3 px-4">
                 <h5 class="modal-title d-flex align-items-center gap-2 fw-semibold" id="modalPassportDetailsLabel">
-                    <i class="fa fa-id-card"></i> Information
+                    <i class="fa fa-id-card"></i> <%= __('modal_account_details.passport_details') %>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4 bg-white passport-details-body">
                 <div id="passport-details-loading" class="text-center py-5">
                     <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div>
-                    <p class="text-muted mb-0">Loading information details...</p>
+                    <p class="text-muted mb-0"><%= __('modal_account_details.passport_loading') %></p>
                 </div>
                 <div id="passport-details-empty" class="text-center d-flex flex-column align-items-center justify-content-center h-100 d-none">
                     <div class="passport-empty-icon mb-3">
                         <i class="fa fa-id-card-o text-secondary"></i>
                     </div>
-                    <p class="text-muted mb-0 text-center w-100">No details available for this guest.</p>
+                    <p class="text-muted mb-0 text-center w-100"><%= __('modal_account_details.passport_empty') %></p>
                 </div>
                 <div id="passport-details-content" class="d-none">
                     <div class="row g-4 align-items-stretch">
@@ -268,16 +269,16 @@
                         </div>
                         <div class="col-12 col-md-7 d-flex">
                             <div class="passport-details-card rounded-3 overflow-hidden w-100">
-                                <table class="table table-borderless passport-details-table mb-0">
+                                <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
-                                        <tr><th>Type</th><td id="p-doc-type">—</td></tr>
-                                        <tr><th>Country Code</th><td id="p-country">—</td></tr>
-                                        <tr><th>Passport No</th><td id="p-passport-no">—</td></tr>
-                                        <tr><th>Full Name</th><td id="p-full-name">—</td></tr>
-                                        <tr><th>Nationality</th><td id="p-nationality">—</td></tr>
-                                        <tr><th>Date of Birth</th><td id="p-dob">—</td></tr>
-                                        <tr><th>Expiry Date</th><td id="p-expiry">—</td></tr>
-                                        <tr><th>Gender</th><td id="p-gender">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_document_type') %></th><td id="p-doc-type">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_country_code') %></th><td id="p-country">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_passport_no') %></th><td id="p-passport-no">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_full_name') %></th><td id="p-full-name">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_nationality') %></th><td id="p-nationality">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_dob') %></th><td id="p-dob">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_expiry') %></th><td id="p-expiry">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.passport_lbl_gender') %></th><td id="p-gender">—</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -696,23 +697,27 @@
     display: flex;
     flex-direction: column;
 }
-.passport-details-table th {
-    width: 130px;
-    padding: 12px 16px;
+#modal-passport-details .passport-modal-details-table tbody th {
+    width: 38%;
+    padding: 10px 12px;
     font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-    background: #f8fafc;
+    font-size: 0.8rem;
+    color: #475569;
+    background: #fafbfd;
+    border-color: #e2e8f0;
+    vertical-align: middle;
 }
-.passport-details-table td {
-    padding: 12px 16px;
-    font-size: 0.95rem;
+#modal-passport-details .passport-modal-details-table tbody td {
+    padding: 10px 12px;
+    font-size: 0.9rem;
     color: #1e293b;
+    border-color: #e2e8f0;
+    vertical-align: middle;
 }
-.passport-details-table tr { border-bottom: 1px solid #e2e8f0; }
-.passport-details-table tr:last-child { border-bottom: none; }
+#modal-passport-details .passport-modal-details-table tbody tr:nth-child(even) td,
+#modal-passport-details .passport-modal-details-table tbody tr:nth-child(even) th {
+    background-color: #f8fafc;
+}
 .passport-zoomed {
     display: none;
     position: fixed;
