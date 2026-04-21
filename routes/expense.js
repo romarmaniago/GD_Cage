@@ -274,7 +274,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 		});
 
 		// Create Telegram message
-		const telegramMessage = `Infinity Cage\n\n* Junket Expense *\n\n` +
+		const telegramMessage = `Demo Cage\n\n* Junket Expense *\n\n` +
 			`Category: ${expenseCategoryName}\n` +
 			`Receipt No: ${receiptNo || 'N/A'}\n` +
 			`Description: ${description || 'N/A'}\n` +
@@ -896,7 +896,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString()}\n` : '';
 			const editMsg =
-				'Infinity Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
+				'Demo Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
 				`Name: ${expenseCategoryName}\n` +
 				`Type: ${typeLabel}\n` +
 				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
@@ -965,7 +965,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		// Telegram to Management: expense deleted with details
 		try {
 			const deleteMsg =
-				'Infinity Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
+				'Demo Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
 				`Name: ${categoryName}\n` +
 				`Type: ${typeLabel}\n` +
 				`Receipt #: ${receiptNo}\n` +
@@ -1051,7 +1051,7 @@ router.post('/add_return_money', async (req, res) => {
 			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const addReturnMsg =
-				'Infinity Cage\n\n💸 * Return Money (ADDED) *\n\n' +
+				'Demo Cage\n\n💸 * Return Money (ADDED) *\n\n' +
 				`Amount: ₱${amount.toLocaleString()}\n` +
 				`Description: ${description || 'N/A'}\n` +
 				`Encoded By: ${encodedByName}\n` +
@@ -1110,7 +1110,7 @@ router.put('/edit_return_money/:id', async (req, res) => {
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString()}\n` : '';
 			const editReturnMsg =
-				'Infinity Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
+				'Demo Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
 				beforeAmountLabel +
 				`New Amount: ₱${amount.toLocaleString()}\n` +
 				`Description: ${description || 'N/A'}\n` +
@@ -1166,7 +1166,7 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		// Telegram to Management: return money deleted with details
 		try {
 			const deleteReturnMsg =
-				'Infinity Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
+				'Demo Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
 				`Amount: ₱${amount.toLocaleString()}\n` +
 				`Description: ${desc}\n` +
 				`Encoded By: ${encodedByName}\n` +

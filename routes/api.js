@@ -531,7 +531,7 @@ router.get('/notifications', async (req, res) => {
       await pool.query(
         `INSERT INTO \`${NOTIFICATIONS_TABLE}\` (title, message, type) VALUES
          ('System', 'Notifications are connected. Clear all to start fresh.', 'info'),
-         ('Welcome', 'Infinity CageX App is ready. You can monitor cage activity from here.', 'success')`
+         ('Welcome', 'Demo CageX App is ready. You can monitor cage activity from here.', 'success')`
       );
       [rows] = await pool.query(
         `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` WHERE id NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT ? OFFSET ?`,

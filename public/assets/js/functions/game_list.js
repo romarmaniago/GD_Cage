@@ -2063,7 +2063,7 @@ $('#add_game_list').submit(function (event) {
                         });
                     },
                     error: function (xhr, status, error) {
-                        var errorMessage = xhr.responseJSON?.error || "An error occurred.";
+                        var errorMessage = xhr.responseJSON?.error || xhr.responseText || "An error occurred.";
                         console.error('Error adding game list:', errorMessage);
 
                         // Show error message
