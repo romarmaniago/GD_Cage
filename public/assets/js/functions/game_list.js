@@ -5606,28 +5606,47 @@ function settlement_history(record_id, acc_id) {
     var isSettled = false;
     var currentCommissionType = null; // 1=Rolling, 2=Shared, 3=Loosing - used for validation
 
-    // Fetch services total and populate FB
+    // Fetch services totals and populate F&B / Hotel breakdown
     function loadServicesTotal() {
         $.ajax({
             url: `/game_services/${record_id}`,
             method: 'GET',
             success: function (list) {
-                const total = Array.isArray(list)
-                    ? list.reduce((sum, item) => {
-                    const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
-                    if (transactionId !== 3) {
-                        return sum;
-                    }
+                let fnbTotal = 0;
+                let hotelTotal = 0;
+
+                if (Array.isArray(list)) {
+                    list.forEach((item) => {
+                        const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
+                        if (transactionId !== 3) {
+                            return;
+                        }
+
+                        const serviceType = String(item.SERVICE_TYPE || item.service_type || '').toLowerCase().trim();
                         const amt = parseFloat(item.AMOUNT || item.amount || 0);
-                        return sum + (isNaN(amt) ? 0 : amt);
-                    }, 0)
-                    : 0;
-                $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
-                // trigger recalculation of payment
+                        const safeAmount = isNaN(amt) ? 0 : amt;
+
+                        if (serviceType === 'hotel') {
+                            hotelTotal += safeAmount;
+                            return;
+                        }
+
+                        if (serviceType === 'fnb' || serviceType === 'delivery') {
+                            fnbTotal += safeAmount;
+                        }
+                    });
+                }
+
+                const combinedServices = fnbTotal + hotelTotal;
+                $('#fbDisplay').val(fnbTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+                $('#hotelDisplay').val(hotelTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+                $('#fb').val(combinedServices.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 $('#fb').trigger('input');
             },
             error: function () {
                 // fallback to 0
+                $('#fbDisplay').val('0');
+                $('#hotelDisplay').val('0');
                 $('#fb').val('0');
                 $('#fb').trigger('input');
             }
@@ -5709,7 +5728,10 @@ function settlement_history(record_id, acc_id) {
                     // Populate FNB value
                     // $('#fb').val(data[0].FNB || 0); // Ensure FNB value is set correctly
                     let fbValue = data[0].FNB || 0;
-					$('#fb').val(parseFloat(fbValue).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+                    let fallbackTotal = parseFloat(fbValue) || 0;
+					$('#fbDisplay').val(fallbackTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+                    $('#hotelDisplay').val('0');
+                    $('#fb').val(fallbackTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 }
 
               
@@ -5823,7 +5845,7 @@ function settlement_history(record_id, acc_id) {
                 updatePayment(); // Update payment based on initial data
                 // $('#fb').val(data[0].FNB || 0); // Ensure FNB value is set correctly
 
-                // Update payment when fb changes
+                // Update payment when services total changes
                 $('#fb').on('input', function () {
                     updatePayment();
                 });
@@ -5910,6 +5932,8 @@ function settlement_history(record_id, acc_id) {
         var rollingRate = $('#rollingRate').val() || '0';
         var rollingSettlement = $('#rollingSettlement').val().replace(/,/g, '') || '0';
         var services = $('#fb').val().replace(/,/g, '') || '0';
+        var fnbDisplay = $('#fbDisplay').val().replace(/,/g, '') || '0';
+        var hotelDisplay = $('#hotelDisplay').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $('input[name="txtTransType"]:checked').val();
         var transTypeText = '';
@@ -5949,8 +5973,11 @@ function settlement_history(record_id, acc_id) {
         confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString());
         confirmationRows += buildRow('Rate:', `${parseFloat(rollingRate).toFixed(2)}%`);
         confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString());
-        if (parseFloat(services) > 0) {
-            confirmationRows += buildRow('Services:', parseFloat(services).toLocaleString());
+        if (parseFloat(fnbDisplay) > 0) {
+            confirmationRows += buildRow('F&B:', parseFloat(fnbDisplay).toLocaleString());
+        }
+        if (parseFloat(hotelDisplay) > 0) {
+            confirmationRows += buildRow('Hotel:', parseFloat(hotelDisplay).toLocaleString());
         }
         confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString());
         if (transTypeText) {
@@ -5967,6 +5994,7 @@ function settlement_history(record_id, acc_id) {
         `;
         
         var $btn = $('#submit-settlement-btn');
+        var defaultSettleLabel = 'Settle';
         
         Swal.fire({
             icon: 'question',
@@ -6035,18 +6063,18 @@ function settlement_history(record_id, acc_id) {
                                 confirmButton: 'custom-ok-btn'
                             }
                         });
-                        $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                        $btn.prop('disabled', false).text(defaultSettleLabel); // Re-enable button and reset text
                     },
                     complete: function () {
                         // Only reset if not already disabled (in case of success)
                         if (!$btn.is(':disabled')) {
-                            $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                            $btn.prop('disabled', false).text(defaultSettleLabel); // Re-enable button and reset text
                         }
                     }
                 });
             } else {
                 // User cancelled, re-enable button
-                $btn.prop('disabled', false).text('Save');
+                $btn.prop('disabled', false).text(defaultSettleLabel);
             }
         });
     });

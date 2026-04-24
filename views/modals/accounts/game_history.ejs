@@ -18,13 +18,15 @@
                 <th class="text-center" style="width: 80px;">GAME #</th>
                 <th class="text-center col-buyin" style="width: 100px;">BUY-IN</th>
                 <th class="text-center" style="width: 100px;">CASH-OUT</th>
+                <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
                 <th class="text-center" style="width: 100px;">ROLLING</th>
                 <th class="text-center col-total-rolling" style="width: 120px;">TOTAL ROLLING</th>
                 <th class="text-center" style="width: 120px;">GAME RATE</th>
                 <th class="text-center" style="width: 100px;">COMMISSION</th>
-                <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
-                <th class="text-center" style="width: 100px;">GAME SOURCE</th>
+                <th class="text-center" style="width: 100px;">ADD CHG</th>
+                <th class="text-center" style="width: 110px;">TOTAL SETTLE</th>
                 <th class="text-center" style="width: 150px;">GAME END</th>
+                <th class="text-center" style="width: 100px;">ROLLER CHIPS</th>
               </tr>
             </thead>
             <tbody>
@@ -34,12 +36,15 @@
                 <td class="text-center" colspan="3">TOTAL</td>
                 <td class="text-center" id="gh-total-buyin">0</td>
                 <td class="text-center" id="gh-total-cashout">0</td>
+                <td class="text-center" id="gh-total-winloss">0</td>
                 <td class="text-center" id="gh-total-rolling">0</td>
                 <td class="text-center" id="gh-total-total-rolling">0</td>
                 <td class="text-center">—</td>
                 <td class="text-center" id="gh-total-commission">0</td>
-                <td class="text-center" id="gh-total-winloss">0</td>
-                <td class="text-center" colspan="2">—</td>
+                <td class="text-center" id="gh-total-addchg">0</td>
+                <td class="text-center" id="gh-total-totalsettle">0</td>
+                <td class="text-center">—</td>
+                <td class="text-center" id="gh-total-rollerchips">0</td>
               </tr>
             </tfoot>
           </table>
@@ -174,7 +179,7 @@ th.col-winloss {
 
     function updateGameHistoryTotals(rows) {
         if (!rows || !rows.length) {
-            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-rolling', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-winloss'].forEach(id => {
+            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-winloss', 'gh-total-rolling', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-addchg', 'gh-total-totalsettle', 'gh-total-rollerchips'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = '0';
             });
@@ -182,13 +187,16 @@ th.col-winloss {
             if (winlossEl) winlossEl.classList.remove('gh-total-winloss-negative');
             return;
         }
-        let buyIn = 0, cashOut = 0, rolling = 0, totalRolling = 0, commission = 0, winLoss = 0;
+        let buyIn = 0, cashOut = 0, rolling = 0, totalRolling = 0, commission = 0, addChg = 0, totalSettle = 0, rollerChips = 0, winLoss = 0;
         rows.forEach(r => {
             buyIn += Number(r.BUY_IN) || 0;
             cashOut += Number(r.CASH_OUT) || 0;
             rolling += Number(r.ROLLING) || 0;
             totalRolling += Number(r.TOTAL_ROLLING) || 0;
             commission += Number(r.COMMISSION) || 0;
+            addChg += Number(r.ADD_CHG) || 0;
+            totalSettle += Number(r.TOTAL_SETTLE) || 0;
+            rollerChips += Number(r.ROLLER_CHIPS) || 0;
             winLoss += Number(r.WIN_LOSS) || 0;
         });
         const set = (id, val) => {
@@ -200,6 +208,9 @@ th.col-winloss {
         set('gh-total-rolling', rolling);
         set('gh-total-total-rolling', totalRolling);
         set('gh-total-commission', commission);
+        set('gh-total-addchg', addChg);
+        set('gh-total-totalsettle', totalSettle);
+        set('gh-total-rollerchips', rollerChips);
         set('gh-total-winloss', winLoss);
         const winlossEl = document.getElementById('gh-total-winloss');
         if (winlossEl) {
@@ -207,17 +218,6 @@ th.col-winloss {
             else winlossEl.classList.remove('gh-total-winloss-negative');
         }
     }
-
-    const translateGameSource = (source) => {
-        const translations = window.gamelistTranslations || {};
-        if (!source) return '';
-        const sourceUpper = source.toUpperCase();
-        if (sourceUpper === 'CASH') return translations.cash || 'CASH';
-        if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
-        if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
-        if (sourceUpper === 'IOU') return translations.credit || 'Credit';
-        return source;
-    };
 
     async function loadGameHistoryRows(accountId) {
         try {
@@ -242,13 +242,15 @@ th.col-winloss {
                     { width: "80px", targets: 2 },   // GAME #
                     { width: "100px", targets: 3 },  // BUY-IN
                     { width: "100px", targets: 4 },  // CASH-OUT
-                    { width: "100px", targets: 5 },  // ROLLING
-                    { width: "120px", targets: 6 },  // TOTAL ROLLING
-                    { width: "120px", targets: 7 },  // GAME RATE
-                    { width: "100px", targets: 8 },  // COMMISSION
-                    { width: "100px", targets: 9 },  // WIN/LOSS
-                    { width: "100px", targets: 10 }, // GAME SOURCE
-                    { width: "150px", targets: 11 }  // GAME END
+                    { width: "100px", targets: 5 },  // WIN/LOSS
+                    { width: "100px", targets: 6 },  // ROLLING
+                    { width: "120px", targets: 7 },  // TOTAL ROLLING
+                    { width: "120px", targets: 8 },  // GAME RATE
+                    { width: "100px", targets: 9 },  // COMMISSION
+                    { width: "100px", targets: 10 }, // ADD CHG
+                    { width: "110px", targets: 11 }, // TOTAL SETTLE
+                    { width: "150px", targets: 12 }, // GAME END
+                    { width: "100px", targets: 13 }  // ROLLER CHIPS
                 ],
                 language: {
                     search: "Search:",
@@ -292,6 +294,14 @@ th.col-winloss {
                         render: function (data) { return formatAmount(data); }
                     },
                     {
+                        data: 'WIN_LOSS',
+                        className: 'text-center col-winloss',
+                        render: function (data) {
+                            const amount = Number(data || 0);
+                            return formatAmount(amount);
+                        }
+                    },
+                    {
                         data: 'ROLLING',
                         className: 'text-center',
                         render: function (data) { return formatAmount(data); }
@@ -322,19 +332,14 @@ th.col-winloss {
                         render: function (data) { return formatAmount(data); }
                     },
                     {
-                        data: 'WIN_LOSS',
-                        className: 'text-center col-winloss',
-                        render: function (data) {
-                            const amount = Number(data || 0);
-                            return formatAmount(amount);
-                        }
+                        data: 'ADD_CHG',
+                        className: 'text-center',
+                        render: function (data) { return formatAmount(data); }
                     },
                     {
-                        data: 'INITIAL_MOP',
+                        data: 'TOTAL_SETTLE',
                         className: 'text-center',
-                        render: function (data) {
-                            return translateGameSource(data);
-                        }
+                        render: function (data) { return formatAmount(data); }
                     },
                     {
                         data: null,
@@ -353,6 +358,11 @@ th.col-winloss {
                             }
                             return '-';
                         }
+                    },
+                    {
+                        data: 'ROLLER_CHIPS',
+                        className: 'text-center',
+                        render: function (data) { return formatAmount(data); }
                     }
                 ]
             });

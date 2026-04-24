@@ -76,89 +76,81 @@
         color: white !important;
     }
 
-    @media print {
-    @page {
-        size: A4;
+    #modal-settlement .receipt-print-only { display: none; }
+
+    #modal-settlement .receipt-print-content {
+        width: 100%;
+        max-width: 200mm;
+        margin: 0 auto;
+        color: #000;
+        font-family: Arial, sans-serif;
+        font-size: 6mm;
+        line-height: 1.3;
+    }
+
+    #modal-settlement .receipt-brand {
+        text-align: center;
+        font-weight: 700;
+        font-size: 7.5mm;
         margin: 0;
+        letter-spacing: 0.3px;
     }
 
-    /* Limit document to one page only - prevents blank 2nd page */
-    html, body {
-        height: 297mm !important;
-        max-height: 297mm !important;
-        min-height: 0 !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    #modal-settlement .receipt-subtitle {
+        text-align: center;
+        font-weight: 700;
+        font-size: 6.4mm;
+        margin: 4mm 0 0;
     }
 
-    /* General print settings for the modal */
-    body * {
-        visibility: hidden;
+    #modal-settlement .receipt-datetime {
+        text-align: center;
+        font-weight: 700;
+        font-size: 5.6mm;
+        margin: 2mm 0 4mm;
     }
 
-    #modal-settlement, #modal-settlement * {
-        visibility: visible;
+    #modal-settlement .receipt-line {
+        border-top: 1px solid #000;
+        width: 90%;
+        margin: 4mm auto;
     }
 
-    #modal-settlement {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 210mm !important;
-        max-width: 210mm !important;
-        height: 277mm !important;
-        max-height: 277mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        page-break-after: avoid !important;
-        page-break-inside: avoid !important;
+    #modal-settlement .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 3mm;
+        width: 72%;
+        min-width: 120mm;
+        margin: 2mm auto;
     }
 
-    #modal-settlement .modal-dialog {
-        width: 100% !important;
-        max-width: none !important;
-        margin: 0 !important;
-        height: 100% !important;
+    #modal-settlement .receipt-row span:first-child {
+        width: 35%;
+        text-align: right;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    #modal-settlement .modal-content {
-        width: 100% !important;
-        height: 100% !important;
-        max-height: 277mm !important;
-        padding: 1rem 2rem !important;
-        page-break-inside: avoid !important;
-        box-shadow: none !important;
-        border: none !important;
-        overflow: hidden !important;
+    #modal-settlement .receipt-row span:last-child {
+        width: 35%;
+        text-align: left;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    /* Print-specific settings for the settled image */
-    #modal-settlement .settled-image {
-        display: block;
-        width: 280px;
-        position: absolute;
-        left: 7%;
-        top: 40%;
-        opacity: 0.9;
-        transform: translateY(-50%);
-    }
+    #modal-settlement .receipt-total span { font-size: 7mm; }
 
-    #modal-settlement .btn, #modal-settlement .block-options, #modal-settlement .modal-header, #modal-settlement .modal-footer, #modal-settlement .text-end {
-        display: none !important;
+    @media print {
+        #modal-settlement #add_settlement,
+        #modal-settlement .modal-header,
+        #modal-settlement .header-with-logo,
+        #modal-settlement .settled-image,
+        #modal-settlement .modal-footer {
+            display: none !important;
+        }
     }
-
-    #modal-settlement .block-content {
-        padding: 1rem !important;
-    }
-
-    /* Push Deposit/Cash Out down in print so they don't overlap SETTLED stamp */
-    #modal-settlement .deposit-cashout-row {
-        margin-top: 6rem !important;
-    }
-
-}
 
 
 
@@ -276,8 +268,15 @@
             </div>
             <div class="col-sm-12">
                 <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="fb"><%= __('modal_settlement.services') %></label>
-                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="fb" name="txtFNB" readonly>
+                    <label class="form-label" for="fbDisplay">F&amp;B</label>
+                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="fbDisplay" readonly>
+                    <input type="hidden" id="fb" name="txtFNB" value="0">
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="hotelDisplay">Hotel</label>
+                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="hotelDisplay" readonly>
                 </div>
             </div>
             <div class="col-sm-12 mb-4">
@@ -313,13 +312,42 @@
         </div>
     </div>
     <div class="modal-footer">
-        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary"><%= __('modal_settlement.save') %></button>
+        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
+        <button type="button" id="edit-settlement-btn" class="btn btn-sm btn-alt-secondary">Edit</button>
         <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
-        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+        <button type="button" id="close-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
             <%= __('modal_settlement.close') %>
         </button>
     </div>
 </form>
+
+<div class="receipt-print-only">
+    <div class="receipt-print-content">
+        <p class="receipt-brand">GOLDEN DRAGON</p>
+        <p class="receipt-subtitle">Finished Game</p>
+        <div class="receipt-line"></div>
+        <p class="receipt-datetime" id="printReceiptDateTime"></p>
+
+        <div class="receipt-row"><span>Account :</span><span id="printReceiptAccount">0</span></div>
+        <div class="receipt-row"><span>Name :</span><span id="printReceiptName">0</span></div>
+        <div class="receipt-row"><span>Buy In :</span><span id="printReceiptBuyIn">0</span></div>
+        <div class="receipt-row"><span>Cash Out :</span><span id="printReceiptCashOut">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row"><span>W/L :</span><span id="printReceiptWinLoss">0</span></div>
+        <div class="receipt-row"><span>Rolling :</span><span id="printReceiptRolling">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
+        <div class="receipt-row"><span>F&amp;B :</span><span id="printReceiptFnb">0</span></div>
+        <div class="receipt-row"><span>Hotel :</span><span id="printReceiptHotel">0</span></div>
+        <div class="receipt-row"><span>Incidential :</span><span id="printReceiptIncidential">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row receipt-total"><span>Total :</span><span id="printReceiptTotal">0</span></div>
+        <div class="receipt-line"></div>
+    </div>
+</div>
 
 
             </div>
@@ -330,13 +358,244 @@
 
     <script>
         $(document).ready(function() {
-    // Handle print button click - hide browser header/footer (date, title, URL, page number)
+    function cleanValue(value) {
+        if (value === undefined || value === null) {
+            return '0';
+        }
+
+        var text = String(value).trim();
+        return text.length ? text : '0';
+    }
+
+    function parseAmount(value) {
+        var num = parseFloat(String(value || '').replace(/,/g, '').trim());
+        return isNaN(num) ? 0 : num;
+    }
+
+    function formatAmount(value) {
+        return Number(value || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatInputWithCommas($input) {
+        var raw = String($input.val() || '').replace(/,/g, '').trim();
+        if (!raw) {
+            $input.val('');
+            return;
+        }
+
+        var allowNegative = $input.attr('id') === 'winLoss';
+        var isNegative = allowNegative && raw.startsWith('-');
+        var normalized = raw.replace(/[^\d.]/g, '');
+        var firstDot = normalized.indexOf('.');
+        if (firstDot !== -1) {
+            normalized = normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '');
+        }
+
+        if (isNegative && normalized) {
+            normalized = '-' + normalized;
+        }
+
+        var num = parseFloat(normalized);
+        if (isNaN(num)) {
+            return;
+        }
+
+        $input.val(num.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }));
+    }
+
+    function readFieldText(selector) {
+        return cleanValue($(selector).val() || $(selector).text());
+    }
+
+    function formatReceiptDateTime(dateText, timeText) {
+        var dateValue = String(dateText || '').trim();
+        var timeValue = String(timeText || '').trim();
+        var formattedDate = dateValue;
+        var formattedTime = timeValue;
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            var dateParts = dateValue.split('-');
+            formattedDate = dateParts[1] + '/' + dateParts[2] + '/' + dateParts[0];
+        }
+
+        if (/^\d{2}:\d{2}:\d{2}$/.test(timeValue)) {
+            formattedTime = timeValue.slice(0, 5);
+        }
+
+        return cleanValue(formattedDate + ' ' + formattedTime);
+    }
+
+    function updateReceiptPrintData($modal) {
+        var dateText = cleanValue($modal.find('#date').text());
+        var timeText = cleanValue($modal.find('#time').text());
+        var accountRaw = cleanValue($modal.find('#accNo').text());
+        var accountParts = accountRaw.split('-');
+        var accountCode = cleanValue(accountParts[0]);
+        var accountNameFromAccount = cleanValue(accountParts.slice(1).join('-'));
+        var accountName = cleanValue($modal.find('input[name="txtAccountIDSettle"]').attr('data-name') || accountNameFromAccount);
+
+        $modal.find('#printReceiptDateTime').text(formatReceiptDateTime(dateText, timeText));
+        $modal.find('#printReceiptAccount').text(accountCode);
+        $modal.find('#printReceiptName').text(accountName);
+        $modal.find('#printReceiptBuyIn').text(cleanValue($modal.find('#buyIn').val() || $modal.find('#buyIn').text()));
+        $modal.find('#printReceiptCashOut').text(cleanValue($modal.find('#chipsReturn').val() || $modal.find('#chipsReturn').text()));
+        $modal.find('#printReceiptWinLoss').text(cleanValue($modal.find('#winLoss').val() || $modal.find('#winLoss').text()));
+        $modal.find('#printReceiptRolling').text(cleanValue($modal.find('#rolling').val() || $modal.find('#rolling').text()));
+        $modal.find('#printReceiptSettlement').text(cleanValue($modal.find('#rollingSettlement').val() || $modal.find('#rollingSettlement').text()));
+        $modal.find('#printReceiptFnb').text(cleanValue($modal.find('#fbDisplay').val() || $modal.find('#fbDisplay').text()));
+        $modal.find('#printReceiptHotel').text(cleanValue($modal.find('#hotelDisplay').val() || $modal.find('#hotelDisplay').text()));
+        $modal.find('#printReceiptIncidential').text('0');
+        $modal.find('#printReceiptTotal').text(cleanValue($modal.find('#payment').val() || $modal.find('#payment').text()));
+    }
+
+    function getReceiptPrintStyles() {
+        return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:90%;margin:4mm auto;} .receipt-row{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;width:72%;min-width:120mm;margin:2mm auto;} .receipt-row span:first-child{width:35%;text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{width:35%;text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
+    }
+
+    function openReceiptPrintWindow($modal) {
+        var receiptHtml = $modal.find('.receipt-print-only').html();
+        var iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(iframe);
+
+        var iframeDoc = iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write('<!doctype html><html><head><title>Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
+        iframeDoc.close();
+
+        setTimeout(function() {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(function() {
+                if (iframe && iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            }, 500);
+        }, 100);
+    }
+
+    function syncServiceTotalAndPayment($modal) {
+        var fnb = parseAmount($modal.find('#fbDisplay').val());
+        var hotel = parseAmount($modal.find('#hotelDisplay').val());
+        var servicesTotal = fnb + hotel;
+        var settlement = parseAmount($modal.find('#rollingSettlement').val());
+        var payment = settlement - servicesTotal;
+
+        $modal.find('#fb').val(formatAmount(servicesTotal));
+        $modal.find('#payment').val(formatAmount(payment));
+    }
+
+    function captureSettlementSnapshot($modal) {
+        var snapshot = {
+            buyIn: $modal.find('#buyIn').val(),
+            chipsReturn: $modal.find('#chipsReturn').val(),
+            winLoss: $modal.find('#winLoss').val(),
+            rolling: $modal.find('#rolling').val(),
+            rollingRate: $modal.find('#rollingRate').val(),
+            rollingSettlement: $modal.find('#rollingSettlement').val(),
+            fbDisplay: $modal.find('#fbDisplay').val(),
+            hotelDisplay: $modal.find('#hotelDisplay').val(),
+            payment: $modal.find('#payment').val(),
+            fbHidden: $modal.find('#fb').val(),
+            transType: $modal.find('input[name="txtTransType"]:checked').val() || ''
+        };
+        $modal.data('settlement-snapshot', snapshot);
+    }
+
+    function restoreSettlementSnapshot($modal) {
+        var snapshot = $modal.data('settlement-snapshot');
+        if (!snapshot) {
+            return;
+        }
+
+        $modal.find('#buyIn').val(snapshot.buyIn);
+        $modal.find('#chipsReturn').val(snapshot.chipsReturn);
+        $modal.find('#winLoss').val(snapshot.winLoss);
+        $modal.find('#rolling').val(snapshot.rolling);
+        $modal.find('#rollingRate').val(snapshot.rollingRate);
+        $modal.find('#rollingSettlement').val(snapshot.rollingSettlement);
+        $modal.find('#fbDisplay').val(snapshot.fbDisplay);
+        $modal.find('#hotelDisplay').val(snapshot.hotelDisplay);
+        $modal.find('#payment').val(snapshot.payment);
+        $modal.find('#fb').val(snapshot.fbHidden);
+        $modal.find('input[name="txtTransType"]').prop('checked', false);
+        if (snapshot.transType) {
+            $modal.find('input[name="txtTransType"][value="' + snapshot.transType + '"]').prop('checked', true);
+        }
+    }
+
+    function setSettlementEditMode($modal, enabled) {
+        $modal.data('edit-mode', enabled ? 1 : 0);
+        $modal.find('#submit-settlement-btn').toggle(!enabled);
+        $modal.find('.deposit-cashout-row').toggle(!enabled);
+        $modal.find('#close-settlement-btn').toggle(!enabled);
+        $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
+
+        $modal.find('#buyIn, #chipsReturn, #winLoss, #rolling, #rollingRate, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment')
+            .prop('readonly', !enabled);
+    }
+
+    $('#modal-settlement').on('shown.bs.modal', function() {
+        $(this).removeData('settlement-snapshot');
+        setSettlementEditMode($(this), false);
+    });
+
+    $('#modal-settlement').on('hidden.bs.modal', function() {
+        $(this).removeData('settlement-snapshot');
+        setSettlementEditMode($(this), false);
+    });
+
+    $('#edit-settlement-btn').on('click', function() {
+        var $modal = $(this).closest('.modal');
+        var isEditMode = !!$modal.data('edit-mode');
+        if (!isEditMode) {
+            captureSettlementSnapshot($modal);
+            setSettlementEditMode($modal, true);
+            return;
+        }
+
+        restoreSettlementSnapshot($modal);
+        setSettlementEditMode($modal, false);
+        $modal.removeData('settlement-snapshot');
+    });
+
+    $('#fbDisplay, #hotelDisplay, #rollingSettlement').on('input', function() {
+        var $modal = $(this).closest('.modal');
+        if ($modal.data('edit-mode')) {
+            syncServiceTotalAndPayment($modal);
+        }
+    });
+
+    $('#buyIn, #chipsReturn, #winLoss, #rolling, #rollingRate, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment').on('input', function() {
+        var $modal = $(this).closest('.modal');
+        if (!$modal.data('edit-mode')) {
+            return;
+        }
+
+        formatInputWithCommas($(this));
+
+        if (this.id === 'fbDisplay' || this.id === 'hotelDisplay' || this.id === 'rollingSettlement') {
+            syncServiceTotalAndPayment($modal);
+        }
+    });
+
     $('#print-settlement-btn').on('click', function() {
-        var originalTitle = document.title;
-        document.title = '';
-        window.print();
-        document.title = originalTitle;
+        var $modal = $(this).closest('.modal');
+        syncServiceTotalAndPayment($modal);
+        updateReceiptPrintData($modal);
+        openReceiptPrintWindow($modal);
     });
 });
-
-    </script>
+</script>

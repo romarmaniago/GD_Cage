@@ -1436,7 +1436,14 @@ router.get('/account_game_history/:id', async (req, res) => {
 				agent.AGENT_CODE AS agent_code,
 				agent.NAME AS agent_name,
 				game_list.ENCODED_DT AS game_date_start,
-				game_list.GAME_ENDED AS game_date_end
+				game_list.GAME_ENDED AS game_date_end,
+				COALESCE((
+					SELECT SUM(gs.AMOUNT)
+					FROM game_services gs
+					WHERE gs.GAME_ID = game_list.IDNo
+					  AND gs.ACTIVE = 1
+					  AND gs.TRANSACTION_ID = 3
+				), 0) AS ADD_CHG
 			FROM game_list
 			JOIN account ON game_list.ACCOUNT_ID = account.IDNo
 			JOIN agent ON agent.IDNo = account.AGENT_ID
@@ -1523,6 +1530,7 @@ router.get('/account_game_history/:id', async (req, res) => {
 			const totalRollingCCWithReturns = total_roller_return_cc;
 			const total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 			const total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
+			const total_roller_chips = total_roller_nn + total_roller_cc;
 			const total_amount = total_buy_in_chips + total_initial;
 			const winloss = total_amount - total_cash_out_chips;
 			
@@ -1542,6 +1550,9 @@ router.get('/account_game_history/:id', async (req, res) => {
 				ROLLING: total_rolling_real_chips,
 				TOTAL_ROLLING: total_rolling_chips,
 				COMMISSION: net,
+				ADD_CHG: Number(game.ADD_CHG) || 0,
+				TOTAL_SETTLE: net - (Number(game.ADD_CHG) || 0),
+				ROLLER_CHIPS: total_roller_chips,
 				WIN_LOSS: winloss
 			};
 		}));
