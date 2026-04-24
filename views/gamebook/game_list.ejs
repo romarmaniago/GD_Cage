@@ -99,14 +99,14 @@
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.cash_out') %>
 											</th>
+											<th class="d-none d-sm-table-cell text-center col-winloss" >
+												<%= __('gamelist.win_loss') %>
+											</th>
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.real_rolling') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
 												<%= __('gamelist.total_rolling') %>
-											</th>
-											<th class="d-none d-sm-table-cell text-center">
-												<%= __('gamelist.roller_chips') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_rate') %>
@@ -114,14 +114,17 @@
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.commission') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center col-winloss" >
-													<%= __('gamelist.win_loss') %>
+												<th class="d-none d-sm-table-cell text-center">
+													ADD CHG
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
-													<%= __('gamelist.game_source') %>
+													TOTAL SETTLE
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_end') %>
+												</th>
+												<th class="d-none d-sm-table-cell text-center">
+													<%= __('gamelist.roller_chips') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.action') %>
@@ -139,16 +142,17 @@
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_CHIPS_RETURN">
 												0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00
+											</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_REAL_ROLLING">0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
 												0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_ROLLER_CHIPS">0.00</th>
 											<th></th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_COMMISSION">0.00</th>
-											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00
-											</th>
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_ADD_CHG">0.00</th>
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_TOTAL_SETTLE">0.00</th>
 											<th></th>
-											<th></th>
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_ROLLER_CHIPS">0.00</th>
 											<th></th>
 											</tr>
 										</tfoot>
@@ -888,28 +892,15 @@ table.dataTable tbody tr.highlight-row {
 										{ "data": "acct_no" },
 										{ "data": "buy_in" },
 										{ "data": "chips_return" },
+										{ "data": "win_loss" },
 										{ "data": "real_rolling" },
 										{ "data": "total_rolling" },
-										{ "data": "roller_chips" },
 										{ "data": "game_rate" },
 										{ "data": "commission" },
-										{ "data": "win_loss" },
-										{ 
-											"data": "game_type1",
-											"render": function(data, type, row) {
-												if (type === 'display' || type === 'type') {
-													const translations = window.gamelistTranslations || {};
-													if (!data) return '';
-													const sourceUpper = data.toUpperCase();
-													if (sourceUpper === 'CASH') return translations.cash || 'CASH';
-													if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
-													if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
-													return data;
-												}
-												return data;
-											}
-										},
+										{ "data": "add_chg", "defaultContent": "-" },
+										{ "data": "total_settle", "defaultContent": "-" },
 										{ "data": "game_end_date_time" },
+										{ "data": "roller_chips" },
 										{ "data": "history" }
 									],
 									"language": {
@@ -1008,6 +999,8 @@ table.dataTable tbody tr.highlight-row {
 								var totalRollerChips = 0;
 								var totalRealRolling = 0;
 								var totalCommission = 0;
+								var totalAddChg = 0;
+								var totalSettle = 0;
 
 								var table = $('#game_list-tbl').DataTable();
 
@@ -1018,12 +1011,14 @@ table.dataTable tbody tr.highlight-row {
 
 									// Adjust these indices based on your columns configuration
 									var amountIndex = 4; // "BUY-IN" is at index 4
-									var rollingIndex = 7; // "TOTAL ROLLING" is at index 7
-									var rollerChipsIndex = 8; // "ROLLER CHIPS" is at index 8
+									var rollingIndex = 8; // "TOTAL ROLLING" is at index 8
+									var rollerChipsIndex = 14; // "ROLLER CHIPS" is at index 14
 									var chipsReturnIndex = 5; // "CASH-OUT" is at index 5
-									var realRollingIndex = 6; // "REAL ROLLING" is at index 6
+									var winLossIndex = 6; // "WIN/LOSS" is at index 6
+									var realRollingIndex = 7; // "REAL ROLLING" is at index 7
 									var commissionIndex = 10; // "COMMISSION" is at index 10
-									var winLossIndex = 11; // "WIN/LOSS" is at index 11
+									var addChgIndex = 11; // "ADD CHG" is at index 11
+									var totalSettleIndex = 12; // "TOTAL SETTLE" is at index 12
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';
@@ -1031,6 +1026,8 @@ table.dataTable tbody tr.highlight-row {
 									var chipsReturnValue = data[chipsReturnIndex] || '0';
 									var realRollingValue = data[realRollingIndex] || '0';
 									var commissionValue = data[commissionIndex] || '0';
+									var addChgValue = data[addChgIndex] || '0';
+									var totalSettleValue = data[totalSettleIndex] || '0';
 									var winLossValue = data[winLossIndex] || '0';
 
 									// Extract text content from HTML (handles buttons and plain text)
@@ -1054,6 +1051,8 @@ table.dataTable tbody tr.highlight-row {
 									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedRealRollingValue = parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedAddChgValue = parseFloat(addChgValue.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedTotalSettleValue = parseFloat(totalSettleValue.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
 
 									totalAmount += cleanedAmountValue;
@@ -1062,6 +1061,8 @@ table.dataTable tbody tr.highlight-row {
 									totalChipsReturn += cleanedChipsReturnValue;
 									totalRealRolling += cleanedRealRollingValue;
 									totalCommission += cleanedCommissionValue;
+									totalAddChg += cleanedAddChgValue;
+									totalSettle += cleanedTotalSettleValue;
 									totalWinLoss += cleanedWinLossValue;
 								});
 
@@ -1072,6 +1073,8 @@ table.dataTable tbody tr.highlight-row {
 								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 								var formattedRealRolling = totalRealRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedAddChg = totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedTotalSettle = totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 								// Update the footer content for the current page's totals (removed peso sign)
@@ -1081,6 +1084,8 @@ table.dataTable tbody tr.highlight-row {
 								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
 								$('#game_list-tbl tfoot #GRAND_REAL_ROLLING').text(formattedRealRolling);
 								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
+								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(formattedAddChg);
+								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(formattedTotalSettle);
 								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
 
 								// Apply red font color if the total is negative
@@ -1090,6 +1095,8 @@ table.dataTable tbody tr.highlight-row {
 								applyNegativeStyle('#GRAND_CHIPS_RETURN', totalChipsReturn);
 								applyNegativeStyle('#GRAND_REAL_ROLLING', totalRealRolling);
 								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
+								applyNegativeStyle('#GRAND_ADD_CHG', totalAddChg);
+								applyNegativeStyle('#GRAND_TOTAL_SETTLE', totalSettle);
 								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
 

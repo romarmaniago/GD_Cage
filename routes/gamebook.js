@@ -1029,7 +1029,14 @@ router.get('/game_list_data', async (req, res) => {
             agent.IDNo AS AGENT_ID,
             agent.AGENT_CODE AS agent_code, 
             agent.NAME AS agent_name,  
-            game_list.ENCODED_DT AS GAME_DATE_START 
+            game_list.ENCODED_DT AS GAME_DATE_START,
+            COALESCE((
+                SELECT SUM(gs.AMOUNT)
+                FROM game_services gs
+                WHERE gs.GAME_ID = game_list.IDNo
+                  AND gs.ACTIVE = 1
+                  AND gs.TRANSACTION_ID = 3
+            ), 0) AS ADD_CHG
         FROM game_list
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
@@ -1047,7 +1054,14 @@ router.get('/game_list_data', async (req, res) => {
                 agent.IDNo AS AGENT_ID,
                 agent.AGENT_CODE AS agent_code, 
                 agent.NAME AS agent_name,  
-                game_list.ENCODED_DT AS GAME_DATE_START 
+                game_list.ENCODED_DT AS GAME_DATE_START,
+                COALESCE((
+                    SELECT SUM(gs.AMOUNT)
+                    FROM game_services gs
+                    WHERE gs.GAME_ID = game_list.IDNo
+                      AND gs.ACTIVE = 1
+                      AND gs.TRANSACTION_ID = 3
+                ), 0) AS ADD_CHG
             FROM game_list
             JOIN account ON game_list.ACCOUNT_ID = account.IDNo
             JOIN agent ON agent.IDNo = account.AGENT_ID
