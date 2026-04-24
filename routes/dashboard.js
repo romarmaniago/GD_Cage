@@ -23,7 +23,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlJunketExpenseReset = 'SELECT SUM(AMOUNT) AS RESET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1 AND RESET=1';
 	let sqlHouseRollingReset = `SELECT 
 		(SUM(CASE WHEN TRANSACTION_ID = 1 AND RESET = 1 THEN NN_CHIPS ELSE 0 END) + 
-		 SUM(CASE WHEN TRANSACTION_ID = 3 AND RESET = 1 THEN NN_CHIPS ELSE 0 END) - 
+		 SUM(CASE WHEN TRANSACTION_ID = 3 AND RESET = 1 THEN CC_CHIPS ELSE 0 END) - 
 		 SUM(CASE WHEN TRANSACTION_ID = 2 AND RESET = 1 THEN NN_CHIPS ELSE 0 END)) 
 		 AS HouseRollingChips 
 		FROM junket_total_chips 

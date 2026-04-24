@@ -60,7 +60,7 @@
           <!-- Hidden fields for balances -->
            <input type="hidden" value="<%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
            (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
-            (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+            (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
             (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
             (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
             (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
@@ -394,12 +394,22 @@ $(document).ready(function() {
         return false;
       }
 
-      // CC Return cannot exceed CC balance
+      // CC rolling cannot exceed NN balance
       if (ccChips > nnbalance) {
         Swal.fire({
           icon: 'warning',
           title: 'Exceeds NN Balance',
           text: 'NN Chips Rolling cannot exceed ' + formatNumberWithCommas(nnbalance) + '.'
+        });
+        return false;
+      }
+
+      // CC rolling cannot exceed current CC balance
+      if (ccChips > ccbalance) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Exceeds CC Balance',
+          text: 'CC Chips Rolling cannot exceed ' + formatNumberWithCommas(ccbalance) + '.'
         });
         return false;
       }
@@ -414,6 +424,36 @@ $(document).ready(function() {
     const ccChips = parseFloat($('#ccChips').val().replace(/,/g, '')) || 0;
     const totalChips = nnChips + ccChips;
     $('#totalChips').val(totalChips.toLocaleString());
+  }
+
+  // Disable Chips Buy-in when CC Chips has value
+  function toggleBuyInRadioByCcChips() {
+    const ccRawValue = ($('#ccChips').val() || '').toString().replace(/,/g, '').trim();
+    const hasCcValue = ccRawValue !== '' && parseFloat(ccRawValue) > 0;
+    const $buyInRadio = $('#add');
+
+    $buyInRadio.prop('disabled', hasCcValue);
+
+    // If currently selected and becomes disabled, move selection to Cashout
+    if (hasCcValue && $buyInRadio.is(':checked')) {
+      $('#deduct').prop('checked', true);
+      updatetypeDescription();
+    }
+  }
+
+  // Disable Rolling when NN Chips has value
+  function toggleRollingRadioByNnChips() {
+    const nnRawValue = ($('#nnChips').val() || '').toString().replace(/,/g, '').trim();
+    const hasNnValue = nnRawValue !== '' && parseFloat(nnRawValue) > 0;
+    const $rollingRadio = $('#rolling');
+
+    $rollingRadio.prop('disabled', hasNnValue);
+
+    // If currently selected and becomes disabled, move selection to Cashout
+    if (hasNnValue && $rollingRadio.is(':checked')) {
+      $('#deduct').prop('checked', true);
+      updatetypeDescription();
+    }
   }
 
   // Live validation for NN Chips (thousands only)
@@ -439,8 +479,12 @@ $(document).ready(function() {
   $('#nnChips').on('input', function() {
     calculateTotalChips();
     validateNnChipsThousandsInline();
+    toggleRollingRadioByNnChips();
   });
-  $('#ccChips').on('input', calculateTotalChips);
+  $('#ccChips').on('input', function() {
+    calculateTotalChips();
+    toggleBuyInRadioByCcChips();
+  });
 
   // 7) Spinner logic on form submit
   $('#add_junket_total_chips').on('submit', function(e) {
@@ -538,7 +582,7 @@ $(document).ready(function() {
                 ? '<span class="badge-cashout">NN Chips Cashout</span>'
                 : (isChipsMonthlySettle
                     ? '<span class="badge-cashout">NN Chips Monthly Settle</span>'
-                    : '<span class="badge-rolling">NN Chips Rolling</span>'));
+                    : '<span class="badge-rolling">Chips Rolling</span>'));
         // NN Cashout and Monthly Settle displayed but excluded from total (amountRaw = 0)
         const amountRaw = (isChipsCashout || isChipsMonthlySettle) ? 0 : nnChips;
 
@@ -567,7 +611,7 @@ $(document).ready(function() {
                 ? '<span class="badge-cashout">CC Chips Cashout</span>'
                 : (isChipsMonthlySettle
                     ? '<span class="badge-cashout">CC Chips Monthly Settle</span>'
-                    : '<span class="badge-rolling">CC Chips Rolling</span>'));
+                    : '<span class="badge-rolling">Chips Rolling</span>'));
         // CC Cashout and Monthly Settle displayed but not included in total (amountRaw = 0)
         const amountRaw = (isChipsCashout || isChipsMonthlySettle) ? 0 : ccChips;
 
@@ -676,6 +720,8 @@ $(document).ready(function() {
       
       // Initial load of combined chips history data
       loadTotalChipsHistory();
+      toggleBuyInRadioByCcChips();
+      toggleRollingRadioByNnChips();
     } else {
       console.error('total-chips-daterange element not found');
     }
