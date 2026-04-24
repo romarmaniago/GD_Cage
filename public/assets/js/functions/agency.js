@@ -279,64 +279,7 @@ $('#bulkEditBtn').on('click', function () {
 $('#bulkDeleteBtn').on('click', function () {
   const ids = getSelectedAgentIds();
   if (ids.length === 0) return;
-
-  let deleted = [];
-
-  // Hide selected cards temporarily
-  ids.forEach((id) => {
-    deleted.push(id);
-    $(`#agent-${id}`).closest('.agency-card').fadeOut();
-  });
-
-  // SweetAlert2 Toast at upper right
-  const Toast = Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    showCancelButton: true,
-    cancelButtonText: 'Undo',
-    timer: 5000,
-    timerProgressBar: true,
-    background: 'rgba(222, 226, 230, 0.2)', // Bootstrap-like background
-    color: '#595a5c', // Matching bs-btn-color
-    customClass: {
-      popup: 'swal2-rounded'
-    },
-    didOpen: (toast) => {
-      toast.addEventListener('mouseenter', Swal.stopTimer);
-      toast.addEventListener('mouseleave', Swal.resumeTimer);
-    }
-  });
-  
-
-  Toast.fire({
-    icon: 'success',
-    title: `${deleted.length} agent(s) archived`,
-    background: '#2f3542',
-    color: '#ffffff'
-  }).then((result) => {
-    if (result.dismiss !== Swal.DismissReason.cancel) {
-      // Proceed to archive for real
-      deleted.forEach((id) => {
-        $.ajax({
-          url: '/agency/remove/' + id,
-          type: 'PUT',
-          success: function () {
-            // Optional: reload once all done
-            window.location.reload();
-          },
-          error: function (err) {
-            console.error('Error archiving:', err);
-          }
-        });
-      });
-    } else {
-      // Undo: Show back the hidden cards
-      deleted.forEach((id) => {
-        $(`#agent-${id}`).closest('.agency-card').fadeIn();
-      });
-    }
-  });
+  promptDeleteAgentsWithTransferOption(ids);
 });
 
 
@@ -404,27 +347,76 @@ function checkPermissionToDeleteAgency(id) {
   });
 }
 
-// I-archive (delete) ang agency
-function archive_agency(id) {
+function performAgencyArchiveRemove(ids) {
+  const numericIds = ids.map(function (id) { return parseInt(id, 10); }).filter(function (n) { return n > 0; });
+  if (numericIds.length === 0) return;
+
+  const requests = numericIds.map(function (id) {
+    return $.ajax({
+      url: '/agency/remove/' + id,
+      type: 'PUT'
+    });
+  });
+
+  Promise.all(requests)
+    .then(function () {
+      window.location.reload();
+    })
+    .catch(function (err) {
+      console.error('Error archiving:', err);
+      Swal.fire({
+        title: 'Error',
+        text: 'One or more agents could not be archived. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    });
+}
+
+/**
+ * Delete/archive flow: optional "Transfer accounts…" opens the same Change Agent modal (when one agent).
+ */
+function promptDeleteAgentsWithTransferOption(ids) {
+  const count = ids.length;
+  if (count === 0) return;
+
+  const onlyOne = count === 1;
+  const singleId = onlyOne ? parseInt(ids[0], 10) : null;
+  const card = onlyOne ? $(`.agency-card[data-id="${singleId}"]`) : null;
+  const agencyName = card && card.length ? card.find('.agency-name').text().trim() : '';
+
   Swal.fire({
-    title: 'Are you sure you want to delete this?',
+    title: 'Are you sure you want to delete this agent?',
+    html: onlyOne
+      ? 'You can <strong>transfer guest accounts</strong> to another agent first, or delete this agent now.'
+      : 'You are about to delete <strong>' + count + ' agents</strong>. To move accounts first, select <strong>one</strong> agent and use <strong>Transfer accounts…</strong>.',
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes'
-  }).then((result) => {
+    showDenyButton: onlyOne,
+    confirmButtonText: onlyOne ? 'Delete now' : 'Yes, delete all',
+    denyButtonText: 'Transfer accounts…',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#d33',
+    denyButtonColor: '#3085d6'
+  }).then(function (result) {
     if (result.isConfirmed) {
-      $.ajax({
-        url: '/agency/remove/' + id,
-        type: 'PUT',
-        success: function(response) {
-          window.location.reload();
-        },
-        error: function(error) {
-          console.error('Error deleting agency:', error);
-        }
-      });
+      performAgencyArchiveRemove(ids);
+    } else if (result.isDenied && onlyOne) {
+      if (typeof window.openTransferAgencyModalForAgency === 'function') {
+        window.openTransferAgencyModalForAgency(String(singleId), agencyName || 'Agent', [singleId]);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Unavailable',
+          text: 'Transfer could not be opened. Reload the page and try again.',
+          confirmButtonText: 'OK'
+        });
+      }
     }
   });
+}
+
+// I-archive (delete) ang agency
+function archive_agency(id) {
+  promptDeleteAgentsWithTransferOption([id]);
 }

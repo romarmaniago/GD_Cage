@@ -5612,15 +5612,53 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 	time_now.setHours(time_now.getHours());
 	let updated_time = time_now.toLocaleTimeString();
 	let date_nowTG = date_now.toLocaleDateString();
-	let markerReturn = parseFloat(txtMarkerReturn.replace(/,/g, '')) || 0;
+	const accountId = parseInt(txtAccountMarker, 10);
+	const markerReturnRaw = String(txtMarkerReturn || '').replace(/,/g, '').trim();
+	const markerReturn = parseFloat(markerReturnRaw);
+	const transType = String(optTransType || '');
+	const returnSource = String(optReturnSource || '');
 
 	try {
-		if (!['credit', 'buyin'].includes(String(optReturnSource || ''))) {
+		if (!Number.isInteger(accountId) || accountId <= 0) {
+			return res.status(400).json({ error: 'Please select a valid account.' });
+		}
+		if (!['11', '12'].includes(transType)) {
+			return res.status(400).json({ error: 'Please select a valid transaction type (Cash or Deposit).' });
+		}
+		if (!['credit', 'buyin'].includes(returnSource)) {
 			return res.status(400).json({ error: 'Please select where to deduct the return.' });
 		}
-		if (optTransType === '12') {
+		if (!Number.isFinite(markerReturn) || markerReturn <= 0) {
+			return res.status(400).json({ error: 'Credit Return must be greater than zero.' });
+		}
+
+		const conn = await pool.getConnection();
+		try {
+			await conn.beginTransaction();
+
+			const [accountRows] = await conn.query(
+				'SELECT IDNo FROM account WHERE IDNo = ? AND ACTIVE = 1 FOR UPDATE',
+				[accountId]
+			);
+			if (!accountRows.length) {
+				await conn.rollback();
+				return res.status(400).json({ error: 'Selected account is not active.' });
+			}
+
+			const sourceBalances = await getSourceBalances(conn, accountId);
+			const selectedSourceBalance = returnSource === 'credit'
+				? sourceBalances.balanceCredit
+				: sourceBalances.balanceBuyin;
+
+			if (markerReturn > selectedSourceBalance) {
+				const sourceBalanceLabel = returnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
+				await conn.rollback();
+				return res.status(400).json({ error: `Return amount exceeded the ${sourceBalanceLabel}.` });
+			}
+
+			if (transType === '12') {
 			// Total balance excludes Credit/IOU (IOU CASH / CREDIT CASH)
-			const checkBalanceQuery = `
+				const checkBalanceQuery = `
                 SELECT 
                     SUM(CASE WHEN transaction_type.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN account_ledger.AMOUNT ELSE 0 END) -
                     SUM(CASE WHEN transaction_type.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN account_ledger.AMOUNT ELSE 0 END)
@@ -5632,19 +5670,23 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
                 AND account_ledger.ACTIVE = 1
             `;
 
-			const [balanceResults] = await pool.query(checkBalanceQuery, [txtAccountMarker]);
-			const balance = balanceResults[0]?.balance || 0;
+				const [balanceResults] = await conn.query(checkBalanceQuery, [accountId]);
+				const balance = balanceResults[0]?.balance || 0;
 
-			if (balance < markerReturn) {
-				return res.status(400).json({ error: 'Insufficient balance for this deposit transaction.' });
+				if (balance < markerReturn) {
+					await conn.rollback();
+					return res.status(400).json({ error: 'Insufficient balance for this deposit transaction.' });
+				}
 			}
-		} else {
-			if (markerReturn <= 0) {
-				return res.status(400).json({ error: 'Marker return must be greater than zero for non-deposit transactions.' });
-			}
+
+			await insertSettlementRecord(conn);
+			await conn.commit();
+		} catch (txnErr) {
+			try { await conn.rollback(); } catch (rollbackErr) { }
+			throw txnErr;
+		} finally {
+			conn.release();
 		}
-
-		await insertSettlementRecord();
 
 		const agentQuery = `
             SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
@@ -5653,16 +5695,16 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
             WHERE account.ACTIVE = 1 AND account.IDNo = ?
         `;
 
-		const [agentResults] = await pool.query(agentQuery, [txtAccountMarker]);
+		const [agentResults] = await pool.query(agentQuery, [accountId]);
 
 		if (agentResults.length > 0) {
 			const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
 			let text;
 
 			// Safely parse AgentBalance
-			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
+			const currentBalance = (parseFloat(String(AgentBalance || '0').replace(/,/g, '')) || 0) - markerReturn;
 
-			if (optTransType === '12') {
+			if (transType === '12') {
 				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}`;
 			} else {
 				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}`;
@@ -5684,14 +5726,50 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 		res.status(500).json({ success: false, message: 'Error processing the transaction' });
 	}
 
-	async function insertSettlementRecord() {
-		const returnSourceDesc = optReturnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
+	async function getSourceBalances(conn, selectedAccountId) {
+		const breakdownQuery = `
+			SELECT
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
+				SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
+				SUM(CASE
+					WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
+						AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
+						AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
+						AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
+					THEN account_ledger.AMOUNT
+					ELSE 0
+				END) AS RETURNS_UNTAGGED,
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
+			FROM account_ledger
+			WHERE account_ledger.ACCOUNT_ID = ?
+				AND account_ledger.TRANSACTION_TYPE IN (3, 4)
+				AND account_ledger.ACTIVE = 1
+		`;
+
+		const [rows] = await conn.query(breakdownQuery, [selectedAccountId]);
+		const data = rows[0] || {};
+		const creditIssued = Number(data.CREDIT_ISSUED) || 0;
+		const returnsTaggedCredit = Number(data.RETURNS_TAGGED_CREDIT) || 0;
+		const returnsTaggedBuyin = Number(data.RETURNS_TAGGED_BUYIN) || 0;
+		const returnsUntagged = Number(data.RETURNS_UNTAGGED) || 0;
+		const totalIssued = Number(data.TOTAL_ISSUED) || 0;
+		const proportionalUntaggedCredit = totalIssued > 0 ? (returnsUntagged * creditIssued / totalIssued) : 0;
+		const balanceCredit = Math.round(Math.max(0, creditIssued - returnsTaggedCredit - proportionalUntaggedCredit));
+		const totalAmount = Math.round(totalIssued - returnsTaggedCredit - returnsTaggedBuyin - returnsUntagged);
+		const balanceBuyin = Math.max(0, totalAmount - balanceCredit);
+
+		return { balanceCredit, balanceBuyin };
+	}
+
+	async function insertSettlementRecord(conn) {
+		const returnSourceDesc = returnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
 		const insertQuery = `
             INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-		await pool.query(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		await conn.query(insertQuery, [accountId, transType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
 	}
 });
 
@@ -5831,7 +5909,8 @@ pageRouter.get('/marker_history', async (req, res) => {
 		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
 		JOIN agent ON agent.IDNo = account.AGENT_ID 
 		WHERE account_ledger.ACTIVE = 1 
-		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)`;
+		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)
+		ORDER BY account_ledger.ENCODED_DT DESC, account_ledger.IDNo DESC`;
 	try {
 		const [results] = await pool.execute(query);
 		res.json(results);
@@ -6133,7 +6212,7 @@ pageRouter.post('/delete-test-data', async (req, res) => {
 	}
 });
 
-// Route para kunin ang transfer agent name
+// Route para kunin ang Change agent name
 pageRouter.get('/get-transfer-agent-name', (req, res) => {
 	const transferAgentId = req.query.transferAgentId;
 

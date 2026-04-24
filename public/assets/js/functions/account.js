@@ -18,6 +18,9 @@ var currentAccountBalance = 0;
 var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
 var lastSavedAgentRemarks = '';
+var currentLedgerAgencyId = null;
+var selectedTransferAccountIds = {};
+var transferAccountsCache = [];
 
 // Cache for Telegram usernames
 var telegramUsernameCache = {};
@@ -235,11 +238,136 @@ $(document).ready(function () {
 			}
 		});
 	}
+
+	function loadTransferAgencyOptions(fromAgencyId) {
+		$('#transfer_to_agency_id').html('<option value="">Loading...</option>');
+		$('#transfer_account_count').text('0');
+
+		$.ajax({
+			url: '/agency_transfer_options?excludeAgencyId=' + encodeURIComponent(fromAgencyId),
+			method: 'GET',
+			success: function (response) {
+				var options = Array.isArray(response && response.agencies) ? response.agencies : [];
+				var accountCount = Number(response && response.accountCount ? response.accountCount : 0);
+				$('#transfer_account_count').text(accountCount.toLocaleString('en-US'));
+
+				var html = '<option value="">Select target agent</option>';
+				options.forEach(function (agency) {
+					html += '<option value="' + agency.agency_id + '">' + agency.agency_name + '</option>';
+				});
+				$('#transfer_to_agency_id').html(html);
+			},
+			error: function () {
+				$('#transfer_to_agency_id').html('<option value="">Failed to load agencies</option>');
+			}
+		});
+	}
+
+	function renderTransferAccountList(accounts) {
+		var keyword = String($('#transfer_account_search').val() || '').trim();
+		function escapeHtml(value) {
+			return String(value == null ? '' : value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+		function escapeRegExp(text) {
+			return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		}
+		function highlightMatch(text) {
+			var safeText = escapeHtml(text);
+			if (!keyword) return safeText;
+			var pattern = new RegExp('(' + escapeRegExp(keyword) + ')', 'ig');
+			return safeText.replace(pattern, '<mark class="px-0 bg-warning-subtle">$1</mark>');
+		}
+
+		var html = '';
+		accounts.forEach(function (account) {
+			var accountId = String(account.account_id);
+			var checked = !!selectedTransferAccountIds[accountId];
+			var accountCode = account.agent_code || '';
+			var accountName = account.agent_name || '';
+			html += `
+				<div class="form-check mb-1 transfer-account-col">
+					<input class="form-check-input transfer-account-item" type="checkbox" id="transfer_account_${accountId}" value="${accountId}" ${checked ? 'checked' : ''}>
+					<label class="form-check-label" for="transfer_account_${accountId}">
+						${highlightMatch(accountCode)} - ${highlightMatch(accountName)}
+					</label>
+				</div>
+			`;
+		});
+		$('#transfer-account-list').html(html || '<div class="text-muted">No accounts found.</div>');
+	}
+
+	function applyTransferAccountSearch() {
+		var keyword = String($('#transfer_account_search').val() || '').trim().toLowerCase();
+		$('#transfer_account_search_clear').toggleClass('d-none', keyword === '');
+		var filtered = transferAccountsCache.filter(function (account) {
+			var label = ((account.agent_code || '') + ' ' + (account.agent_name || '')).toLowerCase();
+			return label.includes(keyword);
+		});
+		renderTransferAccountList(filtered);
+	}
+
+	function updateTransferSelectedCount() {
+		var count = Object.keys(selectedTransferAccountIds).filter(function (id) {
+			return !!selectedTransferAccountIds[id];
+		}).length;
+		$('#transfer_selected_count').text(count.toLocaleString('en-US'));
+		return count;
+	}
+
+	function loadTransferAccounts(fromAgencyId) {
+		$('#transfer-account-list').html('<div class="text-muted">Loading accounts...</div>');
+		$('#transfer_select_all_accounts').prop('checked', false);
+		$('#transfer_selected_count').text('0');
+
+		$.ajax({
+			url: '/account_data?agencyId=' + encodeURIComponent(fromAgencyId),
+			method: 'GET',
+			success: function (accounts) {
+				var list = Array.isArray(accounts) ? accounts : [];
+				transferAccountsCache = list;
+				applyTransferAccountSearch();
+				updateTransferSelectedCount();
+			},
+			error: function () {
+				$('#transfer-account-list').html('<div class="text-danger">Failed to load accounts.</div>');
+			}
+		});
+	}
+
+	$('#transfer_account_search').off('input').on('input', function () {
+		applyTransferAccountSearch();
+	});
+
+	$('#transfer_account_search_clear').off('click').on('click', function () {
+		$('#transfer_account_search').val('').trigger('input').focus();
+	});
+
+	$(document).off('change.transferAccountItem', '.transfer-account-item').on('change.transferAccountItem', '.transfer-account-item', function () {
+		var accountId = String($(this).val());
+		selectedTransferAccountIds[accountId] = $(this).is(':checked');
+		updateTransferSelectedCount();
+	});
+
+	$('#transfer_select_all_accounts').off('change').on('change', function () {
+		var checked = $(this).is(':checked');
+		$('.transfer-account-item').each(function () {
+			var accountId = String($(this).val());
+			$(this).prop('checked', checked);
+			selectedTransferAccountIds[accountId] = checked;
+		});
+		updateTransferSelectedCount();
+	});
 	
 
  // Move openAccountLedgerModal inside ready block
  function openAccountLedgerModal(agencyId) {
 	console.log("Front-end sees Agency ID:", agencyId);
+	currentLedgerAgencyId = agencyId;
 
 	// Set agency name for the modal title
 	get_agency_name(agencyId);
@@ -260,6 +388,148 @@ $(document).ready(function () {
 
     // If you want it callable globally (optional):
     window.openAccountLedgerModal = openAccountLedgerModal;
+
+	$('#btn-open-transfer-agency').off('click').on('click', function () {
+		if (!currentLedgerAgencyId) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'No agency selected',
+				text: 'Please open an agency first.',
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+
+		$('#transfer_archive_agency_ids_after').val('');
+		$('#transfer_from_agency_id').val(currentLedgerAgencyId);
+		$('#transfer_from_agency_name').text($('#agency_name_modal').text() || 'Unknown');
+		$('#transfer_to_agency_id').val('');
+		$('#transfer_account_search').val('');
+		$('#transfer_account_search_clear').addClass('d-none');
+		selectedTransferAccountIds = {};
+		transferAccountsCache = [];
+
+		loadTransferAgencyOptions(currentLedgerAgencyId);
+		loadTransferAccounts(currentLedgerAgencyId);
+		$('#modal-transfer-agency').modal('show');
+	});
+
+	/**
+	 * Open Change Agent modal for a given agency (e.g. from Agents page before archive).
+	 * @param {string|number} agencyId - Source agent/agency ID
+	 * @param {string} agencyDisplayName - Label shown in modal
+	 * @param {number[]} [archiveAgencyIdsAfter] - If set, after a successful transfer these agents are archived (PUT /agency/remove) then the page reloads
+	 */
+	window.openTransferAgencyModalForAgency = function (agencyId, agencyDisplayName, archiveAgencyIdsAfter) {
+		var ids = Array.isArray(archiveAgencyIdsAfter)
+			? archiveAgencyIdsAfter.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; })
+			: [];
+		$('#transfer_archive_agency_ids_after').val(ids.length ? ids.join(',') : '');
+		currentLedgerAgencyId = agencyId;
+		$('#transfer_from_agency_id').val(agencyId);
+		$('#transfer_from_agency_name').text(agencyDisplayName || 'Unknown');
+		$('#transfer_to_agency_id').val('');
+		$('#transfer_account_search').val('');
+		$('#transfer_account_search_clear').addClass('d-none');
+		selectedTransferAccountIds = {};
+		transferAccountsCache = [];
+		loadTransferAgencyOptions(agencyId);
+		loadTransferAccounts(agencyId);
+		$('#modal-transfer-agency').modal('show');
+	};
+
+	$('#transfer-agency-form').off('submit').on('submit', function (event) {
+		event.preventDefault();
+
+		var fromAgencyId = $('#transfer_from_agency_id').val();
+		var toAgencyId = $('#transfer_to_agency_id').val();
+		var selectedIds = Object.keys(selectedTransferAccountIds).filter(function (id) {
+			return !!selectedTransferAccountIds[id];
+		});
+
+		if (!toAgencyId) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Target agency required',
+				text: 'Please select the agency to transfer to.',
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+		if (selectedIds.length === 0) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'No account selected',
+				text: 'Please select account(s) to transfer.',
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+
+		var $submitBtn = $('#btn-submit-transfer-agency');
+		$submitBtn.prop('disabled', true).text('Processing...');
+
+		$.ajax({
+			url: '/account/transfer-agency',
+			type: 'POST',
+			data: {
+				fromAgencyId: fromAgencyId,
+				toAgencyId: toAgencyId,
+				accountIds: selectedIds
+			},
+			success: function (response) {
+				var message = (response && response.message) ? response.message : 'Accounts transferred successfully.';
+				var rawArchiveIds = String($('#transfer_archive_agency_ids_after').val() || '').trim();
+				$('#transfer_archive_agency_ids_after').val('');
+				var archiveIds = rawArchiveIds
+					? rawArchiveIds.split(',').map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; })
+					: [];
+
+				Swal.fire({
+					icon: 'success',
+					title: 'Transfer completed',
+					text: message,
+					confirmButtonText: 'OK'
+				}).then(function () {
+					$('#modal-transfer-agency').modal('hide');
+					if (archiveIds.length > 0) {
+						Promise.all(archiveIds.map(function (id) {
+							return $.ajax({
+								url: '/agency/remove/' + id,
+								type: 'PUT'
+							});
+						})).then(function () {
+							window.location.reload();
+						}).catch(function (err) {
+							console.error('Error archiving after transfer:', err);
+							Swal.fire({
+								icon: 'warning',
+								title: 'Transfer saved',
+								text: 'Accounts were moved, but archiving the agent failed. Try archiving again from the Agents page.',
+								confirmButtonText: 'OK'
+							});
+						});
+					} else if (currentLedgerAgencyId && $('#modal-account-ledger').hasClass('show')) {
+						reloadData(currentLedgerAgencyId);
+					}
+				});
+			},
+			error: function (xhr) {
+				var message = xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)
+					? (xhr.responseJSON.error || xhr.responseJSON.message)
+					: 'Failed to transfer accounts.';
+				Swal.fire({
+					icon: 'error',
+					title: 'Transfer failed',
+					text: message,
+					confirmButtonText: 'OK'
+				});
+			},
+			complete: function () {
+				$submitBtn.prop('disabled', false).text('Transfer');
+			}
+		});
+	});
 
 
 });
@@ -408,6 +678,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	resetCreditTableRows();
 
 	$('#modal-credit-details').modal('show');
+	$('#btn-credit-return').data('account-id', accountId);
 
 	function formatMarkerAmount(value) {
 		var n = value != null ? Number(value) : 0;
@@ -442,6 +713,14 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			var creditRows = list.filter(function (row) {
 				return String(row.ACCOUNT_ID) === String(accountId);
 			});
+			creditRows.sort(function (a, b) {
+				var aTime = new Date(a.ENCODED_DT || 0).getTime();
+				var bTime = new Date(b.ENCODED_DT || 0).getTime();
+				if (isNaN(aTime)) aTime = 0;
+				if (isNaN(bTime)) bTime = 0;
+				if (bTime !== aTime) return bTime - aTime;
+				return (parseInt(b.IDNo, 10) || 0) - (parseInt(a.IDNo, 10) || 0);
+			});
 
 			$('#credit-details-loading').addClass('d-none');
 
@@ -460,15 +739,23 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 					.replace(/"/g, '&quot;');
 			}
 
-			function renderTransactionType(data) {
+			function getReturnSourceLabel(desc) {
+				var normalized = String(desc || '').trim().toUpperCase();
+				if (normalized === 'RETURN_SOURCE:CREDIT') return 'Junket Credit';
+				if (normalized === 'RETURN_SOURCE:BUYIN') return 'Game Credit';
+				return '';
+			}
+
+			function renderTransactionType(data, row) {
 				if (!data) return '';
 				var parts = String(data).split('-');
 				var transactionId = parseInt(parts[0], 10);
 				var transactionType = parseInt(parts[1], 10);
+				var sourceLabel = getReturnSourceLabel(row && row.TRANSACTION_DESC);
 				switch (transactionId) {
 					case 3: return 'Junket Credit';
-					case 11: return 'Credit Returned thru Cash';
-					case 12: return 'Credit Returned thru Deposit';
+					case 11: return sourceLabel ? (sourceLabel + ' Returned thru Cash') : 'Credit Returned thru Cash';
+					case 12: return sourceLabel ? (sourceLabel + ' Returned thru Deposit') : 'Credit Returned thru Deposit';
 					case 10: return 'Buy-in thru Credit';
 					default:
 						return transactionType === 4 ? 'Chips Return thru Credit' : 'Unknown Transaction';
@@ -489,7 +776,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 					'<tr>' +
 						'<td>' + escapeHtml(accountDisplay) + '</td>' +
 						'<td class="text-center">' + amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '</td>' +
-						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO)) + '</td>' +
+						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO, row)) + '</td>' +
 						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
 						'<td>' + escapeHtml(remarks) + '</td>' +
 					'</tr>';
@@ -502,20 +789,10 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			}
 
 			$('#credit-details-table').DataTable({
-				order: [[3, 'desc']],
+				order: [],
 				autoWidth: false,
 				pageLength: 10,
-				dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
-				columnDefs: [{
-					targets: 3, // DATE column
-					render: function (data, type) {
-						if (type !== 'sort') return data;
-						if (!window.moment) return data;
-						var m = moment(data, ['DD MMM, YYYY HH:mm', 'MMMM DD, YYYY HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'], true);
-						if (!m.isValid()) m = moment(data);
-						return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : data;
-					}
-				}]
+				dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>'
 			});
 		},
 		error: function () {
@@ -525,6 +802,152 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			$('#credit-details-body').html('<tr><td colspan="5" class="text-center text-muted py-4">No credit records for this account.</td></tr>');
 		}
 	});
+});
+
+$(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return', function () {
+	var accountId = $(this).data('account-id') || $('#account_id').val() || $('#account_id_add').val();
+	if (!accountId) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'No account', text: 'Please open an account first.' });
+		return;
+	}
+	function parseAmountText(value) {
+		return parseFloat(String(value || '0').replace(/,/g, '').trim()) || 0;
+	}
+
+	if ($('#modal-credit-return').length) {
+		var junketBal = parseAmountText($('#credit-junket-balance').text());
+		var gameBal = parseAmountText($('#credit-game-balance').text());
+		$('#credit-return-account-id').val(accountId);
+		$('#credit-return-junket-balance').val(junketBal);
+		$('#credit-return-game-balance').val(gameBal);
+		$('#credit-return-junket-balance-display').text(junketBal.toLocaleString());
+		$('#credit-return-game-balance-display').text(gameBal.toLocaleString());
+		$('input[name="creditReturnSource"]').prop('checked', false);
+		$('input[name="creditReturnTransType"]').prop('checked', false);
+		$('#credit-return-amount').val('');
+		$('#credit-return-remarks').val('');
+		$('#credit-return-balance').val('');
+		$('#modal-credit-return').modal('show');
+		return;
+	}
+
+	if (!$('#modal-new-marker').length) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Unavailable', text: 'Return modal is not available on this page.' });
+		return;
+	}
+
+	$('#modal-credit-details').modal('hide');
+	$('#modal-new-marker').modal('show');
+
+	setTimeout(function () {
+		var $creditSource = $('#return-source-credit');
+		if ($creditSource.length) $creditSource.prop('checked', true).trigger('change');
+
+		var tries = 0;
+		var maxTries = 15;
+		var timer = setInterval(function () {
+			tries += 1;
+			var $accountMarker = $('#txtAccountMarker');
+			if (!$accountMarker.length) {
+				if (tries >= maxTries) clearInterval(timer);
+				return;
+			}
+			var hasOption = $accountMarker.find('option[value="' + accountId + '"]').length > 0;
+			if (hasOption) {
+				$accountMarker.val(String(accountId)).trigger('change');
+				clearInterval(timer);
+				return;
+			}
+			if (tries >= maxTries) clearInterval(timer);
+		}, 200);
+	}, 250);
+});
+
+$(document).off('change', 'input[name="creditReturnSource"]').on('change', 'input[name="creditReturnSource"]', function () {
+	var source = $('input[name="creditReturnSource"]:checked').val() || 'credit';
+	var junketBal = parseFloat($('#credit-return-junket-balance').val()) || 0;
+	var gameBal = parseFloat($('#credit-return-game-balance').val()) || 0;
+	var selectedBalance = source === 'credit' ? junketBal : gameBal;
+	$('#credit-return-balance').val(selectedBalance.toLocaleString());
+});
+
+$(document).off('click', '#btn-save-credit-return').on('click', '#btn-save-credit-return', function () {
+	var accountId = $('#credit-return-account-id').val();
+	var source = $('input[name="creditReturnSource"]:checked').val();
+	var transType = $('input[name="creditReturnTransType"]:checked').val();
+	var amountText = $('#credit-return-amount').val();
+	var remarks = $('#credit-return-remarks').val() || '';
+	var amount = parseFloat(String(amountText || '0').replace(/,/g, '').trim()) || 0;
+	var junketBal = parseFloat($('#credit-return-junket-balance').val()) || 0;
+	var gameBal = parseFloat($('#credit-return-game-balance').val()) || 0;
+	var maxBySource = 0;
+
+	if (!accountId) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Missing account.' });
+		return;
+	}
+	if (!source || !transType) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Please select return source and transaction.' });
+		return;
+	}
+	maxBySource = source === 'credit' ? junketBal : gameBal;
+	if (!amount || amount <= 0) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Credit Return must be greater than zero.' });
+		return;
+	}
+	if (amount > maxBySource) {
+		var balanceLabel = source === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Return amount exceeded the ' + balanceLabel + '.' });
+		return;
+	}
+
+	var $btn = $('#btn-save-credit-return');
+	var originalText = $btn.text();
+	$btn.prop('disabled', true).text('Saving...');
+	$.ajax({
+		url: '/add_marker_settlement',
+		method: 'POST',
+		data: {
+			txtAccountMarker: accountId,
+			txtMarkerReturn: amount.toString(),
+			optTransType: transType,
+			optReturnSource: source,
+			AgentBalance: 0,
+			remarks: remarks
+		},
+		success: function (response) {
+			if (response && response.success) {
+				$('#modal-credit-return').modal('hide');
+				if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Success', text: 'Marker Return Successfully!' });
+				$('#btn-credit').trigger('click');
+				if (typeof reloadDataDetails === 'function') {
+					reloadDataDetails();
+				}
+			} else {
+				if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: (response && (response.error || response.message)) || 'Error processing your request.' });
+			}
+		},
+		error: function (xhr) {
+			var msg = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || 'Error processing your request.';
+			if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		},
+		complete: function () {
+			$btn.prop('disabled', false).text(originalText);
+		}
+	});
+});
+
+$(document).off('input', '#credit-return-amount').on('input', '#credit-return-amount', function () {
+	var raw = String($(this).val() || '').replace(/,/g, '').replace(/[^\d.]/g, '');
+	var parts = raw.split('.');
+	if (parts.length > 2) {
+		raw = parts[0] + '.' + parts.slice(1).join('');
+		parts = raw.split('.');
+	}
+	var intPart = parts[0] || '';
+	var decPart = parts.length > 1 ? parts[1].slice(0, 2) : '';
+	var intWithCommas = intPart ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+	$(this).val(decPart ? (intWithCommas + '.' + decPart) : intWithCommas);
 });
 
 

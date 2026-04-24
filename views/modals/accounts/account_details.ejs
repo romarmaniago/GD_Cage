@@ -215,6 +215,11 @@
                         </div>
                     </div>
                 </div>
+                <div class="d-flex justify-content-end mb-2">
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-credit-return">
+                        Return Credit
+                    </button>
+                </div>
                 <div class="credit-history-dt-wrap credit-history-card table-responsive">
                     <table class="table marker-history-table w-100 mb-0" id="credit-details-table">
                         <thead>
@@ -233,6 +238,80 @@
             <!-- <div class="modal-footer">
                 <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
             </div> -->
+        </div>
+    </div>
+</div>
+
+<!-- Return Credit Modal (Credit Details page) -->
+<div class="modal fade" id="modal-credit-return" tabindex="-1" aria-labelledby="modalCreditReturnLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modalCreditReturnLabel">Return Credit</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="credit-return-account-id" />
+                <input type="hidden" id="credit-return-junket-balance" />
+                <input type="hidden" id="credit-return-game-balance" />
+
+                <div class="row g-2 mb-3 credit-balance-row">
+                    <div class="col-12 col-md-6">
+                        <div class="credit-balance-box">
+                            <label class="form-label text-muted small mb-1">Junket Credit</label>
+                            <div id="credit-return-junket-balance-display" class="credit-balance-value">0</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="credit-balance-box">
+                            <label class="form-label text-muted small mb-1">Game Credit</label>
+                            <div id="credit-return-game-balance-display" class="credit-balance-value">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap justify-content-center" style="column-gap: 2.25rem; row-gap: 0.75rem;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creditReturnSource" id="credit-return-source-credit" value="credit" required>
+                            <label class="form-check-label" for="credit-return-source-credit">Junket Credit</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creditReturnSource" id="credit-return-source-buyin" value="buyin" required>
+                            <label class="form-check-label" for="credit-return-source-buyin">Game Credit</label>
+                        </div>
+                    </div>
+                    <label class="form-label mb-1 mt-2" for="credit-return-balance">Balance</label>
+                    <input type="text" class="form-control" id="credit-return-balance" value="" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap justify-content-center" style="column-gap: 2.25rem; row-gap: 0.75rem;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creditReturnTransType" id="credit-return-trans-cash" value="11" required>
+                            <label class="form-check-label" for="credit-return-trans-cash">Cash</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="creditReturnTransType" id="credit-return-trans-deposit" value="12" required>
+                            <label class="form-check-label" for="credit-return-trans-deposit">Deposit</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label mb-1" for="credit-return-amount">Amount</label>
+                    <input type="text" class="form-control" id="credit-return-amount" placeholder="Enter amount" autocomplete="off">
+                </div>
+
+                <div class="mb-0">
+                    <label class="form-label mb-1" for="credit-return-remarks">Remarks (optional)</label>
+                    <input type="text" class="form-control" id="credit-return-remarks" maxlength="500" placeholder="Remarks" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-save-credit-return">Save</button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>               
+            </div>
         </div>
     </div>
 </div>

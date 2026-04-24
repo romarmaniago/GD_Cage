@@ -3807,6 +3807,7 @@ function showHistory(record_id) {
 	};
 
 	var dataTable = $('#game_record-tbl').DataTable({
+		lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
 		order: [[0, 'asc']], // Sort by first column ascending
 		columnDefs: [
 			{
@@ -5555,6 +5556,8 @@ $(document).ready(function () {
 
 function settlement_history(record_id, acc_id) {
     $('#modal-settlement').modal('show');
+    // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
+    $('#modal-settlement .deposit-cashout-row').show();
 
     // Destroy existing DataTable if it exists
     if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
@@ -5663,10 +5666,12 @@ function settlement_history(record_id, acc_id) {
                         $('#submit-settlement-btn').prop('disabled', true).hide();
                         $('#settledImage-modal').show(); // Ensure the settled image is shown
                         isSettled = true; // Set the flag to true
+                        $('#modal-settlement .deposit-cashout-row').hide();
                     } else {
                         $('#submit-settlement-btn').prop('disabled', false).show();
                         $('#settledImage-modal').hide(); // Hide the settled image if not settled
                         isSettled = false; // Set the flag to false
+                        $('#modal-settlement .deposit-cashout-row').show();
                     }
 
                     // Debug: Check FNB value

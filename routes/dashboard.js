@@ -2548,7 +2548,8 @@ router.get('/marker_history', async (req, res) => {
 		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
 		JOIN agent ON agent.IDNo = account.AGENT_ID 
 		WHERE account_ledger.ACTIVE = 1 
-		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)`;
+		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)
+		ORDER BY account_ledger.ENCODED_DT DESC, account_ledger.IDNo DESC`;
 
 	try {
 		const [results] = await pool.execute(query);

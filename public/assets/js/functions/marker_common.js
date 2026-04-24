@@ -60,15 +60,23 @@
         }
     }
 
-    function renderTransactionType(data) {
+    function getReturnSourceLabel(desc) {
+        var normalized = String(desc || '').trim().toUpperCase();
+        if (normalized === 'RETURN_SOURCE:CREDIT') return 'Junket';
+        if (normalized === 'RETURN_SOURCE:BUYIN') return 'Game';
+        return '';
+    }
+
+    function renderTransactionType(data, type, row) {
         if (!data) return '';
         var parts = String(data).split('-');
         var transactionId = parseInt(parts[0], 10);
         var transactionType = parseInt(parts[1], 10);
+        var sourceLabel = getReturnSourceLabel(row && row.TRANSACTION_DESC);
         switch (transactionId) {
             case 3: return 'Junket Credit';
-            case 11: return 'Credit Returned thru Cash';
-            case 12: return 'Credit Returned thru Deposit';
+            case 11: return sourceLabel ? (sourceLabel + ' Credit Returned thru Cash') : 'Credit Returned thru Cash';
+            case 12: return sourceLabel ? (sourceLabel + ' Credit Returned thru Deposit') : 'Credit Returned thru Deposit';
             case 10: return 'Buy-in thru Credit';
             default:
                 return transactionType === 4 ? 'Chips Return thru Credit' : 'Unknown Transaction';

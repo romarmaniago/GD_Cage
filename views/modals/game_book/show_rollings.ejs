@@ -41,9 +41,14 @@
 					<span>Deposit</span>
 				</span>
 			</div>
-			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-				<%= __('modal_show_rolling.close') %>
-			</button>
+			<div class="d-flex align-items-center gap-2">
+				<button type="button" class="btn btn-sm btn-alt-success" id="btn-print-game-history">
+					<i class="fa fa-print me-1"></i> Print
+				</button>
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+					<%= __('modal_show_rolling.close') %>
+				</button>
+			</div>
 		</div>
 	</div>
 	</div>
@@ -68,6 +73,110 @@
 		border: 1px solid rgba(0,0,0,0.1);
 	}
 </style>
+
+<script>
+	(function () {
+		$(document).off('click', '#btn-print-game-history').on('click', '#btn-print-game-history', function () {
+			const table = $('#game_record-tbl').DataTable();
+			if (!table) {
+				return;
+			}
+
+			const headers = $('#game_record-tbl thead th').map(function (index) {
+				// Skip Action column (last column)
+				if (index === 9) {
+					return null;
+				}
+				return $(this).text().trim();
+			}).get().filter(Boolean);
+
+			const rows = table.rows({ search: 'applied' }).data().toArray();
+			const bodyHtml = rows.map(function (row) {
+				const cols = row.slice(0, 9).map(function (col) {
+					return `<td>${col}</td>`;
+				}).join('');
+				return `<tr>${cols}</tr>`;
+			}).join('');
+
+			const gameNo = ($('#game_number').text() || '').trim();
+			const agentName = ($('#agent_name').text() || '').trim();
+
+			const printFrame = document.createElement('iframe');
+			printFrame.style.position = 'fixed';
+			printFrame.style.right = '0';
+			printFrame.style.bottom = '0';
+			printFrame.style.width = '0';
+			printFrame.style.height = '0';
+			printFrame.style.border = '0';
+			document.body.appendChild(printFrame);
+
+			const frameWindow = printFrame.contentWindow;
+			if (!frameWindow) {
+				printFrame.remove();
+				return;
+			}
+
+			const cleanupPrintFrame = function () {
+				setTimeout(function () {
+					if (printFrame && printFrame.parentNode) {
+						printFrame.parentNode.removeChild(printFrame);
+					}
+				}, 100);
+			};
+
+			frameWindow.document.open();
+			frameWindow.document.write(`
+				<html>
+					<head>
+						<title>Game Record History</title>
+						<style>
+							@page { size: auto; margin: 6mm; }
+							html, body { width: 100%; margin: 0; padding: 0; }
+							body { font-family: Arial, sans-serif; color: #111; }
+							h3 { margin: 0 0 8px; font-size: 18px; }
+							table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px; border: 1px solid #000; }
+							th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+							th {
+								background: #e9ecef;
+								-webkit-print-color-adjust: exact;
+								print-color-adjust: exact;
+							}
+						</style>
+					</head>
+					<body>
+						<h3>Game Record History - Game #: ${gameNo} | ${agentName}</h3>
+						<table>
+							<thead>
+								<tr>${headers.map(function (h) { return `<th>${h}</th>`; }).join('')}</tr>
+							</thead>
+							<tbody>
+								${bodyHtml}
+							</tbody>
+						</table>
+					</body>
+				</html>
+			`);
+			frameWindow.document.close();
+
+			frameWindow.onafterprint = cleanupPrintFrame;
+			if (typeof frameWindow.matchMedia === 'function') {
+				const mediaQuery = frameWindow.matchMedia('print');
+				if (mediaQuery && typeof mediaQuery.addEventListener === 'function') {
+					const handleMediaChange = function (event) {
+						if (!event.matches) {
+							cleanupPrintFrame();
+							mediaQuery.removeEventListener('change', handleMediaChange);
+						}
+					};
+					mediaQuery.addEventListener('change', handleMediaChange);
+				}
+			}
+
+			frameWindow.focus();
+			frameWindow.print();
+		});
+	})();
+</script>
 
 <!-- Edit Game Record Modal (Super Admin only) -->
 <div class="modal fade" id="modal-edit-game-record" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="editGameRecordLabel" aria-hidden="true">

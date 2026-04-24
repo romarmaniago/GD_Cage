@@ -10,6 +10,9 @@
           </h5>
           
            <div class="d-flex align-items-center ms-auto gap-2">
+            <button class="btn btn-primary-subtle" id="btn-open-transfer-agency" type="button">
+              <i class="fa fa-exchange-alt"></i> Change Agent
+            </button>
              <button class="btn btn-primary-subtle" onclick="addAgent()">
                <i class="fa fa-plus"></i> New Guest
              </button>
@@ -58,6 +61,76 @@
        </div>
      </div>
    </div>
+  
+  <div class="modal fade" id="modal-transfer-agency" tabindex="-1" aria-labelledby="modal-transfer-agencyLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-primary">
+          <h5 class="modal-title text-white" id="modal-transfer-agencyLabel">Change Agent</h5>
+        </div>
+
+        <form id="transfer-agency-form">
+          <div class="modal-body">
+            <input type="hidden" id="transfer_from_agency_id" name="fromAgencyId">
+            <!-- Comma-separated agent IDs to PUT /agency/remove after a successful transfer (set from Agents delete flow) -->
+            <input type="hidden" id="transfer_archive_agency_ids_after" value="" aria-hidden="true">
+
+            <div class="mb-2 transfer-meta d-flex justify-content-between align-items-center">
+              <div class="text-muted">
+                <strong id="transfer_from_agency_name">-</strong>
+              </div>
+              <div class="text-muted text-end">
+                Selected: <strong id="transfer_selected_count">0</strong>
+              </div>
+            </div>
+
+            <div class="mb-3 border rounded p-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label mb-0">Select Accounts</label>
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" id="transfer_select_all_accounts">
+                  <label class="form-check-label small" for="transfer_select_all_accounts">Select all</label>
+                </div>
+              </div>
+              <div class="mb-2">
+                <div class="position-relative">
+                  <input
+                    type="text"
+                    class="form-control form-control-sm pe-4"
+                    id="transfer_account_search"
+                    placeholder="Search account code or name..."
+                  >
+                  <button
+                    type="button"
+                    id="transfer_account_search_clear"
+                    class="btn position-absolute end-0 top-50 translate-middle-y me-2 p-0 border-0 bg-transparent d-none"
+                    aria-label="Clear search"
+                  >
+                    <i class="fa fa-times text-muted small"></i>
+                  </button>
+                </div>
+              </div>
+              <div id="transfer-account-list" class="small">
+                <div class="text-muted">Loading accounts...</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="transfer_to_agency_id" class="form-label">Transfer To</label>
+              <select class="form-select" id="transfer_to_agency_id" name="toAgencyId" required>
+                <option value="">Select target agent</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-sm btn-primary" id="btn-submit-transfer-agency">Transfer</button>
+            <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
    
    <!-- Kung gusto mo isama pa rin ang iba pang modals (new_account, edit_account, etc.) -->
   
@@ -119,6 +192,34 @@
 
 #modal-account-tbl tbody tr:hover {
   background-color: #f5f5f5 !important;
+}
+
+#transfer-account-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 12px;
+  row-gap: 2px;
+  max-height: min(48vh, 420px);
+  min-height: 140px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.transfer-account-col {
+  min-width: 0;
+}
+
+.transfer-account-col .form-check-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.transfer-meta .text-muted {
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 
@@ -197,6 +298,10 @@
        
        .input-daterange .form-control {
          padding: 5px; /* Mas maliit na padding */
+       }
+
+       #transfer-account-list {
+        grid-template-columns: 1fr;
        }
      }
 

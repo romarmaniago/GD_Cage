@@ -261,6 +261,42 @@ router.get('/agency_data', async (req, res) => {
 	}
 });
 
+// OPTIONS FOR ACCOUNT TRANSFER BETWEEN AGENTS
+router.get('/agency_transfer_options', async (req, res) => {
+	try {
+		const excludeAgencyId = Number(req.query.excludeAgencyId);
+		if (!excludeAgencyId || Number.isNaN(excludeAgencyId)) {
+			return res.status(400).json({ error: 'Invalid source agency id.' });
+		}
+
+		const [agencies] = await pool.execute(
+			`SELECT IDNo AS agency_id, AGENCY AS agency_name
+			 FROM agency
+			 WHERE ACTIVE = 1 AND IDNo <> ?
+			 ORDER BY AGENCY ASC`,
+			[excludeAgencyId]
+		);
+
+		const [[countRow]] = await pool.execute(
+			`SELECT COUNT(acc.IDNo) AS account_count
+			 FROM account acc
+			 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   AND ag.AGENCY = ?`,
+			[excludeAgencyId]
+		);
+
+		return res.json({
+			agencies,
+			accountCount: Number(countRow?.account_count || 0)
+		});
+	} catch (error) {
+		console.error('Error loading transfer agency options:', error);
+		return res.status(500).json({ error: 'Error loading transfer options.' });
+	}
+});
+
 // EDIT AGENCY
 router.put('/agency/:id', async (req, res) => {
 	try {
@@ -630,6 +666,98 @@ router.put('/account/remove/:id', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating agency:', err);
 		res.status(500).send('Error updating agency');
+	}
+});
+
+// TRANSFER ALL ACTIVE ACCOUNTS FROM ONE AGENCY TO ANOTHER
+router.post('/account/transfer-agency', async (req, res) => {
+	let connection;
+	try {
+		const fromAgencyId = Number(req.body.fromAgencyId);
+		const toAgencyId = Number(req.body.toAgencyId);
+		const accountIdsInput = req.body.accountIds;
+		const accountIdsRaw = Array.isArray(accountIdsInput)
+			? accountIdsInput
+			: (accountIdsInput ? [accountIdsInput] : []);
+		const accountIds = accountIdsRaw
+			.map((id) => Number(id))
+			.filter((id) => Number.isInteger(id) && id > 0);
+
+		if (!fromAgencyId || !toAgencyId || Number.isNaN(fromAgencyId) || Number.isNaN(toAgencyId)) {
+			return res.status(400).json({ error: 'Invalid agency selection.' });
+		}
+		if (fromAgencyId === toAgencyId) {
+			return res.status(400).json({ error: 'Source and target agency must be different.' });
+		}
+		if (accountIds.length === 0) {
+			return res.status(400).json({ error: 'Please select at least one account.' });
+		}
+
+		const [agencyRows] = await pool.execute(
+			`SELECT IDNo, AGENCY
+			 FROM agency
+			 WHERE ACTIVE = 1 AND IDNo IN (?, ?)`,
+			[fromAgencyId, toAgencyId]
+		);
+
+		if (agencyRows.length !== 2) {
+			return res.status(404).json({ error: 'Source or target agency not found.' });
+		}
+
+		const placeholders = accountIds.map(() => '?').join(', ');
+		const [[countRow]] = await pool.execute(
+			`SELECT COUNT(acc.IDNo) AS account_count
+			 FROM account acc
+			 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   AND ag.AGENCY = ?
+			   AND acc.IDNo IN (${placeholders})`,
+			[fromAgencyId, ...accountIds]
+		);
+		const accountCount = Number(countRow?.account_count || 0);
+		if (accountCount <= 0) {
+			return res.status(400).json({ error: 'Selected accounts are not valid for this agency.' });
+		}
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const dateNow = new Date();
+		const [updateResult] = await connection.execute(
+			`UPDATE agent ag
+			 SET ag.AGENCY = ?, ag.EDITED_BY = ?, ag.EDITED_DT = ?
+			 WHERE ag.ACTIVE = 1
+			   AND ag.AGENCY = ?
+			   AND EXISTS (
+				   SELECT 1
+				   FROM account acc
+				   WHERE acc.AGENT_ID = ag.IDNo
+				     AND acc.ACTIVE = 1
+				     AND acc.IDNo IN (${placeholders})
+			   )`,
+			[toAgencyId, req.session.user_id, dateNow, fromAgencyId, ...accountIds]
+		);
+
+		await connection.commit();
+
+		return res.json({
+			success: true,
+			message: `${accountCount} account(s) transferred successfully.`,
+			updatedAgents: Number(updateResult?.affectedRows || 0)
+		});
+	} catch (error) {
+		if (connection) {
+			try {
+				await connection.rollback();
+			} catch (rollbackError) {
+				console.error('Rollback failed in transfer-agency:', rollbackError);
+			}
+		}
+		console.error('Error transferring accounts between agencies:', error);
+		return res.status(500).json({ error: 'Failed to transfer accounts.' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 
@@ -1541,7 +1669,7 @@ router.put('/account_details/remove/:id', async (req, res) => {
 	}
 });
 
-// Get Transfer Agent Name
+// Get Change Agent Name
 router.get('/get-transfer-agent-name', async (req, res) => {
 	const transferAgentId = req.query.transferAgentId;
 
