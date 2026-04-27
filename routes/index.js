@@ -12,6 +12,7 @@ module.exports = [
     require('./activity_log'),
     require('./junket_loss'),
     require('./money_exchange'),
+    require('./table_daily_report'),
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.
     require('./telegramData'),
     require('./fnb_hotel'),
