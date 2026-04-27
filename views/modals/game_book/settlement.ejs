@@ -537,9 +537,10 @@
     }
 
     function setSettlementEditMode($modal, enabled) {
+        var isSettled = Number($modal.data('is-settled')) === 1;
         $modal.data('edit-mode', enabled ? 1 : 0);
-        $modal.find('#submit-settlement-btn').toggle(!enabled);
-        $modal.find('.deposit-cashout-row').toggle(!enabled);
+        $modal.find('#submit-settlement-btn').toggle(!enabled && !isSettled);
+        $modal.find('.deposit-cashout-row').toggle(!enabled && !isSettled);
         $modal.find('#close-settlement-btn').toggle(!enabled);
         $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
 

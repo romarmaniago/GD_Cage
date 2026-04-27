@@ -5584,9 +5584,11 @@ $(document).ready(function () {
 
 
 function settlement_history(record_id, acc_id) {
-    $('#modal-settlement').modal('show');
+    var $settlementModal = $('#modal-settlement');
+    $settlementModal.data('is-settled', 0);
+    $settlementModal.modal('show');
     // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
-    $('#modal-settlement .deposit-cashout-row').show();
+    $settlementModal.find('.deposit-cashout-row').show();
 
     // Destroy existing DataTable if it exists
     if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
@@ -5709,17 +5711,21 @@ function settlement_history(record_id, acc_id) {
                     $('input[name="game_id_settle"]').val(gameNo);
                     $('input[name="txtAccountIDSettle"]').val(account_id);
 
-                    // Check if settled and disable button if necessary
-                    if (data[0].SETTLED === 1) {
-                        $('#submit-settlement-btn').prop('disabled', true).hide();
-                        $('#settledImage-modal').show(); // Ensure the settled image is shown
+                    // Check if settled and disable button if necessary.
+                    // Use numeric coercion to handle both 1 and "1" from API.
+                    var settledFlag = Number(data[0].SETTLED) === 1;
+                    $settlementModal.data('is-settled', settledFlag ? 1 : 0);
+                    if (settledFlag) {
+                        $settlementModal.find('#submit-settlement-btn').prop('disabled', true).hide();
+                        $settlementModal.find('#settledImage-modal').show(); // Ensure the settled image is shown
                         isSettled = true; // Set the flag to true
-                        $('#modal-settlement .deposit-cashout-row').hide();
+                        $settlementModal.find('.deposit-cashout-row').hide();
+                        $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
                     } else {
-                        $('#submit-settlement-btn').prop('disabled', false).show();
-                        $('#settledImage-modal').hide(); // Hide the settled image if not settled
+                        $settlementModal.find('#submit-settlement-btn').prop('disabled', false).show();
+                        $settlementModal.find('#settledImage-modal').hide(); // Hide the settled image if not settled
                         isSettled = false; // Set the flag to false
-                        $('#modal-settlement .deposit-cashout-row').show();
+                        $settlementModal.find('.deposit-cashout-row').show();
                     }
 
                     // Debug: Check FNB value
