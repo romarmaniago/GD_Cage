@@ -251,7 +251,7 @@ $(document).ready(function () {
 				var accountCount = Number(response && response.accountCount ? response.accountCount : 0);
 				$('#transfer_account_count').text(accountCount.toLocaleString('en-US'));
 
-				var html = '<option value="">Select target agent</option>';
+				var html = '<option value="">Select target line</option>';
 				options.forEach(function (agency) {
 					html += '<option value="' + agency.agency_id + '">' + agency.agency_name + '</option>';
 				});
