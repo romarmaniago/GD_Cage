@@ -20,6 +20,8 @@ window.__pendingPassportFile = null;
 window.__pendingFaceFile = null;
 window.__pendingFacePreviewDataUrl = null;
 window.__suppressLedgerReopen = false;
+window.__returnToLedgerOnClose = false;
+window.__returnToLedgerOnEditClose = false;
 
 function setHidden(id, value) {
 	if (!id) return;
@@ -720,6 +722,7 @@ $(document).ready(function () {
 	
 		var formData = new FormData(this); // FormData for file upload
 		var $btn = $('#submit-new-agent-btn'); // Reference to the button
+		var savedAgencyLine = Number(formData.get('txtAgencyLine') || $('#txtAgencyLine').val() || 0);
 
 		// Replace "photo" with cropped face (guest picture), and send full passport as passportImage.
 		if (window.__pendingFaceFile) {
@@ -762,6 +765,7 @@ $(document).ready(function () {
 
 				// Refresh table (stay on same screen).
 				if (typeof window.reloadAgentTable === 'function') window.reloadAgentTable();
+				$(document).trigger('guest:created', [{ agencyId: savedAgencyLine }]);
 
 				if (typeof Swal !== 'undefined') {
 					Swal.fire({
@@ -815,6 +819,16 @@ $(document).ready(function () {
 					confirmButtonText: 'OK'
 				}).then((result) => {
 					if (result.isConfirmed) {
+						const isAgencyPage = window.location.pathname === '/agency' || $('#agent-list').length > 0;
+
+						if (isAgencyPage) {
+							$('#modal-edit-agent').modal('hide');
+							if (typeof window.refreshSelectedAgencyPanels === 'function') {
+								window.refreshSelectedAgencyPanels();
+							}
+							return;
+						}
+
 						window.location.href = '/agent';
 					}
 				});
@@ -837,6 +851,7 @@ $(document).ready(function () {
 	
 	// Function when clicking 'Add Guest'
 	function addAgent() {
+		window.__returnToLedgerOnClose = true;
 		$('#modal-account-ledger').modal('hide');
 		$('#modal-new-agent').modal('show');
 	}
@@ -844,14 +859,23 @@ $(document).ready(function () {
 	// Make globally accessible if needed
 	window.addAgent = addAgent;
 
+	$('#modal-new-agent').on('show.bs.modal', function () {
+		// Reopen Records only when New Guest was launched from Records modal.
+		window.__returnToLedgerOnClose = $('#modal-account-ledger').hasClass('show');
+	});
+
 	// Clear New Guest form whenever the modal closes (Close, X, or after save).
 	$('#modal-new-agent').on('hidden.bs.modal', function () {
 		resetNewGuestFormAfterCreate();
 		if (window.__suppressLedgerReopen) {
 			window.__suppressLedgerReopen = false;
+			window.__returnToLedgerOnClose = false;
 			return;
 		}
-		$('#modal-account-ledger').modal('show');
+		if (window.__returnToLedgerOnClose) {
+			$('#modal-account-ledger').modal('show');
+		}
+		window.__returnToLedgerOnClose = false;
 	});
 
 		// Auto re-open ledger modal when closing new-agent modal
@@ -860,7 +884,10 @@ $(document).ready(function () {
 				window.__suppressLedgerReopen = false;
 				return;
 			}
-			$('#modal-account-ledger').modal('show');
+			if (window.__returnToLedgerOnEditClose) {
+				$('#modal-account-ledger').modal('show');
+			}
+			window.__returnToLedgerOnEditClose = false;
 		});
 
 	// Auto-extract passport data when choosing file (New Guest / Edit Guest)
@@ -965,6 +992,7 @@ $(document).ready(function () {
 
 
 function edit_agent(id, agent_code, agentName, contact, telegram, remarks) {
+	window.__returnToLedgerOnEditClose = $('#modal-account-ledger').hasClass('show');
 	$('#modal-edit-agent').modal('show');
 	$('#modal-account-ledger').modal('hide');
 	$('#txtAgent_code').val(agent_code);

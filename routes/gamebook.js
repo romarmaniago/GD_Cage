@@ -217,6 +217,86 @@ router.get("/game_list", checkSession, async function (req, res) {
 });
 
 
+// Available chips snapshot for New Game modal (same formulas used in new_game_list.ejs)
+router.get('/game_list_available_chips', async (_req, res) => {
+	try {
+		const [
+			sqlNNChipsBuyin,
+			sqlNNChipsCashout,
+			sqlAccountNNChips,
+			sqlTotalCashOutRolling,
+			sqlTotalRealRolling,
+			sqlCCChipsBuyin,
+			sqlCCChipsCashout,
+			sqlNNChipsRolling,
+			sqlCCChipsRolling,
+			sqlRollerNNSubtract,
+			sqlRollerNNAdd,
+			sqlRollerCCSubtract,
+			sqlRollerCCAdd,
+			sqlNNBuyin,
+			sqlNNReturn,
+			sqlAccountCCChipsReturn,
+			sqlCCChipsBuyinGame,
+			sqlCCBuyin,
+			sqlCCReturn
+		] = await Promise.all([
+			dashboardQueries.getNNChipsBuyin(),
+			dashboardQueries.getNNChipsCashout(),
+			dashboardQueries.getAccountNNChips(),
+			dashboardQueries.getTotalCashOutRolling(),
+			dashboardQueries.getTotalRealRolling(),
+			dashboardQueries.getCCChipsBuyin(),
+			dashboardQueries.getCCChipsCashout(),
+			dashboardQueries.getNNChipsRolling(),
+			dashboardQueries.getCCChipsRolling(),
+			dashboardQueries.getRollerNNSubtract(),
+			dashboardQueries.getRollerNNAdd(),
+			dashboardQueries.getRollerCCSubtract(),
+			dashboardQueries.getRollerCCAdd(),
+			dashboardQueries.getNNBuyin(),
+			dashboardQueries.getNNReturn(),
+			dashboardQueries.getAccountCCChipsReturn(),
+			dashboardQueries.getCCChipsBuyinGame(),
+			dashboardQueries.getCCBuyin(),
+			dashboardQueries.getCCReturn()
+		]);
+
+		const n = (rows, key) => Number(rows?.[0]?.[key] || 0);
+
+		const availableNN =
+			n(sqlNNChipsBuyin, 'NNChipsBuyin') -
+			n(sqlNNChipsCashout, 'NNChipsCashout') -
+			n(sqlAccountNNChips, 'TOTAL_NN') +
+			n(sqlTotalCashOutRolling, 'TOTAL_CASHOUT') -
+			n(sqlTotalRealRolling, 'TOTAL_REAL_ROLLING') +
+			n(sqlNNChipsRolling, 'NNChipsRolling') +
+			n(sqlCCChipsRolling, 'CCChipsRolling') +
+			n(sqlNNBuyin, 'NNBuyin') -
+			n(sqlNNReturn, 'NNReturn') -
+			n(sqlRollerNNSubtract, 'ROLLER_NN_SUBTRACT') +
+			n(sqlRollerNNAdd, 'ROLLER_NN_ADD');
+
+		const availableCC =
+			n(sqlCCChipsBuyin, 'CCChipsBuyin') -
+			n(sqlCCChipsCashout, 'CCChipsCashout') +
+			n(sqlTotalRealRolling, 'TOTAL_REAL_ROLLING') -
+			n(sqlCCChipsRolling, 'CCChipsRolling') -
+			n(sqlNNChipsRolling, 'NNChipsRolling') +
+			n(sqlAccountCCChipsReturn, 'CC_CHIPS_RETURN') -
+			n(sqlCCChipsBuyinGame, 'TOTAL_CC') +
+			n(sqlCCBuyin, 'CCBuyin') -
+			n(sqlCCReturn, 'CCReturn') -
+			n(sqlRollerCCSubtract, 'ROLLER_CC_SUBTRACT') +
+			n(sqlRollerCCAdd, 'ROLLER_CC_ADD');
+
+		return res.json({ availableNN, availableCC });
+	} catch (err) {
+		console.error('Error in /game_list_available_chips:', err);
+		return res.status(500).json({ error: 'Failed to load available chips.' });
+	}
+});
+
 // ADD GAME LIST
 router.post('/add_game_list', async (req, res) => {
 	const {
@@ -230,6 +310,7 @@ router.post('/add_game_list', async (req, res) => {
 		txtRollerNN,
 		txtRollerCC,
 		txtTransType,
+		txtGuestId,
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1
@@ -244,6 +325,7 @@ router.post('/add_game_list', async (req, res) => {
 	// Backward compatible: current UI may not submit txtGameNo.
 	const gameNo = Number.isNaN(parsedGameNo) ? 0 : parsedGameNo;
 	const chips = parseFloat((txtChips || '0').replace(/,/g, '')) || 0;
+	const guestId = parseInt(txtGuestId, 10) || null;
 	const commType = txtCommisionType || null;
 	const commRate = parseFloat((txtCommisionRate || '0').replace(/,/g, '')) || 0;
 	const nnAmount = parseFloat((txtNN || '0').replace(/,/g, '')) || 0;
@@ -269,9 +351,9 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameType, initialMOP, chips, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, chips, commType, commRate, encodedBy, date_now]
 		);
 
 		const gameId = result.insertId;
@@ -470,6 +552,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		txtGameType,
 		txtRollerNN,
 		txtRollerCC,
+		txtGuestId,
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
@@ -489,6 +572,7 @@ router.post('/add_game_list_split', async (req, res) => {
 	};
 
 	const accountId = parseInt(txtAccountCode, 10) || null;
+	const guestId = parseInt(txtGuestId, 10) || null;
 	const encodedBy = req.session?.user_id || null;
 	const gameType = txtGameType || 'N/A';
 	const commType = txtCommisionType || null;
@@ -544,9 +628,9 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameType, 'SPLIT', grandTotal, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, 'SPLIT', grandTotal, commType, commRate, encodedBy, date_now]
 		);
 		const gameId = gameResult.insertId;
 
@@ -1029,6 +1113,7 @@ router.get('/game_list_data', async (req, res) => {
             agent.IDNo AS AGENT_ID,
             agent.AGENT_CODE AS agent_code, 
             agent.NAME AS agent_name,  
+            COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
             game_list.ENCODED_DT AS GAME_DATE_START,
             COALESCE((
                 SELECT SUM(gs.AMOUNT)
@@ -1041,6 +1126,7 @@ router.get('/game_list_data', async (req, res) => {
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
         JOIN agency ON agency.IDNo = agent.AGENCY
+        LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
     `;
 
     // If a specific game ID is requested, bypass date filtering to ensure it shows up.
@@ -1054,6 +1140,7 @@ router.get('/game_list_data', async (req, res) => {
                 agent.IDNo AS AGENT_ID,
                 agent.AGENT_CODE AS agent_code, 
                 agent.NAME AS agent_name,  
+                COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
                 game_list.ENCODED_DT AS GAME_DATE_START,
                 COALESCE((
                     SELECT SUM(gs.AMOUNT)
@@ -1066,6 +1153,7 @@ router.get('/game_list_data', async (req, res) => {
             JOIN account ON game_list.ACCOUNT_ID = account.IDNo
             JOIN agent ON agent.IDNo = account.AGENT_ID
             JOIN agency ON agency.IDNo = agent.AGENCY
+            LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
             WHERE game_list.ACTIVE != 0 
               AND game_list.IDNo = ?
             ORDER BY game_list.IDNo ASC

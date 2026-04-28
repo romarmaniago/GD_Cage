@@ -16,6 +16,7 @@
                 <th class="text-center" style="width: 150px;">GAME START</th>
                 <th class="text-center" style="width: 100px;">TYPE</th>
                 <th class="text-center" style="width: 80px;">GAME #</th>
+                <th class="text-center" style="width: 120px;">GUEST</th>
                 <th class="text-center col-buyin" style="width: 100px;">BUY-IN</th>
                 <th class="text-center" style="width: 100px;">CASH-OUT</th>
                 <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
@@ -33,7 +34,7 @@
             </tbody>
             <tfoot class="game-history-tfoot-total">
               <tr id="game-history-totals-row">
-                <td class="text-center" colspan="3">TOTAL</td>
+                <td class="text-center" colspan="4">TOTAL</td>
                 <td class="text-center" id="gh-total-buyin">0</td>
                 <td class="text-center" id="gh-total-cashout">0</td>
                 <td class="text-center" id="gh-total-winloss">0</td>
@@ -60,14 +61,14 @@
 <style>
 /* Game History Modal - Larger Size */
 #modal-game-history .modal-dialog.modal-xl {
-    max-width: 1600px;
-    width: 1600px;
+    max-width: 1850px;
+    width: 1850px;
 }
 
 @media (max-width: 1600px) {
     #modal-game-history .modal-dialog.modal-xl {
-        max-width: 95%;
-        width: 95%;
+        max-width: 100%;
+        width: 100%;
     }
 }
 
@@ -219,9 +220,12 @@ th.col-winloss {
         }
     }
 
-    async function loadGameHistoryRows(accountId) {
+    async function loadGameHistoryRows(accountId, guestId) {
         try {
-            const res = await fetch(`/account_game_history/${accountId}`);
+            const url = guestId
+                ? `/account_game_history/${accountId}?guestId=${encodeURIComponent(guestId)}`
+                : `/account_game_history/${accountId}`;
+            const res = await fetch(url);
             const rows = await res.json();
             const dataRows = rows || [];
 
@@ -240,17 +244,18 @@ th.col-winloss {
                     { width: "150px", targets: 0 },  // GAME START
                     { width: "100px", targets: 1 },  // TYPE
                     { width: "80px", targets: 2 },   // GAME #
-                    { width: "100px", targets: 3 },  // BUY-IN
-                    { width: "100px", targets: 4 },  // CASH-OUT
-                    { width: "100px", targets: 5 },  // WIN/LOSS
-                    { width: "100px", targets: 6 },  // ROLLING
-                    { width: "120px", targets: 7 },  // TOTAL ROLLING
-                    { width: "120px", targets: 8 },  // GAME RATE
-                    { width: "100px", targets: 9 },  // COMMISSION
-                    { width: "100px", targets: 10 }, // ADD CHG
-                    { width: "110px", targets: 11 }, // TOTAL SETTLE
-                    { width: "150px", targets: 12 }, // GAME END
-                    { width: "100px", targets: 13 }  // ROLLER CHIPS
+                    { width: "120px", targets: 3 },  // GUEST
+                    { width: "100px", targets: 4 },  // BUY-IN
+                    { width: "100px", targets: 5 },  // CASH-OUT
+                    { width: "100px", targets: 6 },  // WIN/LOSS
+                    { width: "100px", targets: 7 },  // ROLLING
+                    { width: "120px", targets: 8 },  // TOTAL ROLLING
+                    { width: "120px", targets: 9 },  // GAME RATE
+                    { width: "100px", targets: 10 }, // COMMISSION
+                    { width: "100px", targets: 11 }, // ADD CHG
+                    { width: "110px", targets: 12 }, // TOTAL SETTLE
+                    { width: "150px", targets: 13 }, // GAME END
+                    { width: "100px", targets: 14 }  // ROLLER CHIPS
                 ],
                 language: {
                     search: "Search:",
@@ -282,6 +287,11 @@ th.col-winloss {
                         data: 'game_list_id',
                         className: 'text-center',
                         render: function (data) { return data || ''; }
+                    },
+                    {
+                        data: 'guest_name',
+                        className: 'text-center',
+                        render: function (data) { return data || '-'; }
                     },
                     {
                         data: 'BUY_IN',
@@ -389,7 +399,7 @@ th.col-winloss {
     }
 
     // Make function globally accessible
-    window.game_history = async function(accountId) {
+    window.game_history = async function(accountId, guestId) {
         if (!accountId) {
             // Try to get account ID from the modal
             accountId = document.getElementById('account_id')?.value || 
@@ -403,7 +413,7 @@ th.col-winloss {
 
         const modal = getGameHistoryModal();
         if (modal) {
-            await loadGameHistoryRows(accountId);
+            await loadGameHistoryRows(accountId, guestId);
             modal.show();
         } else {
             console.error('Game history modal not initialized');

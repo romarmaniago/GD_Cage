@@ -6,9 +6,96 @@ var _servicesSettled = 0;
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
 	
+function resetNewGameSubmitButton() {
+	var $btn = $('#submit-game-list-btn');
+	if (!$btn.length) return;
+	var label = $btn.data('label') || 'Save';
+	$btn.prop('disabled', false).text(label);
+}
+
+function resetNewGameInputs() {
+	var form = document.getElementById('add_game_list');
+	if (form) form.reset();
+
+	$('#txtNN, #txtCC, #txtRollerNN, #txtRollerCC').val('');
+	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
+	$('#enableSplitNewGame').prop('checked', false);
+	$('#split-new-game-row').hide();
+	$('#txtNN, #txtCC').closest('.row').show();
+	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
+	$('#txtGuestId').val('');
+}
+
+function syncSelectedGuestIdFromAccount() {
+	var $select = $('#txtTrans');
+	if (!$select.length) return;
+	var guestId = $select.find('option:selected').attr('data-guest-id') || '';
+	$('#txtGuestId').val(guestId);
+}
+
+function syncSelectedGuestIdFromGuestDropdown() {
+	var guestId = $('#txtGuestGame').val() || '';
+	$('#txtGuestId').val(guestId);
+}
+
+function loadGuestsForSelectedAccount() {
+	var $accountSelect = $('#txtTrans');
+	var $guestSelect = $('#txtGuestGame');
+	if (!$accountSelect.length || !$guestSelect.length) return;
+
+	var selectedAccountId = $accountSelect.val();
+	var agentId = $accountSelect.find('option:selected').attr('data-agent-id') || '';
+
+	if ($guestSelect.data('select2')) {
+		$guestSelect.select2('destroy');
+	}
+
+	$guestSelect.empty().append($('<option>', { value: '', text: '--SELECT GUEST--' }));
+	$guestSelect.select2({
+		placeholder: 'Select guest (optional)',
+		dropdownParent: '#modal-new-game-list'
+	});
+	$guestSelect.val('').trigger('change');
+	$guestSelect.prop('disabled', !selectedAccountId);
+
+	if (!selectedAccountId || !agentId) {
+		syncSelectedGuestIdFromGuestDropdown();
+		return;
+	}
+
+	$.ajax({
+		url: '/guest_data?agentId=' + encodeURIComponent(agentId),
+		method: 'GET',
+		success: function (rows) {
+			var guests = Array.isArray(rows) ? rows : [];
+			guests.forEach(function (guest) {
+				$guestSelect.append($('<option>', {
+					value: guest.guest_id,
+					text: (guest.guest_name || '').toUpperCase()
+				}));
+			});
+			$guestSelect.trigger('change.select2');
+			$guestSelect.prop('disabled', false);
+		},
+		error: function () {
+			$guestSelect.prop('disabled', true);
+			syncSelectedGuestIdFromGuestDropdown();
+		}
+	});
+}
+
 
 function addGameList(id) {
 	var $select = $('#txtTrans');
+	var $guest = $('#txtGuestGame');
+	resetNewGameInputs();
+	resetNewGameSubmitButton();
+	$('#txtTrans').prop('disabled', false);
+	$('#txtGuestGame').prop('disabled', true);
+	$select.removeAttr('data-readonly');
+	$guest.removeAttr('data-readonly');
+	$select.removeAttr('data-locked-value');
+	$guest.removeAttr('data-locked-value');
 	
 	// Helper to populate select options and refresh Select2
 	function populateOptions() {
@@ -25,10 +112,14 @@ function addGameList(id) {
 		
 		if (Array.isArray(_accountOptionsCache) && _accountOptionsCache.length > 0) {
 			_accountOptionsCache.forEach(function (option) {
-				$select.append($('<option>', {
+				var $opt = $('<option>', {
 					value: option.account_id,
 					text: option.agent_name + ' (' + option.agent_code + ')'
-				}));
+				});
+				var guestId = option.guest_id || option.GUESTNo || '';
+				$opt.attr('data-guest-id', guestId);
+				$opt.attr('data-agent-id', option.agent_id || '');
+				$select.append($opt);
 			});
 		}
 		
@@ -37,10 +128,13 @@ function addGameList(id) {
 			placeholder: 'Select an option',
 			dropdownParent: '#modal-new-game-list',
 		});
+		syncSelectedGuestIdFromAccount();
+		loadGuestsForSelectedAccount();
 	}
 	
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
 	$('#modal-new-game-list').modal('show');
+	$('#txtGuestId').val('');
 	$('#enableSplitNewGame').prop('checked', false);
 	$('#split-new-game-row').hide();
 	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
@@ -235,9 +329,9 @@ $(document).ready(function () {
 	
 		columnDefs: [
 			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
-			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (Blue)
-			{ targets: 8, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
-			{ targets: 6, className: 'text-center col-winloss' },       // WIN/LOSS (Orange) after CASH-OUT
+			{ targets: 5, className: 'text-center col-buyin' },          // BUY-IN (Blue)
+			{ targets: 9, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
+			{ targets: 7, className: 'text-center col-winloss' },       // WIN/LOSS (Orange) after CASH-OUT
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		
@@ -255,8 +349,8 @@ $(document).ready(function () {
 	
 		createdRow: function (row, data, index) {
 			// 🔴 Color red if WIN/LOSS is negative
-			if (parseInt(data[6].split(',').join('')) < 0) {
-				$('td:eq(6)', row).css({
+			if (parseInt(data[7].split(',').join('')) < 0) {
+				$('td:eq(7)', row).css({
 					'background-color': '#fff',
 					'color': 'red'
 				});
@@ -333,6 +427,7 @@ $(document).ready(function () {
 				'-',
 				gamesLabel,
 				acct_no_link,
+				'-',
 				parseFloat(acc.total_amount || 0).toLocaleString(),
 				parseFloat(acc.total_cash_out || 0).toLocaleString(),
 				parseFloat(acc.total_winloss || 0).toLocaleString(),
@@ -376,6 +471,10 @@ $(document).ready(function () {
     }
 
     function reloadData() {
+        // Skip game-list table refresh logic when this script is reused on other pages (e.g. Agency).
+        if (!$('#game_list-tbl').length) {
+            return;
+        }
 		// Build params; if highlightId exists, pass it to bypass date filtering on backend
 		const params = {};
 		if (highlightId) {
@@ -473,6 +572,7 @@ $(document).ready(function () {
 							'-',
 							gamesLabel,
                             acct_no_link,
+							'-',
                             parseFloat(acc.total_amount || 0).toLocaleString(),
                             parseFloat(acc.total_cash_out || 0).toLocaleString(),
                             parseFloat(acc.total_winloss || 0).toLocaleString(),
@@ -779,11 +879,13 @@ $(document).ready(function () {
                                 }
 
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
                                 let rowNode = dataTable.row.add([
                                     game_start,
                                     `${row.GAME_TYPE}`,
                                     `${row.game_list_id}`,
                                     acct_no_link,
+									guestDisplay,
                                     buyin_td,
                                     cashout_td,
                                     winloss,
@@ -896,12 +998,14 @@ $(document).ready(function () {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
 								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
 
 								let rowNode = dataTable.row.add([
 									game_start,
 									`${row.GAME_TYPE}`,
 									`${row.game_list_id}`,
 									acct_no_link,
+									guestDisplay,
 									buyin_td,
 									cashout_td,
 									winloss,
@@ -1007,7 +1111,8 @@ $(document).ready(function () {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, winloss, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
+						   var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
+						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, guestDisplay, buyin_td, cashout_td, winloss, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
 						   
 						   // Add pending styling if game was created before settlement run but still ON GAME
 						   if (row.is_pending === 1) {
@@ -1817,6 +1922,8 @@ $('#add_game_list').submit(function (event) {
         var gameType = $('input[name="txtGameType"]:checked').val() || '';
         var accountCode = $('#txtTrans').val() || '';
         var accountText = $('#txtTrans option:selected').text() || accountCode;
+        var guestIdSelected = $('#txtGuestGame').val() || '';
+        var guestText = $('#txtGuestGame option:selected').text() || '';
         var rollerNN = $('#txtRollerNN').val().trim();
         var rollerCC = $('#txtRollerCC').val().trim();
         var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
@@ -1832,6 +1939,9 @@ $('#add_game_list').submit(function (event) {
         var rows = '';
         rows += buildRow('Game Type:', gameType || '-');
         rows += buildRow('Account:', accountText || '-');
+        if (guestIdSelected) {
+            rows += buildRow('Guest:', guestText || '-');
+        }
         if (splitCashNN > 0) rows += buildRow('Cash (NN):', splitCashNN.toLocaleString());
         if (splitCashCC > 0) rows += buildRow('Cash (CC):', splitCashCC.toLocaleString());
         if (splitDepNN > 0) rows += buildRow('Deposit (NN):', splitDepNN.toLocaleString());
@@ -1870,6 +1980,7 @@ $('#add_game_list').submit(function (event) {
 
             var payload = {
                 txtAccountCode: $('#txtTrans').val(),
+                txtGuestId: $('#txtGuestId').val(),
                 txtGameType: $('input[name="txtGameType"]:checked').val(),
                 txtRollerNN: $('#txtRollerNN').val(),
                 txtRollerCC: $('#txtRollerCC').val(),
@@ -1898,9 +2009,13 @@ $('#add_game_list').submit(function (event) {
                         allowEscapeKey: false
                     }).then(function (swalResult) {
                         if (swalResult.isConfirmed) {
-                            reloadData();
                             $('#modal-new-game-list').modal('hide');
-                            window.location.reload();
+                            if (window.location.pathname === '/agency') {
+                                $(document).trigger('agency:new-game-saved');
+                            } else {
+                                reloadData();
+                                window.location.reload();
+                            }
                         }
                     });
                 },
@@ -2004,6 +2119,11 @@ $('#add_game_list').submit(function (event) {
         var confirmationRows = '';
         confirmationRows += buildRow('Game Type:', gameType || '-');
         confirmationRows += buildRow('Account:', accountText || '-');
+        var guestIdSelected = $('#txtGuestGame').val() || '';
+        var guestText = $('#txtGuestGame option:selected').text() || '';
+        if (guestIdSelected) {
+            confirmationRows += buildRow('Guest:', guestText || '-');
+        }
 
         if (txtNNamount > 0) {
             confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
@@ -2076,9 +2196,13 @@ $('#add_game_list').submit(function (event) {
                             allowEscapeKey: false
                         }).then((result) => {
                             if (result.isConfirmed) {
-                                reloadData(); // Reload data after confirmation
                                 $('#modal-new-game-list').modal('hide'); // Close modal
-                                window.location.reload(); // Refresh page
+                                if (window.location.pathname === '/agency') {
+                                    $(document).trigger('agency:new-game-saved');
+                                } else {
+                                    reloadData(); // Reload data after confirmation
+                                    window.location.reload(); // Refresh page
+                                }
                             }
                         });
                     },
@@ -4851,10 +4975,14 @@ function get_account() {
 
 		if (Array.isArray(options) && options.length > 0) {
 			options.forEach(function (option) {
-				$select.append($('<option>', {
+				var $opt = $('<option>', {
 					value: option.account_id,
 					text: option.agent_name + ' (' + option.agent_code + ')'
-				}));
+				});
+				var guestId = option.guest_id || option.GUESTNo || '';
+				$opt.attr('data-guest-id', guestId);
+				$opt.attr('data-agent-id', option.agent_id || '');
+				$select.append($opt);
 			});
 		}
 
@@ -4863,6 +4991,8 @@ function get_account() {
 			placeholder: 'Select an option',
 			dropdownParent: '#modal-new-game-list',
 		});
+		syncSelectedGuestIdFromAccount();
+		loadGuestsForSelectedAccount();
 	}
 
 	// If data is already cached, populate immediately (no delay, no disabled state)
@@ -4897,6 +5027,43 @@ $(document).ready(function () {
 	if (!Array.isArray(_accountOptionsCache) && !_accountOptionsPromise) {
 		preloadAccounts();
 	}
+
+	$('#txtTrans').on('change', function () {
+		if ($(this).attr('data-readonly') === '1') {
+			var lockedAccount = $(this).attr('data-locked-value');
+			if (lockedAccount) {
+				$(this).val(lockedAccount).trigger('change.select2');
+			}
+			return;
+		}
+		syncSelectedGuestIdFromAccount();
+		loadGuestsForSelectedAccount();
+	});
+
+	$('#txtGuestGame').on('change', function () {
+		if ($(this).attr('data-readonly') === '1') {
+			var lockedGuest = $(this).attr('data-locked-value');
+			if (lockedGuest) {
+				$(this).val(lockedGuest).trigger('change.select2');
+				$('#txtGuestId').val(lockedGuest);
+			}
+			return;
+		}
+		syncSelectedGuestIdFromGuestDropdown();
+	});
+
+	$('#txtTrans, #txtGuestGame').on('select2:opening', function (e) {
+		if ($(this).attr('data-readonly') === '1') {
+			e.preventDefault();
+		}
+	});
+
+	$('#modal-new-game-list').on('hidden.bs.modal', function () {
+		resetNewGameInputs();
+		resetNewGameSubmitButton();
+		$('#txtTrans').prop('disabled', false).removeAttr('data-readonly data-locked-value');
+		$('#txtGuestGame').prop('disabled', true).removeAttr('data-readonly data-locked-value');
+	});
 });
 
 

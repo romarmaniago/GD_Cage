@@ -154,8 +154,8 @@
                                     </button>
                                     <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
                                     <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
-                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="<%= __('modal_account_details.passport_details') %>">
-                                        <i class="fa fa-id-card me-1"></i><%= __('modal_account_details.passport_details') %>
+                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
+                                        <i class="fa fa-id-card me-1"></i>Info
                                     </button>
                                     <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
                                 </div>
@@ -322,7 +322,7 @@
         <div class="modal-content passport-details-modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header passport-details-header py-3 px-4">
                 <h5 class="modal-title d-flex align-items-center gap-2 fw-semibold" id="modalPassportDetailsLabel">
-                    <i class="fa fa-id-card"></i> <%= __('modal_account_details.passport_details') %>
+                    <i class="fa fa-id-card"></i> Info
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -350,6 +350,12 @@
                             <div class="passport-details-card rounded-3 overflow-hidden w-100">
                                 <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
+                                        <tr><th colspan="2" class="passport-section-title">Details</th></tr>
+                                        <tr><th scope="row">Contact no.</th><td id="p-contact">—</td></tr>
+                                        <tr><th scope="row">Telegram chat id</th><td id="p-telegram">—</td></tr>
+                                        <tr><th scope="row">Remarks</th><td id="p-remarks">—</td></tr>
+                                        <tr class="passport-section-gap"><td colspan="2"></td></tr>
+                                        <tr><th colspan="2" class="passport-section-title">Passport Details</th></tr>
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_document_type') %></th><td id="p-doc-type">—</td></tr>
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_country_code') %></th><td id="p-country">—</td></tr>
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_passport_no') %></th><td id="p-passport-no">—</td></tr>
@@ -786,6 +792,20 @@
     border-color: #e2e8f0;
     vertical-align: middle;
 }
+#modal-passport-details .passport-modal-details-table tbody .passport-section-title {
+    background: #eef2ff;
+    color: #1e3a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.74rem;
+    font-weight: 700;
+    padding: 8px 12px;
+}
+#modal-passport-details .passport-modal-details-table tbody .passport-section-gap td {
+    padding: 6px 0;
+    border: 0;
+    background: transparent !important;
+}
 #modal-passport-details .passport-modal-details-table tbody td {
     padding: 10px 12px;
     font-size: 0.9rem;
@@ -937,6 +957,9 @@
                 document.getElementById('p-dob').textContent = p.date_of_birth || '—';
                 document.getElementById('p-expiry').textContent = p.expiry_date || '—';
                 document.getElementById('p-gender').textContent = p.gender || '—';
+                document.getElementById('p-contact').textContent = '—';
+                document.getElementById('p-telegram').textContent = '—';
+                document.getElementById('p-remarks').textContent = '—';
                 var img = document.getElementById('passport-detail-image');
                 if (window.__pendingPassportImageDataUrl) {
                     img.src = window.__pendingPassportImageDataUrl;
@@ -953,25 +976,35 @@
                 return;
             }
 
-            fetch('/account_passport_details/' + accountId)
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
+            Promise.all([
+                fetch('/account_passport_details/' + accountId).then(function (res) { return res.json(); }).catch(function () { return null; }),
+                fetch('/account_passportphoto_data/' + accountId).then(function (res) { return res.json(); }).catch(function () { return []; })
+            ])
+                .then(function (results) {
+                    var data = results[0];
+                    var accountRows = results[1];
+                    var accountInfo = Array.isArray(accountRows) && accountRows.length ? accountRows[0] : null;
+                    var hasPassport = !!(data && typeof data === 'object' && !data.error);
                     document.getElementById('passport-details-loading').classList.add('d-none');
-                    if (!data || (typeof data === 'object' && data.error)) {
-                        document.getElementById('passport-details-empty').classList.remove('d-none');
-                        return;
-                    }
+
+                    // Always show Info table so Details section (contact/telegram/remarks) is visible
+                    // even when passport fields are not available yet.
                     document.getElementById('passport-details-content').classList.remove('d-none');
-                    document.getElementById('p-doc-type').textContent = data.DOCUMENT_TYPE || '—';
-                    document.getElementById('p-country').textContent = data.COUNTRY_CODE || '—';
-                    document.getElementById('p-passport-no').textContent = data.PASSPORT_NO || '—';
-                    document.getElementById('p-full-name').textContent = data.FULL_NAME || '—';
-                    document.getElementById('p-nationality').textContent = data.NATIONALITY || '—';
-                    document.getElementById('p-dob').textContent = data.DATE_OF_BIRTH ? new Date(data.DATE_OF_BIRTH).toLocaleDateString() : '—';
-                    document.getElementById('p-expiry').textContent = data.EXPIRY_DATE ? new Date(data.EXPIRY_DATE).toLocaleDateString() : '—';
-                    document.getElementById('p-gender').textContent = data.GENDER || '—';
+                    document.getElementById('passport-details-empty').classList.add('d-none');
+
+                    document.getElementById('p-doc-type').textContent = hasPassport ? (data.DOCUMENT_TYPE || '—') : '—';
+                    document.getElementById('p-country').textContent = hasPassport ? (data.COUNTRY_CODE || '—') : '—';
+                    document.getElementById('p-passport-no').textContent = hasPassport ? (data.PASSPORT_NO || '—') : '—';
+                    document.getElementById('p-full-name').textContent = hasPassport ? (data.FULL_NAME || '—') : '—';
+                    document.getElementById('p-nationality').textContent = hasPassport ? (data.NATIONALITY || '—') : '—';
+                    document.getElementById('p-dob').textContent = hasPassport && data.DATE_OF_BIRTH ? new Date(data.DATE_OF_BIRTH).toLocaleDateString() : '—';
+                    document.getElementById('p-expiry').textContent = hasPassport && data.EXPIRY_DATE ? new Date(data.EXPIRY_DATE).toLocaleDateString() : '—';
+                    document.getElementById('p-gender').textContent = hasPassport ? (data.GENDER || '—') : '—';
+                    document.getElementById('p-contact').textContent = accountInfo && accountInfo.agent_contact ? accountInfo.agent_contact : '—';
+                    document.getElementById('p-telegram').textContent = accountInfo && accountInfo.agent_telegram ? accountInfo.agent_telegram : '—';
+                    document.getElementById('p-remarks').textContent = accountInfo && accountInfo.agent_remarks ? accountInfo.agent_remarks : '—';
                     var img = document.getElementById('passport-detail-image');
-                    if (data.PASSPORT_IMAGE) {
+                    if (hasPassport && data.PASSPORT_IMAGE) {
                         img.src = '/PassportUpload/' + data.PASSPORT_IMAGE;
                         img.style.display = '';
                     } else {

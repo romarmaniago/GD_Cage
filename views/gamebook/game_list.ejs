@@ -94,6 +94,9 @@
 												<%= __('gamelist.acct_no') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center">
+												Guest
+											</th>
+											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.buyin') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center">
@@ -136,7 +139,7 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="4">
+											<th colspan="5">
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
@@ -890,6 +893,7 @@ table.dataTable tbody tr.highlight-row {
 										{ "data": "game_type" },
 										{ "data": "game_no" },
 										{ "data": "acct_no" },
+										{ "data": "guest", "defaultContent": "-" },
 										{ "data": "buy_in" },
 										{ "data": "chips_return" },
 										{ "data": "win_loss" },
@@ -1010,15 +1014,15 @@ table.dataTable tbody tr.highlight-row {
 									// console.log("Processing object:", data);
 
 									// Adjust these indices based on your columns configuration
-									var amountIndex = 4; // "BUY-IN" is at index 4
-									var rollingIndex = 8; // "TOTAL ROLLING" is at index 8
-									var rollerChipsIndex = 14; // "ROLLER CHIPS" is at index 14
-									var chipsReturnIndex = 5; // "CASH-OUT" is at index 5
-									var winLossIndex = 6; // "WIN/LOSS" is at index 6
-									var realRollingIndex = 7; // "REAL ROLLING" is at index 7
-									var commissionIndex = 10; // "COMMISSION" is at index 10
-									var addChgIndex = 11; // "ADD CHG" is at index 11
-									var totalSettleIndex = 12; // "TOTAL SETTLE" is at index 12
+									var amountIndex = 5; // "BUY-IN" is at index 5
+									var rollingIndex = 9; // "TOTAL ROLLING" is at index 9
+									var rollerChipsIndex = 15; // "ROLLER CHIPS" is at index 15
+									var chipsReturnIndex = 6; // "CASH-OUT" is at index 6
+									var winLossIndex = 7; // "WIN/LOSS" is at index 7
+									var realRollingIndex = 8; // "REAL ROLLING" is at index 8
+									var commissionIndex = 11; // "COMMISSION" is at index 11
+									var addChgIndex = 12; // "ADD CHG" is at index 12
+									var totalSettleIndex = 13; // "TOTAL SETTLE" is at index 13
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';

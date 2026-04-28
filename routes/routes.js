@@ -4047,6 +4047,7 @@ pageRouter.post('/add_game_list', (req, res) => {
 		txtNN,
 		txtCC,
 		txtTransType,
+		txtGuestId,
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1
@@ -4082,8 +4083,9 @@ pageRouter.post('/add_game_list', (req, res) => {
 	}
 
 
-	const query = `INSERT INTO game_list(ACCOUNT_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	connection.query(query, [txtAccountCode, txtGameType, initialMOP, txtGameNo, txtChips, txtCommisionType, txtCommisionRate, req.session.user_id, date_now], async (err, result) => {
+	const guestId = parseInt(txtGuestId, 10) || null;
+	const query = `INSERT INTO game_list(ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	connection.query(query, [txtAccountCode, guestId, txtGameType, initialMOP, txtGameNo, txtChips, txtCommisionType, txtCommisionRate, req.session.user_id, date_now], async (err, result) => {
 		if (err) {
 			console.error('Error inserting into game_list:', err);
 			res.status(500).send('Error inserting details');

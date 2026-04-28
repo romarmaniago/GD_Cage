@@ -261,6 +261,196 @@ router.get('/agency_data', async (req, res) => {
 	}
 });
 
+// Agency (LINE) page — summary cards: agents, rolling, win/loss, commission (scoped to one LINE or all)
+router.get('/agency_line_stats', async (req, res) => {
+	try {
+		const agencyIdParam = req.query.agencyId;
+		const agencyId = agencyIdParam !== undefined && agencyIdParam !== '' ? Number(agencyIdParam) : null;
+		const hasAgencyFilter = agencyId !== null && !Number.isNaN(agencyId);
+		const agencyFilter = hasAgencyFilter ? ' AND ag.AGENCY = ? ' : '';
+		const filterParams = hasAgencyFilter ? [agencyId] : [];
+
+		const [[agentRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total_agent
+			 FROM agent ag
+			 WHERE ag.ACTIVE = 1
+			 ${hasAgencyFilter ? 'AND ag.AGENCY = ?' : ''}`,
+			filterParams
+		);
+
+		const [[lineRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total_line
+			 FROM agency a
+			 WHERE a.ACTIVE = 1
+			 ${hasAgencyFilter ? 'AND a.IDNo = ?' : ''}`,
+			filterParams
+		);
+
+		const [gameRows] = await pool.execute(
+			`SELECT
+					gl.IDNo AS game_id,
+					COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+					COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+			 FROM game_list gl
+			 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+			 WHERE gl.ACTIVE IN (1, 2)
+			   AND acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			 ${agencyFilter}
+			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+			filterParams
+		);
+
+		let totalRolling = 0;
+		let totalWinLoss = 0;
+		let totalCommission = 0;
+
+		for (const row of gameRows) {
+			const totalRollingChips =
+				(Number(row.total_rolling_nn) || 0) +
+				(Number(row.total_roller_return_cc) || 0) +
+				(Number(row.total_rolling_amount) || 0) +
+				(Number(row.total_rolling_real) || 0) +
+				(Number(row.total_rolling_nn_real) || 0) +
+				(Number(row.total_rolling_cc_real) || 0) -
+				(Number(row.total_cash_out_nn) || 0);
+
+			const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
+			const commissionRate = Number(row.commission_percentage) || 0;
+			const commissionType = Number(row.commission_type) || 0;
+			let net = 0;
+
+			if (commissionType === 1 || commissionType === 3) {
+				net = Math.round((totalRollingChips * commissionRate) / 100);
+			} else if (commissionType === 2) {
+				net = Math.round((winLoss * commissionRate) / 100);
+			}
+
+			totalRolling += totalRollingChips;
+			totalWinLoss += winLoss;
+			totalCommission += net;
+		}
+
+		res.json({
+			total_line: Number(lineRow?.total_line ?? 0),
+			total_agent: Number(agentRow?.total_agent ?? 0),
+			total_rolling: totalRolling,
+			total_winloss: totalWinLoss,
+			total_commission: totalCommission
+		});
+	} catch (err) {
+		console.error('Error in /agency_line_stats:', err);
+		res.status(500).json({ error: 'Failed to load line statistics.' });
+	}
+});
+
+// Agency page — selected AGENT summary cards
+router.get('/agency_agent_stats', async (req, res) => {
+	try {
+		const agentId = Number(req.query.agentId);
+		if (!agentId || Number.isNaN(agentId)) {
+			return res.status(400).json({ error: 'Invalid agent id.' });
+		}
+
+		const [[guestRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total_guest
+			 FROM guest
+			 WHERE ACTIVE = 1 AND AGENT_ID = ?`,
+			[agentId]
+		);
+
+		const [[gamesRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total_games
+			 FROM game_list gl
+			 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE gl.ACTIVE IN (1, 2)
+			   AND acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   AND ag.IDNo = ?`,
+			[agentId]
+		);
+
+		const [gameRows] = await pool.execute(
+			`SELECT
+					gl.IDNo AS game_id,
+					COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+					COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+			 FROM game_list gl
+			 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+			 WHERE gl.ACTIVE IN (1, 2)
+			   AND acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   AND ag.IDNo = ?
+			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+			[agentId]
+		);
+
+		let totalRolling = 0;
+		let totalWinLoss = 0;
+		let totalCommission = 0;
+
+		for (const row of gameRows) {
+			const totalRollingChips =
+				(Number(row.total_rolling_nn) || 0) +
+				(Number(row.total_roller_return_cc) || 0) +
+				(Number(row.total_rolling_amount) || 0) +
+				(Number(row.total_rolling_real) || 0) +
+				(Number(row.total_rolling_nn_real) || 0) +
+				(Number(row.total_rolling_cc_real) || 0) -
+				(Number(row.total_cash_out_nn) || 0);
+
+			const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
+			const commissionRate = Number(row.commission_percentage) || 0;
+			const commissionType = Number(row.commission_type) || 0;
+			let net = 0;
+
+			if (commissionType === 1 || commissionType === 3) {
+				net = Math.round((totalRollingChips * commissionRate) / 100);
+			} else if (commissionType === 2) {
+				net = Math.round((winLoss * commissionRate) / 100);
+			}
+
+			totalRolling += totalRollingChips;
+			totalWinLoss += winLoss;
+			totalCommission += net;
+		}
+
+		return res.json({
+			total_guest: Number(guestRow?.total_guest ?? 0),
+			total_games: Number(gamesRow?.total_games ?? 0),
+			total_rolling: totalRolling,
+			total_winloss: totalWinLoss,
+			total_commission: totalCommission
+		});
+	} catch (err) {
+		console.error('Error in /agency_agent_stats:', err);
+		return res.status(500).json({ error: 'Failed to load agent statistics.' });
+	}
+});
+
 // OPTIONS FOR ACCOUNT TRANSFER BETWEEN AGENTS
 router.get('/agency_transfer_options', async (req, res) => {
 	try {
@@ -441,6 +631,139 @@ router.get('/agent_data/:id', async (req, res) => {
 	} catch (error) {
 		console.error('❌ Error fetching agent by ID:', error);
 		res.status(500).send('Error fetching data');
+	}
+});
+
+// GET GUEST DATA (by agent)
+router.get('/guest_data', async (req, res) => {
+	try {
+		const agentId = parseInt(req.query.agentId, 10);
+		if (!agentId) {
+			return res.json([]);
+		}
+
+		const guestQuery = `
+			SELECT
+				g.IDNo AS guest_id,
+				g.AGENT_ID AS agent_id,
+				g.NAME AS guest_name
+			FROM guest g
+			WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
+			ORDER BY g.IDNo DESC
+		`;
+		const [guestRows] = await pool.execute(guestQuery, [agentId]);
+
+		if (!Array.isArray(guestRows) || guestRows.length === 0) {
+			return res.json([]);
+		}
+
+		const gameQuery = `
+			SELECT
+				gl.GUEST_ID AS guest_id,
+				gl.IDNo AS game_id,
+				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+			FROM game_list gl
+			INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+			WHERE ag.IDNo = ?
+			  AND ag.ACTIVE = 1
+			  AND acc.ACTIVE = 1
+			  AND gl.ACTIVE IN (1, 2)
+			GROUP BY
+				gl.GUEST_ID,
+				gl.IDNo,
+				gl.COMMISSION_TYPE,
+				gl.COMMISSION_PERCENTAGE
+		`;
+		const [gameRows] = await pool.execute(gameQuery, [agentId]);
+
+		const resultMap = {};
+		guestRows.forEach((g) => {
+			const key = String(g.guest_id);
+			resultMap[key] = {
+				guest_id: g.guest_id,
+				agent_id: g.agent_id,
+				guest_name: g.guest_name,
+				total_games: 0,
+				total_rolling: 0,
+				total_winloss: 0,
+				total_commission: 0
+			};
+		});
+
+		(gameRows || []).forEach((row) => {
+			const guestKey = String(row.guest_id || '').trim();
+			const bucket = resultMap[guestKey];
+			if (!bucket) return;
+
+			const totalRollingChips =
+				(Number(row.total_rolling_nn) || 0) +
+				(Number(row.total_roller_return_cc) || 0) +
+				(Number(row.total_rolling_amount) || 0) +
+				(Number(row.total_rolling_real) || 0) +
+				(Number(row.total_rolling_nn_real) || 0) +
+				(Number(row.total_rolling_cc_real) || 0) -
+				(Number(row.total_cash_out_nn) || 0);
+
+			const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
+			const commissionRate = Number(row.commission_percentage) || 0;
+			const commissionType = Number(row.commission_type) || 0;
+			let net = 0;
+
+			if (commissionType === 1 || commissionType === 3) {
+				net = Math.round((totalRollingChips * commissionRate) / 100);
+			} else if (commissionType === 2) {
+				net = Math.round((winLoss * commissionRate) / 100);
+			}
+
+			bucket.total_games += 1;
+			bucket.total_rolling += totalRollingChips;
+			bucket.total_winloss += winLoss;
+			bucket.total_commission += net;
+		});
+
+		return res.json(Object.values(resultMap));
+	} catch (err) {
+		console.error('Error fetching guest_data:', err);
+		return res.status(500).json({ error: 'Failed to load guest data.' });
+	}
+});
+
+// ADD GUEST
+router.post('/add_guest', async (req, res) => {
+	try {
+		const agentId = parseInt(req.body.txtAgentId, 10);
+		const guestName = String(req.body.txtGuestName || '').trim();
+		const encodedBy = req.session?.user_id || 1;
+		const now = new Date();
+
+		if (!agentId) {
+			return res.status(400).json({ error: 'Agent is required.' });
+		}
+		if (!guestName) {
+			return res.status(400).json({ error: 'Guest name is required.' });
+		}
+
+		const insertQuery = `
+			INSERT INTO guest (AGENT_ID, NAME, ACTIVE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, 1, ?, ?)
+		`;
+		const [result] = await pool.execute(insertQuery, [agentId, guestName, encodedBy, now]);
+		return res.json({ success: true, guest_id: result.insertId });
+	} catch (err) {
+		console.error('Error adding guest:', err);
+		return res.status(500).json({ error: 'Failed to add guest.' });
 	}
 });
 
@@ -1425,6 +1748,8 @@ router.get('/account_credit_balance/:id', async (req, res) => {
 router.get('/account_game_history/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
+		const guestId = parseInt(req.query.guestId, 10);
+		const hasGuestFilter = Number.isInteger(guestId) && guestId > 0;
 		
 		// First, get all games for this account
 		const gameQuery = `
@@ -1435,6 +1760,7 @@ router.get('/account_game_history/:id', async (req, res) => {
 				account.IDNo AS account_no,
 				agent.AGENT_CODE AS agent_code,
 				agent.NAME AS agent_name,
+				COALESCE(NULLIF(TRIM(guest.NAME), ''), '-') AS guest_name,
 				game_list.ENCODED_DT AS game_date_start,
 				game_list.GAME_ENDED AS game_date_end,
 				COALESCE((
@@ -1447,11 +1773,14 @@ router.get('/account_game_history/:id', async (req, res) => {
 			FROM game_list
 			JOIN account ON game_list.ACCOUNT_ID = account.IDNo
 			JOIN agent ON agent.IDNo = account.AGENT_ID
+			LEFT JOIN guest ON guest.IDNo = game_list.GUEST_ID
 			WHERE game_list.ACCOUNT_ID = ?
+			  ${hasGuestFilter ? 'AND game_list.GUEST_ID = ?' : ''}
 			  AND game_list.ACTIVE != 0
 			ORDER BY game_list.ENCODED_DT DESC
 		`;
-		const [games] = await pool.execute(gameQuery, [id]);
+		const queryParams = hasGuestFilter ? [id, guestId] : [id];
+		const [games] = await pool.execute(gameQuery, queryParams);
 		
 		// For each game, calculate totals using the same logic as game_list.js
 		const gamesWithTotals = await Promise.all(games.map(async (game) => {
@@ -1603,7 +1932,9 @@ router.get('/account_passportphoto_data/:account_id', async (req, res) => {
 				agent.NAME AS account_name, 
 				agent.AGENT_CODE AS agent_code,
 				agent.PHOTO AS PASSPORTPHOTO,
-				agent.REMARKS AS agent_remarks
+				agent.REMARKS AS agent_remarks,
+				agent.CONTACTNo AS agent_contact,
+				agent.TELEGRAM_ID AS agent_telegram
 			FROM account 
 			LEFT JOIN agent ON agent.IDNo = account.AGENT_ID 
 			WHERE account.IDNo = ?

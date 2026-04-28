@@ -1,3 +1,24 @@
+<%
+const _sqlNNChipsBuyin = typeof sqlNNChipsBuyin !== 'undefined' ? sqlNNChipsBuyin : [{ NNChipsBuyin: 0 }];
+const _sqlNNChipsCashout = typeof sqlNNChipsCashout !== 'undefined' ? sqlNNChipsCashout : [{ NNChipsCashout: 0 }];
+const _sqlAccountNNChips = typeof sqlAccountNNChips !== 'undefined' ? sqlAccountNNChips : [{ TOTAL_NN: 0 }];
+const _sqlTotalCashOutRolling = typeof sqlTotalCashOutRolling !== 'undefined' ? sqlTotalCashOutRolling : [{ TOTAL_CASHOUT: 0 }];
+const _sqlTotalRealRolling = typeof sqlTotalRealRolling !== 'undefined' ? sqlTotalRealRolling : [{ TOTAL_REAL_ROLLING: 0 }];
+const _sqlNNChipsRolling = typeof sqlNNChipsRolling !== 'undefined' ? sqlNNChipsRolling : [{ NNChipsRolling: 0 }];
+const _sqlCCChipsRolling = typeof sqlCCChipsRolling !== 'undefined' ? sqlCCChipsRolling : [{ CCChipsRolling: 0 }];
+const _sqlNNBuyin = typeof sqlNNBuyin !== 'undefined' ? sqlNNBuyin : [{ NNBuyin: 0 }];
+const _sqlNNReturn = typeof sqlNNReturn !== 'undefined' ? sqlNNReturn : [{ NNReturn: 0 }];
+const _sqlRollerNNSubtract = typeof sqlRollerNNSubtract !== 'undefined' ? sqlRollerNNSubtract : [{ ROLLER_NN_SUBTRACT: 0 }];
+const _sqlRollerNNAdd = typeof sqlRollerNNAdd !== 'undefined' ? sqlRollerNNAdd : [{ ROLLER_NN_ADD: 0 }];
+const _sqlCCChipsBuyin = typeof sqlCCChipsBuyin !== 'undefined' ? sqlCCChipsBuyin : [{ CCChipsBuyin: 0 }];
+const _sqlCCChipsCashout = typeof sqlCCChipsCashout !== 'undefined' ? sqlCCChipsCashout : [{ CCChipsCashout: 0 }];
+const _sqlAccountCCChipsReturn = typeof sqlAccountCCChipsReturn !== 'undefined' ? sqlAccountCCChipsReturn : [{ CC_CHIPS_RETURN: 0 }];
+const _sqlCCChipsBuyinGame = typeof sqlCCChipsBuyinGame !== 'undefined' ? sqlCCChipsBuyinGame : [{ TOTAL_CC: 0 }];
+const _sqlCCBuyin = typeof sqlCCBuyin !== 'undefined' ? sqlCCBuyin : [{ CCBuyin: 0 }];
+const _sqlCCReturn = typeof sqlCCReturn !== 'undefined' ? sqlCCReturn : [{ CCReturn: 0 }];
+const _sqlRollerCCSubtract = typeof sqlRollerCCSubtract !== 'undefined' ? sqlRollerCCSubtract : [{ ROLLER_CC_SUBTRACT: 0 }];
+const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd : [{ ROLLER_CC_ADD: 0 }];
+%>
 <div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -7,26 +28,26 @@
         </div>
         <form id="add_game_list">
         <div class="modal-body">
-            <h6 class="counter d-none" id="availableNN">₱  <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
-                 (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                 (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
-                (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
-                (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
-                 || 0) - (+sqlNNReturn[0].NNReturn || 0) -
-                 (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                 (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
-            <h6 id="availableCC" class="counter d-none">₱<%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
-                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
-                 (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
-                 (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
-                 (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                 (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
-                 0) - (+sqlCCReturn[0].CCReturn || 0) -
-                 (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                 (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
+            <h6 class="d-none" id="availableNN"><%- ( (+_sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+                (+_sqlNNChipsCashout[0].NNChipsCashout || 0) -
+                 (+_sqlAccountNNChips[0].TOTAL_NN || 0) +
+                 (+_sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+                 (+_sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
+                (+_sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                (+_sqlCCChipsRolling[0].CCChipsRolling || 0) + (+_sqlNNBuyin[0].NNBuyin
+                 || 0) - (+_sqlNNReturn[0].NNReturn || 0) -
+                 (+_sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                 (+_sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
+            <h6 id="availableCC" class="d-none"><%- ( (+_sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                (+_sqlCCChipsCashout[0].CCChipsCashout || 0) +
+                 (+_sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
+                 (+_sqlCCChipsRolling[0].CCChipsRolling || 0) -
+                 (+_sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                 (+_sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                 (+_sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+_sqlCCBuyin[0].CCBuyin ||
+                 0) - (+_sqlCCReturn[0].CCReturn || 0) -
+                 (+_sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                 (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
              
           
                 <!-- Total Balance Display -->
@@ -54,11 +75,20 @@
               </div>
 
               <div class="row mb-3">
-                  <div class="col-sm-12">
+                  <div class="col-sm-6">
+                      <input type="hidden" id="txtGuestId" name="txtGuestId" value="">
                       <select class="js-select2 form-select" id="txtTrans" name="txtAccountCode" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.choose_account_placeholder') %>" required>
                       </select>
                   </div>
+
+                  <div class="col-sm-6">
+                    <select class="js-select2 form-select" id="txtGuestGame" style="width: 100%;" data-placeholder="Select guest (optional)" disabled>
+                        <option value="">--SELECT GUEST--</option>
+                    </select>
+                </div>
               </div>
+
+             
 
               <div class="row mb-2">
                   <div class="col-sm-6">
@@ -180,7 +210,7 @@
               </div>
         </div>
         <div class="modal-footer">
-            <button type="submit" id="submit-game-list-btn" class="btn btn-sm btn-primary"><%= __('modal_new_game_list.save') %></button>
+            <button type="submit" id="submit-game-list-btn" class="btn btn-sm btn-primary" data-label="<%= __('modal_new_game_list.save') %>"><%= __('modal_new_game_list.save') %></button>
             <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_game_list.close') %></button>
         </div>
         </div>
