@@ -20,6 +20,8 @@ function renderLineStats(stats, isSingleLineScope) {
   $('#line-stat-total-rolling').text(formatLineStatNumber(payload.total_rolling));
   $('#line-stat-total-winloss').text(formatLineStatNumber(payload.total_winloss));
   $('#line-stat-total-commission').text(formatLineStatNumber(payload.total_commission));
+  $('#line-stat-total-balance').text(formatLineStatNumber(payload.total_balance));
+  $('#line-stat-total-credit').text(formatLineStatNumber(payload.total_credit));
   $('#line-stat-card-line').toggleClass('d-none', isSingleLineScope);
   $('#line-stat-card-agent').toggleClass('d-none', !isSingleLineScope);
 }
@@ -42,7 +44,9 @@ function loadLineStats(agencyId) {
         total_agent: 0,
         total_rolling: 0,
         total_winloss: 0,
-        total_commission: 0
+        total_commission: 0,
+        total_balance: 0,
+        total_credit: 0
       }, hasAgency);
     }
   });
@@ -55,6 +59,8 @@ function renderAgentStats(stats, isVisible) {
   $('#agent-stat-total-rolling').text(formatLineStatNumber(payload.total_rolling));
   $('#agent-stat-total-winloss').text(formatLineStatNumber(payload.total_winloss));
   $('#agent-stat-total-commission').text(formatLineStatNumber(payload.total_commission));
+  $('#agent-stat-total-balance').text(formatLineStatNumber(payload.total_balance));
+  $('#agent-stat-total-credit').text(formatLineStatNumber(payload.total_credit));
 
   // When an AGENT is selected, show only agent summary cards.
   $('#line-stat-row').toggleClass('d-none', isVisible);
@@ -69,7 +75,9 @@ function loadAgentStats(agentId) {
       total_games: 0,
       total_rolling: 0,
       total_winloss: 0,
-      total_commission: 0
+      total_commission: 0,
+      total_balance: 0,
+      total_credit: 0
     }, false);
     return;
   }
@@ -86,7 +94,9 @@ function loadAgentStats(agentId) {
         total_games: 0,
         total_rolling: 0,
         total_winloss: 0,
-        total_commission: 0
+        total_commission: 0,
+        total_balance: 0,
+        total_credit: 0
       }, true);
     }
   });
@@ -195,6 +205,7 @@ $(document).ready(function() {
     $('#guest_agent_id').val(selectedAgentId);
     $('#guest_agent_display').text(label);
     $('#guest_name_input').val('');
+    $('#guest_remarks_input').val('');
     $('#modal-add-guest-table').modal('show');
   });
 
@@ -205,6 +216,22 @@ $(document).ready(function() {
     } else {
       loadLineStats();
     }
+    if (selectedAgentId) {
+      setTimeout(function () {
+        loadGuestsForSelectedAgent();
+        loadAgentStats(selectedAgentId);
+      }, 180);
+    }
+  });
+
+  $(document).on('agency:account-transaction-saved', function () {
+    if (selectedAgencyId) {
+      refreshSelectedAgencyPanels();
+      loadLineStats(selectedAgencyId);
+    } else {
+      loadLineStats();
+    }
+
     if (selectedAgentId) {
       setTimeout(function () {
         loadGuestsForSelectedAgent();
@@ -244,6 +271,51 @@ $(document).ready(function() {
       },
       complete: function () {
         $btn.prop('disabled', false).text('Save');
+      }
+    });
+  });
+
+  $('#edit_guest_form').on('submit', function (e) {
+    e.preventDefault();
+    const guestId = parseInt($('#edit_guest_id').val(), 10);
+    const payload = $(this).serialize();
+    const $btn = $('#btn-update-guest-table');
+
+    if (!guestId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid guest',
+        text: 'Unable to update this guest.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    $btn.prop('disabled', true).text('Updating...');
+    $.ajax({
+      url: '/guest/' + encodeURIComponent(guestId),
+      type: 'PUT',
+      data: payload,
+      success: function () {
+        $('#modal-edit-guest-table').modal('hide');
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'Guest has been updated.',
+          confirmButtonText: 'OK'
+        });
+        loadGuestsForSelectedAgent();
+      },
+      error: function (xhr) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: xhr.responseJSON?.error || 'Failed to update guest.',
+          confirmButtonText: 'OK'
+        });
+      },
+      complete: function () {
+        $btn.prop('disabled', false).text('Update');
       }
     });
   });
@@ -370,10 +442,10 @@ function renderPage(data, page = 1, perPage = 30) {
     const permissions = parseInt($('#user-role').data('permissions'));
     const actionsHtml = permissions !== 2 ? `
       <button type="button"
-        class="btn btn-outline-secondary btn-sm"
+        class="btn btn-outline-primary btn-sm"
         onclick="handleEditAgencyFromRow(${row.IDNo}, this)"
         data-bs-toggle="tooltip"
-        title="Edit">
+        title="Edit Line">
         <i class="fa fa-pen"></i>
       </button>
       <button type="button"
@@ -514,14 +586,14 @@ function renderAgentPanel(accounts) {
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline-secondary"
+            class="btn btn-sm btn-outline-primary"
             title="Edit Agent"
             onclick="editAgentFromPanel(${agent.agent_id}, this)">
             <i class="fa fa-pen"></i>
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline-success"
+            class="btn btn-sm btn-outline-primary"
             title="View Portal"
             onclick="viewAgentPortal(${agent.agent_id}, '${escapeJsString(agent.agent_code || '')}', '${escapeJsString(agent.agent_name || '')}', this)">
             <i class="fa fa-eye"></i>
@@ -671,14 +743,33 @@ function renderGuestPanel(guests) {
   }
 
   const htmlRows = rows.map(function (row) {
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
+    const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
     const games = formatLineStatNumber(row.total_games || row.games || 0);
     const rolling = formatLineStatNumber(row.total_rolling || row.rolling || 0);
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
+    const safeName = String(name).toUpperCase();
+    const guestNameHtml = remarks
+      ? `<button
+          type="button"
+          class="btn btn-link p-0 agency-guest-remarks-link"
+          title="View Remarks"
+          onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
+      : safeName;
+    const editButtonHtml = permissions !== 2 ? `
+          <button
+            type="button"
+            class="btn btn-link p-0 me-2 agency-guest-plus-btn"
+            title="Edit Guest"
+            onclick="openEditGuestModal(${row.guest_id || 0})">
+            <i class="fa fa-pen"></i>
+          </button>
+    ` : '';
     return `
       <tr>
-        <td>${String(name).toUpperCase()}</td>
+        <td>${guestNameHtml}</td>
         <td>${games}</td>
         <td>${rolling}</td>
         <td>${winloss}</td>
@@ -687,16 +778,17 @@ function renderGuestPanel(guests) {
           <button
             type="button"
             class="btn btn-link p-0 me-2 agency-guest-plus-btn"
-            title="Game History"
-            onclick="openGuestGameHistory(${row.guest_id || 0})">
-            <i class="fa fa-history"></i>
-          </button>
-          <button
-            type="button"
-            class="btn btn-link p-0 agency-guest-plus-btn"
             title="New Game"
             onclick="openAddGameForGuest(${row.guest_id || 0})">
             <i class="fa fa-plus"></i>
+          </button>
+          ${editButtonHtml}
+          <button
+            type="button"
+            class="btn btn-link p-0 agency-guest-plus-btn"
+            title="Game History"
+            onclick="openGuestGameHistory(${row.guest_id || 0})">
+            <i class="fa fa-history"></i>
           </button>
         </td>
       </tr>
@@ -714,7 +806,7 @@ function renderGuestPanel(guests) {
             <th>Rolling</th>
             <th>Winloss</th>
             <th>Commission</th>
-              <th style="width: 34px;"></th>
+              <th style="width: 72px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -726,6 +818,55 @@ function renderGuestPanel(guests) {
 
   $list.html(tableHtml).removeClass('d-none');
   $empty.addClass('d-none');
+}
+
+function openGuestRemarks(guestId) {
+  const numericGuestId = parseInt(guestId, 10);
+  const target = currentGuestRows.find(function (row) {
+    return String(row.guest_id) === String(numericGuestId);
+  });
+  const remarks = String(target?.guest_remarks || target?.REMARKS || '').trim();
+
+  if (!remarks) return;
+
+  Swal.fire({
+    icon: 'info',
+    title: 'Remarks',
+    text: remarks,
+    confirmButtonText: 'OK'
+  });
+}
+
+function openEditGuestModal(guestId) {
+  const numericGuestId = parseInt(guestId, 10);
+  if (!numericGuestId) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Invalid guest',
+      text: 'Unable to edit this guest.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  const target = currentGuestRows.find(function (row) {
+    return String(row.guest_id) === String(numericGuestId);
+  });
+
+  if (!target) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Not found',
+      text: 'Guest record is not available.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  $('#edit_guest_id').val(target.guest_id || '');
+  $('#edit_guest_name_input').val(target.guest_name || target.NAME || '');
+  $('#edit_guest_remarks_input').val(target.guest_remarks || target.REMARKS || '');
+  $('#modal-edit-guest-table').modal('show');
 }
 
 function handleEditAgencyFromRow(id, buttonEl) {

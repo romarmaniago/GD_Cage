@@ -917,6 +917,12 @@ $(document).off('click', '#btn-save-credit-return').on('click', '#btn-save-credi
 		},
 		success: function (response) {
 			if (response && response.success) {
+				$(document).trigger('agency:account-transaction-saved', {
+					accountId: accountId,
+					source: source,
+					transactionType: transType,
+					context: 'credit-return'
+				});
 				$('#modal-credit-return').modal('hide');
 				if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Success', text: 'Marker Return Successfully!' });
 				$('#btn-credit').trigger('click');
@@ -1521,6 +1527,10 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			type: 'POST',
 			data: formData,
 			success: function (response) {
+				$(document).trigger('agency:account-transaction-saved', {
+					accountId: $form.find('input[name="txtAccountId"]').val() || null,
+					transactionType: selectedTrans
+				});
 				// Check if response is JSON (with Telegram error) or plain text (success)
 				if (typeof response === 'object' && response.success && response.error) {
 					// Transaction saved but Telegram failed

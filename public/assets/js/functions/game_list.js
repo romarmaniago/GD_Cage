@@ -226,7 +226,7 @@ function editGameCommissionType(gameId, currentType, currentPct, settledFlag) {
 	$('#edit-commission-game-id').val(gameId);
 	$('#edit-commission-type').val(String(targetType));
 	$('#edit-commission-type-display').val(targetTypeLabel);
-	var defaultRate = targetType === 1 ? 1.45 : (Number(currentPct) || 0);
+	var defaultRate = targetType === 1 ? 1.50 : (Number(currentPct) || 0);
 	$('#edit-commission-rate').val(defaultRate.toString());
 	$('#edit-commission-save-btn').prop('disabled', false).text('Update');
 	$('#edit-commission-rate').removeClass('is-invalid');
@@ -768,7 +768,7 @@ $(document).ready(function () {
 							var WinLoss = total_amount - total_cash_out_chips;
 							
 							
-							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.45% -> 62597 not 62596)
+							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.50% -> 62597 not 62596)
 							 var net = 0;
 							 if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
 								 // If COMMISSION_TYPE is 1 or 3, compute net using total rolling chips

@@ -311,6 +311,49 @@ router.get('/agency_line_stats', async (req, res) => {
 			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
 			filterParams
 		);
+		const [balanceRows] = await pool.execute(
+			`SELECT
+					COALESCE(SUM(led.total_balance), 0) AS total_balance
+			 FROM account acc
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 LEFT JOIN (
+				SELECT
+					al.ACCOUNT_ID,
+					SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
+					SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
+				FROM account_ledger al
+				INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+				WHERE al.ACTIVE = 1
+				  AND al.TRANSACTION_TYPE IN (2, 5, 3)
+				GROUP BY ACCOUNT_ID
+			 ) AS led ON led.ACCOUNT_ID = acc.IDNo
+			 WHERE acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   ${agencyFilter}`,
+			filterParams
+		);
+		const [creditRows] = await pool.execute(
+			`SELECT
+					COALESCE(SUM(cred.credit_balance), 0) AS total_credit
+			 FROM account acc
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 LEFT JOIN (
+				SELECT
+					al.ACCOUNT_ID,
+					SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
+				FROM account_ledger al
+				WHERE al.ACTIVE = 1
+				  AND al.TRANSACTION_TYPE IN (3, 4)
+				GROUP BY al.ACCOUNT_ID
+			 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
+			 WHERE acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   ${agencyFilter}`,
+			filterParams
+		);
 
 		let totalRolling = 0;
 		let totalWinLoss = 0;
@@ -347,7 +390,9 @@ router.get('/agency_line_stats', async (req, res) => {
 			total_agent: Number(agentRow?.total_agent ?? 0),
 			total_rolling: totalRolling,
 			total_winloss: totalWinLoss,
-			total_commission: totalCommission
+			total_commission: totalCommission,
+			total_balance: Number(balanceRows?.[0]?.total_balance ?? 0),
+			total_credit: Number(creditRows?.[0]?.total_credit ?? 0)
 		});
 	} catch (err) {
 		console.error('Error in /agency_line_stats:', err);
@@ -407,6 +452,45 @@ router.get('/agency_agent_stats', async (req, res) => {
 			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
 			[agentId]
 		);
+		const [[balanceRow]] = await pool.execute(
+			`SELECT
+					COALESCE(SUM(led.total_balance), 0) AS total_balance
+			 FROM account acc
+			 LEFT JOIN (
+				SELECT
+					al.ACCOUNT_ID,
+					SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
+					SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
+				FROM account_ledger al
+				INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+				WHERE al.ACTIVE = 1
+				  AND al.TRANSACTION_TYPE IN (2, 5, 3)
+				GROUP BY ACCOUNT_ID
+			 ) AS led ON led.ACCOUNT_ID = acc.IDNo
+			 WHERE acc.ACTIVE = 1
+			   AND acc.AGENT_ID = ?`,
+			[agentId]
+		);
+		const [[creditRow]] = await pool.execute(
+			`SELECT
+					COALESCE(SUM(cred.credit_balance), 0) AS total_credit
+			 FROM account acc
+			 LEFT JOIN (
+				SELECT
+					al.ACCOUNT_ID,
+					SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
+				FROM account_ledger al
+				WHERE al.ACTIVE = 1
+				  AND al.TRANSACTION_TYPE IN (3, 4)
+				GROUP BY al.ACCOUNT_ID
+			 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
+			 WHERE acc.ACTIVE = 1
+			   AND acc.AGENT_ID = ?`,
+			[agentId]
+		);
 
 		let totalRolling = 0;
 		let totalWinLoss = 0;
@@ -443,7 +527,9 @@ router.get('/agency_agent_stats', async (req, res) => {
 			total_games: Number(gamesRow?.total_games ?? 0),
 			total_rolling: totalRolling,
 			total_winloss: totalWinLoss,
-			total_commission: totalCommission
+			total_commission: totalCommission,
+			total_balance: Number(balanceRow?.total_balance ?? 0),
+			total_credit: Number(creditRow?.total_credit ?? 0)
 		});
 	} catch (err) {
 		console.error('Error in /agency_agent_stats:', err);
@@ -646,7 +732,8 @@ router.get('/guest_data', async (req, res) => {
 			SELECT
 				g.IDNo AS guest_id,
 				g.AGENT_ID AS agent_id,
-				g.NAME AS guest_name
+				g.NAME AS guest_name,
+				g.REMARKS AS guest_remarks
 			FROM guest g
 			WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
 			ORDER BY g.IDNo DESC
@@ -695,6 +782,7 @@ router.get('/guest_data', async (req, res) => {
 				guest_id: g.guest_id,
 				agent_id: g.agent_id,
 				guest_name: g.guest_name,
+				guest_remarks: g.guest_remarks,
 				total_games: 0,
 				total_rolling: 0,
 				total_winloss: 0,
@@ -745,6 +833,7 @@ router.post('/add_guest', async (req, res) => {
 	try {
 		const agentId = parseInt(req.body.txtAgentId, 10);
 		const guestName = String(req.body.txtGuestName || '').trim();
+		const remarks = String(req.body.txtRemarks || '').trim();
 		const encodedBy = req.session?.user_id || 1;
 		const now = new Date();
 
@@ -756,14 +845,47 @@ router.post('/add_guest', async (req, res) => {
 		}
 
 		const insertQuery = `
-			INSERT INTO guest (AGENT_ID, NAME, ACTIVE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, 1, ?, ?)
+			INSERT INTO guest (AGENT_ID, NAME, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, 1, ?, ?)
 		`;
-		const [result] = await pool.execute(insertQuery, [agentId, guestName, encodedBy, now]);
+		const [result] = await pool.execute(insertQuery, [agentId, guestName, remarks || null, encodedBy, now]);
 		return res.json({ success: true, guest_id: result.insertId });
 	} catch (err) {
 		console.error('Error adding guest:', err);
 		return res.status(500).json({ error: 'Failed to add guest.' });
+	}
+});
+
+// EDIT GUEST
+router.put('/guest/:id', async (req, res) => {
+	try {
+		const guestId = parseInt(req.params.id, 10);
+		const guestName = String(req.body.txtGuestName || '').trim();
+		const remarks = String(req.body.txtRemarks || '').trim();
+		const editedBy = req.session?.user_id || 1;
+		const now = new Date();
+
+		if (!guestId) {
+			return res.status(400).json({ error: 'Guest is required.' });
+		}
+		if (!guestName) {
+			return res.status(400).json({ error: 'Guest name is required.' });
+		}
+
+		const updateQuery = `
+			UPDATE guest
+			SET NAME = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+			WHERE IDNo = ? AND ACTIVE = 1
+		`;
+		const [result] = await pool.execute(updateQuery, [guestName, remarks || null, editedBy, now, guestId]);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ error: 'Guest not found.' });
+		}
+		return res.json({ success: true });
+	} catch (err) {
+		console.error('Error updating guest:', err);
+		return res.status(500).json({ error: 'Failed to update guest.' });
 	}
 });
 

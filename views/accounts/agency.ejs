@@ -60,6 +60,18 @@
 												<div class="agency-stat-value" id="line-stat-total-commission">—</div>
 											</div>
 										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Balance</div>
+												<div class="agency-stat-value" id="line-stat-total-balance">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Credit</div>
+												<div class="agency-stat-value" id="line-stat-total-credit">—</div>
+											</div>
+										</div>
 									</div>
 									<div class="row g-3 mb-3 agency-line-stats d-none" id="agent-stat-row">
 										<div class="col-6 col-lg">
@@ -90,6 +102,18 @@
 											<div class="agency-stat-card h-100">
 												<div class="agency-stat-label">Total Commission</div>
 												<div class="agency-stat-value" id="agent-stat-total-commission">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Balance</div>
+												<div class="agency-stat-value" id="agent-stat-total-balance">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Credit</div>
+												<div class="agency-stat-value" id="agent-stat-total-credit">—</div>
 											</div>
 										</div>
 									</div>
@@ -182,9 +206,40 @@
 										<label for="guest_name_input" class="form-label">Guest Name</label>
 										<input type="text" class="form-control" id="guest_name_input" name="txtGuestName" required maxlength="150">
 									</div>
+									<div class="mt-2 mb-0">
+										<label for="guest_remarks_input" class="form-label">Remarks</label>
+										<textarea class="form-control" id="guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+									</div>
 								</div>
 								<div class="modal-footer">
 									<button type="submit" class="btn btn-primary btn-sm" id="btn-save-guest-table">Save</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="modal-edit-guest-table" tabindex="-1" aria-labelledby="modal-edit-guest-table-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-edit-guest-table-label">Edit Guest</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="edit_guest_form">
+								<div class="modal-body">
+									<input type="hidden" id="edit_guest_id" name="txtGuestId">
+									<div class="mb-0">
+										<label for="edit_guest_name_input" class="form-label">Guest Name</label>
+										<input type="text" class="form-control" id="edit_guest_name_input" name="txtGuestName" required maxlength="150">
+									</div>
+									<div class="mt-2 mb-0">
+										<label for="edit_guest_remarks_input" class="form-label">Remarks</label>
+										<textarea class="form-control" id="edit_guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-update-guest-table">Update</button>
 									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
 								</div>
 							</form>
@@ -330,6 +385,21 @@
 .agency-guest-plus-btn:hover,
 .agency-guest-plus-btn:focus {
   color: #173ea5 !important;
+}
+
+.agency-guest-remarks-link {
+  font: inherit;
+  color: #2f5bea  !important;
+  font-weight: inherit !important;
+  text-decoration: none !important;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.agency-guest-remarks-link:hover,
+.agency-guest-remarks-link:focus {
+  color: #2f5bea  !important;
 }
 
 .panel-list-label {
