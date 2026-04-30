@@ -320,8 +320,8 @@ aside.sidebar .sidebar-footer {
                     <span class="item-name">Money Exchange</span>
                 </a>
               </li>
-              <!-- <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'table_daily_report' ? 'active bg-gradient-primary' : '' %>" href="/table_daily_report">
+              <li class="nav-item">
+                <a class="nav-link <%= currentPage === 'table_daily_report_rolling' || currentPage === 'table_daily_report_winloss' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-table-daily-report" role="button" aria-expanded="false" aria-controls="sidebar-table-daily-report">
                     <i class="icon">
                         <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                             <g>
@@ -330,8 +330,35 @@ aside.sidebar .sidebar-footer {
                         </svg>
                     </i>
                     <span class="item-name">Table Daily Report</span>
+                    <i class="right-icon">
+                        <svg class="icon-18" xmlns="http://www.w3.org/2000/svg" width="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </i>
                 </a>
-              </li> -->
+                <ul class="sub-nav collapse <%= currentPage === 'table_daily_report_rolling' || currentPage === 'table_daily_report_winloss' ? 'show' : '' %>" id="sidebar-table-daily-report" data-bs-parent="#sidebar-menu">
+                  <li class="nav-item">
+                      <a class="nav-link <%= currentPage === 'table_daily_report_rolling' ? 'active bg-gradient-primary text-white' : '' %>" href="/table_daily_report_rolling">
+                          <i class="icon">
+                              <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                  <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                              </svg>
+                          </i>
+                          <span class="item-name">Rolling</span>
+                      </a>
+                  </li>
+                  <li class="nav-item">
+                      <a class="nav-link <%= currentPage === 'table_daily_report_winloss' ? 'active bg-gradient-primary text-white' : '' %>" href="/table_daily_report_winloss">
+                          <i class="icon">
+                              <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                  <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                              </svg>
+                          </i>
+                          <span class="item-name">Winloss</span>
+                      </a>
+                  </li>
+                </ul>
+              </li>
             <!-- <li class="nav-item">
                 <a class="nav-link <%= currentPage === 'agent_statistic' ? 'active bg-gradient-primary' : '' %>" href="/agent_statistic">
                     <i class="icon">

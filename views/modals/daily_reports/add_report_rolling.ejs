@@ -1,0 +1,37 @@
+<div class="modal fade" id="daily-report-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content">
+      <div class="modal-header bg-success">
+        <h5 class="modal-title text-white">Add Rolling Report</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="daily-report-form" data-report-mode="rolling">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="daily-report-date" class="form-label">Report Date</label>
+            <input type="text" class="form-control" id="daily-report-date" placeholder="Select date">
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Table</th>
+                  <th style="width: 170px;">Rolling</th>
+                </tr>
+              </thead>
+              <tbody id="daily-report-entries-tbody">
+                <tr>
+                  <td colspan="2" class="text-center text-muted py-3">Loading tables...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-success" id="btn-save-daily-report">Save Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
