@@ -283,7 +283,10 @@
 		"day_now_unsettled": "gamelist.day_now_unsettled",
 		"day_now": "gamelist.day_now",
 		"select_date": "gamelist.select_date",
-		"settle_undo": "gamelist.settle_undo"
+		"settle_undo": "gamelist.settle_undo",
+		"settle_confirm_title": "gamelist.settle_confirm_title",
+		"settle_confirm_cancel": "gamelist.settle_confirm_cancel",
+		"settle_confirm_yes": "gamelist.settle_confirm_yes"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",

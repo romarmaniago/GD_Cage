@@ -289,7 +289,10 @@
 		"settle_success_title": "Settled",
 		"settle_success_text": "Settlement for {{date}} completed.",
 		"settled": "Game already settled",
-		"settle_undo": "gamelist.settle_undo"
+		"settle_undo": "gamelist.settle_undo",
+		"settle_confirm_title": "gamelist.settle_confirm_title",
+		"settle_confirm_cancel": "gamelist.settle_confirm_cancel",
+		"settle_confirm_yes": "gamelist.settle_confirm_yes"
 	},
 	"house_expense": {
 		"junket": "Junket",

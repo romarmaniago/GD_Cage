@@ -273,14 +273,14 @@ router.get('/activity_logs', async (req, res) => {
 		  FROM junket_capital jc
 		  LEFT JOIN user_info u ON jc.EDITED_BY = u.IDNo
 		  WHERE jc.ACTIVE = 1 AND jc.EDITED_DT IS NOT NULL)
-		-- DAILY_SETTLEMENT
+		-- DAILY_SETTLEMENT_GAMES (per game row; settlement date on row)
 		UNION ALL
-		(SELECT ds.IDNo AS related_id, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')) AS name, 'settlement_added' AS action_type, ds.RUN_AT AS action_time,
+		(SELECT dsg.IDNo AS related_id, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(dsg.DAILY_SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')) AS name, 'settlement_added' AS action_type, dsg.ENCODED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Daily Settlement' AS source_table
-		  FROM daily_settlement ds
-		  LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo
-		  WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
+		  FROM daily_settlement_games dsg
+		  LEFT JOIN user_info u ON dsg.ENCODED_BY = u.IDNo
+		  WHERE dsg.ENCODED_DT IS NOT NULL)
 	  ) AS logs
 	  ${dateFilter}
 	  ORDER BY logs.action_time DESC
@@ -322,7 +322,7 @@ router.get('/activity_logs', async (req, res) => {
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Roller Chips - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')), 'roller_return', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 AND gr.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT COALESCE(gs.GAME_ID, -1), CONCAT(COALESCE(gs.SERVICE_TYPE,''), ' - ', COALESCE(ag.NAME,''), IF(gs.GAME_ID IS NOT NULL AND gs.GAME_ID > 0, CONCAT(' (Game #', gs.GAME_ID, ')'), CONCAT(' (', COALESCE(gs.SOURCE_TYPE, 'GUEST'), ')')), ' - ', COALESCE(gs.REMARKS,''), ' (₱', FORMAT(COALESCE(gs.AMOUNT,0), 0), ')'), 'service_added', gs.ENCODED_DT, COALESCE(ag.NAME, ''), '', gs.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Services' FROM game_services gs LEFT JOIN agent ag ON gs.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gs.ENCODED_BY = u.IDNo WHERE gs.ACTIVE = 1 AND gs.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT j.IDNo, CONCAT(CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' ELSE 'Other' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)), 'junket_chips_added', j.ENCODED_DT, NULL, NULL, j.TOTAL_CHIPS, COALESCE(u.FIRSTNAME, 'N/A'), 'Junket Total Chips' FROM junket_total_chips j LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
-		  UNION ALL (SELECT ds.IDNo, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')), 'settlement_added', ds.RUN_AT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Daily Settlement' FROM daily_settlement ds LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
+		  UNION ALL (SELECT dsg.IDNo, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(dsg.DAILY_SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')), 'settlement_added', dsg.ENCODED_DT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Daily Settlement' FROM daily_settlement_games dsg LEFT JOIN user_info u ON dsg.ENCODED_BY = u.IDNo WHERE dsg.ENCODED_DT IS NOT NULL)
 		) AS logs ${dateFilter} ORDER BY logs.action_time DESC ${fallbackLimitClause}`;
 	      const [rows] = await pool.query(fallbackQuery, fallbackQueryParams);
 	      results = rows;

@@ -899,11 +899,11 @@ $(document).ready(function () {
                                     roller_chips_td,
                                     actionButtons
                                 ]).draw().node();
+                                if (row.DAILY_SETTLEMENT != 2) {
+                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                                }
 								
-								// Add pending styling if game was created before settlement run but still ON GAME
-								if (row.is_pending === 1) {
-									$(rowNode).addClass('pending-game');
-								}
+								
 								
 
 								// if (rowClass !== '') {
@@ -1019,16 +1019,11 @@ $(document).ready(function () {
 									roller_chips_td,
 									actionButtons
 								]).draw().node();
+                                if (row.DAILY_SETTLEMENT != 2) {
+                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                                }
 								
-								// Add pending styling if game was created before settlement run but still ON GAME
-								if (row.is_pending === 1) {
-									$(rowNode).addClass('pending-game');
-								}
 								
-								// Add pending styling if game was created before settlement run but still ON GAME
-								if (row.is_pending === 1) {
-									$(rowNode).addClass('pending-game');
-								}
 								
 							} else {
 								// Account summary accumulation (END GAME branch)
@@ -1113,11 +1108,11 @@ $(document).ready(function () {
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 						   var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
 						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, guestDisplay, buyin_td, cashout_td, winloss, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
+                           if (row.DAILY_SETTLEMENT != 2) {
+                               $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                           }
 						   
-						   // Add pending styling if game was created before settlement run but still ON GAME
-						   if (row.is_pending === 1) {
-							   $(rowNode).addClass('pending-game');
-						   }
+						   
 							}
 	
 						},
@@ -1180,7 +1175,7 @@ $(document).ready(function () {
         }
     };
 
-    // Override to only allow Undo on latest settled date
+    // Override settle/undo button state for manual selective flow
     window.updateSettleButtonState = function (recordCount) {
         var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
         var $btn = $('#btn-daily-settle');
@@ -1206,42 +1201,15 @@ $(document).ready(function () {
             return;
         }
 
-        var settledDates = window.settledDatesForMonth || [];
-        var settled = settledDates.indexOf(date) !== -1;
+        // Manual settlement flow: keep Settle available.
+        $btn.removeClass('disabled breadcrumb-settled')
+            .text(settleBtnLabel)
+            .css('pointer-events', 'auto')
+            .css('opacity', '1');
 
-        var latestSettledDate = null;
-        if (settledDates.length > 0) {
-            var sortedDates = settledDates.slice().sort();
-            latestSettledDate = sortedDates[sortedDates.length - 1];
-        }
-        var isLatestSettled = settled && latestSettledDate && date === latestSettledDate;
-
-        // Only treat a date as "past with no records" if it is BEFORE the first
-        // open settlement date exposed by the backend (baseDateStr). This allows
-        // settling a missed day (e.g. yesterday) even when it has zero rows.
-        var isBeforeFirstOpenSettlementDate = date < baseDateStr;
-        var noRecordsForOldUnsettledDate =
-            recordCount !== undefined && recordCount === 0 && isBeforeFirstOpenSettlementDate;
-
-        if (settled) {
-            // Settled state: change label + color
-            $btn.addClass('disabled breadcrumb-settled')
-                .text(settledBtnLabel)
-                .css('pointer-events', 'none')
-                .css('opacity', '1');
-
-            if (isLatestSettled) {
-                $undoBtn.removeClass('disabled').css('pointer-events', 'auto').css('opacity', '1').show();
-            } else {
-                $undoBtn.addClass('disabled').hide();
-            }
-        } else if (noRecordsForOldUnsettledDate) {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-            $undoBtn.addClass('disabled').hide();
-        } else {
-            $btn.removeClass('disabled breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
-            $undoBtn.addClass('disabled').hide();
-        }
+        // Undo is now date-selective inside its own modal, so do not tie visibility
+        // to the currently selected page settlement date.
+        $undoBtn.removeClass('disabled').css('pointer-events', 'auto').css('opacity', '1').show();
     };
 
     // Previous/Next Date Navigation Functions
@@ -1284,16 +1252,6 @@ $(document).ready(function () {
         
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
-        
-        // Don't go beyond the maximum allowed settlement date (server-calculated),
-        // falling back to "today" if it is not provided.
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxAllowedStr = (wrapper && wrapper.getAttribute('data-max-settlement-date')) ||
-                            (wrapper && wrapper.getAttribute('data-today')) ||
-                            new Date().toISOString().slice(0, 10);
-        if (nextDateStr > maxAllowedStr) {
-            return null;
-        }
         
         return nextDateStr;
     }
@@ -1431,10 +1389,10 @@ $(document).ready(function () {
             }
         }
         
-        // Set default date to today or default settlement date
+        // Always use browser-local current date as initial settlement date.
         var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-        var initialDate = defaultSettlementDate || todayStr;
-        var maxDateStr = maxSettlementDate || todayStr;
+        var initialDate = todayStr;
+        var maxDateStr = null;
         
         // Initialize window.selectedSettlementDate
         window.selectedSettlementDate = initialDate;
@@ -1476,6 +1434,10 @@ $(document).ready(function () {
                 }
             }
         });
+        // Ensure rendered value follows browser-local current date even if server HTML had another date.
+        if (settlementDatePicker) {
+            settlementDatePicker.setDate(initialDate, false);
+        }
     }
 
     // Initialize date range picker (single input with range mode)
@@ -1644,199 +1606,391 @@ $(document).ready(function () {
     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
 
-    $('#btn-daily-settle').on('click', function () {
-        if ($(this).prop('disabled')) return;
-        var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
-        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
-        var $btn = $(this);
-        
-        // Fetch current game list to count ON GAME games
+    function escapeHtmlSettle(str) {
+        if (str == null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function runDailySettlementPost(settlementDate, gameIds, $btn) {
+        $btn.prop('disabled', true);
         $.ajax({
-            url: '/game_list_data',
-            method: 'GET',
-            data: { date: 'current' },
-            success: function (data) {
-                // Count ON GAME games (ACTIVE = 2)
-                var onGameCount = 0;
-                if (data && Array.isArray(data)) {
-                    onGameCount = data.filter(function(game) {
-                        return game.ACTIVE == 2 || game.game_status == 2;
-                    }).length;
-                }
-                
-                // Build confirmation message
-                var msg = 'Settle all End Games for ' + formattedDate + '?';
-                var warningMsg = '';
-                
-                if (onGameCount > 0) {
-                    warningMsg = '<br><br><div style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107; margin-top: 10px;">' +
-                        '<strong>⚠️ Warning:</strong> There are <strong>' + onGameCount + '</strong> ON GAME game(s) that will be settled after game ends.</div>';
-                }
-                
+            url: '/game_list/daily_settlement/run',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ settlement_date: settlementDate, game_ids: gameIds }),
+            success: function (res) {
+                var settledDate = (res && res.settlement_date) ? res.settlement_date : $('#settlement-date-wrapper .input-group').attr('data-today');
+                window.selectedSettlementDate = settledDate || '';
+                var pickerEl = document.getElementById('settlement-date-picker');
+                if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
+                var settledFormatted = (settledDate || settlementDate)
+                    ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : (settledDate || settlementDate);
+                var successText = (window.gamelistTranslations && window.gamelistTranslations.settle_success_text);
+                if (successText && successText.indexOf('{{date}}') !== -1) successText = successText.replace('{{date}}', settledFormatted);
+                else if (!successText) successText = 'Settlement for ' + settledFormatted + ' completed.';
                 Swal.fire({
-                    title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
-                    html: msg + warningMsg,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
-                    cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
-                    confirmButtonColor: '#0d6efd',
-                    cancelButtonColor: '#6c757d'
-                }).then(function (result) {
-            if (!result.isConfirmed) return;
-            $btn.prop('disabled', true);
-            $.ajax({
-                url: '/game_list/daily_settlement/run',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ settlement_date: settlementDate }),
-                success: function (res) {
-                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('#settlement-date-wrapper .input-group').attr('data-today');
-                    window.selectedSettlementDate = settledDate || '';
-                    var pickerEl = document.getElementById('settlement-date-picker');
-                    if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
-                    var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
-                    var successText = (window.gamelistTranslations && window.gamelistTranslations.settle_success_text);
-                    if (successText && successText.indexOf('{{date}}') !== -1) successText = successText.replace('{{date}}', settledFormatted);
-                    else if (!successText) successText = 'Settlement for ' + settledFormatted + ' completed.';
-                    Swal.fire({
-                        title: (window.gamelistTranslations && window.gamelistTranslations.settle_success_title) || 'Settled',
-                        text: successText,
-                        icon: 'success',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    }).then(function () {
-                        window.location.reload();
-                    });
-                },
-                error: function (xhr) {
-                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
-                    console.error('[Daily Settlement] Settle error:', err, xhr);
-                    Swal.fire({
-                        title: 'Error',
-                        text: err,
-                        icon: 'error',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                },
-                complete: function () {
-                    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-                }
-            });
+                    title: (window.gamelistTranslations && window.gamelistTranslations.settle_success_title) || 'Settled',
+                    text: successText,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
+                }).then(function () {
+                    window.location.reload();
                 });
             },
-            error: function () {
-                // If error fetching game list, show confirmation without warning
-                var msg = 'Settle all End Games for ' + formattedDate + '?';
+            error: function (xhr) {
+                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
+                console.error('[Daily Settlement] Settle error:', err, xhr);
+                var isConflict = xhr.status === 409;
                 Swal.fire({
-                    title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
-                    text: msg,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
-                    cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
-                    confirmButtonColor: '#0d6efd',
-                    cancelButtonColor: '#6c757d'
-                }).then(function (result) {
-                    if (!result.isConfirmed) return;
-                    $btn.prop('disabled', true);
-                    $.ajax({
-                        url: '/game_list/daily_settlement/run',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({ settlement_date: settlementDate }),
-                        success: function (res) {
-                            var settledDate = (res && res.settlement_date) ? res.settlement_date : $('#settlement-date-wrapper .input-group').attr('data-today');
-                            window.selectedSettlementDate = settledDate || '';
-                            var pickerEl = document.getElementById('settlement-date-picker');
-                            if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
-                            var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
-                            var successText = (window.gamelistTranslations && window.gamelistTranslations.settle_success_text);
-                            if (successText && successText.indexOf('{{date}}') !== -1) successText = successText.replace('{{date}}', settledFormatted);
-                            else if (!successText) successText = 'Settlement for ' + settledFormatted + ' completed.';
-                            Swal.fire({
-                                title: (window.gamelistTranslations && window.gamelistTranslations.settle_success_title) || 'Settled',
-                                text: successText,
-                                icon: 'success',
-                                confirmButtonText: 'OK',
-                                confirmButtonColor: '#0d6efd'
-                            }).then(function () {
-                                window.location.reload();
-                            });
-                        },
-                        error: function (xhr) {
-                            var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
-                            console.error('[Daily Settlement] Settle error:', err, xhr);
-                            Swal.fire({
-                                title: 'Error',
-                                text: err,
-                                icon: 'error',
-                                confirmButtonText: 'OK',
-                                confirmButtonColor: '#0d6efd'
-                            });
-                        },
-                        complete: function () {
-                            if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-                        }
-                    });
+                    title: isConflict ? 'Duplicate settlement' : 'Error',
+                    text: isConflict
+                        ? (err + ' Refresh the page and try again if needed.')
+                        : err,
+                    icon: isConflict ? 'warning' : 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
                 });
+            },
+            complete: function () {
+                if (typeof window.updateSettleButtonState === 'function') {
+                    window.updateSettleButtonState();
+                } else {
+                    $btn.prop('disabled', false);
+                }
+            }
+        });
+    }
+
+    $('#btn-daily-settle').on('click', function () {
+        if ($(this).prop('disabled')) return;
+        var $btn = $(this);
+        var wrapperEl = document.querySelector('#settlement-date-wrapper .input-group');
+        var maxSettlementPicker = (wrapperEl && wrapperEl.getAttribute('data-max-settlement-date')) || '';
+
+        $.ajax({
+            url: '/game_list/daily_settlement/eligible_games',
+            method: 'GET',
+            success: function (eligible) {
+                if (!eligible || !eligible.length) {
+                    Swal.fire({
+                        title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Settlement',
+                        text: 'No games are eligible for daily settlement (must not be daily-settled yet).',
+                        icon: 'info',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                    return;
+                }
+
+                var rowsHtml = eligible
+                    .map(function (g) {
+                        var gameId = g.IDNo;
+                        var accountCode = (g.agent_code || '-').toString();
+                        var accountName = (g.agent_name || '-').toString();
+                        var guest = (g.guest_name || '').toString().trim();
+                        var hasGuest = guest && guest !== '-';
+                        var accountLabel = accountCode + '(' + accountName + ')';
+                        var lineText = 'Game: ' + gameId + ' - ' + accountLabel + (hasGuest ? ' - ' + guest : '');
+                        return (
+                            '<label class="d-flex align-items-center gap-2 py-1 border-bottom settle-game-row" style="cursor:pointer;">' +
+                            '<input type="checkbox" class="form-check-input settle-game-cb" value="' +
+                            gameId +
+                            '" />' +
+                            '<span class="small">' +
+                            escapeHtmlSettle(lineText) +
+                            '</span></label>'
+                        );
+                    })
+                    .join('');
+
+                var dateEl = document.getElementById('settle-modal-settlement-date');
+                var listEl = document.getElementById('settle-eligible-list');
+                var confirmEl = document.getElementById('btn-settle-modal-confirm');
+                var selectAllCheckboxEl = document.getElementById('settle-select-all-checkbox');
+                var errorEl = document.getElementById('settle-modal-error');
+                if (!dateEl || !listEl || !confirmEl || !selectAllCheckboxEl) {
+                    Swal.fire({ title: 'Error', text: 'Settlement modal is not available.', icon: 'error', confirmButtonColor: '#0d6efd' });
+                    return;
+                }
+
+                listEl.innerHTML = rowsHtml;
+                if (errorEl) errorEl.style.display = 'none';
+                selectAllCheckboxEl.checked = false;
+
+                if (dateEl._flatpickr) {
+                    var settleFp = dateEl._flatpickr;
+                    settleFp.clear();
+                    settleFp.set('maxDate', null);
+                    if (settleFp.altInput) settleFp.altInput.setAttribute('placeholder', 'Select date');
+                } else if (typeof flatpickr !== 'undefined') {
+                    var createdSettleFp = flatpickr(dateEl, {
+                        dateFormat: 'Y-m-d',
+                        altInput: true,
+                        altFormat: 'F j, Y',
+                        defaultDate: null,
+                        maxDate: null,
+                        allowInput: false,
+                        clickOpens: true
+                    });
+                    if (createdSettleFp && createdSettleFp.altInput) createdSettleFp.altInput.setAttribute('placeholder', 'Select date');
+                } else {
+                    dateEl.value = '';
+                }
+
+                selectAllCheckboxEl.onchange = function () {
+                    var checked = !!selectAllCheckboxEl.checked;
+                    listEl.querySelectorAll('input.settle-game-cb').forEach(function (cb) { cb.checked = checked; });
+                };
+
+                confirmEl.onclick = function () {
+                    var chosenDate = dateEl && dateEl.value ? String(dateEl.value).trim() : '';
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)) {
+                        if (errorEl) {
+                            errorEl.textContent = 'Please choose a valid settlement date.';
+                            errorEl.style.display = 'block';
+                        }
+                        return;
+                    }
+                    var checked = listEl.querySelectorAll('input.settle-game-cb:checked');
+                    if (!checked.length) {
+                        if (errorEl) {
+                            errorEl.textContent = 'Select at least one game.';
+                            errorEl.style.display = 'block';
+                        }
+                        return;
+                    }
+                    if (errorEl) errorEl.style.display = 'none';
+                    var ids = Array.prototype.map.call(checked, function (cb) { return parseInt(cb.value, 10); });
+                    var chosenDateFormatted = new Date(chosenDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                    Swal.fire({
+                        title: 'Confirm Settlement',
+                        text: 'Settle ' + ids.length + ' game(s) for ' + chosenDateFormatted + '?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
+                        cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
+                        confirmButtonColor: '#0d6efd',
+                        cancelButtonColor: '#6c757d'
+                    }).then(function (result) {
+                        if (!result.isConfirmed) return;
+                        var modalEl = document.getElementById('daily-settle-modal');
+                        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                            var instance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                            instance.hide();
+                        }
+                        runDailySettlementPost(chosenDate, ids, $btn);
+                    });
+                };
+
+                var modalEl = document.getElementById('daily-settle-modal');
+                if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                } else {
+                    Swal.fire({ title: 'Error', text: 'Bootstrap modal is not available.', icon: 'error', confirmButtonColor: '#0d6efd' });
+                }
+            },
+            error: function (xhr) {
+                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not load eligible games';
+                Swal.fire({ title: 'Error', text: err, icon: 'error', confirmButtonColor: '#0d6efd' });
             }
         });
     });
 
-    // Undo daily settlement for selected date (Super/Admin flow – adjust as needed)
+    function runDailyUndoPost(settlementDate, gameIds, $btn) {
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: '/game_list/daily_settlement/undo',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ settlement_date: settlementDate, game_ids: gameIds }),
+            success: function (res) {
+                var revertedCount = (res && typeof res.reverted_game_count === 'number') ? res.reverted_game_count : 0;
+                var undoneDate = (res && res.settlement_date) ? res.settlement_date : settlementDate;
+                var formattedDate = undoneDate
+                    ? new Date(undoneDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : undoneDate;
+                var msg = revertedCount + ' game(s) were undone for ' + formattedDate + '.';
+                Swal.fire({
+                    title: 'Undone',
+                    text: msg,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
+                }).then(function () {
+                    window.location.reload();
+                });
+            },
+            error: function (xhr) {
+                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to undo settlement';
+                console.error('[Daily Settlement] Undo error:', err, xhr);
+                Swal.fire({
+                    title: 'Error',
+                    text: err,
+                    icon: 'error',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
+                });
+            },
+            complete: function () {
+                if (typeof window.updateSettleButtonState === 'function') {
+                    window.updateSettleButtonState();
+                } else {
+                    $btn.prop('disabled', false);
+                }
+            }
+        });
+    }
+
+    // Undo daily settlement for selected date (selective per game)
     $('#btn-daily-settle-undo').on('click', function () {
         if ($(this).prop('disabled')) return;
-        var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
-        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
+        var $btn = $(this);
 
-        Swal.fire({
-            title: 'Undo Settlement',
-            text: 'Undo daily settlement for ' + formattedDate + '?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Undo',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
+        var dateEl = document.getElementById('undo-modal-settlement-date');
+        var listEl = document.getElementById('undo-eligible-list');
+        var confirmEl = document.getElementById('btn-undo-modal-confirm');
+        var selectAllCheckboxEl = document.getElementById('undo-select-all-checkbox');
+        var errorEl = document.getElementById('undo-modal-error');
+        if (!dateEl || !listEl || !confirmEl || !selectAllCheckboxEl) {
+            Swal.fire({ title: 'Error', text: 'Undo modal is not available.', icon: 'error', confirmButtonColor: '#0d6efd' });
+            return;
+        }
+
+        function loadUndoEligibleGames(dateStr) {
+            listEl.innerHTML = '<div class="small text-muted">Loading...</div>';
+            selectAllCheckboxEl.checked = false;
+            if (errorEl) errorEl.style.display = 'none';
 
             $.ajax({
-                url: '/game_list/daily_settlement/undo',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ settlement_date: settlementDate }),
-                success: function (res) {
-                    var revertedCount = (res && typeof res.reverted_game_count === 'number') ? res.reverted_game_count : 0;
-                    var msg = 'Settlement for ' + formattedDate + ' has been undone.';
-                    if (revertedCount > 0) {
-                        msg += ' ' + revertedCount + ' game(s) were reverted.';
+                url: '/game_list/daily_settlement/undo_eligible_games',
+                method: 'GET',
+                data: { settlement_date: dateStr },
+                success: function (eligible) {
+                    if (!eligible || !eligible.length) {
+                        listEl.innerHTML = '<div class="small text-muted">No settled games found for this date.</div>';
+                        return;
                     }
-                    Swal.fire({
-                        title: 'Undone',
-                        text: msg,
-                        icon: 'success',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    }).then(function () {
-                        window.location.reload();
-                    });
+
+                    var rowsHtml = eligible
+                        .map(function (g) {
+                            var gameId = g.IDNo;
+                            var accountCode = (g.agent_code || '-').toString();
+                            var accountName = (g.agent_name || '-').toString();
+                            var guest = (g.guest_name || '').toString().trim();
+                            var hasGuest = guest && guest !== '-';
+                            var accountLabel = accountCode + '(' + accountName + ')';
+                            var lineText = 'Game: ' + gameId + ' - ' + accountLabel + (hasGuest ? ' - ' + guest : '');
+                            return (
+                                '<label class="d-flex align-items-center gap-2 py-1 border-bottom settle-game-row" style="cursor:pointer;">' +
+                                '<input type="checkbox" class="form-check-input undo-game-cb" value="' +
+                                gameId +
+                                '" />' +
+                                '<span class="small">' +
+                                escapeHtmlSettle(lineText) +
+                                '</span></label>'
+                            );
+                        })
+                        .join('');
+
+                    listEl.innerHTML = rowsHtml;
                 },
                 error: function (xhr) {
-                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to undo settlement';
-                    console.error('[Daily Settlement] Undo error:', err, xhr);
-                    Swal.fire({
-                        title: 'Error',
-                        text: err,
-                        icon: 'error',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not load settled games for undo';
+                    listEl.innerHTML = '<div class="small text-danger">' + escapeHtmlSettle(err) + '</div>';
                 }
             });
-        });
+        }
+
+        if (dateEl._flatpickr) {
+            var undoFp = dateEl._flatpickr;
+            undoFp.clear();
+            undoFp.set('maxDate', null);
+            if (undoFp.altInput) undoFp.altInput.setAttribute('placeholder', 'Select date');
+            undoFp.set('onChange', [function (selectedDates, dateStr) {
+                var picked = (dateStr || '').trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(picked)) {
+                    loadUndoEligibleGames(picked);
+                }
+            }]);
+        } else if (typeof flatpickr !== 'undefined') {
+            var createdUndoFp = flatpickr(dateEl, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'F j, Y',
+                defaultDate: null,
+                maxDate: null,
+                allowInput: false,
+                clickOpens: true,
+                onChange: function (selectedDates, dateStr) {
+                    var picked = (dateStr || '').trim();
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(picked)) {
+                        loadUndoEligibleGames(picked);
+                    }
+                }
+            });
+            if (createdUndoFp && createdUndoFp.altInput) createdUndoFp.altInput.setAttribute('placeholder', 'Select date');
+        } else {
+            dateEl.value = '';
+        }
+
+        listEl.innerHTML = '<div class="small text-muted">Please select a settlement date.</div>';
+
+        selectAllCheckboxEl.onchange = function () {
+            var checked = !!selectAllCheckboxEl.checked;
+            listEl.querySelectorAll('input.undo-game-cb').forEach(function (cb) { cb.checked = checked; });
+        };
+
+        confirmEl.onclick = function () {
+            var chosenDate = dateEl && dateEl.value ? String(dateEl.value).trim() : '';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)) {
+                if (errorEl) {
+                    errorEl.textContent = 'Please choose a valid settlement date.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+            var checked = listEl.querySelectorAll('input.undo-game-cb:checked');
+            if (!checked.length) {
+                if (errorEl) {
+                    errorEl.textContent = 'Select at least one game.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+            if (errorEl) errorEl.style.display = 'none';
+            var ids = Array.prototype.map.call(checked, function (cb) { return parseInt(cb.value, 10); });
+            var chosenDateFormatted = new Date(chosenDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            Swal.fire({
+                title: 'Confirm Undo Settlement',
+                text: 'Undo ' + ids.length + ' game(s) for ' + chosenDateFormatted + '?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Undo',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d'
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                var modalEl = document.getElementById('daily-undo-modal');
+                if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                    var instance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+                    instance.hide();
+                }
+                runDailyUndoPost(chosenDate, ids, $btn);
+            });
+        };
+
+        var modalEl = document.getElementById('daily-undo-modal');
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else {
+            Swal.fire({ title: 'Error', text: 'Bootstrap modal is not available.', icon: 'error', confirmButtonColor: '#0d6efd' });
+        }
     });
 
 // Function to format numbers with commas
@@ -5092,7 +5246,7 @@ function archive_game_list(id) {
 	})
 }
 
-// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement
+// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement_games
 function delete_game_list(id) {
 	Swal.fire({
 		title: 'Delete Game?',

@@ -600,14 +600,29 @@ opacity: 0.95;
 /* Undo Settle breadcrumb (same chevron style, danger color) */
 .breadcrumb1 a.breadcrumb-undo-settle,
 .breadcrumb1 a.breadcrumb-undo-settle:after {
-  background: var(--bs-danger-bg-subtle);
-  color: var(--bs-danger);
+  background: var(--bs-danger);
+  color: var(--bs-white);
 }
 
 .breadcrumb1 a.breadcrumb-undo-settle:hover,
 .breadcrumb1 a.breadcrumb-undo-settle:hover:after {
   background: var(--bs-danger);
   color: var(--bs-white);
+}
+
+/* Force Undo Settle button default color (outside breadcrumb style too) */
+#btn-daily-settle-undo.btn-outline-danger {
+  background-color: var(--bs-danger) !important;
+  border-color: var(--bs-danger) !important;
+  color: var(--bs-white) !important;
+}
+
+#btn-daily-settle-undo.btn-outline-danger:hover,
+#btn-daily-settle-undo.btn-outline-danger:focus,
+#btn-daily-settle-undo.btn-outline-danger:active {
+  background-color: #bb2d3b !important;
+  border-color: #b02a37 !important;
+  color: var(--bs-white) !important;
 }
 
 /* Settled breadcrumb state (disabled Settle) - use same subtle success color as totals */

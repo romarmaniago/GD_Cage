@@ -4238,56 +4238,7 @@ pageRouter.post('/add_game_list', (req, res) => {
 // 	});
 // });
 
-// GET GAME LIST
-pageRouter.get('/game_list_data', (req, res) => {
-	// Get start and end from the query parameters
-	let { start, end } = req.query;
-
-	// Use default dates if start or end is not provided
-	if (!start || !end) {
-		const currentDate = new Date();
-		const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-
-		start = firstDayOfMonth.toISOString().slice(0, 10); // YYYY-MM-DD
-		end = currentDate.toISOString().slice(0, 10); // YYYY-MM-DD
-	}
-
-	// Validate date format
-	const isValidDate = (date) => /^\d{4}-\d{2}-\d{2}$/.test(date);
-	if (!isValidDate(start) || !isValidDate(end)) {
-		return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
-	}
-
-	// SQL query with date filtering
-	const query = `
-        SELECT 
-            *, 
-            game_list.IDNo AS game_list_id, 
-            game_list.ACTIVE AS game_status, 
-            account.IDNo AS account_no, 
-            agent.AGENT_CODE AS agent_code, 
-            agent.NAME AS agent_name,  
-            game_list.ENCODED_DT AS GAME_DATE_START 
-        FROM game_list
-        JOIN account ON game_list.ACCOUNT_ID = account.IDNo
-        JOIN agent ON agent.IDNo = account.AGENT_ID
-        JOIN agency ON agency.IDNo = agent.AGENCY
-        WHERE game_list.ACTIVE != 0 
-          AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
-        ORDER BY game_list.IDNo ASC
-    `;
-
-	// Execute the query with start and end dates
-	connection.query(query, [start, end], (error, result) => {
-		if (error) {
-			console.error('Error fetching data:', error);
-			return res.status(500).json({ error: 'Error fetching data' });
-		}
-
-		// Return the results as JSON
-		res.json(result);
-	});
-});
+// GET /game_list_data — handled by routes/gamebook.js (settlement date + date range + daily_settlement_games).
 
 
 

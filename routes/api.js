@@ -142,14 +142,13 @@ function computeRollingAndWinlossByAgent(recs) {
 // For past dates or future dates with no settlement, returns [] so chart shows zeros.
 async function getGameIdsForDate(dateStr, todayStr, allowLiveFallback = true) {
   const [hasSettlement] = await pool.execute(
-    'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
+    'SELECT 1 AS ok FROM daily_settlement_games WHERE DAILY_SETTLEMENT_DATE = ? LIMIT 1',
     [dateStr]
   );
   if (hasSettlement.length > 0) {
     const [rows] = await pool.execute(
       `SELECT dsg.GAME_ID FROM daily_settlement_games dsg
-       JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-       WHERE ds.SETTLEMENT_DATE = ? ORDER BY dsg.GAME_ID`,
+       WHERE dsg.DAILY_SETTLEMENT_DATE = ? ORDER BY dsg.GAME_ID`,
       [dateStr]
     );
     return rows.map((r) => r.GAME_ID);
