@@ -55,6 +55,44 @@ function parseGuestName(body) {
 	return s ? s.slice(0, 255) : null;
 }
 
+async function getCurrencyCodesByIds(inCurrencyId, exchangeCurrencyId) {
+	const [rows] = await pool.execute(
+		`SELECT ID, CODE
+		 FROM currency_master
+		 WHERE ID IN (?, ?)`,
+		[inCurrencyId, exchangeCurrencyId]
+	);
+	const codeMap = new Map((rows || []).map((r) => [Number(r.ID), String(r.CODE || '').toUpperCase()]));
+	return {
+		inCode: codeMap.get(Number(inCurrencyId)) || '',
+		exCode: codeMap.get(Number(exchangeCurrencyId)) || '',
+	};
+}
+
+const currencyStrengthRank = {
+	USD: 5,
+	USDT: 4,
+	PHP: 3,
+	JPY: 2,
+	KRW: 1,
+};
+
+function getCurrencyRank(code) {
+	const c = String(code || '').toUpperCase();
+	if (!c) return 0;
+	return Number(currencyStrengthRank[c] || 0);
+}
+
+function computeExchangeAmountByDirection(amountIn, ratePct, inCode, exCode) {
+	if (!Number.isFinite(amountIn) || !Number.isFinite(ratePct) || ratePct <= 0) return NaN;
+	if (!inCode || !exCode || inCode === exCode) return NaN;
+	// Stronger -> weaker uses multiply. Weaker -> stronger uses divide.
+	const inRank = getCurrencyRank(inCode);
+	const exRank = getCurrencyRank(exCode);
+	if (inRank >= exRank) return Number((amountIn * ratePct).toFixed(2));
+	return Number((amountIn / ratePct).toFixed(2));
+}
+
 /** POST deposit — TRANS_TYPE = 1 */
 router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 	try {
@@ -67,7 +105,7 @@ router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 		const exCcy = parseInt(req.body.txtExchangeCurrencyId, 10);
 		const amountIn = Number(req.body.txtAmountIn);
 		const ratePct = Number(req.body.txtRatePercent);
-		const exchangeAmt = Number(req.body.txtExchangeAmount);
+		const clientExchangeAmt = Number(req.body.txtExchangeAmount);
 		const uid = req.session.user_id || null;
 		const dateNow = new Date();
 
@@ -82,14 +120,25 @@ router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 		if (inCcy === exCcy) {
 			return res.status(400).send('In currency and exchange currency must differ');
 		}
+		const { inCode, exCode } = await getCurrencyCodesByIds(inCcy, exCcy);
+		const computedExchangeAmt = computeExchangeAmountByDirection(
+			amountIn,
+			ratePct,
+			inCode,
+			exCode
+		);
 		if (
 			Number.isNaN(amountIn) ||
 			Number.isNaN(ratePct) ||
-			Number.isNaN(exchangeAmt) ||
+			Number.isNaN(clientExchangeAmt) ||
 			amountIn <= 0 ||
-			exchangeAmt <= 0
+			ratePct <= 0 ||
+			computedExchangeAmt <= 0
 		) {
 			return res.status(400).send('Enter valid amount, rate %, and exchange amount');
+		}
+		if (Math.abs(clientExchangeAmt - computedExchangeAmt) > 0.01) {
+			return res.status(400).send('Exchange amount does not match amount x rate');
 		}
 
 		await pool.execute(
@@ -107,7 +156,7 @@ router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 				amountIn,
 				exCcy,
 				ratePct,
-				exchangeAmt,
+				computedExchangeAmt,
 				uid,
 				dateNow,
 			]
@@ -368,7 +417,7 @@ router.put(
 				const exCcy = parseInt(req.body.txtExchangeCurrencyId, 10);
 				const amountIn = Number(req.body.txtAmountIn);
 				const ratePct = Number(req.body.txtRatePercent);
-				const exchangeAmt = Number(req.body.txtExchangeAmount);
+				const clientExchangeAmt = Number(req.body.txtExchangeAmount);
 
 				if (!accountId && !guestName) {
 					return res.status(400).send(
@@ -383,16 +432,29 @@ router.put(
 						.status(400)
 						.send('In currency and exchange currency must differ');
 				}
+				const { inCode, exCode } = await getCurrencyCodesByIds(inCcy, exCcy);
+				const computedExchangeAmt = computeExchangeAmountByDirection(
+					amountIn,
+					ratePct,
+					inCode,
+					exCode
+				);
 				if (
 					Number.isNaN(amountIn) ||
 					Number.isNaN(ratePct) ||
-					Number.isNaN(exchangeAmt) ||
+					Number.isNaN(clientExchangeAmt) ||
 					amountIn <= 0 ||
-					exchangeAmt <= 0
+					ratePct <= 0 ||
+					computedExchangeAmt <= 0
 				) {
 					return res
 						.status(400)
 						.send('Enter valid amount, rate %, and exchange amount');
+				}
+				if (Math.abs(clientExchangeAmt - computedExchangeAmt) > 0.01) {
+					return res
+						.status(400)
+						.send('Exchange amount does not match amount x rate');
 				}
 
 				const [result] = await pool.execute(
@@ -409,7 +471,7 @@ router.put(
 						amountIn,
 						exCcy,
 						ratePct,
-						exchangeAmt,
+						computedExchangeAmt,
 						uid,
 						dateNow,
 						id,

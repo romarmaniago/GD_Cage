@@ -55,6 +55,47 @@
 		return Math.round(n).toLocaleString();
 	}
 
+	function formatCommaNumberFixed(v, fractionDigits) {
+		const n = parseFormattedNumber(v);
+		if (!Number.isFinite(n)) return '';
+		const fd = Number.isFinite(Number(fractionDigits))
+			? Math.max(0, Number(fractionDigits))
+			: 2;
+		return n.toLocaleString(undefined, {
+			minimumFractionDigits: fd,
+			maximumFractionDigits: fd,
+		});
+	}
+
+	function selectedCurrencyCode(selector) {
+		const txt = String($(selector + ' option:selected').text() || '').trim();
+		return txt.toUpperCase();
+	}
+
+	const currencyStrengthRank = {
+		USD: 5,
+		USDT: 4,
+		PHP: 3,
+		JPY: 2,
+		KRW: 1,
+	};
+
+	function getCurrencyRank(code) {
+		const c = String(code || '').toUpperCase();
+		if (!c) return 0;
+		return Number(currencyStrengthRank[c] || 0);
+	}
+
+	function computeExchangeAmountByDirection(amount, rate, inCode, exCode) {
+		if (!Number.isFinite(amount) || !Number.isFinite(rate) || rate <= 0) return NaN;
+		if (!inCode || !exCode || inCode === exCode) return NaN;
+		// Stronger -> weaker uses multiply. Weaker -> stronger uses divide.
+		const inRank = getCurrencyRank(inCode);
+		const exRank = getCurrencyRank(exCode);
+		if (inRank >= exRank) return amount * rate;
+		return amount / rate;
+	}
+
 	function formatInputWithCommasLive(inputEl) {
 		if (!inputEl) return;
 		const raw = String(inputEl.value || '');
@@ -425,10 +466,12 @@
 		const rawR = String($('#mx-edit-rate-percent').val() || '').trim();
 		const amt = parseFormattedNumber(rawA);
 		const rate = rawR === '' ? NaN : Number(rawR);
+		const inCode = selectedCurrencyCode('#mx-edit-in-currency');
+		const exCode = selectedCurrencyCode('#mx-edit-exchange-currency');
 		const $ex = $('#mx-edit-exchange-amount');
-		if (Number.isFinite(amt) && Number.isFinite(rate)) {
-			const product = amt * rate;
-			$ex.val(formatCommaNumber(product));
+		const exchangeAmount = computeExchangeAmountByDirection(amt, rate, inCode, exCode);
+		if (Number.isFinite(exchangeAmount)) {
+			$ex.val(formatCommaNumberFixed(exchangeAmount, 2));
 		} else {
 			$ex.val('');
 		}
@@ -496,10 +539,12 @@
 		const rawR = String($('#mx-rate-percent').val() || '').trim();
 		const amt = parseFormattedNumber(rawA);
 		const rate = rawR === '' ? NaN : Number(rawR);
+		const inCode = selectedCurrencyCode('#in-currency');
+		const exCode = selectedCurrencyCode('#exchange-currency');
 		const $ex = $('#mx-exchange-amount');
-		if (Number.isFinite(amt) && Number.isFinite(rate)) {
-			const product = amt * rate;
-			$ex.val(formatCommaNumber(product));
+		const exchangeAmount = computeExchangeAmountByDirection(amt, rate, inCode, exCode);
+		if (Number.isFinite(exchangeAmount)) {
+			$ex.val(formatCommaNumberFixed(exchangeAmount, 2));
 		} else {
 			$ex.val('');
 		}
@@ -808,6 +853,9 @@
 		}
 		updateMxEditExchangeAmount();
 	});
+	$(document).on('change', '#mx-edit-in-currency, #mx-edit-exchange-currency', function () {
+		updateMxEditExchangeAmount();
+	});
 
 	$(document).on('click', '.btn-mx-txn-edit', function () {
 		const id = $(this).data('id');
@@ -941,6 +989,9 @@
 		if (this.id === 'mx-amount-in') {
 			formatInputWithCommasLive(this);
 		}
+		updateMxExchangeAmount();
+	});
+	$(document).on('change', '#in-currency, #exchange-currency', function () {
 		updateMxExchangeAmount();
 	});
 	$(document).on('input change', '#mx-return-amount', function () {
