@@ -321,7 +321,20 @@ router.post('/add_stats', async (req, res) => {
 	  res.status(500).json({ success: false, message: 'Error inserting data' });
 	}
   });
- 
+
+router.put('/game_stats/remove/:id', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const date_now = new Date();
+	try {
+		const query = `UPDATE game_stats SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+		res.send('GAME LIST updated successfully');
+	} catch (err) {
+		console.error('Error updating GAME LIST:', err);
+		res.status(500).send('Error updating GAME LIST');
+	}
+});
+
   // Route to update house share
 router.put('/update_house_share', async (req, res) => {
     const { game_type, txtHouseShare } = req.body;
