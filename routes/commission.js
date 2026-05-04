@@ -9,6 +9,16 @@ router.get("/commission", checkSession, function (req, res) {
 	res.render("junket/commission", data);
 });
 
+router.get("/commission_analytics", checkSession, function (req, res) {
+	const data = sessions(req, 'commission');
+	data.permissions = req.session.permissions;
+	res.render("junket/commission_analytics", data);
+});
+
+router.get("/commission_panel", checkSession, function (req, res) {
+	res.redirect(302, '/commission_analytics');
+});
+
 // GET COMMISSION DATA
 router.get('/commission_data', async (req, res) => {
     // Change `const` to `let` for start and end so they can be reassigned
