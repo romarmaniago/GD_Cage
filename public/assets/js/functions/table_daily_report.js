@@ -17,6 +17,7 @@
   const reportListDateRange = document.getElementById('daily-report-list-daterange');
   const reportListThead = document.getElementById('daily-report-list-thead');
   const reportListTbody = document.getElementById('daily-report-list-tbody');
+  const reportMatrixTable = document.getElementById('daily-report-view-table');
   const manageModalEl = document.getElementById('junket-table-modal');
   const formModalEl = document.getElementById('junket-table-form-modal');
   const dailyReportModalEl = document.getElementById('daily-report-modal');
@@ -228,6 +229,24 @@
   }
 
   /** Every calendar day from `from` to `to` inclusive as `YYYY-MM-DD`, ascending. */
+  function replaceMatrixColgroup(colCount) {
+    if (!reportMatrixTable || colCount < 1) return;
+    reportMatrixTable.querySelectorAll('colgroup').forEach((el) => el.remove());
+    const cg = document.createElement('colgroup');
+    const pct = `${(100 / colCount).toFixed(6)}%`;
+    for (let i = 0; i < colCount; i += 1) {
+      const col = document.createElement('col');
+      col.style.width = pct;
+      cg.appendChild(col);
+    }
+    const firstSection = reportMatrixTable.querySelector('thead, tbody, tfoot, caption');
+    if (firstSection) {
+      reportMatrixTable.insertBefore(cg, firstSection);
+    } else {
+      reportMatrixTable.appendChild(cg);
+    }
+  }
+
   function enumerateDatesIso(from, to) {
     const parse = (s) => {
       const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -250,6 +269,41 @@
       out.push(`${y}-${mo}-${day}`);
     }
     return out;
+  }
+
+  /** Last run of digits in table name (e.g. "VIP 7A SS90705" → 90705); used when junket id unknown. */
+  function trailingNumericFromTableName(name) {
+    const m = String(name || '').match(/(\d+)\s*$/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function sortTableNamesByJunketId(names, junketRows, listRows) {
+    const idByName = new Map();
+    (junketRows || []).forEach((r) => {
+      const n = String(r.table_name || '').trim();
+      if (n) idByName.set(n, Number(r.id));
+    });
+    (listRows || []).forEach((r) => {
+      const n = String(r.table_name || '').trim();
+      if (!n || idByName.has(n)) return;
+      const jid = r.junket_table_id != null ? Number(r.junket_table_id) : NaN;
+      if (!Number.isNaN(jid)) idByName.set(n, jid);
+    });
+    return [...names].sort((a, b) => {
+      const ida = idByName.get(a);
+      const idb = idByName.get(b);
+      const hasA = ida != null && !Number.isNaN(ida);
+      const hasB = idb != null && !Number.isNaN(idb);
+      if (hasA && hasB && ida !== idb) return ida - idb;
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+      const na = trailingNumericFromTableName(a);
+      const nb = trailingNumericFromTableName(b);
+      if (na != null && nb != null && na !== nb) return na - nb;
+      if (na != null && nb == null) return -1;
+      if (na == null && nb != null) return 1;
+      return a.localeCompare(b);
+    });
   }
 
   function initReportListDateRangePicker() {
@@ -277,7 +331,11 @@
 
     const namesFromJunket = junket.map((r) => String(r.table_name || '')).filter(Boolean);
     const namesFromRows = listRows.map((row) => String(row.table_name || '')).filter(Boolean);
-    const tableNames = [...new Set([...namesFromJunket, ...namesFromRows])].sort((a, b) => a.localeCompare(b));
+    const tableNames = sortTableNamesByJunketId(
+      [...new Set([...namesFromJunket, ...namesFromRows])],
+      junket,
+      listRows
+    );
 
     const dateMap = new Map();
     listRows.forEach((row) => {
@@ -297,16 +355,18 @@
     }
 
     if (tableNames.length === 0 && dateKeys.length === 0) {
-      reportListThead.innerHTML = '<tr><th style="width: 160px;">Date</th><th>Total</th></tr>';
+      replaceMatrixColgroup(2);
+      reportListThead.innerHTML = '<tr><th>Date</th><th>Total</th></tr>';
       reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No added reports for selected date.</td></tr>';
       return;
     }
     const headCols = tableNames.map((name) => `<th>${escapeHtml(name)}</th>`).join('');
+    replaceMatrixColgroup(tableNames.length + 2);
     reportListThead.innerHTML = `
       <tr>
-        <th style="width: 160px;">Date</th>
+        <th>Date</th>
         ${headCols}
-        <th style="width: 140px;" class="daily-report-total-col">Total</th>
+        <th class="daily-report-total-col">Total</th>
       </tr>
     `;
 

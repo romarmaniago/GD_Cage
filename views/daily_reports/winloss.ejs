@@ -3,9 +3,23 @@
 <%- include('../partials/sidebar') %>
 <%- include('../partials/topbar') %>
 <style>
+  .daily-report-matrix {
+    table-layout: fixed;
+    width: 100%;
+  }
+  /* Override theme nowrap on thead/cells so long table names wrap */
+  .daily-report-matrix thead {
+    white-space: normal;
+  }
   .daily-report-matrix th,
   .daily-report-matrix td {
     padding: 0.35rem 0.5rem;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    vertical-align: middle;
+    line-height: 1.25;
   }
   .daily-report-matrix .daily-report-total-col,
   .daily-report-matrix .daily-report-total-row td {

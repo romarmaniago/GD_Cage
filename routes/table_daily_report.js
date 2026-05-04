@@ -30,7 +30,7 @@ router.get('/junket_tables_data', checkSession, async (req, res) => {
 				ACTIVE AS active
 			 FROM junket_tables
 			 WHERE ACTIVE = 1
-			 ORDER BY TABLE_NAME ASC`
+			 ORDER BY IDNo ASC`
 		);
 
 		res.json(rows || []);
@@ -67,7 +67,7 @@ router.get('/daily_report_available_tables', checkSession, async (req, res) => {
 				AND dtr.ACTIVE = 1
 			 WHERE jt.ACTIVE = 1
 				${modeCondition}
-			 ORDER BY jt.TABLE_NAME ASC`,
+			 ORDER BY jt.IDNo ASC`,
 			[reportDate]
 		);
 
@@ -106,6 +106,7 @@ router.get('/daily_report_list', checkSession, async (req, res) => {
 		const [rows] = await pool.execute(
 			`SELECT
 				dtr.IDNo AS id,
+				jt.IDNo AS junket_table_id,
 				DATE_FORMAT(dtr.REPORT_DATE, '%Y-%m-%d') AS report_date,
 				jt.TABLE_NAME AS table_name,
 				dtr.ROLLING_AMT AS rolling_amt,
@@ -115,7 +116,7 @@ router.get('/daily_report_list', checkSession, async (req, res) => {
 			 WHERE dtr.ACTIVE = 1
 				${dateCondition}
 				${valueCondition}
-			 ORDER BY dtr.REPORT_DATE DESC, jt.TABLE_NAME ASC`,
+			 ORDER BY dtr.REPORT_DATE DESC, jt.IDNo ASC`,
 			params
 		);
 
