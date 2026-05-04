@@ -1,0 +1,129 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<style>
+  .card-body {
+    overflow-x: auto;
+  }
+
+  #bnpp-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+
+  #bnpp-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    vertical-align: middle;
+    border: none;
+  }
+
+  #bnpp-table thead th:first-child,
+  #bnpp-table tbody td:first-child,
+  #bnpp-table tfoot td:first-child {
+    text-align: left;
+  }
+
+  #bnpp-table thead th:not(:first-child),
+  #bnpp-table tbody td:not(:first-child),
+  #bnpp-table tfoot td:not(:first-child) {
+    text-align: right;
+  }
+
+  #bnpp-table tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  #bnpp-table td {
+    padding: 12px 15px;
+    color: #666;
+    vertical-align: middle;
+  }
+
+  #bnpp-table tbody tr:hover {
+    background-color: #f5f5f5 !important;
+  }
+
+  #bnpp-table tfoot td {
+    font-weight: 700;
+    background-color: #fff3cd;
+    color: #333;
+  }
+
+  .bnpp-range-wrap {
+    width: 20rem;
+    max-width: 100%;
+  }
+
+  .bnpp-range-wrap .form-control,
+  .bnpp-range-wrap .flatpickr-alt-input {
+    text-align: center;
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    #bnpp-table {
+      font-size: 10px;
+    }
+
+    #bnpp-table th,
+    #bnpp-table td {
+      padding: 5px;
+    }
+  }
+</style>
+
+<div class="container-fluid content-inner mt-4" id="net-profit-page" data-today="<%= typeof todayStr !== 'undefined' ? todayStr : '' %>" data-range-start="<%= typeof defaultRangeStart !== 'undefined' ? defaultRangeStart : '' %>" data-range-end="<%= typeof defaultRangeEnd !== 'undefined' ? defaultRangeEnd : '' %>" data-house-share-pct="<%= typeof netProfitHouseSharePct !== 'undefined' ? netProfitHouseSharePct : '' %>">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <h3 class="card-title mb-0">
+              <div class="breadcrumb1 flat">
+                <a href="/dashboard"><span class="fa fa-home"></span></a>
+                <a href="#"><%= __('sidebar.junket') %></a>
+                <a href="/net_profit" class="active">Net profit</a>
+              </div>
+            </h3>
+            <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="bnpp-export-excel">
+              <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
+            </button>
+          </div>
+          <div class="bnpp-range-wrap mt-2">
+            <input type="text" id="bnpp-range" class="form-control" placeholder="From — To" readonly autocomplete="off" />
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table id="bnpp-table" class="table nowrap small-text" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Games</th>
+                  <th>Win / loss</th>
+                  <th id="bnpp-th-casino-share"><% if (typeof netProfitHouseSharePct !== 'undefined') { %>Casino share (<%= netProfitHouseSharePct %>%)<% } else { %>Casino share<% } %></th>
+                  <th>Commission</th>
+                  <th>Expenses</th>
+                  <th>Net profit</th>
+                </tr>
+              </thead>
+              <tbody id="bnpp-tbody">
+                <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+              </tbody>
+              <tfoot id="bnpp-tfoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<script src="/assets/js/functions/net_profit.js"></script>

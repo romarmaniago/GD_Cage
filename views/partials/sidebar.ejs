@@ -211,7 +211,7 @@ aside.sidebar .sidebar-footer {
                 </a>
                 </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
+                  <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' || currentPage === 'net_profit' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
                       <i class="icon">
                     
 
@@ -228,7 +228,7 @@ aside.sidebar .sidebar-footer {
                         
                       </i>
                   </a>
-                  <ul class="sub-nav collapse" id="sidebar-user" data-bs-parent="#sidebar-menu">
+                  <ul class="sub-nav collapse <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' || currentPage === 'net_profit' ? 'show' : '' %>" id="sidebar-user" data-bs-parent="#sidebar-menu">
                       <li class="nav-item">
                           <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary text-white' : '' %>" href="/house_expense">
                               <i class="icon">
@@ -292,6 +292,19 @@ aside.sidebar .sidebar-footer {
                               </i>
                               <i class="sidenav-mini-icon"> L </i>
                               <span class="item-name"><%= __('sidebar.junket_loss') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'net_profit' ? 'active bg-gradient-primary text-white' : '' %>" href="/net_profit">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g>
+                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
+                                      </g>
+                                  </svg>
+                              </i>
+                              <i class="sidenav-mini-icon"> N </i>
+                              <span class="item-name">Net profit</span>
                           </a>
                       </li>
                   </ul>

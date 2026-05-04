@@ -1,0 +1,980 @@
+/**
+
+ * Business net profit — **per settlement date** (one table row per day).
+
+ * - Games: daily_settlement_games.DAILY_SETTLEMENT_DATE
+
+ * - Expenses: expense_daily_settlement.SETTLEMENT_DATE
+
+ * Chip / commission formulas match public/assets/js/functions/game_list.js.
+
+ * Casino share uses fixed house share NET_PROFIT_HOUSE_SHARE_PCT (not game_list.HOUSE_SHARE) until reverted.
+
+ */
+
+
+
+const express = require('express');
+
+const router = express.Router();
+
+const pool = require('../config/db');
+
+const { checkSession, sessions } = require('./auth');
+
+const path = require('path');
+const ExcelJS = require('exceljs');
+
+const MAX_RANGE_DAYS = 400;
+
+/** Fixed % for casino share in this report only (winLoss × this / 100). */
+const NET_PROFIT_HOUSE_SHARE_PCT = 60;
+
+
+
+function pad2(n) {
+
+	return String(n).padStart(2, '0');
+
+}
+
+
+
+function serverTodayStr() {
+
+	const now = new Date();
+
+	return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+}
+
+
+
+function isValidYmd(d) {
+
+	return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+}
+
+
+
+function daySpanInclusive(startStr, endStr) {
+
+	const a = new Date(`${startStr}T12:00:00`);
+
+	const b = new Date(`${endStr}T12:00:00`);
+
+	if (a > b) return 0;
+
+	return Math.floor((b - a) / 86400000) + 1;
+
+}
+
+
+
+/**
+
+ * @param {Array<object>} records - game_record rows ORDER BY IDNo ASC
+
+ * @param {object} gl - game_list row with COMMISSION_TYPE, COMMISSION_PERCENTAGE, HOUSE_SHARE
+
+ */
+
+function computeGameMetrics(records, gl) {
+
+	let total_nn_init = 0;
+
+	let total_cc_init = 0;
+
+	let total_nn = 0;
+
+	let total_cc = 0;
+
+	let total_cash_out_nn = 0;
+
+	let total_cash_out_cc = 0;
+
+	let total_rolling_nn = 0;
+
+	let total_rolling = 0;
+
+	let total_rolling_cc = 0;
+
+	let total_rolling_real = 0;
+
+	let total_rolling_nn_real = 0;
+
+	let total_rolling_cc_real = 0;
+
+	let total_roller_nn = 0;
+
+	let total_roller_cc = 0;
+
+	let total_roller_return_cc = 0;
+
+
+
+	for (const res of records) {
+
+		const ct = Number(res.CAGE_TYPE);
+
+		if (ct === 1 && (total_nn_init !== 0 || total_cc_init !== 0)) {
+
+			total_nn += Number(res.NN_CHIPS) || 0;
+
+			total_cc += Number(res.CC_CHIPS) || 0;
+
+		}
+
+		if (ct === 1 && total_nn_init === 0 && total_cc_init === 0) {
+
+			total_nn_init += Number(res.NN_CHIPS) || 0;
+
+			total_cc_init += Number(res.CC_CHIPS) || 0;
+
+		}
+
+		if (ct === 2) {
+
+			total_cash_out_nn += Number(res.NN_CHIPS) || 0;
+
+			total_cash_out_cc += Number(res.CC_CHIPS) || 0;
+
+		}
+
+		if (ct === 3) {
+
+			total_rolling += Number(res.AMOUNT) || 0;
+
+			total_rolling_nn += Number(res.NN_CHIPS) || 0;
+
+			total_rolling_cc += Number(res.CC_CHIPS) || 0;
+
+		}
+
+		if (ct === 4) {
+
+			total_rolling_real += Number(res.AMOUNT) || 0;
+
+			total_rolling_nn_real += Number(res.NN_CHIPS) || 0;
+
+			total_rolling_cc_real += Number(res.CC_CHIPS) || 0;
+
+		}
+
+		if (ct === 5) {
+
+			const rollerTransaction = parseInt(res.ROLLER_TRANSACTION, 10) || 1;
+
+			if (rollerTransaction === 1) {
+
+				total_roller_nn += Number(res.ROLLER_NN_CHIPS) || 0;
+
+				total_roller_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+
+			} else if (rollerTransaction === 2) {
+
+				total_roller_nn -= Number(res.ROLLER_NN_CHIPS) || 0;
+
+				total_roller_cc -= Number(res.ROLLER_CC_CHIPS) || 0;
+
+				total_roller_return_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+
+			}
+
+		}
+
+	}
+
+
+
+	const total_initial = total_nn_init + total_cc_init;
+
+	const total_buy_in_chips = total_nn + total_cc;
+
+	const total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
+
+	const totalRollingCCWithReturns = total_roller_return_cc;
+
+	const total_rolling_chips =
+
+		total_rolling_nn +
+
+		totalRollingCCWithReturns +
+
+		total_rolling +
+
+		total_rolling_real +
+
+		total_rolling_nn_real +
+
+		total_rolling_cc_real -
+
+		total_cash_out_nn;
+
+
+
+	const winLoss = total_initial + total_buy_in_chips - total_cash_out_chips;
+
+
+
+	const houseShare = NET_PROFIT_HOUSE_SHARE_PCT;
+
+	const casinoShareAmount = winLoss * (houseShare / 100);
+
+
+
+	const commissionType = Number(gl.COMMISSION_TYPE);
+
+	const commissionPct = Number(gl.COMMISSION_PERCENTAGE) || 0;
+
+	let commission = 0;
+
+	if (commissionPct > 0) {
+
+		if (commissionType === 1 || commissionType === 3) {
+
+			commission = Math.round((total_rolling_chips * commissionPct) / 100);
+
+		} else if (commissionType === 2) {
+
+			commission = Math.round((winLoss * commissionPct) / 100);
+
+		}
+
+	}
+
+
+
+	return {
+
+		winLoss,
+
+		rolling: total_rolling_chips,
+
+		casinoShareAmount,
+
+		commission,
+
+		houseSharePct: houseShare,
+
+	};
+
+}
+
+
+
+async function fetchRecordsForGames(gameIds) {
+
+	if (!gameIds.length) return new Map();
+
+	const placeholders = gameIds.map(() => '?').join(',');
+
+	const [recs] = await pool.execute(
+
+		`SELECT GAME_ID, AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS
+
+		 FROM game_record
+
+		 WHERE ACTIVE != 0 AND GAME_ID IN (${placeholders})
+
+		 ORDER BY GAME_ID ASC, IDNo ASC`,
+
+		gameIds
+
+	);
+
+	const byGame = new Map();
+
+	for (const r of recs) {
+
+		const gid = r.GAME_ID;
+
+		if (!byGame.has(gid)) byGame.set(gid, []);
+
+		byGame.get(gid).push(r);
+
+	}
+
+	return byGame;
+
+}
+
+
+
+async function loadGamesInDateRange(startStr, endStr) {
+
+	const [gameRows] = await pool.execute(
+
+		`SELECT
+
+			CAST(dsg.DAILY_SETTLEMENT_DATE AS CHAR) AS settlement_day,
+
+			gl.IDNo AS game_id,
+
+			gl.COMMISSION_TYPE,
+
+			gl.COMMISSION_PERCENTAGE,
+
+			gl.HOUSE_SHARE
+
+		FROM daily_settlement_games dsg
+
+		JOIN game_list gl ON gl.IDNo = dsg.GAME_ID AND gl.ACTIVE != 0
+
+		WHERE CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+
+		  AND CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+
+		ORDER BY dsg.DAILY_SETTLEMENT_DATE ASC, gl.IDNo ASC`,
+
+		[startStr, endStr]
+
+	);
+
+	return gameRows || [];
+
+}
+
+
+
+async function loadDistinctSettlementDatesInRange(startStr, endStr) {
+
+	const [rows] = await pool.execute(
+
+		`SELECT DISTINCT d FROM (
+
+		   SELECT CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) AS d
+
+		   FROM daily_settlement_games dsg
+
+		   WHERE CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+
+		     AND CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+
+		   UNION
+
+		   SELECT CAST(eds.SETTLEMENT_DATE AS DATE) AS d
+
+		   FROM expense_daily_settlement eds
+
+		   WHERE eds.ACTIVE = 1
+
+		     AND CAST(eds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+
+		     AND CAST(eds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+
+		 ) t
+
+		 WHERE d IS NOT NULL
+
+		 ORDER BY d ASC`,
+
+		[startStr, endStr, startStr, endStr]
+
+	);
+
+	const out = [];
+
+	for (const r of rows || []) {
+
+		const raw = r.d;
+
+		let d = '';
+
+		if (raw instanceof Date) {
+
+			d = `${raw.getFullYear()}-${pad2(raw.getMonth() + 1)}-${pad2(raw.getDate())}`;
+
+		} else {
+
+			d = String(raw || '').slice(0, 10);
+
+		}
+
+		if (isValidYmd(d)) out.push(d);
+
+	}
+
+	return out;
+
+}
+
+
+
+async function loadExpenseTotalsByDay(startStr, endStr) {
+
+	const map = new Map();
+
+	try {
+
+		const [rows] = await pool.execute(
+
+			`SELECT
+
+				CAST(eds.SETTLEMENT_DATE AS CHAR) AS settlement_day,
+
+				COALESCE(SUM(jhe.AMOUNT), 0) AS total_amt
+
+			 FROM expense_daily_settlement eds
+
+			 JOIN expense_daily_settlement_items it
+
+			   ON it.DAILY_SETTLEMENT_ID = eds.IDNo AND it.EXPENSE_TYPE = 'expense'
+
+			 JOIN junket_house_expense jhe ON jhe.IDNo = it.EXPENSE_ID AND jhe.ACTIVE = 1
+
+			 WHERE eds.ACTIVE = 1
+
+			   AND CAST(eds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+
+			   AND CAST(eds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+
+			 GROUP BY CAST(eds.SETTLEMENT_DATE AS DATE)
+
+			 ORDER BY settlement_day ASC`,
+
+			[startStr, endStr]
+
+		);
+
+		for (const r of rows || []) {
+
+			const raw = r.settlement_day;
+
+			let d = '';
+
+			if (raw instanceof Date) {
+
+				d = `${raw.getFullYear()}-${pad2(raw.getMonth() + 1)}-${pad2(raw.getDate())}`;
+
+			} else {
+
+				d = String(raw || '').slice(0, 10);
+
+			}
+
+			if (isValidYmd(d)) map.set(d, Number(r.total_amt) || 0);
+
+		}
+
+	} catch (_e) {
+
+		/* table missing etc. */
+
+	}
+
+	return map;
+
+}
+
+
+
+async function loadUnsettledGamesForLive() {
+
+	const [rows] = await pool.execute(
+
+		`SELECT
+
+			gl.IDNo AS game_id,
+
+			gl.COMMISSION_TYPE,
+
+			gl.COMMISSION_PERCENTAGE,
+
+			gl.HOUSE_SHARE
+
+		FROM game_list gl
+
+		WHERE gl.ACTIVE != 0
+
+		  AND (gl.DAILY_SETTLEMENT = 1 OR gl.DAILY_SETTLEMENT IS NULL)
+
+		  AND NOT EXISTS (SELECT 1 FROM daily_settlement_games dsg WHERE dsg.GAME_ID = gl.IDNo)
+
+		ORDER BY gl.IDNo ASC`
+
+	);
+
+	return rows || [];
+
+}
+
+
+
+router.get('/net_profit', checkSession, async (req, res) => {
+
+	try {
+
+		const todayStr = serverTodayStr();
+
+		const now = new Date();
+
+		const defaultStart = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
+
+		const data = sessions(req, 'net_profit');
+
+		data.permissions = req.session.permissions || 0;
+
+		data.todayStr = todayStr;
+
+		data.defaultRangeStart = defaultStart;
+
+		data.defaultRangeEnd = todayStr;
+
+		data.netProfitHouseSharePct = NET_PROFIT_HOUSE_SHARE_PCT;
+
+		res.render('junket/net_profit', data);
+
+	} catch (err) {
+
+		console.error('net_profit page:', err);
+
+		res.status(500).send('Error loading page');
+
+	}
+
+});
+
+
+
+router.get('/net_profit_data', checkSession, async (req, res) => {
+
+	try {
+
+		const todayStr = serverTodayStr();
+
+
+
+		let start = String(req.query.start || '').trim();
+
+		let end = String(req.query.end || '').trim();
+
+		if (!isValidYmd(start) || !isValidYmd(end)) {
+
+			const now = new Date();
+
+			start = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
+
+			end = todayStr;
+
+		}
+
+		if (start > end) {
+
+			const t = start;
+
+			start = end;
+
+			end = t;
+
+		}
+
+		const spanDays = daySpanInclusive(start, end);
+
+		if (spanDays > MAX_RANGE_DAYS) {
+
+			return res.status(400).json({
+
+				success: false,
+
+				error: `Ang range ay hanggang ${MAX_RANGE_DAYS} araw lang.`,
+
+			});
+
+		}
+
+
+
+		const unsettledGames = await loadUnsettledGamesForLive();
+
+		const gameRows = await loadGamesInDateRange(start, end);
+
+		const byDayGames = new Map();
+
+		for (const row of gameRows) {
+
+			const d = String(row.settlement_day || '').slice(0, 10);
+
+			if (!isValidYmd(d)) continue;
+
+			const gl = {
+
+				game_id: row.game_id,
+
+				COMMISSION_TYPE: row.COMMISSION_TYPE,
+
+				COMMISSION_PERCENTAGE: row.COMMISSION_PERCENTAGE,
+
+				HOUSE_SHARE: row.HOUSE_SHARE,
+
+			};
+
+			if (!byDayGames.has(d)) byDayGames.set(d, []);
+
+			byDayGames.get(d).push(gl);
+
+		}
+
+
+
+		let distinctDates = await loadDistinctSettlementDatesInRange(start, end);
+
+		const todayInRange = todayStr >= start && todayStr <= end;
+
+		if (todayInRange && unsettledGames.length > 0 && distinctDates.indexOf(todayStr) === -1) {
+
+			distinctDates = distinctDates.concat([todayStr]).sort();
+
+		}
+
+
+
+		function gamesForSettlementDate(d) {
+
+			const fromDsg = byDayGames.get(d) || [];
+
+			if (d !== todayStr || !todayInRange || !unsettledGames.length) {
+
+				return fromDsg;
+
+			}
+
+			const merged = new Map();
+
+			for (const g of fromDsg) merged.set(g.game_id, g);
+
+			for (const ug of unsettledGames) {
+
+				if (!merged.has(ug.game_id)) {
+
+					merged.set(ug.game_id, {
+
+						game_id: ug.game_id,
+
+						COMMISSION_TYPE: ug.COMMISSION_TYPE,
+
+						COMMISSION_PERCENTAGE: ug.COMMISSION_PERCENTAGE,
+
+						HOUSE_SHARE: ug.HOUSE_SHARE,
+
+					});
+
+				}
+
+			}
+
+			return Array.from(merged.values());
+
+		}
+
+
+
+		const allGameIdSet = new Set(gameRows.map((r) => r.game_id));
+
+		if (todayInRange) {
+
+			for (const ug of unsettledGames) allGameIdSet.add(ug.game_id);
+
+		}
+
+		const recordsByGame = await fetchRecordsForGames([...allGameIdSet]);
+
+		const expenseByDay = await loadExpenseTotalsByDay(start, end);
+
+
+
+		const rowsAsc = distinctDates.map((d) => {
+
+			const games = gamesForSettlementDate(d);
+
+			let win_loss = 0;
+
+			let casino_share = 0;
+
+			let commission = 0;
+
+			for (const g of games) {
+
+				const recs = recordsByGame.get(g.game_id) || [];
+
+				const m = computeGameMetrics(recs, g);
+
+				win_loss += m.winLoss;
+
+				casino_share += m.casinoShareAmount;
+
+				commission += m.commission;
+
+			}
+
+			const houseExp = expenseByDay.get(d) || 0;
+
+			const net_before = casino_share - commission;
+
+			const grand = net_before - houseExp;
+
+			return {
+
+				settlement_date: d,
+
+				settlement_label: d,
+
+				game_count: games.length,
+
+				win_loss: Math.round(win_loss * 100) / 100,
+
+				casino_share: Math.round(casino_share * 100) / 100,
+
+				commission,
+
+				house_expenses_settled: Math.round(houseExp * 100) / 100,
+
+				grand_net_profit: Math.round(grand * 100) / 100,
+
+			};
+
+		});
+
+
+
+		const rows = rowsAsc.slice().reverse();
+
+
+
+		const range_totals = rowsAsc.reduce(
+
+			(acc, r) => {
+
+				acc.game_count += r.game_count;
+
+				acc.win_loss += r.win_loss;
+
+				acc.casino_share += r.casino_share;
+
+				acc.commission += r.commission;
+
+				acc.house_expenses_settled += r.house_expenses_settled;
+
+				acc.grand_net_profit += r.grand_net_profit;
+
+				return acc;
+
+			},
+
+			{
+
+				game_count: 0,
+
+				win_loss: 0,
+
+				casino_share: 0,
+
+				commission: 0,
+
+				house_expenses_settled: 0,
+
+				grand_net_profit: 0,
+
+			}
+
+		);
+
+		range_totals.win_loss = Math.round(range_totals.win_loss * 100) / 100;
+
+		range_totals.casino_share = Math.round(range_totals.casino_share * 100) / 100;
+
+		range_totals.house_expenses_settled = Math.round(range_totals.house_expenses_settled * 100) / 100;
+
+		range_totals.grand_net_profit = Math.round(range_totals.grand_net_profit * 100) / 100;
+
+
+
+		res.json({
+
+			success: true,
+
+			mode: 'range',
+
+			start,
+
+			end,
+
+			server_today: todayStr,
+
+			house_share_pct: NET_PROFIT_HOUSE_SHARE_PCT,
+
+			rows,
+
+			range_totals,
+
+		});
+
+	} catch (err) {
+
+		console.error('net_profit_data:', err);
+
+		res.status(500).json({ success: false, error: 'Error computing net profit' });
+
+	}
+
+});
+
+
+
+function coerceNetProfitExportCell(raw) {
+	if (raw == null || raw === '') return '';
+	if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+	let s = String(raw).trim();
+	s = s.replace(/^\u20B1\s*/, '').replace(/^PHP\s*/i, '').trim();
+	if (/[a-zA-Z]/.test(s)) return s;
+	if (/%/.test(s)) return s;
+	const normalized = s.replace(/,/g, '');
+	if (normalized === '' || normalized === '-' || normalized === '+') return s;
+	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
+	const n = Number(normalized);
+	return Number.isFinite(n) ? n : s;
+}
+
+function sanitizeNetProfitSheetName(raw) {
+	if (raw == null || typeof raw !== 'string') return '';
+	let s = raw.trim().replace(/[\]\[\\\/\?\*:]/g, '');
+	if (s.length > 31) s = s.slice(0, 31);
+	return s;
+}
+
+router.post('/net_profit/export_xlsx', checkSession, async function (req, res) {
+	try {
+		const { headers, rows, filename, sheetName } = req.body || {};
+		if (!Array.isArray(headers) || headers.length === 0) {
+			return res.status(400).json({ error: 'Invalid headers' });
+		}
+		if (!Array.isArray(rows)) {
+			return res.status(400).json({ error: 'Invalid rows' });
+		}
+		const MAX_ROWS = 2000;
+		if (rows.length > MAX_ROWS) {
+			return res.status(400).json({ error: 'Too many rows' });
+		}
+		const ncol = headers.length;
+		const thinBorder = {
+			top: { style: 'thin', color: { argb: 'FF666666' } },
+			left: { style: 'thin', color: { argb: 'FF666666' } },
+			bottom: { style: 'thin', color: { argb: 'FF666666' } },
+			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+		const fillHeader = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFD9E1F2' }
+		};
+		const fillTotalRow = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFFFF3CD' }
+		};
+		const fillZebra = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFF5F5F5' }
+		};
+
+		const workbook = new ExcelJS.Workbook();
+		const sheetTitle = sanitizeNetProfitSheetName(sheetName) || 'Net profit';
+		const ws = workbook.addWorksheet(sheetTitle, {
+			views: [{ state: 'frozen', ySplit: 1 }]
+		});
+
+		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
+		headerRow.height = 22;
+		headerRow.eachCell((cell, colNumber) => {
+			cell.font = { bold: true };
+			cell.border = thinBorder;
+			cell.fill = fillHeader;
+			const colIdx = colNumber - 1;
+			cell.alignment =
+				colIdx === 0
+					? { vertical: 'middle', horizontal: 'left', wrapText: true }
+					: { vertical: 'middle', horizontal: 'right', wrapText: true };
+		});
+
+		rows.forEach((r, rowIdx) => {
+			const arr = Array.isArray(r) ? r : [];
+			const padded = Array.from({ length: ncol }, (_, i) => {
+				const v = arr[i];
+				if (v == null || v === '') return '';
+				return coerceNetProfitExportCell(v);
+			});
+			const firstCell = arr[0];
+			const isTotal = firstCell != null && String(firstCell).trim().toUpperCase() === 'TOTAL';
+			const dataRow = ws.addRow(padded);
+			dataRow.eachCell((cell, colNumber) => {
+				cell.border = thinBorder;
+				const colIdx = colNumber - 1;
+				if (colIdx === 0) {
+					cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+				} else {
+					cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
+				}
+				if (isTotal) {
+					cell.fill = fillTotalRow;
+					cell.font = { bold: true };
+					return;
+				}
+				if (rowIdx % 2 === 1) {
+					cell.fill = fillZebra;
+				}
+			});
+		});
+
+		const colMaxLens = headers.map((h, c) => {
+			let m = String(h == null ? '' : h).length;
+			for (let ri = 0; ri < rows.length; ri++) {
+				const row = rows[ri];
+				if (!Array.isArray(row) || row[c] == null) continue;
+				const L = String(row[c]).length;
+				if (L > m) m = L;
+			}
+			return Math.min(48, Math.max(10, m + 2));
+		});
+		for (let i = 1; i <= ncol; i++) {
+			ws.getColumn(i).width = colMaxLens[i - 1];
+		}
+
+		const buffer = await workbook.xlsx.writeBuffer();
+		let outName = 'NetProfit-export.xlsx';
+		if (filename && typeof filename === 'string') {
+			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
+			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
+		}
+		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		return res.send(Buffer.from(buffer));
+	} catch (err) {
+		console.error('net_profit/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+router.get('/business_net_profit', checkSession, (req, res) => {
+
+	res.redirect(301, '/net_profit');
+
+});
+
+
+
+router.get('/business_net_profit_data', checkSession, (req, res) => {
+
+	const i = req.url.indexOf('?');
+
+	res.redirect(301, '/net_profit_data' + (i >= 0 ? req.url.slice(i) : ''));
+
+});
+
+
+
+module.exports = router;
+
+
