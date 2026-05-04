@@ -145,6 +145,10 @@
 					</div>
 
 					<div id="marker-accounts-credit-wrapper" class="marker-tab-panel mb-3" data-panel="credit" style="display: none;">
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span class="text-muted small"><%= __('dashboard_marker.tab_credit') %></span>
+							<button type="button" id="export-excel-credit" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
+						</div>
 						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 							<table id="marker-accounts-credit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
 								<thead>
@@ -160,6 +164,10 @@
 					</div>
 
 					<div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span class="text-muted small"><%= __('dashboard_marker.tab_buyin') %></span>
+							<button type="button" id="export-excel-buyin" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
+						</div>
 						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 							<table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
 								<thead>
@@ -180,10 +188,20 @@
 </div>
 <%- include ('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 <script>
 	// Pass translations to JavaScript
 	window.markerTranslations = {
+		account_name: "<%= __('dashboard_marker.account_name') %>",
+		amount: "<%= __('dashboard_marker.amount') %>",
+		transaction_type_col: "<%= __('dashboard_marker.transaction_type_col') %>",
+		date: "<%= __('dashboard_marker.date') %>",
+		remarks: "<%= __('dashboard_marker.remarks') %>",
+		balance: "<%= __('dashboard_marker.balance') %>",
+		export_sheet_junket_credit: "<%= __('dashboard_marker.tab_credit') %>",
+		export_sheet_game_credit: "<%= __('dashboard_marker.tab_buyin') %>",
+		export: "<%= __('dashboard_marker.export') %>",
+		no_data_export: "<%= __('dashboard_marker.no_data_export') %>",
+		export_error: "<%= __('dashboard_marker.export_error') %>",
 		showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
 		save: "<%= __('dashboard_marker.save') %>",
 		edit_remarks: "<%= __('dashboard_marker.edit_remarks') %>",

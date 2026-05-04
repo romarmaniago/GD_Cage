@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const ExcelJS = require('exceljs');
 const router = express.Router();
 const pool = require('../config/db');
 
@@ -209,6 +211,138 @@ router.get("/game_list", checkSession, async function (req, res) {
 	}
 });
 
+/** If the cell is only a number (optional commas/decimals/minus), store as number so Excel does not show green "text number" triangles. */
+function coerceGameBookExportCell(raw) {
+	if (raw == null || raw === '') return '';
+	const s = String(raw).trim();
+	if (/[a-zA-Z]/.test(s)) return s;
+	if (/%/.test(s)) return s;
+	const normalized = s.replace(/,/g, '');
+	if (normalized === '' || normalized === '-' || normalized === '+') return s;
+	// Integer or decimal only (commas already stripped); avoids dates/times with ":" etc.
+	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
+	const n = Number(normalized);
+	return Number.isFinite(n) ? n : s;
+}
+
+/** 1-based Excel column numbers for GAME RATE & COMMISSION (no wrap, centered). */
+function getGameListExportRateCommissionCols1Based(headers) {
+	const set = new Set();
+	(headers || []).forEach((h, i) => {
+		const t = String(h == null ? '' : h).replace(/\s+/g, ' ').trim();
+		const u = t.toUpperCase();
+		if (/GAME\s*RATE|GAME\s*RAT\b/i.test(t) || (u.includes('GAME') && u.includes('RATE'))) {
+			set.add(i + 1);
+		}
+		if (/^COMMISS/i.test(u) || u === 'COMMISSION') {
+			set.add(i + 1);
+		}
+	});
+	if (set.size === 0 && headers && headers.length >= 12) {
+		set.add(11);
+		set.add(12);
+	}
+	return set;
+}
+
+/** Build Game Book table as .xlsx with borders (client omits ROLLER CHIPS and ACTION columns). */
+router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		if (!Array.isArray(headers) || headers.length === 0) {
+			return res.status(400).json({ error: 'Invalid headers' });
+		}
+		if (!Array.isArray(rows)) {
+			return res.status(400).json({ error: 'Invalid rows' });
+		}
+		const MAX_ROWS = 10000;
+		if (rows.length > MAX_ROWS) {
+			return res.status(400).json({ error: 'Too many rows' });
+		}
+		const ncol = headers.length;
+		const rateCommCols1Based = getGameListExportRateCommissionCols1Based(headers);
+		const thinBorder = {
+			top: { style: 'thin', color: { argb: 'FF666666' } },
+			left: { style: 'thin', color: { argb: 'FF666666' } },
+			bottom: { style: 'thin', color: { argb: 'FF666666' } },
+			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+
+		const workbook = new ExcelJS.Workbook();
+		const ws = workbook.addWorksheet('Game Book', {
+			views: [{ state: 'frozen', ySplit: 1 }]
+		});
+
+		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
+		headerRow.height = 22;
+		headerRow.eachCell((cell, colNumber) => {
+			cell.font = { bold: true };
+			const noWrap = rateCommCols1Based.has(colNumber);
+			cell.alignment = {
+				vertical: 'middle',
+				horizontal: 'center',
+				wrapText: !noWrap
+			};
+			cell.border = thinBorder;
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FFD9E1F2' }
+			};
+		});
+
+		rows.forEach((r) => {
+			const arr = Array.isArray(r) ? r : [];
+			const padded = Array.from({ length: ncol }, (_, i) => {
+				const v = arr[i];
+				if (v == null || v === '') return '';
+				return coerceGameBookExportCell(v);
+			});
+			const dataRow = ws.addRow(padded);
+			dataRow.eachCell((cell, colNumber) => {
+				cell.border = thinBorder;
+				const noWrap = rateCommCols1Based.has(colNumber);
+				cell.alignment = {
+					vertical: 'middle',
+					horizontal: 'center',
+					wrapText: !noWrap
+				};
+			});
+		});
+
+		const colMaxLens = headers.map((h, c) => {
+			let m = String(h == null ? '' : h).length;
+			for (let ri = 0; ri < rows.length; ri++) {
+				const row = rows[ri];
+				if (!Array.isArray(row) || row[c] == null) continue;
+				const L = String(row[c]).length;
+				if (L > m) m = L;
+			}
+			let w = Math.min(48, Math.max(10, m + 2));
+			if (rateCommCols1Based.has(c + 1)) {
+				w = Math.max(w, 14);
+			}
+			return w;
+		});
+		for (let i = 1; i <= ncol; i++) {
+			ws.getColumn(i).width = colMaxLens[i - 1];
+		}
+
+		const buffer = await workbook.xlsx.writeBuffer();
+		let outName = 'Gamebook-export.xlsx';
+		if (filename && typeof filename === 'string') {
+			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
+			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
+		}
+		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		return res.send(Buffer.from(buffer));
+	} catch (err) {
+		console.error('game_list/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
 
 // Available chips snapshot for New Game modal (same formulas used in new_game_list.ejs)
 router.get('/game_list_available_chips', async (_req, res) => {

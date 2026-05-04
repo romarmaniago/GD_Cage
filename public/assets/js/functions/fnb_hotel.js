@@ -222,6 +222,92 @@ $(document).ready(function() {
 	// Expose reload for other scripts (new/edit modals)
 	window.reloadFnbHotelData = reloadData;
 
+	function getFnbHotelExportFilename() {
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const d = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+		return 'FnbHotel_' + d + '.xlsx';
+	}
+
+	$('#btn-fnb-hotel-export').on('click', function (e) {
+		e.preventDefault();
+		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return;
+		const dt = $('#fnb-hotel-table').DataTable();
+		const encodedByColIndex = 7;
+		const actionColIndex = 9;
+		const headers = [];
+		$('#fnb-hotel-table thead tr:first th').each(function (i) {
+			if (i === encodedByColIndex || i === actionColIndex) return;
+			headers.push($(this).text().trim());
+		});
+		const rows = [];
+		dt.rows({ search: 'applied' }).every(function () {
+			const cells = [];
+			$(this.node())
+				.find('td')
+				.each(function (i) {
+					if (i === encodedByColIndex || i === actionColIndex) return;
+					cells.push($(this).text().trim());
+				});
+			if (cells.length) rows.push(cells);
+		});
+		const t = window.fnbHotelTranslations || {};
+		if (rows.length === 0) {
+			if (window.Swal) {
+				Swal.fire({
+					icon: 'info',
+					title: t.export_label || 'Export',
+					text: t.no_data_available || 'No rows to export for the current filter.',
+					confirmButtonColor: '#0d6efd'
+				});
+			} else {
+				alert(t.no_data_available || 'No rows to export.');
+			}
+			return;
+		}
+		const outName = getFnbHotelExportFilename();
+		const $btn = $(this);
+		$btn.prop('disabled', true);
+		fetch('/fnb-hotel/export_xlsx', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+		})
+			.then(function (res) {
+				if (!res.ok) {
+					return res.json().catch(function () { return {}; }).then(function (j) {
+						throw new Error((j && j.error) ? j.error : 'Export failed');
+					});
+				}
+				return res.blob();
+			})
+			.then(function (blob) {
+				const link = document.createElement('a');
+				link.href = URL.createObjectURL(blob);
+				link.download = outName;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(link.href);
+			})
+			.catch(function (err) {
+				if (window.Swal) {
+					Swal.fire({
+						icon: 'error',
+						title: t.error || 'Error',
+						text: err.message || 'Export failed',
+						confirmButtonColor: '#0d6efd'
+					});
+				} else {
+					alert(err.message || 'Export failed');
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
+	});
+
 	// Initialize DataTable (this will also call reloadData)
 	initializeDataTable();
 

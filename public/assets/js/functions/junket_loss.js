@@ -102,6 +102,20 @@ $(document).ready(function () {
         });
     }
 
+    function getJunketLossExportFilename() {
+        var dr = document.getElementById('junket-loss-daterange');
+        if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+            var pad = function (n) {
+                return String(n).padStart(2, '0');
+            };
+            var fmt = function (dt) {
+                return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+            };
+            return 'JunketLoss_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
+        }
+        return 'JunketLoss-export.xlsx';
+    }
+
     junketLossTable = $('#junket-loss-tbl').DataTable({
         pageLength: 25,
         order: [[4, 'desc']],
@@ -142,6 +156,77 @@ $(document).ready(function () {
     });
 
     fetchJunketLossData();
+
+    var encodedByColIndex = 3;
+    var actionColIndex = 5;
+
+    $('#btn-junket-loss-export').on('click', function (e) {
+        e.preventDefault();
+        if (!junketLossTable) return;
+        var headers = [];
+        $('#junket-loss-tbl thead tr:first th').each(function (i) {
+            if (i === encodedByColIndex || i === actionColIndex) return;
+            headers.push($(this).text().trim());
+        });
+        var rows = [];
+        junketLossTable.rows({ search: 'applied' }).every(function () {
+            var cells = [];
+            $(this.node())
+                .find('td')
+                .each(function (i) {
+                    if (i === encodedByColIndex || i === actionColIndex) return;
+                    cells.push($(this).text().trim());
+                });
+            if (cells.length) rows.push(cells);
+        });
+        var t = window.junketLossTranslations || {};
+        if (rows.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: t.export_label || 'Export',
+                text: t.no_data || 'No data to export.',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+        var outName = getJunketLossExportFilename();
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        fetch('/junket_loss/export_xlsx', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+        })
+            .then(function (res) {
+                if (!res.ok) {
+                    return res.json().catch(function () { return {}; }).then(function (j) {
+                        throw new Error((j && j.error) ? j.error : (t.error || 'Export failed'));
+                    });
+                }
+                return res.blob();
+            })
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = outName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(function (err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: err.message || (t.error || 'Export failed'),
+                    confirmButtonColor: '#0d6efd'
+                });
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
+    });
 
     $('#btn-add-junket-loss').on('click', function () {
         openJunketLossModal(null);

@@ -18,6 +18,7 @@
   const reportListThead = document.getElementById('daily-report-list-thead');
   const reportListTbody = document.getElementById('daily-report-list-tbody');
   const reportMatrixTable = document.getElementById('daily-report-view-table');
+  const btnExportMatrix = document.getElementById('btn-export-daily-report-matrix');
   const manageModalEl = document.getElementById('junket-table-modal');
   const formModalEl = document.getElementById('junket-table-form-modal');
   const dailyReportModalEl = document.getElementById('daily-report-modal');
@@ -406,6 +407,59 @@
     reportListTbody.innerHTML = items.join('');
   }
 
+  async function exportDailyReportMatrix() {
+    if (!reportMatrixTable) return;
+    const theadRow = reportMatrixTable.querySelector('thead tr');
+    if (!theadRow) return;
+    const headers = Array.from(theadRow.querySelectorAll('th')).map((th) => th.textContent.trim());
+    if (headers.length < 2) {
+      Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export.' });
+      return;
+    }
+    const rows = [];
+    reportMatrixTable.querySelectorAll('tbody tr').forEach((tr) => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length === 1 && tds[0].hasAttribute('colspan')) return;
+      const cells = Array.from(tds).map((td) => td.textContent.trim());
+      if (cells.length === headers.length) rows.push(cells);
+    });
+    if (rows.length === 0) {
+      Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export for the current view.' });
+      return;
+    }
+    const range = getSelectedListRange();
+    const modeLabel = reportMode === 'winloss' ? 'Winloss' : 'Rolling';
+    const filename = `${modeLabel}_${range.from}_${range.to}.xlsx`;
+    const sheetName = reportMode === 'winloss' ? 'Winloss' : 'Rolling';
+    const btn = btnExportMatrix;
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/daily_report_matrix/export_xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ headers, rows, filename, sheetName })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error('exportDailyReportMatrix:', err);
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Export failed.' });
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function loadSubmittedReports() {
     if (!reportListTbody || !reportListThead) return;
     reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Loading reports...</td></tr>';
@@ -642,6 +696,11 @@
   if (reportListDateRange) {
     initReportListDateRangePicker();
     loadSubmittedReports();
+  }
+  if (btnExportMatrix) {
+    btnExportMatrix.addEventListener('click', () => {
+      exportDailyReportMatrix();
+    });
   }
   dailyReportEntriesTbody.addEventListener('input', (event) => {
     const input = event.target;

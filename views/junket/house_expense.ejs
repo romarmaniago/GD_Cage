@@ -23,11 +23,14 @@
                                     <a href="#" id="btn-daily-settle"><%= __('house_expense.settle') || 'Settle' %></a>
                                 </div>
                             </div>
-                            <div class="d-flex">
-                                <button type="button" class="btn btn-primary me-2" onclick="addHouseExpense()">
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
+                                    <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary" onclick="addHouseExpense()">
                                     <i class="fa fa-plus" aria-hidden="true"></i> <%= __('house_expense.new_expense') %>
                                 </button>
-                                <button type="button" class="btn btn-success me-2" onclick="returnMoney()">
+                                <button type="button" class="btn btn-sm btn-success" onclick="returnMoney()">
                                     <i class="fa fa-undo" aria-hidden="true"></i> <%= __('house_expense.return_money') %>
                                 </button>
                             </div>
@@ -176,7 +179,8 @@
                 edit_history_title: "<%= __('house_expense.edit_history_title') %>",
                 edit_history_error: "<%= __('house_expense.edit_history_error') %>",
                 edit_history_empty: "<%= __('house_expense.edit_history_empty') %>",
-                edit_history_editor: "<%= __('house_expense.edit_history_editor') %>"
+                edit_history_editor: "<%= __('house_expense.edit_history_editor') %>",
+                export_label: "<%= __('house_expense.export') || 'Export' %>"
             };
         </script>
         

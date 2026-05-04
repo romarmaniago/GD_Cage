@@ -277,6 +277,7 @@
 		"deposit": "デポジット",
 		"marker": "クレジット",
 		"select_day": "gamelist.select_day",
+		"export": "エクスポート",
 		"settle": "gamelist.settle",
 		"current_unsettled": "gamelist.current_unsettled",
 		"current": "gamelist.current",
@@ -293,6 +294,7 @@
 		"junket_expenses": "ジャンケット経費",
 		"new_record": "新規記録",
 		"new_expense": "新規経費",
+		"export": "エクスポート",
 		"return_money": "返金",
 		"division": "部門",
 		"name": "名前",
@@ -407,6 +409,7 @@
 	"commission": {
 		"junket": "ジャンケット",
 		"commission": "手数料",
+		"export": "エクスポート",
 		"game_no": "ゲーム番号",
 		"account_name": "アカウント名",
 		"total_buyin": "合計バイイン",
@@ -430,7 +433,11 @@
 	},
 	"junket_loss": {
 		"junket": "ジャンケット",
-		"title": "ジャンケット損失"
+		"title": "ジャンケット損失",
+		"export": "エクスポート",
+		"add": "ジャンケット損失を追加",
+		"no_data_export": "エクスポートするデータがありません。",
+		"export_error": "エクスポートに失敗しました"
 	},
 	"agent_statistic": {
 		"statistics": "統計",
@@ -787,6 +794,8 @@
 		"deposit": "デポジット",
 		"marker_history": "履歴",
 		"export": "エクスポート",
+		"no_data_export": "現在の条件でエクスポートするデータがありません。",
+		"export_error": "エクスポートに失敗しました",
 		"loading": "読み込み中...",
 		"account_name": "アカウント名",
 		"amount": "金額",
@@ -1082,6 +1091,7 @@
 		"delivery": "デリバリー",
 		"all": "F&B / ホテル",
 		"new_record": "新規記録",
+		"export": "エクスポート",
 		"source": "ソース",
 		"agent": "エージェント",
 		"game_id": "ゲームID",

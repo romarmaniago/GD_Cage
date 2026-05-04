@@ -279,6 +279,7 @@
 		"deposit": "입금",
 		"marker": "크레딧",
 		"select_day": "gamelist.select_day",
+		"export": "보내기",
 		"settle": "gamelist.settle",
 		"current_unsettled": "gamelist.current_unsettled",
 		"current": "gamelist.current",
@@ -295,6 +296,7 @@
 		"junket_expenses": "정켓 비용",
 		"new_record": "새 기록",
 		"new_expense": "새 경비",
+		"export": "보내기",
 		"return_money": "환불",
 		"division": "부서",
 		"name": "이름",
@@ -409,6 +411,7 @@
 	"commission": {
 		"junket": "정켓",
 		"commission": "수수료",
+		"export": "보내기",
 		"game_no": "게임 번호",
 		"account_name": "계정 이름",
 		"total_buyin": "총 바인",
@@ -432,7 +435,11 @@
 	},
 	"junket_loss": {
 		"junket": "정켓",
-		"title": "정켓 손실"
+		"title": "정켓 손실",
+		"export": "보내기",
+		"add": "정켓 손실 추가",
+		"no_data_export": "보낼 데이터가 없습니다.",
+		"export_error": "보내기 실패"
 	},
 	"agent_statistic": {
 		"statistics": "통계",
@@ -787,6 +794,8 @@
 		"deposit": "입금",
 		"marker_history": "내역",
 		"export": "내보내기",
+		"no_data_export": "현재 필터로 보낼 데이터가 없습니다.",
+		"export_error": "내보내기에 실패했습니다.",
 		"loading": "로딩중...",
 		"account_name": "계정 이름",
 		"amount": "금액",
@@ -1082,6 +1091,7 @@
 		"delivery": "배달",
 		"all": "F&B / 호텔",
 		"new_record": "새 기록",
+		"export": "보내기",
 		"source": "소스",
 		"agent": "에이전트",
 		"game_id": "게임 ID",

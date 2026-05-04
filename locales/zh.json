@@ -279,6 +279,7 @@
 		"deposit": "存款",
 		"marker": "信用",
 		"select_day": "gamelist.select_day",
+		"export": "导出",
 		"settle": "gamelist.settle",
 		"current_unsettled": "gamelist.current_unsettled",
 		"current": "gamelist.current",
@@ -295,6 +296,7 @@
 		"junket_expenses": "接待费用",
 		"new_record": "新记录",
 		"new_expense": "新费用",
+		"export": "导出",
 		"return_money": "退款",
 		"division": "部门",
 		"name": "姓名",
@@ -409,6 +411,7 @@
 	"commission": {
 		"junket": "接待",
 		"commission": "佣金",
+		"export": "导出",
 		"game_no": "游戏编号",
 		"account_name": "账户名称",
 		"total_buyin": "总买入",
@@ -432,7 +435,11 @@
 	},
 	"junket_loss": {
 		"junket": "接待",
-		"title": "接待损失"
+		"title": "接待损失",
+		"export": "导出",
+		"add": "添加接待损失",
+		"no_data_export": "没有可导出的数据。",
+		"export_error": "导出失败"
 	},
 	"agent_statistic": {
 		"statistics": "统计",
@@ -787,6 +794,8 @@
 		"deposit": "存款",
 		"marker_history": "历史",
 		"export": "导出",
+		"no_data_export": "当前筛选没有可导出的数据。",
+		"export_error": "导出失败",
 		"loading": "加载中...",
 		"account_name": "账户名称",
 		"amount": "金额",
@@ -1082,6 +1091,7 @@
 		"delivery": "配送",
 		"all": "F&B / 酒店",
 		"new_record": "新记录",
+		"export": "导出",
 		"source": "来源",
 		"agent": "代理",
 		"game_id": "游戏ID",

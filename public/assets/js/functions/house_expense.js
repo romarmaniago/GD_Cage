@@ -412,6 +412,106 @@ $(document).ready(function () {
     // 3. Initialize DataTable
     initializeExpenseTable();
 
+    function getHouseExpenseExportFilename() {
+        var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        if (mode === 'settlement') {
+            var d = (window.selectedSettlementDate || ($('#settlement-date-picker').val() || '').trim() || 'export');
+            if (d === 'current') {
+                d = ($('#settlement-date-wrapper .input-group').attr('data-today') || '').slice(0, 10) || 'export';
+            }
+            return 'Junket_Expenses-' + d + '.xlsx';
+        }
+        var dr = document.getElementById('daterange-picker');
+        if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+            var pad = function (n) {
+                return String(n).padStart(2, '0');
+            };
+            var fmt = function (dt) {
+                return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+            };
+            return 'Junket_Expenses_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
+        }
+        return 'Junket_Expenses-export.xlsx';
+    }
+
+    $('#btn-house-expense-export').on('click', function (e) {
+        e.preventDefault();
+        if (!$.fn.DataTable.isDataTable('#expense-tbl')) return;
+        var dt = $('#expense-tbl').DataTable();
+        var $ths = $('#expense-tbl thead tr:first th');
+        var actionColIndex = $ths.length - 1;
+        var encodedByColIndex = 4;
+        var headers = [];
+        $ths.each(function (i) {
+            if (i === encodedByColIndex || i === actionColIndex) return;
+            headers.push($(this).text().trim());
+        });
+        var rows = [];
+        dt.rows({ search: 'applied' }).every(function () {
+            var cells = [];
+            $(this.node()).find('td').each(function (i) {
+                if (i === encodedByColIndex || i === actionColIndex) return;
+                cells.push($(this).text().trim());
+            });
+            if (cells.length) rows.push(cells);
+        });
+        if (rows.length === 0) {
+            var t = window.houseExpenseTranslations || {};
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'info',
+                    title: t.export_label || 'Export',
+                    text: t.no_data_found || 'No rows to export for the current filter.',
+                    confirmButtonColor: '#0d6efd'
+                });
+            } else {
+                alert(t.no_data_found || 'No rows to export.');
+            }
+            return;
+        }
+        var outName = getHouseExpenseExportFilename();
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        fetch('/house_expense/export_xlsx', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+        })
+            .then(function (res) {
+                if (!res.ok) {
+                    return res.json().catch(function () { return {}; }).then(function (j) {
+                        throw new Error((j && j.error) ? j.error : 'Export failed');
+                    });
+                }
+                return res.blob();
+            })
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = outName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(function (err) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: (window.houseExpenseTranslations && window.houseExpenseTranslations.error) || 'Error',
+                        text: err.message || 'Export failed',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                } else {
+                    alert(err.message || 'Export failed');
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
+    });
+
     // ======================= EXPENSE SETTLEMENT FUNCTIONALITY ==================
     
     // Filter mode toggle handler

@@ -278,6 +278,7 @@
 		"marker": "Credit",
 		"select_day": "gamelist.select_day",
 		"select_date": "Select date",
+		"export": "Export",
 		"settle": "Settle",
 		"settle_btn_settled": "Settled",
 		"current": "Current",
@@ -299,6 +300,7 @@
 		"junket_expenses": "Junket Expenses",
 		"new_record": "New Record",
 		"new_expense": "New Expense",
+		"export": "Export",
 		"return_money": "Return Money",
 		"division": "DIVISION",
 		"receipt_no": "DESCRIPTION",
@@ -409,6 +411,7 @@
 	"commission": {
 		"junket": "Junket",
 		"commission": "Commission",
+		"export": "Export",
 		"game_no": "GAME NO",
 		"account_name": "ACCOUNT NAME",
 		"total_buyin": "TOTAL BUYIN",
@@ -432,7 +435,11 @@
 	},
 	"junket_loss": {
 		"junket": "Junket",
-		"title": "Junket Loss"
+		"title": "Junket Loss",
+		"export": "Export",
+		"add": "Add Junket Loss",
+		"no_data_export": "No data to export for the current filter.",
+		"export_error": "Export failed"
 	},
 	"agent_statistic": {
 		"statistics": "Statistics",
@@ -786,6 +793,8 @@
 		"deposit": "Deposit",
 		"marker_history": "History",
 		"export": "Export",
+		"no_data_export": "No data to export for the current filter.",
+		"export_error": "Export failed",
 		"loading": "Loading...",
 		"account_name": "Account Name",
 		"amount": "Amount",
@@ -1079,6 +1088,7 @@
 		"delivery": "Delivery",
 		"all": "F&B / Hotel",
 		"new_record": "New Record",
+		"export": "Export",
 		"source": "Source",
 		"agent": "Agent",
 		"game_id": "Game ID",

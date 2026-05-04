@@ -11,15 +11,17 @@
 		<div class="row">
 			<div class="col-sm-12">
 				<div class="card">
-					<div class="card-header d-flex justify-content-between align-items-center">
-						<h3 class="card-title">
+					<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+						<h3 class="card-title mb-0">
 							<div class="breadcrumb1 flat">
 							<a href="/dashboard" ><span class="fa fa-home"></span></a>
 							<a href="#" ><%= __('commission.junket') %></a>
 							<a href="/commission"class="active"><%= __('commission.commission') %></a>
 							</div>
 						</h3>
-						
+						<button type="button" id="btn-commission-export" class="btn btn-sm btn-success">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission.export') || 'Export' %>
+						</button>
 					</div>
 					<!-- DATE FILTER -->
 					<div class="dataTables_wrapper">
@@ -254,7 +256,8 @@
 				previous: "<%= __('commission.previous') %>",
 				next: "<%= __('commission.next') %>",
 				please_select_date_range: "<%= __('commission.please_select_date_range') %>",
-				no_data_found: "<%= __('commission.no_data_found') %>"
+				no_data_found: "<%= __('commission.no_data_found') %>",
+				export_label: "<%= __('commission.export') || 'Export' %>"
 			};
 		</script>
 		<script src="/assets/js/functions/commission.js"></script>

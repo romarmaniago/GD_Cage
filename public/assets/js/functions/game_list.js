@@ -332,6 +332,8 @@ $(document).ready(function () {
 			{ targets: 5, className: 'text-center col-buyin' },          // BUY-IN (Blue)
 			{ targets: 9, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
 			{ targets: 7, className: 'text-center col-winloss' },       // WIN/LOSS (Orange) after CASH-OUT
+			{ targets: 10, className: 'text-center col-game-rate' },
+			{ targets: 11, className: 'text-center col-commission' },
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		
@@ -385,6 +387,86 @@ $(document).ready(function () {
 			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
 			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
 		}
+	});
+
+	function getGameListExportFilename() {
+		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		if (mode === 'settlement') {
+			var d = (window.selectedSettlementDate || ($('#settlement-date-picker').val() || '').trim() || 'export');
+			return 'Gamebook-' + d + '.xlsx';
+		}
+		var dr = document.getElementById('daterange-picker');
+		if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+			var pad = function (n) { return String(n).padStart(2, '0'); };
+			var fmt = function (dt) {
+				return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+			};
+			return 'Gamebook_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
+		}
+		return 'Gamebook-export.xlsx';
+	}
+
+	$('#btn-game-list-export').on('click', function (e) {
+		e.preventDefault();
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+		var dt = $('#game_list-tbl').DataTable();
+		var headers = [];
+		// Omit last two columns: ROLLER CHIPS, ACTION
+		$('#game_list-tbl thead tr:first th').slice(0, -2).each(function () {
+			headers.push($(this).text().trim());
+		});
+		var rows = [];
+		dt.rows({ search: 'applied' }).every(function () {
+			var cells = [];
+			$(this.node()).find('td').slice(0, -2).each(function () {
+				cells.push($(this).text().trim());
+			});
+			if (cells.length) rows.push(cells);
+		});
+		if (rows.length === 0) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'info', title: 'Export', text: 'No rows to export for the current filter.', confirmButtonColor: '#0d6efd' });
+			} else {
+				alert('No rows to export.');
+			}
+			return;
+		}
+		var outName = getGameListExportFilename();
+		var $btn = $(this);
+		$btn.prop('disabled', true);
+		fetch('/game_list/export_xlsx', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+		})
+			.then(function (res) {
+				if (!res.ok) {
+					return res.json().catch(function () { return {}; }).then(function (j) {
+						throw new Error((j && j.error) ? j.error : 'Export failed');
+					});
+				}
+				return res.blob();
+			})
+			.then(function (blob) {
+				var link = document.createElement('a');
+				link.href = URL.createObjectURL(blob);
+				link.download = outName;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(link.href);
+			})
+			.catch(function (err) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed', confirmButtonColor: '#0d6efd' });
+				} else {
+					alert(err.message || 'Export failed');
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
 	});
 
 	// Account Search - when has value show one row per account with totals; when cleared reload game list

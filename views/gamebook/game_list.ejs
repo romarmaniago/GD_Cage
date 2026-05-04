@@ -20,6 +20,7 @@
 									  </div>								 
 									</div>
 									<div class="mb-2 mb-md-0 d-flex gap-2">
+										<a href="#" id="btn-game-list-export" class="btn btn-sm btn-success"><%= __('gamelist.export') || 'Export' %></a>
 										<a href="#" id="btn-daily-settle" class="btn btn-sm btn-primary"><%= __('gamelist.settle') || 'Settle' %></a>
 										<% if (permissions == 0) { %>
 											<% const undoLabel = __('gamelist.settle_undo'); %>
@@ -112,10 +113,10 @@
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
 												<%= __('gamelist.total_rolling') %>
 											</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-game-rate">
 													<%= __('gamelist.game_rate') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-commission">
 													<%= __('gamelist.commission') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
@@ -151,8 +152,8 @@
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_REAL_ROLLING">0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
 												0.00</th>
-											<th></th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_COMMISSION">0.00</th>
+											<th class="col-game-rate"></th>
+											<th class="d-none d-sm-table-cell text-center col-commission" id="GRAND_COMMISSION">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_ADD_CHG">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_TOTAL_SETTLE">0.00</th>
 											<th></th>
@@ -515,6 +516,16 @@ th.col-winloss {
     background-color: #fff0e1 !important; /* Light orange */
     color: #ef6c00 !important; /* Darker orange text */
     font-weight: 600;
+}
+
+/* GAME RATE + COMMISSION: single line, centered */
+#game_list-tbl th.col-game-rate,
+#game_list-tbl td.col-game-rate,
+#game_list-tbl th.col-commission,
+#game_list-tbl td.col-commission {
+	white-space: nowrap;
+	text-align: center !important;
+	vertical-align: middle;
 }
 
 /* Base table styles */

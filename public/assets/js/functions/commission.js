@@ -274,4 +274,91 @@ $(document).ready(function() {
             reloadData();
         }
     });
+
+    function getCommissionExportFilename() {
+        var dr = document.getElementById('daterange');
+        if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+            var pad = function (n) {
+                return String(n).padStart(2, '0');
+            };
+            var fmt = function (dt) {
+                return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+            };
+            return 'Commission_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
+        }
+        return 'Commission-export.xlsx';
+    }
+
+    $('#btn-commission-export').on('click', function (e) {
+        e.preventDefault();
+        if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
+        var dt = $('#commission-tbl').DataTable();
+        var headers = [];
+        $('#commission-tbl thead tr:first th').each(function () {
+            headers.push($(this).text().trim());
+        });
+        var rows = [];
+        dt.rows({ search: 'applied' }).every(function () {
+            var cells = [];
+            $(this.node()).find('td').each(function () {
+                cells.push($(this).text().trim());
+            });
+            if (cells.length) rows.push(cells);
+        });
+        var t = window.commissionTranslations || {};
+        if (rows.length === 0) {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'info',
+                    title: t.export_label || 'Export',
+                    text: t.no_data_found || 'No rows to export for the current filter.',
+                    confirmButtonColor: '#0d6efd'
+                });
+            } else {
+                alert(t.no_data_found || 'No rows to export.');
+            }
+            return;
+        }
+        var outName = getCommissionExportFilename();
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        fetch('/commission/export_xlsx', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ headers: headers, rows: rows, filename: outName })
+        })
+            .then(function (res) {
+                if (!res.ok) {
+                    return res.json().catch(function () { return {}; }).then(function (j) {
+                        throw new Error((j && j.error) ? j.error : 'Export failed');
+                    });
+                }
+                return res.blob();
+            })
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = outName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(function (err) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: err.message || 'Export failed',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                } else {
+                    alert(err.message || 'Export failed');
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
+    });
 });

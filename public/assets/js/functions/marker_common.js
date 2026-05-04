@@ -380,6 +380,154 @@
         return table;
     }
 
+    function getMarkerExportDefaultFilename() {
+        var d = new Date();
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return 'CreditHistory_' + y + '-' + m + '-' + day + '.xlsx';
+    }
+
+    function getCreditBalanceExportFilename(kind) {
+        var d = new Date();
+        var y = d.getFullYear();
+        var mo = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        var suffix = kind === 'buyin' ? 'GameCredit' : 'JunketCredit';
+        return suffix + '_' + y + '-' + mo + '-' + day + '.xlsx';
+    }
+
+    function parseBalanceCellToNumber(text) {
+        if (text == null || text === '') return NaN;
+        var s = String(text).replace(/,/g, '').trim();
+        if (s === '' || s === '—' || s === '-') return NaN;
+        var n = Number(s);
+        return Number.isFinite(n) ? n : NaN;
+    }
+
+    /**
+     * Export Junket Credit / Game Credit balance tables (2 columns) via server XLSX.
+     */
+    function initBalanceTableExport(tableSelector, exportBtnSelector, exportOptions) {
+        exportOptions = exportOptions || {};
+        var kind = exportOptions.kind === 'buyin' ? 'buyin' : 'credit';
+        var $btn = $(exportBtnSelector);
+        if (!$btn.length) return;
+
+        $btn.off('click.markerBalanceExport').on('click.markerBalanceExport', function () {
+            var t = window.markerTranslations || {};
+            if (!$.fn.DataTable.isDataTable(tableSelector)) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'info',
+                        title: t.export || 'Export',
+                        text: t.no_data_export || 'No data to export for the current filter.',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                }
+                return;
+            }
+            var dt = $(tableSelector).DataTable();
+            var headers = [
+                t.account_name || 'Account Name',
+                t.balance || 'Balance'
+            ];
+            var rows = [];
+            var sum = 0;
+            dt.rows({ search: 'applied' }).every(function () {
+                var $tds = $(this.node()).find('td');
+                if ($tds.length < 2) return;
+                var name = $tds.eq(0).text().trim();
+                var balText = $tds.eq(1).text().trim();
+                if (!name && !balText) return;
+                if (/error\s+loading/i.test(name)) return;
+                var balNum = parseBalanceCellToNumber(balText);
+                if (Number.isFinite(balNum)) sum += balNum;
+                rows.push([name, Number.isFinite(balNum) ? balNum : balText]);
+            });
+            if (rows.length > 0) {
+                rows.push([t.total || 'Total', sum]);
+            }
+            if (rows.length === 0) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'info',
+                        title: t.export || 'Export',
+                        text: t.no_data_export || 'No data to export for the current filter.',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                }
+                return;
+            }
+            var outName = exportOptions.fileName || getCreditBalanceExportFilename(kind);
+            var sheetLabel =
+                exportOptions.sheetName ||
+                (kind === 'buyin'
+                    ? t.export_sheet_game_credit || 'Game Credit'
+                    : t.export_sheet_junket_credit || 'Junket Credit');
+            var $b = $(this);
+            $b.prop('disabled', true);
+            fetch('/marker_history/export_xlsx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    headers: headers,
+                    rows: rows,
+                    filename: outName,
+                    sheetName: sheetLabel
+                })
+            })
+                .then(function (res) {
+                    if (!res.ok) {
+                        return res.json().catch(function () { return {}; }).then(function (j) {
+                            throw new Error((j && j.error) ? j.error : (t.export_error || 'Export failed'));
+                        });
+                    }
+                    return res.blob();
+                })
+                .then(function (blob) {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = outName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                })
+                .catch(function (err) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: (err && err.message) ? err.message : (t.export_error || 'Export failed'),
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                })
+                .finally(function () {
+                    $b.prop('disabled', false);
+                });
+        });
+    }
+
+    function buildMarkerExportRow(row) {
+        var dateCell = row.ENCODED_DT || '';
+        if (dateCell && window.moment) {
+            var md = parseMarkerHistoryDateString(dateCell);
+            if (md) dateCell = md.format('DD MMM, YYYY HH:mm');
+        }
+        var amt = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
+        if (isNaN(amt)) amt = 0;
+        return [
+            (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
+            amt,
+            renderTransactionType(row.TRANSACTION_INFO, 'export', row),
+            dateCell,
+            row.REMARKS != null ? String(row.REMARKS) : ''
+        ];
+    }
+
     function initExport(table, exportBtnSelector, options) {
         options = options || {};
         if (!table || !exportBtnSelector) return;
@@ -387,31 +535,73 @@
         if (!$btn.length) return;
 
         $btn.off('click.markerExport').on('click.markerExport', function () {
-            if (typeof XLSX === 'undefined') {
-                console.error('XLSX library not loaded');
+            var t = window.markerTranslations || {};
+            var headers = [
+                t.account_name || 'Account Name',
+                t.amount || 'Amount',
+                t.transaction_type_col || t.transaction_type || 'Transaction Type',
+                t.date || 'Date',
+                t.remarks || 'Remarks'
+            ];
+            var data = table.rows({ search: 'applied' }).data().toArray();
+            var rows = data.map(function (row) {
+                return buildMarkerExportRow(row);
+            });
+            if (rows.length === 0) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'info',
+                        title: t.export || 'Export',
+                        text: t.no_data_export || 'No data to export for the current filter.',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                }
                 return;
             }
-            var data = table.rows().data().toArray();
-            var wsData = [];
-            wsData.push(['ACCOUNT NAME', 'AMOUNT', 'TRANSACTION TYPE', 'DATE', 'REMARKS']);
-            data.forEach(function (row) {
-                var dateCell = row.ENCODED_DT || '';
-                if (dateCell && window.moment) {
-                    var md = parseMarkerHistoryDateString(dateCell);
-                    if (md) dateCell = md.format('DD MMM, YYYY HH:mm');
-                }
-                wsData.push([
-                    (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
-                    formatMarkerHistoryAmount(row.AMOUNT),
-                    getTransactionLabel(row.TRANSACTION_ID),
-                    dateCell,
-                    row.REMARKS || ''
-                ]);
-            });
-            var wb = XLSX.utils.book_new();
-            var ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Marker Data');
-            XLSX.writeFile(wb, options.fileName || 'Marker_Data.xlsx');
+            var outName = options.fileName || getMarkerExportDefaultFilename();
+            var $b = $(this);
+            $b.prop('disabled', true);
+            fetch('/marker_history/export_xlsx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    headers: headers,
+                    rows: rows,
+                    filename: outName,
+                    sheetName: options.sheetName || 'Credit History'
+                })
+            })
+                .then(function (res) {
+                    if (!res.ok) {
+                        return res.json().catch(function () { return {}; }).then(function (j) {
+                            throw new Error((j && j.error) ? j.error : (t.export_error || 'Export failed'));
+                        });
+                    }
+                    return res.blob();
+                })
+                .then(function (blob) {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = outName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                })
+                .catch(function (err) {
+                    if (window.Swal) {
+                        window.Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: (err && err.message) ? err.message : (t.export_error || 'Export failed'),
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                })
+                .finally(function () {
+                    $b.prop('disabled', false);
+                });
         });
     }
 
@@ -793,6 +983,7 @@
         if (perms === 2) {
             $(submitBtnSelector || '#submit_marker_settlement').prop('disabled', true);
             $(exportBtnSelector || '#export-excel').prop('disabled', true);
+            $('#export-excel-credit, #export-excel-buyin').prop('disabled', true);
         }
     }
 
@@ -952,6 +1143,16 @@
         updateAccountsBalanceTable();
 
         initExport(table, exportBtnSelector, options.exportOptions || {});
+        initBalanceTableExport('#marker-accounts-credit-tbl', '#export-excel-credit', {
+            kind: 'credit',
+            sheetName: (options.balanceExport || {}).junketSheetName,
+            fileName: (options.balanceExport || {}).junketFileName
+        });
+        initBalanceTableExport('#marker-accounts-buyin-tbl', '#export-excel-buyin', {
+            kind: 'buyin',
+            sheetName: (options.balanceExport || {}).gameSheetName,
+            fileName: (options.balanceExport || {}).gameFileName
+        });
 
         var formApi = null;
         if (options.withForm !== false) {
@@ -994,6 +1195,7 @@
         init: init,
         initHistoryTable: initHistoryTable,
         initExport: initExport,
+        initBalanceTableExport: initBalanceTableExport,
         initForm: initForm,
         formatWithCommas: formatWithCommas,
         getTransactionLabel: getTransactionLabel
