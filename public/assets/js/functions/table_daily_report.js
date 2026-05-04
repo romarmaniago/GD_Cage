@@ -30,14 +30,6 @@
     return;
   }
 
-  function getTodayDateString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
   function getCurrentMonthRange() {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -58,7 +50,6 @@
       altInput: true,
       altFormat: 'm/d/Y',
       allowInput: false,
-      defaultDate: getTodayDateString(),
       onChange: () => {
         loadDailyReportTables();
       }
@@ -236,6 +227,31 @@
     return { from, to };
   }
 
+  /** Every calendar day from `from` to `to` inclusive as `YYYY-MM-DD`, ascending. */
+  function enumerateDatesIso(from, to) {
+    const parse = (s) => {
+      const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    };
+    let start = parse(from);
+    let end = parse(to);
+    if (!start || !end) return [];
+    if (start > end) {
+      const t = start;
+      start = end;
+      end = t;
+    }
+    const out = [];
+    for (let cur = new Date(start.getTime()); cur <= end; cur.setDate(cur.getDate() + 1)) {
+      const y = cur.getFullYear();
+      const mo = String(cur.getMonth() + 1).padStart(2, '0');
+      const day = String(cur.getDate()).padStart(2, '0');
+      out.push(`${y}-${mo}-${day}`);
+    }
+    return out;
+  }
+
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
     const monthRange = getCurrentMonthRange();
@@ -253,20 +269,18 @@
     });
   }
 
-  function renderSubmittedReports(rows) {
+  function renderSubmittedReports(rows, range, junketRows) {
     if (!reportListTbody || !reportListThead) return;
-    if (!Array.isArray(rows) || rows.length === 0) {
-      reportListThead.innerHTML = '<tr><th style="width: 160px;">Date</th><th>Total</th></tr>';
-      reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No added reports for selected date.</td></tr>';
-      return;
-    }
+    const listRows = Array.isArray(rows) ? rows : [];
+    const junket = Array.isArray(junketRows) ? junketRows : [];
+    const effectiveRange = range && range.from && range.to ? range : getSelectedListRange();
 
-    const tableNames = [...new Set(rows.map((row) => String(row.table_name || '')))]
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+    const namesFromJunket = junket.map((r) => String(r.table_name || '')).filter(Boolean);
+    const namesFromRows = listRows.map((row) => String(row.table_name || '')).filter(Boolean);
+    const tableNames = [...new Set([...namesFromJunket, ...namesFromRows])].sort((a, b) => a.localeCompare(b));
+
     const dateMap = new Map();
-
-    rows.forEach((row) => {
+    listRows.forEach((row) => {
       const dateKey = String(row.report_date || '');
       const tableName = String(row.table_name || '');
       const value = Number(reportMode === 'rolling' ? row.rolling_amt : row.winloss_amt) || 0;
@@ -277,7 +291,16 @@
       perDate[tableName] = value;
     });
 
-    const dateKeys = [...dateMap.keys()].sort((a, b) => a.localeCompare(b));
+    let dateKeys = enumerateDatesIso(effectiveRange.from, effectiveRange.to);
+    if (dateKeys.length === 0) {
+      dateKeys = [...dateMap.keys()].sort((a, b) => a.localeCompare(b));
+    }
+
+    if (tableNames.length === 0 && dateKeys.length === 0) {
+      reportListThead.innerHTML = '<tr><th style="width: 160px;">Date</th><th>Total</th></tr>';
+      reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No added reports for selected date.</td></tr>';
+      return;
+    }
     const headCols = tableNames.map((name) => `<th>${escapeHtml(name)}</th>`).join('');
     reportListThead.innerHTML = `
       <tr>
@@ -328,10 +351,18 @@
     reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Loading reports...</td></tr>';
     try {
       const range = getSelectedListRange();
-      const response = await fetch(`/daily_report_list?report_mode=${encodeURIComponent(reportMode)}&report_date_from=${encodeURIComponent(range.from)}&report_date_to=${encodeURIComponent(range.to)}`);
-      if (!response.ok) throw new Error('Failed to load reports');
-      const data = await response.json();
-      renderSubmittedReports(data || []);
+      const [listRes, junketRes] = await Promise.all([
+        fetch(`/daily_report_list?report_mode=${encodeURIComponent(reportMode)}&report_date_from=${encodeURIComponent(range.from)}&report_date_to=${encodeURIComponent(range.to)}`),
+        fetch('/junket_tables_data')
+      ]);
+      if (!listRes.ok) throw new Error('Failed to load reports');
+      const data = await listRes.json();
+      let junketData = [];
+      if (junketRes.ok) {
+        junketData = await junketRes.json();
+        if (!Array.isArray(junketData)) junketData = [];
+      }
+      renderSubmittedReports(data || [], range, junketData);
     } catch (error) {
       console.error('loadSubmittedReports:', error);
       reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-3">Unable to load reports.</td></tr>';
@@ -437,14 +468,13 @@
 
   function resetDailyReportForm() {
     dailyReportForm.reset();
-    const today = getTodayDateString();
     if (dailyReportDatePicker) {
-      dailyReportDatePicker.setDate(today, false);
+      dailyReportDatePicker.clear();
     } else {
-      dailyReportDate.value = today;
+      dailyReportDate.value = '';
     }
     dailyReportEntriesTbody.innerHTML = `<tr><td colspan="${reportColspan}" class="text-center text-muted py-3">Loading tables...</td></tr>`;
-    btnSaveDailyReport.disabled = false;
+    btnSaveDailyReport.disabled = true;
   }
 
   async function openDailyReportModal() {

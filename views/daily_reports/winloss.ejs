@@ -12,6 +12,30 @@
     background-color: #fff3cd;
     font-weight: 700;
   }
+  .daily-report-list-daterange-wrap {
+    display: inline-block;
+    max-width: 100%;
+  }
+  .daily-report-list-daterange-wrap .form-control,
+  .daily-report-list-daterange-wrap input.flatpickr-alt-input {
+    width: 15rem;
+    max-width: 100%;
+    border-radius: 0.5rem;
+    text-align: center;
+  }
+  #daily-report-modal .daily-report-entries-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  #daily-report-modal .daily-report-entries-table thead th,
+  #daily-report-modal .daily-report-entries-table tbody td {
+    width: 50%;
+    text-align: center;
+    vertical-align: middle;
+  }
+  #daily-report-modal .daily-report-entries-table .form-control {
+    text-align: center;
+  }
 </style>
 
 <div class="container-fluid content-inner mt-4">
@@ -22,7 +46,8 @@
           <h3 class="card-title mb-0">
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
-              <a href="/table_daily_report_winloss" class="active">Table Daily Report - Winloss</a>
+              <a href="/table_daily_report">Table Daily Report</a>
+              <a href="/table_daily_report_winloss" class="active">Winloss</a>
             </div>
           </h3>
           <div class="d-flex align-items-center gap-2">
@@ -37,7 +62,9 @@
         <div class="card-body">
           <hr class="my-3">
           <div class="d-flex justify-content-start mb-2">
-            <input type="text" class="form-control form-control-sm w-auto" id="daily-report-list-daterange" placeholder="Date range">
+            <div class="daily-report-list-daterange-wrap">
+              <input type="text" class="form-control form-control-sm" id="daily-report-list-daterange" placeholder="Date range">
+            </div>
           </div>
           <div class="table-responsive">
             <table class="table table-bordered table-sm text-center align-middle mb-0 daily-report-matrix" id="daily-report-view-table">
