@@ -58,12 +58,19 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 			});
 		}
 
-		// Get all agents with TELEGRAM_ID
+		// Get all agents with TELEGRAM_ID, then dedupe by chat id to avoid duplicate sends
 		const [agents] = await pool.query(
 			'SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID FROM agent WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""'
 		);
+		const seenTelegramIds = new Set();
+		const uniqueAgents = agents.filter((agent) => {
+			const telegramId = String(agent.TELEGRAM_ID).trim();
+			if (!telegramId || seenTelegramIds.has(telegramId)) return false;
+			seenTelegramIds.add(telegramId);
+			return true;
+		});
 
-		if (agents.length === 0) {
+		if (uniqueAgents.length === 0) {
 			return res.status(400).json({ 
 				success: false, 
 				error: 'No agents with Telegram ID found' 
@@ -75,7 +82,7 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 		const errors = [];
 
 		// Send announcement to each agent with timeout
-		const sendPromises = agents.map(async (agent) => {
+		const sendPromises = uniqueAgents.map(async (agent) => {
 			try {
 				// Add timeout wrapper (30 seconds per agent)
 				const sendPromise = pictureFile 
@@ -114,7 +121,7 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 				}
 			} else {
 				failCount++;
-				const agent = agents[index];
+				const agent = uniqueAgents[index];
 				errors.push({
 					agent: agent.NAME || agent.AGENT_CODE,
 					error: result.reason?.message || 'Promise rejected'
