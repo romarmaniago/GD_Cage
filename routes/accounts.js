@@ -2241,6 +2241,268 @@ router.get('/export', async (req, res) => {
 	}
 });
 
+/** Excel: row 1 = merged LINE name; row 2 = each agent (CODE · NAME); below = guest names per column. */
+router.post('/agency/export_agent_guest_matrix_xlsx', checkSession, async function (req, res) {
+	try {
+		const agencyId = parseInt(req.body.agencyId, 10);
+		if (!agencyId) {
+			return res.status(400).json({ error: 'Select a LINE first.' });
+		}
+
+		const [agencyNameRows] = await pool.execute(
+			`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
+			[agencyId]
+		);
+		const lineName = String(agencyNameRows[0]?.AGENCY ?? '')
+			.trim()
+			|| 'LINE ' + agencyId;
+
+		const agentQuery = `
+			SELECT DISTINCT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			FROM agent ag
+			INNER JOIN account acc ON acc.AGENT_ID = ag.IDNo AND acc.ACTIVE = 1
+			WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
+			ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
+		`;
+		const [agentRows] = await pool.execute(agentQuery, [agencyId]);
+
+		const guestQuery = `
+			SELECT g.NAME AS guest_name
+			FROM guest g
+			WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
+			ORDER BY g.IDNo DESC
+		`;
+
+		const agentOrder = [];
+		const agentMap = new Map();
+
+		for (const r of agentRows || []) {
+			const id = Number(r.agent_id);
+			if (agentMap.has(id)) continue;
+			const code = String(r.agent_code != null ? r.agent_code : '').trim();
+			const name = String(r.agent_name != null ? r.agent_name : '').trim();
+			const headerLabel =
+				code && name
+					? code.toUpperCase() + ' · ' + name.toUpperCase()
+					: String(code || name || '').toUpperCase();
+			agentMap.set(id, { headerLabel, guests: [] });
+			agentOrder.push(id);
+		}
+
+		for (const aid of agentOrder) {
+			const [gRows] = await pool.execute(guestQuery, [aid]);
+			const bucket = agentMap.get(aid);
+			for (const g of gRows || []) {
+				const gn = String(g.guest_name != null ? g.guest_name : '').trim();
+				if (gn) bucket.guests.push(gn);
+			}
+		}
+
+		const workbook = new ExcelJS.Workbook();
+		const ws = workbook.addWorksheet('AGENT', {
+			views: [{ state: 'frozen', ySplit: 2 }]
+		});
+		const thinBorder = {
+			top: { style: 'thin', color: { argb: 'FF666666' } },
+			left: { style: 'thin', color: { argb: 'FF666666' } },
+			bottom: { style: 'thin', color: { argb: 'FF666666' } },
+			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+		const lineTitleFill = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFC6EFCE' }
+		};
+
+		function addLineTitleRow(ncol) {
+			const n = Math.max(1, ncol);
+			const lineRow = ws.addRow(Array(n).fill(''));
+			lineRow.height = 24;
+			lineRow.getCell(1).value = lineName;
+			lineRow.getCell(1).font = { bold: true };
+			lineRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			for (let c = 1; c <= n; c++) {
+				const cell = lineRow.getCell(c);
+				cell.fill = lineTitleFill;
+				cell.border = thinBorder;
+			}
+			if (n > 1) {
+				ws.mergeCells(1, 1, 1, n);
+			}
+		}
+
+		if (agentOrder.length === 0) {
+			addLineTitleRow(1);
+			const msgRow = ws.addRow(['No agents for this LINE.']);
+			msgRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			msgRow.getCell(1).border = thinBorder;
+			ws.getColumn(1).width = Math.min(44, Math.max(12, String(lineName).length + 2, 28));
+		} else {
+			const headers = agentOrder.map((id) => agentMap.get(id).headerLabel);
+			const ncol = headers.length;
+			addLineTitleRow(ncol);
+
+			const maxRows = Math.max(0, ...agentOrder.map((id) => agentMap.get(id).guests.length));
+
+			const headerRow = ws.addRow(headers);
+			headerRow.height = 22;
+			headerRow.eachCell((cell) => {
+				cell.font = { bold: true };
+				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.border = thinBorder;
+				cell.fill = {
+					type: 'pattern',
+					pattern: 'solid',
+					fgColor: { argb: 'FFD9E1F2' }
+				};
+			});
+
+			for (let i = 0; i < maxRows; i++) {
+				const rowVals = agentOrder.map((id) => agentMap.get(id).guests[i] || '');
+				const dataRow = ws.addRow(rowVals);
+				dataRow.eachCell((cell) => {
+					cell.border = thinBorder;
+					cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
+				});
+			}
+
+			for (let c = 1; c <= ncol; c++) {
+				let maxLen = Math.max(
+					String(lineName).length,
+					String(headers[c - 1] || '').length
+				);
+				const guests = agentMap.get(agentOrder[c - 1]).guests;
+				for (let i = 0; i < guests.length; i++) {
+					const L = String(guests[i] || '').length;
+					if (L > maxLen) maxLen = L;
+				}
+				ws.getColumn(c).width = Math.min(44, Math.max(12, maxLen + 2));
+			}
+		}
+
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const outName = `Agent-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+
+		const buffer = await workbook.xlsx.writeBuffer();
+		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		return res.send(Buffer.from(buffer));
+	} catch (err) {
+		console.error('agency/export_agent_guest_matrix_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+/** Excel: row 1 = each LINE (agency) name; below = agents under that line (CODE · NAME), one agent per row per column. */
+router.post('/agency/export_line_agent_matrix_xlsx', checkSession, async function (req, res) {
+	try {
+		const query = `
+			SELECT a.IDNo AS agency_id, a.AGENCY AS line_name,
+				ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			FROM agency a
+			LEFT JOIN agent ag ON ag.AGENCY = a.IDNo AND ag.ACTIVE = 1
+			WHERE a.ACTIVE = 1
+			ORDER BY a.AGENCY ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
+		`;
+		const [rows] = await pool.execute(query);
+
+		const lineOrder = [];
+		const lineMap = new Map();
+
+		for (const r of rows || []) {
+			const id = Number(r.agency_id);
+			if (!lineMap.has(id)) {
+				lineMap.set(id, {
+					name: String(r.line_name != null ? r.line_name : '').trim(),
+					agents: [],
+					seen: new Set()
+				});
+				lineOrder.push(id);
+			}
+			if (r.agent_id != null) {
+				const b = lineMap.get(id);
+				const aid = Number(r.agent_id);
+				if (b.seen.has(aid)) continue;
+				b.seen.add(aid);
+				const code = String(r.agent_code != null ? r.agent_code : '').trim();
+				const name = String(r.agent_name != null ? r.agent_name : '').trim();
+				const label =
+					code && name
+						? code.toUpperCase() + ' · ' + name.toUpperCase()
+						: String(code || name || '').toUpperCase();
+				b.agents.push(label);
+			}
+		}
+
+		const workbook = new ExcelJS.Workbook();
+		const ws = workbook.addWorksheet('LINE', {
+			views: [{ state: 'frozen', ySplit: 1 }]
+		});
+		const thinBorder = {
+			top: { style: 'thin', color: { argb: 'FF666666' } },
+			left: { style: 'thin', color: { argb: 'FF666666' } },
+			bottom: { style: 'thin', color: { argb: 'FF666666' } },
+			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+
+		if (lineOrder.length === 0) {
+			const hr = ws.addRow(['No active LINE records.']);
+			hr.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			hr.getCell(1).border = thinBorder;
+		} else {
+			const headers = lineOrder.map((lid) => lineMap.get(lid).name || 'LINE ' + lid);
+			const maxRows = Math.max(0, ...lineOrder.map((lid) => lineMap.get(lid).agents.length));
+
+			const headerRow = ws.addRow(headers);
+			headerRow.height = 22;
+			headerRow.eachCell((cell) => {
+				cell.font = { bold: true };
+				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.border = thinBorder;
+				cell.fill = {
+					type: 'pattern',
+					pattern: 'solid',
+					fgColor: { argb: 'FFD9E1F2' }
+				};
+			});
+
+			for (let i = 0; i < maxRows; i++) {
+				const rowVals = lineOrder.map((lid) => lineMap.get(lid).agents[i] || '');
+				const dataRow = ws.addRow(rowVals);
+				dataRow.eachCell((cell) => {
+					cell.border = thinBorder;
+					cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
+				});
+			}
+
+			const ncol = headers.length;
+			for (let c = 1; c <= ncol; c++) {
+				let maxLen = String(headers[c - 1] || '').length;
+				const lid = lineOrder[c - 1];
+				const agents = lineMap.get(lid).agents;
+				for (let i = 0; i < agents.length; i++) {
+					const L = String(agents[i] || '').length;
+					if (L > maxLen) maxLen = L;
+				}
+				ws.getColumn(c).width = Math.min(44, Math.max(12, maxLen + 2));
+			}
+		}
+
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const outName = `Line-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+
+		const buffer = await workbook.xlsx.writeBuffer();
+		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		return res.send(Buffer.from(buffer));
+	} catch (err) {
+		console.error('agency/export_line_agent_matrix_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
 
 // Export the router
 module.exports = router; 

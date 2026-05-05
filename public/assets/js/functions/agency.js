@@ -146,22 +146,28 @@ function refreshSelectedAgencyPanels() {
 function syncAgentPanelTransferButton() {
   var per = parseInt($('#user-role').data('permissions'), 10);
   var $btnTransfer = $('#btn-agent-panel-transfer');
+  var $btnAgentExport = $('#btn-agent-panel-export');
   var $btnAddGuest = $('#btn-agent-panel-add-guest');
   var $btnGuestPanelAdd = $('#btn-guest-panel-add');
-  if (!$btnTransfer.length && !$btnAddGuest.length && !$btnGuestPanelAdd.length) return;
+  var $btnLineExport = $('#btn-line-panel-export');
+  if (!$btnTransfer.length && !$btnAgentExport.length && !$btnAddGuest.length && !$btnGuestPanelAdd.length && !$btnLineExport.length) return;
   var noSelectedAgency = !selectedAgencyId;
   var noSelectedAgent = !selectedAgentId;
 
   if (per === 2) {
     $btnTransfer.prop('disabled', true);
+    $btnAgentExport.prop('disabled', true);
     $btnAddGuest.prop('disabled', true);
     $btnGuestPanelAdd.prop('disabled', true);
+    $btnLineExport.prop('disabled', true);
     return;
   }
 
   $btnTransfer.prop('disabled', noSelectedAgency);
+  $btnAgentExport.prop('disabled', noSelectedAgency);
   $btnAddGuest.prop('disabled', noSelectedAgency);
   $btnGuestPanelAdd.prop('disabled', noSelectedAgent);
+  $btnLineExport.prop('disabled', false);
 }
 
 $(document).ready(function() {
@@ -172,6 +178,108 @@ $(document).ready(function() {
 
   $('#btn-agent-panel-transfer').on('click', function () {
     openTransferForSelectedAgency();
+  });
+
+  $('#btn-line-panel-export').on('click', function () {
+    var $btn = $('#btn-line-panel-export');
+    $btn.prop('disabled', true);
+    fetch('/agency/export_line_agent_matrix_xlsx', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json' }
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (j) {
+            throw new Error((j && j.error) ? j.error : 'Export failed');
+          });
+        }
+        var cd = res.headers.get('Content-Disposition');
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var filename = 'Line-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+        if (cd) {
+          var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
+          if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+        }
+        return res.blob().then(function (blob) {
+          return { blob: blob, filename: filename };
+        });
+      })
+      .then(function (o) {
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(o.blob);
+        link.download = o.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      })
+      .catch(function (err) {
+        console.error('LINE export:', err);
+        Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed.' });
+      })
+      .finally(function () {
+        $btn.prop('disabled', false);
+        syncAgentPanelTransferButton();
+      });
+  });
+
+  $('#btn-agent-panel-export').on('click', function () {
+    if (!selectedAgencyId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No LINE selected',
+        text: 'Select a LINE first to export agents and guests.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    var $btn = $('#btn-agent-panel-export');
+    $btn.prop('disabled', true);
+    fetch('/agency/export_agent_guest_matrix_xlsx', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ agencyId: selectedAgencyId })
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (j) {
+            throw new Error((j && j.error) ? j.error : 'Export failed');
+          });
+        }
+        var cd = res.headers.get('Content-Disposition');
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var filename = 'Agent-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+        if (cd) {
+          var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
+          if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+        }
+        return res.blob().then(function (blob) {
+          return { blob: blob, filename: filename };
+        });
+      })
+      .then(function (o) {
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(o.blob);
+        link.download = o.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      })
+      .catch(function (err) {
+        console.error('AGENT export:', err);
+        Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed.' });
+      })
+      .finally(function () {
+        syncAgentPanelTransferButton();
+      });
   });
 
   $('#btn-agent-panel-add-guest').on('click', function (e) {

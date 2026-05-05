@@ -287,10 +287,10 @@
             </div>
         </div>
 
-        <!-- Radio Buttons -->
-        <div class="row mb-2 deposit-cashout-row">
-            <div class="col-sm-4 ">
-                <div class="form-check">
+        <!-- Radio + Telegram opts: same col widths so columns line up (2×2 grid) -->
+        <div class="row mb-2 deposit-cashout-row g-2 align-items-center">
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
                     <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="deposit" name="txtTransType">
                     <label class="form-check-label" for="deposit">
                         <span class="d-flex align-items-center">
@@ -299,8 +299,8 @@
                     </label>
                 </div>
             </div>
-            <div class="col-sm-4 ">
-                <div class="form-check">
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
                     <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="5" id="cashOut" name="txtTransType">
                     <label class="form-check-label" for="cashOut">
                         <span class="d-flex align-items-center">
@@ -308,18 +308,18 @@
                         </span>
                     </label>
                 </div>
-            </div>                            
+            </div>
         </div>
 
-        <div class="row mb-2 settlement-telegram-opts" id="settlement-telegram-opts" style="display: none;">
-            <div class="col-sm-6">
-                <div class="form-check">
+        <div class="row mb-2 settlement-telegram-opts g-2 align-items-center" id="settlement-telegram-opts" style="display: none;">
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
                     <input class="form-check-input" type="checkbox" value="1" id="settleSendAgent" name="send_telegram_agent">
                     <label class="form-check-label" for="settleSendAgent"><%= __('modal_settlement.send_to_agent') %></label>
                 </div>
             </div>
-            <div class="col-sm-6">
-                <div class="form-check">
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
                     <input class="form-check-input" type="checkbox" value="1" id="settleSendCage" name="send_telegram_cage">
                     <label class="form-check-label" for="settleSendCage"><%= __('modal_settlement.send_to_cage') %></label>
                 </div>
@@ -373,6 +373,34 @@
 
     <script>
         $(document).ready(function() {
+    var settlementDoneSwal = {
+        title: 'Done',
+        savedOnly: 'Done.',
+        withAgent: 'Done. Telegram message sent to Agent.',
+        withCage: 'Done. Telegram message sent to Cage.',
+        withBoth: 'Done. Telegram message sent to Agent and Cage.'
+    };
+
+    function showSettlementDoneSuccess(agentSent, cageSent) {
+        if (typeof Swal === 'undefined') {
+            return;
+        }
+        var body = settlementDoneSwal.savedOnly;
+        if (agentSent && cageSent) {
+            body = settlementDoneSwal.withBoth;
+        } else if (agentSent) {
+            body = settlementDoneSwal.withAgent;
+        } else if (cageSent) {
+            body = settlementDoneSwal.withCage;
+        }
+        Swal.fire({
+            icon: 'success',
+            title: settlementDoneSwal.title,
+            text: body,
+            confirmButtonText: 'OK'
+        });
+    }
+
     function cleanValue(value) {
         if (value === undefined || value === null) {
             return '0';
@@ -645,18 +673,19 @@
             return;
         }
 
-        function finishDone() {
+        function finishDone(telegramAgent, telegramCage) {
             // Unsettled: discard edits (restore snapshot). Settled: keep on-screen values.
             if (!isSettled) {
                 restoreSettlementSnapshot($modal);
             }
             setSettlementEditMode($modal, false);
             $modal.removeData('settlement-snapshot');
+            showSettlementDoneSuccess(!!telegramAgent, !!telegramCage);
         }
 
-        function putFakeSettleThenFinish() {
+        function putFakeSettleThenFinish(telegramAgent, telegramCage) {
             if (!gameId) {
-                finishDone();
+                finishDone(false, false);
                 return;
             }
             $.ajax({
@@ -667,7 +696,7 @@
                     if (!isSettled) {
                         $modal.data('fake-settle-active', 1);
                     }
-                    finishDone();
+                    finishDone(telegramAgent, telegramCage);
                 },
                 error: function () {
                     if (typeof Swal !== 'undefined') {
@@ -693,7 +722,7 @@
                 url: '/settlement_slip_telegram',
                 data: $('#add_settlement').serialize(),
                 success: function () {
-                    putFakeSettleThenFinish();
+                    putFakeSettleThenFinish(sendAgent, sendCage);
                 },
                 error: function (xhr) {
                     var msg = 'Could not send Telegram.';
@@ -713,7 +742,7 @@
             return;
         }
 
-        putFakeSettleThenFinish();
+        putFakeSettleThenFinish(false, false);
     });
 
     $('#fbDisplay, #hotelDisplay, #rollingSettlement').on('input', function() {

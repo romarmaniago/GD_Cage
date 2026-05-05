@@ -122,9 +122,14 @@
 											<div class="panel-box h-100">
 												<div class="panel-header d-flex align-items-center justify-content-between">
 													<div class="panel-title">LINE</div>
-													<button class="btn btn-sm btn-primary" id="btn-line-panel-add" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
-														<i class="fa fa-plus"></i>
-													</button>
+													<div class="d-flex align-items-center gap-1">
+														<button type="button" class="btn btn-sm btn-success" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel">
+															<i class="fa fa-download" aria-hidden="true"></i>
+														</button>
+														<button type="button" class="btn btn-sm btn-primary" id="btn-line-panel-add" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
+															<i class="fa fa-plus"></i>
+														</button>
+													</div>
 												</div>
 												<div class="panel-body">
 													<div id="agency-grid" class="row gx-2 gy-2"></div>
@@ -139,6 +144,9 @@
 													<div class="d-flex align-items-center gap-1">
 														<button type="button" class="btn btn-sm btn-outline-primary" id="btn-agent-panel-transfer" title="Transfer Agent">
 															<i class="fa fa-exchange-alt"></i>
+														</button>
+														<button type="button" class="btn btn-sm btn-success" id="btn-agent-panel-export" title="Download Excel" aria-label="Download Excel">
+															<i class="fa fa-download" aria-hidden="true"></i>
 														</button>
 														<button type="button" class="btn btn-sm btn-primary" id="btn-agent-panel-add-guest" data-bs-toggle="modal" data-bs-target="#modal-new-agent" title="New Guest">
 															<i class="fa fa-plus"></i>
@@ -490,8 +498,10 @@
 }
 
 #btn-agent-panel-transfer,
+#btn-agent-panel-export,
 #btn-agent-panel-add-guest,
 #btn-guest-panel-add,
+#btn-line-panel-export,
 #btn-line-panel-add {
   width: 32px;
   height: 32px;
