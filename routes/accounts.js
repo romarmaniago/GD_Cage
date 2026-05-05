@@ -7,6 +7,7 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const path = require('path');
 const fs = require('fs/promises');
 const sharp = require('sharp');
@@ -2208,6 +2209,8 @@ router.get('/export', async (req, res) => {
 		rows.forEach(row => {
 			worksheet.addRow(row);
 		});
+
+		applyCommaThousandsToNumericCells(worksheet, { headerRows: 0 });
 
 		// Write the workbook to a buffer
 		const buffer = await workbook.xlsx.writeBuffer();

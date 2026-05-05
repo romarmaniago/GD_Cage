@@ -24,6 +24,7 @@ const { checkSession, sessions } = require('./auth');
 
 const path = require('path');
 const ExcelJS = require('exceljs');
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
 const MAX_RANGE_DAYS = 400;
 
@@ -940,6 +941,8 @@ router.post('/net_profit/export_xlsx', checkSession, async function (req, res) {
 		for (let i = 1; i <= ncol; i++) {
 			ws.getColumn(i).width = colMaxLens[i - 1];
 		}
+
+		applyCommaThousandsToNumericCells(ws);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'NetProfit-export.xlsx';

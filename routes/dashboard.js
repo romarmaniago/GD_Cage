@@ -6,8 +6,7 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const ExcelJS = require('exceljs');
-
-
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
 router.get("/dashboard", checkSession, async (req, res) => {
 	console.log("Session Data:", req.session);
@@ -2651,6 +2650,8 @@ router.post('/marker_history/export_xlsx', checkSession, async function (req, re
 			col.width = colMaxLens[i - 1];
 			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
+
+		applyCommaThousandsToNumericCells(ws);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'CreditHistory-export.xlsx';

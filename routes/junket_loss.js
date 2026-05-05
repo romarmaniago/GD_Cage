@@ -4,6 +4,7 @@ const ExcelJS = require('exceljs');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
 function coerceJunketLossExportCell(raw) {
 	if (raw == null || raw === '') return '';
@@ -204,6 +205,8 @@ router.post('/junket_loss/export_xlsx', checkSession, async function (req, res) 
 			col.width = colMaxLens[i - 1];
 			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
+
+		applyCommaThousandsToNumericCells(ws);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'JunketLoss-export.xlsx';

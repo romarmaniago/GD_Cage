@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
 const ExcelJS = require('exceljs');
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
 const mysql2 = require('mysql2/promise');
 const pool = require('../config/db.js');
@@ -3243,6 +3244,8 @@ pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req,
 			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
 
+		applyCommaThousandsToNumericCells(ws);
+
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'Junket_Expenses-export.xlsx';
 		if (filename && typeof filename === 'string') {
@@ -3353,6 +3356,8 @@ pageRouter.post('/commission/export_xlsx', checkSession, async function (req, re
 			col.width = colMaxLens[i - 1];
 			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
+
+		applyCommaThousandsToNumericCells(ws);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'Commission-export.xlsx';
@@ -5031,6 +5036,8 @@ pageRouter.get('/export', async (req, res) => {
 		rows.forEach(row => {
 			worksheet.addRow(row);
 		});
+
+		applyCommaThousandsToNumericCells(worksheet, { headerRows: 0 });
 
 		// Write the workbook to a buffer
 		const buffer = await workbook.xlsx.writeBuffer();

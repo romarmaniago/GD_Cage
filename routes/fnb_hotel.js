@@ -4,6 +4,7 @@ const ExcelJS = require('exceljs');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 
 const validServiceTypes = ['fnb', 'hotel', 'delivery'];
@@ -526,6 +527,8 @@ router.post('/fnb-hotel/export_xlsx', checkSession, async function (req, res) {
 			col.width = colMaxLens[i - 1];
 			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
+
+		applyCommaThousandsToNumericCells(ws);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'FnbHotel-export.xlsx';
