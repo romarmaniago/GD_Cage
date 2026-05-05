@@ -916,7 +916,9 @@
 		"cash_out": "캐시 아웃",
 		"save": "저장",
 		"close": "닫기",
-		"print": "인쇄"
+		"print": "인쇄",
+		"send_to_agent": "에이전트에게 전송",
+		"send_to_cage": "케이지에게 전송"
 	},
 	"modal_edit_house_expense": {
 		"edit_house_expense": "하우스 경비 편집",

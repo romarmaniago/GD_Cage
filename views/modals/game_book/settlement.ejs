@@ -174,7 +174,7 @@
             <div class="block block-rounded block-themed block-transparent mb-0">
                 <div class="modal-header bg-primary">
                     <h3 class="block-title text-white"><%= __('modal_settlement.settlement') %></h3>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <!-- <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button> -->
                 </div>
 
                 <div class="block-content text-center d-flex align-items-center header-with-logo">
@@ -310,6 +310,21 @@
                 </div>
             </div>                            
         </div>
+
+        <div class="row mb-2 settlement-telegram-opts" id="settlement-telegram-opts" style="display: none;">
+            <div class="col-sm-6">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="1" id="settleSendAgent" name="send_telegram_agent">
+                    <label class="form-check-label" for="settleSendAgent"><%= __('modal_settlement.send_to_agent') %></label>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="1" id="settleSendCage" name="send_telegram_cage">
+                    <label class="form-check-label" for="settleSendCage"><%= __('modal_settlement.send_to_cage') %></label>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="modal-footer">
         <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
@@ -409,6 +424,43 @@
         }));
     }
 
+    /** Rate: huwag i-collapse ang "1." bago matapos ang decimal (iwas sa naging "1" + "3" → "13") */
+    function formatRollingRateInput($input) {
+        var raw = String($input.val() || '').replace(/,/g, '').trim();
+        if (!raw) {
+            $input.val('');
+            return;
+        }
+        var normalized = raw.replace(/[^\d.]/g, '');
+        var dot = normalized.indexOf('.');
+        if (dot !== -1) {
+            normalized = normalized.slice(0, dot + 1) + normalized.slice(dot + 1).replace(/\./g, '');
+        }
+        var intPart = dot === -1 ? normalized : normalized.slice(0, dot);
+        var fracPart = dot === -1 ? null : normalized.slice(dot + 1);
+        if (intPart === '' && dot === -1 && (fracPart === null || fracPart === '')) {
+            $input.val('');
+            return;
+        }
+        var intNum = parseInt(intPart === '' ? '0' : intPart, 10);
+        if (isNaN(intNum)) {
+            intNum = 0;
+        }
+        var intStr = intNum.toLocaleString('en-US');
+        if (dot !== -1) {
+            $input.val(intStr + '.' + (fracPart === null ? '' : fracPart));
+            return;
+        }
+        var num = parseFloat(normalized);
+        if (isNaN(num)) {
+            return;
+        }
+        $input.val(num.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4
+        }));
+    }
+
     function readFieldText(selector) {
         return cleanValue($(selector).val() || $(selector).text());
     }
@@ -497,6 +549,21 @@
         $modal.find('#payment').val(formatAmount(payment));
     }
 
+    /** Edit mode: Settlement = Rolling × (Rate ÷ 100), pareho ng commission % sa game list */
+    function updateSettlementFromRollingAndRate($modal) {
+        if (!Number($modal.data('edit-mode'))) {
+            return;
+        }
+        var rolling = parseAmount($modal.find('#rolling').val());
+        var rate = parseAmount($modal.find('#rollingRate').val());
+        var settlement = Math.round((rolling * rate) / 100);
+        $modal.find('#rollingSettlement').val(settlement.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }));
+        syncServiceTotalAndPayment($modal);
+    }
+
     function captureSettlementSnapshot($modal) {
         var snapshot = {
             buyIn: $modal.find('#buyIn').val(),
@@ -538,18 +605,25 @@
 
     function setSettlementEditMode($modal, enabled) {
         var isSettled = Number($modal.data('is-settled')) === 1;
+        var fakeActive = Number($modal.data('fake-settle-active')) === 1;
         $modal.data('edit-mode', enabled ? 1 : 0);
         $modal.find('#submit-settlement-btn').toggle(!enabled && !isSettled);
         $modal.find('.deposit-cashout-row').toggle(!enabled && !isSettled);
+        // Habang Edit: palaging fake slip — Agent/Cage. Unsettled + Done na may fake: show bago mag-Settle.
+        $modal.find('#settlement-telegram-opts').toggle(
+            enabled || (fakeActive && !isSettled && !enabled)
+        );
         $modal.find('#close-settlement-btn').toggle(!enabled);
         $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
 
-        $modal.find('#buyIn, #chipsReturn, #winLoss, #rolling, #rollingRate, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment')
-            .prop('readonly', !enabled);
+        $modal.find('#buyIn, #chipsReturn, #winLoss, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment')
+            .prop('readonly', true);
+        $modal.find('#rolling, #rollingRate').prop('readonly', !enabled);
     }
 
     $('#modal-settlement').on('shown.bs.modal', function() {
         $(this).removeData('settlement-snapshot');
+        $(this).find('#settleSendAgent, #settleSendCage').prop('checked', false);
         setSettlementEditMode($(this), false);
     });
 
@@ -561,15 +635,85 @@
     $('#edit-settlement-btn').on('click', function() {
         var $modal = $(this).closest('.modal');
         var isEditMode = !!$modal.data('edit-mode');
+        var isSettled = Number($modal.data('is-settled')) === 1;
+        var gameId = $modal.find('input[name="game_id_settle"]').val();
+
         if (!isEditMode) {
             captureSettlementSnapshot($modal);
             setSettlementEditMode($modal, true);
+            updateSettlementFromRollingAndRate($modal);
             return;
         }
 
-        restoreSettlementSnapshot($modal);
-        setSettlementEditMode($modal, false);
-        $modal.removeData('settlement-snapshot');
+        function finishDone() {
+            // Unsettled: discard edits (restore snapshot). Settled: keep on-screen values.
+            if (!isSettled) {
+                restoreSettlementSnapshot($modal);
+            }
+            setSettlementEditMode($modal, false);
+            $modal.removeData('settlement-snapshot');
+        }
+
+        function putFakeSettleThenFinish() {
+            if (!gameId) {
+                finishDone();
+                return;
+            }
+            $.ajax({
+                url: '/game_list/' + encodeURIComponent(gameId) + '/settlement_fake_settle',
+                type: 'PUT',
+                data: { fake_settle: 1 },
+                success: function () {
+                    if (!isSettled) {
+                        $modal.data('fake-settle-active', 1);
+                    }
+                    finishDone();
+                },
+                error: function () {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Could not save settlement status. Try again.',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+        }
+
+        syncServiceTotalAndPayment($modal);
+
+        var sendAgent = $modal.find('#settleSendAgent').is(':checked');
+        var sendCage = $modal.find('#settleSendCage').is(':checked');
+
+        if (sendAgent || sendCage) {
+            $.ajax({
+                type: 'POST',
+                url: '/settlement_slip_telegram',
+                data: $('#add_settlement').serialize(),
+                success: function () {
+                    putFakeSettleThenFinish();
+                },
+                error: function (xhr) {
+                    var msg = 'Could not send Telegram.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: msg,
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+            return;
+        }
+
+        putFakeSettleThenFinish();
     });
 
     $('#fbDisplay, #hotelDisplay, #rollingSettlement').on('input', function() {
@@ -579,17 +723,17 @@
         }
     });
 
-    $('#buyIn, #chipsReturn, #winLoss, #rolling, #rollingRate, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment').on('input', function() {
+    $('#rolling, #rollingRate').on('input', function() {
         var $modal = $(this).closest('.modal');
         if (!$modal.data('edit-mode')) {
             return;
         }
-
-        formatInputWithCommas($(this));
-
-        if (this.id === 'fbDisplay' || this.id === 'hotelDisplay' || this.id === 'rollingSettlement') {
-            syncServiceTotalAndPayment($modal);
+        if (this.id === 'rollingRate') {
+            formatRollingRateInput($(this));
+        } else {
+            formatInputWithCommas($(this));
         }
+        updateSettlementFromRollingAndRate($modal);
     });
 
     $('#print-settlement-btn').on('click', function() {

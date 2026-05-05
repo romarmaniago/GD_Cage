@@ -915,7 +915,9 @@
 		"cash_out": "Cash Out",
 		"save": "Save",
 		"close": "Close",
-		"print": "Print"
+		"print": "Print",
+		"send_to_agent": "Send to Agent",
+		"send_to_cage": "Send to Cage"
 	},
 	"modal_edit_house_expense": {
 		"edit_house_expense": "Edit House Expense",

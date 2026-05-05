@@ -916,7 +916,9 @@
 		"cash_out": "キャッシュアウト",
 		"save": "保存",
 		"close": "閉じる",
-		"print": "印刷"
+		"print": "印刷",
+		"send_to_agent": "エージェントに送信",
+		"send_to_cage": "ケージに送信"
 	},
 	"modal_edit_house_expense": {
 		"edit_house_expense": "ハウス経費の編集",

@@ -60,9 +60,9 @@ async function sendTelegramMessage(text, telegramId, retries = 2) {
         continue;
       }
       
-      // If no retries left or not a network error, throw
+      // Non-retryable API errors (e.g. chat not found): log only — never throw so DB flows (settlement, etc.) still succeed
       console.error(`❌ Error sending Telegram message after ${attempt + 1} attempts:`, error.message);
-      throw error;
+      return;
     }
   }
 }

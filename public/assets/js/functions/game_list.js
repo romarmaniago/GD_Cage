@@ -5989,6 +5989,8 @@ $(document).ready(function () {
 function settlement_history(record_id, acc_id) {
     var $settlementModal = $('#modal-settlement');
     $settlementModal.data('is-settled', 0);
+    $settlementModal.data('fake-settle-active', 0);
+    $settlementModal.find('#settlement-telegram-opts').hide();
     $settlementModal.modal('show');
     // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
     $settlementModal.find('.deposit-cashout-row').show();
@@ -6118,17 +6120,23 @@ function settlement_history(record_id, acc_id) {
                     // Use numeric coercion to handle both 1 and "1" from API.
                     var settledFlag = Number(data[0].SETTLED) === 1;
                     $settlementModal.data('is-settled', settledFlag ? 1 : 0);
+                    var fakeSettleFlag = Number(data[0].FAKE_SETTLE) === 1;
+                    $settlementModal.data('fake-settle-active', fakeSettleFlag ? 1 : 0);
+                    $settlementModal.find('#settleSendAgent, #settleSendCage').prop('checked', false);
+
                     if (settledFlag) {
                         $settlementModal.find('#submit-settlement-btn').prop('disabled', true).hide();
                         $settlementModal.find('#settledImage-modal').show(); // Ensure the settled image is shown
                         isSettled = true; // Set the flag to true
                         $settlementModal.find('.deposit-cashout-row').hide();
+                        $settlementModal.find('#settlement-telegram-opts').hide();
                         $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
                     } else {
                         $settlementModal.find('#submit-settlement-btn').prop('disabled', false).show();
                         $settlementModal.find('#settledImage-modal').hide(); // Hide the settled image if not settled
                         isSettled = false; // Set the flag to false
                         $settlementModal.find('.deposit-cashout-row').show();
+                        $settlementModal.find('#settlement-telegram-opts').toggle(fakeSettleFlag);
                     }
 
                     // Debug: Check FNB value
@@ -6345,9 +6353,23 @@ function settlement_history(record_id, acc_id) {
         var hotelDisplay = $('#hotelDisplay').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $('input[name="txtTransType"]:checked').val();
+        if (!transType || (transType !== '1' && transType !== '5')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Required',
+                text: 'Please select Deposit or Cash Out before confirming settlement.',
+                confirmButtonText: 'OK',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: {
+                    confirmButton: 'custom-ok-btn'
+                }
+            });
+            return;
+        }
         var transTypeText = '';
-        if (transType == '2') transTypeText = 'Deposit';
-        else if (transType == '1') transTypeText = 'Cash Out';
+        if (transType == '1') transTypeText = 'Deposit';
+        else if (transType == '5') transTypeText = 'Cash Out';
         var servicesValue = parseFloat(services) || 0;
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
