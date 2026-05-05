@@ -74,13 +74,26 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			// keep settledDatesForMonth = []
 		}
 
+		let expenseCategoryCatalog = [];
+		try {
+			const [catRows] = await pool.execute(
+				'SELECT CATEGORY FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC'
+			);
+			expenseCategoryCatalog = (catRows || [])
+				.map((r) => (r.CATEGORY != null ? String(r.CATEGORY).trim() : ''))
+				.filter(Boolean);
+		} catch (e) {
+			expenseCategoryCatalog = [];
+		}
+
 		res.render("junket/house_expense", {
 			...sessions(req, 'house_expense'),
 			permissions: permissions,
 			defaultSettlementDate: defaultSettlementDate,
 			maxSettlementDate: defaultSettlementDate,
 			settledDatesForMonth: settledDatesForMonth,
-			todayStr: todayStr
+			todayStr: todayStr,
+			expenseCategoryCatalog: expenseCategoryCatalog
 		});
 	} catch (err) {
 		console.error('Error loading house_expense page:', err);

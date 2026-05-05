@@ -1,0 +1,423 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include ('../partials/sidebar'); -%>
+<%- include ('../partials/topbar'); -%>
+
+<div class="container-fluid content-inner mt-4">
+	<div class="row">
+		<div class="col-sm-12">
+			<div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h3 class="card-title">
+						<div class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="#"><%= __('commission.junket') %></a>
+							<a href="/commission"><%= __('commission.commission') %></a>
+							<a href="/commission_analytics" class="active">Analytics</a>
+						</div>
+					</h3>
+				</div>
+				<div class="commission-date-filter-wrap">
+					<input type="text" id="commission-panel-daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
+				</div>
+				<div class="card-body">
+					<div class="table-responsive">
+						<table id="commission-panel-tbl" class="table nowrap small-text" style="width:100%">
+							<thead>
+								<tr>
+									<th>Ranking #</th>
+									<th>Account Name</th>
+									<th class="commission-rank-sortable" data-rank-key="totalBuyIn">Total Buy-In <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="totalChipsReturn">Total Chips Return <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="winLoss">Win/Loss <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="totalRolling">Total Rolling <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="commission">Commission <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="ngr">NGR <span class="commission-rank-sort-indicator">-</span></th>
+								</tr>
+							</thead>
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="modal-commission-panel-transactions" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title mb-0">Guest Commission Transactions</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body commission-guest-modal-body">
+				<div class="small mb-2 d-flex justify-content-between align-items-center">
+					<span id="commission-panel-modal-subtitle">-</span>
+					<span id="commission-panel-modal-count">-</span>
+				</div>
+				<div class="commission-guest-table-shell">
+					<table class="table table-sm align-middle mb-0 commission-guest-table-fixed" id="commission-panel-modal-head-table">
+						<colgroup>
+							<col style="width:8%">
+							<col style="width:11%">
+							<col style="width:11%">
+							<col style="width:10%">
+							<col style="width:11%">
+							<col style="width:8%">
+							<col style="width:11%">
+							<col style="width:6%">
+							<col style="width:9%">
+							<col style="width:15%">
+						</colgroup>
+						<thead>
+							<tr>
+								<th class="commission-sortable-col" data-sort-key="gameNo">Game # <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="totalBuyIn">Buy-In <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="chipsReturn">Chips Return <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="winLoss">Win/Loss <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="totalRolling">Rolling <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="rollingRate">Rate <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="settlement">Settlement <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="fnb">F&amp;B <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="payment">Payment <span class="commission-sort-indicator">-</span></th>
+								<th class="commission-sortable-col" data-sort-key="dateTime">Date &amp; Time <span class="commission-sort-indicator">-</span></th>
+							</tr>
+						</thead>
+					</table>
+					<div class="commission-guest-table-wrap">
+						<table class="table table-sm table-striped align-middle mb-0" id="commission-panel-modal-body-table">
+							<colgroup>
+								<col style="width:8%">
+								<col style="width:11%">
+								<col style="width:11%">
+								<col style="width:10%">
+								<col style="width:11%">
+								<col style="width:8%">
+								<col style="width:11%">
+								<col style="width:6%">
+								<col style="width:9%">
+								<col style="width:15%">
+							</colgroup>
+							<tbody id="commission-panel-modal-body">
+								<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>
+							</tbody>
+						</table>
+					</div>
+					<table class="table table-sm align-middle mb-0 commission-guest-table-fixed" id="commission-panel-modal-foot-table">
+						<colgroup>
+							<col style="width:8%">
+							<col style="width:11%">
+							<col style="width:11%">
+							<col style="width:10%">
+							<col style="width:11%">
+							<col style="width:8%">
+							<col style="width:11%">
+							<col style="width:6%">
+							<col style="width:9%">
+							<col style="width:15%">
+						</colgroup>
+						<tfoot>
+							<tr>
+								<th>Grand Total</th>
+								<th id="commission-panel-total-buyin" class="text-end">0</th>
+								<th id="commission-panel-total-return" class="text-end">0</th>
+								<th id="commission-panel-total-winloss" class="text-end">0</th>
+								<th id="commission-panel-total-rolling" class="text-end">0</th>
+								<th></th>
+								<th id="commission-panel-total-settlement" class="text-end">0</th>
+								<th id="commission-panel-total-fnb" class="text-end">0</th>
+								<th id="commission-panel-total-payment" class="text-end">0</th>
+								<th></th>
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/footer') %>
+<script src="/assets/js/functions/commission_analytics.js"></script>
+
+<style>
+#commission-panel-tbl {
+	width: 100%;
+	font-size: 13px;
+	border-collapse: collapse;
+}
+
+.commission-date-filter-wrap {
+	max-width: 260px;
+	margin: 8px 24px 0;
+}
+
+.commission-date-filter-wrap .input-daterange {
+	width: 100%;
+	max-width: 100%;
+	margin: 4px 0 0 0;
+	font-size: 12px;
+	border: 1px solid #dbe2f3;
+	border-radius: 8px;
+	background: #fff;
+	padding: 8px 10px;
+	line-height: 1.2;
+	color: #344054;
+}
+
+.commission-date-filter-wrap .flatpickr-alt-input {
+	width: 100% !important;
+	max-width: 100%;
+	margin: 4px 0 0 0;
+	font-size: 12px;
+	border: 1px solid #dbe2f3 !important;
+	border-radius: 8px;
+	background: #fff !important;
+	padding: 8px 10px;
+	line-height: 1.2;
+	color: #344054;
+	box-shadow: none !important;
+	cursor: pointer;
+}
+
+.commission-date-filter-wrap .flatpickr-input[readonly] {
+	cursor: pointer;
+}
+
+#commission-panel-tbl thead th {
+	background: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary);
+	font-weight: 500;
+	padding: 12px 15px;
+	text-align: left;
+	border: none;
+	white-space: nowrap;
+}
+
+#commission-panel-tbl thead th.commission-rank-sortable {
+	cursor: pointer;
+	user-select: none;
+}
+
+#commission-panel-tbl thead th.commission-rank-sortable:hover {
+	background: #dfe6ff !important;
+}
+
+#commission-panel-tbl thead th.commission-rank-sortable.is-active {
+	background: #d9eadf !important;
+	color: #1f7a37;
+}
+
+.commission-rank-sort-indicator {
+	font-size: 10px;
+	margin-left: 4px;
+	color: #7381a0;
+}
+
+#commission-panel-tbl tbody td.commission-rank-metric-cell.is-active {
+	background: #ecf6ec !important;
+}
+
+#commission-panel-tbl tbody tr {
+	border-bottom: 1px solid #eee;
+}
+
+#commission-panel-tbl td {
+	padding: 12px 15px;
+	color: #666;
+	white-space: nowrap;
+}
+
+#commission-panel-tbl tbody tr:hover {
+	background-color: #f5f5f5 !important;
+}
+
+#commission-panel-tbl_wrapper .dataTables_length label {
+	font-size: 0;
+}
+
+#commission-panel-tbl_wrapper .dataTables_length select {
+	font-size: 12px;
+}
+
+#commission-panel-tbl_wrapper .dataTables_info,
+#commission-panel-tbl_wrapper .dataTables_paginate {
+	font-size: 13px;
+}
+
+#commission-panel-tbl .js-open-agent-modal {
+	color: var(--bs-primary);
+	font-weight: 500;
+	text-decoration: none;
+}
+
+#commission-panel-tbl .js-open-agent-modal:hover {
+	text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+	.commission-date-filter-wrap {
+		max-width: 100%;
+		margin: 8px 12px 0;
+	}
+
+	.commission-date-filter-wrap .input-daterange,
+	.commission-date-filter-wrap .flatpickr-alt-input {
+		margin-top: 4px;
+		font-size: 10px;
+		padding: 7px 9px;
+	}
+
+	#commission-panel-tbl {
+		font-size: 10px;
+	}
+
+	#commission-panel-tbl th,
+	#commission-panel-tbl td {
+		padding: 5px;
+	}
+}
+
+#modal-commission-panel-transactions .modal-header {
+	background: #f4f6fb;
+	border-bottom: 1px solid #e6e9f2;
+}
+
+#modal-commission-panel-transactions .modal-title {
+	font-weight: 700;
+	color: #1f2d3d;
+}
+
+.commission-guest-modal-body {
+	padding-top: 10px;
+	overflow: hidden !important;
+}
+
+.commission-guest-table-shell {
+	border: 1px solid #e8ecf3;
+	border-radius: 8px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	background: #fff;
+}
+
+#commission-panel-modal-head-table,
+#commission-panel-modal-body-table,
+#commission-panel-modal-foot-table {
+	width: 100%;
+	font-size: 13px;
+	margin: 0;
+	border-collapse: separate;
+	border-spacing: 0;
+	table-layout: auto;
+}
+
+.commission-guest-table-fixed {
+	border-left: 1px solid #e8ecf3;
+	border-right: 1px solid #e8ecf3;
+}
+
+.commission-guest-table-wrap {
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: 52vh;
+	overflow-y: auto;
+	position: relative;
+}
+
+#commission-panel-modal-subtitle,
+#commission-panel-modal-count {
+	color: #111827 !important;
+	font-weight: 500;
+}
+
+#commission-panel-modal-head-table thead th {
+	background: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary);
+	font-weight: 600;
+	font-size: 13px;
+	border: none;
+	white-space: nowrap;
+	padding: 10px 12px;
+}
+
+.commission-sortable-col {
+	cursor: pointer;
+	user-select: none;
+}
+
+.commission-sortable-col:hover {
+	background: #dfe6ff !important;
+}
+
+.commission-sort-indicator {
+	font-size: 10px;
+	margin-left: 4px;
+	color: #6c757d;
+}
+
+#commission-panel-modal-head-table th.commission-panel-modal-col-active-header {
+	background: #d9eadf !important;
+	color: #1f7a37 !important;
+}
+
+#commission-panel-modal-body-table tbody td {
+	font-size: 13px;
+	color: #495057;
+	border-top: 1px solid #eee;
+	white-space: nowrap;
+	padding: 10px 12px;
+	vertical-align: middle;
+}
+
+#commission-panel-modal-body-table tbody tr:nth-child(even) td {
+	background: #f8f9fc;
+}
+
+#commission-panel-modal-body-table tbody tr:hover td {
+	background: #f7f9ff;
+}
+
+#commission-panel-modal-body-table tbody td.commission-panel-modal-col-active,
+#commission-panel-modal-foot-table tfoot th.commission-panel-modal-col-active {
+	background: #ecf6ec !important;
+}
+
+#commission-panel-modal-foot-table tfoot th {
+	background: #f4f6fa;
+	color: #212529;
+	font-weight: 700;
+	border-top: 2px solid #dee2e6;
+	white-space: nowrap;
+	padding: 10px 12px;
+}
+
+#commission-panel-modal-body-table td:nth-child(2),
+#commission-panel-modal-body-table td:nth-child(3),
+#commission-panel-modal-body-table td:nth-child(4),
+#commission-panel-modal-body-table td:nth-child(5),
+#commission-panel-modal-body-table td:nth-child(6),
+#commission-panel-modal-body-table td:nth-child(7),
+#commission-panel-modal-body-table td:nth-child(8),
+#commission-panel-modal-body-table td:nth-child(9),
+#commission-panel-modal-head-table th:nth-child(2),
+#commission-panel-modal-head-table th:nth-child(3),
+#commission-panel-modal-head-table th:nth-child(4),
+#commission-panel-modal-head-table th:nth-child(5),
+#commission-panel-modal-head-table th:nth-child(6),
+#commission-panel-modal-head-table th:nth-child(7),
+#commission-panel-modal-head-table th:nth-child(8),
+#commission-panel-modal-head-table th:nth-child(9),
+#commission-panel-modal-foot-table th:nth-child(2),
+#commission-panel-modal-foot-table th:nth-child(3),
+#commission-panel-modal-foot-table th:nth-child(4),
+#commission-panel-modal-foot-table th:nth-child(5),
+#commission-panel-modal-foot-table th:nth-child(6),
+#commission-panel-modal-foot-table th:nth-child(7),
+#commission-panel-modal-foot-table th:nth-child(8),
+#commission-panel-modal-foot-table th:nth-child(9) {
+	text-align: right;
+}
+</style>
