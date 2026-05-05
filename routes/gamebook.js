@@ -91,7 +91,7 @@ function telegramGameTypeLabels(rawGameType) {
 	}
 	const norm = normalizeTelegramGameTypeKey(rawGameType);
 	if (norm === 'LIVE') {
-		return { agentText: '살다', managementText: '살다 LIVE' };
+		return { agentText: '라이브', managementText: '라이브 LIVE' };
 	}
 	if (norm === 'TELEBET') {
 		return { agentText: '화신', managementText: '화신 AVATAR' };

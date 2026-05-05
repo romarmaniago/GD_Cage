@@ -6281,9 +6281,13 @@ function settlement_history(record_id, acc_id) {
                 }
 
                 function updateRollingSettlement() {
-                    let updatedRollingRate = parseFloat($('#rollingRate').val()) || 0;
-                    let updatedRollingSettlement = total_rolling_chips * (updatedRollingRate / 100);
-                    $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString());
+                    let updatedRollingRate = parseFloat(String($('#rollingRate').val() || '').replace(/,/g, '')) || 0;
+                    let currentRolling = parseFloat(String($('#rolling').val() || '').replace(/,/g, '')) || 0;
+                    let updatedRollingSettlement = Math.round((currentRolling * updatedRollingRate) / 100);
+                    $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    }));
                 }
 
                 // After handlers are ready, load services total into FB
