@@ -648,7 +648,10 @@
 		"remarks": "Remarks",
 		"date": "Date",
 		"action": "Action",
-		"rolling": "Rolling"
+		"rolling": "Rolling",
+		"cash_balance": "Cash balance",
+		"nn_balance": "NN balance",
+		"cc_balance": "CC balance"
 	},
 	"modal_nn_chips_history": {
 		"title": "NN Chips History",

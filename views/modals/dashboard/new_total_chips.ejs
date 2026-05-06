@@ -10,6 +10,83 @@
 
       <div class="modal-body">
         <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
+          <%
+            const refCcBal = (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+              (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
+              (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
+              (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+              (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+              (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+              (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) +
+              (+sqlCCBuyin[0].CCBuyin || 0) -
+              (+sqlCCReturn[0].CCReturn || 0) -
+              (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+              (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) -
+              (+sqlCCChipsMonthlySettle[0].CCChipsMonthlySettle || 0);
+            const refNnBal = (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+              (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
+              (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+              (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+              (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+              (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+              (+sqlCCChipsRolling[0].CCChipsRolling || 0) +
+              (+sqlNNBuyin[0].NNBuyin || 0) -
+              (+sqlNNReturn[0].NNReturn || 0) -
+              (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+              (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
+              (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
+            const refCashBal = (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+              (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+              (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
+              (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+              (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
+              (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
+              (+sqlServiceCashGuest[0].TOTAL || 0) +
+              (+sqlServiceDepositGuest[0].TOTAL || 0) +
+              (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+              (+sqlReturnMoney[0].RETURN_MONEY || 0) -
+              (
+                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+                (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+                (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+                (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+                (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+                (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+                (+sqlServiceCashJunket[0].TOTAL || 0) +
+                (+sqlServiceDepositJunket[0].TOTAL || 0) +
+                (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+                (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+                (+sqlJunketLoss[0].JUNKET_LOSS || 0)
+              ) +
+              (+sqlMxCashNet[0].MX_CASH_NET || 0);
+            const refCcBalStr = refCcBal.toLocaleString();
+            const refNnBalStr = refNnBal.toLocaleString();
+            const refCashBalStr = refCashBal.toLocaleString();
+          %>
+
+          <div class="row mb-3 g-2 total-chips-ref-balances">
+            <div class="col-md-4">
+              <div class="total-chips-ref-card rounded-3 p-3 h-100">
+                <div class="total-chips-ref-label">Cash balance</div>
+                <div class="total-chips-ref-value total-chips-ref-value--cash" id="total-chips-cash-balance-display"><%= refCashBalStr %></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="total-chips-ref-card rounded-3 p-3 h-100">
+                <div class="total-chips-ref-label">NN Chips</div>
+                <div class="total-chips-ref-value total-chips-ref-value--nn" id="nnbalance-display"><%= refNnBalStr %></div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="total-chips-ref-card rounded-3 p-3 h-100">
+                <div class="total-chips-ref-label">CC Chips</div>
+                <div class="total-chips-ref-value total-chips-ref-value--cc" id="ccbalance-display"><%= refCcBalStr %></div>
+              </div>
+            </div>
+          </div>
 
           <!-- NN Chips -->
           <div class="row mb-2">
@@ -57,60 +134,10 @@
             </div>
           </div>
 
-          <!-- Hidden fields for balances -->
-           <input type="hidden" value="<%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-           (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
-            (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
-            (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
-            (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
-            (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-            (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
-            0) - (+sqlCCReturn[0].CCReturn || 0) -
-            (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-            (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %> " id="ccbalance" name="txtccbalance" />
-
-                         <input type="hidden" value=" <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                         (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
-                          (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                          (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                          (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
-                          (+sqlCCChipsBuyin[0].CCChipsBuyin || 0)  +
-                         (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
-                         (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
-                          || 0) - (+sqlNNReturn[0].NNReturn || 0) -
-                          (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                          (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %> " id="nnbalance" name="txtnnbalance" />
-
-                        <!-- Same Cash Balance as dashboard card + new_capital.ejs (cash in / cash out) -->
-                        <input type="hidden" value="<%- (
-                                (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
-                                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                                (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
-                                (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) -
-                                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
-                                (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-                                (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
-                                (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
-                                (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
-                                (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-                                (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) -
-                                (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) -
-                                (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                                (+sqlServiceCashGuest[0].TOTAL || 0) +
-                                (+sqlServiceDepositGuest[0].TOTAL || 0) -
-                                (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                                (+sqlServiceCashJunket[0].TOTAL || 0) -
-                                (+sqlServiceDepositJunket[0].TOTAL || 0) -
-                                (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
-                                (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-                                (+sqlReturnMoney[0].RETURN_MONEY || 0) -
-                                (+sqlManualBalancing[0].MANUAL_BALANCING || 0) -
-                                (+sqlJunketLoss[0].JUNKET_LOSS || 0) -
-                                (+sqlMxDepositExchangeAmount[0].MX_DEPOSIT_EXCHANGE || 0) +
-                                (+sqlMxReturnAmount[0].MX_RETURN_AMOUNT || 0) +
-                                (+sqlMxMarginReturn[0].MX_MARGIN_RETURN || 0)
-                        ).toLocaleString() %>" id="total-chips-cash-balance" name="txtcashbal" />
+          <!-- Hidden fields for balances (IDs kept for validateChips / limits) -->
+          <input type="hidden" value="<%= refCcBalStr %>" id="ccbalance" name="txtccbalance" />
+          <input type="hidden" value="<%= refNnBalStr %>" id="nnbalance" name="txtnnbalance" />
+          <input type="hidden" value="<%= refCashBalStr %>" id="total-chips-cash-balance" name="txtcashbal" />
 
                         <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">
 
@@ -301,6 +328,43 @@
     color: var(--bs-primary);
     font-size: 14px;
   }
+
+  /* Reference balances: high contrast (readable on any theme) */
+  .total-chips-ref-balances .total-chips-ref-card {
+    background: #ffffff;
+    border: 1px solid #ced4da;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .total-chips-ref-balances .total-chips-ref-label {
+    color: #343a40;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+    line-height: 1.3;
+  }
+
+  .total-chips-ref-balances .total-chips-ref-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+    word-break: break-word;
+  }
+
+  .total-chips-ref-balances .total-chips-ref-value--cash {
+    color: #0f5132;
+  }
+
+  .total-chips-ref-balances .total-chips-ref-value--nn {
+    color: #084298;
+  }
+
+  .total-chips-ref-balances .total-chips-ref-value--cc {
+    color: #56127e;
+  }
 </style>
 
 <script>
@@ -309,6 +373,21 @@ $(document).ready(function() {
   const permissions = parseInt($('#user-role').data('permissions')) || 0;
   if (permissions === 2) {
     $('#add_junket_total_chips button[type="submit"]').prop('disabled', true);
+  }
+
+  function syncChipsInputsForTransactionMode() {
+    const selected = $('input[name="optBuyinReturn"]:checked').val();
+    if (selected === '1') {
+      $('#ccChips').prop('disabled', true).val('').removeClass('is-invalid');
+      $('#nnChips').prop('disabled', false);
+    } else if (selected === '3') {
+      $('#nnChips').prop('disabled', true).val('').removeClass('is-invalid');
+      $('#ccChips').prop('disabled', false);
+    } else {
+      $('#nnChips').prop('disabled', false);
+      $('#ccChips').prop('disabled', false);
+    }
+    calculateTotalChips();
   }
 
   // 2) Update typedescription on radio change
@@ -323,6 +402,7 @@ $(document).ready(function() {
         : (isRolling
           ? '<span class="css-red">Chips Rolling</span>'
           : '<span class="css-red">Chips Buy-in</span>'));
+    syncChipsInputsForTransactionMode();
   }
 
   // 3) Only number key
@@ -339,35 +419,39 @@ $(document).ready(function() {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
-  // 5) validateChips function
-  //    - Pag Buy-in ng NN Chips: hindi pwede mas mataas sa Cash Balance (dashboard card)
-  //    - Pag Buy-in ng CC Chips: hindi pwede mas mataas sa NN balance
-  //    - Pag Return: hindi pwede lumampas o kapag 0 / negative na ang balance
+  // 5) validateChips — Buy-in: NN only, ≤ cash. Cash-out / rolling: caps; amounts any positive value (not restricted to ×1000).
   window.validateChips = function() {
-    const selected = $('input[name="optBuyinReturn"]:checked').val(); // "1" buy-in, "2" return
+    const selected = $('input[name="optBuyinReturn"]:checked').val(); // "1" buy-in, "2" cash-out, "3" rolling
 
     const nnChipsRaw = (($('#nnChips').val() || '') + '').replace(/,/g, '');
+    const ccChipsRaw = (($('#ccChips').val() || '') + '').replace(/,/g, '');
     const nnChips    = parseFloat(nnChipsRaw || '0') || 0;
-    const ccChips    = parseFloat(($('#ccChips').val()    || '0').toString().replace(/,/g, '')) || 0;
+    const ccChips    = parseFloat(ccChipsRaw || '0') || 0;
     const nnbalance  = parseFloat(($('#nnbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
     const ccbalance  = parseFloat(($('#ccbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
     const cashBalanceLimit = parseFloat(($('#total-chips-cash-balance').val() || '0').toString().replace(/,/g, '')) || 0;
 
     const nnTrimmed = nnChipsRaw.trim();
+    const ccTrimmed = ccChipsRaw.trim();
 
-    // NN Chips must be positive thousands (multiples of 1,000)
-    if (nnTrimmed && (nnChips <= 0 || nnChips % 1000 !== 0)) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Invalid NN Chips amount',
-        text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
-      });
-      return false;
-    }
-
-    // BUY-IN
+    // BUY-IN — NN only; amount > 0, ≤ Cash Balance (any positive amount, not limited to thousands)
     if (selected === "1") {
-      // NN Chips must not exceed Cash Balance (same figure as dashboard "Cash Balance" card)
+      if (ccChips > 0 || ccTrimmed !== '') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Chips Buy-in',
+          text: 'Buy-in allows NN chips only. CC is not used for buy-in.'
+        });
+        return false;
+      }
+      if (!nnTrimmed || !Number.isFinite(nnChips) || nnChips <= 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'NN amount required',
+          text: 'Enter a valid positive NN chips amount for buy-in.'
+        });
+        return false;
+      }
       if (nnChips > cashBalanceLimit) {
         Swal.fire({
           icon: 'error',
@@ -376,40 +460,89 @@ $(document).ready(function() {
         });
         return false;
       }
-
-     
+      return true;
     }
 
-    // ROLLING
-    if (selected === "3") {
-   
-
-      // NN Return cannot exceed NN balance
-      if (nnChips > ccbalance) {
+    // CHIPS CASH-OUT
+    if (selected === "2") {
+      if (nnTrimmed && (!Number.isFinite(nnChips) || nnChips <= 0)) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Exceeds CC Balance',
-          text: 'CC Chips Rolling cannot exceed ' + formatNumberWithCommas(ccbalance) + '.'
+          icon: 'error',
+          title: 'Invalid NN Chips amount',
+          text: 'Enter a valid positive NN amount, or leave blank if cashing out CC only.'
         });
         return false;
       }
 
-      // CC rolling cannot exceed NN balance
-      if (ccChips > nnbalance) {
+      if (nnChips <= 0 && ccChips <= 0) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Exceeds NN Balance',
-          text: 'NN Chips Rolling cannot exceed ' + formatNumberWithCommas(nnbalance) + '.'
+          icon: 'error',
+          title: 'Amount required',
+          text: 'Enter NN chips and/or CC chips to cash out.'
         });
         return false;
       }
 
-      // CC rolling cannot exceed current CC balance
+      if (ccTrimmed && (!Number.isFinite(ccChips) || ccChips <= 0)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid CC Chips amount',
+          text: 'Enter a valid positive CC amount, or leave blank if cashing out NN only.'
+        });
+        return false;
+      }
+
+      if (nnChips > nnbalance) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Exceeds NN balance',
+          text: 'NN chips cash-out cannot exceed the current NN balance of ' + formatNumberWithCommas(nnbalance) + '.'
+        });
+        return false;
+      }
+
       if (ccChips > ccbalance) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Exceeds CC Balance',
-          text: 'CC Chips Rolling cannot exceed ' + formatNumberWithCommas(ccbalance) + '.'
+          icon: 'error',
+          title: 'Exceeds CC balance',
+          text: 'CC chips cash-out cannot exceed the current CC balance of ' + formatNumberWithCommas(ccbalance) + '.'
+        });
+        return false;
+      }
+      return true;
+    }
+
+    // ROLLING — CC only; must not exceed NN balance nor CC balance
+    if (selected === "3") {
+      if (nnTrimmed !== '' || nnChips > 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Chips Rolling',
+          text: 'Rolling allows CC chips only. NN is not used for rolling.'
+        });
+        return false;
+      }
+      if (!ccTrimmed || !Number.isFinite(ccChips) || ccChips <= 0) {
+        Swal.fire({
+          icon: 'error',
+          title: 'CC amount required',
+          text: 'Enter a valid positive CC chips amount for rolling.'
+        });
+        return false;
+      }
+      if (ccChips > ccbalance) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Exceeds CC balance',
+          text: 'CC rolling cannot exceed the current CC balance of ' + formatNumberWithCommas(ccbalance) + '.'
+        });
+        return false;
+      }
+      if (ccChips > nnbalance) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Exceeds NN balance',
+          text: 'CC rolling cannot exceed the current NN balance of ' + formatNumberWithCommas(nnbalance) + '.'
         });
         return false;
       }
@@ -420,8 +553,8 @@ $(document).ready(function() {
 
   // 6) Calculate total chips on input
   window.calculateTotalChips = function() {
-    const nnChips = parseFloat($('#nnChips').val().replace(/,/g, '')) || 0;
-    const ccChips = parseFloat($('#ccChips').val().replace(/,/g, '')) || 0;
+    const nnChips = parseFloat((($('#nnChips').val() || '') + '').replace(/,/g, '')) || 0;
+    const ccChips = parseFloat((($('#ccChips').val() || '') + '').replace(/,/g, '')) || 0;
     const totalChips = nnChips + ccChips;
     $('#totalChips').val(totalChips.toLocaleString());
   }
@@ -456,8 +589,25 @@ $(document).ready(function() {
     }
   }
 
-  // Live validation for NN Chips (thousands only)
-  function validateNnChipsThousandsInline() {
+  function validateCcChipsInline() {
+    const $input = $('#ccChips');
+    const raw = (($input.val() || '') + '').replace(/,/g, '');
+    const trimmed = raw.trim();
+
+    if (!trimmed) {
+      $input.removeClass('is-invalid');
+      return;
+    }
+
+    const value = parseFloat(trimmed);
+    if (!Number.isFinite(value) || value <= 0) {
+      $input.addClass('is-invalid');
+    } else {
+      $input.removeClass('is-invalid');
+    }
+  }
+
+  function validateNnChipsInline() {
     const $input = $('#nnChips');
     const raw = (($input.val() || '') + '').replace(/,/g, '');
     const trimmed = raw.trim();
@@ -467,9 +617,8 @@ $(document).ready(function() {
       return;
     }
 
-    const value = parseFloat(trimmed) || 0;
-
-    if (value <= 0 || value % 1000 !== 0) {
+    const value = parseFloat(trimmed);
+    if (!Number.isFinite(value) || value <= 0) {
       $input.addClass('is-invalid');
     } else {
       $input.removeClass('is-invalid');
@@ -478,11 +627,12 @@ $(document).ready(function() {
 
   $('#nnChips').on('input', function() {
     calculateTotalChips();
-    validateNnChipsThousandsInline();
+    validateNnChipsInline();
     toggleRollingRadioByNnChips();
   });
   $('#ccChips').on('input', function() {
     calculateTotalChips();
+    validateCcChipsInline();
     toggleBuyInRadioByCcChips();
   });
 
@@ -720,6 +870,13 @@ $(document).ready(function() {
       
       // Initial load of combined chips history data
       loadTotalChipsHistory();
+      const sel = $('input[name="optBuyinReturn"]:checked').val();
+      if (sel) {
+        syncChipsInputsForTransactionMode();
+      } else {
+        $('#nnChips').prop('disabled', false);
+        $('#ccChips').prop('disabled', false);
+      }
       toggleBuyInRadioByCcChips();
       toggleRollingRadioByNnChips();
     } else {

@@ -155,34 +155,34 @@ border-top: 2px solid #dee2e6;
 							
 							
 							
-							<input type="hidden" value=" <%- (
-								(+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
-								(+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-								(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
-								(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) -
-								(+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+							<input type="hidden" value="<%- (
+								(+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
 								(+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-								(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-								(+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+								(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
 								(+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
 								(+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
-								(+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-								(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) -
-								(+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) -
-								(+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+								(+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
 								(+sqlServiceCashGuest[0].TOTAL || 0) +
-								(+sqlServiceDepositGuest[0].TOTAL || 0) -
-								(+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-								(+sqlServiceCashJunket[0].TOTAL || 0) -
-								(+sqlServiceDepositJunket[0].TOTAL || 0) -
-								(+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+								(+sqlServiceDepositGuest[0].TOTAL || 0) +
 								(+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
 								(+sqlReturnMoney[0].RETURN_MONEY || 0) -
-								(+sqlManualBalancing[0].MANUAL_BALANCING || 0) - 
-								(+sqlJunketLoss[0].JUNKET_LOSS || 0) -
-                                (+sqlMxDepositExchangeAmount[0].MX_DEPOSIT_EXCHANGE || 0) +
-                                (+sqlMxReturnAmount[0].MX_RETURN_AMOUNT || 0) +
-                                (+sqlMxMarginReturn[0].MX_MARGIN_RETURN || 0)
+								(
+									(+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+									(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+									(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+									(+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+									(+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+									(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+									(+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+									(+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+									(+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+									(+sqlServiceCashJunket[0].TOTAL || 0) +
+									(+sqlServiceDepositJunket[0].TOTAL || 0) +
+									(+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+									(+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+									(+sqlJunketLoss[0].JUNKET_LOSS || 0)
+								) +
+								(+sqlMxCashNet[0].MX_CASH_NET || 0)
 							).toLocaleString() %>" id="cashbal" name="txtcashbal"/>
 							
 							<input type="hidden" name="description" id="description" value="Cash-in">
@@ -239,35 +239,70 @@ border-top: 2px solid #dee2e6;
 		}
 
 		$('#add_junket_capital').on('submit', function(e) {
-			// Retrieve the values of txtAmount and cashbal
-			const txtAmount = parseFloat($('#txtAmount').val().replace(/,/g, '')) || 0;
-			const cashbal = parseFloat($('#cashbal').val().replace(/,/g, '')) || 0;
+			e.preventDefault();
+
+			const $form = $(this);
 
 			function formatNumberWithCommas(x) {
 				return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 			}
 
-			// Check if Cash-out is selected
-			const isCashOutSelected = document.querySelector('input[name="optWithdrawDeposit"]:checked').value === "2";
+			const rawAmount = ($('#txtAmount').val() || '').toString().replace(/,/g, '').trim();
+			const txtAmount = rawAmount === '' ? NaN : parseFloat(rawAmount);
+			const cashbal = parseFloat(($('#cashbal').val() || '0').toString().replace(/,/g, '')) || 0;
 
-			// Validate if the withdrawal amount exceeds the cash balance
+			if (!Number.isFinite(txtAmount) || txtAmount <= 0) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Amount required',
+					text: 'Enter a valid amount greater than zero in Junket Balance Amount.',
+					confirmButtonText: 'OK'
+				});
+				return;
+			}
+
+			const checkedRadio = document.querySelector('input[name="optWithdrawDeposit"]:checked');
+			if (!checkedRadio) {
+				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select Cash-in or Cash-out.' });
+				return;
+			}
+
+			const isCashOutSelected = checkedRadio.value === "2";
+
 			if (isCashOutSelected && txtAmount > cashbal) {
-				e.preventDefault();
 				Swal.fire({
 					icon: 'error',
 					title: 'Insufficient Balance',
 					text: 'The amount exceeds the available cash balance of ' + formatNumberWithCommas(cashbal) + '.',
 					confirmButtonText: 'OK'
 				});
-				return false;
+				return;
 			}
-			
-			// Disable the submit button and show spinner while processing
-			var $btn = $(this).find("button[type='submit']");
-			$btn.prop('disabled', true).html(`
-				<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-				Loading...
-			`);
+
+			const typeLabel = isCashOutSelected ? 'Cash-out' : 'Cash-in';
+			const amountStr = formatNumberWithCommas(txtAmount);
+
+			Swal.fire({
+				icon: 'question',
+				title: 'Confirm transaction',
+				html: '<p>Type: <strong>' + typeLabel + '</strong></p><p>Amount: <strong>' + amountStr + '</strong></p><p class="mb-0 small text-muted">Save this house balance record?</p>',
+				showCancelButton: true,
+				confirmButtonText: 'Yes',
+				cancelButtonText: 'Cancel'
+			}).then(function(result) {
+				if (!result.isConfirmed) {
+					return;
+				}
+				var $btn = $form.find("button[type='submit']");
+				$btn.prop('disabled', true).html(
+					'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
+				);
+				setTimeout(function() {
+					if ($form[0] && typeof $form[0].submit === 'function') {
+						$form[0].submit();
+					}
+				}, 0);
+			});
 		});
 		
 		// Initialize Flatpickr for the date range picker

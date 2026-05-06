@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const pool = require('../config/db');
+const dashboardQueries = require('../utils/dashboardQueries');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
@@ -1001,7 +1002,10 @@ router.post('/add_junket_capital', async (req, res) => {
 		} = req.body;
 
 		let date_now = new Date();
-		let txtAmount2 = parseFloat(txtAmount.replace(/,/g, '')) || 0;
+		let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
+		if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
+			return res.status(400).send('Enter a valid amount greater than zero.');
+		}
 
 		const query = `
 			INSERT INTO junket_capital(
@@ -2139,11 +2143,83 @@ router.post('/add_junket_total_chips', async (req, res) => {
 	const { txtNNChips, txtCCChips, optBuyinReturn, typedescription } = req.body;
 	let date_now = new Date();
 
-	const nnChipsStr = txtNNChips.replace(/,/g, ''); // Remove commas
-	const ccChipsStr = txtCCChips.replace(/,/g, ''); // Remove commas
+	const nnChipsStr = String(txtNNChips ?? '').replace(/,/g, ''); // Remove commas
+	const ccChipsStr = String(txtCCChips ?? '').replace(/,/g, ''); // Remove commas
 
 	const nnChips = isNaN(parseFloat(nnChipsStr)) ? 0 : parseFloat(nnChipsStr);
 	const ccChips = isNaN(parseFloat(ccChipsStr)) ? 0 : parseFloat(ccChipsStr);
+
+	const chipPositiveFinite = (a) => Number.isFinite(a) && a > 0;
+	const chipNonNegativeFinite = (a) => Number.isFinite(a) && a >= 0;
+
+	// Buy-in (NN only): NN ≤ live Cash Balance
+	if (String(optBuyinReturn) === '1') {
+		if (ccChips !== 0) {
+			return res.status(400).send('Buy-in allows NN chips only.');
+		}
+		if (!chipPositiveFinite(nnChips)) {
+			return res.status(400).send('Enter a valid positive NN amount for buy-in.');
+		}
+		try {
+			const cashBal = await dashboardQueries.computeCashBalance();
+			if (nnChips > cashBal) {
+				return res.status(400).send('NN chips buy-in exceeds current cash balance.');
+			}
+		} catch (buyErr) {
+			console.error('Error validating junket chips buy-in cash balance', buyErr);
+			return res.status(500).send('Could not validate cash balance.');
+		}
+	}
+
+	// Rolling (CC only): CC ≤ NN balance and CC ≤ CC balance
+	if (String(optBuyinReturn) === '3') {
+		if (nnChips !== 0) {
+			return res.status(400).send('Rolling allows CC chips only.');
+		}
+		if (!chipPositiveFinite(ccChips)) {
+			return res.status(400).send('Enter a valid positive CC amount for rolling.');
+		}
+		try {
+			const [nnBal, ccBal] = await Promise.all([
+				dashboardQueries.computeNnChipsBalance(),
+				dashboardQueries.computeCcChipsBalance()
+			]);
+			if (ccChips > nnBal) {
+				return res.status(400).send('CC rolling exceeds current NN balance.');
+			}
+			if (ccChips > ccBal) {
+				return res.status(400).send('CC rolling exceeds current CC balance.');
+			}
+		} catch (rollErr) {
+			console.error('Error validating junket chips rolling balance', rollErr);
+			return res.status(500).send('Could not validate chips balance.');
+		}
+	}
+
+	// Chips cash-out: must not exceed live NN/CC balances (same formulas as dashboard)
+	if (String(optBuyinReturn) === '2') {
+		if (nnChips <= 0 && ccChips <= 0) {
+			return res.status(400).send('Enter at least one chips amount for cash-out.');
+		}
+		if (!chipNonNegativeFinite(nnChips) || !chipNonNegativeFinite(ccChips)) {
+			return res.status(400).send('Chips amounts must be valid non-negative numbers.');
+		}
+		try {
+			const [nnBal, ccBal] = await Promise.all([
+				dashboardQueries.computeNnChipsBalance(),
+				dashboardQueries.computeCcChipsBalance()
+			]);
+			if (nnChips > nnBal) {
+				return res.status(400).send('NN chips cash-out exceeds current NN balance.');
+			}
+			if (ccChips > ccBal) {
+				return res.status(400).send('CC chips cash-out exceeds current CC balance.');
+			}
+		} catch (balErr) {
+			console.error('Error validating junket chips cash-out balance', balErr);
+			return res.status(500).send('Could not validate chips balance.');
+		}
+	}
 
 	// Calculate the total chips by summing nnChips and ccChips
 	const totalChips = nnChips + ccChips;

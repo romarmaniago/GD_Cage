@@ -649,7 +649,10 @@
 		"remarks": "備考",
 		"date": "日付",
 		"action": "アクション",
-		"rolling": "ローリング"
+		"rolling": "ローリング",
+		"cash_balance": "キャッシュ残高",
+		"nn_balance": "NN残高",
+		"cc_balance": "CC残高"
 	},
 	"modal_nn_chips_history": {
 		"title": "NNチップ履歴",

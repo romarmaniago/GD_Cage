@@ -649,7 +649,10 @@
 		"date": "날짜",
 		"action": "행동",
 		"save": "저장",
-		"close": "닫기"
+		"close": "닫기",
+		"cash_balance": "현금 잔액",
+		"nn_balance": "NN 잔액",
+		"cc_balance": "CC 잔액"
 	},
 	"modal_nn_chips_history": {
 		"title": "NN 칩 내역",

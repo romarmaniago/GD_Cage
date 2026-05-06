@@ -649,7 +649,10 @@
 		"remarks": "备注",
 		"date": "日期",
 		"action": "操作",
-		"rolling": "轧制"
+		"rolling": "轧制",
+		"cash_balance": "现金余额",
+		"nn_balance": "NN 余额",
+		"cc_balance": "CC 余额"
 	},
 	"modal_nn_chips_history": {
 		"title": "NN 筹码历史",
