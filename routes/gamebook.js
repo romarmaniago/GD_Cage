@@ -94,7 +94,7 @@ function telegramGameTypeLabels(rawGameType) {
 		return { agentText: '라이브', managementText: '라이브 LIVE' };
 	}
 	if (norm === 'TELEBET') {
-		return { agentText: '화신', managementText: '화신 AVATAR' };
+		return { agentText: '아바타', managementText: '아바타 AVATAR' };
 	}
 	const fallback = String(rawGameType).trim();
 	return { agentText: fallback, managementText: fallback };
