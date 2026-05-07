@@ -1,12 +1,33 @@
 /**
- * Passport scanner JSON API (Gemini extract). Mounted at /api/scanner
+ * Passport scanner JSON API (Vertex AI Gemini extract). Mounted at /api/scanner
  */
 
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
-const router = express.Router();
-const pool = require('../config/db');
+const { v1 } = require('@google-cloud/aiplatform');
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const router = express.Router();
+
+const GCP_PROJECT_ID = (process.env.GCP_PROJECT_ID || 'passport-scanner-v1').trim();
+const GCP_LOCATION = (process.env.GCP_LOCATION || 'us-central1').trim();
+/** Vertex publisher model id; 1.5-flash-001 is often retired — default 2.5 Flash. Override: GCP_VERTEX_MODEL */
+const VERTEX_MODEL_ID = (process.env.GCP_VERTEX_MODEL || 'gemini-2.5-flash').trim();
+
+function modelResourceName() {
+  return `projects/${GCP_PROJECT_ID}/locations/${GCP_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}`;
+}
+
+let predictionClient;
+
+function getPredictionClient() {
+  if (!predictionClient) {
+    predictionClient = new v1.PredictionServiceClient({
+      apiEndpoint: `${GCP_LOCATION}-aiplatform.googleapis.com`,
+    });
+  }
+  return predictionClient;
+}
 
 function requireScannerKey(req, res, next) {
   const expected = (process.env.SCANNER_API_KEY || '').trim();
@@ -21,25 +42,42 @@ function requireScannerKey(req, res, next) {
 }
 
 function requireInternalSession(req, res, next) {
-  // For Cage web UI: allow extraction without exposing SCANNER_API_KEY to browser.
   if (req.session?.user_id) return next();
   if (typeof req.isAuthenticated === 'function' && req.isAuthenticated()) return next();
   return res.status(401).json({ error: { message: 'Unauthorized' } });
 }
 
-async function resolveGeminiApiKey() {
-  const fromEnv = (process.env.GEMINI_API_KEY || '').trim();
-  if (fromEnv) return fromEnv;
-  try {
-    const [rows] = await pool.query(
-      'SELECT GEMINI_API AS k FROM passportscanner_api LIMIT 1'
-    );
-    const k = rows?.[0]?.k;
-    if (k) return String(k).trim();
-  } catch (_) {
-    /* table/column may not exist */
+function credentialsConfigError() {
+  const raw = (process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim();
+  if (!raw) return 'GOOGLE_APPLICATION_CREDENTIALS is not set.';
+  const abs = path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw);
+  if (!fs.existsSync(abs)) {
+    return `Credentials file not found: ${abs}`;
   }
   return null;
+}
+
+function jsonError(res, httpStatus, code, message, extra) {
+  const error = { code: String(code || 'UNKNOWN_ERROR'), message: String(message || 'Error') };
+  if (extra && typeof extra === 'object') {
+    for (const k of Object.keys(extra)) error[k] = extra[k];
+  }
+  return res.status(httpStatus).json({ error });
+}
+
+function normalizeImageInput(imageBase64, fallbackMime) {
+  let s = String(imageBase64).trim();
+  const dataUrl = /^data:([^;]+);base64,(.+)$/i.exec(s);
+  if (dataUrl) {
+    return {
+      mimeType: (dataUrl[1] || fallbackMime || 'image/jpeg').trim() || 'image/jpeg',
+      base64: dataUrl[2].replace(/\s/g, ''),
+    };
+  }
+  return {
+    mimeType: (fallbackMime || 'image/jpeg').toString().trim() || 'image/jpeg',
+    base64: s.replace(/\s/g, ''),
+  };
 }
 
 const EXTRACTION_PROMPT = `You are an expert at reading passport and travel document photos.
@@ -66,76 +104,80 @@ CRITICAL for "document_type":
 
 async function handlePassportExtract(req, res) {
   const imageBase64 = req.body?.imageBase64;
-  const imageMimeType = (req.body?.imageMimeType || 'image/jpeg').toString().trim() || 'image/jpeg';
+  const bodyMime = (req.body?.imageMimeType || 'image/jpeg').toString().trim() || 'image/jpeg';
 
   if (!imageBase64 || typeof imageBase64 !== 'string') {
-    return res.status(400).json({ error: { message: 'imageBase64 is required.' } });
+    return jsonError(res, 400, 'IMAGE_REQUIRED', 'Passport image is required (imageBase64).');
   }
 
-  const geminiKey = await resolveGeminiApiKey();
-  if (!geminiKey) {
-    return res.status(503).json({
-      error: { message: 'Gemini API key not configured (set GEMINI_API_KEY or passportscanner_api.GEMINI_API).' },
+  const credErr = credentialsConfigError();
+  if (credErr) {
+    return jsonError(res, 503, 'GCP_CREDENTIALS_MISCONFIGURED', 'Passport scanner is not configured on the server.', {
+      details: credErr,
     });
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiKey)}`;
+  const { mimeType, base64: b64 } = normalizeImageInput(imageBase64, bodyMime);
+  let imageBytes;
+  try {
+    imageBytes = Buffer.from(b64, 'base64');
+  } catch {
+    return jsonError(res, 400, 'IMAGE_BASE64_INVALID', 'Invalid image data. Please upload/scan again.');
+  }
+  if (!imageBytes.length) {
+    return jsonError(res, 400, 'IMAGE_EMPTY', 'Empty image payload. Please upload/scan again.');
+  }
 
   try {
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: EXTRACTION_PROMPT },
-              { inlineData: { mimeType: imageMimeType, data: imageBase64 } },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json',
+    const client = getPredictionClient();
+    const [vertexResponse] = await client.generateContent({
+      model: modelResourceName(),
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: EXTRACTION_PROMPT },
+            {
+              inlineData: {
+                mimeType,
+                data: imageBytes,
+              },
+            },
+          ],
         },
-      }),
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
     });
 
-    const rawText = await geminiRes.text();
-    let geminiJson;
-    try {
-      geminiJson = JSON.parse(rawText);
-    } catch {
-      return res.status(502).json({
-        error: { message: `Gemini returned non-JSON (HTTP ${geminiRes.status}).` },
-      });
+    const parts = vertexResponse?.candidates?.[0]?.content?.parts || [];
+    const text = parts.map((p) => p.text || '').join('').trim();
+    if (!text) {
+      return jsonError(res, 502, 'VERTEX_NO_TEXT', 'Scanner service returned no data. Please try again.');
     }
 
-    if (!geminiRes.ok) {
-      const msg = geminiJson?.error?.message || geminiJson?.error || `Gemini HTTP ${geminiRes.status}`;
-      return res.status(502).json({ error: { message: String(msg) } });
-    }
-
-    const text =
-      geminiJson?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || '';
     let data;
     try {
       data = JSON.parse(text);
     } catch {
-      return res.status(502).json({ error: { message: 'Could not parse Gemini extraction JSON.' } });
+      return jsonError(res, 502, 'VERTEX_BAD_JSON', 'Scanner service returned an invalid response. Please try again.');
     }
 
     return res.json({ data });
   } catch (err) {
-    console.error('passport-extract error:', err);
-    return res.status(500).json({ error: { message: err.message || 'Extraction failed.' } });
+    console.error('passport-extract (Vertex) error:', err);
+    const rawMsg = err?.message || err?.details || (typeof err === 'string' ? err : '');
+    const msg = rawMsg ? String(rawMsg) : 'Extraction failed.';
+    // If Vertex throws a quota/auth/permission error, keep it server-side but return a stable code.
+    return jsonError(res, 500, 'EXTRACTION_FAILED', 'Passport scan failed. Please try again.', {
+      details: msg,
+    });
   }
 }
 
-// External/mobile apps: require x-api-key
 router.post('/passport-extract', requireScannerKey, handlePassportExtract);
-
-// Cage web UI: require session (no x-api-key in browser)
 router.post('/passport-extract-internal', requireInternalSession, handlePassportExtract);
 
 module.exports = router;

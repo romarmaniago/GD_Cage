@@ -514,8 +514,30 @@ async function extractPassportFromFile(file) {
 	});
 	var json = await res.json().catch(function () { return null; });
 	if (!res.ok) {
-		var msg = json && json.error && (json.error.message || json.error) ? (json.error.message || json.error) : ('HTTP ' + res.status);
-		throw new Error(String(msg));
+		var errObj = json && json.error ? json.error : null;
+		var code = errObj && errObj.code ? String(errObj.code).toUpperCase() : '';
+		var serverMsg = errObj && (errObj.message || errObj.error) ? String(errObj.message || errObj.error) : '';
+		var msg = '';
+		if (res.status === 401) {
+			msg = 'Unauthorized: not logged in. Please re-login and try again.';
+		} else if (res.status === 413) {
+			msg = 'Image is too large for the server. Please use a smaller/clearer photo.';
+		} else if (res.status === 503 && code === 'GCP_CREDENTIALS_MISCONFIGURED') {
+			msg = 'Passport scanner is not configured on the server. Please contact admin.';
+		} else if (code === 'IMAGE_REQUIRED') {
+			msg = 'Passport image is required. Please scan again.';
+		} else if (code === 'IMAGE_BASE64_INVALID' || code === 'IMAGE_EMPTY') {
+			msg = 'Invalid passport image. Please scan again (clear photo, no glare).';
+		} else if (code === 'VERTEX_NO_TEXT') {
+			msg = 'Scanner could not read the passport. Please retake photo (good lighting, focus, no blur).';
+		} else if (code === 'VERTEX_BAD_JSON') {
+			msg = 'Scanner returned an invalid response. Please try again.';
+		} else if (code === 'EXTRACTION_FAILED') {
+			msg = 'Passport scan failed. Please try again.';
+		} else {
+			msg = serverMsg || ('HTTP ' + res.status);
+		}
+		throw new Error(msg);
 	}
 	return { extract: json && json.data ? json.data : null, dataUrl: dataUrl };
 }
