@@ -1,0 +1,348 @@
+<style>
+    #modal-merge-settlement .form-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    #modal-merge-settlement .form-label {
+        flex: 1;
+        font-size: 0.875rem;
+        position: relative;
+        margin-right: 1rem;
+    }
+
+    #modal-merge-settlement .form-label::after {
+        content: ":";
+        position: absolute;
+        right: -1rem;
+    }
+
+    #modal-merge-settlement .form-input {
+        width: 150px;
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+        border: none;
+        border-bottom: 1px solid #ced4da;
+        box-shadow: none;
+        text-align: right;
+    }
+
+    #modal-merge-settlement .header-logo {
+        max-width: 340px;
+    }
+
+    #modal-merge-settlement .block-content.header-with-logo {
+        position: relative;
+        justify-content: flex-start;
+    }
+
+    #modal-merge-settlement .settlement-title {
+        position: absolute;
+        right: 2rem;
+        margin: 0 !important;
+    }
+
+    #modal-merge-settlement .block-content {
+        padding: 2rem;
+    }
+
+    #modal-merge-settlement .small-input-group {
+        margin-bottom: 0.5rem;
+        margin-left: 23rem;
+    }
+
+    #modal-merge-settlement .row {
+        margin-bottom: 0.5rem;
+    }
+
+    #modal-merge-settlement .info-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    #modal-merge-settlement .info-label {
+        width: 120px;
+        min-width: 120px;
+        color: #8a92a6;
+    }
+
+    #modal-merge-settlement .info-value {
+        flex: 1;
+    }
+
+    #modal-merge-settlement .text-primary {
+        color: #0665d0 !important;
+    }
+
+    #modal-merge-settlement .receipt-print-only { display: none; }
+
+    #modal-merge-settlement .receipt-print-content {
+        width: 100%;
+        max-width: 200mm;
+        margin: 0 auto;
+        color: #000;
+        font-family: Arial, sans-serif;
+        font-size: 6mm;
+        line-height: 1.3;
+    }
+
+    #modal-merge-settlement .receipt-brand {
+        text-align: center;
+        font-weight: 700;
+        font-size: 7.5mm;
+        margin: 0;
+        letter-spacing: 0.3px;
+    }
+
+    #modal-merge-settlement .receipt-subtitle {
+        text-align: center;
+        font-weight: 700;
+        font-size: 6.4mm;
+        margin: 4mm 0 0;
+    }
+
+    #modal-merge-settlement .receipt-datetime {
+        text-align: center;
+        font-weight: 700;
+        font-size: 5.6mm;
+        margin: 2mm 0 4mm;
+    }
+
+    #modal-merge-settlement .receipt-line {
+        border-top: 1px solid #000;
+        width: 90%;
+        margin: 4mm auto;
+    }
+
+    #modal-merge-settlement .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 3mm;
+        width: 72%;
+        min-width: 120mm;
+        margin: 2mm auto;
+    }
+
+    #modal-merge-settlement .receipt-row span:first-child {
+        width: 35%;
+        text-align: right;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    #modal-merge-settlement .receipt-row span:last-child {
+        width: 35%;
+        text-align: left;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    #modal-merge-settlement .receipt-total span {
+        font-size: 7mm;
+    }
+</style>
+
+<div class="modal fade" id="modal-merge-settlement" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="block block-rounded block-themed block-transparent mb-0">
+                <div class="modal-header bg-primary">
+                    <h3 class="block-title text-white">Merge Settlement</h3>
+                </div>
+
+                <div class="block-content text-center d-flex align-items-center header-with-logo">
+                    <img src="/assets/images/infinityLOGO.png" alt="Infinity CAGE-X Logo" class="img-fluid header-logo me-3" style="margin-left: 2rem;">
+                    <h2 class="text-muted mb-0 settlement-title">MERGE SETTLEMENT</h2>
+                </div>
+
+                <!-- Note: no settle function/submit in this modal -->
+                <form id="merge_settlement_preview_form">
+                    <div class="block-content">
+                        <input type="hidden" name="merge_game_ids" id="mergeGameIds" value="">
+                        <input type="hidden" name="txtAccountIDMergeSettle" id="txtAccountIDMergeSettle" value="">
+
+                        <div class="row mb-2">
+                            <div class="col-sm-6">
+                                <div class="info-group">
+                                    <label class="info-label" for="accNoMerge">Name :</label>
+                                    <span class="info-value" id="accNoMerge"></span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="info-group">
+                                    <label class="info-label" for="gameNoMerge">Game Number :</label>
+                                    <span class="info-value" id="gameNoMerge"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-6">
+                                <div class="info-group">
+                                    <label class="info-label" for="dateMerge"><%= __('modal_settlement.date') %> :</label>
+                                    <span class="info-value" id="dateMerge"></span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="info-group">
+                                    <label class="info-label" for="timeMerge"><%= __('modal_settlement.time') %> :</label>
+                                    <span class="info-value" id="timeMerge"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="buyInMerge"><%= __('modal_settlement.buyin') %></label>
+                                    <input class="form-input ms-2" type="text" id="buyInMerge" name="txtBuyInMerge" style="font-weight: bold;" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="chipsReturnMerge"><%= __('modal_settlement.chips_return') %></label>
+                                    <input class="form-input ms-2" type="text" id="chipsReturnMerge" name="txtChipsReturnMerge" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="winLossMerge"><%= __('modal_settlement.win_loss') %></label>
+                                    <input class="form-input ms-2 text-primary" type="text" id="winLossMerge" name="txtWinLossMerge" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="rollingMerge"><%= __('modal_settlement.rolling') %></label>
+                                    <input class="form-input ms-2" type="text" id="rollingMerge" name="txtRollingMerge" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="rollingRateMerge"><%= __('modal_settlement.rate') %></label>
+                                    <input class="form-input ms-2" type="text" id="rollingRateMerge" name="txtRollingRateMerge" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="rollingSettlementMerge"><%= __('modal_settlement.settlement_form') %></label>
+                                    <input class="form-input ms-2" type="text" id="rollingSettlementMerge" name="txtRollingSettlementMerge" style="font-weight: bold;" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="fbMerge"><%= __('modal_settlement.services') %></label>
+                                    <input class="form-input text-danger ms-2" type="text" id="fbMerge" name="txtFNBMerge" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-12">
+                                <div class="form-group d-flex align-items-center small-input-group">
+                                    <label class="form-label" for="paymentMerge"><%= __('modal_settlement.payment') %></label>
+                                    <input class="form-input ms-2 bg-warning" type="text" id="paymentMerge" name="txtPaymentMerge" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" id="send-merge-settlement-telegram-btn" class="btn btn-sm btn-primary">Send Telegram</button>
+                        <button type="button" id="print-merge-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
+                        <button type="button" id="close-merge-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            <%= __('modal_settlement.close') %>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="receipt-print-only">
+                    <div class="receipt-print-content">
+                        <p class="receipt-brand">INFINITY CAGE</p>
+                        <p class="receipt-subtitle">Merge Settlement</p>
+                        <div class="receipt-line"></div>
+                        <p class="receipt-datetime" id="printMergeReceiptDateTime"></p>
+
+                        <div class="receipt-row"><span>Name :</span><span id="printMergeReceiptName">0</span></div>
+                        <div class="receipt-row"><span>Game Number :</span><span id="printMergeReceiptGameNo">0</span></div>
+                        <div class="receipt-line"></div>
+
+                        <div class="receipt-row"><span>Buy In :</span><span id="printMergeReceiptBuyIn">0</span></div>
+                        <div class="receipt-row"><span>Cash Out :</span><span id="printMergeReceiptCashOut">0</span></div>
+                        <div class="receipt-row"><span>W/L :</span><span id="printMergeReceiptWinLoss">0</span></div>
+                        <div class="receipt-row"><span>Rolling :</span><span id="printMergeReceiptRolling">0</span></div>
+                        <div class="receipt-row"><span>Rate :</span><span id="printMergeReceiptRate">0</span></div>
+                        <div class="receipt-row"><span>Settlement :</span><span id="printMergeReceiptSettlement">0</span></div>
+                        <div class="receipt-row"><span>Services :</span><span id="printMergeReceiptServices">0</span></div>
+                        <div class="receipt-line"></div>
+                        <div class="receipt-row receipt-total"><span>Total :</span><span id="printMergeReceiptTotal">0</span></div>
+                        <div class="receipt-line"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        function cleanValue(value) {
+            if (value === undefined || value === null) return '0';
+            var text = String(value).trim();
+            return text.length ? text : '0';
+        }
+
+        function getReceiptPrintStyles() {
+            return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:90%;margin:4mm auto;} .receipt-row{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;width:72%;min-width:120mm;margin:2mm auto;} .receipt-row span:first-child{width:35%;text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{width:35%;text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
+        }
+
+        function updateMergeReceiptPrintData($modal) {
+            var dateText = cleanValue($modal.find('#dateMerge').text());
+            var timeText = cleanValue($modal.find('#timeMerge').text());
+            $modal.find('#printMergeReceiptDateTime').text(dateText + ' ' + timeText);
+            $modal.find('#printMergeReceiptName').text(cleanValue($modal.find('#accNoMerge').text()));
+            $modal.find('#printMergeReceiptGameNo').text(cleanValue($modal.find('#gameNoMerge').text()));
+            $modal.find('#printMergeReceiptBuyIn').text(cleanValue($modal.find('#buyInMerge').val()));
+            $modal.find('#printMergeReceiptCashOut').text(cleanValue($modal.find('#chipsReturnMerge').val()));
+            $modal.find('#printMergeReceiptWinLoss').text(cleanValue($modal.find('#winLossMerge').val()));
+            $modal.find('#printMergeReceiptRolling').text(cleanValue($modal.find('#rollingMerge').val()));
+            $modal.find('#printMergeReceiptRate').text(cleanValue($modal.find('#rollingRateMerge').val()));
+            $modal.find('#printMergeReceiptSettlement').text(cleanValue($modal.find('#rollingSettlementMerge').val()));
+            $modal.find('#printMergeReceiptServices').text(cleanValue($modal.find('#fbMerge').val()));
+            $modal.find('#printMergeReceiptTotal').text(cleanValue($modal.find('#paymentMerge').val()));
+        }
+
+        function openMergeReceiptPrintWindow($modal) {
+            var receiptHtml = $modal.find('.receipt-print-only').html();
+            var iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(iframe);
+
+            var iframeDoc = iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write('<!doctype html><html><head><title>Merge Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
+            iframeDoc.close();
+
+            setTimeout(function () {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(function () {
+                    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                }, 500);
+            }, 100);
+        }
+
+        $(document).on('click', '#print-merge-settlement-btn', function () {
+            var $modal = $('#modal-merge-settlement');
+            updateMergeReceiptPrintData($modal);
+            openMergeReceiptPrintWindow($modal);
+        });
+    });
+</script>

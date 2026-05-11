@@ -3165,6 +3165,7 @@ router.get('/get_winloss', async (req, res) => {
 	
 	// For comparison with previous period
 	let prevTotalCondition = '';
+	let prevGroupCondition = '';
 
 	const currentYear = new Date().getFullYear();
 	const currentMonth = new Date().getMonth(); // 0-based
@@ -3188,11 +3189,11 @@ router.get('/get_winloss', async (req, res) => {
 		const prevIsoDate = prevDate.toISOString().slice(0, 10);
 		const prevYearWeek = `YEARWEEK('${prevIsoDate}', 1)`;
 
-		totalCondition = `AND YEARWEEK(dsg.DAILY_SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
+		totalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
 		groupCondition = totalCondition;
-		prevTotalCondition = `AND YEARWEEK(dsg.DAILY_SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
+		prevTotalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
 		prevGroupCondition = prevTotalCondition;
-		groupBy = "DAYOFWEEK(dsg.DAILY_SETTLEMENT_DATE)";
+		groupBy = "DAYOFWEEK(ds.SETTLEMENT_DATE)";
 		labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 		groupKeys = [2, 3, 4, 5, 6, 7, 1];
 		
@@ -3202,11 +3203,11 @@ router.get('/get_winloss', async (req, res) => {
 		}
 	}
  else if (range === 'month') {
-		totalCondition = `AND MONTH(dsg.DAILY_SETTLEMENT_DATE) = ${currentMonth + 1} AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear}`;
-		prevTotalCondition = `AND MONTH(dsg.DAILY_SETTLEMENT_DATE) = ${currentMonth} AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear}`;
-		prevGroupCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear}`;
-		groupBy = "MONTH(dsg.DAILY_SETTLEMENT_DATE)";
+		totalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth + 1} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
+		prevTotalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
+		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
+		groupBy = "MONTH(ds.SETTLEMENT_DATE)";
 		labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		groupKeys = Array.from({ length: 12 }, (_, i) => i + 1);
 		
@@ -3217,11 +3218,11 @@ router.get('/get_winloss', async (req, res) => {
 	} else if (range === 'year') {
 		const startYear = currentYear - 5;
 		const endYear = currentYear;
-		totalCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) BETWEEN ${startYear} AND ${endYear}`;
-		prevTotalCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) = ${currentYear - 1}`;
-		prevGroupCondition = `AND YEAR(dsg.DAILY_SETTLEMENT_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
-		groupBy = "YEAR(dsg.DAILY_SETTLEMENT_DATE)";
+		totalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear} AND ${endYear}`;
+		prevTotalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear - 1}`;
+		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
+		groupBy = "YEAR(ds.SETTLEMENT_DATE)";
 		labels = Array.from({ length: 6 }, (_, i) => `${startYear + i}`);
 		groupKeys = labels.map(Number);
 		
@@ -3240,6 +3241,7 @@ router.get('/get_winloss', async (req, res) => {
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
 		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
 		WHERE game_record.ACTIVE = 1 
 			AND (
 				(dsg.GAME_ID IS NOT NULL ${totalCondition})
@@ -3254,6 +3256,7 @@ router.get('/get_winloss', async (req, res) => {
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
 		JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+		JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
 		WHERE game_record.ACTIVE = 1 
 			${prevTotalCondition}
 	`;
@@ -3262,11 +3265,11 @@ router.get('/get_winloss', async (req, res) => {
 	let chartGroupBy = groupBy;
 	if (isCurrentPeriod) {
 		if (range === 'week') {
-			chartGroupBy = "IF(dsg.DAILY_SETTLEMENT_DATE IS NOT NULL, DAYOFWEEK(dsg.DAILY_SETTLEMENT_DATE), DAYOFWEEK(NOW()))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, DAYOFWEEK(ds.SETTLEMENT_DATE), DAYOFWEEK(NOW()))";
 		} else if (range === 'month') {
-			chartGroupBy = "IF(dsg.DAILY_SETTLEMENT_DATE IS NOT NULL, MONTH(dsg.DAILY_SETTLEMENT_DATE), MONTH(NOW()))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, MONTH(ds.SETTLEMENT_DATE), MONTH(NOW()))";
 		} else if (range === 'year') {
-			chartGroupBy = "IF(dsg.DAILY_SETTLEMENT_DATE IS NOT NULL, YEAR(dsg.DAILY_SETTLEMENT_DATE), YEAR(NOW()))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, YEAR(ds.SETTLEMENT_DATE), YEAR(NOW()))";
 		}
 	}
 
@@ -3278,6 +3281,7 @@ router.get('/get_winloss', async (req, res) => {
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
 		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
 		WHERE game_record.ACTIVE = 1 
 			AND (
 				(dsg.GAME_ID IS NOT NULL ${groupCondition})
@@ -3351,18 +3355,19 @@ router.get('/get_winloss_settlement_details', async (req, res) => {
 		if (filter === 'all' || filter === 'settled') {
 			const settledQuery = `
 				SELECT 
-					dsg.DAILY_SETTLEMENT_DATE AS settlement_date,
-					MIN(dsg.IDNo) AS settlement_id,
+					ds.SETTLEMENT_DATE AS settlement_date,
+					MIN(ds.IDNo) AS settlement_id,
 					SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
 					SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
 					'Settled' AS status
 				FROM daily_settlement_games dsg
+				JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
 				JOIN game_list ON dsg.GAME_ID = game_list.IDNo
 				JOIN game_record ON game_list.IDNo = game_record.GAME_ID
 				WHERE game_record.ACTIVE = 1
-					AND dsg.DAILY_SETTLEMENT_DATE BETWEEN ? AND ?
-				GROUP BY dsg.DAILY_SETTLEMENT_DATE
-				ORDER BY dsg.DAILY_SETTLEMENT_DATE DESC
+					AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
+				GROUP BY ds.SETTLEMENT_DATE
+				ORDER BY ds.SETTLEMENT_DATE DESC
 			`;
 
 			const [settledResults] = await pool.execute(settledQuery, [startDate, endDate]);

@@ -2,7 +2,7 @@
 
  * Business net profit — **per settlement date** (one table row per day).
 
- * - Games: daily_settlement_games.DAILY_SETTLEMENT_DATE
+ * - Games: daily_settlement.SETTLEMENT_DATE (via daily_settlement_games.DAILY_SETTLEMENT_ID)
 
  * - Expenses: expense_daily_settlement.SETTLEMENT_DATE
 
@@ -309,7 +309,7 @@ async function loadGamesInDateRange(startStr, endStr) {
 
 		`SELECT
 
-			CAST(dsg.DAILY_SETTLEMENT_DATE AS CHAR) AS settlement_day,
+			CAST(ds.SETTLEMENT_DATE AS CHAR) AS settlement_day,
 
 			gl.IDNo AS game_id,
 
@@ -321,13 +321,15 @@ async function loadGamesInDateRange(startStr, endStr) {
 
 		FROM daily_settlement_games dsg
 
+		JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+
 		JOIN game_list gl ON gl.IDNo = dsg.GAME_ID AND gl.ACTIVE != 0
 
-		WHERE CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+		WHERE CAST(ds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
 
-		  AND CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+		  AND CAST(ds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
 
-		ORDER BY dsg.DAILY_SETTLEMENT_DATE ASC, gl.IDNo ASC`,
+		ORDER BY ds.SETTLEMENT_DATE ASC, gl.IDNo ASC`,
 
 		[startStr, endStr]
 
@@ -345,13 +347,15 @@ async function loadDistinctSettlementDatesInRange(startStr, endStr) {
 
 		`SELECT DISTINCT d FROM (
 
-		   SELECT CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) AS d
+		   SELECT CAST(ds.SETTLEMENT_DATE AS DATE) AS d
 
 		   FROM daily_settlement_games dsg
 
-		   WHERE CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+		   JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
 
-		     AND CAST(dsg.DAILY_SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+		   WHERE CAST(ds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+
+		     AND CAST(ds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
 
 		   UNION
 

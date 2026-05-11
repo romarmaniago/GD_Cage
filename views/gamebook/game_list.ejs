@@ -16,23 +16,21 @@
 										<a href="/dashboard"><span class="fa fa-home"></span></a>
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
-										
+										<a href="#" id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
+										<a href="#" id="btn-breadcrumb-open-pool" class="d-none">Open</a>
 									  </div>								 
 									</div>
-									<div class="mb-2 mb-md-0 d-flex gap-2">
-										<a href="#" id="btn-game-list-export" class="btn btn-sm btn-success"><%= __('gamelist.export') || 'Export' %></a>
-										<a href="#" id="btn-daily-settle" class="btn btn-sm btn-primary"><%= __('gamelist.settle') || 'Settle' %></a>
-										<% if (permissions == 0) { %>
-											<% const undoLabel = __('gamelist.settle_undo'); %>
-											<a href="#" id="btn-daily-settle-undo" class="btn btn-sm btn-outline-danger breadcrumb-undo-settle" style="display:none;"><%= undoLabel !== 'gamelist.settle_undo' ? undoLabel : 'Undo Settle' %></a>
-										<% } %>
+									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
+										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm">
+											<i class="fa fa-compress me-1"></i>Merge Settle
+										</button>
+										<a href="#" id="btn-game-list-export" class="btn btn-sm btn-success"><i class="fa fa-download me-1"></i><%= __('gamelist.export') || 'Export' %></a>
 									</div>
-									<!-- DATE FILTER -->
 								</div>
 
 								<div class="dataTables_wrapper">
 									<div class="row mb-2">
-										<div class="col-sm-6">
+										<div class="col-12 col-lg-6">
 											<!-- Filter Mode Radio Buttons - Single set for both wrappers -->
 											<div class="filter-mode-container">
 												<div class="d-flex align-items-center gap-3">
@@ -53,19 +51,24 @@
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
 												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : (typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr);
-												const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
+												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : todayStr;
+												const queueDueDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+												const maxPickerDate = (typeof maxSettlementDate !== 'undefined' && maxSettlementDate != null && String(maxSettlementDate).trim() !== '')
+													? maxSettlementDate
+													: '';
 											%>
-												<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-													<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
-														<i class="fa fa-chevron-left"></i>
-													</button>
-													<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
-													<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
-														<i class="fa fa-chevron-right"></i>
-													</button>
+												<div class="settlement-picker-row">
+													<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= queueDueDate %>" data-initial-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>' data-draft-dates='<%= typeof draftDatesForMonth !== "undefined" ? JSON.stringify(draftDatesForMonth) : "[]" %>'>
+														<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+															<i class="fa fa-chevron-left"></i>
+														</button>
+														<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+														<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+															<i class="fa fa-chevron-right"></i>
+														</button>
+													</div>
+													<span id="settlement-subview-indicator" class="settlement-subview-badge"></span>
 												</div>
-												
 											</div>
 											
 											<!-- Date Range Picker -->
@@ -83,8 +86,11 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-center">
-													<%= __('gamelist.game_start') %>
+												<th class="d-none d-sm-table-cell text-center game-start-th">
+													<span class="game-list-select-all-slot">
+														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
+													</span>
+													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.type') %>
@@ -169,76 +175,16 @@
 					</div>
 				</div>
 
-				<!-- Daily Settlement Modal (Bootstrap) -->
-				<div class="modal fade" id="daily-settle-modal" tabindex="-1" aria-labelledby="dailySettleModalLabel" aria-hidden="true">
-					<div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-						<div class="modal-content">
-							<div class="modal-header bg-primary">
-								<h5 class="modal-title text-white" id="dailySettleModalLabel">Confirm Settlement</h5>
-								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-							</div>
-							<div class="modal-body">
-								<div class="text-start mb-3">
-									<label for="settle-modal-settlement-date" class="form-label small fw-semibold mb-1 text-muted">Settlement date:</label>
-									<input type="text" id="settle-modal-settlement-date" class="form-control form-control-sm" autocomplete="off" placeholder="Select date" />
-								</div>
-								<div class="mb-2 d-flex justify-content-between align-items-center">
-									<p class="form-label small fw-semibold mb-0 text-muted">Select games to settle:</p>
-									<label class="d-inline-flex align-items-center gap-2 mb-0" style="cursor:pointer;">
-										<input type="checkbox" class="form-check-input" id="settle-select-all-checkbox" />
-										<span class="small">Select all</span>
-									</label>
-								</div>
-								<div id="settle-eligible-list" style="max-height:280px;overflow-y:auto;border:1px solid #dee2e6;border-radius:6px;padding:8px;"></div>
-								<div id="settle-modal-error" class="text-danger small mt-2" style="display:none;"></div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-sm btn-primary" id="btn-settle-modal-confirm">Yes, Settle</button>
-								<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Daily Settlement Undo Modal (Bootstrap) -->
-				<div class="modal fade" id="daily-undo-modal" tabindex="-1" aria-labelledby="dailyUndoModalLabel" aria-hidden="true">
-					<div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-						<div class="modal-content">
-							<div class="modal-header bg-danger">
-								<h5 class="modal-title text-white" id="dailyUndoModalLabel">Undo Settlement</h5>
-								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-							</div>
-							<div class="modal-body">
-								<div class="text-start mb-3">
-									<label for="undo-modal-settlement-date" class="form-label small fw-semibold mb-1 text-muted">Settlement date:</label>
-									<input type="text" id="undo-modal-settlement-date" class="form-control form-control-sm" autocomplete="off" placeholder="Select date" />
-								</div>
-								<div class="mb-2 d-flex justify-content-between align-items-center">
-									<p class="form-label small fw-semibold mb-0 text-muted">Select games to undo:</p>
-									<label class="d-inline-flex align-items-center gap-2 mb-0" style="cursor:pointer;">
-										<input type="checkbox" class="form-check-input" id="undo-select-all-checkbox" />
-										<span class="small">Select all</span>
-									</label>
-								</div>
-								<div id="undo-eligible-list" style="max-height:280px;overflow-y:auto;border:1px solid #dee2e6;border-radius:6px;padding:8px;"></div>
-								<div id="undo-modal-error" class="text-danger small mt-2" style="display:none;"></div>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-sm btn-danger" id="btn-undo-modal-confirm">Yes, Undo</button>
-								<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
-							</div>
-						</div>
-					</div>
-				</div>
-
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 				<script>
 					document.addEventListener('DOMContentLoaded', () => {
 						const wrapper = document.querySelector('#settlement-date-wrapper .input-group');
 						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
-						const defaultDate = wrapper ? wrapper.getAttribute('data-default-settlement-date') : '';
-						const maxPickerDate = wrapper ? wrapper.getAttribute('data-max-settlement-date') : (defaultDate || todayStr);
-						window.selectedSettlementDate = defaultDate || todayStr || '';
+						const initialPickerDate = wrapper
+							? (wrapper.getAttribute('data-initial-settlement-date') || wrapper.getAttribute('data-today') || '')
+							: '';
+						const maxPickerDate = wrapper ? (wrapper.getAttribute('data-max-settlement-date') || '') : '';
+						window.selectedSettlementDate = initialPickerDate || todayStr || '';
 						var settledDates = [];
 						try {
 							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
@@ -252,26 +198,22 @@
 						}
 						const pickerEl = document.getElementById('settlement-date-picker');
 						if (pickerEl && typeof flatpickr !== 'undefined') {
-							// Calculate earliest settlement date (when settlements started)
 							var earliestSettlementDate = null;
 							if (settledDates.length > 0) {
 								var sortedDates = settledDates.slice().sort();
 								earliestSettlementDate = sortedDates[0];
 							} else {
-								// If no settled dates, allow navigation back to January 1 of previous year
 								var now = new Date();
 								var pad = function(n) { return String(n).padStart(2, '0'); };
 								var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
 								earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
 							}
-							
-							flatpickr(pickerEl, {
+							var fpSettlementOpts = {
 								dateFormat: 'Y-m-d',
 								altInput: true,
 								altFormat: 'F d, Y',
-								defaultDate: defaultDate || todayStr,
+								defaultDate: initialPickerDate || todayStr,
 								minDate: earliestSettlementDate,
-								maxDate: maxPickerDate || defaultDate || todayStr,
 								allowInput: false,
 								onDayCreate: function (dayElem) {
 									var dStr = dayDateStr(dayElem);
@@ -305,7 +247,9 @@
 										});
 									}, 0);
 								}
-							});
+							};
+							if (maxPickerDate) fpSettlementOpts.maxDate = maxPickerDate;
+							flatpickr(pickerEl, fpSettlementOpts);
 						}
 					});
 				</script>
@@ -332,19 +276,6 @@
 	font-size: 14px;
 }
 
-/* Daily settle/undo modal checkbox color */
-#daily-settle-modal .form-check-input,
-#daily-undo-modal .form-check-input {
-	border-color: #4f6df5;
-	margin-top: -2px;
-}
-
-#daily-settle-modal .form-check-input:checked,
-#daily-undo-modal .form-check-input:checked {
-	background-color: #4f6df5;
-	border-color: #4f6df5;
-}
-
 /* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
 .day-selector-wrapper {
 	position: relative;
@@ -353,6 +284,124 @@
 	bottom: 0;
 	left: 120px;
 	width: 320px;     /* Increased width to accommodate buttons */
+}
+
+.settlement-picker-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+#settlement-date-wrapper {
+	width: 430px;
+}
+
+.settlement-subview-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 86px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	border: 1px solid #d0d7e2;
+	background: #f8f9fb;
+	color: #4a5568;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	letter-spacing: 0.2px;
+}
+
+.settlement-subview-badge.is-open {
+	background: #fff7ed;
+	border-color: #fed7aa;
+	color: #c2410c;
+}
+
+.settlement-subview-badge.is-settled {
+	background: #ecfdf3;
+	border-color: #bbf7d0;
+	color: #166534;
+}
+
+.breadcrumb1.flat a.breadcrumb-crumb-armed,
+.breadcrumb1.flat a.breadcrumb-crumb-armed::after {
+	background-color: var(--bs-primary) !important;
+	color: #fff !important;
+	font-weight: 600;
+	border-color: #28a745 !important;
+}
+
+#btn-merge-settle-game-list.merge-settle-active {
+	box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.35);
+}
+
+.daily-settle-checkbox-wrap,
+.merge-settle-checkbox-wrap {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin-right: 6px;
+	margin-bottom: 0;
+}
+
+body.daily-settle-select-mode .daily-settle-checkbox-wrap {
+	display: inline-flex;
+}
+
+body.merge-settle-mode .merge-settle-checkbox-wrap {
+	display: inline-flex;
+}
+
+.game-start-th {
+	white-space: nowrap;
+}
+
+.game-list-select-all-slot {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin-right: 4px;
+	vertical-align: middle;
+}
+
+body.daily-settle-select-mode .game-list-select-all-slot,
+body.merge-settle-mode .game-list-select-all-slot,
+body.open-pool-select-mode .game-list-select-all-slot {
+	display: inline-flex;
+}
+
+.game-list-select-all-cb {
+	width: 15px;
+	height: 15px;
+	cursor: pointer;
+	vertical-align: middle;
+}
+
+.game-start-th-label {
+	vertical-align: middle;
+}
+
+.open-pool-checkbox-wrap {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 6px;
+	margin-bottom: 0;
+}
+
+.open-pool-checkbox {
+	width: 15px;
+	height: 15px;
+	cursor: pointer;
+	vertical-align: middle;
+}
+
+.daily-settle-checkbox,
+.merge-settle-checkbox {
+	width: 15px;
+	height: 15px;
+	cursor: pointer;
 }
 
 /* Settlement Date Navigation Buttons */
@@ -1216,6 +1265,7 @@ table.dataTable tbody tr.highlight-row {
 										<%- include ('../modals/game_book/add_roller_chips') %>
 											<%- include ('../modals/game_book/show_rollings') %>
 												<%- include ('../modals/game_book/settlement') %>
+													<%- include ('../modals/game_book/merge_settlement') %>
 													<%- include ('../modals/game_book/game_services') %>
 														<%- include ('../modals/accounts/account_details') %>
 														<%- include ('../modals/accounts/transfer_account') %>
