@@ -1878,7 +1878,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record
+    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 

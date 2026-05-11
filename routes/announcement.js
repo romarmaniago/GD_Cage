@@ -18,8 +18,21 @@ const uploadAnnouncementImg = multer({
 	}
 });
 
-// GET route removed - modal is now accessible from topbar on all pages
-// Only POST /announcement/create is needed for form submission
+// Eligible agents for announcement (active + Telegram ID)
+router.get('/announcement/agents', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.query(
+			`SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID
+			 FROM agent
+			 WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
+			 ORDER BY AGENT_CODE ASC, NAME ASC`
+		);
+		res.json({ success: true, agents: rows });
+	} catch (error) {
+		console.error('Error listing announcement agents:', error);
+		res.status(500).json({ success: false, error: error.message || 'Failed to load agents' });
+	}
+});
 
 // POST route to create and send announcement
 router.post("/announcement/create", checkSession, (req, res, next) => {
@@ -46,7 +59,7 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 	});
 }, async (req, res) => {
 	try {
-		const { message } = req.body;
+		const { message, agent_ids: agentIdsRaw } = req.body;
 		const pictureFile = req.file;
 		const messageText = message ? message.trim() : '';
 
@@ -58,10 +71,34 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 			});
 		}
 
-		// Get all agents with TELEGRAM_ID, then dedupe by chat id to avoid duplicate sends
+		let selectedIds = [];
+		if (agentIdsRaw) {
+			try {
+				const parsed = JSON.parse(agentIdsRaw);
+				if (Array.isArray(parsed)) {
+					selectedIds = [...new Set(
+						parsed.map((id) => parseInt(String(id), 10)).filter((n) => Number.isInteger(n) && n > 0)
+					)];
+				}
+			} catch (_) {
+				// ignore invalid JSON
+			}
+		}
+
+		if (selectedIds.length === 0) {
+			return res.status(400).json({
+				success: false,
+				error: 'Please select at least one agent'
+			});
+		}
+
 		const [agents] = await pool.query(
-			'SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID FROM agent WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""'
+			`SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID FROM agent
+			 WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
+			 AND IDNo IN (?)`,
+			[selectedIds]
 		);
+
 		const seenTelegramIds = new Set();
 		const uniqueAgents = agents.filter((agent) => {
 			const telegramId = String(agent.TELEGRAM_ID).trim();
@@ -71,9 +108,9 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 		});
 
 		if (uniqueAgents.length === 0) {
-			return res.status(400).json({ 
-				success: false, 
-				error: 'No agents with Telegram ID found' 
+			return res.status(400).json({
+				success: false,
+				error: 'No eligible agents match your selection'
 			});
 		}
 

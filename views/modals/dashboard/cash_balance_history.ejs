@@ -93,7 +93,8 @@ $(document).ready(function() {
   });
 
   function getSelectedType() {
-    return $('#cash-balance-filter .filter-link.active').data('type') || 'all';
+    const selectedType = $('#cash-balance-filter .filter-link.active').data('type');
+    return selectedType == null ? 'all' : String(selectedType);
   }
 
   function formatAmount(value) {
@@ -194,10 +195,22 @@ $(document).ready(function() {
         if (hasServiceTxnId) {
           if (data.serviceTransactionId === 3) {
             $('td:eq(0), td:eq(1)', row).addClass('text-primary');
+            return;
+          }
+          // game_services cash (1) / deposit (2): same coloring as other cash-in / cash-out rows
+          if (data.typeValue === 1) {
+            $('td:eq(0), td:eq(1)', row).addClass('text-success');
+          } else if (data.typeValue === 2) {
+            $('td:eq(0), td:eq(1)', row).addClass('text-danger');
           }
           return;
         }
         if (getServiceCategories().includes(category)) {
+          if (data.typeValue === 1) {
+            $('td:eq(0), td:eq(1)', row).addClass('text-success');
+          } else if (data.typeValue === 2) {
+            $('td:eq(0), td:eq(1)', row).addClass('text-danger');
+          }
           return;
         }
         if (data.typeValue === 1) {

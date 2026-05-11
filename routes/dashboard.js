@@ -1367,12 +1367,30 @@ router.get('/cash_in_details', async (req, res) => {
 			`
 			SELECT
 				al.IDNo,
+				al.GAME_ID,
 				al.AMOUNT,
 				al.REMARKS,
 				al.ENCODED_BY,
 				al.ENCODED_DT,
 				ag.NAME AS AGENT_NAME,
-				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
+				(
+					SELECT ct.REMARKS
+					FROM cash_transaction ct
+					WHERE ct.ACTIVE = 1
+						AND ct.TYPE = 1
+						AND ct.CATEGORY = 'Commission Deposit'
+						AND (
+							(al.GAME_ID IS NOT NULL AND al.GAME_ID != 0 AND ct.TRANSACTION_ID = al.GAME_ID)
+							OR (
+								(al.GAME_ID IS NULL OR al.GAME_ID = 0)
+								AND ABS(TIMESTAMPDIFF(SECOND, ct.ENCODED_DT, al.ENCODED_DT)) <= 5
+								AND ABS(CAST(ct.AMOUNT AS DECIMAL(18,2)) - CAST(al.AMOUNT AS DECIMAL(18,2))) < 0.02
+							)
+						)
+					ORDER BY ct.IDNo DESC
+					LIMIT 1
+				) AS cash_txn_remarks
 			FROM account_ledger al
 			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
 			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
@@ -1387,20 +1405,33 @@ router.get('/cash_in_details', async (req, res) => {
 			dateParams
 		);
 
-		const settlementDepositRows = settlementDepositRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.IDNo,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Commission Deposit',
-			TYPE: 1,
-			REMARKS: row.REMARKS || '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: row.AGENT_NAME || '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
-		}));
+		const settlementDepositRows = settlementDepositRaw.map((row) => {
+			const gid = row.GAME_ID != null && Number(row.GAME_ID) > 0 ? row.GAME_ID : null;
+			const ledgerRem = row.REMARKS && String(row.REMARKS).trim();
+			const fromCash = row.cash_txn_remarks && String(row.cash_txn_remarks).trim();
+			let remarks = '';
+			if (gid) {
+				remarks = `Game - ${gid}${ledgerRem ? ` | ${ledgerRem}` : ''}`;
+			} else if (fromCash) {
+				remarks = fromCash;
+			} else {
+				remarks = ledgerRem || '';
+			}
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.IDNo,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Commission Deposit',
+				TYPE: 1,
+				REMARKS: remarks,
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: row.AGENT_NAME || '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null
+			};
+		});
 
 		// 4. Chips cash-out to casino (TotalChipsCashout)
 		const [chipsCashoutRaw] = await pool.execute(

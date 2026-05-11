@@ -1,7 +1,40 @@
 <!-- Modal for New Announcement -->
+<style>
+	#modal-new-announcement .announcement-agent-cb,
+	#modal-new-announcement .announcement-select-all-cb {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid #1f3a8a;
+		border-radius: 0.25rem;
+		background-color: #fff;
+		cursor: pointer;
+		accent-color: #1f3a8a;
+		flex-shrink: 0;
+	}
+	#modal-new-announcement .announcement-agent-cb {
+		margin-top: 0.2em;
+	}
+	#modal-new-announcement .announcement-select-all-cb {
+		margin-top: 0;
+	}
+	#modal-new-announcement .announcement-agent-cb:checked,
+	#modal-new-announcement .announcement-select-all-cb:checked {
+		background-color: #1f3a8a;
+		border-color: #1f3a8a;
+	}
+	#modal-new-announcement .announcement-agent-cb:focus,
+	#modal-new-announcement .announcement-select-all-cb:focus {
+		border-color: #1f3a8a;
+		box-shadow: 0 0 0 0.2rem rgba(31, 58, 138, 0.28);
+	}
+	#modal-new-announcement .announcement-agents-search-wrap {
+		max-width: 220px;
+		flex: 0 0 auto;
+	}
+</style>
 <div class="modal fade" id="modal-new-announcement" role="dialog" aria-labelledby="modal-new-announcement-label" aria-hidden="true"
 	data-keyboard="false" data-bs-backdrop="static">
-	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+	<div class="modal-dialog modal-dialog-centered modal-xl" role="document">
 		<div class="modal-content">
 			<div class="modal-header bg-primary">
 				<h5 class="block-title text-white" id="modal-new-announcement-label"><%= __('modal_new_announcement.new_announcement') %></h5>
@@ -43,6 +76,24 @@
 							</div>
 						</div>
 					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label">Recipients (Telegram)</label>
+							<div class="d-flex align-items-center justify-content-between gap-2 flex-wrap w-100 mb-2">
+								<div class="d-flex align-items-center gap-1 flex-shrink-0">
+									<input type="checkbox" class="form-check-input announcement-select-all-cb mt-0 flex-shrink-0" id="announcement-select-all-cb" autocomplete="off">
+									<label class="form-check-label small mb-0 text-nowrap" for="announcement-select-all-cb">Select all</label>
+								</div>
+								<div class="announcement-agents-search-wrap flex-shrink-0">
+									<input type="search" class="form-control form-control-sm w-100" id="announcement-agents-search" placeholder="Search" autocomplete="off">
+								</div>
+							</div>
+							<div class="border rounded p-2" style="max-height: 260px; overflow-y: auto;">
+								<div id="announcement-agents-list" class="row g-2"></div>
+							</div>
+						</div>
+					</div>
 					
 					<div class="modal-footer">
 						<button type="submit" class="btn btn-sm btn-primary" id="submit-announcement-btn">
@@ -59,6 +110,10 @@
 window.announcementModalTranslations = {
 	validation_error: "<%= __('modal_new_announcement.validation_error') %>",
 	please_enter_message_or_picture: "<%= __('modal_new_announcement.please_enter_message_or_picture') %>",
+	please_select_at_least_one_agent: "Please select at least one agent.",
+	loading_agents: "Loading agents...",
+	load_agents_failed: "Could not load the agent list.",
+	no_agents_available: "No active agents with a Telegram ID.",
 	sending: "<%= __('modal_new_announcement.sending') %>",
 	success: "<%= __('modal_new_announcement.success') %>",
 	error: "<%= __('modal_new_announcement.error') %>",

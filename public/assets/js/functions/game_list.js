@@ -1145,8 +1145,12 @@ $(document).ready(function () {
 					var total_roller_cc = 0;
 					var total_roller_return_cc = 0;
                             var total_roller_return_cc = 0;
+                            var isMarkerGameRow = false;
 
                             response.forEach(function (res) {
+                                if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+                                    isMarkerGameRow = true;
+                                }
                                 if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
                                     total_buy_in = total_buy_in + res.AMOUNT;
                                     total_nn = total_nn + res.NN_CHIPS;
@@ -1192,6 +1196,12 @@ $(document).ready(function () {
                                     }
                                 }
                             });
+
+							var buyinBtnStyle = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRow ? 'color:#dc3545 !important;' : '');
+							var formatBuyinPlain = function (amt) {
+								var s = parseFloat(amt).toLocaleString();
+								return isMarkerGameRow ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
+							};
 	
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
@@ -1301,7 +1311,7 @@ $(document).ready(function () {
 									}
 								}
 
-								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
@@ -1416,17 +1426,17 @@ $(document).ready(function () {
 								
 								// No add when settled (all users). When not settled, Super admin can add
 								if (isSettled) {
-									buyin_td = parseFloat(total_amount).toLocaleString();
+									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
-									buyin_td = parseFloat(total_amount).toLocaleString();
+									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
@@ -1535,17 +1545,17 @@ $(document).ready(function () {
 	
 								// No add when settled (all users). When not settled, Super admin can add Buy-in, Cash-out, Rolling
 								if (isSettled) {
-									buyin_td = parseFloat(total_amount).toLocaleString();
+									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
-									buyin_td = parseFloat(total_amount).toLocaleString();
+									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
@@ -4460,7 +4470,6 @@ $('#modal-add-roller-chips').on('hidden.bs.modal', function () {
 });
 
 function addCashout(id, account, total_rolling_chips) {
-	$('#modal-add-cashout').modal('show');
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -4492,7 +4501,108 @@ function addCashout(id, account, total_rolling_chips) {
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
 	$('#TotalRollingCashout').val(total_rolling_chips);
-	
+
+	function wireCashoutMarkerWarnings(isMarkerGame) {
+		var $cashoutModal = $('#modal-add-cashout');
+
+		var askMarkerCashoutWarning = function () {
+			if (!isMarkerGame) return Promise.resolve(true);
+			return Swal.fire({
+				icon: 'warning',
+				title: 'Warning',
+				text: 'This is a marker game. Have you confirmed the Cash Out?',
+				confirmButtonText: 'Yes',
+				cancelButtonText: 'No',
+				showCancelButton: true,
+				allowOutsideClick: false,
+				allowEscapeKey: true
+			}).then(function (result) {
+				return !!result.isConfirmed;
+			});
+		};
+
+		var $cashoutTransTypes = $cashoutModal.find('input[name="txtTransType"]');
+		var previousTransType = ($cashoutTransTypes.filter(':checked').val() || '').toString();
+		var suppressTransTypeWarning = false;
+		$cashoutTransTypes
+			.off('change.marker-warning')
+			.on('change.marker-warning', function () {
+				if (suppressTransTypeWarning) return;
+				var selectedType = ($(this).val() || '').toString();
+				if (selectedType !== '1' && selectedType !== '2') {
+					previousTransType = selectedType;
+					return;
+				}
+				askMarkerCashoutWarning().then(function (confirmed) {
+					if (confirmed) {
+						previousTransType = selectedType;
+						return;
+					}
+					suppressTransTypeWarning = true;
+					$cashoutTransTypes.prop('checked', false);
+					if (previousTransType) {
+						$cashoutModal.find('input[name="txtTransType"][value="' + previousTransType + '"]').prop('checked', true);
+					}
+					suppressTransTypeWarning = false;
+				});
+			});
+
+		var $splitToggle = $cashoutModal.find('#enableSplitCashout');
+		var syncSplitUiState = function (isOn) {
+			var splitRowEl = document.getElementById('split-cashout-row');
+			var transTypeRowEl = document.getElementById('trans-type-row');
+			var nnCcRowEl = document.getElementById('nn-cc-row');
+			if (splitRowEl) splitRowEl.style.display = isOn ? '' : 'none';
+			if (transTypeRowEl) transTypeRowEl.style.display = isOn ? 'none' : '';
+			if (nnCcRowEl) nnCcRowEl.style.display = isOn ? 'none' : '';
+		};
+		var suppressSplitWarning = false;
+		$splitToggle
+			.off('change.marker-warning')
+			.on('change.marker-warning', function () {
+				if (suppressSplitWarning || !isMarkerGame) return;
+				var $this = $(this);
+				if (!$this.is(':checked')) return;
+
+				suppressSplitWarning = true;
+				$this.prop('checked', false).trigger('change');
+				syncSplitUiState(false);
+				suppressSplitWarning = false;
+
+				askMarkerCashoutWarning().then(function (confirmed) {
+					if (!confirmed) {
+						syncSplitUiState(false);
+						return;
+					}
+					suppressSplitWarning = true;
+					$this.prop('checked', true).trigger('change');
+					syncSplitUiState(true);
+					suppressSplitWarning = false;
+				});
+			});
+	}
+
+	$.ajax({
+		url: '/game_list/' + id + '/record',
+		method: 'GET',
+		success: function (response) {
+			if (parseInt($('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
+			var isMarkerGame = false;
+			(response || []).forEach(function (res) {
+				if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+					isMarkerGame = true;
+				}
+			});
+			wireCashoutMarkerWarnings(isMarkerGame);
+			$('#modal-add-cashout').modal('show');
+		},
+		error: function () {
+			if (parseInt($('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
+			wireCashoutMarkerWarnings(false);
+			$('#modal-add-cashout').modal('show');
+		}
+	});
+
 	$.ajax({
 		url: '/account_details_data_deposit/' + account,
 		method: 'GET',
@@ -6079,8 +6189,12 @@ $(document).ready(function () {
 							var total_roller_nn = 0;
 							var total_roller_cc = 0;
 							var total_roller_return_cc = 0;
+							var isMarkerGameRowStats = false;
 
 							response.forEach(function (res) {
+								if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+									isMarkerGameRowStats = true;
+								}
 
 								if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
 									total_buy_in = total_buy_in + res.AMOUNT;
@@ -6129,6 +6243,12 @@ $(document).ready(function () {
 
 			});
 
+							var buyinBtnStyleStats = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRowStats ? 'color:#dc3545 !important;' : '');
+							var formatBuyinPlainStats = function (amt) {
+								var s = parseFloat(amt).toLocaleString();
+								return isMarkerGameRowStats ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
+							};
+
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
@@ -6168,7 +6288,7 @@ $(document).ready(function () {
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
 									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:10px !important;">${onGameText}</button>`;
 
-								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
@@ -6179,7 +6299,7 @@ $(document).ready(function () {
 								const pendingText = "PENDING";
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 								
-								buyin_td = parseFloat(total_amount).toLocaleString();
+								buyin_td = formatBuyinPlainStats(total_amount);
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
                                 var actionButtons = btn_services + btn_his;
@@ -6193,7 +6313,7 @@ $(document).ready(function () {
 								//END GAME STATUS NOT EDITABLE
 								status = `<a href="#" value="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID })">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
 
-								buyin_td = parseFloat(total_amount).toLocaleString();
+								buyin_td = formatBuyinPlainStats(total_amount);
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 								
