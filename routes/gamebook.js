@@ -110,6 +110,21 @@ function telegramSettlementGameTypeLines(rawGameType) {
 	};
 }
 
+/** Client sends YYYY-MM-DD (New Game modal); combine with server clock for ENCODED_DT / TRADING_DATE. */
+function parseGameListEncodedDateTime(ymdRaw) {
+	const s = ymdRaw == null ? '' : String(ymdRaw).trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date();
+	const parts = s.split('-').map((n) => parseInt(n, 10));
+	const y = parts[0];
+	const mo = parts[1];
+	const d = parts[2];
+	if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return new Date();
+	const now = new Date();
+	const dt = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+	if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return new Date();
+	return dt;
+}
+
 // ======================= GAME LIST ==================
 
 router.get("/game_list", checkSession, async function (req, res) {
@@ -471,7 +486,6 @@ router.get('/game_list_available_chips', async (_req, res) => {
 router.post('/add_game_list', async (req, res) => {
 	const {
 		txtAccountCode,
-		txtChips,
 		txtGameNo,
 		txtAmount,
 		txtGameType,
@@ -483,10 +497,11 @@ router.post('/add_game_list', async (req, res) => {
 		txtGuestId,
 		txtCommisionType,
 		txtCommisionRate,
-		totalBalanceGuest1
+		totalBalanceGuest1,
+		txtGameEncodedDate
 	} = req.body;
 
-	const date_now = new Date();
+	const date_now = parseGameListEncodedDateTime(txtGameEncodedDate);
 
 	// 🛡 Clean inputs and fallbacks
 	const accountId = parseInt(txtAccountCode) || null;
@@ -494,7 +509,6 @@ router.post('/add_game_list', async (req, res) => {
 	const parsedGameNo = parseInt(txtGameNo, 10);
 	// Backward compatible: current UI may not submit txtGameNo.
 	const gameNo = Number.isNaN(parsedGameNo) ? 0 : parsedGameNo;
-	const chips = parseFloat((txtChips || '0').replace(/,/g, '')) || 0;
 	const guestId = parseInt(txtGuestId, 10) || null;
 	const commType = txtCommisionType || null;
 	const commRate = parseFloat((txtCommisionRate || '0').replace(/,/g, '')) || 0;
@@ -521,9 +535,9 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, chips, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, date_now]
 		);
 
 		const gameId = result.insertId;
@@ -716,6 +730,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
+		txtGameEncodedDate,
 		split_cash_nn,
 		split_cash_cc,
 		split_dep_nn,
@@ -752,7 +767,7 @@ router.post('/add_game_list_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
-	const date_now = new Date();
+	const date_now = parseGameListEncodedDateTime(txtGameEncodedDate);
 
 	if (!accountId || encodedBy === null) {
 		return res.status(400).json({ error: 'Invalid account or session.' });
@@ -788,9 +803,9 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, 'SPLIT', grandTotal, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, date_now]
 		);
 		const gameId = gameResult.insertId;
 

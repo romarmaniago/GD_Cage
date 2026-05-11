@@ -4117,7 +4117,6 @@ pageRouter.put('/account_details/remove/:id', (req, res) => {
 pageRouter.post('/add_game_list', (req, res) => {
 	const {
 		txtAccountCode,
-		txtChips,
 		txtGameNo,
 		txtAmount,
 		txtGameType,
@@ -4127,9 +4126,22 @@ pageRouter.post('/add_game_list', (req, res) => {
 		txtGuestId,
 		txtCommisionType,
 		txtCommisionRate,
-		totalBalanceGuest1
+		totalBalanceGuest1,
+		txtGameEncodedDate
 	} = req.body;
+	const rawGameDate = txtGameEncodedDate == null ? '' : String(txtGameEncodedDate).trim();
 	let date_now = new Date();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(rawGameDate)) {
+		const parts = rawGameDate.split('-').map((n) => parseInt(n, 10));
+		const y = parts[0];
+		const mo = parts[1];
+		const d = parts[2];
+		const now = new Date();
+		const dt = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+		if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+			date_now = dt;
+		}
+	}
 
 	let txtNNamount = txtNN.split(',').join("");
 	let txtCCamount = txtCC.split(',').join("");
@@ -4161,8 +4173,8 @@ pageRouter.post('/add_game_list', (req, res) => {
 
 
 	const guestId = parseInt(txtGuestId, 10) || null;
-	const query = `INSERT INTO game_list(ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	connection.query(query, [txtAccountCode, guestId, txtGameType, initialMOP, txtGameNo, txtChips, txtCommisionType, txtCommisionRate, req.session.user_id, date_now], async (err, result) => {
+	const query = `INSERT INTO game_list(ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	connection.query(query, [txtAccountCode, guestId, txtGameType, initialMOP, txtGameNo, txtCommisionType, txtCommisionRate, req.session.user_id, date_now], async (err, result) => {
 		if (err) {
 			console.error('Error inserting into game_list:', err);
 			res.status(500).send('Error inserting details');
