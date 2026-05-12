@@ -112,29 +112,27 @@
 
     #modal-settlement .receipt-line {
         border-top: 1px solid #000;
-        width: 90%;
+        width: 104mm;
         margin: 4mm auto;
     }
 
     #modal-settlement .receipt-row {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 42mm 42mm;
+        justify-content: center;
         align-items: baseline;
-        gap: 3mm;
-        width: 72%;
-        min-width: 120mm;
-        margin: 2mm auto;
+        column-gap: 18mm;
+        width: 100%;
+        margin: 1mm auto;
     }
 
     #modal-settlement .receipt-row span:first-child {
-        width: 35%;
         text-align: right;
         font-weight: 700;
         white-space: nowrap;
     }
 
     #modal-settlement .receipt-row span:last-child {
-        width: 35%;
         text-align: left;
         font-weight: 700;
         white-space: nowrap;
@@ -356,7 +354,7 @@
         <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
         <div class="receipt-row"><span>F&amp;B :</span><span id="printReceiptFnb">0</span></div>
         <div class="receipt-row"><span>Hotel :</span><span id="printReceiptHotel">0</span></div>
-        <div class="receipt-row"><span>Incidential :</span><span id="printReceiptIncidential">0</span></div>
+        <div class="receipt-row"><span>Incidental :</span><span id="printReceiptIncidential">0</span></div>
         <div class="receipt-line"></div>
 
         <div class="receipt-row receipt-total"><span>Total :</span><span id="printReceiptTotal">0</span></div>
@@ -535,7 +533,7 @@
     }
 
     function getReceiptPrintStyles() {
-        return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:90%;margin:4mm auto;} .receipt-row{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;width:72%;min-width:120mm;margin:2mm auto;} .receipt-row span:first-child{width:35%;text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{width:35%;text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
+        return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:104mm;margin:4mm auto;} .receipt-row{display:grid;grid-template-columns:42mm 42mm;justify-content:center;align-items:baseline;column-gap:18mm;width:100%;margin:1mm auto;} .receipt-row span:first-child{text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
     }
 
     function openReceiptPrintWindow($modal) {
