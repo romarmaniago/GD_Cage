@@ -6892,6 +6892,7 @@ function settlement_history(record_id, acc_id) {
 
     $('#submit-settlement-btn').off('click').on('click', function (e) {
         e.preventDefault(); // Prevent any default behavior
+        var $settlementModal = $(this).closest('#modal-settlement');
 
         console.log('Button clicked. isSettled:', isSettled);
         if (isSettled) {
@@ -6910,7 +6911,7 @@ function settlement_history(record_id, acc_id) {
         var fnbDisplay = $('#fbDisplay').val().replace(/,/g, '') || '0';
         var hotelDisplay = $('#hotelDisplay').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
-        var transType = $('input[name="txtTransType"]:checked').val();
+        var transType = $settlementModal.find('input[name="txtTransType"]:checked').val();
         if (!transType || (transType !== '1' && transType !== '5')) {
             Swal.fire({
                 icon: 'warning',
@@ -7005,7 +7006,7 @@ function settlement_history(record_id, acc_id) {
                     Loading...
                 `);
                 
-                var formData = $('#add_settlement').serialize(); // Serialize form data
+                var formData = $settlementModal.find('#add_settlement').serialize(); // Serialize form data
 
                 $.ajax({
                     type: 'POST',
