@@ -54,6 +54,17 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			// keep defaultSettlementDate = todayStr
 		}
 
+		let initialSettlementDate = todayStr;
+		const urlDate = req.query.date;
+		if (urlDate) {
+			if (urlDate === 'current') {
+				initialSettlementDate = todayStr;
+			} else if (/^\d{4}-\d{2}-\d{2}$/.test(urlDate)) {
+				initialSettlementDate = urlDate;
+			}
+		}
+		const maxSettlementDate = null;
+
 		let settledDatesForMonth = [];
 		try {
 			const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
@@ -90,7 +101,8 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			...sessions(req, 'house_expense'),
 			permissions: permissions,
 			defaultSettlementDate: defaultSettlementDate,
-			maxSettlementDate: defaultSettlementDate,
+			initialSettlementDate: initialSettlementDate,
+			maxSettlementDate: maxSettlementDate,
 			settledDatesForMonth: settledDatesForMonth,
 			todayStr: todayStr,
 			expenseCategoryCatalog: expenseCategoryCatalog
@@ -316,7 +328,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 // Settlement filter: date=current (unsettled), date=YYYY-MM-DD settled that day, or date >= next-day-after-last-settlement with no row → unsettled (local calendar)
 router.get('/junket_house_expense_data', async (req, res) => {
 	try {
-		let { fromDate, toDate, date } = req.query;
+		let { fromDate, toDate, date, settlement_view } = req.query;
+		const settlementView = settlement_view === 'settled' ? 'settled' : 'open';
 
 		// If 'date' parameter is provided, use settlement filtering logic
 		if (date !== undefined && date !== null && date !== '') {
@@ -396,7 +409,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					[date]
 				);
 				
-				if (hasSettlement.length > 0) {
+				if (hasSettlement.length > 0 && settlementView !== 'open') {
 					// Show expenses from this settlement
 					const query = `
 						SELECT 
@@ -468,32 +481,13 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					return res.json(updatedResult);
 				}
 
-				// Same "next settlement date" rule as Game Book / house_expense page (local calendar today).
+				// Open pool: same as Game List — only calendar *today* shows unsettled rows; any other YYYY-MM-DD → [].
 				const nowLocal = new Date();
 				const padL = (n) => String(n).padStart(2, '0');
 				const todayStr = `${nowLocal.getFullYear()}-${padL(nowLocal.getMonth() + 1)}-${padL(nowLocal.getDate())}`;
-				let defaultSettlementDate = todayStr;
-				try {
-					const [lastRows] = await pool.execute(
-						'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1'
-					);
-					const lastSettlement = lastRows[0] && lastRows[0].last_settlement;
-					if (lastSettlement) {
-						const last =
-							lastSettlement instanceof Date
-								? lastSettlement
-								: new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
-						const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-						defaultSettlementDate = `${nextDate.getFullYear()}-${padL(nextDate.getMonth() + 1)}-${padL(
-							nextDate.getDate()
-						)}`;
-					}
-				} catch (e) {
-					// keep defaultSettlementDate = todayStr
-				}
 
-				if (date >= defaultSettlementDate) {
-					// On or after next eligible settlement day: show all unsettled (missed day can be settled next calendar day).
+				if (settlementView === 'open' && date === todayStr) {
+					// Today's open list: all items not yet linked to an active settlement.
 					const query = `
 						SELECT 
 							e.IDNo,
@@ -560,7 +554,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					return res.json(updatedResult);
 				}
 
-				// Before next eligible settlement day and no row for this date: empty
+				// Open on a date other than today, or settled with no batch for this date: empty (matches Game List).
 				return res.json([]);
 			}
 		}
@@ -1253,19 +1247,74 @@ router.get('/expense_settlement_info', async (req, res) => {
 	}
 });
 
-// POST run daily settlement for expenses (move all unsettled expenses into today's settlement)
-router.post('/expense_daily_settlement/run', async (req, res) => {
+function normalizeExpenseSettlementItems(body) {
+	const items = [];
+	const seen = new Set();
+
+	if (Array.isArray(body?.items)) {
+		body.items.forEach((item) => {
+			const type = item?.type === 'return_money' ? 'return_money' : 'expense';
+			const id = parseInt(item?.id, 10);
+			if (!Number.isInteger(id) || id <= 0) return;
+			const key = `${type}:${id}`;
+			if (seen.has(key)) return;
+			seen.add(key);
+			items.push({ type, id });
+		});
+	}
+
+	const addIds = (ids, type) => {
+		if (!Array.isArray(ids)) return;
+		ids.forEach((rawId) => {
+			const id = parseInt(rawId, 10);
+			if (!Number.isInteger(id) || id <= 0) return;
+			const key = `${type}:${id}`;
+			if (seen.has(key)) return;
+			seen.add(key);
+			items.push({ type, id });
+		});
+	};
+
+	addIds(body?.expense_ids, 'expense');
+	addIds(body?.return_money_ids, 'return_money');
+
+	return items;
+}
+
+async function cleanupEmptyExpenseSettlements(connection, settlementIds) {
+	const uniqueSettlementIds = Array.from(new Set(settlementIds)).filter(
+		(id) => Number.isInteger(Number(id)) && Number(id) > 0
+	);
+
+	for (const settlementId of uniqueSettlementIds) {
+		const [countRows] = await connection.execute(
+			`SELECT COUNT(*) AS cnt FROM expense_daily_settlement_items WHERE DAILY_SETTLEMENT_ID = ?`,
+			[settlementId]
+		);
+		const childCount = countRows && countRows[0] ? Number(countRows[0].cnt) : 0;
+		if (childCount === 0) {
+			await connection.execute(`DELETE FROM expense_daily_settlement WHERE IDNo = ?`, [settlementId]);
+		}
+	}
+}
+
+// POST assign expenses/return money to settlement date (Game Book-style transfer)
+router.post('/expense_daily_settlement/transfer', checkSession, async (req, res) => {
 	const encodedBy = req.session?.user_id;
 	if (!encodedBy) {
 		return res.status(401).json({ error: 'Not authenticated' });
 	}
-	const settlementDate = (req.body && req.body.settlement_date) 
-		? req.body.settlement_date 
-		: new Date().toISOString().slice(0, 10);
+
+	const requestedItems = normalizeExpenseSettlementItems(req.body);
+	if (requestedItems.length === 0) {
+		return res.status(400).json({ error: 'At least one expense or return money record is required.' });
+	}
+
+	const settlementDate = req.body && req.body.settlement_date ? String(req.body.settlement_date).slice(0, 10) : null;
 
 	const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-	if (!isValidDate(settlementDate)) {
-		return res.status(400).json({ error: 'Invalid settlement_date. Use YYYY-MM-DD.' });
+	if (!settlementDate || !isValidDate(settlementDate)) {
+		return res.status(400).json({ error: 'settlement_date (YYYY-MM-DD) is required.' });
 	}
 
 	let connection;
@@ -1273,92 +1322,267 @@ router.post('/expense_daily_settlement/run', async (req, res) => {
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
-		// Check if settlement for this date already exists
-		const [existing] = await connection.execute(
-			'SELECT IDNo FROM expense_daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1',
-			[settlementDate]
-		);
-		if (existing.length > 0) {
+		const requestedExpenseIds = requestedItems.filter((item) => item.type === 'expense').map((item) => item.id);
+		const requestedReturnMoneyIds = requestedItems.filter((item) => item.type === 'return_money').map((item) => item.id);
+		const okItems = [];
+
+		if (requestedExpenseIds.length > 0) {
+			const placeholders = requestedExpenseIds.map(() => '?').join(',');
+			const [expenseRows] = await connection.execute(
+				`SELECT IDNo FROM junket_house_expense WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
+				requestedExpenseIds
+			);
+			(expenseRows || []).forEach((row) => okItems.push({ type: 'expense', id: row.IDNo }));
+		}
+
+		if (requestedReturnMoneyIds.length > 0) {
+			const placeholders = requestedReturnMoneyIds.map(() => '?').join(',');
+			const [returnMoneyRows] = await connection.execute(
+				`SELECT IDNo FROM junket_return_money WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
+				requestedReturnMoneyIds
+			);
+			(returnMoneyRows || []).forEach((row) => okItems.push({ type: 'return_money', id: row.IDNo }));
+		}
+
+		if (okItems.length === 0) {
 			await connection.rollback();
 			connection.release();
-			return res.status(400).json({ error: 'Settlement for this date already exists.' });
+			return res.status(400).json({ error: 'No matching active expense or return money records found.' });
 		}
 
-		// Create settlement record
-		const [insertSettlement] = await connection.execute(
-			`INSERT INTO expense_daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
-			 VALUES (?, NOW(), ?, 'finalized', 1)`,
-			[settlementDate, encodedBy]
+		const affectedSettlementIds = [];
+		for (const item of okItems) {
+			const [oldSettlementRows] = await connection.execute(
+				`SELECT DISTINCT eds.IDNo
+				 FROM expense_daily_settlement_items edsi
+				 JOIN expense_daily_settlement eds ON eds.IDNo = edsi.DAILY_SETTLEMENT_ID
+				 WHERE eds.ACTIVE = 1
+				   AND edsi.EXPENSE_ID = ?
+				   AND edsi.EXPENSE_TYPE = ?`,
+				[item.id, item.type]
+			);
+			(oldSettlementRows || []).forEach((row) => affectedSettlementIds.push(row.IDNo));
+
+			await connection.execute(
+				`DELETE edsi
+				 FROM expense_daily_settlement_items edsi
+				 JOIN expense_daily_settlement eds ON eds.IDNo = edsi.DAILY_SETTLEMENT_ID
+				 WHERE eds.ACTIVE = 1
+				   AND edsi.EXPENSE_ID = ?
+				   AND edsi.EXPENSE_TYPE = ?`,
+				[item.id, item.type]
+			);
+		}
+
+		const [existing] = await connection.execute(
+			`SELECT IDNo
+			 FROM expense_daily_settlement
+			 WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1
+			 ORDER BY RUN_AT DESC, IDNo DESC
+			 LIMIT 1
+			 FOR UPDATE`,
+			[settlementDate]
 		);
-		const settlementId = insertSettlement.insertId;
 
-		// Get all unsettled expenses (junket_house_expense)
-		const [openExpenses] = await connection.execute(
-			`SELECT IDNo FROM junket_house_expense 
-			 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+		let settlementId;
+		if (existing.length > 0) {
+			settlementId = existing[0].IDNo;
+		} else {
+			const [insertSettlement] = await connection.execute(
+				`INSERT INTO expense_daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
+				 VALUES (?, NOW(), ?, 'finalized', 1)`,
+				[settlementDate, encodedBy]
+			);
+			settlementId = insertSettlement.insertId;
+		}
+
+		for (const item of okItems) {
+			await connection.execute(
+				`INSERT INTO expense_daily_settlement_items (DAILY_SETTLEMENT_ID, EXPENSE_ID, EXPENSE_TYPE, ADDED_AT)
+				 SELECT ?, ?, ?, NOW()
+				 FROM DUAL
+				 WHERE NOT EXISTS (
+				   SELECT 1
+				   FROM expense_daily_settlement_items
+				   WHERE DAILY_SETTLEMENT_ID = ? AND EXPENSE_ID = ? AND EXPENSE_TYPE = ?
+				 )`,
+				[settlementId, item.id, item.type, settlementId, item.id, item.type]
+			);
+		}
+
+		const okExpenseIds = okItems.filter((item) => item.type === 'expense').map((item) => item.id);
+		if (okExpenseIds.length > 0) {
+			const placeholders = okExpenseIds.map(() => '?').join(',');
+			await connection.execute(
+				`UPDATE junket_house_expense SET DAILY_SETTLEMENT = 2 WHERE IDNo IN (${placeholders})`,
+				okExpenseIds
+			);
+		}
+
+		const okReturnMoneyIds = okItems.filter((item) => item.type === 'return_money').map((item) => item.id);
+		if (okReturnMoneyIds.length > 0) {
+			const placeholders = okReturnMoneyIds.map(() => '?').join(',');
+			await connection.execute(
+				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 2 WHERE IDNo IN (${placeholders})`,
+				okReturnMoneyIds
+			);
+		}
+
+		await connection.execute(
+			`UPDATE expense_daily_settlement SET ENCODED_BY = ?, STATUS = 'finalized' WHERE IDNo = ?`,
+			[encodedBy, settlementId]
 		);
-
-		// Get all unsettled return money (junket_return_money)
-		const [openReturnMoney] = await connection.execute(
-			`SELECT IDNo FROM junket_return_money 
-			 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
-		);
-
-		// Bulk insert expense items
-		if (openExpenses.length > 0) {
-			const expensePlaceholders = openExpenses.map(() => '(?, ?, ?, NOW())').join(', ');
-			const expenseParams = openExpenses.flatMap(row => [settlementId, row.IDNo, 'expense']);
-			await connection.execute(
-				`INSERT INTO expense_daily_settlement_items (DAILY_SETTLEMENT_ID, EXPENSE_ID, EXPENSE_TYPE, ADDED_AT) 
-				 VALUES ${expensePlaceholders}`,
-				expenseParams
-			);
-		}
-
-		// Bulk insert return money items
-		if (openReturnMoney.length > 0) {
-			const returnMoneyPlaceholders = openReturnMoney.map(() => '(?, ?, ?, NOW())').join(', ');
-			const returnMoneyParams = openReturnMoney.flatMap(row => [settlementId, row.IDNo, 'return_money']);
-			await connection.execute(
-				`INSERT INTO expense_daily_settlement_items (DAILY_SETTLEMENT_ID, EXPENSE_ID, EXPENSE_TYPE, ADDED_AT) 
-				 VALUES ${returnMoneyPlaceholders}`,
-				returnMoneyParams
-			);
-		}
-
-		// Update expense status to settled
-		if (openExpenses.length > 0) {
-			await connection.execute(
-				`UPDATE junket_house_expense SET DAILY_SETTLEMENT = 2 
-				 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
-			);
-		}
-
-		// Update return money status to settled
-		if (openReturnMoney.length > 0) {
-			await connection.execute(
-				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 2 
-				 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
-			);
-		}
+		await cleanupEmptyExpenseSettlements(connection, affectedSettlementIds);
 
 		await connection.commit();
 		connection.release();
-		res.json({
+		return res.json({
 			success: true,
 			settlement_date: settlementDate,
 			settlement_id: settlementId,
-			expense_count: openExpenses.length,
-			return_money_count: openReturnMoney.length,
-			total_count: openExpenses.length + openReturnMoney.length
+			expense_count: okExpenseIds.length,
+			return_money_count: okReturnMoneyIds.length,
+			total_count: okItems.length
 		});
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (_) {}
 			connection.release();
 		}
-		console.error('Error running expense daily settlement:', err);
-		res.status(500).json({ error: 'Error running expense daily settlement' });
+		console.error('Error transferring expense settlement assignment:', err);
+		res.status(500).json({ error: 'Error transferring expenses to settlement date' });
+	}
+});
+
+router.post('/expense_daily_settlement/release', checkSession, async (req, res) => {
+	const encodedBy = req.session?.user_id;
+	if (!encodedBy) {
+		return res.status(401).json({ error: 'Not authenticated' });
+	}
+
+	const requestedItems = normalizeExpenseSettlementItems(req.body);
+	if (requestedItems.length === 0) {
+		return res.status(400).json({ error: 'At least one expense or return money record is required.' });
+	}
+
+	const nowForToday = new Date();
+	const padLocal = (n) => String(n).padStart(2, '0');
+	const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const requestedExpenseIds = requestedItems.filter((item) => item.type === 'expense').map((item) => item.id);
+		const requestedReturnMoneyIds = requestedItems.filter((item) => item.type === 'return_money').map((item) => item.id);
+		const okItems = [];
+
+		if (requestedExpenseIds.length > 0) {
+			const placeholders = requestedExpenseIds.map(() => '?').join(',');
+			const [expenseRows] = await connection.execute(
+				`SELECT IDNo FROM junket_house_expense WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
+				requestedExpenseIds
+			);
+			(expenseRows || []).forEach((row) => okItems.push({ type: 'expense', id: row.IDNo }));
+		}
+
+		if (requestedReturnMoneyIds.length > 0) {
+			const placeholders = requestedReturnMoneyIds.map(() => '?').join(',');
+			const [returnMoneyRows] = await connection.execute(
+				`SELECT IDNo FROM junket_return_money WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
+				requestedReturnMoneyIds
+			);
+			(returnMoneyRows || []).forEach((row) => okItems.push({ type: 'return_money', id: row.IDNo }));
+		}
+
+		if (okItems.length === 0) {
+			await connection.rollback();
+			connection.release();
+			return res.status(400).json({ error: 'No matching active expense or return money records found.' });
+		}
+
+		const linkedParams = [];
+		const linkedConditions = okItems.map((item) => {
+			linkedParams.push(item.id, item.type);
+			return '(edsi.EXPENSE_ID = ? AND edsi.EXPENSE_TYPE = ?)';
+		}).join(' OR ');
+
+		const [todayLinkedRows] = await connection.execute(
+			`SELECT edsi.EXPENSE_ID, edsi.EXPENSE_TYPE
+			 FROM expense_daily_settlement_items edsi
+			 JOIN expense_daily_settlement eds ON eds.IDNo = edsi.DAILY_SETTLEMENT_ID
+			 WHERE eds.ACTIVE = 1
+			   AND eds.SETTLEMENT_DATE = ?
+			   AND (${linkedConditions})`,
+			[todayServer, ...linkedParams]
+		);
+		const linkedToday = new Set((todayLinkedRows || []).map((row) => `${row.EXPENSE_TYPE}:${Number(row.EXPENSE_ID)}`));
+		if (!okItems.every((item) => linkedToday.has(`${item.type}:${Number(item.id)}`))) {
+			await connection.rollback();
+			connection.release();
+			return res.status(400).json({
+				error: "Expense records can only be returned to open from today's settled list."
+			});
+		}
+
+		const [oldSettlementRows] = await connection.execute(
+			`SELECT DISTINCT eds.IDNo
+			 FROM expense_daily_settlement_items edsi
+			 JOIN expense_daily_settlement eds ON eds.IDNo = edsi.DAILY_SETTLEMENT_ID
+			 WHERE eds.ACTIVE = 1
+			   AND (${linkedConditions})`,
+			linkedParams
+		);
+		const affectedSettlementIds = (oldSettlementRows || []).map((row) => row.IDNo);
+
+		for (const item of okItems) {
+			await connection.execute(
+				`DELETE edsi
+				 FROM expense_daily_settlement_items edsi
+				 JOIN expense_daily_settlement eds ON eds.IDNo = edsi.DAILY_SETTLEMENT_ID
+				 WHERE eds.ACTIVE = 1
+				   AND edsi.EXPENSE_ID = ?
+				   AND edsi.EXPENSE_TYPE = ?`,
+				[item.id, item.type]
+			);
+		}
+
+		const okExpenseIds = okItems.filter((item) => item.type === 'expense').map((item) => item.id);
+		if (okExpenseIds.length > 0) {
+			const placeholders = okExpenseIds.map(() => '?').join(',');
+			await connection.execute(
+				`UPDATE junket_house_expense SET DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo IN (${placeholders})`,
+				[encodedBy, ...okExpenseIds]
+			);
+		}
+
+		const okReturnMoneyIds = okItems.filter((item) => item.type === 'return_money').map((item) => item.id);
+		if (okReturnMoneyIds.length > 0) {
+			const placeholders = okReturnMoneyIds.map(() => '?').join(',');
+			await connection.execute(
+				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo IN (${placeholders})`,
+				[encodedBy, ...okReturnMoneyIds]
+			);
+		}
+
+		await cleanupEmptyExpenseSettlements(connection, affectedSettlementIds);
+
+		await connection.commit();
+		connection.release();
+		return res.json({
+			success: true,
+			expense_count: okExpenseIds.length,
+			return_money_count: okReturnMoneyIds.length,
+			total_count: okItems.length
+		});
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) {}
+			connection.release();
+		}
+		console.error('Error releasing expenses from daily settlement:', err);
+		res.status(500).json({ error: 'Error releasing expenses from daily settlement' });
 	}
 });
 

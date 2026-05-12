@@ -21,6 +21,7 @@
                                     <a href="/dashboard"><span class="fa fa-home"></span></a>
                                     <a href="/house_expense" class="active"><%= __('house_expense.junket_expenses') %></a>
                                     <a href="#" id="btn-daily-settle"><%= __('house_expense.settle') || 'Settle' %></a>
+                                    <a href="#" id="btn-breadcrumb-open-pool" class="d-none">Open</a>
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -44,8 +45,11 @@
                                 const now = new Date();
                                 const pad = value => value.toString().padStart(2, '0');
                                 const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-                                const initialDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStrValue;
-                                const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
+                                const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : todayStrValue;
+                                const queueDueDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStrValue;
+                                const maxPickerDate = (typeof maxSettlementDate !== 'undefined' && maxSettlementDate != null && String(maxSettlementDate).trim() !== '')
+                                    ? maxSettlementDate
+                                    : '';
                             %>
 
                             <div id="house-expense-dashboard" class="mb-3 house-expense-dashboard-shell">
@@ -125,14 +129,17 @@
                                 </div>
 
                                 <div id="settlement-date-wrapper" class="day-selector-wrapper">
-                                    <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-                                        <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
-                                            <i class="fa fa-chevron-left"></i>
-                                        </button>
-                                        <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
-                                        <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
-                                            <i class="fa fa-chevron-right"></i>
-                                        </button>
+                                    <div class="settlement-picker-row">
+                                        <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= queueDueDate %>" data-initial-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+                                            <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+                                                <i class="fa fa-chevron-left"></i>
+                                            </button>
+                                            <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+                                            <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+                                                <i class="fa fa-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                        <span id="settlement-subview-indicator" class="settlement-subview-badge"></span>
                                     </div>
                                 </div>
 
@@ -146,7 +153,12 @@
                             <table id="expense-tbl" class="table  nowrap small-text" style="width:100%"> 
                                 <thead>
                                     <tr>
-                                        <th><%= __('house_expense.name') %></th>
+                                        <th class="text-center expense-name-th">
+                                            <span class="house-expense-select-all-slot">
+                                                <input type="checkbox" id="house-expense-select-all" class="house-expense-select-all-cb" title="Select all" />
+                                            </span>
+                                            <span class="expense-name-th-label"><%= __('house_expense.name') %></span>
+                                        </th>
                                         <!-- Type column hidden per request
                                         <th><%= __('house_expense.type') %></th>
                                         -->
@@ -437,6 +449,94 @@
     border-bottom: 1px solid #eee;
 }
 
+.breadcrumb1.flat a.breadcrumb-crumb-armed,
+.breadcrumb1.flat a.breadcrumb-crumb-armed::after {
+    background-color: var(--bs-primary) !important;
+    color: #fff !important;
+}
+
+.daily-settle-checkbox-wrap,
+.open-pool-checkbox-wrap {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+}
+
+.daily-settle-checkbox,
+.open-pool-checkbox {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.expense-name-th {
+    white-space: nowrap;
+}
+
+.house-expense-select-all-slot {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+body.daily-settle-select-mode .house-expense-select-all-slot,
+body.open-pool-select-mode .house-expense-select-all-slot {
+    display: inline-flex;
+}
+
+.house-expense-select-all-cb {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.expense-name-th-label {
+    vertical-align: middle;
+}
+
+.settlement-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Same as game_list: wider row when Open/Settled badge is beside the picker */
+#settlement-date-wrapper {
+    width: 430px;
+    max-width: 100%;
+}
+
+.settlement-subview-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 86px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #d0d7e2;
+    background: #f8f9fb;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.2px;
+}
+
+.settlement-subview-badge.is-open {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #c2410c;
+}
+
+.settlement-subview-badge.is-settled {
+    background: #ecfdf3;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
 /* Cell styles */
 #expense-tbl td {
     padding: 12px 15px;
@@ -535,7 +635,7 @@
                 }
             }
 
-            /* Junket expenses date filter: flow layout + same control width as Game Book (320px) */
+            /* Junket expenses date filter: widths match game_list.ejs (.day-selector-wrapper 320px) */
             .house-expense-filter-shell {
                 margin-bottom: 1rem;
                 padding-bottom: 0.25rem;
@@ -578,8 +678,8 @@
             }
 
             .house-expense-filter-shell .day-selector-wrapper {
-                width: 100%;
-                max-width: 320px;
+                width: 320px;
+                max-width: 100%;
             }
 
             /* Settlement Date Navigation Buttons */

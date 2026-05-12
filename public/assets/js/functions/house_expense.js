@@ -2,6 +2,9 @@
 var expense_id;
 var return_money_id;
 window.houseExpenseLastRows = [];
+window.isDailySettleSelectionMode = false;
+window.isOpenPoolSelectionMode = false;
+window.selectedSettlementSubView = 'open';
 window.houseExpenseBreakdownState = {
     rows: [],
     sortKey: 'date_time',
@@ -84,6 +87,46 @@ function attrEncode(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/\r\n|\r|\n/g, '&#10;');
+}
+
+function getClientTodayYmd() {
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+function hasHouseExpenseSettlementForDate(dateStr) {
+    return !!dateStr && (window.settledDatesForMonth || []).indexOf(String(dateStr).slice(0, 10)) !== -1;
+}
+
+function getHouseExpenseDefaultSubView(dateStr) {
+    if (dateStr === getClientTodayYmd()) return 'open';
+    return hasHouseExpenseSettlementForDate(dateStr) ? 'settled' : 'open';
+}
+
+function buildExpenseSettlementCheckbox(row, modeClass) {
+    var id = row.expense_id || row.IDNo;
+    var type = row.record_type === 'return_money' ? 'return_money' : 'expense';
+    return '<label class="' + modeClass + '-wrap" title="Select record">' +
+        '<input type="checkbox" class="' + modeClass + '" value="' + id + '" data-record-type="' + type + '" />' +
+        '</label>';
+}
+
+function buildExpenseNameCell(row, label) {
+    var checkboxHtml = '';
+    var filterMode = getHouseExpenseFilterMode();
+    var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
+    var isTodaySettledView =
+        /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
+        selectedYmd === getClientTodayYmd() &&
+        window.selectedSettlementSubView === 'settled';
+
+    if (filterMode === 'settlement' && window.isDailySettleSelectionMode) {
+        checkboxHtml = buildExpenseSettlementCheckbox(row, 'daily-settle-checkbox');
+    } else if (filterMode === 'settlement' && window.isOpenPoolSelectionMode && isTodaySettledView) {
+        checkboxHtml = buildExpenseSettlementCheckbox(row, 'open-pool-checkbox');
+    }
+
+    return '<div class="d-inline-flex align-items-center gap-1">' + checkboxHtml + '<span>' + (label || 'N/A') + '</span></div>';
 }
 
 function formatHouseExpensePeso(n) {
@@ -635,6 +678,108 @@ function renderExpenseBreakdownModalRows() {
 }
 
 $(document).ready(function () {
+    function syncHouseExpenseSelectAllCheckboxState() {
+        var $master = $('#house-expense-select-all');
+        if (!$master.length) return;
+        var $cbs = $();
+        if ($('body').hasClass('open-pool-select-mode')) {
+            $cbs = $('#expense-tbl tbody .open-pool-checkbox');
+        } else if ($('body').hasClass('daily-settle-select-mode')) {
+            $cbs = $('#expense-tbl tbody .daily-settle-checkbox');
+        }
+        if (!$cbs.length) {
+            $master.prop('checked', false).prop('indeterminate', false);
+            return;
+        }
+        var n = $cbs.length;
+        var c = $cbs.filter(':checked').length;
+        $master.prop('checked', c === n && n > 0);
+        $master.prop('indeterminate', c > 0 && c < n);
+    }
+
+    function setHouseExpenseDailySettleSelectionMode(enabled) {
+        if (enabled && window.isOpenPoolSelectionMode) setHouseExpenseOpenPoolSelectionMode(false);
+        window.isDailySettleSelectionMode = !!enabled;
+        var $settle = $('#btn-daily-settle');
+        var $master = $('#house-expense-select-all');
+        if (window.isDailySettleSelectionMode) {
+            $('body').addClass('daily-settle-select-mode');
+            $settle.addClass('breadcrumb-crumb-armed');
+        } else {
+            $('body').removeClass('daily-settle-select-mode');
+            $settle.removeClass('breadcrumb-crumb-armed');
+            $('.daily-settle-checkbox').prop('checked', false);
+            if ($master.length) $master.prop('checked', false).prop('indeterminate', false);
+        }
+        syncHouseExpenseSelectAllCheckboxState();
+    }
+
+    function setHouseExpenseOpenPoolSelectionMode(enabled) {
+        if (enabled && window.isDailySettleSelectionMode) setHouseExpenseDailySettleSelectionMode(false);
+        window.isOpenPoolSelectionMode = !!enabled;
+        var $open = $('#btn-breadcrumb-open-pool');
+        var $master = $('#house-expense-select-all');
+        if (window.isOpenPoolSelectionMode) {
+            $('body').addClass('open-pool-select-mode');
+            $open.addClass('breadcrumb-crumb-armed');
+        } else {
+            $('body').removeClass('open-pool-select-mode');
+            $open.removeClass('breadcrumb-crumb-armed');
+            $('.open-pool-checkbox').prop('checked', false);
+            if ($master.length) $master.prop('checked', false).prop('indeterminate', false);
+        }
+        syncHouseExpenseSelectAllCheckboxState();
+    }
+
+    function getSelectedHouseExpenseItems(selector) {
+        var items = [];
+        var seen = {};
+        $(selector + ':checked').each(function () {
+            var id = parseInt($(this).val(), 10);
+            var type = $(this).data('record-type') === 'return_money' ? 'return_money' : 'expense';
+            var key = type + ':' + id;
+            if (!isNaN(id) && !seen[key]) {
+                seen[key] = true;
+                items.push({ id: id, type: type });
+            }
+        });
+        return items;
+    }
+
+    window.updateOpenPoolBreadcrumbVisibility = function () {
+        var $open = $('#btn-breadcrumb-open-pool');
+        if (!$open.length) return;
+        var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
+        var visible =
+            getHouseExpenseFilterMode() === 'settlement' &&
+            /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
+            selectedYmd === getClientTodayYmd() &&
+            window.selectedSettlementSubView === 'settled';
+        if (visible) {
+            $open.removeClass('d-none');
+        } else {
+            if (window.isOpenPoolSelectionMode) setHouseExpenseOpenPoolSelectionMode(false);
+            $open.addClass('d-none');
+        }
+    };
+
+    window.updateSettlementSubviewIndicator = function () {
+        var $indicator = $('#settlement-subview-indicator');
+        if (!$indicator.length) return;
+        if (getHouseExpenseFilterMode() !== 'settlement') {
+            $indicator.text('').removeClass('is-open is-settled').hide();
+            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') window.updateOpenPoolBreadcrumbVisibility();
+            return;
+        }
+        $indicator.show();
+        if (window.selectedSettlementSubView === 'settled') {
+            $indicator.text('Settled').removeClass('is-open').addClass('is-settled');
+        } else {
+            $indicator.text('Open').removeClass('is-settled').addClass('is-open');
+        }
+        if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') window.updateOpenPoolBreadcrumbVisibility();
+    };
+
     function clearExpenseTableDisplay() {
         window.houseExpenseExplorerState = { mainCategory: null };
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
@@ -671,6 +816,15 @@ $(document).ready(function () {
                 if ($mount.length && $filter.length) {
                     $mount.append($filter);
                 }
+                function stopSortBubble(e) {
+                    e.stopPropagation();
+                }
+                $('#house-expense-select-all, .house-expense-select-all-slot')
+                    .off('click.dtHouseExpSelectAll mousedown.dtHouseExpSelectAll pointerdown.dtHouseExpSelectAll')
+                    .on('click.dtHouseExpSelectAll mousedown.dtHouseExpSelectAll pointerdown.dtHouseExpSelectAll', stopSortBubble);
+            },
+            "drawCallback": function () {
+                syncHouseExpenseSelectAllCheckboxState();
             },
             "columnDefs": [
                 {
@@ -714,6 +868,7 @@ $(document).ready(function () {
                 // Settlement date mode
                 var settlementDate = window.selectedSettlementDate || 'current';
                 requestData.date = settlementDate;
+                requestData.settlement_view = window.selectedSettlementSubView || 'open';
             } else {
                 // Date range mode
                 var dateRangePicker = document.getElementById('daterange-picker');
@@ -761,6 +916,7 @@ $(document).ready(function () {
                         setHouseExpenseFooterTotals(0, 0);
                         renderHouseExpenseAnalytics([], 0, 0);
                         window.houseExpenseLastRows = [];
+                        syncHouseExpenseSelectAllCheckboxState();
                         return;
                     }
 
@@ -872,7 +1028,7 @@ $(document).ready(function () {
                     
                     // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
                     dataTable.row.add([
-                        row.expense_category || 'N/A',
+                        buildExpenseNameCell(row, row.expense_category || 'N/A'),
                         // expenseTypeLabel, // Type column hidden per request
                         row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
                         row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
@@ -886,6 +1042,7 @@ $(document).ready(function () {
                     setHouseExpenseFooterTotals(total_expense, total_return_money);
                     renderHouseExpenseAnalytics(data, total_expense, total_return_money);
                     window.houseExpenseLastRows = data;
+                    syncHouseExpenseSelectAllCheckboxState();
 
                 },
                 error: function (xhr, status, error) {
@@ -902,6 +1059,24 @@ $(document).ready(function () {
 
     // 3. Initialize DataTable
     initializeExpenseTable();
+
+    $(document).on('change', '#house-expense-select-all', function () {
+        var checked = $(this).prop('checked');
+        if ($('body').hasClass('open-pool-select-mode')) {
+            $('#expense-tbl tbody .open-pool-checkbox').prop('checked', checked);
+        } else if ($('body').hasClass('daily-settle-select-mode')) {
+            $('#expense-tbl tbody .daily-settle-checkbox').prop('checked', checked);
+        }
+        syncHouseExpenseSelectAllCheckboxState();
+    });
+
+    $(document).on(
+        'change',
+        '#expense-tbl tbody .open-pool-checkbox, #expense-tbl tbody .daily-settle-checkbox',
+        function () {
+            syncHouseExpenseSelectAllCheckboxState();
+        }
+    );
 
     function getHouseExpensePrintRows() {
         if (!$.fn.DataTable.isDataTable('#expense-tbl')) return { headers: [], rows: [] };
@@ -1112,10 +1287,13 @@ $(document).ready(function () {
     // Filter mode toggle handler
     $('input[name="filter-mode"]').on('change', function() {
         var mode = $(this).val();
+        setHouseExpenseDailySettleSelectionMode(false);
+        setHouseExpenseOpenPoolSelectionMode(false);
         if (mode === 'settlement') {
             $('#settlement-date-wrapper').show();
             $('#daterange-wrapper').hide();
             toggleHouseExpenseBreakdownPanel(mode);
+            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
             }
@@ -1128,6 +1306,7 @@ $(document).ready(function () {
             }
             clearExpenseTableDisplay();
             toggleHouseExpenseBreakdownPanel(mode);
+            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
         }
     });
 
@@ -1167,12 +1346,6 @@ $(document).ready(function () {
             earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
         }
         
-        // Date range is independent of "next settlement" cap: max selectable end date is calendar today
-        // (same as data-today on the settlement wrapper). Settlement mode still uses data-max-settlement-date.
-        var rangeMaxDate =
-            (wrapper && wrapper.getAttribute('data-today')) ||
-            now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-
         function jumpHouseExpenseRangeToCurrentThreeMonths(instance) {
             if (!instance) return;
             var current = new Date();
@@ -1186,7 +1359,6 @@ $(document).ready(function () {
             altFormat: 'M d, Y',
             defaultDate: [],
             showMonths: 3,
-            maxDate: rangeMaxDate,
             onDayCreate: function (dayElem) {
                 if (!dayElem || !dayElem.dateObj) return;
                 var d = dayElem.dateObj;
@@ -1282,8 +1454,10 @@ $(document).ready(function () {
     if (document.getElementById('settlement-date-picker')) {
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
         if (wrapper) {
-            var defaultDate = wrapper.getAttribute('data-default-settlement-date') || new Date().toISOString().slice(0, 10);
-            var maxPickerDate = wrapper.getAttribute('data-max-settlement-date') || defaultDate;
+            var defaultDate = wrapper.getAttribute('data-initial-settlement-date') ||
+                wrapper.getAttribute('data-today') ||
+                new Date().toISOString().slice(0, 10);
+            var maxPickerDate = wrapper.getAttribute('data-max-settlement-date');
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
             try {
                 window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
@@ -1299,13 +1473,12 @@ $(document).ready(function () {
             var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
             var earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
             
-            settlementDatePicker = flatpickr("#settlement-date-picker", {
+            var settlementPickerOptions = {
                 dateFormat: 'Y-m-d',
                 altInput: true,
                 altFormat: 'F d, Y',
                 defaultDate: defaultDate,
                 minDate: earliestSettlementDate,
-                maxDate: maxPickerDate,
                 allowInput: false,
                 onDayCreate: function (dayElem) {
                     if (!dayElem || !dayElem.dateObj) return;
@@ -1329,8 +1502,12 @@ $(document).ready(function () {
                     }, 0);
                 },
                 onChange: function (selectedDates, dateStr, instance) {
+                    setHouseExpenseDailySettleSelectionMode(false);
+                    setHouseExpenseOpenPoolSelectionMode(false);
                     window.selectedSettlementDate = dateStr || '';
+                    window.selectedSettlementSubView = getHouseExpenseDefaultSubView(dateStr);
                     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
+                    if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
                     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
                     if (typeof window.reloadData === 'function') window.reloadData();
                 },
@@ -1348,13 +1525,16 @@ $(document).ready(function () {
                         });
                     }, 0);
                 }
-            });
+            };
+            if (maxPickerDate) {
+                settlementPickerOptions.maxDate = maxPickerDate;
+            }
+            settlementDatePicker = flatpickr("#settlement-date-picker", settlementPickerOptions);
         }
     }
 
     // Settlement button state management
     var settleBtnLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.settle) || 'Settle';
-    var settledBtnLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.settled) || 'Settled';
     
     window.updateSettleButtonState = function (recordCount) {
         // Only update if in settlement mode
@@ -1371,13 +1551,10 @@ $(document).ready(function () {
             $('#btn-daily-settle').addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
             return;
         }
-        var settled = (window.settledDatesForMonth || []).indexOf(date) !== -1;
         var isPastDate = date < todayStr;
         var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
         var $btn = $('#btn-daily-settle');
-        if (settled) {
-            $btn.addClass('disabled').text(settledBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-        } else if (noRecordsForPastDate) {
+        if (noRecordsForPastDate) {
             $btn.addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
         } else {
             $btn.removeClass('disabled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
@@ -1418,13 +1595,10 @@ $(document).ready(function () {
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
         
-        // Match Game Book: cap at server "next settlement" (data-max-settlement-date), not max(today, default).
-        // Otherwise after midnight "today" becomes April 1 while next unsettled day is still March 31 — Next would wrongly allow April 1.
+        // Match Expense List: only cap Next when server sends a non-empty data-max-settlement-date.
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxAllowedStr = (wrapper && wrapper.getAttribute('data-max-settlement-date')) ||
-                            (wrapper && wrapper.getAttribute('data-today')) ||
-                            new Date().toISOString().slice(0, 10);
-        if (nextDateStr > maxAllowedStr) {
+        var maxAllowedStr = wrapper && wrapper.getAttribute('data-max-settlement-date');
+        if (maxAllowedStr && String(maxAllowedStr).trim() !== '' && nextDateStr > maxAllowedStr) {
             return null;
         }
         
@@ -1433,7 +1607,10 @@ $(document).ready(function () {
     
     // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
     window.updateNavigationButtons = function() {
-        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
+        var currentDate =
+            window.selectedSettlementDate ||
+            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
+            $('#settlement-date-wrapper .input-group').attr('data-today');
         var previousDate = getPreviousDate(currentDate);
         var nextDate = getNextDate(currentDate);
         
@@ -1452,11 +1629,17 @@ $(document).ready(function () {
         }
     };
     
-    function navigateToDate(targetDate) {
+    function navigateToDate(targetDate, preferredSubView) {
         if (!targetDate) return;
+        setHouseExpenseDailySettleSelectionMode(false);
+        setHouseExpenseOpenPoolSelectionMode(false);
         
         // Update global selected date
         window.selectedSettlementDate = targetDate;
+        window.selectedSettlementSubView =
+            preferredSubView === 'settled' || preferredSubView === 'open'
+                ? preferredSubView
+                : getHouseExpenseDefaultSubView(targetDate);
         
         // Update flatpickr date picker
         var pickerEl = document.getElementById('settlement-date-picker');
@@ -1466,6 +1649,7 @@ $(document).ready(function () {
         
         // Update navigation button states
         updateNavigationButtons();
+        if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
         
         // Update settle button state
         if (typeof window.updateSettleButtonState === 'function') {
@@ -1481,10 +1665,14 @@ $(document).ready(function () {
     // Previous button click handler
     $('#btn-settlement-prev').on('click', function() {
         var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        if (currentDate === getClientTodayYmd() && hasHouseExpenseSettlementForDate(currentDate) && window.selectedSettlementSubView !== 'settled') {
+            navigateToDate(currentDate, 'settled');
+            return;
+        }
         var previousDate = getPreviousDate(currentDate);
         
         if (previousDate) {
-            navigateToDate(previousDate);
+            navigateToDate(previousDate, getHouseExpenseDefaultSubView(previousDate));
         } else {
             var earliestDate = getEarliestSettlementDate();
             var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest settlement date';
@@ -1502,10 +1690,14 @@ $(document).ready(function () {
     // Next button click handler
     $('#btn-settlement-next').on('click', function() {
         var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
+        if (currentDate === getClientTodayYmd() && hasHouseExpenseSettlementForDate(currentDate) && window.selectedSettlementSubView === 'settled') {
+            navigateToDate(currentDate, 'open');
+            return;
+        }
         var nextDate = getNextDate(currentDate);
         
         if (nextDate) {
-            navigateToDate(nextDate);
+            navigateToDate(nextDate, getHouseExpenseDefaultSubView(nextDate));
         } else {
             Swal.fire({
                 icon: 'info',
@@ -1530,7 +1722,10 @@ $(document).ready(function () {
         $.ajax({
             url: '/junket_house_expense_data',
             method: 'GET',
-            data: { date: date },
+            data: {
+                date: date,
+                settlement_view: window.selectedSettlementSubView || 'open'
+            },
                     success: function (data) {
                         var currentMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
                         if (currentMode !== 'settlement') {
@@ -1553,6 +1748,7 @@ $(document).ready(function () {
                             if (typeof window.updateSettleButtonState === 'function') {
                                 window.updateSettleButtonState(0);
                             }
+                            syncHouseExpenseSelectAllCheckboxState();
                             return;
                         }
 
@@ -1664,7 +1860,7 @@ $(document).ready(function () {
                             
                             // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
                             dataTable.row.add([
-                                row.expense_category || 'N/A',
+                                buildExpenseNameCell(row, row.expense_category || 'N/A'),
                                 // expenseTypeLabel, // Type column hidden per request
                                 row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
                                 row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
@@ -1682,6 +1878,7 @@ $(document).ready(function () {
                         if (typeof window.updateSettleButtonState === 'function') {
                             window.updateSettleButtonState(data.length);
                         }
+                        syncHouseExpenseSelectAllCheckboxState();
                     },
             error: function (xhr, status, error) {
                 // Error fetching data
@@ -1693,89 +1890,330 @@ $(document).ready(function () {
     $('#btn-daily-settle').on('click', function (e) {
         e.preventDefault();
         if ($(this).hasClass('disabled') || $(this).prop('disabled')) return;
+        if (getHouseExpenseFilterMode() !== 'settlement') {
+            Swal.fire({
+                title: 'Settlement Date mode required',
+                text: 'Switch to Settlement Date mode first.',
+                icon: 'warning',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
         var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
-        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
         var $btn = $(this);
+
+        if (!window.isDailySettleSelectionMode) {
+            if (!Array.isArray(window.houseExpenseLastRows) || window.houseExpenseLastRows.length === 0) {
+                Swal.fire({
+                    title: 'No Records',
+                    text: 'There are no expenses or return money records to settle.',
+                    icon: 'info',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+            setHouseExpenseDailySettleSelectionMode(true);
+            if (typeof window.reloadExpenseBySettlementDate === 'function') {
+                window.reloadExpenseBySettlementDate();
+            } else if (typeof window.reloadData === 'function') {
+                window.reloadData();
+            }
+            return;
+        }
+
+        var settlementItems = getSelectedHouseExpenseItems('.daily-settle-checkbox');
+        if (settlementItems.length === 0) {
+            setHouseExpenseDailySettleSelectionMode(false);
+            if (typeof window.reloadExpenseBySettlementDate === 'function') window.reloadExpenseBySettlementDate();
+            return;
+        }
         
+        var wrapperEl = document.querySelector('#settlement-date-wrapper .input-group');
+        var todayStr = (wrapperEl && wrapperEl.getAttribute('data-today')) || getClientTodayYmd();
+        var nowForMin = new Date();
+        var minDateObj = new Date(nowForMin.getFullYear() - 1, 0, 1);
+        var minAllowedDate =
+            minDateObj.getFullYear() +
+            '-' +
+            String(minDateObj.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(minDateObj.getDate()).padStart(2, '0');
+        var initialDate = settlementDate || todayStr;
+        window._swalExpenseSettlementTransferFp = null;
+
         Swal.fire({
-            title: 'Confirm Settlement',
-            text: 'Settle all expenses for ' + formattedDate + '?',
+            title: 'Assign settlement date',
+            html:
+                '<div class="text-start">' +
+                '<div class="d-flex align-items-center gap-2">' +
+                '<label for="swal-expense-settlement-date" class="form-label mb-0" style="white-space: nowrap;">Date:</label>' +
+                '<input id="swal-expense-settlement-date" class="form-control text-center" readonly />' +
+                '</div>' +
+                '</div>',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Yes, Settle',
+            confirmButtonText: 'Continue',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            didOpen: function () {
+                var inputEl = document.getElementById('swal-expense-settlement-date');
+                if (!inputEl || !window.flatpickr) return;
+                window._swalExpenseSettlementTransferFp = flatpickr(inputEl, {
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'F d, Y',
+                    defaultDate: initialDate,
+                    minDate: minAllowedDate,
+                    allowInput: false
+                });
+            },
+            preConfirm: function () {
+                var fp = window._swalExpenseSettlementTransferFp;
+                var chosenDate = '';
+                if (fp && fp.selectedDates && fp.selectedDates[0]) {
+                    var d = fp.selectedDates[0];
+                    chosenDate =
+                        d.getFullYear() +
+                        '-' +
+                        String(d.getMonth() + 1).padStart(2, '0') +
+                        '-' +
+                        String(d.getDate()).padStart(2, '0');
+                }
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)) {
+                    Swal.showValidationMessage('Please select a valid settlement date.');
+                    return false;
+                }
+                return { settlement_date: chosenDate };
+            }
+        }).then(function (dateResult) {
+            if (!dateResult.isConfirmed) return;
+            var choice = dateResult.value;
+            if (!choice || typeof choice !== 'object') return;
+            settlementDate = choice.settlement_date;
+            var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
+
+            Swal.fire({
+                title: 'Confirm',
+                text: 'Assign ' + settlementItems.length + ' selected record(s) to settlement date ' + formattedDate + '?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d'
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                $btn.addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+                $.ajax({
+                    url: '/expense_daily_settlement/transfer',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        settlement_date: settlementDate,
+                        items: settlementItems
+                    }),
+                    success: function (res) {
+                        var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                        window.selectedSettlementDate = settledDate || '';
+                        
+                        // Update settled dates array to include the newly settled date
+                        if (settledDate && window.settledDatesForMonth) {
+                            if (window.settledDatesForMonth.indexOf(settledDate) === -1) {
+                                window.settledDatesForMonth.push(settledDate);
+                                window.settledDatesForMonth.sort();
+                            }
+                        }
+                        
+                        var pickerEl = document.getElementById('settlement-date-picker');
+                        if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
+                        window.selectedSettlementSubView = 'settled';
+                        setHouseExpenseDailySettleSelectionMode(false);
+                        
+                        // Refresh date range picker highlighting if it exists
+                        var dateRangePickerEl = document.getElementById('daterange-picker');
+                        if (dateRangePickerEl && dateRangePickerEl._flatpickr && dateRangePickerEl._flatpickr.isOpen) {
+                            var instance = dateRangePickerEl._flatpickr;
+                            setTimeout(function () {
+                                if (!instance.calendarContainer) return;
+                                var currentSettledDates = window.settledDatesForMonth || [];
+                                var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                                days.forEach(function (el) {
+                                    el.classList.remove('settled-day');
+                                    if (!el.dateObj) return;
+                                    var d = el.dateObj;
+                                    var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                                    if (dStr && currentSettledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+                                });
+                            }, 0);
+                        }
+                        
+                        var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
+                        Swal.fire({
+                            title: 'Settled',
+                            text: 'Settlement for ' + settledFormatted + ' completed. Expenses: ' + (res.expense_count || 0) + ', Return Money: ' + (res.return_money_count || 0),
+                            icon: 'success',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#0d6efd'
+                        }).then(function () {
+                            try {
+                                if (settledDate && window.sessionStorage) {
+                                    window.sessionStorage.setItem(
+                                        'expenseDailySettleViewState',
+                                        JSON.stringify({ date: settledDate, subView: 'settled' })
+                                    );
+                                }
+                            } catch (e) {}
+                            window.location.reload();
+                        });
+                    },
+                    error: function (xhr) {
+                        var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
+                        Swal.fire({
+                            title: 'Error',
+                            text: err,
+                            icon: 'error',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    },
+                    complete: function () {
+                        if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                    }
+                });
+            });
+        });
+    });
+
+    $('#btn-breadcrumb-open-pool').on('click', function (e) {
+        e.preventDefault();
+        if (getHouseExpenseFilterMode() !== 'settlement') {
+            Swal.fire({
+                title: 'Settlement Date mode required',
+                text: 'Switch to Settlement Date mode first.',
+                icon: 'warning',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+
+        var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
+        var isTodaySettledView =
+            /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
+            selectedYmd === getClientTodayYmd() &&
+            window.selectedSettlementSubView === 'settled';
+        if (!isTodaySettledView) {
+            Swal.fire({
+                title: 'Today settled only',
+                text: 'Set the picker to today and open the Settled list first.',
+                icon: 'info',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+
+        if (!window.isOpenPoolSelectionMode) {
+            if (!Array.isArray(window.houseExpenseLastRows) || window.houseExpenseLastRows.length === 0) {
+                Swal.fire({
+                    title: 'No Records',
+                    text: "No rows in today's settled list.",
+                    icon: 'info',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+            setHouseExpenseOpenPoolSelectionMode(true);
+            if (typeof window.reloadExpenseBySettlementDate === 'function') {
+                window.reloadExpenseBySettlementDate();
+            }
+            return;
+        }
+
+        var selectedItems = getSelectedHouseExpenseItems('.open-pool-checkbox');
+        if (selectedItems.length === 0) {
+            setHouseExpenseOpenPoolSelectionMode(false);
+            if (typeof window.reloadExpenseBySettlementDate === 'function') window.reloadExpenseBySettlementDate();
+            return;
+        }
+
+        Swal.fire({
+            title: 'Return to Open?',
+            text: 'Move ' + selectedItems.length + ' selected record(s) to Open?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#0d6efd',
             cancelButtonColor: '#6c757d'
         }).then(function (result) {
             if (!result.isConfirmed) return;
-            $btn.addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            var $lnk = $('#btn-breadcrumb-open-pool');
+            $lnk.css('pointer-events', 'none').css('opacity', '0.65');
             $.ajax({
-                url: '/expense_daily_settlement/run',
+                url: '/expense_daily_settlement/release',
                 method: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ settlement_date: settlementDate }),
+                data: JSON.stringify({ items: selectedItems }),
                 success: function (res) {
-                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
-                    window.selectedSettlementDate = settledDate || '';
-                    
-                    // Update settled dates array to include the newly settled date
-                    if (settledDate && window.settledDatesForMonth) {
-                        if (window.settledDatesForMonth.indexOf(settledDate) === -1) {
-                            window.settledDatesForMonth.push(settledDate);
-                            window.settledDatesForMonth.sort();
-                        }
-                    }
-                    
-                    var pickerEl = document.getElementById('settlement-date-picker');
-                    if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
-                    
-                    // Refresh date range picker highlighting if it exists
-                    var dateRangePickerEl = document.getElementById('daterange-picker');
-                    if (dateRangePickerEl && dateRangePickerEl._flatpickr && dateRangePickerEl._flatpickr.isOpen) {
-                        var instance = dateRangePickerEl._flatpickr;
-                        setTimeout(function () {
-                            if (!instance.calendarContainer) return;
-                            var currentSettledDates = window.settledDatesForMonth || [];
-                            var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                            days.forEach(function (el) {
-                                el.classList.remove('settled-day');
-                                if (!el.dateObj) return;
-                                var d = el.dateObj;
-                                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                                if (dStr && currentSettledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
-                            });
-                        }, 0);
-                    }
-                    
-                    var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
+                    var n = (res && res.total_count) || selectedItems.length;
                     Swal.fire({
-                        title: 'Settled',
-                        text: 'Settlement for ' + settledFormatted + ' completed. Expenses: ' + (res.expense_count || 0) + ', Return Money: ' + (res.return_money_count || 0),
+                        title: 'Done',
+                        text: n + ' record(s) returned to Open.',
                         icon: 'success',
                         confirmButtonText: 'OK',
                         confirmButtonColor: '#0d6efd'
                     }).then(function () {
+                        try {
+                            if (selectedYmd && window.sessionStorage) {
+                                window.sessionStorage.setItem(
+                                    'expenseDailySettleViewState',
+                                    JSON.stringify({ date: selectedYmd, subView: 'open' })
+                                );
+                            }
+                        } catch (e) {}
                         window.location.reload();
                     });
                 },
                 error: function (xhr) {
-                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
-                    Swal.fire({
-                        title: 'Error',
-                        text: err,
-                        icon: 'error',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Request failed';
+                    Swal.fire({ title: 'Error', text: err, icon: 'error', confirmButtonColor: '#0d6efd' });
                 },
                 complete: function () {
-                    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                    $lnk.css('pointer-events', '').css('opacity', '');
+                    if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
+                        window.updateOpenPoolBreadcrumbVisibility();
+                    }
                 }
             });
         });
     });
 
     // Initialize settlement UI state
+    try {
+        var restoredExpenseView = window.sessionStorage ? window.sessionStorage.getItem('expenseDailySettleViewState') : null;
+        if (restoredExpenseView) {
+            window.sessionStorage.removeItem('expenseDailySettleViewState');
+            var parsedExpenseView = JSON.parse(restoredExpenseView);
+            if (parsedExpenseView && /^\d{4}-\d{2}-\d{2}$/.test(String(parsedExpenseView.date || ''))) {
+                window.selectedSettlementDate = String(parsedExpenseView.date).slice(0, 10);
+                window.selectedSettlementSubView = parsedExpenseView.subView === 'settled' ? 'settled' : 'open';
+                var restoredPickerEl = document.getElementById('settlement-date-picker');
+                if (restoredPickerEl && restoredPickerEl._flatpickr) {
+                    restoredPickerEl._flatpickr.setDate(window.selectedSettlementDate, false);
+                }
+            }
+        } else {
+            window.selectedSettlementSubView = getHouseExpenseDefaultSubView(window.selectedSettlementDate);
+        }
+    } catch (e) {
+        window.selectedSettlementSubView = getHouseExpenseDefaultSubView(window.selectedSettlementDate);
+    }
+    if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
 

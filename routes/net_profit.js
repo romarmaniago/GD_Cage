@@ -4,7 +4,9 @@
 
  * - Games: daily_settlement.SETTLEMENT_DATE (via daily_settlement_games.DAILY_SETTLEMENT_ID)
 
- * - Expenses: expense_daily_settlement.SETTLEMENT_DATE
+ * - Expenses: expense_daily_settlement.SETTLEMENT_DATE (items → junket_house_expense).
+
+ * - House expenses not yet in expense_daily_settlement_items are rolled into **server today** when today falls in the selected range.
 
  * Chip / commission formulas match public/assets/js/functions/game_list.js.
 
@@ -514,6 +516,45 @@ async function loadExpenseTotalsByDay(startStr, endStr) {
 
 
 
+/** Sum of active junket_house_expense rows not linked to any active expense_daily_settlement item (type expense). */
+async function loadUnsettledHouseExpenseTotal() {
+
+	try {
+
+		const [rows] = await pool.execute(
+
+			`SELECT COALESCE(SUM(jhe.AMOUNT), 0) AS total_amt
+
+			 FROM junket_house_expense jhe
+
+			 WHERE jhe.ACTIVE = 1
+
+			   AND NOT EXISTS (
+
+				 SELECT 1
+
+				 FROM expense_daily_settlement_items it
+
+				 JOIN expense_daily_settlement eds ON eds.IDNo = it.DAILY_SETTLEMENT_ID AND eds.ACTIVE = 1
+
+				 WHERE it.EXPENSE_ID = jhe.IDNo AND it.EXPENSE_TYPE = 'expense'
+
+			   )`
+
+		);
+
+		return rows && rows[0] ? Number(rows[0].total_amt) || 0 : 0;
+
+	} catch (_e) {
+
+		return 0;
+
+	}
+
+}
+
+
+
 async function loadUnsettledGamesForLive() {
 
 	const [rows] = await pool.execute(
@@ -723,6 +764,21 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 		const recordsByGame = await fetchRecordsForGames([...allGameIdSet]);
 
 		const expenseByDay = await loadExpenseTotalsByDay(start, end);
+
+		const unsettledExpenseTotal = await loadUnsettledHouseExpenseTotal();
+
+		if (todayInRange && unsettledExpenseTotal > 0) {
+
+			expenseByDay.set(todayStr, (expenseByDay.get(todayStr) || 0) + unsettledExpenseTotal);
+
+			if (distinctDates.indexOf(todayStr) === -1) {
+
+				distinctDates = distinctDates.concat([todayStr]).sort();
+
+			}
+
+		}
+
 		const sharePctByDay = await loadSharePercentagesByDay(start, end);
 
 
