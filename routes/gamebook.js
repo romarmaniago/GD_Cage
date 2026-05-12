@@ -301,6 +301,33 @@ function getGameListExportRateCommissionCols1Based(headers) {
 	return set;
 }
 
+function gameListExportBodyAlignment(header) {
+	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
+	if (h === 'TYPE' || h.includes('ACCT') || h === 'GUEST') {
+		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+	}
+	if (
+		h.includes('BUY') ||
+		h.includes('CASH') ||
+		h.includes('WIN') ||
+		h.includes('LOSS') ||
+		h.includes('ROLLING') ||
+		h.includes('RATE') ||
+		h.includes('COMMISSION') ||
+		h.includes('ADD CHG') ||
+		h.includes('SETTLE')
+	) {
+		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
+	}
+	return { vertical: 'middle', horizontal: 'center', wrapText: true };
+}
+
+function gameListExportDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
 /** Build Game Book table as .xlsx with borders (client omits ROLLER CHIPS and ACTION columns). */
 router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 	try {
@@ -333,12 +360,7 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 		headerRow.height = 22;
 		headerRow.eachCell((cell, colNumber) => {
 			cell.font = { bold: true };
-			const noWrap = rateCommCols1Based.has(colNumber);
-			cell.alignment = {
-				vertical: 'middle',
-				horizontal: 'center',
-				wrapText: !noWrap
-			};
+			cell.alignment = gameListExportBodyAlignment(headers[colNumber - 1]);
 			cell.border = thinBorder;
 			cell.fill = {
 				type: 'pattern',
@@ -357,27 +379,29 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			const dataRow = ws.addRow(padded);
 			dataRow.eachCell((cell, colNumber) => {
 				cell.border = thinBorder;
-				const noWrap = rateCommCols1Based.has(colNumber);
-				cell.alignment = {
-					vertical: 'middle',
-					horizontal: 'center',
-					wrapText: !noWrap
-				};
+				cell.alignment = gameListExportBodyAlignment(headers[colNumber - 1]);
 			});
 		});
 
 		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
+			const headerText = String(h == null ? '' : h);
+			const upperHeader = headerText.toUpperCase();
+			let m = gameListExportDisplayWidth(headerText);
 			for (let ri = 0; ri < rows.length; ri++) {
 				const row = rows[ri];
 				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
+				const L = gameListExportDisplayWidth(row[c]);
 				if (L > m) m = L;
 			}
-			let w = Math.min(48, Math.max(10, m + 2));
-			if (rateCommCols1Based.has(c + 1)) {
-				w = Math.max(w, 14);
-			}
+			let minWidth = 11;
+			let maxWidth = 60;
+			if (upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) minWidth = 14;
+			if (upperHeader.includes('ACCT')) minWidth = 18;
+			if (upperHeader === 'GUEST') minWidth = 14;
+			if (upperHeader.includes('GAME RATE')) minWidth = 13;
+			if (upperHeader.includes('COMMISSION') || upperHeader.includes('TOTAL SETTLE')) minWidth = 15;
+			if (upperHeader.includes('BUY') || upperHeader.includes('CASH') || upperHeader.includes('WIN') || upperHeader.includes('ROLLING')) minWidth = 13;
+			let w = Math.min(maxWidth, Math.max(minWidth, m + 4));
 			return w;
 		});
 		for (let i = 1; i <= ncol; i++) {

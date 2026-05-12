@@ -1,5 +1,11 @@
 $(document).ready(function() {
 
+    function jumpCommissionRangeToCurrentThreeMonths(instance) {
+        if (!instance) return;
+        const current = new Date();
+        instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+    }
+
     // Initialize Flatpickr for date range
     var flatpickrInstance = flatpickr("#daterange", {
         mode: "range",
@@ -10,10 +16,12 @@ $(document).ready(function() {
             moment().startOf('month').format('YYYY-MM-DD'),
             moment().endOf('month').format('YYYY-MM-DD')
         ],
-        showMonths: 2,
+        showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            const today = new Date();
-            instance.changeMonth(-1, true);
+            jumpCommissionRangeToCurrentThreeMonths(instance);
+        },
+        onOpen: function (selectedDates, dateStr, instance) {
+            jumpCommissionRangeToCurrentThreeMonths(instance);
         }
     });
 
@@ -289,14 +297,22 @@ $(document).ready(function() {
         return 'Commission-export.xlsx';
     }
 
-    $('#btn-commission-export').on('click', function (e) {
-        e.preventDefault();
-        if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getCommissionTablePayload(includeFooter) {
         var dt = $('#commission-tbl').DataTable();
         var headers = [];
         $('#commission-tbl thead tr:first th').each(function () {
             headers.push($(this).text().trim());
         });
+
         var rows = [];
         dt.rows({ search: 'applied' }).every(function () {
             var cells = [];
@@ -305,8 +321,118 @@ $(document).ready(function() {
             });
             if (cells.length) rows.push(cells);
         });
+
+        var dataRowCount = rows.length;
+        if (includeFooter && dataRowCount > 0) {
+            rows.push([
+                $('#commission-tbl tfoot th:first').text().trim(),
+                '',
+                $('#GRAND_TOTAL_AMOUNT').text().trim(),
+                $('#GRAND_CHIPS_RETURN').text().trim(),
+                $('#GRAND_WIN_LOSS').text().trim(),
+                $('#GRAND_TOTAL_ROLLING').text().trim(),
+                '',
+                $('#GRAND_ROLLING_SETTLEMENT').text().trim(),
+                $('#GRAND_FNB').text().trim(),
+                $('#GRAND_PAYMENT').text().trim(),
+                ''
+            ]);
+        }
+
+        return { headers: headers, rows: rows, dataRowCount: dataRowCount };
+    }
+
+    function getCommissionPrintStyles() {
+        return [
+            '@page{size:landscape;margin:8mm;}',
+            'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+            '.print-wrap{width:100%;}',
+            'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+            '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+            'table{width:100%;border-collapse:collapse;font-size:9px;}',
+            'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;}',
+            'th{background:#d9e1f2;text-align:right;font-weight:700;}',
+            'th:nth-child(1){text-align:center;}',
+            'th:nth-child(2),th:nth-child(11){text-align:left;}',
+            'td{text-align:right;}',
+            'td:nth-child(1){text-align:center;}',
+            'td:nth-child(2),td:nth-child(11){text-align:left;}',
+            'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
+        ].join('');
+    }
+
+    function printCommissionTable() {
+        if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
+        var payload = getCommissionTablePayload(true);
         var t = window.commissionTranslations || {};
-        if (rows.length === 0) {
+        if (payload.dataRowCount === 0) {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Print',
+                    text: t.no_data_found || 'No rows to print for the current filter.',
+                    confirmButtonColor: '#0d6efd'
+                });
+            } else {
+                alert(t.no_data_found || 'No rows to print.');
+            }
+            return;
+        }
+
+        var dateRange = $('#daterange').val() || '';
+        var headerHtml = payload.headers.map(function (h) {
+            return '<th>' + escapeHtml(h) + '</th>';
+        }).join('');
+        var rowsHtml = payload.rows.map(function (row) {
+            return '<tr>' + row.map(function (cell) {
+                return '<td>' + escapeHtml(cell) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+
+        var iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+
+        var frameWindow = iframe.contentWindow;
+        var frameDoc = frameWindow.document;
+        frameDoc.open();
+        frameDoc.write([
+            '<!doctype html><html><head><title>Commission</title><style>',
+            getCommissionPrintStyles(),
+            '</style></head><body><div class="print-wrap">',
+            '<h2>Commission</h2>',
+            '<div class="subtitle">', escapeHtml(dateRange), '</div>',
+            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            '</div></body></html>'
+        ].join(''));
+        frameDoc.close();
+
+        var cleanup = function () {
+            setTimeout(function () {
+                if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 300);
+        };
+        frameWindow.onafterprint = cleanup;
+        setTimeout(function () {
+            frameWindow.focus();
+            frameWindow.print();
+            cleanup();
+        }, 250);
+    }
+
+    $('#btn-commission-export').on('click', function (e) {
+        e.preventDefault();
+        if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
+        var payload = getCommissionTablePayload(true);
+        var headers = payload.headers;
+        var rows = payload.rows;
+        var t = window.commissionTranslations || {};
+        if (payload.dataRowCount === 0) {
             if (window.Swal) {
                 Swal.fire({
                     icon: 'info',
@@ -360,5 +486,10 @@ $(document).ready(function() {
             .finally(function () {
                 $btn.prop('disabled', false);
             });
+    });
+
+    $('#btn-commission-print').on('click', function (e) {
+        e.preventDefault();
+        printCommissionTable();
     });
 });

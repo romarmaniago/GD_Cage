@@ -76,6 +76,12 @@
 
 <script>
 $(document).ready(function() {
+  function jumpCashBalanceRangeToCurrentThreeMonths(instance) {
+    if (!instance) return;
+    const current = new Date();
+    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+  }
+
   const picker = flatpickr("#cash-balance-daterange", {
     altInput: true,
     altFormat: "M d, Y",
@@ -85,6 +91,13 @@ $(document).ready(function() {
       moment().startOf('month').format('YYYY-MM-DD'),
       moment().format('YYYY-MM-DD')
     ],
+    showMonths: 3,
+    onReady: function(selectedDates, dateStr, instance) {
+      jumpCashBalanceRangeToCurrentThreeMonths(instance);
+    },
+    onOpen: function(selectedDates, dateStr, instance) {
+      jumpCashBalanceRangeToCurrentThreeMonths(instance);
+    },
     onChange: function(selectedDates, dateStr) {
       if (selectedDates.length === 2) {
         loadCashBalanceHistory(getSelectedType());
@@ -169,6 +182,7 @@ $(document).ready(function() {
               remarks: row.REMARKS || '',
               encodedBy: row.ENCODED_BY_NAME || 'N/A',
               date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+              sortDate: row.ENCODED_DT ? moment.utc(row.ENCODED_DT).valueOf() : 0,
               typeValue: parseInt(row.TYPE, 10),
               serviceTransactionId: row.SERVICE_TRANSACTION_ID != null
                 ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
@@ -187,7 +201,14 @@ $(document).ready(function() {
         { data: 'amount', className: 'text-end' },
         { data: 'remarks', className: 'text-start' },
         { data: 'encodedBy', className: 'text-center' },
-        { data: 'date', className: 'text-center' }
+        {
+          data: 'date',
+          className: 'text-center',
+          render: function(data, type, row) {
+            if (type === 'sort' || type === 'type') return row && row.sortDate ? row.sortDate : 0;
+            return data;
+          }
+        }
       ],
       createdRow(row, data) {
         const category = (data.rawCategory || data.typeText || '').toLowerCase().trim();

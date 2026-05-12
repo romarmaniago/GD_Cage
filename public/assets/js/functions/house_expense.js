@@ -903,6 +903,135 @@ $(document).ready(function () {
     // 3. Initialize DataTable
     initializeExpenseTable();
 
+    function getHouseExpensePrintRows() {
+        if (!$.fn.DataTable.isDataTable('#expense-tbl')) return { headers: [], rows: [] };
+        var dt = $('#expense-tbl').DataTable();
+        var actionColIndex = 6;
+        var headers = [];
+        $('#expense-tbl thead tr:first th').each(function (i) {
+            if (i === actionColIndex) return;
+            headers.push($(this).text().trim());
+        });
+        var rows = [];
+        dt.rows({ search: 'applied', order: 'applied' }).every(function () {
+            var cells = [];
+            $(this.node()).find('td').each(function (i) {
+                if (i === actionColIndex) return;
+                cells.push($(this).text().trim());
+            });
+            if (cells.length) rows.push(cells);
+        });
+        if (rows.length) {
+            rows.push([
+                $('#expense-tbl tfoot tr').eq(0).find('th').eq(0).text().trim(),
+                '',
+                '',
+                $('#TOTAL_EXPENSE_AMOUNT').text().trim(),
+                '',
+                ''
+            ]);
+            rows.push([
+                $('#expense-tbl tfoot tr').eq(1).find('th').eq(0).text().trim(),
+                '',
+                '',
+                $('#TOTAL_RETURN_MONEY_AMOUNT').text().trim(),
+                '',
+                ''
+            ]);
+            rows.push([
+                $('#expense-tbl tfoot tr').eq(2).find('th').eq(0).text().trim(),
+                '',
+                '',
+                $('#TOTAL_NET_EXPENSES_AMOUNT').text().trim(),
+                '',
+                ''
+            ]);
+        }
+        return { headers: headers, rows: rows };
+    }
+
+    function getHouseExpensePrintStyles() {
+        return [
+            '@page{size:landscape;margin:8mm;}',
+            'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+            '.print-wrap{width:100%;}',
+            'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+            '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+            'table{width:100%;border-collapse:collapse;font-size:10px;}',
+            'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
+            'th{background:#d9e1f2;font-weight:700;}',
+            'th:nth-child(4),td:nth-child(4){text-align:right;padding-right:14px;}',
+            'tbody tr:nth-last-child(-n+3) td{font-weight:700;background:#f4f6fa;}'
+        ].join('');
+    }
+
+    function printHouseExpenseTable() {
+        var payload = getHouseExpensePrintRows();
+        var t = window.houseExpenseTranslations || {};
+        if (!payload.rows.length) {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Print',
+                    text: t.no_data_found || 'No data to print.',
+                    confirmButtonColor: '#0d6efd'
+                });
+            } else {
+                alert(t.no_data_found || 'No data to print.');
+            }
+            return;
+        }
+        var headerHtml = payload.headers.map(function (h) {
+            return '<th>' + houseExpenseHtmlEscape(h) + '</th>';
+        }).join('');
+        var rowsHtml = payload.rows.map(function (row) {
+            return '<tr>' + row.map(function (cell) {
+                return '<td>' + houseExpenseHtmlEscape(cell) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+        var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        var subtitle = mode === 'settlement'
+            ? ($('#settlement-date-picker').val() || '')
+            : ($('#daterange-picker').val() || '');
+        var iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        var frameWindow = iframe.contentWindow;
+        var frameDoc = frameWindow.document;
+        frameDoc.open();
+        frameDoc.write([
+            '<!doctype html><html><head><title>Junket Expenses</title><style>',
+            getHouseExpensePrintStyles(),
+            '</style></head><body><div class="print-wrap">',
+            '<h2>Junket Expenses</h2>',
+            '<div class="subtitle">', houseExpenseHtmlEscape(subtitle), '</div>',
+            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            '</div></body></html>'
+        ].join(''));
+        frameDoc.close();
+        var cleanup = function () {
+            setTimeout(function () {
+                if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 300);
+        };
+        frameWindow.onafterprint = cleanup;
+        setTimeout(function () {
+            frameWindow.focus();
+            frameWindow.print();
+            cleanup();
+        }, 250);
+    }
+
+    $('#btn-house-expense-print').on('click', function (e) {
+        e.preventDefault();
+        printHouseExpenseTable();
+    });
+
     $('#btn-house-expense-export').on('click', function () {
         var t = window.houseExpenseTranslations || {};
         var data = window.houseExpenseLastRows || [];
@@ -1044,12 +1173,19 @@ $(document).ready(function () {
             (wrapper && wrapper.getAttribute('data-today')) ||
             now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
 
+        function jumpHouseExpenseRangeToCurrentThreeMonths(instance) {
+            if (!instance) return;
+            var current = new Date();
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+        }
+
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
             defaultDate: [],
+            showMonths: 3,
             maxDate: rangeMaxDate,
             onDayCreate: function (dayElem) {
                 if (!dayElem || !dayElem.dateObj) return;
@@ -1061,6 +1197,7 @@ $(document).ready(function () {
                 }
             },
             onReady: function (selectedDates, dateStr, instance) {
+                jumpHouseExpenseRangeToCurrentThreeMonths(instance);
                 // Highlight settled dates when calendar is ready (initial render)
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
@@ -1078,6 +1215,7 @@ $(document).ready(function () {
                 }, 100);
             },
             onOpen: function (selectedDates, dateStr, instance) {
+                jumpHouseExpenseRangeToCurrentThreeMonths(instance);
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];

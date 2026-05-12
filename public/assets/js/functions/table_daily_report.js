@@ -19,6 +19,7 @@
   const reportListTbody = document.getElementById('daily-report-list-tbody');
   const reportMatrixTable = document.getElementById('daily-report-view-table');
   const btnExportMatrix = document.getElementById('btn-export-daily-report-matrix');
+  const btnPrintMatrix = document.getElementById('btn-print-daily-report-matrix');
   const manageModalEl = document.getElementById('junket-table-modal');
   const formModalEl = document.getElementById('junket-table-form-modal');
   const dailyReportModalEl = document.getElementById('daily-report-modal');
@@ -310,6 +311,11 @@
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
     const monthRange = getCurrentMonthRange();
+    const jumpToCurrentThreeMonths = (instance) => {
+      if (!instance) return;
+      const current = new Date();
+      instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+    };
     reportListDateRangePicker = flatpickr(reportListDateRange, {
       mode: 'range',
       dateFormat: 'Y-m-d',
@@ -318,6 +324,13 @@
       conjunction: ' - ',
       allowInput: false,
       defaultDate: [monthRange.from, monthRange.to],
+      showMonths: 3,
+      onReady: (_selectedDates, _dateStr, instance) => {
+        jumpToCurrentThreeMonths(instance);
+      },
+      onOpen: (_selectedDates, _dateStr, instance) => {
+        jumpToCurrentThreeMonths(instance);
+      },
       onChange: (selectedDates) => {
         if (selectedDates.length === 2) loadSubmittedReports();
       }
@@ -458,6 +471,83 @@
     } finally {
       if (btn) btn.disabled = false;
     }
+  }
+
+  function getDailyReportMatrixPayload() {
+    if (!reportMatrixTable) return { headers: [], rows: [] };
+    const theadRow = reportMatrixTable.querySelector('thead tr');
+    const headers = theadRow ? Array.from(theadRow.querySelectorAll('th')).map((th) => th.textContent.trim()) : [];
+    const rows = [];
+    reportMatrixTable.querySelectorAll('tbody tr').forEach((tr) => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length === 1 && tds[0].hasAttribute('colspan')) return;
+      const cells = Array.from(tds).map((td) => td.textContent.trim());
+      if (cells.length === headers.length) rows.push(cells);
+    });
+    return { headers, rows };
+  }
+
+  function getDailyReportPrintStyles() {
+    return [
+      '@page{size:landscape;margin:8mm;}',
+      'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+      '.print-wrap{width:100%;}',
+      'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+      '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+      'table{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;}',
+      'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;}',
+      'th{text-align:center;background:#d9e1f2;font-weight:700;}',
+      'td{text-align:right;padding-right:14px;}',
+      'td:first-child{text-align:left;padding-left:10px;padding-right:7px;}',
+      'tbody tr:last-child td,td:last-child{font-weight:700;background:#fff3cd;}'
+    ].join('');
+  }
+
+  function printDailyReportMatrix() {
+    const payload = getDailyReportMatrixPayload();
+    if (payload.headers.length < 2 || payload.rows.length === 0) {
+      Swal.fire({ icon: 'info', title: 'Print', text: 'No data to print for the current view.' });
+      return;
+    }
+    const range = getSelectedListRange();
+    const modeLabel = reportMode === 'winloss' ? 'Winloss' : 'Rolling';
+    const headerHtml = payload.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
+    const rowsHtml = payload.rows.map((row) => {
+      return `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`;
+    }).join('');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const frameWindow = iframe.contentWindow;
+    const frameDoc = frameWindow.document;
+    frameDoc.open();
+    frameDoc.write([
+      '<!doctype html><html><head><title>', escapeHtml(modeLabel), '</title><style>',
+      getDailyReportPrintStyles(),
+      '</style></head><body><div class="print-wrap">',
+      '<h2>', escapeHtml(modeLabel), '</h2>',
+      '<div class="subtitle">', escapeHtml(`${formatDateDisplay(range.from)} to ${formatDateDisplay(range.to)}`), '</div>',
+      '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+      '</div></body></html>'
+    ].join(''));
+    frameDoc.close();
+    const cleanup = () => {
+      setTimeout(() => {
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 300);
+    };
+    frameWindow.onafterprint = cleanup;
+    setTimeout(() => {
+      frameWindow.focus();
+      frameWindow.print();
+      cleanup();
+    }, 250);
   }
 
   async function loadSubmittedReports() {
@@ -700,6 +790,11 @@
   if (btnExportMatrix) {
     btnExportMatrix.addEventListener('click', () => {
       exportDailyReportMatrix();
+    });
+  }
+  if (btnPrintMatrix) {
+    btnPrintMatrix.addEventListener('click', () => {
+      printDailyReportMatrix();
     });
   }
   dailyReportEntriesTbody.addEventListener('input', (event) => {

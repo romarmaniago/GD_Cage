@@ -91,9 +91,14 @@
                 <a href="/net_profit" class="active">Net profit</a>
               </div>
             </h3>
-            <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" id="bnpp-export-excel">
-              <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
-            </button>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="bnpp-print">
+                <i class="fa fa-print opacity-90"></i><span>Print</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="bnpp-export-excel">
+                <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
+              </button>
+            </div>
           </div>
           <div class="bnpp-range-wrap mt-2">
             <input type="text" id="bnpp-range" class="form-control" placeholder="From — To" readonly autocomplete="off" />

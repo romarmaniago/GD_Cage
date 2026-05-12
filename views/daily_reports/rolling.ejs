@@ -26,6 +26,10 @@
     background-color: #fff3cd;
     font-weight: 700;
   }
+  .daily-report-matrix tbody td:not(:first-child) {
+    text-align: right !important;
+    padding-right: 20px;
+  }
   .daily-report-list-daterange-wrap {
     display: inline-block;
     max-width: 100%;
@@ -65,6 +69,9 @@
             </div>
           </h3>
           <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="btn-print-daily-report-matrix">
+              <i class="fa fa-print opacity-90"></i><span>Print</span>
+            </button>
             <button type="button" class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1" id="btn-export-daily-report-matrix">
               <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
             </button>

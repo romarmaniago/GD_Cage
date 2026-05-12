@@ -3178,7 +3178,21 @@ function coerceJunketXlsxNumericCell(raw) {
 	return Number.isFinite(n) ? n : s;
 }
 
-/** Client sends rows without ENCODED BY (index 4) or ACTION (last column). */
+function houseExpenseExportBodyAlignment(header) {
+	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
+	if (h.includes('AMOUNT')) {
+		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
+	}
+	return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false };
+}
+
+function houseExpenseExportDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
+/** Client sends rows without ACTION (last column). */
 pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req, res) {
 	try {
 		const { headers, rows, filename } = req.body || {};
@@ -3207,9 +3221,9 @@ pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req,
 
 		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
 		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
+		headerRow.eachCell((cell, colNumber) => {
 			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.alignment = houseExpenseExportBodyAlignment(headers[colNumber - 1]);
 			cell.border = thinBorder;
 			cell.fill = {
 				type: 'pattern',
@@ -3226,26 +3240,32 @@ pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req,
 				return coerceJunketXlsxNumericCell(v);
 			});
 			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell) => {
+			dataRow.eachCell((cell, colNumber) => {
 				cell.border = thinBorder;
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.alignment = houseExpenseExportBodyAlignment(headers[colNumber - 1]);
 			});
 		});
 
 		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
+			const headerText = String(h == null ? '' : h);
+			const upperHeader = headerText.toUpperCase();
+			const isDescription = upperHeader.includes('DESCRIPTION');
+			const isReceiptNo = upperHeader.includes('RECEIPT');
+			const isDateTime = upperHeader.includes('DATE');
+			let m = houseExpenseExportDisplayWidth(headerText);
 			for (let ri = 0; ri < rows.length; ri++) {
 				const row = rows[ri];
 				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
+				const L = houseExpenseExportDisplayWidth(row[c]);
 				if (L > m) m = L;
 			}
-			return Math.min(48, Math.max(10, m + 2));
+			const minWidth = isDescription ? 24 : (isReceiptNo || isDateTime ? 18 : 12);
+			const maxWidth = isDescription ? 100 : 60;
+			return Math.min(maxWidth, Math.max(minWidth, m + 4));
 		});
 		for (let i = 1; i <= ncol; i++) {
 			const col = ws.getColumn(i);
 			col.width = colMaxLens[i - 1];
-			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
 
 		applyCommaThousandsToNumericCells(ws);
@@ -3273,6 +3293,17 @@ function commissionExportRollingRateCol1Based(headers) {
 		if (u.includes('ROLLING') && u.includes('RATE')) return i + 1;
 	}
 	return 7;
+}
+
+function commissionExportBodyAlignment(header) {
+	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
+	if (h.includes('ACCOUNT NAME') || h.includes('DATE')) {
+		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+	}
+	if (h.includes('GAME') || h.includes('RANKING')) {
+		return { vertical: 'middle', horizontal: 'center', wrapText: true };
+	}
+	return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
 }
 
 /** Commission table export (all columns; no action column on page). */
@@ -3334,7 +3365,7 @@ pageRouter.post('/commission/export_xlsx', checkSession, async function (req, re
 			const dataRow = ws.addRow(padded);
 			dataRow.eachCell((cell, colNumber) => {
 				cell.border = thinBorder;
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.alignment = commissionExportBodyAlignment(headers[colNumber - 1]);
 				if (colNumber === rollingRateCol1Based) {
 					const orig = arr[colNumber - 1];
 					const s = orig == null ? '' : String(orig).trim();
@@ -3358,7 +3389,6 @@ pageRouter.post('/commission/export_xlsx', checkSession, async function (req, re
 		for (let i = 1; i <= ncol; i++) {
 			const col = ws.getColumn(i);
 			col.width = colMaxLens[i - 1];
-			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
 
 		applyCommaThousandsToNumericCells(ws);

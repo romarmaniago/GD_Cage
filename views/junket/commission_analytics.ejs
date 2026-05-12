@@ -7,8 +7,8 @@
 	<div class="row">
 		<div class="col-sm-12">
 			<div class="card">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h3 class="card-title">
+				<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+					<h3 class="card-title mb-0">
 						<div class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
 							<a href="#"><%= __('commission.junket') %></a>
@@ -16,6 +16,14 @@
 							<a href="/commission_analytics" class="active">Analytics</a>
 						</div>
 					</h3>
+					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" id="btn-commission-analytics-print" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-print" aria-hidden="true"></i> Print
+						</button>
+						<button type="button" id="btn-commission-analytics-export" class="btn btn-sm btn-success">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission.export') || 'Export' %>
+						</button>
+					</div>
 				</div>
 				<div class="commission-date-filter-wrap">
 					<input type="text" id="commission-panel-daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
@@ -27,11 +35,11 @@
 								<tr>
 									<th>Ranking #</th>
 									<th>Account Name</th>
-									<th class="commission-rank-sortable" data-rank-key="totalBuyIn">Total Buy-In <span class="commission-rank-sort-indicator">-</span></th>
-									<th class="commission-rank-sortable" data-rank-key="totalChipsReturn">Total Chips Return <span class="commission-rank-sort-indicator">-</span></th>
-									<th class="commission-rank-sortable" data-rank-key="winLoss">Win/Loss <span class="commission-rank-sort-indicator">-</span></th>
-									<th class="commission-rank-sortable" data-rank-key="totalRolling">Total Rolling <span class="commission-rank-sort-indicator">-</span></th>
-									<th class="commission-rank-sortable" data-rank-key="commission">Commission <span class="commission-rank-sort-indicator">-</span></th>
+									<th class="commission-rank-sortable" data-rank-key="totalBuyIn">Total Buy-In <span class="commission-rank-sort-indicator"></span></th>
+									<th class="commission-rank-sortable" data-rank-key="totalChipsReturn">Total Chips Return <span class="commission-rank-sort-indicator"></span></th>
+									<th class="commission-rank-sortable" data-rank-key="winLoss">Win/Loss <span class="commission-rank-sort-indicator"></span></th>
+									<th class="commission-rank-sortable" data-rank-key="totalRolling">Total Rolling <span class="commission-rank-sort-indicator"></span></th>
+									<th class="commission-rank-sortable" data-rank-key="commission">Commission <span class="commission-rank-sort-indicator"></span></th>
 									<th class="commission-rank-sortable" data-rank-key="ngr">NGR <span class="commission-rank-sort-indicator">-</span></th>
 								</tr>
 							</thead>
@@ -49,7 +57,15 @@
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title mb-0">Guest Commission Transactions</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				<div class="d-flex flex-wrap gap-2 align-items-center">
+					<button type="button" id="btn-commission-panel-modal-print" class="btn btn-sm btn-alt-success">
+						<i class="fa fa-print" aria-hidden="true"></i> Print
+					</button>
+					<button type="button" id="btn-commission-panel-modal-export" class="btn btn-sm btn-success">
+						<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission.export') || 'Export' %>
+					</button>
+					<button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
 			</div>
 			<div class="modal-body commission-guest-modal-body">
 				<div class="small mb-2 d-flex justify-content-between align-items-center">
@@ -193,6 +209,32 @@
 	text-align: left;
 	border: none;
 	white-space: nowrap;
+}
+
+#commission-panel-tbl thead th:nth-child(1) {
+	text-align: center;
+}
+
+#commission-panel-tbl thead th:nth-child(2),
+#commission-panel-tbl tbody td:nth-child(2) {
+	text-align: left;
+	padding-left: 20px;
+}
+
+#commission-panel-tbl thead th:nth-child(3),
+#commission-panel-tbl thead th:nth-child(4),
+#commission-panel-tbl thead th:nth-child(5),
+#commission-panel-tbl thead th:nth-child(6),
+#commission-panel-tbl thead th:nth-child(7),
+#commission-panel-tbl thead th:nth-child(8),
+#commission-panel-tbl tbody td:nth-child(3),
+#commission-panel-tbl tbody td:nth-child(4),
+#commission-panel-tbl tbody td:nth-child(5),
+#commission-panel-tbl tbody td:nth-child(6),
+#commission-panel-tbl tbody td:nth-child(7),
+#commission-panel-tbl tbody td:nth-child(8) {
+	text-align: right;
+	padding-right: 20px;
 }
 
 #commission-panel-tbl thead th.commission-rank-sortable {
@@ -419,5 +461,43 @@
 #commission-panel-modal-foot-table th:nth-child(8),
 #commission-panel-modal-foot-table th:nth-child(9) {
 	text-align: right;
+}
+
+#commission-panel-modal-body-table td:nth-child(1),
+#commission-panel-modal-head-table th:nth-child(1) {
+	text-align: center;
+}
+
+#commission-panel-modal-body-table td:nth-child(10),
+#commission-panel-modal-head-table th:nth-child(10) {
+	text-align: left;
+	padding-left: 20px;
+}
+
+#commission-panel-modal-body-table td:nth-child(2),
+#commission-panel-modal-body-table td:nth-child(3),
+#commission-panel-modal-body-table td:nth-child(4),
+#commission-panel-modal-body-table td:nth-child(5),
+#commission-panel-modal-body-table td:nth-child(6),
+#commission-panel-modal-body-table td:nth-child(7),
+#commission-panel-modal-body-table td:nth-child(8),
+#commission-panel-modal-body-table td:nth-child(9),
+#commission-panel-modal-head-table th:nth-child(2),
+#commission-panel-modal-head-table th:nth-child(3),
+#commission-panel-modal-head-table th:nth-child(4),
+#commission-panel-modal-head-table th:nth-child(5),
+#commission-panel-modal-head-table th:nth-child(6),
+#commission-panel-modal-head-table th:nth-child(7),
+#commission-panel-modal-head-table th:nth-child(8),
+#commission-panel-modal-head-table th:nth-child(9),
+#commission-panel-modal-foot-table th:nth-child(2),
+#commission-panel-modal-foot-table th:nth-child(3),
+#commission-panel-modal-foot-table th:nth-child(4),
+#commission-panel-modal-foot-table th:nth-child(5),
+#commission-panel-modal-foot-table th:nth-child(6),
+#commission-panel-modal-foot-table th:nth-child(7),
+#commission-panel-modal-foot-table th:nth-child(8),
+#commission-panel-modal-foot-table th:nth-child(9) {
+	padding-right: 20px;
 }
 </style>

@@ -792,6 +792,7 @@ $(document).ready(function() {
         ];
         // Store raw amount as a property on the row array for easy access
         rowArray._rawAmount = row.amountRaw;
+        rowArray._sortDate = row.sortDate instanceof Date && !isNaN(row.sortDate.getTime()) ? row.sortDate.getTime() : 0;
         return rowArray;
       });
 
@@ -808,7 +809,13 @@ $(document).ready(function() {
           { "className": "text-end" },
           { "className": "text-center" },
           { "className": "text-center" },
-          { "className": "text-center" },
+          {
+            "className": "text-center",
+            "render": function(data, type, row) {
+              if (type === 'sort' || type === 'type') return row && row._sortDate ? row._sortDate : 0;
+              return data;
+            }
+          },
           { "className": "text-center", "orderable": false }
         ],
         responsive: true,
@@ -849,6 +856,11 @@ $(document).ready(function() {
     const now = new Date();
     const startOfMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
     const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    const jumpTotalChipsRangeToCurrentThreeMonths = function(instance) {
+      if (!instance) return;
+      const current = new Date();
+      instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+    };
     
     if ($('#total-chips-daterange').length > 0) {
       if (!totalChipsPicker || !$('#total-chips-daterange').hasClass('flatpickr-input')) {
@@ -858,7 +870,13 @@ $(document).ready(function() {
           altFormat: "M d, Y",
           dateFormat: "Y-m-d",
           defaultDate: [startOfMonth, today],
-          showMonths: 2,
+          showMonths: 3,
+          onReady: function(selectedDates, dateStr, instance) {
+            jumpTotalChipsRangeToCurrentThreeMonths(instance);
+          },
+          onOpen: function(selectedDates, dateStr, instance) {
+            jumpTotalChipsRangeToCurrentThreeMonths(instance);
+          },
           onChange: function(selectedDates, dateStr) {
             console.log('Total Chips History Date changed:', dateStr);
             if (selectedDates.length === 2) {

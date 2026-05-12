@@ -43,6 +43,9 @@
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" id="btn-fnb-hotel-print" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-print" aria-hidden="true"></i> Print
+						</button>
 						<button type="button" id="btn-fnb-hotel-export" class="btn btn-sm btn-success">
 							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('fnb_hotel.export') || 'Export' %>
 						</button>
@@ -50,6 +53,9 @@
 							<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
 						</button>
 					</div>
+				</div>
+				<div class="fnb-hotel-date-filter-wrap">
+					<input type="text" id="fnb-hotel-daterange" class="input-daterange input-group" placeholder="Select date range" autocomplete="off" />
 				</div>
 				<div class="card-body">
 					<div class="row mt-4">
@@ -168,6 +174,12 @@
     border-bottom: 2px solid #dee2e6;
 }
 
+#fnb-hotel-table thead th:nth-child(5),
+#fnb-hotel-table tbody td:nth-child(5) {
+    text-align: right !important;
+    padding-right: 20px;
+}
+
 /* Row styles */
 #fnb-hotel-table tbody tr {
     border-bottom: 1px solid #e9ecef;
@@ -182,6 +194,27 @@
 #fnb-hotel-table td {
     padding: 12px 15px;
     color: #495057;
+}
+
+.fnb-hotel-date-filter-wrap {
+    max-width: 260px;
+    margin: 8px 24px 0;
+}
+
+.fnb-hotel-date-filter-wrap .input-daterange,
+.fnb-hotel-date-filter-wrap .flatpickr-alt-input {
+    width: 100% !important;
+    max-width: 100%;
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    border: 1px solid #dbe2f3 !important;
+    border-radius: 8px;
+    background: #fff !important;
+    padding: 8px 10px;
+    line-height: 1.2;
+    color: #344054;
+    box-shadow: none !important;
+    cursor: pointer;
 }
 
 /* No-data row: hidden by default, shown only with .show-empty */

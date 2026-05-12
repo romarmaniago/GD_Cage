@@ -136,7 +136,21 @@ router.put('/junket_loss/remove/:id', async (req, res) => {
 	}
 });
 
-/** Client omits ENCODED BY (index 3) and ACTION (last column). */
+function junketLossExportAlignment(header) {
+	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
+	if (h.includes('AMOUNT')) {
+		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
+	}
+	return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false };
+}
+
+function junketLossExportDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
+/** Client omits ACTION (last column). */
 router.post('/junket_loss/export_xlsx', checkSession, async function (req, res) {
 	try {
 		const { headers, rows, filename } = req.body || {};
@@ -165,9 +179,9 @@ router.post('/junket_loss/export_xlsx', checkSession, async function (req, res) 
 
 		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
 		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
+		headerRow.eachCell((cell, colNumber) => {
 			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.alignment = junketLossExportAlignment(headers[colNumber - 1]);
 			cell.border = thinBorder;
 			cell.fill = {
 				type: 'pattern',
@@ -184,26 +198,27 @@ router.post('/junket_loss/export_xlsx', checkSession, async function (req, res) 
 				return coerceJunketLossExportCell(v);
 			});
 			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell) => {
+			dataRow.eachCell((cell, colNumber) => {
 				cell.border = thinBorder;
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.alignment = junketLossExportAlignment(headers[colNumber - 1]);
 			});
 		});
 
 		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
+			const headerText = String(h == null ? '' : h);
+			const isDescription = headerText.toUpperCase().includes('DESCRIPTION');
+			let m = junketLossExportDisplayWidth(headerText);
 			for (let ri = 0; ri < rows.length; ri++) {
 				const row = rows[ri];
 				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
+				const L = junketLossExportDisplayWidth(row[c]);
 				if (L > m) m = L;
 			}
-			return Math.min(48, Math.max(10, m + 2));
+			return Math.min(100, Math.max(isDescription ? 28 : 12, m + (isDescription ? 8 : 4)));
 		});
 		for (let i = 1; i <= ncol; i++) {
 			const col = ws.getColumn(i);
 			col.width = colMaxLens[i - 1];
-			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
 
 		applyCommaThousandsToNumericCells(ws);

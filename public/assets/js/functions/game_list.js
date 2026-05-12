@@ -776,9 +776,19 @@ $(document).ready(function () {
 		return 'Gamebook-export.xlsx';
 	}
 
-	$('#btn-game-list-export').on('click', function (e) {
-		e.preventDefault();
-		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+	function escapeGameListPrintHtml(value) {
+		return String(value == null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function getGameListTablePayload(includeFooter) {
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) {
+			return { headers: [], rows: [], dataRowCount: 0 };
+		}
 		var dt = $('#game_list-tbl').DataTable();
 		var headers = [];
 		// Omit last two columns: ROLLER CHIPS, ACTION
@@ -786,13 +796,119 @@ $(document).ready(function () {
 			headers.push($(this).text().trim());
 		});
 		var rows = [];
-		dt.rows({ search: 'applied' }).every(function () {
+		dt.rows({ search: 'applied', order: 'applied' }).every(function () {
 			var cells = [];
 			$(this.node()).find('td').slice(0, -2).each(function () {
 				cells.push($(this).text().trim());
 			});
 			if (cells.length) rows.push(cells);
 		});
+		var dataRowCount = rows.length;
+		if (includeFooter && dataRowCount > 0) {
+			rows.push([
+				$('#game_list-tbl tfoot th:first').text().trim(),
+				'',
+				'',
+				'',
+				'',
+				$('#GRAND_TOTAL_AMOUNT').text().trim(),
+				$('#GRAND_CHIPS_RETURN').text().trim(),
+				$('#GRAND_WIN_LOSS').text().trim(),
+				$('#GRAND_REAL_ROLLING').text().trim(),
+				$('#GRAND_TOTAL_ROLLING').text().trim(),
+				'',
+				$('#GRAND_COMMISSION').text().trim(),
+				$('#GRAND_ADD_CHG').text().trim(),
+				$('#GRAND_TOTAL_SETTLE').text().trim(),
+				''
+			]);
+		}
+		return { headers: headers, rows: rows, dataRowCount: dataRowCount };
+	}
+
+	function getGameListPrintStyles() {
+		return [
+			'@page{size:landscape;margin:6mm;}',
+			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+			'.print-wrap{width:100%;}',
+			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+			'.subtitle{text-align:center;margin:0 0 10px;font-size:12px;color:#444;}',
+			'table{width:100%;border-collapse:collapse;font-size:8px;}',
+			'th,td{border:1px solid #777;padding:4px 5px;vertical-align:middle;text-align:center;}',
+			'th{background:#d9e1f2;font-weight:700;}',
+			'th:nth-child(2),th:nth-child(4),th:nth-child(5),td:nth-child(2),td:nth-child(4),td:nth-child(5){text-align:left;padding-left:10px;}',
+			'th:nth-child(6),th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),td:nth-child(6),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14){text-align:right;padding-right:10px;}',
+			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
+		].join('');
+	}
+
+	function printGameListTable() {
+		var payload = getGameListTablePayload(true);
+		if (payload.dataRowCount === 0) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'info', title: 'Print', text: 'No rows to print for the current filter.', confirmButtonColor: '#0d6efd' });
+			} else {
+				alert('No rows to print.');
+			}
+			return;
+		}
+		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		var subtitle = mode === 'settlement'
+			? ($('#settlement-date-picker').val() || window.selectedSettlementDate || '')
+			: ($('#daterange-picker').val() || '');
+		var headerHtml = payload.headers.map(function (h) {
+			return '<th>' + escapeGameListPrintHtml(h) + '</th>';
+		}).join('');
+		var rowsHtml = payload.rows.map(function (row) {
+			return '<tr>' + row.map(function (cell) {
+				return '<td>' + escapeGameListPrintHtml(cell) + '</td>';
+			}).join('') + '</tr>';
+		}).join('');
+		var iframe = document.createElement('iframe');
+		iframe.style.position = 'fixed';
+		iframe.style.right = '0';
+		iframe.style.bottom = '0';
+		iframe.style.width = '0';
+		iframe.style.height = '0';
+		iframe.style.border = '0';
+		document.body.appendChild(iframe);
+		var frameWindow = iframe.contentWindow;
+		var frameDoc = frameWindow.document;
+		frameDoc.open();
+		frameDoc.write([
+			'<!doctype html><html><head><title>Game Book</title><style>',
+			getGameListPrintStyles(),
+			'</style></head><body><div class="print-wrap">',
+			'<h2>Game Book</h2>',
+			'<div class="subtitle">', escapeGameListPrintHtml(subtitle), '</div>',
+			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+			'</div></body></html>'
+		].join(''));
+		frameDoc.close();
+		var cleanup = function () {
+			setTimeout(function () {
+				if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+			}, 300);
+		};
+		frameWindow.onafterprint = cleanup;
+		setTimeout(function () {
+			frameWindow.focus();
+			frameWindow.print();
+			cleanup();
+		}, 250);
+	}
+
+	$('#btn-game-list-print').on('click', function (e) {
+		e.preventDefault();
+		printGameListTable();
+	});
+
+	$('#btn-game-list-export').on('click', function (e) {
+		e.preventDefault();
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+		var payload = getGameListTablePayload(false);
+		var headers = payload.headers;
+		var rows = payload.rows;
 		if (rows.length === 0) {
 			if (typeof Swal !== 'undefined') {
 				Swal.fire({ icon: 'info', title: 'Export', text: 'No rows to export for the current filter.', confirmButtonColor: '#0d6efd' });

@@ -24,6 +24,20 @@ function coerceFnbHotelExportCell(raw) {
 	return Number.isFinite(n) ? n : s;
 }
 
+function fnbHotelExportAlignment(header) {
+	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
+	if (h.includes('AMOUNT')) {
+		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
+	}
+	return { vertical: 'middle', horizontal: 'left', wrapText: false };
+}
+
+function fnbHotelExportDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
 	router.get('/fnb-hotel', checkSession, async (req, res) => {
 		const permissions = req.session.permissions;
 
@@ -487,9 +501,9 @@ router.post('/fnb-hotel/export_xlsx', checkSession, async function (req, res) {
 
 		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
 		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
+		headerRow.eachCell((cell, colNumber) => {
 			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.alignment = fnbHotelExportAlignment(headers[colNumber - 1]);
 			cell.border = thinBorder;
 			cell.fill = {
 				type: 'pattern',
@@ -506,26 +520,28 @@ router.post('/fnb-hotel/export_xlsx', checkSession, async function (req, res) {
 				return coerceFnbHotelExportCell(v);
 			});
 			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell) => {
+			dataRow.eachCell((cell, colNumber) => {
 				cell.border = thinBorder;
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+				cell.alignment = fnbHotelExportAlignment(headers[colNumber - 1]);
 			});
 		});
 
 		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
+			const headerText = String(h == null ? '' : h);
+			const upperHeader = headerText.toUpperCase();
+			const isRemarks = upperHeader.includes('REMARKS');
+			let m = fnbHotelExportDisplayWidth(headerText);
 			for (let ri = 0; ri < rows.length; ri++) {
 				const row = rows[ri];
 				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
+				const L = fnbHotelExportDisplayWidth(row[c]);
 				if (L > m) m = L;
 			}
-			return Math.min(48, Math.max(10, m + 2));
+			return Math.min(100, Math.max(isRemarks ? 28 : 10, m + (isRemarks ? 8 : 4)));
 		});
 		for (let i = 1; i <= ncol; i++) {
 			const col = ws.getColumn(i);
 			col.width = colMaxLens[i - 1];
-			col.alignment = { horizontal: 'center', vertical: 'middle' };
 		}
 
 		applyCommaThousandsToNumericCells(ws);

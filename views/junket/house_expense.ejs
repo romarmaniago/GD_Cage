@@ -24,6 +24,9 @@
                                 </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
+                                    <i class="fa fa-print" aria-hidden="true"></i> Print
+                                </button>
                                 <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
                                     <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
                                 </button>
@@ -401,8 +404,32 @@
     color: var(--bs-primary);
     font-weight: 500;
     padding: 12px 15px;
-    text-align: center;
     border: none;
+}
+
+#expense-tbl thead th:nth-child(1),
+#expense-tbl thead th:nth-child(2),
+#expense-tbl thead th:nth-child(3),
+#expense-tbl thead th:nth-child(5),
+#expense-tbl thead th:nth-child(6),
+#expense-tbl tbody td:nth-child(1),
+#expense-tbl tbody td:nth-child(2),
+#expense-tbl tbody td:nth-child(3),
+#expense-tbl tbody td:nth-child(5),
+#expense-tbl tbody td:nth-child(6) {
+    text-align: left !important;
+    padding-left: 20px;
+}
+
+#expense-tbl thead th:nth-child(4),
+#expense-tbl tbody td:nth-child(4) {
+    text-align: right !important;
+    padding-right: 20px;
+}
+
+#expense-tbl thead th:nth-child(7),
+#expense-tbl tbody td:nth-child(7) {
+    text-align: center !important;
 }
 
 /* Row styles */
@@ -414,7 +441,6 @@
 #expense-tbl td {
     padding: 12px 15px;
     color: #666;
-    text-align: center;
 }
 
 #expense-tbl tbody tr:hover {
@@ -425,7 +451,7 @@
 
 /* Balance column */
 #expense-tbl td:last-child {
-    text-align: right;
+    text-align: center;
     color: #333;
 }
 
@@ -701,21 +727,21 @@
                 display: inline-flex;
                 flex-wrap: nowrap;
                 align-items: center;
-                gap: 0.35rem;
+                gap: 0.2rem;
                 white-space: nowrap;
             }
             #expense-tbl .house-expense-actions .btn i.fa {
                 font-size: 0.72rem;
             }
             #expense-tbl .house-expense-actions .btn {
-                padding: 0.2rem 0.42rem;
+                padding: 0.18rem 0.32rem;
                 flex: 0 0 auto;
             }
 
             /* Keep action column in single line (no two-line wrap) */
             #expense-tbl th:last-child,
             #expense-tbl td:last-child {
-                min-width: 145px;
+                min-width: 105px;
                 white-space: nowrap;
                 text-align: center !important;
             }

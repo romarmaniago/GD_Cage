@@ -20,9 +20,14 @@
 							<a href="/commission_analytics">Analytics</a>
 							</div>
 						</h3>
-						<button type="button" id="btn-commission-export" class="btn btn-sm btn-success">
-							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission.export') || 'Export' %>
-						</button>
+						<div class="d-flex flex-wrap gap-2 align-items-center">
+							<button type="button" id="btn-commission-print" class="btn btn-sm btn-alt-success">
+								<i class="fa fa-print" aria-hidden="true"></i> Print
+							</button>
+							<button type="button" id="btn-commission-export" class="btn btn-sm btn-success">
+								<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission.export') || 'Export' %>
+							</button>
+						</div>
 					</div>
 					<!-- DATE FILTER -->
 					<div class="dataTables_wrapper">
@@ -288,6 +293,28 @@
     border: none;
 }
 
+#commission-tbl thead th:nth-child(1) {
+    text-align: center;
+}
+
+#commission-tbl thead th:nth-child(2),
+#commission-tbl thead th:nth-child(11) {
+    text-align: left;
+    padding-left: 20px;
+}
+
+#commission-tbl thead th:nth-child(3),
+#commission-tbl thead th:nth-child(4),
+#commission-tbl thead th:nth-child(5),
+#commission-tbl thead th:nth-child(6),
+#commission-tbl thead th:nth-child(7),
+#commission-tbl thead th:nth-child(8),
+#commission-tbl thead th:nth-child(9),
+#commission-tbl thead th:nth-child(10) {
+    text-align: right;
+    padding-right: 20px;
+}
+
 /* Row styles */
 #commission-tbl tbody tr {
     border-bottom: 1px solid #eee;
@@ -299,6 +326,25 @@
     color: #666;
 }
 
+#commission-tbl tbody td:nth-child(2),
+#commission-tbl tbody td:nth-child(11) {
+    text-align: left;
+    padding-left: 20px;
+}
+
+#commission-tbl tbody td:nth-child(3),
+#commission-tbl tbody td:nth-child(4),
+#commission-tbl tbody td:nth-child(5),
+#commission-tbl tbody td:nth-child(6),
+#commission-tbl tbody td:nth-child(7),
+#commission-tbl tbody td:nth-child(8),
+#commission-tbl tbody td:nth-child(9),
+#commission-tbl tbody td:nth-child(10),
+#commission-tbl tfoot th:nth-child(n+2) {
+    text-align: right;
+    padding-right: 20px;
+}
+
 #commission-tbl tbody tr:hover {
   background-color: #f5f5f5 !important;
 }
@@ -307,7 +353,8 @@
 
 /* Balance column */
 #commission-tbl td:last-child {
-    text-align: right;
+    text-align: left;
+    padding-left: 20px;
     color: #333;
 }
 

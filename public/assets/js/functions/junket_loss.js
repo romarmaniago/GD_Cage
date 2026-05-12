@@ -46,6 +46,12 @@ function getFirstAndLastOfMonth() {
     return { first, last };
 }
 
+function jumpJunketLossRangeToCurrentThreeMonths(instance) {
+    if (!instance) return;
+    const current = new Date();
+    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+}
+
 function fetchJunketLossData() {
     $.get('/junket_loss_data', {
         fromDate: junketLossFromDate,
@@ -93,6 +99,13 @@ $(document).ready(function () {
             altInput: true,
             altFormat: 'M d, Y',
             defaultDate: [monthRange.first, monthRange.last],
+            showMonths: 3,
+            onReady: function (_selectedDates, _dateStr, instance) {
+                jumpJunketLossRangeToCurrentThreeMonths(instance);
+            },
+            onOpen: function (_selectedDates, _dateStr, instance) {
+                jumpJunketLossRangeToCurrentThreeMonths(instance);
+            },
             onClose: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) return;
                 junketLossFromDate = formatYmd(selectedDates[0]);
@@ -114,6 +127,15 @@ $(document).ready(function () {
             return 'JunketLoss_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
         }
         return 'JunketLoss-export.xlsx';
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     junketLossTable = $('#junket-loss-tbl').DataTable({
@@ -157,15 +179,12 @@ $(document).ready(function () {
 
     fetchJunketLossData();
 
-    var encodedByColIndex = 3;
     var actionColIndex = 5;
 
-    $('#btn-junket-loss-export').on('click', function (e) {
-        e.preventDefault();
-        if (!junketLossTable) return;
+    function getJunketLossTablePayload() {
         var headers = [];
         $('#junket-loss-tbl thead tr:first th').each(function (i) {
-            if (i === encodedByColIndex || i === actionColIndex) return;
+            if (i === actionColIndex) return;
             headers.push($(this).text().trim());
         });
         var rows = [];
@@ -174,11 +193,93 @@ $(document).ready(function () {
             $(this.node())
                 .find('td')
                 .each(function (i) {
-                    if (i === encodedByColIndex || i === actionColIndex) return;
+                    if (i === actionColIndex) return;
                     cells.push($(this).text().trim());
                 });
             if (cells.length) rows.push(cells);
         });
+        return { headers: headers, rows: rows };
+    }
+
+    function getJunketLossPrintStyles() {
+        return [
+            '@page{size:landscape;margin:10mm;}',
+            'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+            '.print-wrap{width:100%;}',
+            'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+            '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+            'table{width:100%;border-collapse:collapse;font-size:11px;}',
+            'th,td{border:1px solid #777;padding:6px 8px;vertical-align:middle;}',
+            'th{background:#d9e1f2;text-align:left;font-weight:700;}',
+            'th:nth-child(2),td:nth-child(2){text-align:right;}',
+            'td{text-align:left;}'
+        ].join('');
+    }
+
+    function printJunketLoss() {
+        if (!junketLossTable) return;
+        var payload = getJunketLossTablePayload();
+        var t = window.junketLossTranslations || {};
+        if (payload.rows.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Print',
+                text: t.no_data || 'No data to print.',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+
+        var headerHtml = payload.headers.map(function (h) {
+            return '<th>' + escapeHtml(h) + '</th>';
+        }).join('');
+        var rowsHtml = payload.rows.map(function (row) {
+            return '<tr>' + row.map(function (cell) {
+                return '<td>' + escapeHtml(cell) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+        var iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+
+        var frameWindow = iframe.contentWindow;
+        var frameDoc = frameWindow.document;
+        frameDoc.open();
+        frameDoc.write([
+            '<!doctype html><html><head><title>Junket Loss</title><style>',
+            getJunketLossPrintStyles(),
+            '</style></head><body><div class="print-wrap">',
+            '<h2>Junket Loss</h2>',
+            '<div class="subtitle">', escapeHtml(junketLossFromDate + ' to ' + junketLossToDate), '</div>',
+            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            '</div></body></html>'
+        ].join(''));
+        frameDoc.close();
+
+        var cleanup = function () {
+            setTimeout(function () {
+                if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 300);
+        };
+        frameWindow.onafterprint = cleanup;
+        setTimeout(function () {
+            frameWindow.focus();
+            frameWindow.print();
+            cleanup();
+        }, 250);
+    }
+
+    $('#btn-junket-loss-export').on('click', function (e) {
+        e.preventDefault();
+        if (!junketLossTable) return;
+        var payload = getJunketLossTablePayload();
+        var headers = payload.headers;
+        var rows = payload.rows;
         var t = window.junketLossTranslations || {};
         if (rows.length === 0) {
             Swal.fire({
@@ -226,6 +327,11 @@ $(document).ready(function () {
             .finally(function () {
                 $btn.prop('disabled', false);
             });
+    });
+
+    $('#btn-junket-loss-print').on('click', function (e) {
+        e.preventDefault();
+        printJunketLoss();
     });
 
     $('#btn-add-junket-loss').on('click', function () {

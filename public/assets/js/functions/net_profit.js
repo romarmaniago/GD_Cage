@@ -18,6 +18,7 @@
 	const $tfoot = document.getElementById('bnpp-tfoot');
 	const $rangeInput = document.getElementById('bnpp-range');
 	const $exportBtn = document.getElementById('bnpp-export-excel');
+	const $printBtn = document.getElementById('bnpp-print');
 
 	let fpInstance = null;
 	let rangeStart = defaultStart;
@@ -49,6 +50,23 @@
 
 	function buildQuery() {
 		return `start=${encodeURIComponent(rangeStart)}&end=${encodeURIComponent(rangeEnd)}`;
+	}
+
+	function netProfitCurrentMonthDate() {
+		if (/^\d{4}-\d{2}-\d{2}$/.test(todayStr)) {
+			const y = parseInt(todayStr.slice(0, 4), 10);
+			const mo = parseInt(todayStr.slice(5, 7), 10) - 1;
+			const day = parseInt(todayStr.slice(8, 10), 10);
+			const dt = new Date(y, mo, day);
+			if (!Number.isNaN(dt.getTime())) return dt;
+		}
+		return new Date();
+	}
+
+	function jumpNetProfitRangeToCurrentThreeMonths(instance) {
+		if (!instance) return;
+		const current = netProfitCurrentMonthDate();
+		instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
 	}
 
 	function formatDisplayDatePlain(iso) {
@@ -148,6 +166,99 @@
 		}
 	}
 
+	function getPrintStyles() {
+		return [
+			'@page{size:landscape;margin:10mm;}',
+			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+			'.print-wrap{width:100%;}',
+			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+			'table{width:100%;border-collapse:collapse;font-size:11px;}',
+			'th,td{border:1px solid #777;padding:6px 8px;vertical-align:middle;}',
+			'th{background:#d9e1f2;text-align:right;font-weight:700;}',
+			'th:first-child,td:first-child{text-align:left;}',
+			'td{text-align:right;}',
+			'tbody tr:last-child td{font-weight:700;background:#fff3cd;}'
+		].join('');
+	}
+
+	function printPayload(payload) {
+		const { headers, rows } = buildExportPayload(payload);
+		if (!(payload.rows || []).length) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'info', title: 'Print', text: 'No rows to print.' });
+			} else {
+				alert('No rows to print.');
+			}
+			return;
+		}
+
+		const headerHtml = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
+		const rowsHtml = rows.map((row) => {
+			return `<tr>${row.map((cell, idx) => {
+				const value = idx === 0 ? cell : fmt(cell);
+				return `<td>${escapeHtml(value)}</td>`;
+			}).join('')}</tr>`;
+		}).join('');
+		const iframe = document.createElement('iframe');
+		iframe.style.position = 'fixed';
+		iframe.style.right = '0';
+		iframe.style.bottom = '0';
+		iframe.style.width = '0';
+		iframe.style.height = '0';
+		iframe.style.border = '0';
+		document.body.appendChild(iframe);
+
+		const frameWindow = iframe.contentWindow;
+		const frameDoc = frameWindow.document;
+		frameDoc.open();
+		frameDoc.write([
+			'<!doctype html><html><head><title>Net Profit</title><style>',
+			getPrintStyles(),
+			'</style></head><body><div class="print-wrap">',
+			'<h2>Net Profit</h2>',
+			'<div class="subtitle">', escapeHtml(`${formatDisplayDatePlain(rangeStart)} to ${formatDisplayDatePlain(rangeEnd)}`), '</div>',
+			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+			'</div></body></html>'
+		].join(''));
+		frameDoc.close();
+
+		const cleanup = function () {
+			setTimeout(function () {
+				if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+			}, 300);
+		};
+		frameWindow.onafterprint = cleanup;
+		setTimeout(function () {
+			frameWindow.focus();
+			frameWindow.print();
+			cleanup();
+		}, 250);
+	}
+
+	function printNetProfit() {
+		if (!$printBtn) return;
+		const q = buildQuery();
+		$printBtn.disabled = true;
+		fetch(`/net_profit_data?${q}`, { credentials: 'same-origin' })
+			.then((res) => res.json())
+			.then((payload) => {
+				if (!payload.success) throw new Error(payload.error || 'Request failed');
+				printPayload(payload);
+			})
+			.catch((err) => {
+				console.error('printNetProfit:', err);
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Print', text: err.message || 'Print failed.' });
+				} else {
+					alert(err.message || 'Print failed.');
+				}
+			})
+			.finally(() => {
+				$printBtn.disabled = false;
+			});
+	}
+
 	function render(payload) {
 		if (!$tbody || !$tfoot) return;
 		const pct = payload.house_share_pct != null ? Number(payload.house_share_pct) : NaN;
@@ -216,7 +327,14 @@
 				altInputClass: 'form-control',
 				locale: { rangeSeparator: ' to ' },
 				defaultDate: [defaultStart, defaultEnd],
+				showMonths: 3,
 				allowInput: false,
+				onReady: function (_selectedDates, _dateStr, instance) {
+					jumpNetProfitRangeToCurrentThreeMonths(instance);
+				},
+				onOpen: function (_selectedDates, _dateStr, instance) {
+					jumpNetProfitRangeToCurrentThreeMonths(instance);
+				},
 				onChange: function (selectedDates, _dateStr, instance) {
 					if (selectedDates.length === 2) {
 						rangeStart = instance.formatDate(selectedDates[0], 'Y-m-d');
@@ -230,6 +348,11 @@
 		if ($exportBtn) {
 			$exportBtn.addEventListener('click', function () {
 				exportToExcel();
+			});
+		}
+		if ($printBtn) {
+			$printBtn.addEventListener('click', function () {
+				printNetProfit();
 			});
 		}
 	});

@@ -24,6 +24,7 @@
 										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm">
 											<i class="fa fa-compress me-1"></i>Merge Settle
 										</button>
+										<button type="button" id="btn-game-list-print" class="btn btn-sm btn-alt-success"><i class="fa fa-print me-1"></i>Print</button>
 										<a href="#" id="btn-game-list-export" class="btn btn-sm btn-success"><i class="fa fa-download me-1"></i><%= __('gamelist.export') || 'Export' %></a>
 									</div>
 								</div>
@@ -567,13 +568,12 @@ th.col-winloss {
     font-weight: 600;
 }
 
-/* GAME RATE + COMMISSION: single line, centered */
+/* GAME RATE + COMMISSION: single line */
 #game_list-tbl th.col-game-rate,
 #game_list-tbl td.col-game-rate,
 #game_list-tbl th.col-commission,
 #game_list-tbl td.col-commission {
 	white-space: nowrap;
-	text-align: center !important;
 	vertical-align: middle;
 }
 
@@ -618,6 +618,80 @@ th.col-winloss {
 #game_list-tbl td {
     padding: 12px 15px;
     color: #495057;
+}
+
+#game_list-tbl thead th:nth-child(2),
+#game_list-tbl thead th:nth-child(4),
+#game_list-tbl thead th:nth-child(5),
+#game_list-tbl tbody td:nth-child(2),
+#game_list-tbl tbody td:nth-child(4),
+#game_list-tbl tbody td:nth-child(5) {
+	text-align: left !important;
+	padding-left: 20px;
+}
+
+#game_list-tbl thead th:nth-child(6),
+#game_list-tbl thead th:nth-child(7),
+#game_list-tbl thead th:nth-child(8),
+#game_list-tbl thead th:nth-child(9),
+#game_list-tbl thead th:nth-child(10),
+#game_list-tbl thead th:nth-child(11),
+#game_list-tbl thead th:nth-child(12),
+#game_list-tbl thead th:nth-child(13),
+#game_list-tbl thead th:nth-child(14),
+#game_list-tbl thead th:nth-child(16),
+#game_list-tbl tbody td:nth-child(6),
+#game_list-tbl tbody td:nth-child(7),
+#game_list-tbl tbody td:nth-child(8),
+#game_list-tbl tbody td:nth-child(9),
+#game_list-tbl tbody td:nth-child(10),
+#game_list-tbl tbody td:nth-child(11),
+#game_list-tbl tbody td:nth-child(12),
+#game_list-tbl tbody td:nth-child(13),
+#game_list-tbl tbody td:nth-child(14),
+#game_list-tbl tbody td:nth-child(16),
+#game_list-tbl tfoot th:nth-child(6),
+#game_list-tbl tfoot th:nth-child(7),
+#game_list-tbl tfoot th:nth-child(8),
+#game_list-tbl tfoot th:nth-child(9),
+#game_list-tbl tfoot th:nth-child(10),
+#game_list-tbl tfoot th:nth-child(12),
+#game_list-tbl tfoot th:nth-child(13),
+#game_list-tbl tfoot th:nth-child(14),
+#game_list-tbl tfoot th:nth-child(16) {
+	text-align: right !important;
+	padding-right: 20px;
+}
+
+#game_list-tbl tfoot th:not(:first-child) {
+	text-align: right !important;
+	padding-right: 20px;
+}
+
+#game_list-tbl tbody td:nth-child(6) .btn,
+#game_list-tbl tbody td:nth-child(7) .btn,
+#game_list-tbl tbody td:nth-child(8) .btn,
+#game_list-tbl tbody td:nth-child(9) .btn,
+#game_list-tbl tbody td:nth-child(10) .btn,
+#game_list-tbl tbody td:nth-child(11) .btn,
+#game_list-tbl tbody td:nth-child(12) .btn,
+#game_list-tbl tbody td:nth-child(13) .btn,
+#game_list-tbl tbody td:nth-child(14) .btn,
+#game_list-tbl tbody td:nth-child(16) .btn,
+#game_list-tbl tbody td:nth-child(6) a,
+#game_list-tbl tbody td:nth-child(7) a,
+#game_list-tbl tbody td:nth-child(8) a,
+#game_list-tbl tbody td:nth-child(9) a,
+#game_list-tbl tbody td:nth-child(10) a,
+#game_list-tbl tbody td:nth-child(11) a,
+#game_list-tbl tbody td:nth-child(12) a,
+#game_list-tbl tbody td:nth-child(13) a,
+#game_list-tbl tbody td:nth-child(14) a,
+#game_list-tbl tbody td:nth-child(16) a {
+	display: inline-block;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+	text-align: right !important;
 }
 
 /* Footer total row */

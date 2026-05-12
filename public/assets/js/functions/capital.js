@@ -197,11 +197,14 @@ $(document).ready(function () {
         altFormat: "M d, Y", // User-friendly format: e.g., Jan 01, 2025
         dateFormat: "Y-m-d", // Format used in the backend: YYYY-MM-DD
         defaultDate: [startOfMonth, currentDate], // Default range: start of the current month to today
-        showMonths: 2, // Display two months side-by-side
+        showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            // Automatically navigate the calendar to show previous and current month side by side
-            const today = new Date();
-            instance.changeMonth(-1, true); // Go to the previous month programmatically
+            const current = new Date();
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+        },
+        onOpen: function (selectedDates, dateStr, instance) {
+            const current = new Date();
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
         },
     });
     // Ensure DataTable remains initialized with the required configuration
@@ -860,7 +863,7 @@ function loadChipsTransaction() {
                                 ? '<span class="css-blue">Chips Cashout</span>'
                                 : '<span class="css-blue">Chips Return</span>'));
 
-                    return [
+                    const rowArray = [
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
@@ -868,6 +871,9 @@ function loadChipsTransaction() {
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
+                    const sortMoment = moment.utc(row.ENCODED_DT);
+                    rowArray._sortDate = sortMoment.isValid() ? sortMoment.valueOf() : 0;
+                    return rowArray;
                 });
 
                 console.log('Filtered Chips Data:', filteredData);
@@ -1033,7 +1039,7 @@ function loadNNChipsHistory() {
                 ? '<span class="badge-cashout">NN Chips Cashout</span>'
                 : '<span class="badge-rolling">Chips Rolling</span>');
 
-                    return [
+                    const rowArray = [
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
@@ -1041,6 +1047,9 @@ function loadNNChipsHistory() {
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
+                    const sortMoment = moment.utc(row.ENCODED_DT);
+                    rowArray._sortDate = sortMoment.isValid() ? sortMoment.valueOf() : 0;
+                    return rowArray;
                 });
 
                 console.log('Filtered NN Chips History Data:', filteredData);
@@ -1052,7 +1061,13 @@ function loadNNChipsHistory() {
             { "className": "text-end" },
             { "className": "text-center" },
             { "className": "text-center" },
-            { "className": "text-center" },
+            {
+                "className": "text-center",
+                "render": function(data, type, row) {
+                    if (type === 'sort' || type === 'type') return row && row._sortDate ? row._sortDate : 0;
+                    return data;
+                }
+            },
             { "className": "text-center", "orderable": false }
         ],
         responsive: true,
@@ -1135,7 +1150,7 @@ function loadCCChipsHistory() {
                     ? '<span class="badge-cashout">CC Chips Cashout</span>'
                     : '<span class="badge-rolling">Chips Rolling</span>');
 
-                    return [
+                    const rowArray = [
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
@@ -1143,6 +1158,9 @@ function loadCCChipsHistory() {
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
+                    const sortMoment = moment.utc(row.ENCODED_DT);
+                    rowArray._sortDate = sortMoment.isValid() ? sortMoment.valueOf() : 0;
+                    return rowArray;
                 });
 
                 console.log('Filtered CC Chips History Data:', filteredData);
@@ -1154,7 +1172,13 @@ function loadCCChipsHistory() {
             { "className": "text-end" },
             { "className": "text-center" },
             { "className": "text-center" },
-            { "className": "text-center" },
+            {
+                "className": "text-center",
+                "render": function(data, type, row) {
+                    if (type === 'sort' || type === 'type') return row && row._sortDate ? row._sortDate : 0;
+                    return data;
+                }
+            },
             { "className": "text-center", "orderable": false }
         ],
         responsive: true,
@@ -1425,6 +1449,11 @@ $(document).ready(function() {
         // Initialize Flatpickr only if not already initialized
         const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
         const currentDate = moment().format('YYYY-MM-DD');
+        const jumpNnChipsRangeToCurrentThreeMonths = function(instance) {
+            if (!instance) return;
+            const current = new Date();
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+        };
         
         if ($('#nnchips-daterange').length > 0) {
             // Check if Flatpickr is already initialized
@@ -1435,7 +1464,13 @@ $(document).ready(function() {
                     altFormat: "M d, Y",
                     dateFormat: "Y-m-d",
                     defaultDate: [startOfMonth, currentDate],
-                    showMonths: 2,
+                    showMonths: 3,
+                    onReady: function(selectedDates, dateStr, instance) {
+                        jumpNnChipsRangeToCurrentThreeMonths(instance);
+                    },
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        jumpNnChipsRangeToCurrentThreeMonths(instance);
+                    },
                     onChange: function(selectedDates, dateStr) {
                         console.log('NN Chips History Date changed:', dateStr); // Debug log
                         if (selectedDates.length === 2) {
@@ -1463,6 +1498,11 @@ $(document).ready(function() {
         // Initialize Flatpickr only if not already initialized
         const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
         const currentDate = moment().format('YYYY-MM-DD');
+        const jumpCcChipsRangeToCurrentThreeMonths = function(instance) {
+            if (!instance) return;
+            const current = new Date();
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+        };
         
         if ($('#ccchips-daterange').length > 0) {
             // Check if Flatpickr is already initialized
@@ -1473,7 +1513,13 @@ $(document).ready(function() {
                     altFormat: "M d, Y",
                     dateFormat: "Y-m-d",
                     defaultDate: [startOfMonth, currentDate],
-                    showMonths: 2,
+                    showMonths: 3,
+                    onReady: function(selectedDates, dateStr, instance) {
+                        jumpCcChipsRangeToCurrentThreeMonths(instance);
+                    },
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        jumpCcChipsRangeToCurrentThreeMonths(instance);
+                    },
                     onChange: function(selectedDates, dateStr) {
                         console.log('CC Chips History Date changed:', dateStr); // Debug log
                         if (selectedDates.length === 2) {
