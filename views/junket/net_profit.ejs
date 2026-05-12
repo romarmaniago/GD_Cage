@@ -55,6 +55,13 @@
     color: #333;
   }
 
+  #bnpp-table .bnpp-share-input {
+    width: 5.5rem;
+    min-width: 5.5rem;
+    margin-left: auto;
+    text-align: right;
+  }
+
   .bnpp-range-wrap {
     width: 20rem;
     max-width: 100%;
@@ -112,14 +119,15 @@
                   <th>Date</th>
                   <th>Games</th>
                   <th>Win / loss</th>
-                  <th id="bnpp-th-casino-share"><% if (typeof netProfitHouseSharePct !== 'undefined') { %>Casino share (<%= netProfitHouseSharePct %>%)<% } else { %>Casino share<% } %></th>
+                  <th>Share Percentage</th>
+                  <th>Share</th>
                   <th>Commission</th>
                   <th>Expenses</th>
                   <th>Net profit</th>
                 </tr>
               </thead>
               <tbody id="bnpp-tbody">
-                <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>
               </tbody>
               <tfoot id="bnpp-tfoot"></tfoot>
             </table>

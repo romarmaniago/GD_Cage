@@ -29,6 +29,16 @@
 		return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 	}
 
+	function fmtPct(n) {
+		if (n == null || Number.isNaN(Number(n))) return '';
+		return `${fmt(n)}%`;
+	}
+
+	function formatPctInput(n) {
+		if (n == null || Number.isNaN(Number(n))) return '';
+		return String(Math.round(Number(n) * 10000) / 10000);
+	}
+
 	function escapeHtml(s) {
 		const d = document.createElement('div');
 		d.textContent = s == null ? '' : String(s);
@@ -90,7 +100,8 @@
 			'Date',
 			'Games',
 			'Win / loss',
-			`Casino share (${pct}%)`,
+			'Share Percentage',
+			'Share',
 			'Commission',
 			'Expenses',
 			'Net profit'
@@ -102,6 +113,7 @@
 				formatDisplayDatePlain(raw),
 				r.game_count,
 				r.win_loss,
+				fmtPct(r.share_percentage != null ? r.share_percentage : pct),
 				r.casino_share,
 				r.commission,
 				r.house_expenses_settled,
@@ -113,6 +125,7 @@
 			'TOTAL',
 			t.game_count != null ? t.game_count : '',
 			t.win_loss,
+			fmtPct(t.share_percentage != null ? t.share_percentage : pct),
 			t.casino_share,
 			t.commission,
 			t.house_expenses_settled,
@@ -196,7 +209,7 @@
 		const headerHtml = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
 		const rowsHtml = rows.map((row) => {
 			return `<tr>${row.map((cell, idx) => {
-				const value = idx === 0 ? cell : fmt(cell);
+				const value = idx === 0 || idx === 3 ? cell : fmt(cell);
 				return `<td>${escapeHtml(value)}</td>`;
 			}).join('')}</tr>`;
 		}).join('');
@@ -259,21 +272,66 @@
 			});
 	}
 
+	async function saveSharePercentage(input) {
+		const settlementDate = input && input.dataset ? input.dataset.settlementDate : '';
+		const sharePercentage = Number(input ? input.value : NaN);
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(settlementDate)) return;
+		if (!Number.isFinite(sharePercentage) || sharePercentage < 0 || sharePercentage > 100) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'warning', title: 'Invalid percentage', text: 'Share percentage must be between 0 and 100.' });
+			} else {
+				alert('Share percentage must be between 0 and 100.');
+			}
+			return;
+		}
+
+		input.disabled = true;
+		try {
+			const res = await fetch('/net_profit/share_percentage', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'same-origin',
+				body: JSON.stringify({
+					settlement_date: settlementDate,
+					share_percentage: sharePercentage
+				})
+			});
+			const payload = await res.json().catch(() => ({}));
+			if (!res.ok || !payload.success) throw new Error(payload.error || 'Failed to save share percentage.');
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 900, showConfirmButton: false });
+			}
+			loadData();
+		} catch (err) {
+			console.error('saveSharePercentage:', err);
+			input.disabled = false;
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to save share percentage.' });
+			} else {
+				alert(err.message || 'Failed to save share percentage.');
+			}
+		}
+	}
+
 	function render(payload) {
 		if (!$tbody || !$tfoot) return;
 		const pct = payload.house_share_pct != null ? Number(payload.house_share_pct) : NaN;
-		const thCasino = document.getElementById('bnpp-th-casino-share');
-		if (thCasino && !Number.isNaN(pct)) {
-			thCasino.textContent = `Casino share (${pct}%)`;
-		}
 		const list = payload.rows || [];
 		const rows = list.map((r) => {
 			const raw = r.settlement_label != null ? r.settlement_label : r.settlement_date;
 			const label = formatDisplayDate(raw);
+			const settlementDate = String(r.settlement_date || raw || '').slice(0, 10);
+			const sharePct = r.share_percentage != null ? r.share_percentage : pct;
 			return `<tr>
 				<td>${label}</td>
 				<td>${r.game_count}</td>
 				<td>${fmt(r.win_loss)}</td>
+				<td>
+					<div class="d-inline-flex align-items-center justify-content-end gap-1">
+						<input type="number" class="form-control form-control-sm bnpp-share-input" min="0" max="100" step="0.01" value="${escapeHtml(formatPctInput(sharePct))}" data-settlement-date="${escapeHtml(settlementDate)}" aria-label="Share percentage for ${escapeHtml(formatDisplayDatePlain(settlementDate))}">
+						<span>%</span>
+					</div>
+				</td>
 				<td>${fmt(r.casino_share)}</td>
 				<td>${fmt(r.commission)}</td>
 				<td>${fmt(r.house_expenses_settled)}</td>
@@ -282,7 +340,7 @@
 		});
 		$tbody.innerHTML = rows.length
 			? rows.join('')
-			: '<tr><td colspan="7" class="text-center text-muted py-4">Walang data sa range.</td></tr>';
+			: '<tr><td colspan="8" class="text-center text-muted py-4">Walang data sa range.</td></tr>';
 
 		const t = payload.range_totals || {};
 		const cap = 'TOTAL';
@@ -290,6 +348,7 @@
 			<td>${cap}</td>
 			<td>${t.game_count != null ? t.game_count : ''}</td>
 			<td>${fmt(t.win_loss)}</td>
+			<td>${fmtPct(t.share_percentage != null ? t.share_percentage : pct)}</td>
 			<td>${fmt(t.casino_share)}</td>
 			<td>${fmt(t.commission)}</td>
 			<td>${fmt(t.house_expenses_settled)}</td>
@@ -309,7 +368,7 @@
 				console.error(err);
 				if ($tbody) {
 					$tbody.innerHTML =
-						'<tr><td colspan="7" class="text-center text-danger py-4">Failed to load data.</td></tr>';
+						'<tr><td colspan="8" class="text-center text-danger py-4">Failed to load data.</td></tr>';
 				}
 				if ($tfoot) $tfoot.innerHTML = '';
 			});
@@ -353,6 +412,19 @@
 		if ($printBtn) {
 			$printBtn.addEventListener('click', function () {
 				printNetProfit();
+			});
+		}
+		if ($tbody) {
+			$tbody.addEventListener('change', function (event) {
+				if (event.target && event.target.classList.contains('bnpp-share-input')) {
+					saveSharePercentage(event.target);
+				}
+			});
+			$tbody.addEventListener('keydown', function (event) {
+				if (event.key === 'Enter' && event.target && event.target.classList.contains('bnpp-share-input')) {
+					event.preventDefault();
+					event.target.blur();
+				}
 			});
 		}
 	});

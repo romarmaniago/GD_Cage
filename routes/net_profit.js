@@ -8,7 +8,7 @@
 
  * Chip / commission formulas match public/assets/js/functions/game_list.js.
 
- * Casino share uses fixed house share NET_PROFIT_HOUSE_SHARE_PCT (not game_list.HOUSE_SHARE) until reverted.
+ * Share uses a saved percentage per settlement date, defaulting to DEFAULT_NET_PROFIT_SHARE_PCT.
 
  */
 
@@ -28,8 +28,9 @@ const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountForma
 
 const MAX_RANGE_DAYS = 400;
 
-/** Fixed % for casino share in this report only (winLoss × this / 100). */
-const NET_PROFIT_HOUSE_SHARE_PCT = 60;
+/** Default % for net profit share rows when no settlement-date override exists. */
+const DEFAULT_NET_PROFIT_SHARE_PCT = 60;
+const NET_PROFIT_SHARE_TABLE = 'net_profit_share_percentages';
 
 
 
@@ -46,6 +47,26 @@ function serverTodayStr() {
 	const now = new Date();
 
 	return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+}
+
+
+
+function currentMonthRangeStr() {
+
+	const now = new Date();
+
+	const year = now.getFullYear();
+
+	const month = now.getMonth();
+
+	const start = `${year}-${pad2(month + 1)}-01`;
+
+	const lastDay = new Date(year, month + 1, 0).getDate();
+
+	const end = `${year}-${pad2(month + 1)}-${pad2(lastDay)}`;
+
+	return { start, end };
 
 }
 
@@ -219,12 +240,6 @@ function computeGameMetrics(records, gl) {
 
 
 
-	const houseShare = NET_PROFIT_HOUSE_SHARE_PCT;
-
-	const casinoShareAmount = winLoss * (houseShare / 100);
-
-
-
 	const commissionType = Number(gl.COMMISSION_TYPE);
 
 	const commissionPct = Number(gl.COMMISSION_PERCENTAGE) || 0;
@@ -253,14 +268,38 @@ function computeGameMetrics(records, gl) {
 
 		rolling: total_rolling_chips,
 
-		casinoShareAmount,
-
 		commission,
-
-		houseSharePct: houseShare,
 
 	};
 
+}
+
+
+
+async function loadSharePercentagesByDay(startStr, endStr) {
+	const [rows] = await pool.execute(
+		`SELECT CAST(SETTLEMENT_DATE AS CHAR) AS settlement_day, SHARE_PERCENTAGE
+		 FROM \`${NET_PROFIT_SHARE_TABLE}\`
+		 WHERE ACTIVE = 1
+		   AND CAST(SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+		   AND CAST(SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)`,
+		[startStr, endStr]
+	);
+	const map = new Map();
+	for (const r of rows || []) {
+		const d = String(r.settlement_day || '').slice(0, 10);
+		const pct = Number(r.SHARE_PERCENTAGE);
+		if (isValidYmd(d) && Number.isFinite(pct)) map.set(d, pct);
+	}
+	return map;
+}
+
+
+
+function normalizeSharePercentage(raw) {
+	const pct = Number(raw);
+	if (!Number.isFinite(pct) || pct < 0 || pct > 100) return null;
+	return Math.round(pct * 10000) / 10000;
 }
 
 
@@ -513,9 +552,7 @@ router.get('/net_profit', checkSession, async (req, res) => {
 
 		const todayStr = serverTodayStr();
 
-		const now = new Date();
-
-		const defaultStart = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
+		const defaultRange = currentMonthRangeStr();
 
 		const data = sessions(req, 'net_profit');
 
@@ -523,11 +560,11 @@ router.get('/net_profit', checkSession, async (req, res) => {
 
 		data.todayStr = todayStr;
 
-		data.defaultRangeStart = defaultStart;
+		data.defaultRangeStart = defaultRange.start;
 
-		data.defaultRangeEnd = todayStr;
+		data.defaultRangeEnd = defaultRange.end;
 
-		data.netProfitHouseSharePct = NET_PROFIT_HOUSE_SHARE_PCT;
+		data.netProfitHouseSharePct = DEFAULT_NET_PROFIT_SHARE_PCT;
 
 		res.render('junket/net_profit', data);
 
@@ -557,11 +594,11 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 		if (!isValidYmd(start) || !isValidYmd(end)) {
 
-			const now = new Date();
+			const defaultRange = currentMonthRangeStr();
 
-			start = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
+			start = defaultRange.start;
 
-			end = todayStr;
+			end = defaultRange.end;
 
 		}
 
@@ -686,6 +723,7 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 		const recordsByGame = await fetchRecordsForGames([...allGameIdSet]);
 
 		const expenseByDay = await loadExpenseTotalsByDay(start, end);
+		const sharePctByDay = await loadSharePercentagesByDay(start, end);
 
 
 
@@ -694,8 +732,6 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 			const games = gamesForSettlementDate(d);
 
 			let win_loss = 0;
-
-			let casino_share = 0;
 
 			let commission = 0;
 
@@ -707,13 +743,13 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 				win_loss += m.winLoss;
 
-				casino_share += m.casinoShareAmount;
-
 				commission += m.commission;
 
 			}
 
 			const houseExp = expenseByDay.get(d) || 0;
+			const sharePercentage = sharePctByDay.has(d) ? sharePctByDay.get(d) : DEFAULT_NET_PROFIT_SHARE_PCT;
+			const casino_share = win_loss * (sharePercentage / 100);
 
 			const net_before = casino_share - commission;
 
@@ -728,6 +764,8 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 				game_count: games.length,
 
 				win_loss: Math.round(win_loss * 100) / 100,
+
+				share_percentage: sharePercentage,
 
 				casino_share: Math.round(casino_share * 100) / 100,
 
@@ -792,6 +830,12 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 		range_totals.house_expenses_settled = Math.round(range_totals.house_expenses_settled * 100) / 100;
 
 		range_totals.grand_net_profit = Math.round(range_totals.grand_net_profit * 100) / 100;
+		const sharePercentages = rowsAsc.map((r) => Number(r.share_percentage)).filter(Number.isFinite);
+		const firstSharePercentage = sharePercentages[0];
+		range_totals.share_percentage =
+			sharePercentages.length > 0 && sharePercentages.every((pct) => pct === firstSharePercentage)
+				? firstSharePercentage
+				: null;
 
 
 
@@ -807,7 +851,7 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 			server_today: todayStr,
 
-			house_share_pct: NET_PROFIT_HOUSE_SHARE_PCT,
+			house_share_pct: DEFAULT_NET_PROFIT_SHARE_PCT,
 
 			rows,
 
@@ -823,6 +867,40 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 	}
 
+});
+
+
+
+router.post('/net_profit/share_percentage', checkSession, async (req, res) => {
+	try {
+		const settlementDate = String(req.body?.settlement_date || '').trim();
+		const sharePercentage = normalizeSharePercentage(req.body?.share_percentage);
+
+		if (!isValidYmd(settlementDate)) {
+			return res.status(400).json({ success: false, error: 'Invalid settlement date' });
+		}
+		if (sharePercentage == null) {
+			return res.status(400).json({ success: false, error: 'Share percentage must be between 0 and 100' });
+		}
+
+		const userId = req.session.user_id || null;
+		await pool.execute(
+			`INSERT INTO \`${NET_PROFIT_SHARE_TABLE}\`
+				(SETTLEMENT_DATE, SHARE_PERCENTAGE, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, 1, ?, NOW())
+			 ON DUPLICATE KEY UPDATE
+				SHARE_PERCENTAGE = VALUES(SHARE_PERCENTAGE),
+				ACTIVE = 1,
+				EDITED_BY = VALUES(ENCODED_BY),
+				EDITED_DT = VALUES(ENCODED_DT)`,
+			[settlementDate, sharePercentage, userId]
+		);
+
+		res.json({ success: true, settlement_date: settlementDate, share_percentage: sharePercentage });
+	} catch (err) {
+		console.error('net_profit/share_percentage:', err);
+		res.status(500).json({ success: false, error: 'Error saving share percentage' });
+	}
 });
 
 
