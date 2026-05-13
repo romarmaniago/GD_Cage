@@ -13,6 +13,7 @@ const i18n = require('i18n');
 
 
 const { startTelegramBot } = require('./utils/telegram');
+const { logTelegramMtprotoEnv } = require('./utils/logTelegramMtprotoEnv');
 startTelegramBot(); // run once when server starts
 
 const compression = require('compression');
@@ -177,6 +178,7 @@ app.use('/ReceiptUpload', express.static(path.join(__dirname, 'ReceiptUpload')))
 // Start the server
 app.listen(app.get('port'), function () {
   console.log('Server started on port ' + app.get('port'));
+  logTelegramMtprotoEnv();
 });
 // Idagdag ito sa app.js ng CageX (bago ang routes)
 app.use('/scanner', express.static(path.join(__dirname, 'passport-scanner')));

@@ -6,6 +6,9 @@ yarn-error.log*
 
 .env
 
+# Pyrogram MTProto session (guest broadcast) — contains auth + peer cache; do not commit
+telegram_announcement/*.session
+
 
 # Google service account key (should never be committed)
 passport-scanner-v1-*.json

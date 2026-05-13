@@ -67,6 +67,32 @@ async function sendTelegramMessage(text, telegramId, retries = 2) {
   }
 }
 
+/** Text-only send via GUEST bot; throws on API/network failure (for UI broadcast result counts). */
+async function sendGuestBotTextMessageStrict(text, telegramId) {
+  const { default: fetch } = await import('node-fetch');
+  const token = await getTelegramToken('GUEST');
+  if (!token) {
+    throw new Error('No Telegram token found for GUEST bot');
+  }
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: String(telegramId).trim(), text }),
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.description || response.statusText);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Get additional chat IDs for GUEST (supports comma- or semicolon-separated in CHAT_ID column)
 async function getAdditionalChatIds() {
   const [rows] = await pool.execute(
@@ -355,6 +381,11 @@ function setupBotErrorHandlers(bot, botType) {
       // The bot will automatically retry, no need to restart manually
     } else {
       console.error(`❌ Fatal polling error for ${botType} bot:`, errorMsg);
+      if (/409|Conflict|getUpdates/i.test(errorMsg)) {
+        console.error(
+          '   → Parehong GUEST bot token: may isa pang getUpdates polling (duplicate npm run dev, lumang Node, ibang PC, o “Open API” sa BotFather). Isang bot instance lang.',
+        );
+      }
     }
   });
 
@@ -667,7 +698,9 @@ async function startTelegramBot() {
 }
 
 module.exports = {
+  getTelegramToken,
   sendTelegramMessage,
+  sendGuestBotTextMessageStrict,
   sendTelegramToAdditionalChats,
   sendTelegramToEmployees,
   getEmployeeChatIds,

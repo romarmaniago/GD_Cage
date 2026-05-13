@@ -1,0 +1,6 @@
+# Ayaw ng interactive "Email:" prompt sa terminal; usage stats off
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true

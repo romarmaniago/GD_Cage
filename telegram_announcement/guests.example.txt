@@ -1,0 +1,4 @@
+# Isang chat ID o user ID bawat linya (walang # sa tunay na file para sa IDs lamang)
+# Halimbawa:
+# 123456789
+# -1001234567890

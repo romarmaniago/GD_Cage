@@ -1,0 +1,9 @@
+pyrogram==2.0.106
+# Optional: mas mabilis ang Pyrogram crypto. Sa Windows + Python 3.14 madalas kailangan
+# Microsoft C++ Build Tools at wheel build mula source — kaya hindi kasama bilang required.
+# Kung gusto mo: i-install ang "Build Tools for Visual Studio" (C++ workload), tapos:
+#   .venv\Scripts\pip install tgcrypto
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+# Gumamit ng telegram_announcement/.venv (npm run dev:telegram:install) para hindi mag-clash
+# ang Streamlit 1.57 (Starlette >=0.46) sa global FastAPI (madalas Starlette <0.42).

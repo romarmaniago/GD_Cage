@@ -1,0 +1,92 @@
+<!-- Modal: guest broadcast by Telegram chat ID (separate from agent announcement modal) -->
+<style>
+	#modal-new-broadcast .broadcast-chat-ids {
+		font-family: ui-monospace, Consolas, monospace;
+		font-size: 0.875rem;
+	}
+</style>
+<div class="modal fade" id="modal-new-broadcast" role="dialog" aria-labelledby="modal-new-broadcast-label" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white" id="modal-new-broadcast-label"><%= __('modal_new_broadcast.title') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body">
+				<form id="form-new-broadcast" enctype="multipart/form-data">
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label"><%= __('modal_new_broadcast.guest_chat_ids') %></label>
+							<% const _broadcastChatIdsPlaceholder = __('modal_new_broadcast.chat_ids_placeholder'); %>
+							<textarea
+								class="form-control broadcast-chat-ids"
+								id="broadcast-chat-ids"
+								name="chat_ids_text"
+								rows="6"
+								<% if (_broadcastChatIdsPlaceholder && String(_broadcastChatIdsPlaceholder).trim()) { %>placeholder="<%= _broadcastChatIdsPlaceholder %>"<% } %>
+								autocomplete="off"></textarea>
+							<% const _broadcastChatIdsHint = __('modal_new_broadcast.chat_ids_hint'); %>
+							<% if (_broadcastChatIdsHint && String(_broadcastChatIdsHint).trim()) { %>
+							<small class="form-text text-muted"><%= _broadcastChatIdsHint %></small>
+							<% } %>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label"><%= __('modal_new_broadcast.message') %></label>
+							<textarea
+								class="form-control"
+								id="broadcast-message"
+								name="message"
+								rows="4"
+								placeholder="<%= __('modal_new_broadcast.message_placeholder') %>"></textarea>
+							<small class="form-text text-muted"><%= __('modal_new_broadcast.message_hint') %></small>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label"><%= __('modal_new_broadcast.picture') %></label>
+							<input
+								type="file"
+								class="form-control"
+								id="broadcast-picture"
+								name="picture"
+								accept="image/*">
+							<small class="form-text text-muted"><%= __('modal_new_broadcast.picture_formats_hint') %></small>
+							<div id="broadcast-picture-preview-container" class="d-none mt-2">
+								<img id="broadcast-picture-preview" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+								<button type="button" class="btn btn-sm btn-danger ms-2" id="broadcast-remove-picture-btn">
+									<i class="fa fa-times"></i> <%= __('modal_new_broadcast.remove') %>
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-sm btn-primary" id="submit-broadcast-btn">
+							<i class="fa fa-paper-plane"></i> <%= __('modal_new_broadcast.send') %>
+						</button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_broadcast.close') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+window.broadcastModalTranslations = {
+	validation_error: "<%= __('modal_new_broadcast.validation_error') %>",
+	please_enter_message_or_picture: "<%= __('modal_new_broadcast.please_enter_message_or_picture') %>",
+	please_enter_chat_ids: "<%= __('modal_new_broadcast.please_enter_chat_ids') %>",
+	sending: "<%= __('modal_new_broadcast.sending') %>",
+	success: "<%= __('modal_new_broadcast.success') %>",
+	error: "<%= __('modal_new_broadcast.error') %>",
+	failed_to_send: "<%= __('modal_new_broadcast.failed_to_send') %>",
+	error_occurred: "<%= __('modal_new_broadcast.error_occurred') %>",
+	send: "<%= __('modal_new_broadcast.send') %>"
+};
+</script>

@@ -17,7 +17,6 @@ const multer = require('multer');
 const app = express();
 const compression = require('compression');
 
-const TelegramBot = require('node-telegram-bot-api');
 const { sendTelegramToAdditionalChats } = require('../utils/telegram');
 
 

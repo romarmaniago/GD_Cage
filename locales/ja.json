@@ -193,10 +193,12 @@
 		"welcome_to_the_cage_system_demo": "無限ケージXへようこそ!",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "取引を管理し、資金を追跡し、当社の先進的なケージシステムでスムーズな運営を実現しましょう。",
 		"announcements": "お知らせ",
+		"guest_broadcast": "ゲスト一斉送信",
 		"kr": "韓国語",
 		"jp": "日本語",
 		"zh": "中国語",
-		"us": "英語"
+		"us": "英語",
+		"guest_broadcast": "topbar.guest_broadcast"
 	},
 	"dashboard_history": {
 		"reset_history": "履歴をリセット",
@@ -966,6 +968,28 @@
 		"error": "エラー",
 		"failed_to_send": "お知らせの送信に失敗しました",
 		"error_occurred": "お知らせ送信中にエラーが発生しました"
+	},
+	"modal_new_broadcast": {
+		"title": "ゲスト一斉送信",
+		"guest_chat_ids": "ゲストのチャットID / @ユーザー名（Telegram）",
+		"chat_ids_placeholder": "",
+		"chat_ids_hint": "",
+		"message": "メッセージ",
+		"message_placeholder": "お知らせ本文（画像のみの場合は省略可）...",
+		"message_hint": "画像のみ送る場合は空欄にしてください",
+		"picture": "画像",
+		"picture_formats_hint": "対応形式: JPG, PNG, GIF",
+		"remove": "削除",
+		"send": "一斉送信",
+		"close": "閉じる",
+		"validation_error": "入力エラー",
+		"please_enter_message_or_picture": "メッセージを入力するか画像をアップロードしてください",
+		"please_enter_chat_ids": "チャットIDを1行に1つ以上入力してください",
+		"sending": "送信中...",
+		"success": "成功！",
+		"error": "エラー",
+		"failed_to_send": "一斉送信に失敗しました",
+		"error_occurred": "一斉送信中にエラーが発生しました"
 	},
 	"modal_edit_agency": {
 		"edit_agency": "エージェントの編集",

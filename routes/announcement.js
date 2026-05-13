@@ -3,12 +3,40 @@ const router = express.Router();
 const pool = require('../config/db');
 const multer = require('multer');
 
-const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage, sendTelegramPhoto } = require('../utils/telegram');
+const { checkSession } = require('./auth');
+const {
+	sendTelegramMessage,
+	sendTelegramPhoto,
+	sendGuestBotTextMessageStrict,
+	getTelegramToken
+} = require('../utils/telegram');
+
+function parseBroadcastChatIds(chatIdsRaw) {
+	let parsed = [];
+	if (typeof chatIdsRaw === 'string' && chatIdsRaw.trim()) {
+		try {
+			const j = JSON.parse(chatIdsRaw);
+			if (Array.isArray(j)) parsed = j;
+		} catch (_) {
+			return [];
+		}
+	}
+	const seen = new Set();
+	const out = [];
+	for (const x of parsed) {
+		const s = String(x == null ? '' : x).trim();
+		if (!s || s.length > 128) continue;
+		if (seen.has(s)) continue;
+		seen.add(s);
+		out.push(s);
+	}
+	return out;
+}
 
 // Set up multer for announcement image uploads (memory storage - no file saved to disk)
 const uploadAnnouncementImg = multer({
 	storage: multer.memoryStorage(), // Store file in memory, not on disk
+	limits: { fileSize: 10 * 1024 * 1024 },
 	fileFilter(req, file, cb) {
 		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
 		if (!allowedTypes.includes(file.mimetype)) {
