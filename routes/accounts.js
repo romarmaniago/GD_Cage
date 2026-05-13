@@ -702,7 +702,10 @@ router.get('/agent_data', async (req, res) => {
 				OR NOT EXISTS (
 					SELECT 1 FROM agent_passport apx
 					WHERE apx.AGENT_ID = agent.IDNo
-					AND apx.PASSPORT_NO IS NOT NULL AND TRIM(apx.PASSPORT_NO) <> ''
+					AND (
+						(apx.PASSPORT_NO IS NOT NULL AND TRIM(apx.PASSPORT_NO) <> '')
+						OR (apx.PASSPORT_IMAGE IS NOT NULL AND TRIM(apx.PASSPORT_IMAGE) <> '')
+					)
 				)
 			)`;
 		}
