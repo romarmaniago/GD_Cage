@@ -683,15 +683,30 @@ router.post(
 });
 
 
-// GET AGENT
+// GET AGENT (optional ?profileIncomplete=1 — agents with no usable profile photo and/or no passport number on file)
 router.get('/agent_data', async (req, res) => {
 	try {
-		const query = `
+		const raw = String(req.query.profileIncomplete ?? '');
+		const profileIncomplete = ['1', 'true', 'yes'].includes(raw.toLowerCase());
+
+		let query = `
 			SELECT *, agency.AGENCY AS agency_name, agency.IDNo AS agency_id,
 			agent.AGENT_CODE AS agent_code, agent.IDNo AS agent_id, agent.ACTIVE AS active
 			FROM agent
 			JOIN agency ON agent.AGENCY = agency.IDNo
 			WHERE agent.ACTIVE = 1`;
+
+		if (profileIncomplete) {
+			query += ` AND (
+				(agent.PHOTO IS NULL OR TRIM(COALESCE(agent.PHOTO, '')) = '' OR LOWER(TRIM(agent.PHOTO)) = 'default.jpg')
+				OR NOT EXISTS (
+					SELECT 1 FROM agent_passport apx
+					WHERE apx.AGENT_ID = agent.IDNo
+					AND apx.PASSPORT_NO IS NOT NULL AND TRIM(apx.PASSPORT_NO) <> ''
+				)
+			)`;
+		}
+
 		const [results] = await pool.execute(query);
 		res.json(results);
 	} catch (error) {
@@ -891,33 +906,153 @@ router.put('/guest/:id', async (req, res) => {
 });
 
 
-// EDIT AGENT
-router.put('/agent/:id', uploadPassportImg.single('photo'), convertPassportUploadsToWebp, async (req, res) => {
-	try {
-		const id = parseInt(req.params.id);
-		const { txtAgenctCode, txtName, txtRemarks, txtTelegram, txtContact } = req.body;
-		const date_now = new Date();
-		const photoPath = req.file ? req.file.filename : null;
+// EDIT AGENT (session or Passport Scanner x-api-key; optional face + passport images + agent_passport)
+router.put(
+	'/agent/:id',
+	uploadPassportImg.fields([
+		{ name: 'photo', maxCount: 1 },
+		{ name: 'passportImage', maxCount: 1 },
+	]),
+	convertPassportUploadsToWebp,
+	async (req, res) => {
+		const apiKey = req.headers['x-api-key'];
+		const validApiKey = process.env.SCANNER_API_KEY;
+		const hasValidApiKey = validApiKey && apiKey === validApiKey;
 
-		let query = `
-			UPDATE agent SET AGENT_CODE = ?, NAME = ?, CONTACTNo = ?, TELEGRAM_ID = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?`;
-		const params = [txtAgenctCode, txtName, txtContact, txtTelegram, txtRemarks, req.session.user_id, date_now];
-
-		if (photoPath) {
-			query += `, PHOTO = ?`;
-			params.push(photoPath);
+		if (!req.session?.user_id && !hasValidApiKey) {
+			return res.status(401).json({ error: 'Unauthorized' });
 		}
 
-		query += ` WHERE IDNo = ?`;
-		params.push(id);
+		const editorId = req.session?.user_id ?? 1;
 
-		await pool.execute(query, params);
-		res.send('Agent updated successfully');
-	} catch (error) {
-		console.error('❌ Error updating agent:', error);
-		res.status(500).send('Error updating agent');
+		try {
+			const id = parseInt(req.params.id, 10);
+			if (!id) {
+				return res.status(400).json({ error: 'Invalid agent id' });
+			}
+
+			const {
+				txtAgenctCode,
+				txtName,
+				txtRemarks,
+				txtTelegram,
+				txtContact,
+				txtDocumentType,
+				txtCountryCode,
+				txtPassportNo,
+				txtNationality,
+				txtDateOfBirth,
+				txtExpiryDate,
+				txtGender,
+				txtMrzLine,
+			} = req.body;
+
+			const date_now = new Date();
+			const faceFile = req.files?.photo?.[0];
+			const passportFile = req.files?.passportImage?.[0];
+			const facePath = faceFile ? faceFile.filename : null;
+
+			let query = `
+			UPDATE agent SET AGENT_CODE = ?, NAME = ?, CONTACTNo = ?, TELEGRAM_ID = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?`;
+			const params = [
+				txtAgenctCode,
+				txtName,
+				txtContact,
+				txtTelegram,
+				txtRemarks,
+				editorId,
+				date_now,
+			];
+
+			if (facePath) {
+				query += `, PHOTO = ?`;
+				params.push(facePath);
+			}
+
+			query += ` WHERE IDNo = ?`;
+			params.push(id);
+
+			await pool.execute(query, params);
+
+			const passportImagePath = passportFile ? passportFile.filename : null;
+			const hasPassportData =
+				passportImagePath || (txtPassportNo && String(txtPassportNo).trim());
+			if (hasPassportData) {
+				const dobVal =
+					txtDateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(String(txtDateOfBirth).trim())
+						? String(txtDateOfBirth).trim()
+						: null;
+				const expiryVal =
+					txtExpiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(txtExpiryDate).trim())
+						? String(txtExpiryDate).trim()
+						: null;
+				try {
+					const [existing] = await pool.execute(
+						'SELECT IDNo FROM agent_passport WHERE AGENT_ID = ? ORDER BY ENCODED_DT DESC LIMIT 1',
+						[id]
+					);
+					if (existing && existing.length > 0) {
+						const rowId = existing[0].IDNo;
+						await pool.execute(
+							`UPDATE agent_passport SET
+								DOCUMENT_TYPE = ?, COUNTRY_CODE = ?, PASSPORT_NO = ?, FULL_NAME = ?, NATIONALITY = ?,
+								DATE_OF_BIRTH = ?, EXPIRY_DATE = ?, GENDER = ?, MRZ_LINE = ?,
+								PASSPORT_IMAGE = IFNULL(?, PASSPORT_IMAGE),
+								ENCODED_BY = ?, ENCODED_DT = ?
+							WHERE IDNo = ?`,
+							[
+								txtDocumentType ?? null,
+								txtCountryCode ?? null,
+								txtPassportNo ?? null,
+								txtName ?? null,
+								txtNationality ?? null,
+								dobVal,
+								expiryVal,
+								txtGender ?? null,
+								txtMrzLine ?? null,
+								passportImagePath,
+								editorId,
+								date_now,
+								rowId,
+							]
+						);
+					} else {
+						await pool.execute(
+							`INSERT INTO agent_passport (AGENT_ID, DOCUMENT_TYPE, COUNTRY_CODE, PASSPORT_NO, FULL_NAME, NATIONALITY, DATE_OF_BIRTH, EXPIRY_DATE, GENDER, MRZ_LINE, PASSPORT_IMAGE, ENCODED_BY, ENCODED_DT)
+							 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+							[
+								id,
+								txtDocumentType ?? null,
+								txtCountryCode ?? null,
+								txtPassportNo ?? null,
+								txtName ?? null,
+								txtNationality ?? null,
+								dobVal,
+								expiryVal,
+								txtGender ?? null,
+								txtMrzLine ?? null,
+								passportImagePath ?? null,
+								editorId,
+								date_now,
+							]
+						);
+					}
+				} catch (passportErr) {
+					console.warn('⚠ agent_passport update skipped (table may not exist):', passportErr.message);
+				}
+			}
+
+			const isApiRequest = hasValidApiKey && !req.session?.user_id;
+			if (isApiRequest) {
+				return res.status(200).json({ success: true });
+			}
+			res.send('Agent updated successfully');
+		} catch (error) {
+			console.error('❌ Error updating agent:', error);
+			res.status(500).send('Error updating agent');
+		}
 	}
-});
+);
 
 
 // REMOVE AGENT (Super Admin only)
