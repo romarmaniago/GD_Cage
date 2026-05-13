@@ -7,6 +7,8 @@
 					</div>
 					<form id="add_buyin">
 					<div class="modal-body">
+						<span class="d-none" id="buyin-availableNN" aria-hidden="true">0</span>
+						<span class="d-none" id="buyin-availableCC" aria-hidden="true">0</span>
 						<input type="hidden" id="total_amount_addbuyin" name="txtTotalAmountBuyin" />
 						
 						<input type="hidden" name="game_id" class="game_list_id">
@@ -115,27 +117,127 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-	const nnInput = document.querySelector('#modal-add-buyin .txtNN');
-	if (!nnInput) return;
+	const modal = document.getElementById('modal-add-buyin');
+	if (!modal) return;
 
-	nnInput.addEventListener('input', function () {
-		const raw = (this.value || '').toString().replace(/,/g, '');
-		const trimmed = raw.trim();
-
-		// Allow empty while typing
-		if (!trimmed) {
-			this.classList.remove('is-invalid');
-			return;
-		}
-
-		const value = Number(trimmed);
-
-		if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
-			this.classList.add('is-invalid');
+	function addBuyinParseAvailEl(el) {
+		if (!el) return 0;
+		const raw = (el.textContent || el.innerText || '').replace(/[^0-9.-]+/g, '');
+		const n = parseFloat(raw);
+		return Number.isFinite(n) ? Math.max(0, n) : 0;
+	}
+	function addBuyinAvailableNN() {
+		return addBuyinParseAvailEl(document.getElementById('buyin-availableNN'));
+	}
+	function addBuyinAvailableCC() {
+		return addBuyinParseAvailEl(document.getElementById('buyin-availableCC'));
+	}
+	function addBuyinSplitBuyinEnabled() {
+		const el = document.getElementById('enableSplitBuyin');
+		return !!(el && el.checked);
+	}
+	function addBuyinSplitSumNN() {
+		return ['splitBuyinCashNN', 'splitBuyinDepNN', 'splitBuyinCreditNN'].reduce(function (acc, id) {
+			const el = document.getElementById(id);
+			const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+			return acc + (v === '' ? 0 : (parseFloat(v) || 0));
+		}, 0);
+	}
+	function addBuyinSplitSumCC() {
+		return ['splitBuyinCashCC', 'splitBuyinDepCC', 'splitBuyinCreditCC'].reduce(function (acc, id) {
+			const el = document.getElementById(id);
+			const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+			return acc + (v === '' ? 0 : (parseFloat(v) || 0));
+		}, 0);
+	}
+	function addBuyinSwalWarn(title, text) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'warning', title: title, text: text, confirmButtonColor: '#3a57e8' });
 		} else {
-			this.classList.remove('is-invalid');
+			window.alert(title + '\n\n' + text);
 		}
+	}
+
+	modal.addEventListener('shown.bs.modal', function () {
+		fetch('/game_list_available_chips', { credentials: 'same-origin' })
+			.then(function (r) {
+				if (!r.ok) throw new Error('bad status');
+				return r.json();
+			})
+			.then(function (data) {
+				const nnEl = document.getElementById('buyin-availableNN');
+				const ccEl = document.getElementById('buyin-availableCC');
+				const nn = Number(data && data.availableNN) || 0;
+				const cc = Number(data && data.availableCC) || 0;
+				if (nnEl) nnEl.textContent = nn.toLocaleString();
+				if (ccEl) ccEl.textContent = cc.toLocaleString();
+			})
+			.catch(function () {
+				const nnEl = document.getElementById('buyin-availableNN');
+				const ccEl = document.getElementById('buyin-availableCC');
+				if (nnEl) nnEl.textContent = '0';
+				if (ccEl) ccEl.textContent = '0';
+			});
 	});
+
+	const nnInput = document.querySelector('#modal-add-buyin .txtNN');
+	if (nnInput) {
+		nnInput.addEventListener('input', function () {
+			const raw = (this.value || '').toString().replace(/,/g, '');
+			const trimmed = raw.trim();
+
+			if (!trimmed) {
+				this.classList.remove('is-invalid');
+				return;
+			}
+
+			const value = Number(trimmed);
+
+			if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
+				this.classList.add('is-invalid');
+				return;
+			}
+
+			this.classList.remove('is-invalid');
+
+			if (addBuyinSplitBuyinEnabled()) return;
+
+			const avail = addBuyinAvailableNN();
+			if (value > avail) {
+				addBuyinSwalWarn(
+					'Exceeds Available NN Chips',
+					'You only have ' + avail.toLocaleString() + ' NN Chips available.'
+				);
+				this.value = '';
+				this.classList.remove('is-invalid');
+				this.focus();
+			}
+		});
+	}
+
+	const ccInput = document.querySelector('#modal-add-buyin .txtCC');
+	if (ccInput) {
+		ccInput.addEventListener('input', function () {
+			const raw = (this.value || '').toString().replace(/,/g, '');
+			const trimmed = raw.trim();
+			if (!trimmed) return;
+
+			const value = Number(trimmed);
+			if (!Number.isFinite(value) || value < 0) return;
+
+			if (addBuyinSplitBuyinEnabled()) return;
+
+			const avail = addBuyinAvailableCC();
+			if (value > avail) {
+				addBuyinSwalWarn(
+					'Exceeds Available CC Chips',
+					'You only have ' + avail.toLocaleString() + ' CC Chips available.'
+				);
+				this.value = '';
+				this.focus();
+			}
+		});
+	}
 
 	const splitToggle = document.getElementById('enableSplitBuyin');
 	const splitRow = document.getElementById('split-buyin-row');
@@ -165,7 +267,37 @@ document.addEventListener('DOMContentLoaded', function () {
 	};
 	splitInputs.forEach(function (el) {
 		if (!el) return;
-		el.addEventListener('input', function () { validateSplit(el); });
+		el.addEventListener('input', function () {
+			validateSplit(el);
+			const id = (el.id || '').toLowerCase();
+			const avNN = addBuyinAvailableNN();
+			const avCC = addBuyinAvailableCC();
+			if (id.includes('nn')) {
+				const totalNN = addBuyinSplitSumNN();
+				if (totalNN > avNN) {
+					addBuyinSwalWarn(
+						'Exceeds Available NN Chips',
+						'Split NN total cannot exceed ' + avNN.toLocaleString() + ' Chips.'
+					);
+					el.value = '';
+					el.classList.remove('is-invalid');
+					el.focus();
+					return;
+				}
+			}
+			if (id.includes('cc')) {
+				const totalCC = addBuyinSplitSumCC();
+				if (totalCC > avCC) {
+					addBuyinSwalWarn(
+						'Exceeds Available CC Chips',
+						'Split CC total cannot exceed ' + avCC.toLocaleString() + ' Chips.'
+					);
+					el.value = '';
+					el.classList.remove('is-invalid');
+					el.focus();
+				}
+			}
+		});
 	});
 
 	if (splitToggle) {

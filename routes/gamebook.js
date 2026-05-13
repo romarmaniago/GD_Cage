@@ -1392,6 +1392,39 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
+    // Settlement date range: games linked to daily_settlement with SETTLEMENT_DATE in range
+    const settlementFrom = req.query.settlementFrom;
+    const settlementTo = req.query.settlementTo;
+    if (settlementFrom && settlementTo) {
+        const isValidSettlementRangeDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));
+        const fromS = String(settlementFrom).slice(0, 10);
+        const toS = String(settlementTo).slice(0, 10);
+        if (!isValidSettlementRangeDate(fromS) || !isValidSettlementRangeDate(toS)) {
+            console.error('[Game List Backend] Invalid settlement range:', settlementFrom, settlementTo);
+            return res.status(400).json({ error: 'Invalid settlement date range. Use YYYY-MM-DD.' });
+        }
+        if (fromS > toS) {
+            return res.status(400).json({ error: 'settlementFrom must be on or before settlementTo.' });
+        }
+        const query = baseSelect + `
+            JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+            JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+            WHERE game_list.ACTIVE != 0
+              AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
+            ORDER BY game_list.IDNo ASC
+        `;
+        try {
+            const [rows] = await pool.execute(query, [fromS, toS]);
+            rows.forEach((row) => {
+                row.is_pending = 0;
+            });
+            return res.json(rows);
+        } catch (error) {
+            console.error('[Game List Backend] Error fetching data by settlement date range:', error);
+            return res.status(500).json({ error: 'Error fetching data' });
+        }
+    }
+
     // Date range mode: Filter by game start date range
     if (fromDate && toDate) {
         const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);

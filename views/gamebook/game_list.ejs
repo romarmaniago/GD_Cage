@@ -63,12 +63,12 @@
 														<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
 															<i class="fa fa-chevron-left"></i>
 														</button>
-														<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+														<input type="text" id="settlement-range-picker" class="form-control text-center" placeholder="Settlement date range" autocomplete="off" />
 														<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
 															<i class="fa fa-chevron-right"></i>
 														</button>
 													</div>
-													<span id="settlement-subview-indicator" class="settlement-subview-badge"></span>
+													<span id="settlement-subview-indicator" class="settlement-subview-badge" role="button" tabindex="0" title="Click to switch Open / Settled when viewing today"></span>
 												</div>
 											</div>
 											
@@ -184,7 +184,6 @@
 						const initialPickerDate = wrapper
 							? (wrapper.getAttribute('data-initial-settlement-date') || wrapper.getAttribute('data-today') || '')
 							: '';
-						const maxPickerDate = wrapper ? (wrapper.getAttribute('data-max-settlement-date') || '') : '';
 						window.selectedSettlementDate = initialPickerDate || todayStr || '';
 						var settledDates = [];
 						try {
@@ -192,66 +191,6 @@
 							settledDates = (raw ? JSON.parse(raw) : []).map(function (d) { return String(d).slice(0, 10); });
 							window.settledDatesForMonth = settledDates;
 						} catch (e) {}
-						function dayDateStr(dayElem) {
-							if (!dayElem || !dayElem.dateObj) return '';
-							var d = dayElem.dateObj;
-							return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-						}
-						const pickerEl = document.getElementById('settlement-date-picker');
-						if (pickerEl && typeof flatpickr !== 'undefined') {
-							var earliestSettlementDate = null;
-							if (settledDates.length > 0) {
-								var sortedDates = settledDates.slice().sort();
-								earliestSettlementDate = sortedDates[0];
-							} else {
-								var now = new Date();
-								var pad = function(n) { return String(n).padStart(2, '0'); };
-								var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-								earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
-							}
-							var fpSettlementOpts = {
-								dateFormat: 'Y-m-d',
-								altInput: true,
-								altFormat: 'F d, Y',
-								defaultDate: initialPickerDate || todayStr,
-								minDate: earliestSettlementDate,
-								allowInput: false,
-								onDayCreate: function (dayElem) {
-									var dStr = dayDateStr(dayElem);
-									if (dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
-								},
-								onOpen: function (selectedDates, dateStr, instance) {
-									setTimeout(function () {
-										if (!instance.calendarContainer) return;
-										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-										days.forEach(function (el) {
-											el.classList.remove('settled-day');
-											var dStr = dayDateStr(el);
-											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
-										});
-									}, 0);
-								},
-								onChange: function (selectedDates, dateStr) {
-									window.selectedSettlementDate = dateStr || '';
-									if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
-									if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-									if (typeof window.reloadGameListBySettlementDate === 'function') window.reloadGameListBySettlementDate();
-								},
-								onMonthChange: function (selectedDates, dateStr, instance) {
-									setTimeout(function () {
-										if (!instance.calendarContainer) return;
-										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-										days.forEach(function (el) {
-											el.classList.remove('settled-day');
-											var dStr = dayDateStr(el);
-											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
-										});
-									}, 0);
-								}
-							};
-							if (maxPickerDate) fpSettlementOpts.maxDate = maxPickerDate;
-							flatpickr(pickerEl, fpSettlementOpts);
-						}
 					});
 				</script>
 
@@ -287,14 +226,57 @@
 	width: 320px;     /* Increased width to accommodate buttons */
 }
 
-.settlement-picker-row {
+#settlement-date-wrapper .settlement-picker-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	min-width: 0;
+	width: 100%;
+	max-width: 100%;
 }
 
-#settlement-date-wrapper {
+/* Settlement block: fixed 430px (wag palakihin ng mahaba ang range text / flex) */
+#settlement-date-wrapper.day-selector-wrapper {
 	width: 430px;
+	max-width: 430px;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+#settlement-date-wrapper .input-group {
+	flex: 1 1 0;
+	min-width: 0;
+	max-width: 100%;
+}
+
+#settlement-date-wrapper #settlement-range-picker,
+#settlement-date-wrapper .input-group input.flatpickr-input.form-control,
+#settlement-date-wrapper .input-group input.flatpickr-alt-input {
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Kapag multi-day ang settlement range: itago prev/next at Open/Settled badge */
+#settlement-date-wrapper.settlement-multi-day-search #btn-settlement-prev,
+#settlement-date-wrapper.settlement-multi-day-search #btn-settlement-next,
+#settlement-date-wrapper.settlement-multi-day-search #settlement-subview-indicator {
+	display: none !important;
+}
+
+#settlement-date-wrapper.settlement-multi-day-search .settlement-picker-row {
+	justify-content: flex-start;
+}
+#settlement-date-wrapper.settlement-multi-day-search .input-group {
+	flex: 0 0 auto;
+	width: calc(430px - 10px - 106px);
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+#settlement-subview-indicator.settlement-subview-badge {
+	cursor: pointer;
 }
 
 .settlement-subview-badge {
@@ -323,6 +305,19 @@
 	background: #ecfdf3;
 	border-color: #bbf7d0;
 	color: #166534;
+}
+
+.settlement-subview-badge.is-range {
+	min-width: 0;
+	max-width: 280px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	background: #eff6ff;
+	border-color: #bfdbfe;
+	color: #1e40af;
+	font-size: 11px;
+	font-weight: 600;
 }
 
 .breadcrumb1.flat a.breadcrumb-crumb-armed,
@@ -466,7 +461,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: none;
 }
 
-.day-selector-wrapper #settlement-date-picker {
+.day-selector-wrapper #settlement-range-picker {
 	border: none;
 	text-align: center;
 	font-weight: 600;
@@ -478,12 +473,12 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.day-selector-wrapper #settlement-date-picker:focus {
+.day-selector-wrapper #settlement-range-picker:focus {
 	outline: none;
 	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 
-.day-selector-wrapper #settlement-date-picker.flatpickr-input {
+.day-selector-wrapper #settlement-range-picker.flatpickr-input {
 	cursor: pointer;
 }
 

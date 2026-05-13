@@ -241,15 +241,48 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
 
 <script>
 
+/** Parsed from #availableNN / #availableCC (server-rendered); negative display treated as 0. */
+function newGameListAvailableNN() {
+    const el = document.getElementById('availableNN');
+    if (!el) return 0;
+    const raw = (el.innerText || '').replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function newGameListAvailableCC() {
+    const el = document.getElementById('availableCC');
+    if (!el) return 0;
+    const raw = (el.innerText || '').replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function newGameListSplitSumNN() {
+    return ['splitCashNN', 'splitDepNN', 'splitCreditNN'].reduce(function (acc, id) {
+        const el = document.getElementById(id);
+        const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+        return acc + (v === '' ? 0 : (parseFloat(v) || 0));
+    }, 0);
+}
+function newGameListSplitSumCC() {
+    return ['splitCashCC', 'splitDepCC', 'splitCreditCC'].reduce(function (acc, id) {
+        const el = document.getElementById(id);
+        const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+        return acc + (v === '' ? 0 : (parseFloat(v) || 0));
+    }, 0);
+}
+
+function newGameListSplitBuyinEnabled() {
+    const el = document.getElementById('enableSplitNewGame');
+    return !!(el && el.checked);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const txtNN = document.getElementById("txtNN");
     const txtRollerNN = document.getElementById("txtRollerNN");
-    const availableNN = document.getElementById("availableNN");
 
     function getAvailableChips() {
-        if (!availableNN) return 0;
-        const raw = availableNN.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
-        return parseFloat(raw) || 0;
+        return newGameListAvailableNN();
     }
 
     // Live validation: NN values must be positive thousands (1,000 / 2,000 / 3,000 ...)
@@ -282,15 +315,17 @@ document.addEventListener("DOMContentLoaded", function () {
             const isValidThousands = validateNnThousandsInline(this);
             if (!isValidThousands) return;
 
-            // Then enforce available NN Chips limit
+            if (newGameListSplitBuyinEnabled()) return;
+
             const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
+            const rollerNNVal = parseFloat((txtRollerNN && txtRollerNN.value || '').replace(/,/g, '')) || 0;
             const available = getAvailableChips();
 
-            if (inputVal > available) {
+            if (inputVal + rollerNNVal > available) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available NN Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available.`,
+                    text: `You only have ${available.toLocaleString()} Chips available (including Roller NN).`,
                     confirmButtonColor: '#3a57e8'
                 });
 
@@ -304,6 +339,22 @@ document.addEventListener("DOMContentLoaded", function () {
     if (txtRollerNN) {
         txtRollerNN.addEventListener("input", function () {
             validateNnThousandsInline(this);
+            const rollerVal = parseFloat((this.value || '').replace(/,/g, '')) || 0;
+            const nnVal = newGameListSplitBuyinEnabled()
+                ? newGameListSplitSumNN()
+                : (parseFloat((txtNN && txtNN.value || '').replace(/,/g, '')) || 0);
+            const available = getAvailableChips();
+            if (rollerVal > 0 && nnVal + rollerVal > available) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Exceeds Available NN Chips',
+                    text: `You only have ${available.toLocaleString()} Chips available (NN buy-in + Roller NN).`,
+                    confirmButtonColor: '#3a57e8'
+                });
+                this.value = '';
+                this.classList.remove('is-invalid');
+                this.focus();
+            }
         });
     }
 });
@@ -341,6 +392,40 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!inputEl) return;
         inputEl.addEventListener('input', function () {
             validateNnSplitInput(inputEl);
+            const id = (inputEl.id || '').toLowerCase();
+            const avNN = newGameListAvailableNN();
+            const avCC = newGameListAvailableCC();
+            if (id.includes('nn')) {
+                const rollerNNVal = parseFloat((document.getElementById('txtRollerNN') && document.getElementById('txtRollerNN').value || '').replace(/,/g, '')) || 0;
+                const totalNN = newGameListSplitSumNN() + rollerNNVal;
+                if (totalNN > avNN) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Exceeds Available NN Chips',
+                        text: 'Split NN total (plus Roller NN) cannot exceed ' + avNN.toLocaleString() + ' Chips.',
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    inputEl.value = '';
+                    inputEl.classList.remove('is-invalid');
+                    inputEl.focus();
+                    return;
+                }
+            }
+            if (id.includes('cc')) {
+                const rollerCCVal = parseFloat((document.getElementById('txtRollerCC') && document.getElementById('txtRollerCC').value || '').replace(/,/g, '')) || 0;
+                const totalCC = newGameListSplitSumCC() + rollerCCVal;
+                if (totalCC > avCC) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Exceeds Available CC Chips',
+                        text: 'Split CC total (plus Roller CC) cannot exceed ' + avCC.toLocaleString() + ' Chips.',
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    inputEl.value = '';
+                    inputEl.classList.remove('is-invalid');
+                    inputEl.focus();
+                }
+            }
         });
     });
 
@@ -366,30 +451,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.addEventListener("DOMContentLoaded", function () {
     const txtCC = document.getElementById("txtCC");
-    const availableCC = document.getElementById("availableCC");
+    const txtRollerCC = document.getElementById("txtRollerCC");
 
     function getAvailableCCChips() {
-        if (!availableCC) return 0;
-        const raw = availableCC.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
-        return parseFloat(raw) || 0;
+        return newGameListAvailableCC();
     }
 
-    txtCC.addEventListener("input", function () {
-        const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
-        const available = getAvailableCCChips();
+    if (txtCC) {
+        txtCC.addEventListener("input", function () {
+            if (newGameListSplitBuyinEnabled()) return;
 
-        if (inputVal > available) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Exceeds Available CC Chips',
-                text: `You only have ${available.toLocaleString()} Chips available.`,
-                confirmButtonColor: '#3a57e8'
-            });
+            const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
+            const rollerCCVal = parseFloat((txtRollerCC && txtRollerCC.value || '').replace(/,/g, '')) || 0;
+            const available = getAvailableCCChips();
 
-            this.value = ""; // clear the input
-            this.focus();
-        }
-    });
+            if (inputVal + rollerCCVal > available) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Exceeds Available CC Chips',
+                    text: `You only have ${available.toLocaleString()} Chips available (including Roller CC).`,
+                    confirmButtonColor: '#3a57e8'
+                });
+
+                this.value = "";
+                this.focus();
+            }
+        });
+    }
+
+    if (txtRollerCC) {
+        txtRollerCC.addEventListener("input", function () {
+            const rollerVal = parseFloat((this.value || '').replace(/,/g, '')) || 0;
+            const ccVal = newGameListSplitBuyinEnabled()
+                ? newGameListSplitSumCC()
+                : (parseFloat((txtCC && txtCC.value || '').replace(/,/g, '')) || 0);
+            const available = getAvailableCCChips();
+            if (rollerVal > 0 && ccVal + rollerVal > available) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Exceeds Available CC Chips',
+                    text: `You only have ${available.toLocaleString()} Chips available (CC buy-in + Roller CC).`,
+                    confirmButtonColor: '#3a57e8'
+                });
+                this.value = '';
+                this.focus();
+            }
+        });
+    }
 });
     
 document.addEventListener('DOMContentLoaded', function () {

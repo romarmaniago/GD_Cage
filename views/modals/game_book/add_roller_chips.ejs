@@ -7,6 +7,8 @@
 		</div>
 		<form id="add_roller_chips">
 		<div class="modal-body">
+			<span class="d-none" id="roller-availableNN" aria-hidden="true">0</span>
+			<span class="d-none" id="roller-availableCC" aria-hidden="true">0</span>
 			<input type="hidden" name="game_id" class="game_list_id">
 			
 			<!-- Summary Display (Total ADD, Total RETURN, Net ADD) -->
@@ -82,16 +84,64 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+	const modal = document.getElementById('modal-add-roller-chips');
+	if (!modal) return;
+
+	function rollerParseAvail(el) {
+		if (!el) return 0;
+		const raw = (el.textContent || el.innerText || '').replace(/[^0-9.-]+/g, '');
+		const n = parseFloat(raw);
+		return Number.isFinite(n) ? Math.max(0, n) : 0;
+	}
+	function rollerAvailableNN() {
+		return rollerParseAvail(document.getElementById('roller-availableNN'));
+	}
+	function rollerAvailableCC() {
+		return rollerParseAvail(document.getElementById('roller-availableCC'));
+	}
+	function rollerIsAddSelected() {
+		const checked = document.querySelector('#modal-add-roller-chips input[name="txtTransType"]:checked');
+		return !!(checked && checked.value === '1');
+	}
+	function rollerSwalWarn(title, text) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'warning', title: title, text: text, confirmButtonColor: '#3a57e8' });
+		} else {
+			window.alert(title + '\n\n' + text);
+		}
+	}
+
+	modal.addEventListener('shown.bs.modal', function () {
+		fetch('/game_list_available_chips', { credentials: 'same-origin' })
+			.then(function (r) {
+				if (!r.ok) throw new Error('bad status');
+				return r.json();
+			})
+			.then(function (data) {
+				const nnEl = document.getElementById('roller-availableNN');
+				const ccEl = document.getElementById('roller-availableCC');
+				const nn = Number(data && data.availableNN) || 0;
+				const cc = Number(data && data.availableCC) || 0;
+				if (nnEl) nnEl.textContent = nn.toLocaleString();
+				if (ccEl) ccEl.textContent = cc.toLocaleString();
+			})
+			.catch(function () {
+				const nnEl = document.getElementById('roller-availableNN');
+				const ccEl = document.getElementById('roller-availableCC');
+				if (nnEl) nnEl.textContent = '0';
+				if (ccEl) ccEl.textContent = '0';
+			});
+	});
+
 	const nnInput = document.querySelector('#modal-add-roller-chips .txtRollerNN');
+	const ccInput = document.querySelector('#modal-add-roller-chips .txtRollerCC');
 	const transRadios = document.querySelectorAll('#modal-add-roller-chips input[name="txtTransType"]');
 
-	if (!nnInput) return;
-
-	function validateInline() {
+	function validateRollerNNInline() {
+		if (!nnInput) return;
 		const raw = (nnInput.value || '').toString().replace(/,/g, '');
 		const trimmed = raw.trim();
 
-		// Allow empty while typing for both ADD and RETURN
 		if (!trimmed) {
 			nnInput.classList.remove('is-invalid');
 			return;
@@ -101,12 +151,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
 			nnInput.classList.add('is-invalid');
-		} else {
+			return;
+		}
+
+		nnInput.classList.remove('is-invalid');
+
+		// Cage availability applies only when adding roller chips from inventory (ADD).
+		if (!rollerIsAddSelected()) return;
+
+		const avail = rollerAvailableNN();
+		if (value > avail) {
+			rollerSwalWarn(
+				'Exceeds Available NN Chips',
+				'ADD cannot exceed ' + avail.toLocaleString() + ' NN Chips available.'
+			);
+			nnInput.value = '';
 			nnInput.classList.remove('is-invalid');
+			nnInput.focus();
 		}
 	}
 
-	nnInput.addEventListener('input', validateInline);
-	transRadios.forEach(r => r.addEventListener('change', validateInline));
+	function validateRollerCCInline() {
+		if (!ccInput) return;
+		const raw = (ccInput.value || '').toString().replace(/,/g, '');
+		const trimmed = raw.trim();
+		if (!trimmed) return;
+
+		const value = Number(trimmed);
+		if (!Number.isFinite(value) || value < 0) return;
+
+		if (!rollerIsAddSelected()) return;
+
+		const avail = rollerAvailableCC();
+		if (value > avail) {
+			rollerSwalWarn(
+				'Exceeds Available CC Chips',
+				'ADD cannot exceed ' + avail.toLocaleString() + ' CC Chips available.'
+			);
+			ccInput.value = '';
+			ccInput.focus();
+		}
+	}
+
+	if (nnInput) nnInput.addEventListener('input', validateRollerNNInline);
+	if (ccInput) ccInput.addEventListener('input', validateRollerCCInline);
+
+	transRadios.forEach(function (r) {
+		r.addEventListener('change', function () {
+			validateRollerNNInline();
+			validateRollerCCInline();
+		});
+	});
 });
 </script>
