@@ -54,10 +54,12 @@ router.get('/telegramAPI/logs-data', checkSession, async (req, res) => {
 		);
 		const total = countRow && countRow.total != null ? Number(countRow.total) : 0;
 
+		// LIMIT/OFFSET as bound parameters triggers ER_WRONG_ARGUMENTS on some MySQL/MariaDB
+		// builds with mysqld_stmt_execute; values are already clamped to safe integers.
 		const [rows] = await pool.execute(
 			`SELECT id, created_at, bot_user, message_kind, chat_id, status, error_category, error_message, message_preview, guest_account_code, guest_name, amount
-			 FROM telegram_send_log WHERE ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`,
-			[...params, limit, offset]
+			 FROM telegram_send_log WHERE ${whereSql} ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`,
+			params
 		);
 
 		res.json({ rows, total, limit, offset, dateFrom, dateTo, search: searchRaw });

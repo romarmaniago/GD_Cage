@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "CageDemo",
+      name: "GDCAGE",
       script: "app.js", 
       env: {
         DB_HOST: "127.0.0.1",
