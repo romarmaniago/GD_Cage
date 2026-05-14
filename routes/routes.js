@@ -17,7 +17,9 @@ const multer = require('multer');
 const app = express();
 const compression = require('compression');
 
-const { sendTelegramToAdditionalChats } = require('../utils/telegram');
+const TelegramBot = require('node-telegram-bot-api');
+const { sendTelegramToAdditionalChats, sendTelegramMessage } = require('../utils/telegram');
+const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 
 
 app.use(bodyParser.urlencoded({
@@ -3849,60 +3851,7 @@ pageRouter.post('/add_account_details', async (req, res) => {
 });
 
 
-//TELEGRAM START HERE
-
-// Convert getTelegramToken to use Promises
-async function getTelegramToken() {
-	const query = 'SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1';
-
-	return new Promise((resolve, reject) => {
-		connection.query(query, (error, results) => {
-			if (error) {
-				console.error('Error fetching Telegram token:', error);
-				reject(error);
-			} else if (results.length > 0) {
-				resolve(results[0].TELEGRAM_API); // Assuming only one active token
-			} else {
-				console.error('No active Telegram API token found');
-				resolve(null);
-			}
-		});
-	});
-}
-
-async function sendTelegramMessage(text, telegramId) {
-	try {
-		// Dynamically import node-fetch
-		const { default: fetch } = await import('node-fetch');
-
-		const botToken = await getTelegramToken();
-		if (!botToken) {
-			console.error('Bot token is not available');
-			return;
-		}
-
-		const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				chat_id: telegramId,
-				text: text,
-			}),
-		});
-
-		const data = await response.json();
-
-		if (!data.ok) {
-			console.error(`Error sending message to ${telegramId}:`, data.description);
-		}
-	} catch (error) {
-		console.error('Error in sendTelegramMessage:', error);
-	}
-}
+// Telegram outbound messages use utils/telegram (GUEST bot, DB logging, retries).
 
 
 //TELEGRAM API
@@ -5601,9 +5550,19 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}`;
 			}
 
+			const markerLogPreview = markerReturnTelegramLogPreview(transType, returnSource);
+			const markerTelegramOpts = {
+				logPreview: markerLogPreview,
+				logMeta: {
+					accountCode: agentCode,
+					guestName: agentName,
+					amount: Math.abs(Number(markerReturn) || 0)
+				}
+			};
+
 			if (telegramId) {
-				await sendTelegramMessage(text, telegramId);
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramMessage(text, telegramId, markerTelegramOpts);
+				await sendTelegramToAdditionalChats(text, markerTelegramOpts);
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
 			}

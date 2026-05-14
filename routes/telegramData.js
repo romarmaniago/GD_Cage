@@ -2,9 +2,71 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
-
+const { ensureTelegramSendLogTable } = require('../utils/telegramSendLog');
 
 //=============== TELEGRAM API =============
+router.get('/telegramAPI/logs', checkSession, (req, res) => {
+	res.redirect(302, '/telegramAPI#message-log');
+});
+
+function isYmd(s) {
+	return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+router.get('/telegramAPI/logs-data', checkSession, async (req, res) => {
+	try {
+		await ensureTelegramSendLogTable();
+		const limit = Math.min(Math.max(parseInt(String(req.query.limit || '100'), 10) || 100, 1), 500);
+		const offset = Math.max(parseInt(String(req.query.offset || '0'), 10) || 0, 0);
+		const { dateFrom: qFrom, dateTo: qTo } = req.query;
+		const searchRaw = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 240) : '';
+
+		let dateFrom = isYmd(qFrom) ? qFrom : null;
+		let dateTo = isYmd(qTo) ? qTo : null;
+		if (!dateFrom || !dateTo) {
+			const n = new Date();
+			const p = (x) => String(x).padStart(2, '0');
+			const today = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+			dateFrom = dateTo = today;
+		}
+		if (dateFrom > dateTo) {
+			const t = dateFrom;
+			dateFrom = dateTo;
+			dateTo = t;
+		}
+
+		const whereParts = ['DATE(created_at) >= ?', 'DATE(created_at) <= ?'];
+		const params = [dateFrom, dateTo];
+
+		if (searchRaw) {
+			const like = `%${searchRaw}%`;
+			whereParts.push(
+				`(COALESCE(message_preview,'') LIKE ? OR COALESCE(chat_id,'') LIKE ? OR COALESCE(bot_user,'') LIKE ? OR COALESCE(status,'') LIKE ? OR COALESCE(error_category,'') LIKE ? OR COALESCE(error_message,'') LIKE ? OR COALESCE(message_kind,'') LIKE ? OR COALESCE(guest_account_code,'') LIKE ? OR COALESCE(guest_name,'') LIKE ?)`
+			);
+			for (let i = 0; i < 9; i++) params.push(like);
+		}
+
+		const whereSql = whereParts.join(' AND ');
+
+		const [[countRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total FROM telegram_send_log WHERE ${whereSql}`,
+			params
+		);
+		const total = countRow && countRow.total != null ? Number(countRow.total) : 0;
+
+		const [rows] = await pool.execute(
+			`SELECT id, created_at, bot_user, message_kind, chat_id, status, error_category, error_message, message_preview, guest_account_code, guest_name, amount
+			 FROM telegram_send_log WHERE ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`,
+			[...params, limit, offset]
+		);
+
+		res.json({ rows, total, limit, offset, dateFrom, dateTo, search: searchRaw });
+	} catch (err) {
+		console.error('telegramAPI/logs-data:', err);
+		res.status(500).json({ error: 'Failed to load Telegram send log' });
+	}
+});
+
 router.get("/telegramAPI", checkSession, function (req, res) {
 
 	const permissions = req.session.permissions;
@@ -114,6 +176,36 @@ router.get('/telegramAPI/chat-info/:userType/:chatId', checkSession, async (req,
 	} catch (error) {
 		console.error('Error retrieving Telegram bot settings:', error);
 		return res.status(500).json({ message: 'Error retrieving Telegram bot settings' });
+	}
+});
+
+// Get agent/account info by account code — returns accountCode + name + accountId
+// (accountId is account.IDNo; used by the telegram-log deeplinks that auto-open the
+// Guest Portal modal on /dashboard via account_details(accountId, code, name).)
+router.get('/telegramAPI/account-info/:accountCode', checkSession, async (req, res) => {
+	try {
+		const accountCode = String(req.params.accountCode || '').trim();
+		if (!accountCode) return res.status(400).json({ account: null });
+
+		const [rows] = await pool.execute(
+			`SELECT agent.AGENT_CODE AS accountCode,
+			        agent.NAME       AS name,
+			        account.IDNo     AS accountId
+			 FROM agent
+			 LEFT JOIN account
+			        ON account.AGENT_ID = agent.IDNo
+			       AND account.ACTIVE = 1
+			 WHERE agent.ACTIVE = 1 AND agent.AGENT_CODE = ?
+			 ORDER BY account.IDNo DESC
+			 LIMIT 1`,
+			[accountCode]
+		);
+
+		if (!rows.length) return res.json({ account: null });
+		return res.json({ account: rows[0] });
+	} catch (err) {
+		console.error('telegramAPI/account-info:', err);
+		return res.status(500).json({ account: null });
 	}
 });
 

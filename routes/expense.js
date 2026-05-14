@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const multer = require('multer');
 const { sendTelegramToEmployees } = require('../utils/telegram');
+const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
 // I-setup ang multer para sa multiple file uploads (para sa receipts)
 const receiptStorage = multer.diskStorage({
 	destination: 'ReceiptUpload/',
@@ -310,7 +311,13 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 		// Send Telegram notification to EMPLOYEE bot (CHAT_ID for USER = 'EMPLOYEE')
 		try {
-			await sendTelegramToEmployees(telegramMessage);
+			await sendTelegramToEmployees(telegramMessage, {
+				logPreview: junketExpenseTelegramLogPreview('add'),
+				logMeta: {
+					guestName: encodedByName,
+					amount
+				}
+			});
 		} catch (telegramError) {
 			console.error('Error sending Telegram notification:', telegramError);
 			// Don't fail the request if Telegram fails
@@ -912,7 +919,13 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n` +
 				`Edited By: ${editedByName}\n` +
 				`Date & Time: ${dateFormatted} ${timeFormatted}`;
-			await sendTelegramToEmployees(editMsg);
+			await sendTelegramToEmployees(editMsg, {
+				logPreview: junketExpenseTelegramLogPreview('edit'),
+				logMeta: {
+					guestName: editedByName,
+					amount: Number(editXAmount)
+				}
+			});
 		} catch (telegramError) {
 			console.error('Error sending Telegram (expense edit):', telegramError);
 		}
@@ -981,7 +994,13 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 				`Encoded By: ${encodedByName}\n` +
 				`Date & Time: ${deleteDateTimeStr}\n` +
 				`Deleted By: ${editedByName}`;
-			await sendTelegramToEmployees(deleteMsg);
+			await sendTelegramToEmployees(deleteMsg, {
+				logPreview: junketExpenseTelegramLogPreview('delete'),
+				logMeta: {
+					guestName: encodedByName,
+					amount
+				}
+			});
 		} catch (telegramError) {
 			console.error('Error sending Telegram (expense delete):', telegramError);
 		}

@@ -1,4 +1,4 @@
-<%- include ('../partial/header') %>
+<%- include ('../partials/header') %>
 
 <!-- Main Container -->
 <main id="main-container">
@@ -11,7 +11,7 @@
 				</h3>
 				<nav class="flex-shrink-0 my-2 my-sm-0 ms-sm-3" aria-label="breadcrumb">
 					<ol class="breadcrumb">
-						<button type="button" class="btn btn-primary" onclick="addGameRecord(<%= page_id %>)">
+						<button type="button" class="btn btn-primary" id="btn-add-game-record" data-page-id="<%= page_id %>">
 							<i class="fa fa-plus" aria-hidden="true"></i> New Record
 						</button>
 					</ol>
@@ -45,7 +45,7 @@
 
 <%- include ('../modals/game_book/new_game_record') %>
 
-<%- include ('../partial/footer') %>
+<%- include ('../partials/footer') %>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script src="/assets/js/datatables/game_list_tables_datatables.min.js"></script>
@@ -58,6 +58,15 @@
 		placeholder: 'Select an option',
 		dropdownParent: '#modal-new-game-record'
 	});
-</script>
 
-<%- include ('../partial/ending') %>
+	// Wire the "New Record" button via JS so the page_id flows through a data-* attribute
+	// instead of an inline onclick that contained an EJS expression (which tripped editor linters).
+	(function () {
+		var btn = document.getElementById('btn-add-game-record');
+		if (!btn || typeof addGameRecord !== 'function') return;
+		btn.addEventListener('click', function () {
+			var pageId = parseInt(btn.getAttribute('data-page-id'), 10);
+			if (Number.isFinite(pageId)) addGameRecord(pageId);
+		});
+	})();
+</script>

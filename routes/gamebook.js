@@ -44,26 +44,27 @@ async function getAgentNotificationChatIds() {
 }
 
 // Helper function to send message to agent notification chat IDs
-async function sendToAgentNotifications(agentCode, messageText) {
+// options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } } — forwarded to sendTelegramMessage
+async function sendToAgentNotifications(agentCode, messageText, options = {}) {
 	if (!agentCode || !messageText) return;
-	
+
 	// Check if agent code is between INF501 and INF599 (case-insensitive)
 	const agentCodeUpper = String(agentCode).toUpperCase();
 	const isInRange = agentCodeUpper >= 'INF501' && agentCodeUpper <= 'INF599';
-	
+
 	if (!isInRange) return; // Only send notifications for INF501-INF599
-	
+
 	try {
 		const chatIds = await getAgentNotificationChatIds();
-		
+
 		if (chatIds.length === 0) {
 			return; // No notifications configured
 		}
-		
+
 		// Send to each configured chat ID
 		for (const chatId of chatIds) {
 			try {
-				await sendTelegramMessage(messageText, chatId);
+				await sendTelegramMessage(messageText, chatId, options || {});
 			} catch (error) {
 				console.error(`Error sending message to chat ID ${chatId} for agent ${agentCode}:`, error.message);
 				// Continue sending to other chat IDs even if one fails
@@ -73,6 +74,25 @@ async function sendToAgentNotifications(agentCode, messageText) {
 		console.error('Error in sendToAgentNotifications:', error.message);
 		// Continue execution even if notification fails
 	}
+}
+
+/**
+ * Build a Telegram send options bag for gamebook events.
+ * Stores the short English `logPreview` label (with optional `· #gameId` suffix) in
+ * `telegram_send_log.message_preview` and the structured `accountCode`/`guestName`/`amount`
+ * in dedicated columns — so the Telegram message log UI doesn't have to parse the bilingual body.
+ */
+function gamebookTelegramOpts(label, accountCode, guestName, amount, gameId) {
+	const gid = gameId != null && String(gameId).trim() !== '' ? String(gameId).trim() : '';
+	const previewLabel = gid ? `${label} · Game #${gid}` : label;
+	return {
+		logPreview: previewLabel,
+		logMeta: {
+			accountCode: accountCode || '',
+			guestName: guestName || '',
+			amount: Math.abs(Number(amount) || 0)
+		}
+	};
 }
 
 /** LIVE / TELEBET (+ legacy 라이브·텔레벳) → agent vs management display strings */
@@ -694,25 +714,27 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (text && agentId) {
 			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+			const gameStartGameId = transType === 2 ? result.insertId : gameId;
+			const gameStartOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, totalAmount, gameStartGameId);
 			if (telegramId) {
 				try {
-					await sendTelegramMessage(text, telegramId);
+					await sendTelegramMessage(text, telegramId, gameStartOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 				}
 			}
 			try {
-				await sendToAgentNotifications(agentCode, managementText);
+				await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
 			} catch (telegramError) {
 				console.error('Failed to send to agent notifications:', telegramError.message);
 			}
 			try {
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramToAdditionalChats(text, gameStartOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 			}
 			try {
-				await sendTelegramToManagement(managementText);
+				await sendTelegramToManagement(managementText, gameStartOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to management:', telegramError.message);
 			}
@@ -909,12 +931,13 @@ router.post('/add_game_list_split', async (req, res) => {
 				const text = `Demo Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				const managementText = `Demo Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
+				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 				if (telegramId) {
-					try { await sendTelegramMessage(text, telegramId); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
+					try { await sendTelegramMessage(text, telegramId, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
 				}
-				try { await sendToAgentNotifications(agentCode, managementText); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
-				try { await sendTelegramToAdditionalChats(text); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
-				try { await sendTelegramToManagement(managementText); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
+				try { await sendToAgentNotifications(agentCode, managementText, splitOpts); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
+				try { await sendTelegramToAdditionalChats(text, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
+				try { await sendTelegramToManagement(managementText, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
 			}
 		} catch (tgErr) {
 			console.error('Telegram block after add_game_list_split:', tgErr);
@@ -1055,10 +1078,11 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 						const text = `Demo Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+						const servicePaymentOpts = gamebookTelegramOpts('Service Payment', AGENT_CODE, NAME, amt, gameId);
 						// Send to individual guest
-						await sendTelegramMessage(text, TELEGRAM_ID);
+						await sendTelegramMessage(text, TELEGRAM_ID, servicePaymentOpts);
 						// Also broadcast to additional guest chats/channels
-						await sendTelegramToAdditionalChats(text);
+						await sendTelegramToAdditionalChats(text, servicePaymentOpts);
 					}
 				}
 			} catch (telegramErr) {
@@ -1914,7 +1938,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
                     continue;
                 }
 
-                const { TELEGRAM_ID: telegramId } = rows[0];
+                const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = rows[0];
                 const text =
                     `GD Cage\n\n` +
                     `계정 : ${accountDisplayText}\n` +
@@ -1927,7 +1951,14 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
                     `날짜 Date : ${dateText}\n` +
                     `시간 Time : ${timeText}`;
 
-                await sendTelegramMessage(text, telegramId);
+                const mergeOpts = gamebookTelegramOpts(
+                    'End Game / Settlement',
+                    agentCode,
+                    agentName,
+                    parseMoney(payment),
+                    gameNos
+                );
+                await sendTelegramMessage(text, telegramId, mergeOpts);
                 successCount++;
             } catch (sendErr) {
                 console.error('merge_settlement_telegram send error:', sendErr.message || sendErr);
@@ -2464,11 +2495,18 @@ router.post('/add_settlement', async (req, res) => {
 
 			const sendAgentPaths = fakeSettleBefore !== 1 || sendTelegramAgent;
 			const sendCagePaths = fakeSettleBefore !== 1 || sendTelegramCage;
+			const settlementOpts = gamebookTelegramOpts(
+				'End Game / Settlement',
+				agentCode,
+				agentName,
+				paymentValue,
+				game_id_settle
+			);
 
 			if (sendAgentPaths) {
 				if (telegramId) {
 					try {
-						await sendTelegramMessage(text, telegramId);
+						await sendTelegramMessage(text, telegramId, settlementOpts);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 					}
@@ -2476,12 +2514,12 @@ router.post('/add_settlement', async (req, res) => {
 					console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, managementText);
+					await sendToAgentNotifications(agentCode, managementText, settlementOpts);
 				} catch (telegramError) {
 					console.error('Failed to send to agent notifications:', telegramError.message);
 				}
 				try {
-					await sendTelegramToAdditionalChats(text);
+					await sendTelegramToAdditionalChats(text, settlementOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 				}
@@ -2489,7 +2527,7 @@ router.post('/add_settlement', async (req, res) => {
 
 			if (sendCagePaths) {
 				try {
-					await sendTelegramToManagement(managementText);
+					await sendTelegramToManagement(managementText, settlementOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
@@ -2631,21 +2669,28 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 		}
 
+		const editSettlementOpts = gamebookTelegramOpts(
+			'End Game / Settlement (Edited)',
+			agentCode,
+			agentName,
+			paymentValue,
+			game_id_settle
+		);
 		if (sendTelegramAgent) {
 			if (telegramId) {
 				try {
-					await sendTelegramMessage(text, telegramId);
+					await sendTelegramMessage(text, telegramId, editSettlementOpts);
 				} catch (e) {
 					console.error('settlement_slip_telegram agent:', e.message);
 				}
 			}
 			try {
-				await sendToAgentNotifications(agentCode, managementText);
+				await sendToAgentNotifications(agentCode, managementText, editSettlementOpts);
 			} catch (e) {
 				console.error('settlement_slip_telegram agent notify:', e.message);
 			}
 			try {
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramToAdditionalChats(text, editSettlementOpts);
 			} catch (e) {
 				console.error('settlement_slip_telegram additional:', e.message);
 			}
@@ -2653,7 +2698,7 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 
 		if (sendTelegramCage) {
 			try {
-				await sendTelegramToManagement(managementText);
+				await sendTelegramToManagement(managementText, editSettlementOpts);
 			} catch (e) {
 				console.error('settlement_slip_telegram management:', e.message);
 			}
@@ -2922,9 +2967,10 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Send Telegram messages (when we have agent data)
 		if (text !== '' && agentResults.length > 0) {
 				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+				const addBuyinOpts = gamebookTelegramOpts('Add Buy-in', agentCode, agentName, totalAmount, game_id);
 				if (telegramId) {
 					try {
-						await sendTelegramMessage(text, telegramId);
+						await sendTelegramMessage(text, telegramId, addBuyinOpts);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 					}
@@ -2932,17 +2978,17 @@ router.post('/game_list/add/buyin', async (req, res) => {
 					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, managementText);
+					await sendToAgentNotifications(agentCode, managementText, addBuyinOpts);
 				} catch (telegramError) {
 					console.error('Failed to send to agent notifications:', telegramError.message);
 				}
 				try {
-					await sendTelegramToAdditionalChats(text);
+					await sendTelegramToAdditionalChats(text, addBuyinOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 				}
 				try {
-					await sendTelegramToManagement(managementText);
+					await sendTelegramToManagement(managementText, addBuyinOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
@@ -3105,12 +3151,13 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				const text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}${buyinSplitGameLineAgent}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				const managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}${buyinSplitGameLineMgmt}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
+				const addBuyinSplitOpts = gamebookTelegramOpts('Add Buy-in', agentCode, agentName, grandTotal, game_id);
 				if (telegramId) {
-					try { await sendTelegramMessage(text, telegramId); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
+					try { await sendTelegramMessage(text, telegramId, addBuyinSplitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
 				}
-				try { await sendToAgentNotifications(agentCode, managementText); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
-				try { await sendTelegramToAdditionalChats(text); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
-				try { await sendTelegramToManagement(managementText); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
+				try { await sendToAgentNotifications(agentCode, managementText, addBuyinSplitOpts); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
+				try { await sendTelegramToAdditionalChats(text, addBuyinSplitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
+				try { await sendTelegramToManagement(managementText, addBuyinSplitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
 			}
 		} catch (tgErr) {
 			console.error('Telegram block after buyin_split:', tgErr);
@@ -3241,9 +3288,10 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 			if (text !== '' && agentResults.length > 0) {
 				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+				const cashoutOpts = gamebookTelegramOpts('Cash-out', agentCode, agentName, chipsReturn, game_id);
 				if (telegramId) {
 					try {
-						await sendTelegramMessage(text, telegramId);
+						await sendTelegramMessage(text, telegramId, cashoutOpts);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 					}
@@ -3251,17 +3299,17 @@ router.post('/game_list/add/cashout', async (req, res) => {
 					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, managementText);
+					await sendToAgentNotifications(agentCode, managementText, cashoutOpts);
 				} catch (telegramError) {
 					console.error('Failed to send to agent notifications:', telegramError.message);
 				}
 				try {
-					await sendTelegramToAdditionalChats(text);
+					await sendTelegramToAdditionalChats(text, cashoutOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 				}
 				try {
-					await sendTelegramToManagement(managementText);
+					await sendTelegramToManagement(managementText, cashoutOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
@@ -3479,9 +3527,16 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${game_id}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
 
 			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+			const cashoutSplitOpts = gamebookTelegramOpts(
+				'Cash-out',
+				agentCode,
+				agentName,
+				splitGrandTotal,
+				game_id
+			);
 			if (telegramId) {
 				try {
-					await sendTelegramMessage(text, telegramId);
+					await sendTelegramMessage(text, telegramId, cashoutSplitOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 				}
@@ -3489,17 +3544,17 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				console.error('No TELEGRAM_ID found for Account Code:', txtAccountCode);
 			}
 			try {
-				await sendToAgentNotifications(agentCode, managementText);
+				await sendToAgentNotifications(agentCode, managementText, cashoutSplitOpts);
 			} catch (telegramError) {
 				console.error('Failed to send to agent notifications:', telegramError.message);
 			}
 			try {
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramToAdditionalChats(text, cashoutSplitOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 			}
 			try {
-				await sendTelegramToManagement(managementText);
+				await sendTelegramToManagement(managementText, cashoutSplitOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to management:', telegramError.message);
 			}

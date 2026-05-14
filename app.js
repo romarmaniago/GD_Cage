@@ -48,11 +48,12 @@ i18n.configure({
 app.use(cookieParser());
 app.use(i18n.init);
 
-// Middleware to set the language for each request
+// After i18n.init (which may read Accept-Language), pin the app locale to the lang cookie or English.
 app.use((req, res, next) => {
-  const lang = req.cookies.lang || 'en'; // Default to English if no language cookie is set
-  i18n.setLocale(req, lang); // Set the language for the current request
-  res.locals.currentLang = lang; // Make the current language available in the view templates
+  const raw = req.cookies && req.cookies.lang;
+  const lang = ['en', 'ko', 'ja', 'zh'].includes(raw) ? raw : 'en';
+  i18n.setLocale(req, lang);
+  res.locals.currentLang = lang;
   next();
 });
 
@@ -160,8 +161,12 @@ app.use('/login/images/flags', express.static(path.join(__dirname, 'public/login
 app.get('/change-lang', (req, res) => {
   const lang = req.query.lang;
   if (['en', 'ko', 'ja', 'zh'].includes(lang)) {
-    res.cookie('lang', lang); // Set the selected language in the cookie
-    i18n.setLocale(req, lang); // Apply language immediately after cookie update
+    res.cookie('lang', lang, {
+      path: '/',
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    });
+    i18n.setLocale(req, lang);
   }
   res.redirect('back'); // Redirect back to the previous page
 });

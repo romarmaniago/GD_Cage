@@ -1,5 +1,10 @@
 const TelegramBot = require('node-telegram-bot-api');
 const pool = require('../config/db');
+const {
+  insertTelegramSendLog,
+  previewText,
+  classifyTelegramError
+} = require('./telegramSendLog');
 
 let guestBotInstance; // GUEST bot instance
 let employeeBotInstance; // EMPLOYEE bot instance
@@ -14,42 +19,94 @@ async function getTelegramToken(userType = 'GUEST') {
   return rows.length > 0 ? rows[0].TELEGRAM_API : null;
 }
 
+// Pull structured guest metadata out of a sendTelegram options bag.
+// Returns { guestAccountCode, guestName, amount } — null when missing.
+function extractLogMeta(opts) {
+  const meta = (opts && (opts.logMeta || opts.meta)) || {};
+  const accountCode = meta.accountCode != null ? String(meta.accountCode).trim() : '';
+  const guestName = meta.guestName != null ? String(meta.guestName).trim() : '';
+  const amount =
+    meta.amount != null && meta.amount !== ''
+      ? Math.abs(Number(String(meta.amount).replace(/,/g, ''))) || null
+      : null;
+  return {
+    guestAccountCode: accountCode || null,
+    guestName: guestName || null,
+    amount: amount && isFinite(amount) ? amount : null
+  };
+}
+
 // Send a message with retry logic for network issues (GUEST bot only)
-async function sendTelegramMessage(text, telegramId, retries = 2) {
+// options: { retries?: number, logPreview?: string, logMeta?: { accountCode, guestName, amount } }
+//  - logPreview is stored in telegram_send_log.message_preview instead of the full Telegram body
+//  - logMeta is stored in dedicated columns (guest_account_code, guest_name, amount)
+async function sendTelegramMessage(text, telegramId, options = {}) {
+  const opts = typeof options === 'number' ? { retries: options } : options || {};
+  const retries = opts.retries != null ? opts.retries : 2;
+  const logPreview =
+    opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
+  const meta = extractLogMeta(opts);
   const { default: fetch } = await import('node-fetch');
   const token = await getTelegramToken('GUEST');
+  const msgPreview = previewText(logPreview != null ? logPreview : text);
+  const chatStr = String(telegramId);
+
   if (!token) {
     console.warn('No Telegram token found for GUEST bot');
+    await insertTelegramSendLog({
+      botUser: 'GUEST',
+      messageKind: 'text',
+      chatId: chatStr,
+      status: 'failure',
+      errorCategory: 'INTERNAL',
+      errorMessage: 'No Telegram token configured for GUEST bot',
+      messagePreview: msgPreview,
+      guestAccountCode: meta.guestAccountCode,
+      guestName: meta.guestName,
+      amount: meta.amount
+    });
     return;
   }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
+
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: telegramId, text }),
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
       }
-      
-      return; // Success, exit function
+
+      await insertTelegramSendLog({
+        botUser: 'GUEST',
+        messageKind: 'text',
+        chatId: chatStr,
+        status: 'success',
+        errorCategory: null,
+        errorMessage: null,
+        messagePreview: msgPreview,
+        guestAccountCode: meta.guestAccountCode,
+        guestName: meta.guestName,
+        amount: meta.amount
+      });
+      return;
     } catch (error) {
       // If it's a network error and we have retries left, try again
       if (attempt < retries && (
-        error.name === 'AbortError' || 
-        error.message.includes('ETIMEDOUT') || 
+        error.name === 'AbortError' ||
+        error.message.includes('ETIMEDOUT') ||
         error.message.includes('ECONNRESET') ||
         error.message.includes('network') ||
         error.code === 'ETIMEDOUT' ||
@@ -59,9 +116,21 @@ async function sendTelegramMessage(text, telegramId, retries = 2) {
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
         continue;
       }
-      
+
       // Non-retryable API errors (e.g. chat not found): log only — never throw so DB flows (settlement, etc.) still succeed
       console.error(`❌ Error sending Telegram message after ${attempt + 1} attempts:`, error.message);
+      await insertTelegramSendLog({
+        botUser: 'GUEST',
+        messageKind: 'text',
+        chatId: chatStr,
+        status: 'failure',
+        errorCategory: classifyTelegramError(error),
+        errorMessage: error.message || String(error),
+        messagePreview: msgPreview,
+        guestAccountCode: meta.guestAccountCode,
+        guestName: meta.guestName,
+        amount: meta.amount
+      });
       return;
     }
   }
@@ -106,11 +175,12 @@ async function getAdditionalChatIds() {
 }
 
 // Send message to all additional chat IDs (groups/channels) using GUEST bot
-async function sendTelegramToAdditionalChats(text) {
+async function sendTelegramToAdditionalChats(text, options = {}) {
+  const opts = typeof options === 'number' ? { retries: options } : options || {};
   const chatIds = await getAdditionalChatIds();
   for (const id of chatIds) {
     try {
-      await sendTelegramMessage(text, id);
+      await sendTelegramMessage(text, id, opts);
     } catch (error) {
       console.error(`Error sending Telegram message to guest chat ID ${id}:`, error.message);
       // Continue sending to other chat IDs even if one fails
@@ -131,11 +201,30 @@ async function getEmployeeChatIds() {
 }
 
 // Send message to all employee chat IDs using EMPLOYEE bot
-async function sendTelegramToEmployees(text) {
+// options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } }
+async function sendTelegramToEmployees(text, options = {}) {
+  const opts = options || {};
+  const logPreview =
+    opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
+  const meta = extractLogMeta(opts);
   const { default: fetch } = await import('node-fetch');
   const token = await getTelegramToken('EMPLOYEE');
+  const msgPreview = previewText(logPreview != null ? logPreview : text);
+
   if (!token) {
     console.warn('No Telegram token found for EMPLOYEE bot');
+    await insertTelegramSendLog({
+      botUser: 'EMPLOYEE',
+      messageKind: 'text',
+      chatId: '-',
+      status: 'failure',
+      errorCategory: 'INTERNAL',
+      errorMessage: 'No Telegram token configured for EMPLOYEE bot',
+      messagePreview: msgPreview,
+      guestAccountCode: meta.guestAccountCode,
+      guestName: meta.guestName,
+      amount: meta.amount
+    });
     return;
   }
 
@@ -144,7 +233,7 @@ async function sendTelegramToEmployees(text) {
     console.log('No employee chat IDs found in CHAT_ID for EMPLOYEE');
     return;
   }
-  
+
   for (const id of chatIds) {
     try {
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -153,13 +242,52 @@ async function sendTelegramToEmployees(text) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: id, text })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+        const errMsg = `Telegram API error: ${errorData.description || response.statusText}`;
+        await insertTelegramSendLog({
+          botUser: 'EMPLOYEE',
+          messageKind: 'text',
+          chatId: String(id),
+          status: 'failure',
+          errorCategory: 'TELEGRAM',
+          errorMessage: errMsg,
+          messagePreview: msgPreview,
+          guestAccountCode: meta.guestAccountCode,
+          guestName: meta.guestName,
+          amount: meta.amount
+        });
+        throw new Error(errMsg);
       }
+      await insertTelegramSendLog({
+        botUser: 'EMPLOYEE',
+        messageKind: 'text',
+        chatId: String(id),
+        status: 'success',
+        errorCategory: null,
+        errorMessage: null,
+        messagePreview: msgPreview,
+        guestAccountCode: meta.guestAccountCode,
+        guestName: meta.guestName,
+        amount: meta.amount
+      });
     } catch (error) {
       console.error(`Error sending Telegram message to employee chat ID ${id}:`, error.message);
+      if (!String(error.message || '').includes('Telegram API error:')) {
+        await insertTelegramSendLog({
+          botUser: 'EMPLOYEE',
+          messageKind: 'text',
+          chatId: String(id),
+          status: 'failure',
+          errorCategory: classifyTelegramError(error),
+          errorMessage: error.message || String(error),
+          messagePreview: msgPreview,
+          guestAccountCode: meta.guestAccountCode,
+          guestName: meta.guestName,
+          amount: meta.amount
+        });
+      }
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -178,11 +306,30 @@ async function getManagementChatIds() {
 }
 
 // Send message to all management chat IDs using MANAGEMENT bot
-async function sendTelegramToManagement(text) {
+// options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } }
+async function sendTelegramToManagement(text, options = {}) {
+  const opts = options || {};
+  const logPreview =
+    opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
+  const meta = extractLogMeta(opts);
   const { default: fetch } = await import('node-fetch');
   const token = await getTelegramToken('MANAGEMENT');
+  const msgPreview = previewText(logPreview != null ? logPreview : text);
+
   if (!token) {
     console.warn('No Telegram token found for MANAGEMENT bot');
+    await insertTelegramSendLog({
+      botUser: 'MANAGEMENT',
+      messageKind: 'text',
+      chatId: '-',
+      status: 'failure',
+      errorCategory: 'INTERNAL',
+      errorMessage: 'No Telegram token configured for MANAGEMENT bot',
+      messagePreview: msgPreview,
+      guestAccountCode: meta.guestAccountCode,
+      guestName: meta.guestName,
+      amount: meta.amount
+    });
     return;
   }
 
@@ -191,7 +338,7 @@ async function sendTelegramToManagement(text) {
     console.log('No management chat IDs found in CHAT_ID for MANAGEMENT');
     return;
   }
-  
+
   for (const id of chatIds) {
     try {
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -200,13 +347,52 @@ async function sendTelegramToManagement(text) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: id, text })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+        const errMsg = `Telegram API error: ${errorData.description || response.statusText}`;
+        await insertTelegramSendLog({
+          botUser: 'MANAGEMENT',
+          messageKind: 'text',
+          chatId: String(id),
+          status: 'failure',
+          errorCategory: 'TELEGRAM',
+          errorMessage: errMsg,
+          messagePreview: msgPreview,
+          guestAccountCode: meta.guestAccountCode,
+          guestName: meta.guestName,
+          amount: meta.amount
+        });
+        throw new Error(errMsg);
       }
+      await insertTelegramSendLog({
+        botUser: 'MANAGEMENT',
+        messageKind: 'text',
+        chatId: String(id),
+        status: 'success',
+        errorCategory: null,
+        errorMessage: null,
+        messagePreview: msgPreview,
+        guestAccountCode: meta.guestAccountCode,
+        guestName: meta.guestName,
+        amount: meta.amount
+      });
     } catch (error) {
       console.error(`Error sending Telegram message to management chat ID ${id}:`, error.message);
+      if (!String(error.message || '').includes('Telegram API error:')) {
+        await insertTelegramSendLog({
+          botUser: 'MANAGEMENT',
+          messageKind: 'text',
+          chatId: String(id),
+          status: 'failure',
+          errorCategory: classifyTelegramError(error),
+          errorMessage: error.message || String(error),
+          messagePreview: msgPreview,
+          guestAccountCode: meta.guestAccountCode,
+          guestName: meta.guestName,
+          amount: meta.amount
+        });
+      }
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -302,11 +488,24 @@ async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramI
   const { default: fetch } = await import('node-fetch');
   const FormData = (await import('form-data')).default;
   const token = await getTelegramToken('GUEST');
+  const chatStr = String(telegramId);
+  const msgPreview = previewText(caption || '') || `[photo: ${filename || 'image'}]`;
+
   if (!token) {
     console.error('Telegram token not found for GUEST bot');
+    await insertTelegramSendLog({
+      botUser: 'GUEST',
+      messageKind: 'photo',
+      chatId: chatStr,
+      status: 'failure',
+      errorCategory: 'INTERNAL',
+      errorMessage: 'No Telegram token configured for GUEST bot',
+      messagePreview: msgPreview
+    });
     return;
   }
 
+  let failureAlreadyLogged = false;
   try {
     const TELEGRAM_PHOTO_LIMIT = 10 * 1024 * 1024; // 10MB
     let fileBuffer;
@@ -354,11 +553,41 @@ async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramI
     if (!result.ok) {
       const errorMsg = result.description || 'Telegram API error';
       console.error('Telegram API error:', errorMsg);
+      await insertTelegramSendLog({
+        botUser: 'GUEST',
+        messageKind: 'photo',
+        chatId: chatStr,
+        status: 'failure',
+        errorCategory: 'TELEGRAM',
+        errorMessage: errorMsg,
+        messagePreview: msgPreview
+      });
+      failureAlreadyLogged = true;
       throw new Error(errorMsg);
     }
+    await insertTelegramSendLog({
+      botUser: 'GUEST',
+      messageKind: 'photo',
+      chatId: chatStr,
+      status: 'success',
+      errorCategory: null,
+      errorMessage: null,
+      messagePreview: msgPreview
+    });
     return result;
   } catch (error) {
     console.error('Error sending photo via Telegram:', error.message);
+    if (!failureAlreadyLogged) {
+      await insertTelegramSendLog({
+        botUser: 'GUEST',
+        messageKind: 'photo',
+        chatId: chatStr,
+        status: 'failure',
+        errorCategory: classifyTelegramError(error),
+        errorMessage: error.message || String(error),
+        messagePreview: msgPreview
+      });
+    }
     throw error;
   }
 }

@@ -6,6 +6,7 @@ const dashboardQueries = require('../utils/dashboardQueries');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const ExcelJS = require('exceljs');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
@@ -2473,10 +2474,20 @@ router.post('/add_marker_settlement', async (req, res) => {
 				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
+			const markerLogPreview = markerReturnTelegramLogPreview(optTransType, optReturnSource);
+			const markerTelegramOpts = {
+				logPreview: markerLogPreview,
+				logMeta: {
+					accountCode: agentCode,
+					guestName: agentName,
+					amount: Math.abs(Number(markerReturn) || 0)
+				}
+			};
+
 			// Send to agent (only when TELEGRAM_ID exists)
 			if (telegramId) {
 				try {
-					await sendTelegramMessage(text, telegramId);
+					await sendTelegramMessage(text, telegramId, markerTelegramOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 				}
@@ -2486,7 +2497,7 @@ router.post('/add_marker_settlement', async (req, res) => {
 
 			// Send to additional chats - always (even when guest has no TELEGRAM_ID)
 			try {
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramToAdditionalChats(text, markerTelegramOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 			}

@@ -1,0 +1,1758 @@
+		<style>
+			/* Telegram send log — compact date + refresh inline */
+			.tg-log-toolbar .tg-log-date-filter-inline {
+				display: flex;
+				align-items: flex-end;
+				flex-wrap: wrap;
+				gap: 0.5rem;
+			}
+			.tg-log-toolbar .tg-log-day-selector {
+				width: 200px;
+				max-width: min(200px, 55vw);
+				flex: 0 0 auto;
+			}
+			.tg-log-toolbar .tg-log-day-selector .form-control,
+			.tg-log-toolbar .tg-log-day-selector input.flatpickr-alt-input.form-control {
+				font-size: 14px;
+				min-width: 0;
+			}
+			.tg-log-toolbar #tg-log-refresh {
+				flex: 0 0 auto;
+				white-space: nowrap;
+			}
+			.tg-log-controls-row {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: flex-end;
+				justify-content: space-between;
+				gap: 0.75rem;
+				margin-top: 0.75rem;
+			}
+			.tg-log-controls-row .tg-log-length-wrap,
+			.tg-log-controls-row .tg-log-search-wrap {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 0.35rem 0.5rem;
+			}
+			.tg-log-controls-row .tg-log-search-wrap input[type="search"] {
+				min-width: min(280px, 52vw);
+				max-width: 360px;
+			}
+			.tg-log-controls-row #tg-log-length {
+				width: auto;
+				min-width: 4.25rem;
+			}
+			.tg-log-table-outer {
+				width: 100%;
+				max-width: 100%;
+				overflow-x: auto;
+			}
+			#telegram-send-log-table.small-text {
+				font-size: 13px;
+				border-collapse: collapse;
+				background: #fff;
+			}
+			#telegram-send-log-table.small-text th,
+			#telegram-send-log-table.small-text td {
+				font-size: 13px;
+			}
+			#telegram-send-log-table {
+				table-layout: fixed;
+				width: 100%;
+				max-width: 100%;
+				margin-bottom: 0;
+			}
+			#telegram-send-log-table thead th {
+				background: var(--bs-primary-bg-subtle);
+				color: var(--bs-primary);
+				font-weight: 500;
+				padding: 12px 15px;
+				text-align: left;
+				border: none;
+				border-bottom: none;
+				position: relative;
+			}
+			/* DataTables-like sorting indicators */
+			#telegram-send-log-table thead th[data-sort] {
+				cursor: pointer;
+				user-select: none;
+				padding-right: 26px; /* room for arrows */
+			}
+			#telegram-send-log-table thead th[data-sort]::after {
+				content: '⇅';
+				position: absolute;
+				right: 10px;
+				top: 50%;
+				transform: translateY(-50%);
+				font-size: 11px;
+				opacity: 0.45;
+				color: var(--bs-primary);
+			}
+			#telegram-send-log-table thead th.sorting_asc::after {
+				content: '▲';
+				opacity: 0.9;
+			}
+			#telegram-send-log-table thead th.sorting_desc::after {
+				content: '▼';
+				opacity: 0.9;
+			}
+			#telegram-send-log-table tbody td {
+				padding: 12px 15px;
+				color: #666;
+				border-bottom: 1px solid #eee;
+				min-width: 0;
+				vertical-align: top;
+				text-align: left;
+				word-break: break-word;
+				overflow-wrap: anywhere;
+			}
+			#telegram-send-log-table tbody tr:not(.tg-log-row-group-a):not(.tg-log-row-group-b):hover {
+				background-color: #f5f5f5 !important;
+			}
+			/* Alternating row groups — soft blue vs cool white (matches primary header) */
+			#telegram-send-log-table {
+				--tg-log-band-a: color-mix(in srgb, var(--bs-primary-bg-subtle, #cfe2ff) 72%, white);
+				--tg-log-band-b: #fafcfe;
+				--tg-log-band-a-hover: color-mix(in srgb, var(--bs-primary-bg-subtle, #cfe2ff) 88%, white);
+				--tg-log-band-b-hover: #f0f3f8;
+			}
+			#telegram-send-log-table tbody tr.tg-log-row-group-a td {
+				background-color: var(--tg-log-band-a);
+				border-bottom-color: color-mix(in srgb, var(--bs-primary, #0d6efd) 8%, #e5e7eb);
+			}
+			#telegram-send-log-table tbody tr.tg-log-row-group-b td {
+				background-color: var(--tg-log-band-b);
+				border-bottom-color: #eceef2;
+			}
+			#telegram-send-log-table tbody tr.tg-log-row-group-a:hover td {
+				background-color: var(--tg-log-band-a-hover) !important;
+			}
+			#telegram-send-log-table tbody tr.tg-log-row-group-b:hover td {
+				background-color: var(--tg-log-band-b-hover) !important;
+			}
+			#telegram-send-log-table .tg-log-col-time {
+				width: 10%;
+				vertical-align: top;
+				line-height: 1.25;
+				white-space: normal;
+			}
+			#telegram-send-log-table .tg-log-dt-date {
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			#telegram-send-log-table .tg-log-dt-time {
+				font-size: 12px;
+				font-variant-numeric: tabular-nums;
+				color: #64748b;
+				white-space: nowrap;
+			}
+			#telegram-send-log-table .tg-log-col-bot {
+				width: 12%;
+				min-width: 7rem;
+				vertical-align: top;
+				font-variant-numeric: tabular-nums;
+				white-space: nowrap;
+				word-break: normal;
+				overflow-wrap: normal;
+			}
+			#telegram-send-log-table tbody td.tg-log-col-bot {
+				white-space: nowrap;
+				word-break: normal;
+				overflow-wrap: normal;
+			}
+			#telegram-send-log-table thead th.tg-log-col-bot {
+				min-width: 7rem;
+				white-space: normal;
+				word-break: break-word;
+			}
+			#telegram-send-log-table .tg-log-col-chat { width: 8%; }
+			#telegram-send-log-table .tg-log-col-chatname { width: 13%; }
+			#telegram-send-log-table .tg-log-col-guest { width: 13%; }
+			#telegram-send-log-table .tg-log-col-preview { width: 17%; }
+			#telegram-send-log-table .tg-log-col-amount { width: 9%; font-variant-numeric: tabular-nums; }
+			#telegram-send-log-table .tg-log-col-status { width: 8%; }
+			#telegram-send-log-table .tg-log-col-details { width: 16%; }
+			#telegram-send-log-table .tg-log-wrap {
+				display: -webkit-box;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 3;
+				line-clamp: 3;
+				overflow: hidden;
+				font-size: 13px;
+				line-height: 1.35;
+				font-weight: 500;
+				word-break: break-word;
+				overflow-wrap: anywhere;
+				white-space: normal;
+			}
+			#telegram-send-log-table td.tg-log-col-preview .tg-log-wrap {
+				-webkit-line-clamp: 4;
+				line-clamp: 4;
+			}
+			#telegram-send-log-table td.tg-log-col-details .tg-log-wrap {
+				-webkit-line-clamp: 3;
+				line-clamp: 3;
+				font-size: 13px;
+				font-weight: 600;
+				color: #1f2937;
+			}
+			@media (max-width: 991.98px) {
+				#telegram-send-log-table .tg-log-col-time { width: 11%; }
+				#telegram-send-log-table .tg-log-col-bot { width: 13%; min-width: 6.75rem; }
+				#telegram-send-log-table .tg-log-col-preview { width: 16%; }
+				#telegram-send-log-table .tg-log-col-details { width: 14%; }
+			}
+			#telegram-panel-log {
+				max-width: 100%;
+				overflow-x: hidden;
+			}
+			#telegram-send-log-table a.tg-log-link-guest,
+			#telegram-send-log-table a.tg-log-link-game {
+				color: var(--bs-primary, #0d6efd);
+				text-decoration: none;
+				font-weight: 600;
+				border-bottom: 1px dashed transparent;
+			}
+			#telegram-send-log-table a.tg-log-link-guest:hover,
+			#telegram-send-log-table a.tg-log-link-game:hover {
+				text-decoration: none;
+				border-bottom-color: currentColor;
+			}
+		</style>
+
+		<div id="telegram-panel-log" class="telegram-tab-pane d-none" role="tabpanel" aria-labelledby="telegram-tab-log">
+								<div class="dataTables_wrapper tg-log-toolbar mb-3">
+									<label class="form-label mb-1 fw-semibold text-muted d-block" style="font-size: 14px;" for="tg-log-daterange-picker"><%= __('telegram_api.logs_date_range') %></label>
+									<div class="tg-log-date-filter-inline">
+										<div class="tg-log-day-selector mb-0">
+											<input type="text" id="tg-log-daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('telegram_api.logs_date_range_placeholder') %>" autocomplete="off" />
+										</div>
+										<button type="button" id="tg-log-refresh" class="btn btn-primary btn-sm"><%= __('telegram_api.logs_refresh') %></button>
+									</div>
+									<div class="tg-log-controls-row">
+										<div class="tg-log-length-wrap">
+											<label class="small text-muted mb-0" for="tg-log-length"><%= __('telegram_api.logs_show') %></label>
+											<select id="tg-log-length" class="form-select form-select-sm" aria-label="<%= __('telegram_api.logs_show') %>">
+												<option value="10">10</option>
+												<option value="25">25</option>
+												<option value="50" selected>50</option>
+												<option value="100">100</option>
+											</select>
+											<span class="small text-muted"><%= __('telegram_api.logs_entries') %></span>
+										</div>
+										<div class="tg-log-search-wrap">
+											<label class="small text-muted mb-0" for="tg-log-search"><%= __('telegram_api.logs_search') %></label>
+											<input type="search" id="tg-log-search" class="form-control form-control-sm" placeholder="<%= __('telegram_api.logs_search_placeholder') %>" autocomplete="off" />
+										</div>
+									</div>
+								</div>
+								<div class="tg-log-table-outer">
+									<table class="table table-sm small-text" id="telegram-send-log-table" style="width:100%">
+										<thead>
+											<tr>
+												<th class="tg-log-col-time sorting_desc" data-sort="created_at"><%= __('telegram_api.logs_col_time') %></th>
+												<th class="tg-log-col-bot" data-sort="bot_user"><%= __('telegram_api.logs_col_bot_user') %></th>
+												<th class="tg-log-col-chat" data-sort="chat_id"><%= __('telegram_api.logs_col_chat') %></th>
+												<th class="tg-log-col-chatname" data-sort="chat_display"><%= __('telegram_api.chat_name_username') %></th>
+												<th class="tg-log-col-guest"><%= __('telegram_api.logs_col_guest_name') %></th>
+												<th class="tg-log-col-preview" data-sort="message_preview"><%= __('telegram_api.logs_col_preview') %></th>
+												<th class="tg-log-col-amount"><%= __('telegram_api.logs_col_amount') %></th>
+												<th class="tg-log-col-status" data-sort="status"><%= __('telegram_api.logs_col_status') %></th>
+												<th class="tg-log-col-details" data-sort="error_detail"><%= __('telegram_api.logs_col_details') %></th>
+											</tr>
+										</thead>
+										<tbody id="telegram-send-log-tbody">
+											<tr>
+												<td colspan="9" class="text-center text-muted py-4"><%= __('telegram_api.logs_loading') %></td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+								<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+									<span class="small text-muted" id="tg-log-page-info"></span>
+									<div class="d-flex gap-2">
+										<button type="button" class="btn btn-sm btn-outline-secondary" id="tg-log-prev" disabled><%= __('telegram_api.logs_prev') %></button>
+										<button type="button" class="btn btn-sm btn-outline-secondary" id="tg-log-next" disabled><%= __('telegram_api.logs_next') %></button>
+									</div>
+								</div>
+							</div>
+
+
+			<script type="application/json" id="tg-log-i18n-json"><%- JSON.stringify({
+				loading: __("telegram_api.logs_loading"),
+				empty: __("telegram_api.logs_empty"),
+				emptySearch: __("telegram_api.logs_empty_search"),
+				fetchError: __("telegram_api.logs_fetch_error"),
+				errorNone: __("telegram_api.logs_error_none"),
+				statusSuccess: __("telegram_api.status_success"),
+				statusFailure: __("telegram_api.status_failure"),
+				showingTpl: __("telegram_api.logs_showing_line"),
+				photoPrefix: __("telegram_api.logs_preview_photo_prefix"),
+				fullTextHint: __("telegram_api.logs_full_text_hover"),
+				logsTxnModalTitle: __("telegram_api.logs_txn_modal_title"),
+				logsTxnModalClose: __("telegram_api.logs_txn_modal_close"),
+				logsTxnRawFallback: __("telegram_api.logs_txn_raw_fallback"),
+				txnSecAccount: __("telegram_api.logs_txn_sec_account"),
+				txnSecGame: __("telegram_api.logs_txn_sec_game"),
+				txnSecFinance: __("telegram_api.logs_txn_sec_finance"),
+				txnSecWhen: __("telegram_api.logs_txn_sec_when"),
+				txnWhenMergedLabel: __("telegram_api.logs_txn_when_merged"),
+				txnSecMeta: __("telegram_api.logs_txn_sec_meta"),
+				txnSecOther: __("telegram_api.logs_txn_sec_other"),
+				txnLblBalance: __("telegram_api.logs_txn_lbl_balance"),
+				txnLblTotalCredit: __("telegram_api.logs_txn_lbl_total_credit"),
+				txnRowLabelMap: {
+					"계정": __("telegram_api.logs_txn_lbl_account"),
+					"금액": __("telegram_api.logs_txn_lbl_amount"),
+					"잔고": __("telegram_api.logs_txn_lbl_balance"),
+					"총 크레딧": __("telegram_api.logs_txn_lbl_total_credit"),
+					"비고": __("telegram_api.logs_txn_lbl_remarks"),
+					"날짜": __("telegram_api.logs_txn_lbl_date"),
+					"시간": __("telegram_api.logs_txn_lbl_time"),
+					"게임": __("telegram_api.logs_txn_lbl_game"),
+					"게임 #": __("telegram_api.logs_txn_lbl_game_no"),
+					"받으신분": __("telegram_api.logs_txn_lbl_recipient"),
+					"보내신분": __("telegram_api.logs_txn_lbl_sender"),
+					"바이인": __("telegram_api.logs_txn_lbl_buyin"),
+					"커미션": __("telegram_api.logs_txn_lbl_commission"),
+					"캐시아웃": __("telegram_api.logs_txn_lbl_cashout"),
+					"카테고리": __("telegram_api.logs_txn_lbl_category"),
+					"설명": __("telegram_api.logs_txn_lbl_description"),
+					"인코더": __("telegram_api.logs_txn_lbl_encoded_by"),
+					"바이인 합계": __("telegram_api.logs_txn_lbl_total_buyin"),
+					"캐시아웃 합계": __("telegram_api.logs_txn_lbl_total_cashout"),
+					"윈/로스": __("telegram_api.logs_txn_lbl_win_loss"),
+					"토탈롤링": __("telegram_api.logs_txn_lbl_total_rolling"),
+					"Account": __("telegram_api.logs_txn_lbl_account"),
+					"Amount": __("telegram_api.logs_txn_lbl_amount"),
+					"Balance": __("telegram_api.logs_txn_lbl_balance"),
+					"Account Balance": __("telegram_api.logs_txn_lbl_balance"),
+					"Total credit": __("telegram_api.logs_txn_lbl_total_credit"),
+					"Remark": __("telegram_api.logs_txn_lbl_remarks"),
+					"Remarks": __("telegram_api.logs_txn_lbl_remarks"),
+					"Date": __("telegram_api.logs_txn_lbl_date"),
+					"Time": __("telegram_api.logs_txn_lbl_time"),
+					"Game": __("telegram_api.logs_txn_lbl_game"),
+					"Game #": __("telegram_api.logs_txn_lbl_game_no"),
+					"Recipient": __("telegram_api.logs_txn_lbl_recipient"),
+					"Sender": __("telegram_api.logs_txn_lbl_sender"),
+					"Buy-in": __("telegram_api.logs_txn_lbl_buyin"),
+					"Buy-In": __("telegram_api.logs_txn_lbl_buyin"),
+					"Commission": __("telegram_api.logs_txn_lbl_commission"),
+					"Cash-out": __("telegram_api.logs_txn_lbl_cashout"),
+					"Cash-Out": __("telegram_api.logs_txn_lbl_cashout"),
+					"Category": __("telegram_api.logs_txn_lbl_category"),
+					"Description": __("telegram_api.logs_txn_lbl_description"),
+					"Encoded By": __("telegram_api.logs_txn_lbl_encoded_by"),
+					"Encoded by": __("telegram_api.logs_txn_lbl_encoded_by"),
+					"Total Buy-in": __("telegram_api.logs_txn_lbl_total_buyin"),
+					"Total Buy-In": __("telegram_api.logs_txn_lbl_total_buyin"),
+					"Total Cashout": __("telegram_api.logs_txn_lbl_total_cashout"),
+					"Total Rolling": __("telegram_api.logs_txn_lbl_total_rolling"),
+					"Win/Loss": __("telegram_api.logs_txn_lbl_win_loss"),
+					"계정 Account": __("telegram_api.logs_txn_lbl_account"),
+					"게임 Game #": __("telegram_api.logs_txn_lbl_game_no"),
+					"게임 # Game #": __("telegram_api.logs_txn_lbl_game_no"),
+					"금액 Amount": __("telegram_api.logs_txn_lbl_amount"),
+					"잔고 Account Balance": __("telegram_api.logs_txn_lbl_balance"),
+					"날짜 Date": __("telegram_api.logs_txn_lbl_date"),
+					"시간 Time": __("telegram_api.logs_txn_lbl_time"),
+					"커미션 Commission": __("telegram_api.logs_txn_lbl_commission"),
+					"바이인 Buy-in": __("telegram_api.logs_txn_lbl_buyin"),
+					"캐시아웃 Cash-out": __("telegram_api.logs_txn_lbl_cashout"),
+					"바이인 합계 Total Buy-in": __("telegram_api.logs_txn_lbl_total_buyin"),
+					"캐시아웃 합계 Total Cashout": __("telegram_api.logs_txn_lbl_total_cashout"),
+					"윈/로스 Win/Loss": __("telegram_api.logs_txn_lbl_win_loss"),
+					"토탈롤링 Total Rolling": __("telegram_api.logs_txn_lbl_total_rolling")
+				},
+				previewHeadlineMap: {
+					"어카운트 입금": __("telegram_api.log_preview_deposit"),
+					"어카운트 출금": __("telegram_api.log_preview_withdraw"),
+					"Account deposit": __("telegram_api.log_preview_deposit"),
+					"Account Deposit": __("telegram_api.log_preview_deposit"),
+					"Account withdrawal": __("telegram_api.log_preview_withdraw"),
+					"Account Withdrawal": __("telegram_api.log_preview_withdraw"),
+					"크레딧": __("telegram_api.log_preview_credit"),
+					"크레딧 리턴": __("telegram_api.log_preview_credit_return"),
+					"Credit Return": __("telegram_api.log_preview_credit_return"),
+					"Credit return": __("telegram_api.log_preview_credit_return"),
+					"Credit returned": __("telegram_api.log_preview_credit_return"),
+					"Credit Returned": __("telegram_api.log_preview_credit_return"),
+					"크레딧 리턴 Credit Return": __("telegram_api.log_preview_credit_return"),
+					"게임 시작": __("telegram_api.log_preview_game_start"),
+					"Game Start": __("telegram_api.log_preview_game_start"),
+					"Game start": __("telegram_api.log_preview_game_start"),
+					"게임 시작 Game Start": __("telegram_api.log_preview_game_start"),
+					"게임종료 / 정산": __("telegram_api.log_preview_game_settle"),
+					"게임종료 / 정산 End Game": __("telegram_api.log_preview_game_settle"),
+					"End game / Settlement": __("telegram_api.log_preview_game_settle"),
+					"End Game / Settlement": __("telegram_api.log_preview_game_settle"),
+					"추가 바이인": __("telegram_api.log_preview_add_buyin"),
+					"추가 바이인 Add Buy-in": __("telegram_api.log_preview_add_buyin"),
+					"Add buy-in": __("telegram_api.log_preview_add_buyin"),
+					"Add Buy-in": __("telegram_api.log_preview_add_buyin"),
+					"캐시아웃": __("telegram_api.log_preview_cashout"),
+					"캐시아웃 Cash-out": __("telegram_api.log_preview_cashout"),
+					"Cash-out": __("telegram_api.log_preview_cashout"),
+					"Cash-Out": __("telegram_api.log_preview_cashout"),
+					"서비스 결제": __("telegram_api.log_preview_service_payment"),
+					"Service payment": __("telegram_api.log_preview_service_payment"),
+					"Service Payment": __("telegram_api.log_preview_service_payment")
+				}
+			}) %></script>
+			<script>
+			(function () {
+				var TG = JSON.parse(document.getElementById('tg-log-i18n-json').textContent.trim());
+				var limit = 50;
+				var offset = 0;
+				var total = 0;
+				var logSearchTimer = null;
+				var logListenersBound = false;
+				var logDateFp = null;
+				var tgLogChatInfoPromises = Object.create(null);
+				var tgLogAccountInfoPromises = Object.create(null);
+				var logSortKey = 'created_at';
+				var logSortDir = 'desc'; // 'asc' | 'desc'
+
+				function esc(s) {
+					if (s == null || s === '') return '—';
+					return String(s)
+						.replace(/&/g, '&amp;')
+						.replace(/</g, '&lt;')
+						.replace(/>/g, '&gt;')
+						.replace(/"/g, '&quot;');
+				}
+
+				function escHtml(s) {
+					if (s == null) return '';
+					return String(s)
+						.replace(/&/g, '&amp;')
+						.replace(/</g, '&lt;')
+						.replace(/>/g, '&gt;')
+						.replace(/"/g, '&quot;');
+				}
+
+				function formatDt(iso) {
+					if (!iso) return '—';
+					try {
+						var d = new Date(iso);
+						if (isNaN(d.getTime())) return esc(iso);
+						var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+						var day = d.getDate();
+						var mon = months[d.getMonth()];
+						var yr = d.getFullYear();
+						var h = String(d.getHours()).padStart(2, '0');
+						var mi = String(d.getMinutes()).padStart(2, '0');
+						var se = String(d.getSeconds()).padStart(2, '0');
+						var dateLine = day + ' ' + mon + ', ' + yr;
+						var timeLine = h + ':' + mi + ':' + se;
+						return '<div class="tg-log-dt">' +
+							'<div class="tg-log-dt-date">' + esc(dateLine) + '</div>' +
+							'<div class="tg-log-dt-time">' + esc(timeLine) + '</div>' +
+							'</div>';
+					} catch (e) {
+						return esc(iso);
+					}
+				}
+
+				function collapseWs(s) {
+					return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+				}
+
+				/** Unify en/em dash to ASCII so " - " splits match DB / Excel pastes */
+				function normalizeLogPreviewSeparators(s) {
+					var t = String(s == null ? '' : s);
+					t = t.replace(/[\u2013\u2014\u2212]/g, '-');
+					return collapseWs(t.replace(/\s*-\s*/g, ' - '));
+				}
+
+				function translateTxnRowLabel(lab) {
+					var k = collapseWs(String(lab || ''));
+					if (!k) return lab;
+					var m = TG.txnRowLabelMap;
+					if (m && typeof m === 'object' && Object.prototype.hasOwnProperty.call(m, k) && m[k]) return m[k];
+					return lab;
+				}
+
+				function localizeTxnDetailValue(val) {
+					var v = String(val == null ? '' : val);
+					var b = TG.txnLblBalance != null ? String(TG.txnLblBalance) : 'Balance';
+					var tc = TG.txnLblTotalCredit != null ? String(TG.txnLblTotalCredit) : 'Total credit';
+					v = v.replace(/Account\s+Balance\s*:/gi, b + ':');
+					v = v.replace(/총\s*크레딧\s*:/g, tc + ':');
+					v = v.replace(/잔고\s*:/g, b + ':');
+					return collapseWs(v);
+				}
+
+				function attrEsc(s) {
+					return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+				}
+
+				/** Short line for table: drop boilerplate, cap length */
+				function summarizeLine(s, maxLen) {
+					var t = collapseWs(s);
+					if (!t) return '';
+					t = t.replace(/^Demo\s+Cage\s+/i, '');
+					t = collapseWs(t);
+					if (t.length <= maxLen) return t;
+					return t.slice(0, Math.max(0, maxLen - 1)) + '…';
+				}
+
+				var TG_PREVIEW_STOPS = [
+					'\n',
+					'계정:', 'Account:', '금액:', 'Buy-in:', 'Buy-In:', '바이인:',
+					'Category:', '카테고리:', 'Description:', '설명:', 'Amount:', '금액 :', 'Encoded By:', '인코더:', 'Receipt No:', 'Car Receipt No:',
+					'잔고:', 'Account Balance:', '총 크레딧', '총 바이인', '총 바이인:',
+					'바이인 합계:', '캐시아웃 합계:', '윈/로스:', '토탈롤링:',
+					'커미션:', 'Commission:',
+					'게임 #:', 'Game #:',
+					'날짜:', 'Date:', '시간:', 'Time:',
+					'비고:', 'Remark:', 'Total Buy-in', 'Total Buy-In'
+				];
+
+				function previewFieldAfter(text, labels) {
+					var t = String(text);
+					for (var i = 0; i < labels.length; i++) {
+						var label = labels[i];
+						var idx = t.indexOf(label);
+						if (idx === -1) continue;
+						var start = idx + label.length;
+						while (start < t.length && (t[start] === ' ' || t[start] === ':')) start++;
+						var end = t.length;
+						for (var j = 0; j < TG_PREVIEW_STOPS.length; j++) {
+							var stop = TG_PREVIEW_STOPS[j];
+							var p = t.indexOf(stop, start);
+							if (p !== -1 && p < end) end = p;
+						}
+						var v = collapseWs(t.slice(start, end));
+						if (v) return v;
+					}
+					return '';
+				}
+
+				/** Game book lines with "게임 #:" — includes bilingual "계정 Account :" */
+				function extractGamebookAccountLine(t) {
+					var s = collapseWs(String(t));
+					if (!/(?:게임\s*#|Game\s*#)\s*:/.test(s)) return '';
+					// Bilingual "계정 Account :" — capture until the next "게임 #" / "Game #" marker.
+					var m = s.match(/계정\s+Account\s*:\s*([\s\S]*?)(?=\s*(?:게임\s*#|Game\s*#)\s*:|$)/i);
+					if (m && m[1]) return collapseWs(m[1]);
+					// Korean-only "계정:" — same idea, stop right before "게임 #" / "Game #".
+					m = s.match(/계정\s*:\s*([\s\S]*?)(?=\s*(?:게임\s*#|Game\s*#)\s*:|$)/);
+					if (m && m[1]) return collapseWs(m[1]);
+					// English-only "Account :" fallback.
+					m = s.match(/Account\s*:\s*([\s\S]*?)(?=\s*(?:게임\s*#|Game\s*#)\s*:|$)/i);
+					if (m && m[1]) return collapseWs(m[1]);
+					return '';
+				}
+
+				function extractGamebookGameId(t) {
+					// Allow optional whitespace after the colon for both languages — bilingual gamebook
+					// bodies render `게임 # : 4` (space before `:` and after) while single-language ones use `게임 #: 4`.
+					var m = String(t).match(/(?:게임\s*#|Game\s*#)\s*:\s*(\d+)/i);
+					return m ? m[1] : '';
+				}
+
+				/** True for cage/game Telegram bodies (not guest portal one-liners). */
+				function isGamebookTelegramPreview(t) {
+					var s = collapseWs(String(t || ''));
+					if (!s) return false;
+					if (/^(Account\s+(Deposit|Withdrawal)|Credit|CREDIT\s+CASH|IOU\s+CASH|JUNKET\s+CREDIT\s+RETURN|GAME\s+CREDIT\s+RETURN)\b/i.test(s)) return false;
+					if (/^Transfer\s+(sent|received)\b/i.test(s)) return false;
+					if (/(?:게임\s*#\s*:|Game\s*#\s*:)/i.test(s)) return true;
+					if (/\*\s*게임\s*시작\s*\*|게임\s*시작|게임종료|Game\s*Start|End\s*Game/i.test(s)) return true;
+					if (/바이인|Buy-in|Buy-In|캐시아웃|Cash-?out|커미션|Commission/i.test(s) && /게임|Game/i.test(s)) return true;
+					return false;
+				}
+
+				function cleanMoneyForLogCell(s) {
+					var x = collapseWs(String(s || ''));
+					if (!x) return '';
+					var beforeDash = x.split(/\s+-\s+/)[0].trim();
+					if (beforeDash) x = beforeDash;
+					var cur = x.match(/(?:₱|\$|€|¥)\s*([\d,.]+)/);
+					if (cur) return cur[1];
+					var num = x.match(/^([\d,.]+)/);
+					if (num) return num[1];
+					return '';
+				}
+
+				/** Primary buy-in / cash-out / commission amount for gamebook log rows */
+				function extractGamebookAmountFromPreview(t) {
+					var s = String(t || '');
+					var amt = previewFieldAfter(s, [
+						'캐시아웃:', '캐시아웃 :', 'Cash-out :', 'Cash-out:',
+						'바이인:', '바이인 :', 'Buy-in :', 'Buy-in:', 'Buy-In:',
+						'커미션:', 'Commission :', 'Commission:',
+						'금액:', 'Amount:', '총 바이인:', '총 바이인', '바이인 합계:'
+					]);
+					return cleanMoneyForLogCell(amt);
+				}
+
+				function accountCodeFromLine(x) {
+					var line = collapseWs(x);
+					if (!line) return '';
+					var m = line.match(/^([^-\s]+)\s*-\s*/);
+					return m ? m[1] : line.split(/\s+/)[0];
+				}
+
+				function extractAccountCodeFromMessage(t) {
+					var s = String(t);
+					var gb = extractGamebookAccountLine(s);
+					if (gb) return accountCodeFromLine(gb);
+					// Credit return etc.: "게임: code - name" (no "게임 #:")
+					if (!/(?:게임\s*#\s*:|Game\s*#\s*:)/.test(s)) {
+						var gLine = previewFieldAfter(s, ['게임:', 'Game:']);
+						if (gLine) return accountCodeFromLine(gLine);
+					}
+					var account = previewFieldAfter(s, ['계정:', 'Account :', 'Account:']);
+					return accountCodeFromLine(account);
+				}
+
+				/** Short English transaction label only (for Transactions column + tooltip). */
+				function extractGuestPortalTxnDisplayLabel(line) {
+					var t = collapseWs(normalizeLogPreviewSeparators(line));
+					if (!t) return '';
+					var patterns = [
+						/^JUNKET CREDIT RETURN THRU DEPOSIT/i,
+						/^JUNKET CREDIT RETURN THRU CASH/i,
+						/^GAME CREDIT RETURN THRU DEPOSIT/i,
+						/^GAME CREDIT RETURN THRU CASH/i,
+						/^CREDIT\s+CASH\s*-\s*ACCOUNT\s+DETAILS/i,
+						/^IOU\s+CASH\s*-\s*ACCOUNT\s+DETAILS/i,
+						/^Account\s+Withdrawal/i,
+						/^Account\s+Deposit/i
+					];
+					for (var i = 0; i < patterns.length; i++) {
+						var m = t.match(patterns[i]);
+						if (m) return collapseWs(m[0]);
+					}
+					return '';
+				}
+
+				/** Remove ledger descriptor mistakenly shown as guest prefix */
+				function stripAccountDetailsGuestNoise(s) {
+					return collapseWs(String(s || '').replace(/^ACCOUNT\s+DETAILS\s*(-\s*)+/i, '').trim());
+				}
+
+				/** Agency - handle tail after the display label (same line, amount already stripped). */
+				function extractGuestPortalGuestTail(line) {
+					var t = collapseWs(normalizeLogPreviewSeparators(line));
+					if (!t) return '';
+					var lab = extractGuestPortalTxnDisplayLabel(t);
+					if (!lab) return '';
+					var rest = t.slice(lab.length).replace(/^\s+-\s+/, '').trim();
+					return stripAccountDetailsGuestNoise(rest);
+				}
+
+				/** Guest one-line log: "Type - AGENT_CODE - handle" → middle segment is account code.
+				 *  "CREDIT CASH - ACCOUNT DETAILS - AGENCY - handle" → agency is third segment (after amount stripped). */
+				function extractAccountCodeFromGuestLogLine(t) {
+					var s = normalizeLogPreviewSeparators(t);
+					if (!s) return '';
+					var tail = extractGuestPortalGuestTail(s);
+					if (tail) {
+						var segsT = tail.split(/\s-\s/);
+						return segsT[0] ? segsT[0].trim() : '';
+					}
+					var segs = s.split(/\s-\s/);
+					if (segs.length >= 4 && /^ACCOUNT\s+DETAILS$/i.test(String(segs[1] || '').trim())) {
+						return segs[2].trim();
+					}
+					if (segs.length >= 3) return segs[1].trim();
+					return '';
+				}
+
+				/** Split trailing " - 12,345" amount (guest portal / transfer log lines) for its own column */
+				function splitLogPreviewAmount(raw) {
+					var s = normalizeLogPreviewSeparators(raw);
+					if (!s) return { text: '', amount: '' };
+					var pp = TG.photoPrefix || '[Photo] ';
+					if (s.slice(0, pp.length) === pp || s.indexOf('[Photo]') === 0) {
+						return { text: s, amount: '' };
+					}
+					var m = s.match(/\s+-\s+([\d,]+(?:\.\d+)?)\s*$/);
+					if (m) {
+						return { text: s.slice(0, m.index).trim(), amount: m[1] };
+					}
+					return { text: s, amount: '' };
+				}
+
+				/** Guest/transfer one-liner after amount stripped: "Type - agency - agent…"
+				 *  Supports "CREDIT CASH - ACCOUNT DETAILS - agency - agent" (4+ segments). */
+				function splitGuestPortalTxnParts(line) {
+					var t = normalizeLogPreviewSeparators(line);
+					if (!t) return { typeOnly: '', agency: '', agent: '', hasDashedTriple: false };
+					var segs = t.split(/\s-\s/);
+					if (segs.length >= 4 && /^ACCOUNT\s+DETAILS$/i.test(String(segs[1] || '').trim())) {
+						return {
+							typeOnly: (segs[0].trim() + ' - ' + segs[1].trim()),
+							agency: segs[2].trim(),
+							agent: segs.slice(3).join(' - ').trim(),
+							hasDashedTriple: true
+						};
+					}
+					if (segs.length >= 3) {
+						return {
+							typeOnly: segs[0].trim(),
+							agency: segs[1].trim(),
+							agent: segs.slice(2).join(' - ').trim(),
+							hasDashedTriple: true
+						};
+					}
+					return { typeOnly: t, agency: '', agent: '', hasDashedTriple: false };
+				}
+
+				function formatGuestPortalGuestName(parts) {
+					if (!parts) return '—';
+					var a = parts.agency ? String(parts.agency).trim() : '';
+					var g = parts.agent ? String(parts.agent).trim() : '';
+					if (/^ACCOUNT\s+DETAILS$/i.test(a) && g) return stripAccountDetailsGuestNoise(g);
+					if (a && g) return stripAccountDetailsGuestNoise(a + ' - ' + g);
+					if (a || g) return stripAccountDetailsGuestNoise(a || g);
+					return '—';
+				}
+
+				function fetchAccountInfo(accountCode) {
+					var code = String(accountCode || '').trim();
+					if (!code) return Promise.resolve(null);
+					if (tgLogAccountInfoPromises[code]) return tgLogAccountInfoPromises[code];
+					tgLogAccountInfoPromises[code] = fetch(
+						'/telegramAPI/account-info/' + encodeURIComponent(code),
+						{ credentials: 'same-origin' }
+					)
+						.then(function (r) {
+							if (!r.ok) return null;
+							return r.json().then(function (data) {
+								return data && data.account ? data.account : null;
+							});
+						})
+						.catch(function () { return null; });
+					return tgLogAccountInfoPromises[code];
+				}
+
+				function applyAccountInfoToPreviewCells(accountCode, accountInfo) {
+					if (!accountInfo || !accountInfo.name) return;
+					var tbody = document.getElementById('telegram-send-log-tbody');
+					if (!tbody) return;
+					var cells = tbody.querySelectorAll('td.tg-log-col-preview[data-tg-acct]');
+					for (var i = 0; i < cells.length; i++) {
+						var cell = cells[i];
+						if (cell.getAttribute('data-tg-acct') !== String(accountCode)) continue;
+						// Replace "CODE" occurrences with "CODE - Name" only once per cell
+						var txt = cell.getAttribute('data-tg-preview-text') || '';
+						if (!txt) continue;
+						// Guest log lines are already "… - CODE - handle"; replacing CODE would duplicate the name (e.g. 3core → 3core - raynan when handle is already raynan)
+						var escCode = accountCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+						if (new RegExp('\\b' + escCode + '\\s+-\\s+\\S').test(txt)) continue;
+						var full = String(accountInfo.accountCode || accountCode) + ' - ' + String(accountInfo.name);
+						var replaced = txt.replace(new RegExp('\\b' + escCode + '\\b'), full);
+						cell.innerHTML = transactionCellContent(esc(replaced), cell.getAttribute('data-tg-preview-raw') || '', TG.fullTextHint || '');
+					}
+				}
+
+				function enrichLogAccountNames(rows) {
+					var seen = Object.create(null);
+					for (var i = 0; i < rows.length; i++) {
+						var row = rows[i];
+						var raw = row.message_preview != null ? String(row.message_preview) : '';
+						if (!raw) continue;
+						var t = raw.replace(/^Demo\s+Cage\s+/i, '').trim();
+						if (!t) continue;
+						var spl = splitLogPreviewAmount(t);
+						var code = extractAccountCodeFromMessage(t) || extractAccountCodeFromGuestLogLine(spl.amount ? spl.text : t);
+						if (!code) continue;
+						if (seen[code]) continue;
+						seen[code] = true;
+						(function (acct) {
+							fetchAccountInfo(acct).then(function (info) {
+								applyAccountInfoToPreviewCells(acct, info);
+							});
+						})(code);
+					}
+				}
+
+				function translatePreviewHeadline(h) {
+					if (!h) return h;
+					var map = TG.previewHeadlineMap;
+					if (!map || typeof map !== 'object') return h;
+					if (Object.prototype.hasOwnProperty.call(map, h) && map[h]) return map[h];
+					var c = collapseWs(h);
+					if (Object.prototype.hasOwnProperty.call(map, c) && map[c]) return map[c];
+					return h;
+				}
+
+				/** Strip photo prefix + Demo/GD Cage banner (shared by gamebook log label + summary). */
+				function normalizeLogPreviewBody(raw) {
+					var full = collapseWs(raw);
+					if (!full) return '';
+					var pp = TG.photoPrefix || '[Photo] ';
+					if (full.slice(0, pp.length) === pp || full.indexOf('[Photo]') === 0) {
+						full = collapseWs(full.slice(0, pp.length) === pp ? full.slice(pp.length) : full.replace(/^\[Photo\]\s*/i, ''));
+					}
+					return full.replace(/^Demo\s+Cage\s+/im, '').replace(/^GD\s+Cage\s*/im, '').trim();
+				}
+
+				/** Title-case Latin headlines; leave Korean / mixed as-is after i18n. */
+				function formatLogHeadlineDisplay(s) {
+					var t = collapseWs(String(s || ''));
+					if (!t) return '';
+					if (/[\u3131-\u318E\uAC00-\uD7A3]/.test(t)) return t;
+					var lower = t.toLowerCase();
+					return lower.replace(/\b([a-z])/g, function (m) { return m.toUpperCase(); });
+				}
+
+				/**
+				 * Telegram *headline* for gamebook rows (Game Start, Settlement, Buy-in, Cash-out, …).
+				 * No account / amount — those live in Guest name + Amount columns.
+				 */
+				function extractGamebookHeadlineForLogCell(raw) {
+					var t = normalizeLogPreviewBody(raw);
+					if (!t) return '';
+					var hm = t.match(/\*\s*([^*]+?)\s*\*/);
+					if (hm) {
+						var inner = collapseWs(hm[1].replace(/^[✏️🗑️💸]\s*/, '').trim());
+						var loc = translatePreviewHeadline(inner) || translatePreviewHeadline(collapseWs(inner));
+						return formatLogHeadlineDisplay(loc || inner);
+					}
+					if (/(?:바이인\s*합계|Total\s+Buy-?in)/i.test(t) && /(?:캐시아웃\s*합계|Total\s+Cashout)/i.test(t)) {
+						var settle = translatePreviewHeadline('게임종료 / 정산') || translatePreviewHeadline('게임종료 / 정산 End Game');
+						return formatLogHeadlineDisplay(settle || 'End Game / Settlement');
+					}
+					var sum = summarizeTelegramPreview(raw, 400);
+					var seg0 = collapseWs(String(sum).split(/\s*·\s*/)[0]);
+					return formatLogHeadlineDisplay(seg0 || sum);
+				}
+
+				function buildGamebookTxnColumnText(raw) {
+					var t = normalizeLogPreviewBody(raw);
+					var h = extractGamebookHeadlineForLogCell(raw);
+					var gid = extractGamebookGameId(t);
+					var parts = [];
+					if (h) parts.push(h);
+					// Match the structured insertion format from `routes/gamebook.js → gamebookTelegramOpts`
+					// so old (parsed) and new (stored) rows both render as "Headline · Game #N".
+					if (gid) parts.push('Game #' + gid);
+					return parts.length ? parts.join(' · ') : summarizeTelegramPreview(raw, 120);
+				}
+
+				/** One-line summary: event type · account · amount/game (full text stays in tooltip) */
+				function summarizeTelegramPreview(raw, maxLen) {
+					var full = collapseWs(raw);
+					if (!full) return '';
+					var photoP = '';
+					var pp = TG.photoPrefix || '[Photo] ';
+					if (full.slice(0, pp.length) === pp || full.indexOf('[Photo]') === 0) {
+						photoP = pp.trim() + ' ';
+						full = collapseWs(full.slice(0, pp.length) === pp ? full.slice(pp.length) : full.replace(/^\[Photo\]\s*/i, ''));
+					}
+					var t = full.replace(/^Demo\s+Cage\s+/i, '').replace(/^GD\s+Cage\s*/im, '').trim();
+					if (!t) return photoP.trim();
+
+					var headline = '';
+					var hm = t.match(/\*\s*([^*]+?)\s*\*/);
+					if (hm) headline = translatePreviewHeadline(collapseWs(hm[1].replace(/^[✏️🗑️💸]\s*/, '').trim()));
+
+					var gbAcctLine = extractGamebookAccountLine(t);
+					var account = gbAcctLine || previewFieldAfter(t, ['계정:', 'Account :', 'Account:']);
+					if (!gbAcctLine && !/(?:게임\s*#\s*:|Game\s*#\s*:)/.test(t)) {
+						var glFallback = previewFieldAfter(t, ['게임:', 'Game:']);
+						if (glFallback) account = glFallback;
+					}
+					var amount = previewFieldAfter(t, [
+						'캐시아웃:', '캐시아웃 :', 'Cash-out :', 'Cash-out:',
+						'바이인:', '바이인 :', 'Buy-in :', 'Buy-in:', 'Buy-In:',
+						'커미션:', 'Commission :', 'Commission:',
+						'금액:', 'Amount:', '총 바이인:', '총 바이인', '바이인 합계:'
+					]);
+					var gameIdShort = extractGamebookGameId(t);
+					var game = gameIdShort ? ('#' + gameIdShort) : '';
+					var cat = previewFieldAfter(t, ['Category:', '카테고리:']);
+					var desc = previewFieldAfter(t, ['Description:', '설명:']);
+					var amt2 = previewFieldAfter(t, ['Amount:', '금액:']);
+					var enc = previewFieldAfter(t, ['Encoded By:', '인코더:', 'Encoded by:']);
+					var receipt = previewFieldAfter(t, ['Car Receipt No:', 'Receipt No:']);
+
+					function cleanMoney(s) {
+						var x = collapseWs(s);
+						if (!x) return '';
+						// "5 - 계좌출금" / "1,000 - Cash" → take amount before " - " (dash is payment type, not negative)
+						var beforeDash = x.split(/\s+-\s+/)[0].trim();
+						if (beforeDash) x = beforeDash;
+						var cur = x.match(/(?:₱|\$|€|¥)\s*([\d,.]+)/);
+						if (cur) return cur[1];
+						var num = x.match(/^([\d,.]+)/);
+						if (num) return num[1];
+						return '';
+					}
+
+					function shortAccount(s) {
+						var x = collapseWs(s);
+						if (!x) return '';
+						// "3core - raynan" => "3core"
+						var m = x.match(/^([^-\s]+)\s*-\s*/);
+						return m ? m[1] : x;
+					}
+
+					var parts = [];
+					if (headline) parts.push(headline);
+					var bestAmt = amount || amt2;
+					var bestMoney = cleanMoney(bestAmt);
+
+					var isExpenseStyle = !!(cat || desc || receipt) || /junket\s+expense|service\s+payment/i.test(String(headline || ''));
+					var isGamebookMsg = /(?:게임\s*#\s*:|Game\s*#\s*:)/.test(t) && !isExpenseStyle;
+
+					// Expense/service: Category · Description · Amount (and keep it short)
+					if (isExpenseStyle) {
+						if (cat) parts.push(cat);
+						if (desc) parts.push(desc);
+						if (bestMoney) parts.push(bestMoney);
+					} else if (isGamebookMsg) {
+						// Game book: short line only — no Korean game-type tail in the cell
+						var acctGb = shortAccount(gbAcctLine || account);
+						if (acctGb) parts.push(acctGb);
+						if (game) parts.push(game);
+						if (bestMoney) parts.push(bestMoney);
+					} else {
+						// Default (deposit/withdraw/credit return, etc.)
+						var acctShort = shortAccount(account);
+						if (acctShort) parts.push(acctShort);
+						if (bestMoney) parts.push(bestMoney);
+					}
+
+					var line = parts.filter(Boolean).join(' · ');
+					if (!line) line = summarizeLine(full, maxLen);
+					line = photoP + line;
+					if (line.length <= maxLen) return line;
+					return line.slice(0, Math.max(0, maxLen - 1)) + '…';
+				}
+
+				function cellWithHint(displayHtml, fullRaw, hintLabel) {
+					var full = collapseWs(fullRaw);
+					if (!full) return displayHtml;
+					var hint = (hintLabel ? hintLabel + ': ' : '') + full;
+					return '<div class="tg-log-wrap" title="' + attrEsc(hint) + '">' + displayHtml + '</div>';
+				}
+
+				/** Transactions cell: keeps line-clamp on inner content; full raw text exposed via native tooltip only. */
+				function transactionCellContent(displayHtml, fullRaw, hintLabel) {
+					var full = collapseWs(fullRaw);
+					var inner = linkifyGameNumberHtml(displayHtml);
+					if (!full) return '<div class="tg-log-wrap">' + inner + '</div>';
+					var hint = (hintLabel ? hintLabel + ': ' : '') + full;
+					return '<div class="tg-log-wrap" title="' + attrEsc(hint) + '">' + inner + '</div>';
+				}
+
+				/** Wraps every `Game #<digits>` substring inside `htmlStr` with a click trigger that
+				 *  opens the Game Record History modal (#modal-show-history) via window.showHistory(<id>).
+				 *  Operates on already-escaped HTML, so the input is safe. */
+				function linkifyGameNumberHtml(htmlStr) {
+					var s = String(htmlStr || '');
+					return s.replace(/Game\s*#(\d+)/g, function (_m, id) {
+						return '<a class="tg-log-link-game" href="javascript:void(0)" role="button" ' +
+							'data-tg-open-game-history="' + id + '" title="Open game record history">Game #' + id + '</a>';
+					});
+				}
+
+				/** Insert newlines before known bilingual / Telegram field headers so one-line logs split correctly */
+				function normalizeTelegramDetailNewlines(text) {
+					var s = String(text || '').replace(/\r\n/g, '\n');
+					var breaks = [
+						/\s+(?=게임\s+유형\s+Game\s+type\s*[:：])/gi,
+						/\s+(?=게임타입\s+GameType\s*[:：])/i,
+						/\s+(?=게임타입\s*[:：])/,
+						/\s+(?=게임\s+Game\s*#\s*[:：])/,
+						/\s+(?=게임\s*#\s*[:：])/,
+						/\s+(?=Game\s*#\s*[:：])/i,
+						/\s+(?=커미션\s+Commission\s*[:：])/,
+						/\s+(?=Commission\s*[:：])/i,
+						/\s+(?=커미션\s*[:：])/,
+						/\s+(?=바이인\s+합계\s+Total\s+Buy-?in\s*[:：])/i,
+						/\s+(?=총\s*바이인\s+Total\s+Buy-?in\s*[:：])/i,
+						/\s+(?=Total\s+Buy-?in\s*[:：])/i,
+						/\s+(?=캐시아웃\s+합계\s+Total\s+Cashout\s*[:：])/i,
+						/\s+(?=Total\s+Cashout\s*[:：])/i,
+						/\s+(?=윈\/로스\s+Win\/Loss\s*[:：])/i,
+						/\s+(?=원\/로스\s+Win\/Loss\s*[:：])/i,
+						/\s+(?=Win\/Loss\s*[:：])/i,
+						/\s+(?=토탈롤링\s+Total\s+Rolling\s*[:：])/i,
+						/\s+(?=Total\s+Rolling\s*[:：])/i,
+						/\s+(?=바이인\s+Buy-?in\s*[:：])/i,
+						/\s+(?=캐시아웃\s+Cash-?out\s*[:：])/i,
+						/\s+(?=Cash-?out\s*[:：])(?![^\n]*합계)/i,
+						/\s+(?=잔고\s+Account\s+Balance\s*[:：])/i,
+						/\s+(?=Account\s+Balance\s*[:：])/i,
+						/\s+(?=날짜\s+Date\s*[:：])/,
+						/\s+(?=시간\s+Time\s*[:：])/,
+						/\s+(?=날짜\s*[:：])(?!\s*Date)/,
+						/\s+(?=시간\s*[:：])(?!\s*Time)/,
+						/\s+(?=Date\s*[:：])/i,
+						/\s+(?=Time\s*[:：])/i,
+						/\s+(?=계정\s+Account\s*[:：])/,
+						/\s+(?=계정\s*[:：])(?!\s*Account)/,
+						/\s+(?=Account\s*#\s*[:：])/i,
+						/\s+(?=Guest\s*[:：])/i,
+						/\s+(?=금액\s*[:：])/,
+						/\s+(?=Amount\s*[:：])/i,
+						/\s+(?=Category\s*[:：])/i,
+						/\s+(?=카테고리\s*[:：])/,
+						/\s+(?=Description\s*[:：])/i,
+						/\s+(?=설명\s*[:：])/,
+						/\s+(?=Encoded\s+By\s*[:：])/i,
+						/\s+(?=Transaction\s*[:：])/i,
+						/\s+(?=Currency\s*[:：])/i,
+						/\s+(?=Remarks\s*[:：])/i
+					];
+					for (var b = 0; b < breaks.length; b++) {
+						s = s.replace(breaks[b], '\n');
+					}
+					return s;
+				}
+
+				function txnDetailRowSection(label) {
+					var L = String(label || '');
+					if (/계정|Account\s*#|^\s*Account\s*:/i.test(L) && !/Balance/i.test(L)) return 'account';
+					if (/게임|Game\s*#|Game\s+type|게임타입|유형/i.test(L)) return 'game';
+					if (/Commission|커미션|Buy-?in|Cash-?out|Cashout|Win\/Loss|Rolling|바이인|캐시아웃|토탈|원\/|윈\/|잔고|Balance|금액|Amount|Total\s+Buy|Total\s+Cash|Total\s+Rolli/i.test(L)) return 'finance';
+					if (/Date|Time|날짜|시간/i.test(L)) return 'when';
+					if (/Category|Description|Encoded|Receipt|Remark|카테고리|설명|비고|Transfer|Currency/i.test(L)) return 'meta';
+					return 'other';
+				}
+
+				function isWhenDateLabel(lab) {
+					var t = String(lab || '');
+					if (/시간/.test(t) && !/날짜/.test(t)) return false;
+					if (/\bTime\b/i.test(t) && !/\bDate\b/i.test(t)) return false;
+					return /날짜/.test(t) || /\bDate\b/i.test(t);
+				}
+
+				function isWhenTimeLabel(lab) {
+					var t = String(lab || '');
+					if (/날짜/.test(t) && !/시간/.test(t)) return false;
+					if (/\bDate\b/i.test(t) && !/\bTime\b/i.test(t)) return false;
+					return /시간/.test(t) || /\bTime\b/i.test(t);
+				}
+
+				/** Settlement-style logs use separate Date + Time lines; merge for a shorter modal. */
+				function mergeDateTimeWhenRows(rows, mergedLabel) {
+					if (!rows || rows.length < 2) return rows ? rows.slice() : rows;
+					var out = [];
+					var label = mergedLabel || 'Date / time';
+					for (var i = 0; i < rows.length; i++) {
+						var a = rows[i];
+						var b = rows[i + 1];
+						if (b && isWhenDateLabel(a.label) && isWhenTimeLabel(b.label)) {
+							out.push({ label: label, value: a.value + ' · ' + b.value });
+							i++;
+						} else {
+							out.push(a);
+						}
+					}
+					return out;
+				}
+
+				/** "100,000 잔고: 1,100,000" (or Balance:) on one line → two rows */
+				function isAmountFieldLabel(lab) {
+					var k = collapseWs(String(lab || ''));
+					if (!k) return false;
+					if (k === '금액' || k === 'Amount') return true;
+					if (/^금액\s+Amount$/i.test(k)) return true;
+					if (/^Amount\s+금액$/i.test(k)) return true;
+					return false;
+				}
+
+				function trySplitAmountAndBalanceValue(val) {
+					var v = collapseWs(String(val || ''));
+					if (!v) return null;
+					var patterns = [
+						/^([\d,.]+)\s+잔고\s*:\s*([\d,.]+)$/,
+						/^([\d,.]+)\s+Balance\s*:\s*([\d,.]+)$/i,
+						/^([\d,.]+)\s+Account\s+Balance\s*:\s*([\d,.]+)$/i
+					];
+					var lb = TG.txnLblBalance != null ? String(TG.txnLblBalance) : '';
+					if (lb) {
+						try {
+							var re = new RegExp('^([\\d,.]+)\\s+' + lb.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*:\\s*([\\d,.]+)$');
+							patterns.push(re);
+						} catch (eRe) { /* ignore */ }
+					}
+					for (var pi = 0; pi < patterns.length; pi++) {
+						var m = v.match(patterns[pi]);
+						if (m) return { amount: m[1], balance: m[2] };
+					}
+					return null;
+				}
+
+				function expandFinanceAmountBalanceRows(rows) {
+					if (!rows || !rows.length) return rows;
+					var out = [];
+					for (var i = 0; i < rows.length; i++) {
+						var rw = rows[i];
+						if (isAmountFieldLabel(rw.label)) {
+							var sp = trySplitAmountAndBalanceValue(rw.value);
+							if (sp) {
+								out.push({ label: rw.label, value: sp.amount });
+								out.push({ label: '잔고', value: sp.balance });
+								continue;
+							}
+						}
+						out.push(rw);
+					}
+					return out;
+				}
+
+				function parseTransactionDetailBody(raw) {
+					var text = String(raw || '').replace(/\r\n/g, '\n');
+					var pp = TG.photoPrefix || '[Photo] ';
+					if (text.slice(0, pp.length) === pp) {
+						text = text.slice(pp.length);
+					} else if (/^\[Photo\]/i.test(text)) {
+						text = text.replace(/^\[Photo\]\s*/i, '');
+					}
+					text = text.replace(/^Demo\s+Cage\s+/im, '').replace(/^GD\s+Cage\s*/im, '').trim();
+
+					var headline = '';
+					var hm = text.match(/\*\s*([^*]+?)\s*\*/);
+					if (hm) {
+						headline = collapseWs(hm[1].replace(/^[✏️🗑️💸]\s*/, '').trim());
+						text = text.replace(hm[0], '\n').trim();
+					}
+
+					text = normalizeTelegramDetailNewlines(text);
+
+					var notes = [];
+					var rows = [];
+					var lines = text.split('\n');
+					for (var i = 0; i < lines.length; i++) {
+						var line = lines[i].replace(/^\s+|\s+$/g, '');
+						if (!line) continue;
+						if (!/[:：]/.test(line)) {
+							if (/편집됨|Edited|^\(.+\)$/.test(line)) notes.push(line);
+							continue;
+						}
+						var m = line.match(/^(.+?)\s*[:：]\s*(.*)$/);
+						if (m) {
+							var lab = collapseWs(m[1]);
+							var val = collapseWs(m[2]);
+							if (!lab || lab.length > 120) continue;
+							rows.push({ label: lab, value: val });
+						}
+					}
+					return { headline: headline, rows: rows, notes: notes };
+				}
+
+				function showTransactionDetailModal(raw) {
+					var modalEl = document.getElementById('tg-log-txn-modal');
+					var titleEl = document.getElementById('tg-log-txn-modal-label');
+					var bodyEl = document.getElementById('tg-log-txn-modal-body');
+					if (!modalEl || !titleEl || !bodyEl) return;
+
+					var parsed = parseTransactionDetailBody(raw);
+					var title = parsed.headline ? translatePreviewHeadline(parsed.headline) : (TG.logsTxnModalTitle || '');
+					titleEl.textContent = title || (TG.logsTxnModalTitle || '');
+
+					var html = '';
+					if (parsed.notes && parsed.notes.length) {
+						html += '<div class="alert alert-light border small tg-log-txn-note mb-2 py-2">' + parsed.notes.map(function (n) {
+							return '<div class="text-break">' + escHtml(n) + '</div>';
+						}).join('') + '</div>';
+					}
+
+					if (parsed.rows.length) {
+						var sections = { account: [], game: [], finance: [], when: [], meta: [], other: [] };
+						for (var r = 0; r < parsed.rows.length; r++) {
+							var row = parsed.rows[r];
+							var sec = txnDetailRowSection(row.label);
+							sections[sec].push(row);
+						}
+						sections.when = mergeDateTimeWhenRows(sections.when, TG.txnWhenMergedLabel);
+						sections.finance = expandFinanceAmountBalanceRows(sections.finance);
+						var secOrder = [
+							{ id: 'account', title: TG.txnSecAccount },
+							{ id: 'game', title: TG.txnSecGame },
+							{ id: 'finance', title: TG.txnSecFinance },
+							{ id: 'when', title: TG.txnSecWhen },
+							{ id: 'meta', title: TG.txnSecMeta },
+							{ id: 'other', title: TG.txnSecOther }
+						];
+						for (var s = 0; s < secOrder.length; s++) {
+							var sid = secOrder[s].id;
+							var list = sections[sid];
+							if (!list || !list.length) continue;
+							html += '<section class="tg-log-txn-section mb-2 pb-0">';
+							html += '<h6 class="tg-log-txn-section-title text-uppercase fw-bold mb-1 pb-1 border-bottom border-primary border-opacity-25">' + escHtml(secOrder[s].title || sid) + '</h6>';
+							html += '<dl class="row mb-0 g-0 tg-log-txn-dl tg-log-txn-dl-compact mx-n1">';
+							for (var j = 0; j < list.length; j++) {
+								html += '<dt class="col-sm-4 col-lg-3 py-1 px-2 text-break align-self-start border-bottom border-light bg-light">' + escHtml(translateTxnRowLabel(list[j].label)) + '</dt>';
+								html += '<dd class="col-sm-8 col-lg-9 py-1 px-2 mb-0 text-break align-self-start border-bottom border-light">' + escHtml(localizeTxnDetailValue(list[j].value)) + '</dd>';
+							}
+							html += '</dl></section>';
+						}
+					} else {
+						var rawShow = collapseWs(raw);
+						html += '<p class="small text-muted mb-2">' + escHtml(TG.logsTxnRawFallback || '') + '</p>';
+						html += '<pre class="small mb-0 rounded bg-light p-3 text-body-secondary border" style="white-space:pre-wrap;word-break:break-word;max-height:min(55vh,420px);overflow:auto;">' + escHtml(rawShow) + '</pre>';
+					}
+					bodyEl.innerHTML = html;
+
+					if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+						bootstrap.Modal.getOrCreateInstance(modalEl).show();
+					}
+				}
+
+				function cleanTelegramErrorForCell(err) {
+					var t = collapseWs(err);
+					if (!t) return '';
+					// Common prefixes from our senders
+					t = t.replace(/^Telegram\s+API\s+error:\s*/i, '');
+					t = t.replace(/^Telegram\s+API\s+Error:\s*/i, '');
+					t = t.replace(/^Error:\s*/i, '');
+					// Make "Bad Request:" stand out by removing extra words before it
+					t = t.replace(/^Telegram\s+/i, '');
+					return collapseWs(t);
+				}
+
+				/** Merged error category + message (success rows → em dash) */
+				function formatLogErrorDetailCell(row, hintLabel) {
+					var cat = row.error_category != null ? collapseWs(String(row.error_category)) : '';
+					var errRaw = row.error_message != null ? String(row.error_message).trim() : '';
+					var errT = errRaw ? cleanTelegramErrorForCell(errRaw) : '';
+					if (!cat && !errT) {
+						return '<div class="tg-log-wrap">' + esc('—') + '</div>';
+					}
+					var full = cat && errT ? (cat + ' · ' + errT) : (cat || errT);
+					var oneLine = collapseWs(full);
+					var maxLen = 110;
+					var shortText = summarizeLine(oneLine, maxLen);
+					var shortEsc = esc(shortText);
+					if (oneLine.length <= maxLen) {
+						return '<div class="tg-log-wrap">' + shortEsc + '</div>';
+					}
+					return cellWithHint(shortEsc, oneLine, hintLabel || '');
+				}
+
+				function updateLogSortHeaderUI() {
+					var table = document.getElementById('telegram-send-log-table');
+					if (!table) return;
+					var ths = table.querySelectorAll('thead th[data-sort]');
+					for (var i = 0; i < ths.length; i++) {
+						ths[i].classList.remove('sorting_asc', 'sorting_desc');
+						if (ths[i].getAttribute('data-sort') === logSortKey) {
+							ths[i].classList.add(logSortDir === 'asc' ? 'sorting_asc' : 'sorting_desc');
+						}
+					}
+				}
+
+				function parseSortableDate(v) {
+					if (!v) return 0;
+					var d = new Date(v);
+					var ts = d.getTime();
+					return isNaN(ts) ? 0 : ts;
+				}
+
+				function getSortValue(row, key) {
+					if (!row) return '';
+					if (key === 'created_at') return parseSortableDate(row.created_at);
+					if (key === 'bot_user') return normalizeLogUserType(row.bot_user);
+					if (key === 'chat_display') {
+						// best-effort: use cached display if available, otherwise fall back to chat_id
+						var ut = normalizeLogUserType(row.bot_user);
+						var cid = row.chat_id == null ? '' : String(row.chat_id);
+						var k = ut + ':' + cid;
+						var p = tgLogChatInfoPromises[k];
+						// If already resolved to an object (we store promises, so usually not). Fallback to chat_id.
+						return (p && p.title ? String(p.title) : cid);
+					}
+					if (key === 'message_preview') {
+						return row.message_preview == null ? '' : String(row.message_preview);
+					}
+					if (key === 'error_detail') {
+						var c = row.error_category == null ? '' : String(row.error_category);
+						var e = row.error_message == null ? '' : String(row.error_message);
+						return collapseWs(c + ' ' + e);
+					}
+					var val = row[key];
+					if (val == null) return '';
+					return String(val);
+				}
+
+				function compareSort(a, b) {
+					var va = getSortValue(a, logSortKey);
+					var vb = getSortValue(b, logSortKey);
+					var dir = logSortDir === 'asc' ? 1 : -1;
+					if (logSortKey === 'created_at') {
+						return (va - vb) * dir;
+					}
+					// status: make success come before failure in asc
+					if (logSortKey === 'status') {
+						var ra = (String(a.status || '') === 'success') ? 0 : 1;
+						var rb = (String(b.status || '') === 'success') ? 0 : 1;
+						return (ra - rb) * dir;
+					}
+					// locale-aware string compare
+					return String(va).localeCompare(String(vb), undefined, { sensitivity: 'base' }) * dir;
+				}
+
+				function normalizeLogUserType(bot) {
+					var u = String(bot == null ? 'GUEST' : bot).toUpperCase();
+					if (u === 'EMPLOYEE' || u === 'MANAGEMENT' || u === 'GUEST') return u;
+					return 'GUEST';
+				}
+
+				/** Stable key for stripe grouping: bot + Telegram *headline* (or first line fallback). */
+				function extractLogPreviewHeadlineKey(raw) {
+					var full = collapseWs(String(raw || ''));
+					if (!full) return '';
+					var pp = TG.photoPrefix || '[Photo] ';
+					if (full.slice(0, pp.length) === pp || full.indexOf('[Photo]') === 0) {
+						full = collapseWs(full.slice(0, pp.length) === pp ? full.slice(pp.length) : full.replace(/^\[Photo\]\s*/i, ''));
+					}
+					full = full.replace(/^Demo\s+Cage\s+/i, '').trim();
+					var hm = full.match(/\*\s*([^*]+?)\s*\*/);
+					if (hm && hm[1]) return collapseWs(hm[1]).toLowerCase();
+					var firstLine = full.split(/\n/)[0];
+					return collapseWs(firstLine).slice(0, 160).toLowerCase();
+				}
+
+				function logRowStripeGroupKey(row) {
+					var bot = normalizeLogUserType(row.bot_user);
+					var prev = (row.message_kind === 'photo' ? (TG.photoPrefix || '[Photo] ') : '')
+						+ (row.message_preview != null ? String(row.message_preview) : '');
+					return bot + '\x1e' + extractLogPreviewHeadlineKey(prev);
+				}
+
+				function isLogChatIdFetchable(cid) {
+					if (cid == null) return false;
+					var s = String(cid).trim();
+					if (!s || s === '—' || s === '-') return false;
+					return true;
+				}
+
+				function formatLogChatDisplayHTML(chatInfo) {
+					if (!chatInfo) return '<span class="text-muted">—</span>';
+					var title = chatInfo.title || '—';
+					var display = esc(title);
+					if (chatInfo.username) {
+						var link = 'https://t.me/' + encodeURIComponent(chatInfo.username);
+						display += ' <span class="text-muted">(<a href="' + link + '" target="_blank" rel="noopener">@' + esc(chatInfo.username) + '</a>)</span>';
+					}
+					return display;
+				}
+
+				function fetchLogChatInfo(userType, chatId) {
+					var key = userType + ':' + chatId;
+					if (tgLogChatInfoPromises[key]) return tgLogChatInfoPromises[key];
+					tgLogChatInfoPromises[key] = fetch(
+						'/telegramAPI/chat-info/' + encodeURIComponent(userType) + '/' + encodeURIComponent(chatId),
+						{ credentials: 'same-origin' }
+					)
+						.then(function (r) {
+							if (!r.ok) return { title: '—', username: null };
+							return r.json().then(function (data) {
+								if (data && data.chat) {
+									var chat = data.chat;
+									return {
+										title: chat.title || chat.first_name || chat.username || '—',
+										username: chat.username || null
+									};
+								}
+								return { title: '—', username: null };
+							});
+						})
+						.catch(function () {
+							return { title: '—', username: null };
+						});
+					return tgLogChatInfoPromises[key];
+				}
+
+				function applyChatDisplayToCells(userType, chatId, chatInfo) {
+					var html = formatLogChatDisplayHTML(chatInfo);
+					var tbody = document.getElementById('telegram-send-log-tbody');
+					if (!tbody) return;
+					var cells = tbody.querySelectorAll('td.tg-log-col-chatname');
+					for (var i = 0; i < cells.length; i++) {
+						var cell = cells[i];
+						if (cell.getAttribute('data-tg-bot') === userType && cell.getAttribute('data-tg-chat') === String(chatId)) {
+							cell.innerHTML = html;
+						}
+					}
+				}
+
+				function enrichLogChatNames(rows) {
+					var seen = Object.create(null);
+					var pairs = [];
+					for (var i = 0; i < rows.length; i++) {
+						var row = rows[i];
+						var ut = normalizeLogUserType(row.bot_user);
+						var cid = row.chat_id;
+						if (!isLogChatIdFetchable(cid)) continue;
+						var idStr = String(cid);
+						var k = ut + '\0' + idStr;
+						if (seen[k]) continue;
+						seen[k] = true;
+						pairs.push({ userType: ut, chatId: idStr });
+					}
+					for (var j = 0; j < pairs.length; j++) {
+						(function (p) {
+							fetchLogChatInfo(p.userType, p.chatId).then(function (info) {
+								applyChatDisplayToCells(p.userType, p.chatId, info);
+							});
+						})(pairs[j]);
+					}
+				}
+
+				function pad2(n) {
+					return String(n).padStart(2, '0');
+				}
+
+				function fmtYmd(d) {
+					return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+				}
+
+				function getLogDateRangeYmd() {
+					var el = document.getElementById('tg-log-daterange-picker');
+					if (el && el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length === 2) {
+						var a = el._flatpickr.selectedDates[0];
+						var b = el._flatpickr.selectedDates[1];
+						var from = fmtYmd(a);
+						var to = fmtYmd(b);
+						if (from > to) {
+							var t = from;
+							from = to;
+							to = t;
+						}
+						return { from: from, to: to };
+					}
+					var n = new Date();
+					var today = fmtYmd(new Date(n.getFullYear(), n.getMonth(), n.getDate()));
+					return { from: today, to: today };
+				}
+
+				function todayStartDate() {
+					var t0 = new Date();
+					t0.setHours(0, 0, 0, 0);
+					return t0;
+				}
+
+				function resetLogDateFilterToToday() {
+					var fp = logDateFp || (document.getElementById('tg-log-daterange-picker') && document.getElementById('tg-log-daterange-picker')._flatpickr);
+					var t0 = todayStartDate();
+					if (fp) {
+						fp.setDate([t0, t0], false);
+					}
+				}
+
+				function ensureLogDatePicker() {
+					if (logDateFp) return;
+					var el = document.getElementById('tg-log-daterange-picker');
+					if (!el || typeof flatpickr === 'undefined') return;
+					var t0 = todayStartDate();
+					logDateFp = flatpickr(el, {
+						mode: 'range',
+						dateFormat: 'Y-m-d',
+						altInput: true,
+						altFormat: 'M j, Y',
+						showMonths: 2,
+						defaultDate: [t0, t0],
+						onChange: function (dates) {
+							if (dates.length === 2) {
+								offset = 0;
+								loadLogs();
+							}
+						}
+					});
+				}
+
+				function getLogLimit() {
+					var sel = document.getElementById('tg-log-length');
+					if (!sel) return 50;
+					var n = parseInt(String(sel.value), 10);
+					return [10, 25, 50, 100].indexOf(n) >= 0 ? n : 50;
+				}
+
+				function getLogSearchQuery() {
+					var el = document.getElementById('tg-log-search');
+					if (!el || !el.value) return '';
+					return String(el.value).trim().slice(0, 240);
+				}
+
+				function loadLogs() {
+					tgLogChatInfoPromises = Object.create(null);
+					tgLogAccountInfoPromises = Object.create(null);
+					limit = getLogLimit();
+					var dr = getLogDateRangeYmd();
+					var sq = getLogSearchQuery();
+					var qs = 'limit=' + encodeURIComponent(limit) + '&offset=' + encodeURIComponent(offset)
+						+ '&dateFrom=' + encodeURIComponent(dr.from) + '&dateTo=' + encodeURIComponent(dr.to);
+					if (sq) qs += '&search=' + encodeURIComponent(sq);
+
+					var tbody = document.getElementById('telegram-send-log-tbody');
+					tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">' + esc(TG.loading) + '</td></tr>';
+
+					fetch('/telegramAPI/logs-data?' + qs, { credentials: 'same-origin' })
+						.then(function (r) {
+							if (!r.ok) throw new Error('HTTP ' + r.status);
+							return r.json();
+						})
+						.then(function (data) {
+							total = data.total || 0;
+							var rows = data.rows || [];
+							// Client-side sorting (only affects current page)
+							if (Array.isArray(rows) && rows.length) {
+								rows = rows.slice().sort(compareSort);
+							}
+							if (!rows.length) {
+								var emptyMsg = sq ? (TG.emptySearch || TG.empty) : TG.empty;
+								tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">' + esc(emptyMsg) + '</td></tr>';
+							} else {
+								var stripePrevKey;
+								var stripeParity = 0;
+								tbody.innerHTML = rows.map(function (row) {
+									var gk = logRowStripeGroupKey(row);
+									if (stripePrevKey !== undefined && gk !== stripePrevKey) {
+										stripeParity = 1 - stripeParity;
+									}
+									stripePrevKey = gk;
+									var stripeClass = stripeParity === 0 ? 'tg-log-row-group-a' : 'tg-log-row-group-b';
+									var previewRaw = (row.message_kind === 'photo' ? (TG.photoPrefix || '[Photo] ') : '') + (row.message_preview != null ? String(row.message_preview) : '');
+									var mpNoDemo = String(row.message_preview || '').replace(/^Demo\s+Cage\s+/i, '').trim();
+									var isGame = isGamebookTelegramPreview(mpNoDemo);
+
+									// Prefer structured columns (current schema). Fall back to parsing the preview string for legacy rows.
+									var structuredAcct = row.guest_account_code != null ? String(row.guest_account_code).trim() : '';
+									var structuredName = row.guest_name != null ? String(row.guest_name).trim() : '';
+									var hasStructuredGuest = !!(structuredAcct || structuredName);
+									var structuredAmountRaw = row.amount;
+									var structuredAmountToken = '';
+									if (structuredAmountRaw != null && structuredAmountRaw !== '') {
+										var nAmt = Math.abs(Number(structuredAmountRaw));
+										if (isFinite(nAmt)) {
+											structuredAmountToken = nAmt.toLocaleString('en-US', { maximumFractionDigits: 2 });
+										}
+									}
+
+									var splAmt = splitLogPreviewAmount(previewRaw);
+									var gameAmt = isGame && !splAmt.amount ? extractGamebookAmountFromPreview(mpNoDemo) : '';
+									var legacyAmountToken = splAmt.amount || gameAmt || '';
+									var amountToken = structuredAmountToken || legacyAmountToken;
+									var lineForParts = collapseWs(splAmt.amount ? splAmt.text : mpNoDemo);
+									var lineNorm = normalizeLogPreviewSeparators(lineForParts);
+									var txnParts = isGame
+										? { typeOnly: '', agency: '', agent: '', hasDashedTriple: false }
+										: splitGuestPortalTxnParts(lineNorm);
+									var shortTxnLabel = !isGame ? extractGuestPortalTxnDisplayLabel(lineNorm) : '';
+									var guestTail = !isGame ? extractGuestPortalGuestTail(lineNorm) : '';
+									var useGuestTail = !!(guestTail && shortTxnLabel && (
+										/^JUNKET CREDIT RETURN THRU (?:DEPOSIT|CASH)$/i.test(shortTxnLabel) ||
+										/^GAME CREDIT RETURN THRU (?:DEPOSIT|CASH)$/i.test(shortTxnLabel) ||
+										/^CREDIT CASH - ACCOUNT DETAILS$/i.test(shortTxnLabel) ||
+										/^IOU CASH - ACCOUNT DETAILS$/i.test(shortTxnLabel) ||
+										/^Account (?:Deposit|Withdrawal)$/i.test(shortTxnLabel)
+									));
+									var guestLineRaw;
+									if (hasStructuredGuest) {
+										if (structuredAcct && structuredName) guestLineRaw = structuredAcct + ' - ' + structuredName;
+										else guestLineRaw = structuredAcct || structuredName;
+									} else if (isGame) {
+										guestLineRaw = extractGamebookAccountLine(mpNoDemo) ||
+											collapseWs(previewFieldAfter(mpNoDemo, ['계정:', 'Account :', 'Account:']));
+									} else {
+										guestLineRaw = useGuestTail ? guestTail : formatGuestPortalGuestName(txnParts);
+										guestLineRaw = stripAccountDetailsGuestNoise(guestLineRaw);
+									}
+									var guestTextRaw = guestLineRaw && String(guestLineRaw).trim() ? guestLineRaw : '';
+									var acctForCell = structuredAcct || extractAccountCodeFromMessage(mpNoDemo) || extractAccountCodeFromGuestLogLine(splAmt.amount ? splAmt.text : mpNoDemo);
+									// When we know the account code, render Guest Name as a clickable trigger that
+									// opens the Guest Portal modal (account_details) right here on the Telegram page —
+									// no redirect. The modal markup + account.js are included by views/telegram/telegram.ejs.
+									var guestCell;
+									if (guestTextRaw && acctForCell) {
+										guestCell = '<a class="tg-log-link-guest" href="javascript:void(0)" role="button" ' +
+											'data-tg-open-guest-portal="' + attrEsc(acctForCell) + '" ' +
+											'title="Open Guest Portal">' + esc(guestTextRaw) + '</a>';
+									} else {
+										guestCell = esc(guestTextRaw || '—');
+									}
+									var txnSummaryBase;
+									if (hasStructuredGuest && mpNoDemo) {
+										// New rows store the short English label (e.g. "Credit Cash - Account Details",
+										// "Game Start", "Cash-out") directly in message_preview — show as-is and skip parsing.
+										txnSummaryBase = mpNoDemo;
+									} else if (isGame) {
+										// Legacy gamebook rows (no structured cols yet) — parse headline + game # from bilingual body.
+										txnSummaryBase = buildGamebookTxnColumnText(previewRaw);
+									} else {
+										txnSummaryBase = shortTxnLabel || (txnParts.hasDashedTriple
+											? txnParts.typeOnly
+											: (splAmt.amount ? splAmt.text : summarizeTelegramPreview(previewRaw, 75)));
+									}
+									var previewTextShort = summarizeLine(txnSummaryBase, 200);
+									var previewShort = esc(previewTextShort);
+									var txnCellTooltipRaw = hasStructuredGuest
+										? (mpNoDemo || previewRaw)
+										: ((!isGame && shortTxnLabel) ? shortTxnLabel : previewRaw);
+									var amountCell = amountToken ? esc('₱' + amountToken) : esc('—');
+									var hint = TG.fullTextHint || '';
+									var ut = normalizeLogUserType(row.bot_user);
+									var cidStr = isLogChatIdFetchable(row.chat_id) ? String(row.chat_id) : '';
+									var chatNameCell = isLogChatIdFetchable(row.chat_id)
+										? '<span class="text-muted">…</span>'
+										: '<span class="text-muted">—</span>';
+									return '<tr class="' + stripeClass + '">' +
+										'<td class="tg-log-col-time">' + formatDt(row.created_at) + '</td>' +
+										'<td class="tg-log-col-bot text-uppercase small">' + esc(normalizeLogUserType(row.bot_user)) + '</td>' +
+										'<td class="font-monospace tg-log-col-chat text-break">' + esc(row.chat_id) + '</td>' +
+										'<td class="tg-log-col-chatname" data-tg-bot="' + attrEsc(ut) + '" data-tg-chat="' + attrEsc(cidStr) + '">' + chatNameCell + '</td>' +
+										'<td class="tg-log-col-guest">' + guestCell + '</td>' +
+										'<td class="tg-log-col-preview" data-tg-acct="' + attrEsc(acctForCell) + '" data-tg-preview-text="' + attrEsc(previewTextShort) + '" data-tg-preview-raw="' + attrEsc(previewRaw) + '">' + (previewRaw ? transactionCellContent(previewShort, txnCellTooltipRaw, hint) : previewShort) + '</td>' +
+										'<td class="tg-log-col-amount">' + amountCell + '</td>' +
+										'<td class="tg-log-col-status">' + (row.status === 'success'
+											? '<span class="badge bg-success">' + esc(TG.statusSuccess) + '</span>'
+											: '<span class="badge bg-danger">' + esc(TG.statusFailure) + '</span>') + '</td>' +
+										'<td class="tg-log-col-details">' + formatLogErrorDetailCell(row, hint) + '</td>' +
+										'</tr>';
+								}).join('');
+								enrichLogChatNames(rows);
+								enrichLogAccountNames(rows);
+							}
+							updateLogSortHeaderUI();
+							var fromN = total === 0 ? '0' : String(offset + 1);
+							var toN = String(Math.min(offset + rows.length, total));
+							var totN = String(total);
+							document.getElementById('tg-log-page-info').textContent =
+								(TG.showingTpl || 'Showing %1 to %2 of %3 entries')
+									.replace(/%1/g, fromN)
+									.replace(/%2/g, toN)
+									.replace(/%3/g, totN);
+							document.getElementById('tg-log-prev').disabled = offset <= 0;
+							document.getElementById('tg-log-next').disabled = offset + rows.length >= total;
+						})
+						.catch(function () {
+							tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">' + esc(TG.fetchError) + '</td></tr>';
+						});
+				}
+
+				function bindLogListeners() {
+					if (logListenersBound) return;
+					logListenersBound = true;
+					ensureLogDatePicker();
+					// Sorting
+					var table = document.getElementById('telegram-send-log-table');
+					if (table) {
+						var ths = table.querySelectorAll('thead th[data-sort]');
+						for (var i = 0; i < ths.length; i++) {
+							ths[i].addEventListener('click', function () {
+								var key = this.getAttribute('data-sort');
+								if (!key) return;
+								if (key === logSortKey) {
+									logSortDir = (logSortDir === 'asc') ? 'desc' : 'asc';
+								} else {
+									logSortKey = key;
+									logSortDir = 'asc';
+									// if sorting by time, default to desc (latest first)
+									if (logSortKey === 'created_at') logSortDir = 'desc';
+								}
+								offset = 0;
+								updateLogSortHeaderUI();
+								loadLogs();
+							});
+						}
+						updateLogSortHeaderUI();
+
+					}
+
+					// Delegated click handler: Guest Name links open Guest Portal modal in-place,
+					// Game # links open the Game Record History modal — same modals used on Gamebook page.
+					var guestPortalOpenInflight = {};
+					var __tgLogTable = document.getElementById('telegram-send-log-table');
+					if (__tgLogTable) {
+						__tgLogTable.addEventListener('click', function (e) {
+							var guestLink = e.target.closest('a[data-tg-open-guest-portal]');
+							if (guestLink) {
+								e.preventDefault();
+								var code = (guestLink.getAttribute('data-tg-open-guest-portal') || '').trim();
+								if (!code) return;
+								if (typeof window.account_details !== 'function') {
+									console.warn('[tg-log] account_details() not loaded — Guest Portal cannot open');
+									return;
+								}
+								if (guestPortalOpenInflight[code]) return; // debounce double-click
+								guestPortalOpenInflight[code] = true;
+								fetch('/telegramAPI/account-info/' + encodeURIComponent(code))
+									.then(function (r) { return r.ok ? r.json() : { account: null }; })
+									.then(function (data) {
+										var acc = data && data.account;
+										if (!acc || acc.accountId == null) {
+											console.warn('[tg-log] account not found for code:', code);
+											return;
+										}
+										window.account_details(acc.accountId, acc.accountCode || code, acc.name || '');
+									})
+									.catch(function (err) { console.error('[tg-log] account-info fetch failed:', err); })
+									.then(function () { guestPortalOpenInflight[code] = false; });
+								return;
+							}
+
+							var gameLink = e.target.closest('a[data-tg-open-game-history]');
+							if (gameLink) {
+								e.preventDefault();
+								var gid = parseInt(gameLink.getAttribute('data-tg-open-game-history') || '', 10);
+								if (!gid) return;
+								if (typeof window.showHistory === 'function') {
+									try { window.showHistory(gid); }
+									catch (err) { console.error('[tg-log] showHistory failed:', err); }
+								} else {
+									console.warn('[tg-log] showHistory() not loaded — falling back to /game_record/' + gid);
+									window.open('/game_record/' + gid, '_blank', 'noopener');
+								}
+							}
+						});
+					}
+
+					document.getElementById('tg-log-refresh').addEventListener('click', function () {
+						offset = 0;
+						resetLogDateFilterToToday();
+						loadLogs();
+					});
+					var lenSel = document.getElementById('tg-log-length');
+					if (lenSel) {
+						lenSel.addEventListener('change', function () {
+							offset = 0;
+							loadLogs();
+						});
+					}
+					var searchEl = document.getElementById('tg-log-search');
+					if (searchEl) {
+						searchEl.addEventListener('input', function () {
+							if (logSearchTimer) clearTimeout(logSearchTimer);
+							logSearchTimer = setTimeout(function () {
+								offset = 0;
+								loadLogs();
+							}, 400);
+						});
+						searchEl.addEventListener('keydown', function (e) {
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								if (logSearchTimer) clearTimeout(logSearchTimer);
+								offset = 0;
+								loadLogs();
+							}
+						});
+					}
+					document.getElementById('tg-log-prev').addEventListener('click', function () {
+						offset = Math.max(0, offset - limit);
+						loadLogs();
+					});
+					document.getElementById('tg-log-next').addEventListener('click', function () {
+						offset += limit;
+						loadLogs();
+					});
+				}
+
+				window.__telegramMessageLogShow = function () {
+					bindLogListeners();
+					loadLogs();
+				};
+			})();
+			</script>

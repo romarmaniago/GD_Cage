@@ -4,6 +4,7 @@ const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -40,6 +41,71 @@ const getTransactionName = async (transactionId) => {
 		console.error('Failed to fetch transaction name:', err);
 		return null;
 	}
+};
+
+/** Korean Telegram copy only when UI language is ko; English is the default (en / ja / zh). */
+const isTelegramKorean = (req) => req && req.cookies && req.cookies.lang === 'ko';
+
+const telegramCashTransactionTitle = (transaction, ko) => {
+	if (ko) {
+		if (transaction === 'DEPOSIT') return '어카운트 입금';
+		if (transaction === 'WITHDRAW') return '어카운트 출금';
+		if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return '크레딧';
+	} else {
+		if (transaction === 'DEPOSIT') return 'Account deposit';
+		if (transaction === 'WITHDRAW') return 'Account withdrawal';
+		if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return 'Credit';
+	}
+	return transaction;
+};
+
+const telegramAccountCashMessage = (req, opts) => {
+	const ko = isTelegramKorean(req);
+	const {
+		transaction,
+		guestAccountNum,
+		guestName,
+		displayWithdraw,
+		amountForTelegram,
+		txtTrans,
+		txtRemarks,
+		date_nowTG,
+		updated_time
+	} = opts;
+	const L = ko
+		? { account: '계정', amount: '금액', balance: '잔고', totalCredit: '총 크레딧', remarks: '비고', date: '날짜', time: '시간' }
+		: { account: 'Account', amount: 'Amount', balance: 'Balance', totalCredit: 'Total credit', remarks: 'Remarks', date: 'Date', time: 'Time' };
+	const title = telegramCashTransactionTitle(transaction, ko);
+	const balanceLabel = String(txtTrans) === '3' ? L.totalCredit : L.balance;
+	const remarksLine = txtRemarks ? `${L.remarks}: ${txtRemarks}\n` : '';
+	return `Demo Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString()}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+};
+
+const telegramBalanceCheckMessage = (req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now) => {
+	const ko = isTelegramKorean(req);
+	const headline = ko ? '잔고 확인' : 'Balance check';
+	const L = ko
+		? { account: '계정', balance: '잔고', date: '날짜', time: '시간' }
+		: { account: 'Account', balance: 'Balance', date: 'Date', time: 'Time' };
+	return `Demo Cage\n\n* ${headline} *\n\n${L.account}: ${AGENT_CODE} - ${NAME}\n${L.balance}: ${balanceFormatted}\n\n${L.date}: ${date_now}\n${L.time}: ${time_now}`;
+};
+
+const telegramTransferFromMessage = (req, fromCode, fromName, toCode, toName, totalAmount, senderBalance, date_nowTG, updated_time) => {
+	const ko = isTelegramKorean(req);
+	const headline = ko ? '이체' : 'Transfer';
+	const L = ko
+		? { account: '계정', to: '받으신분', amount: '금액', balance: '잔고', date: '날짜', time: '시간' }
+		: { account: 'Account', to: 'To', amount: 'Amount', balance: 'Balance', date: 'Date', time: 'Time' };
+	return `Demo Cage\n\n* ${headline} *\n\n${L.account}: ${fromCode} - ${fromName}\n${L.to}: ${toCode} - ${toName}\n${L.amount}: -${totalAmount.toLocaleString()}\n${L.balance}: ${senderBalance.toLocaleString()}\n\n${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+};
+
+const telegramTransferToMessage = (req, toCode, toName, fromCode, fromName, totalAmount, receiverBalance, date_nowTG, updated_time) => {
+	const ko = isTelegramKorean(req);
+	const headline = ko ? '이체' : 'Transfer';
+	const L = ko
+		? { to: '받으신분', from: '보내신분', amount: '금액', balance: '잔고', date: '날짜', time: '시간' }
+		: { to: 'To', from: 'From', amount: 'Amount', balance: 'Balance', date: 'Date', time: 'Time' };
+	return `Demo Cage\n\n* ${headline} *\n\n${L.to}: ${toCode} - ${toName}\n${L.from}: ${fromCode} - ${fromName}\n${L.amount}: ${totalAmount.toLocaleString()}\n${L.balance}: ${receiverBalance.toLocaleString()}\n\n${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
 };
 
 // Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)
@@ -1508,13 +1574,25 @@ router.post('/add_account_details', async (req, res) => {
 				const balanceLabel = (txtTrans === '3') ? '총 크레딧' : '잔고';
 				const text = `Demo Cage\n\n* ${translatedTransaction} *\n\n계정: ${guestAccountNum} - ${guestName}\n금액: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString()}\n${remarksLine}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+				const telegramLogPreview = guestPortalTransactionLogPreview(transaction, {
+					transactionDesc: transacDesc
+				});
+				const telegramSendOpts = {
+					logPreview: telegramLogPreview,
+					logMeta: {
+						accountCode: guestAccountNum,
+						guestName: guestName,
+						amount: Math.abs(Number(displayWithdraw) || 0)
+					}
+				};
+
 				let telegramError = null;
 
 				if (sendToTelegram) {
 					// Send to agent (only when TELEGRAM_ID exists)
 					if (telegramId && telegramId !== null && telegramId !== '') {
 						try {
-							await sendTelegramMessage(text, telegramId);
+							await sendTelegramMessage(text, telegramId, telegramSendOpts);
 						} catch (telegramErr) {
 							const errorMsg = telegramErr.message || '';
 							let specificError = '';
@@ -1542,7 +1620,7 @@ router.post('/add_account_details', async (req, res) => {
 
 					// Send to additional chats - always (even when guest has no TELEGRAM_ID)
 					try {
-						await sendTelegramToAdditionalChats(text);
+						await sendTelegramToAdditionalChats(text, telegramSendOpts);
 					} catch (telegramErr) {
 						telegramError = telegramError || `Failed to send to additional chats: ${telegramErr.message}`;
 						console.error('Error sending to additional chats:', telegramErr.message);
@@ -1617,12 +1695,21 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		const message = `Demo Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
 
+		const telegramSendOpts = {
+			logPreview: balanceCheckTelegramLogPreview(),
+			logMeta: {
+				accountCode: AGENT_CODE,
+				guestName: NAME,
+				amount: currentBalance
+			}
+		};
+
 		let telegramError = null;
 
 		// Send to agent (only when TELEGRAM_ID exists)
 		if (TELEGRAM_ID && TELEGRAM_ID !== null && TELEGRAM_ID !== '') {
 			try {
-				await sendTelegramMessage(message, TELEGRAM_ID);
+				await sendTelegramMessage(message, TELEGRAM_ID, telegramSendOpts);
 			} catch (err) {
 				const errorMsg = err.message || '';
 				if (errorMsg.includes('chat not found')) {
@@ -1640,7 +1727,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		// Send to additional chats - always (even when guest has no TELEGRAM_ID)
 		try {
-			await sendTelegramToAdditionalChats(message);
+			await sendTelegramToAdditionalChats(message, telegramSendOpts);
 		} catch (err) {
 			telegramError = telegramError || `Failed to send to additional chats: ${err.message}`;
 			console.error('Check balance - send to additional chats failed:', err.message);
@@ -1766,10 +1853,21 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 			const textFrom = `Demo Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+			const toCode =
+				telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A';
+			const logFromOpts = {
+				logPreview: `Transfer Sent → ${toCode}`,
+				logMeta: {
+					accountCode: AGENT_CODE_FROM,
+					guestName: NAME_FROM,
+					amount: Math.abs(Number(totalAmount) || 0)
+				}
+			};
+
 			// Send to agent (only when TELEGRAM_ID exists)
 			if (TELEGRAM_ID_FROM && TELEGRAM_ID_FROM !== null && TELEGRAM_ID_FROM !== '') {
 				try {
-					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
+					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM, logFromOpts);
 				} catch (telegramError) {
 					const errorMsg = telegramError.message || '';
 					let specificError = '';
@@ -1786,7 +1884,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 			// Send to additional chats - always (even when sender has no TELEGRAM_ID)
 			try {
-				await sendTelegramToAdditionalChats(textFrom);
+				await sendTelegramToAdditionalChats(textFrom, logFromOpts);
 			} catch (telegramError) {
 				telegramErrors.push(`Failed to send sender message to additional chats: ${telegramError.message}`);
 				console.error('Error sending to additional chats (sender):', telegramError.message);
@@ -1806,10 +1904,21 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 			const textTo = `Demo Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+			const fromCode =
+				telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A';
+			const logToOpts = {
+				logPreview: `Transfer Received ← ${fromCode}`,
+				logMeta: {
+					accountCode: AGENT_CODE_TO,
+					guestName: NAME_TO,
+					amount: Math.abs(Number(totalAmount) || 0)
+				}
+			};
+
 			// Send to agent (only when TELEGRAM_ID exists)
 			if (TELEGRAM_ID_TO && TELEGRAM_ID_TO !== null && TELEGRAM_ID_TO !== '') {
 				try {
-					await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
+					await sendTelegramMessage(textTo, TELEGRAM_ID_TO, logToOpts);
 				} catch (telegramError) {
 					const errorMsg = telegramError.message || '';
 					let specificError = '';
@@ -1826,7 +1935,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 			// Send to additional chats - always (even when receiver has no TELEGRAM_ID)
 			try {
-				await sendTelegramToAdditionalChats(textTo);
+				await sendTelegramToAdditionalChats(textTo, logToOpts);
 			} catch (telegramError) {
 				telegramErrors.push(`Failed to send receiver message to additional chats: ${telegramError.message}`);
 				console.error('Error sending to additional chats (receiver):', telegramError.message);

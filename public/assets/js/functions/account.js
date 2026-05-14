@@ -1970,4 +1970,42 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 });
 
-
+// Auto-open Guest Portal (account_details) when arriving from another page via
+// `/dashboard?openAccountCode=<AGENT_CODE>` — used by the Telegram message-log "Guest Name" links.
+(function autoOpenGuestPortalFromQuery() {
+	function tryOpen() {
+		try {
+			var qs = new URLSearchParams(window.location.search);
+			var code = (qs.get('openAccountCode') || '').trim();
+			if (!code) return;
+			if (typeof window.account_details !== 'function') {
+				// account.js loaded but function not defined (shouldn't happen) — bail out.
+				return;
+			}
+			fetch('/telegramAPI/account-info/' + encodeURIComponent(code))
+				.then(function (r) { return r.ok ? r.json() : { account: null }; })
+				.then(function (data) {
+					var acc = data && data.account;
+					if (!acc || acc.accountId == null) {
+						console.warn('[autoOpenGuestPortal] account not found for code:', code);
+						return;
+					}
+					window.account_details(acc.accountId, acc.accountCode || code, acc.name || '');
+					// Strip the query param so a manual reload doesn't re-trigger the modal.
+					if (window.history && window.history.replaceState) {
+						qs.delete('openAccountCode');
+						var clean = window.location.pathname + (qs.toString() ? '?' + qs.toString() : '') + window.location.hash;
+						window.history.replaceState({}, document.title, clean);
+					}
+				})
+				.catch(function (err) { console.error('[autoOpenGuestPortal]', err); });
+		} catch (e) {
+			console.error('[autoOpenGuestPortal] fatal:', e);
+		}
+	}
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', tryOpen);
+	} else {
+		tryOpen();
+	}
+})();
