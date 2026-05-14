@@ -1051,9 +1051,9 @@
 	},
 	"modal_new_broadcast": {
 		"title": "ゲスト一斉送信",
-		"guest_chat_ids": "ゲストのチャットID / @ユーザー名（Telegram）",
-		"chat_ids_placeholder": "",
-		"chat_ids_hint": "",
+		"guest_chat_ids": "ゲストチャットID（Telegram）",
+		"chat_ids_placeholder": "1行に1つのIDまたは@ユーザー名\nme\n123456789\n-1001234567890",
+		"chat_ids_hint": "MTProtoユーザーで送信。export後は数値IDを使うなら telegram_announcement/broadcast_mtproto.session を残す（文字列のみだとプロセスごとにpeerを忘れる）。@ユーザー名はファイルなしでも可。テストは me。別アカウント（個人用など）も別ユーザー扱い：ブロードキャスト用アカウントから一度DMするか@ユーザー名を使う。",
 		"message": "メッセージ",
 		"message_placeholder": "お知らせ本文（画像のみの場合は省略可）...",
 		"message_hint": "画像のみ送る場合は空欄にしてください",
@@ -1069,7 +1069,7 @@
 		"sending": "送信中...",
 		"sending_to_recipients": "{n}名に送信中…",
 		"partial_success": "一部のみ送信",
-		"success": "成功！",
+		"success": "成功!",
 		"error": "エラー",
 		"failed_to_send": "一斉送信に失敗しました",
 		"error_occurred": "一斉送信中にエラーが発生しました"

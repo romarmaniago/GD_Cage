@@ -4,7 +4,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Secrets — never commit (local overrides)
 .env
+.env.*
+!.env.example
 
 # Pyrogram MTProto session (guest broadcast) — contains auth + peer cache; do not commit
 telegram_announcement/*.session
