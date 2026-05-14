@@ -63,6 +63,45 @@
 		background: #0d6efd !important;
 		opacity: 1 !important;
 	}
+	#modal-new-broadcast .broadcast-picture-dropzone {
+		position: relative;
+		min-height: 220px;
+		border: 2px dashed #cbd5e1;
+		border-radius: 0.375rem;
+		background-color: #f8fafc;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+	}
+	#modal-new-broadcast .broadcast-picture-dropzone.is-dragover {
+		border-color: #0d6efd;
+		background-color: rgba(13, 110, 253, 0.07);
+	}
+	#modal-new-broadcast .broadcast-picture-dropzone-inner {
+		pointer-events: none;
+		text-align: center;
+		padding: 1rem 1.25rem;
+		color: #64748b;
+		font-size: 0.95rem;
+		line-height: 1.4;
+		max-width: 28rem;
+	}
+	#modal-new-broadcast .broadcast-picture-dropzone-inner i {
+		font-size: 2.5rem;
+		display: block;
+		margin-bottom: 0.5rem;
+		color: #94a3b8;
+	}
+	#modal-new-broadcast .broadcast-picture-input {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		cursor: pointer;
+		z-index: 2;
+	}
 </style>
 <div class="modal fade" id="modal-new-broadcast" role="dialog" aria-labelledby="modal-new-broadcast-label" aria-hidden="true"
 	data-keyboard="false" data-bs-backdrop="static">
@@ -108,14 +147,23 @@
 
 					<div class="row mb-3">
 						<div class="col-sm-12">
-							<label class="form-label"><%= __('modal_new_broadcast.picture') %></label>
-							<input
-								type="file"
-								class="form-control"
-								id="broadcast-picture"
-								name="picture"
-								accept="image/*">
+							<label class="form-label" for="broadcast-picture"><%= __('modal_new_broadcast.picture') %></label>
+							<div class="mb-2">
+							<div class="broadcast-picture-dropzone" id="broadcast-picture-dropzone">
+								<input
+									type="file"
+									class="broadcast-picture-input"
+									id="broadcast-picture"
+									name="picture"
+									accept="image/*"
+									aria-label="<%= __('modal_new_broadcast.picture') %>">
+								<div class="broadcast-picture-dropzone-inner">
+									<i class="fa fa-cloud-upload" aria-hidden="true"></i>
+									<span><%= __('modal_new_broadcast.picture_dropzone_hint') %></span>
+								</div>
+							</div>
 							<small class="form-text text-muted"><%= __('modal_new_broadcast.picture_formats_hint') %></small>
+							</div>
 							<div id="broadcast-picture-preview-container" class="d-none mt-2">
 								<img id="broadcast-picture-preview" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
 								<button type="button" class="btn btn-sm btn-danger ms-2" id="broadcast-remove-picture-btn">

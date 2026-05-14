@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	const messageInput = document.getElementById('broadcast-message');
 	const chatIdsInput = document.getElementById('broadcast-chat-ids');
 	const pictureInput = document.getElementById('broadcast-picture');
+	const pictureDropzone = document.getElementById('broadcast-picture-dropzone');
 	const picturePreview = document.getElementById('broadcast-picture-preview');
 	const picturePreviewContainer = document.getElementById('broadcast-picture-preview-container');
 	const removePictureBtn = document.getElementById('broadcast-remove-picture-btn');
@@ -66,17 +67,60 @@ document.addEventListener('DOMContentLoaded', function () {
 		return out;
 	}
 
-	if (pictureInput && picturePreview && picturePreviewContainer) {
+	function previewPictureFile(file) {
+		if (!file || !picturePreview || !picturePreviewContainer) return;
+		var reader = new FileReader();
+		reader.onload = function (ev) {
+			picturePreview.src = ev.target.result;
+			picturePreviewContainer.classList.remove('d-none');
+		};
+		reader.readAsDataURL(file);
+	}
+
+	function clearPictureDropzoneHighlight() {
+		if (pictureDropzone) pictureDropzone.classList.remove('is-dragover');
+	}
+
+	if (pictureInput) {
 		pictureInput.addEventListener('change', function (e) {
-			var file = e.target.files[0];
-			if (file) {
-				var reader = new FileReader();
-				reader.onload = function (ev) {
-					picturePreview.src = ev.target.result;
-					picturePreviewContainer.classList.remove('d-none');
-				};
-				reader.readAsDataURL(file);
+			var file = e.target.files && e.target.files[0];
+			if (file) previewPictureFile(file);
+		});
+	}
+
+	if (pictureDropzone && pictureInput) {
+		pictureDropzone.addEventListener('dragover', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			try {
+				e.dataTransfer.dropEffect = 'copy';
+			} catch (err) { /* ignore */ }
+			pictureDropzone.classList.add('is-dragover');
+		});
+		pictureDropzone.addEventListener('dragleave', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			if (e.relatedTarget == null || !pictureDropzone.contains(e.relatedTarget)) {
+				pictureDropzone.classList.remove('is-dragover');
 			}
+		});
+		pictureDropzone.addEventListener('drop', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			pictureDropzone.classList.remove('is-dragover');
+			var files = e.dataTransfer && e.dataTransfer.files;
+			if (!files || !files.length) return;
+			var file = files[0];
+			if (!file.type || file.type.indexOf('image/') !== 0) return;
+			try {
+				var dt = new DataTransfer();
+				dt.items.add(file);
+				pictureInput.files = dt.files;
+			} catch (err) {
+				console.error(err);
+				return;
+			}
+			previewPictureFile(file);
 		});
 	}
 
@@ -85,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			pictureInput.value = '';
 			picturePreview.src = '';
 			picturePreviewContainer.classList.add('d-none');
+			clearPictureDropzoneHighlight();
 		});
 	}
 
@@ -93,6 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			form.reset();
 			if (picturePreview) picturePreview.src = '';
 			if (picturePreviewContainer) picturePreviewContainer.classList.add('d-none');
+			clearPictureDropzoneHighlight();
 			if (submitBtn) {
 				submitBtn.disabled = false;
 				submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + ((window.broadcastModalTranslations || {}).send || 'Send');

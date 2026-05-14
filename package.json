@@ -10,6 +10,7 @@
     "dev:telegram": "node scripts/run-telegram-announcement.cjs",
     "dev:telegram:install": "node scripts/setup-telegram-venv.cjs",
     "broadcast:export-session": "node scripts/run-export-telegram-session.cjs",
+    "broadcast:logout": "node scripts/run-logout-telegram-session.cjs",
     "dev:all": "concurrently -n cage,telegram -c cyan,magenta \"npm run dev\" \"npm run dev:telegram\""
   },
   "author": "3CORE",

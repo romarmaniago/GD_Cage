@@ -195,12 +195,11 @@
 		"welcome_to_the_cage_system_demo": "欢迎来到 无限笼式X！",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "管理交易、跟踪资金并确保无缝操作与我们先进的笼子系统。",
 		"announcements": "公告",
-		"guest_broadcast": "访客群发",
+		"guest_broadcast": "topbar.guest_broadcast",
 		"kr": "朝鲜语",
 		"jp": "日语",
 		"zh": "中文",
-		"us": "英语",
-		"guest_broadcast": "topbar.guest_broadcast"
+		"us": "英语"
 	},
 	"dashboard_history": {
 		"reset_history": "重置历史",
@@ -1036,6 +1035,7 @@
 		"message_placeholder": "在此输入公告内容（可选）...",
 		"message_hint": "仅发送图片时可留空",
 		"picture": "图片",
+		"picture_dropzone_hint": "将图片拖放到此处，或点击浏览",
 		"picture_formats_hint": "支持格式：JPG、PNG、GIF",
 		"remove": "移除",
 		"send_announcement": "发送公告",
@@ -1057,6 +1057,7 @@
 		"message_placeholder": "公告文字（仅发图片时可留空）...",
 		"message_hint": "仅发送图片时可留空",
 		"picture": "图片",
+		"picture_dropzone_hint": "将图片拖放到此处，或点击浏览",
 		"picture_formats_hint": "支持格式：JPG、PNG、GIF",
 		"remove": "移除",
 		"send": "发送群发",

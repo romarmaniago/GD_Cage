@@ -196,12 +196,11 @@
 		"welcome_to_the_cage_system_demo": "인피니티 케이지 관리 시스템",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "거래를 관리하고, 자금을 추적하며, 당사의 고급 케이지 시스템으로 원활한 운영을 보장하세요.",
 		"announcements": "공지사항",
-		"guest_broadcast": "게스트 브로드캐스트",
+		"guest_broadcast": "topbar.guest_broadcast",
 		"kr": "한국어",
 		"jp": "일본어",
 		"zh": "중국어",
-		"us": "영어",
-		"guest_broadcast": "topbar.guest_broadcast"
+		"us": "영어"
 	},
 	"dashboard_history": {
 		"reset_history": "기록 초기화",
@@ -1036,6 +1035,7 @@
 		"message_placeholder": "공지 메시지를 입력하세요 (선택사항)...",
 		"message_hint": "사진만 보내려면 비워두세요",
 		"picture": "사진",
+		"picture_dropzone_hint": "이미지를 여기로 끌어 놓거나 클릭하여 선택",
 		"picture_formats_hint": "지원 형식: JPG, PNG, GIF",
 		"remove": "제거",
 		"send_announcement": "공지 보내기",
@@ -1057,6 +1057,7 @@
 		"message_placeholder": "공지 텍스트 (사진만 보낼 경우 선택)...",
 		"message_hint": "사진만내려면 비워두세요",
 		"picture": "사진",
+		"picture_dropzone_hint": "이미지를 여기로 끌어 놓거나 클릭하여 선택",
 		"picture_formats_hint": "지원 형식: JPG, PNG, GIF",
 		"remove": "제거",
 		"send": "브로드캐스트 보내기",
