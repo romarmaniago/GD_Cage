@@ -986,6 +986,8 @@
 		"please_enter_message_or_picture": "메시지를 입력하거나 사진을 업로드하세요",
 		"please_enter_chat_ids": "채팅 ID를 한 줄에 하나 이상 입력하세요",
 		"sending": "전송 중...",
+		"sending_to_recipients": "{n}명에게 전송 중…",
+		"partial_success": "일부만 전송됨",
 		"success": "성공!",
 		"error": "오류",
 		"failed_to_send": "브로드캐스트 전송에 실패했습니다",

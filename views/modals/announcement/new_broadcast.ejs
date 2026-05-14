@@ -4,6 +4,65 @@
 		font-family: ui-monospace, Consolas, monospace;
 		font-size: 0.875rem;
 	}
+	/* Guest broadcast SweetAlert: sariling progress — hindi Bootstrap .progress-bar (tinatanggal ang animation/transition kapag prefers-reduced-motion). */
+	@keyframes bc-swal-indet-slide {
+		0% {
+			transform: translateX(-100%);
+		}
+		100% {
+			transform: translateX(280%);
+		}
+	}
+	@keyframes bc-swal-indet-pulse {
+		0%,
+		100% {
+			opacity: 0.35;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+	.bc-swal-indet-track {
+		height: 12px;
+		border-radius: 9999px;
+		background: rgba(0, 0, 0, 0.1);
+		overflow: hidden;
+		position: relative;
+	}
+	.bc-swal-indet-chunk {
+		position: absolute;
+		left: 0;
+		top: 0;
+		height: 100%;
+		width: 40%;
+		border-radius: inherit;
+		background: linear-gradient(90deg, #0d6efd, #6ea8fe);
+		animation: bc-swal-indet-slide 1.05s ease-in-out infinite;
+		will-change: transform;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.bc-swal-indet-chunk {
+			animation: bc-swal-indet-pulse 1s ease-in-out infinite;
+			width: 100%;
+			transform: none;
+		}
+	}
+	.bc-swal-fill-track {
+		height: 10px;
+		border-radius: 9999px;
+		background: rgba(0, 0, 0, 0.1);
+		overflow: hidden;
+	}
+	.bc-swal-fill-inner {
+		height: 100%;
+		width: 0;
+		border-radius: inherit;
+		transition: width 0.45s ease;
+	}
+	.swal2-container .bc-swal-timer-bar {
+		background: #0d6efd !important;
+		opacity: 1 !important;
+	}
 </style>
 <div class="modal fade" id="modal-new-broadcast" role="dialog" aria-labelledby="modal-new-broadcast-label" aria-hidden="true"
 	data-keyboard="false" data-bs-backdrop="static">
@@ -83,6 +142,8 @@ window.broadcastModalTranslations = {
 	please_enter_message_or_picture: "<%= __('modal_new_broadcast.please_enter_message_or_picture') %>",
 	please_enter_chat_ids: "<%= __('modal_new_broadcast.please_enter_chat_ids') %>",
 	sending: "<%= __('modal_new_broadcast.sending') %>",
+	sending_to_recipients: "<%= __('modal_new_broadcast.sending_to_recipients') %>",
+	partial_success: "<%= __('modal_new_broadcast.partial_success') %>",
 	success: "<%= __('modal_new_broadcast.success') %>",
 	error: "<%= __('modal_new_broadcast.error') %>",
 	failed_to_send: "<%= __('modal_new_broadcast.failed_to_send') %>",

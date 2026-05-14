@@ -11,16 +11,57 @@ document.addEventListener('DOMContentLoaded', function () {
 	const modal = document.getElementById('modal-new-broadcast');
 	var t = window.broadcastModalTranslations || {};
 
+	function escapeSwalHtml(s) {
+		return String(s == null ? '' : s)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
+	function closeBroadcastProgressSwal() {
+		if (typeof Swal !== 'undefined' && Swal.isVisible && Swal.isVisible()) {
+			Swal.close();
+		}
+	}
+
+	function openBroadcastSendingProgress(recipientCount, t0) {
+		if (typeof Swal === 'undefined') return;
+		var tm = t0 || {};
+		var hint = String(tm.sending_to_recipients || 'Sending to {n} recipient(s)…').replace(/\{n\}/g, String(recipientCount));
+		Swal.fire({
+			title: tm.sending || 'Sending...',
+			html:
+				'<p class="small text-muted mb-2">' +
+				escapeSwalHtml(hint) +
+				'</p>' +
+				'<div class="bc-swal-indet-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Sending">' +
+				'<div class="bc-swal-indet-chunk"></div>' +
+				'</div>',
+			allowOutsideClick: false,
+			allowEscapeKey: false,
+			showConfirmButton: false
+		});
+	}
+
 	function parseChatIdsFromTextarea(text) {
 		var lines = String(text || '').split(/\r?\n/);
 		var out = [];
 		var seen = {};
 		for (var i = 0; i < lines.length; i++) {
-			var s = lines[i].trim();
-			if (!s || s.length > 200) continue;
-			if (seen[s]) continue;
-			seen[s] = true;
-			out.push(s);
+			var line = lines[i].trim();
+			if (!line) continue;
+			// Bawat linya: IDs / @username — hiwalay ng newline, o ng space/comma sa iisang linya
+			var parts = line.split(/[\s,]+/).filter(function (p) {
+				return p.length > 0;
+			});
+			for (var j = 0; j < parts.length; j++) {
+				var s = parts[j].trim();
+				if (!s || s.length > 200) continue;
+				if (seen[s]) continue;
+				seen[s] = true;
+				out.push(s);
+			}
 		}
 		return out;
 	}
@@ -88,6 +129,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			if (submitBtn) submitBtn.disabled = true;
 			if (submitBtn) submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ' + (t.sending || 'Sending...');
 
+			openBroadcastSendingProgress(ids.length, t);
+
 			try {
 				var formData = new FormData();
 				formData.append('message', message);
@@ -100,6 +143,8 @@ document.addEventListener('DOMContentLoaded', function () {
 					method: 'POST',
 					body: formData
 				});
+
+				closeBroadcastProgressSwal();
 
 				if (!response.ok) {
 					var errMsg = t.failed_to_send || 'Failed to send';
@@ -126,49 +171,105 @@ document.addEventListener('DOMContentLoaded', function () {
 								})
 								.join('\n')
 						: '';
+					var totalOk = sc + fc;
+					var pctOk = totalOk > 0 ? Math.round((100 * sc) / totalOk) : 0;
 
 					if (sc === 0 && fc > 0) {
-						Swal.fire({
-							icon: 'error',
-							title: t.error || 'Error',
-							text: (result.message || 'Broadcast failed') + (errDetail ? '\n\n' + errDetail : '')
-						});
+						if (typeof Swal !== 'undefined') {
+							Swal.fire({
+								icon: 'error',
+								title: t.error || 'Error',
+								html:
+									'<p class="mb-2">' +
+									escapeSwalHtml(result.message || 'Broadcast failed') +
+									'</p>' +
+									'<div class="bc-swal-fill-track mb-2">' +
+									'<div class="bc-swal-fill-inner" style="width:0%;background:#dc3545"></div></div>' +
+									(errDetail
+										? '<pre style="text-align:left;font-size:12px;max-height:200px;overflow:auto">' +
+											escapeSwalHtml(errDetail) +
+											'</pre>'
+										: ''),
+								showConfirmButton: true
+							});
+						}
 					} else if (fc > 0) {
-						Swal.fire({
-							icon: 'warning',
-							title: t.partial_success || 'Partially sent',
-							html:
-								'<p>' +
-								(result.message || '') +
-								'</p><pre style="text-align:left;font-size:12px;max-height:200px;overflow:auto">' +
-								(errDetail || '') +
-								'</pre>'
-						});
+						if (typeof Swal !== 'undefined') {
+							Swal.fire({
+								icon: 'warning',
+								title: t.partial_success || 'Partially sent',
+								html:
+									'<p class="mb-2">' +
+									escapeSwalHtml(result.message || '') +
+									'</p>' +
+									'<div class="bc-swal-fill-track mb-2">' +
+									'<div class="bc-swal-fill-inner" id="bc-partial-bar" style="width:0%;background:#ffc107"></div>' +
+									'</div>' +
+									(errDetail
+										? '<pre style="text-align:left;font-size:12px;max-height:200px;overflow:auto">' +
+											escapeSwalHtml(errDetail) +
+											'</pre>'
+										: ''),
+								timer: 6000,
+								timerProgressBar: true,
+								showConfirmButton: true,
+								customClass: { timerProgressBar: 'bc-swal-timer-bar' },
+								didOpen: function () {
+									requestAnimationFrame(function () {
+										requestAnimationFrame(function () {
+											var b = document.getElementById('bc-partial-bar');
+											if (b) b.style.width = pctOk + '%';
+										});
+									});
+								}
+							});
+						}
 					} else {
-						Swal.fire({
-							icon: 'success',
-							title: t.success || 'Success!',
-							text: result.message,
-							timer: 3500,
-							showConfirmButton: false
-						});
+						if (typeof Swal !== 'undefined') {
+							Swal.fire({
+								icon: 'success',
+								title: t.success || 'Success!',
+								html:
+									'<p class="mb-2">' + escapeSwalHtml(result.message || '') + '</p>' +
+									'<div class="bc-swal-fill-track">' +
+									'<div class="bc-swal-fill-inner" id="bc-fullsuccess-bar" style="width:0%;background:#198754"></div>' +
+									'</div>',
+								timer: 3500,
+								timerProgressBar: true,
+								showConfirmButton: false,
+								customClass: { timerProgressBar: 'bc-swal-timer-bar' },
+								didOpen: function () {
+									requestAnimationFrame(function () {
+										requestAnimationFrame(function () {
+											var b = document.getElementById('bc-fullsuccess-bar');
+											if (b) b.style.width = '100%';
+										});
+									});
+								}
+							});
+						}
 						var instOk = bootstrap.Modal.getInstance(modal);
 						if (instOk) instOk.hide();
 					}
 				} else {
-					Swal.fire({
-						icon: 'error',
-						title: t.error || 'Error',
-						text: result.error || (t.failed_to_send || 'Failed')
-					});
+					if (typeof Swal !== 'undefined') {
+						Swal.fire({
+							icon: 'error',
+							title: t.error || 'Error',
+							text: result.error || (t.failed_to_send || 'Failed')
+						});
+					}
 				}
 			} catch (error) {
 				console.error(error);
-				Swal.fire({
-					icon: 'error',
-					title: t.error || 'Error',
-					text: error.message || (t.error_occurred || 'An error occurred')
-				});
+				closeBroadcastProgressSwal();
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({
+						icon: 'error',
+						title: t.error || 'Error',
+						text: error.message || (t.error_occurred || 'An error occurred')
+					});
+				}
 			} finally {
 				if (submitBtn) {
 					submitBtn.disabled = false;

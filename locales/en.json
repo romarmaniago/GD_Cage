@@ -984,6 +984,8 @@
 		"please_enter_message_or_picture": "Please enter a message or upload a picture",
 		"please_enter_chat_ids": "Please enter at least one chat ID (one per line)",
 		"sending": "Sending...",
+		"sending_to_recipients": "Sending to {n} recipient(s)…",
+		"partial_success": "Partially sent",
 		"success": "Success!",
 		"error": "Error",
 		"failed_to_send": "Failed to send broadcast",

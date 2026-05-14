@@ -986,6 +986,8 @@
 		"please_enter_message_or_picture": "メッセージを入力するか画像をアップロードしてください",
 		"please_enter_chat_ids": "チャットIDを1行に1つ以上入力してください",
 		"sending": "送信中...",
+		"sending_to_recipients": "{n}名に送信中…",
+		"partial_success": "一部のみ送信",
 		"success": "成功！",
 		"error": "エラー",
 		"failed_to_send": "一斉送信に失敗しました",

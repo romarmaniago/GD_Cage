@@ -986,6 +986,8 @@
 		"please_enter_message_or_picture": "请输入消息或上传图片",
 		"please_enter_chat_ids": "请至少输入一行聊天 ID",
 		"sending": "发送中...",
+		"sending_to_recipients": "正在发送至 {n} 位接收者…",
+		"partial_success": "部分已发送",
 		"success": "成功！",
 		"error": "错误",
 		"failed_to_send": "群发发送失败",
