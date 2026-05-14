@@ -25,14 +25,17 @@ function extractLogMeta(opts) {
   const meta = (opts && (opts.logMeta || opts.meta)) || {};
   const accountCode = meta.accountCode != null ? String(meta.accountCode).trim() : '';
   const guestName = meta.guestName != null ? String(meta.guestName).trim() : '';
-  const amount =
-    meta.amount != null && meta.amount !== ''
-      ? Math.abs(Number(String(meta.amount).replace(/,/g, ''))) || null
-      : null;
+  let amount = null;
+  if (meta.amount != null && meta.amount !== '') {
+    const n = Math.abs(Number(String(meta.amount).replace(/,/g, '')));
+    if (Number.isFinite(n)) {
+      amount = n;
+    }
+  }
   return {
     guestAccountCode: accountCode || null,
     guestName: guestName || null,
-    amount: amount && isFinite(amount) ? amount : null
+    amount
   };
 }
 
