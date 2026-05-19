@@ -1,12 +1,12 @@
 <div class="modal fade" id="modal-change_status" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
 	<div class="modal-dialog modal-dialog-centered">
 		<div class="modal-content">
-		<div class="modal-header bg-primary">
-			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_change_status.change_status') %></h5>
-			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-		</div>
-		<form id="edit_status">
-		<div class="modal-body">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_change_status.change_status') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="edit_status">
+			<div class="modal-body">
 			<input type="hidden" name="txtGameId" class="txtGameId" >
 			<input type="hidden" name="txtAccountCode" class="txtAccountCode" >
 			<input type="hidden" name="txtCapital" class="txtCapital">
@@ -21,11 +21,29 @@
 						<option value="2"><%= __('modal_change_status.on_game_option') %></option>
 						<!-- <option value="3">FINISH</option> -->
 						<option value="1"><%= __('modal_change_status.end_game_option') %></option>
+						<option value="4">CUT OFF</option>
 					</select>
 				</div>
 			</div>
+
+			<div id="cutoff-parent-date-section" class="row mb-2" style="display: none;">
+				<div class="col-sm-12">
+					<label class="form-label mb-1" for="txtCutoffParentSettlementDate"><strong>Date</strong></label>
+					<input type="text" class="form-control" name="txtCutoffParentSettlementDate" id="txtCutoffParentSettlementDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+					
+				</div>
+			</div>
+
+			<div id="cutoff-roller-auto-section" style="display: none; margin-top: 15px;" class="alert alert-info mb-0" role="alert">
+				<small>
+					<strong>Cut Off:</strong> Remaining roller chips will be returned on this game and automatically added to the new cut off game.
+					<div class="mt-2">
+						<div>Remaining: <strong id="cutoff-auto-roller-total">0</strong></div>
+					</div>
+				</small>
+			</div>
 			
-			<!-- Roller Chips Return Section (Only shown if END GAME and has roller chips) -->
+			<!-- Roller Chips Return Section (END GAME only) -->
 			<div id="roller-chips-return-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
 				<div class="alert alert-info" role="alert" style="padding: 10px; margin-bottom: 15px;">
 				<small>
@@ -84,10 +102,10 @@
 				<%= __('modal_change_status.close') %>
 			</button>
 		</div>
+			</form>
 		</div>
 	</div>
-	</form>
-	</div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -116,3 +134,22 @@ document.addEventListener('DOMContentLoaded', function () {
 	nnInput.addEventListener('input', validateReturnNNInline);
 });
 </script>
+
+<style>
+body.swal2-shown .flatpickr-calendar.change-status-parent-date-calendar {
+	display: none !important;
+}
+body > .flatpickr-calendar.change-status-parent-date-calendar {
+	z-index: 2000 !important;
+}
+#modal-change_status .modal-body {
+	position: relative;
+}
+.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.selected,
+.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.startRange,
+.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.endRange {
+	background-color: #0d6efd !important;
+	border-color: #0d6efd !important;
+	color: #ffffff !important;
+}
+</style>

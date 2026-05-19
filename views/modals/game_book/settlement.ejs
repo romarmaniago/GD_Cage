@@ -140,9 +140,67 @@
 
     #modal-settlement .receipt-total span { font-size: 7mm; }
 
+    #modal-settlement .settlement-cutoff-tabs {
+        margin: 0;
+        padding: 0.75rem 1.5rem;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f4f7fb;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-item {
+        margin: 0;
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-link {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        padding: 0.5rem 1.15rem;
+        color: #5a6a7d;
+        border: 1px solid #cfd8e3;
+        border-radius: 0.4rem;
+        background: #fff;
+        line-height: 1.3;
+        cursor: pointer;
+        transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-link:hover:not(.active) {
+        color: #0665d0;
+        border-color: #9ec5f0;
+        background: #eef5fd;
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-link.active {
+        color: #fff;
+        border-color: #0665d0;
+        background: #0665d0;
+        box-shadow: 0 2px 8px rgba(6, 101, 208, 0.3);
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-link:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(6, 101, 208, 0.22);
+    }
+
+    #modal-settlement .settlement-cutoff-tabs .nav-link.active:focus {
+        box-shadow: 0 2px 8px rgba(6, 101, 208, 0.3), 0 0 0 3px rgba(6, 101, 208, 0.18);
+    }
+
+    #modal-settlement #settlement-cutoff-notice {
+        margin: 0 1.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
     @media print {
         #modal-settlement #add_settlement,
         #modal-settlement .modal-header,
+        #modal-settlement .settlement-cutoff-tabs,
         #modal-settlement .header-with-logo,
         #modal-settlement .settled-image,
         #modal-settlement .modal-footer {
@@ -175,6 +233,19 @@
                     <!-- <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button> -->
                 </div>
 
+                <ul class="nav nav-tabs settlement-cutoff-tabs" id="settlement-cutoff-tabs" role="tablist" style="display: none;">
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link" id="settlement-tab-original" data-settlement-view="original" role="tab">Original</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link active" id="settlement-tab-total" data-settlement-view="total" role="tab">Total</button>
+                    </li>
+                </ul>
+
+                <div id="settlement-cutoff-notice" class="alert alert-warning py-2 mb-0" style="display: none;" role="alert">
+                    <small id="settlement-cutoff-notice-text"></small>
+                </div>
+
                 <div class="block-content text-center d-flex align-items-center header-with-logo">
                     <img src="/assets/images/demoLogo.png" alt="Demo CAGE-X Logo" class="img-fluid header-logo me-3" style="margin-left: 2rem;">
                     <h2 class="text-muted mb-0 settlement-title"><%= __('modal_settlement.settlement_spacing') %></h2>
@@ -190,6 +261,7 @@
     <div class="block-content">
          <input type="hidden" name="txtSettlementBalance" id="SettlementBalance" class="">
         <input type="hidden" name="game_id_settle" class="">
+        <input type="hidden" name="txtCutoffLinkedGameIds" id="txtCutoffLinkedGameIds" value="">
         <input type="hidden" name="txtAccountIDSettle" class="">
 
         <!-- ACC No. and Game No. -->
@@ -578,6 +650,12 @@
     /** Edit mode: Settlement = Rolling × (Rate ÷ 100), pareho ng commission % sa game list */
     function updateSettlementFromRollingAndRate($modal) {
         if (!Number($modal.data('edit-mode'))) {
+            return;
+        }
+        var linkedIds = $modal.data('cutoffSettlementGameIds');
+        var viewMode = $modal.data('settlementViewMode') || 'total';
+        if ((Array.isArray(linkedIds) && linkedIds.length > 1) || viewMode === 'total') {
+            syncServiceTotalAndPayment($modal);
             return;
         }
         var rolling = parseAmount($modal.find('#rolling').val());

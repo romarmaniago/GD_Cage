@@ -186,10 +186,16 @@
 							: '';
 						window.selectedSettlementDate = initialPickerDate || todayStr || '';
 						var settledDates = [];
+						var draftDates = [];
 						try {
 							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
 							settledDates = (raw ? JSON.parse(raw) : []).map(function (d) { return String(d).slice(0, 10); });
 							window.settledDatesForMonth = settledDates;
+						} catch (e) {}
+						try {
+							var draftRaw = wrapper ? wrapper.getAttribute('data-draft-dates') : '';
+							draftDates = (draftRaw ? JSON.parse(draftRaw) : []).map(function (d) { return String(d).slice(0, 10); });
+							window.draftDatesForMonth = draftDates;
 						} catch (e) {}
 					});
 				</script>
@@ -1326,6 +1332,7 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 
 					<%- include ('../modals/game_book/new_game_list') %>
+						<%- include ('../modals/game_book/new_game_cutoff') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
 						<%- include ('../modals/game_book/change_status') %>
 							<%- include ('../modals/game_book/add_buyin') %>
