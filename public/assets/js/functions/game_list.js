@@ -407,6 +407,19 @@ function buildCutoffGameIdCell(row) {
 	return String(gameId);
 }
 
+/** Plain text game # for tooltips / delete confirm (matches GAME # column without HTML). */
+function buildCutoffGameIdPlainLabel(row) {
+	if (!row) return '';
+	var gameId = row.game_list_id;
+	var parentId = row.CUTOFF_PARENT_GAME_ID || row.cutoff_parent_game_id;
+	var continuedId = row.CUTOFF_CONTINUED_GAME_ID || row.cutoff_continued_game_id;
+	var linkedId = parentId || continuedId;
+	if (linkedId) {
+		return String(gameId) + ' (' + linkedId + ')';
+	}
+	return String(gameId);
+}
+
 function loadCutoffAccountBalance(accountId) {
 	if (!accountId) return;
 	$.ajax({
@@ -720,7 +733,7 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 	}
 	var badgePart;
 	if (canEditType) {
-		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
+		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
 	} else {
 		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
 	}
@@ -733,13 +746,14 @@ function getCommissionRateRules(typeVal) {
 	return { min: 0, max: 100, step: 0.05 };
 }
 
-function editGameCommissionType(gameId, currentType, currentPct, settledFlag) {
+function editGameCommissionType(gameId, currentType, currentPct, settledFlag, agentCode) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = (userPermissions === 0);
 	if (!canEdit) {
 		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot edit this commission type.' });
 		return;
 	}
+	$('#edit-commission-agent-code').text(agentCode || '');
 	var $modal = $('#modal-edit-commission-type');
 	var currentTypeNum = parseInt(currentType, 10);
 	var targetType = currentTypeNum === 1 ? 2 : 1; // Toggle only: Rolling <-> Shared
@@ -1815,7 +1829,7 @@ $(document).ready(function () {
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
                         <i class="fa fa-file-alt"></i>
                         </button>
-                        <button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
                         <i class="fa fa-exchange-alt"></i>
                         </button>
@@ -1833,7 +1847,7 @@ $(document).ready(function () {
                         </button>
                     </div>`;
                     var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
                             data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
                             style="font-size:8px !important; margin-right: 5px;">
                             <i class="fa fa-concierge-bell"></i>
@@ -2027,7 +2041,7 @@ $(document).ready(function () {
 											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
 											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
+										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
 											data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
 									}
 								} else {
@@ -2047,10 +2061,10 @@ $(document).ready(function () {
 									}
 								}
 
-								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								
 									// Format net value as an integer
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -2080,7 +2094,7 @@ $(document).ready(function () {
                                 }
                                 actionButtons += btn_settle;
                                 if (userPermissions === 0) {
-                                    actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+                                    actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
                                 }
 
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
@@ -2153,7 +2167,7 @@ $(document).ready(function () {
 									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<button type="button" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="${settledTooltip}" style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${pendingText}</button>`;
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 									}
 								} else {
 									// PENDING STATUS NOT EDITABLE
@@ -2167,10 +2181,10 @@ $(document).ready(function () {
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
@@ -2210,7 +2224,7 @@ $(document).ready(function () {
 								
 								var actionButtons = btn_services + btn_settle;
 								if (userPermissions === 0) {
-									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
 								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 								var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
@@ -2268,7 +2282,7 @@ $(document).ready(function () {
 									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									} else {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss})">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									}
 
 								} else {
@@ -2286,10 +2300,10 @@ $(document).ready(function () {
 									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
@@ -2328,7 +2342,7 @@ $(document).ready(function () {
 						   );
 						   var actionButtons = btn_services + btn_settle;
 						   if (userPermissions === 0) {
-							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 						   var guestDisplay = row.GUEST_ID ? (row.guest_name || '-') : '-';
@@ -5288,8 +5302,9 @@ $('#edit_status').submit(function (event) {
 
 });
 
-function addBuyin(id, account) {
+function addBuyin(id, account, agentCode) {
 	$('#modal-add-buyin').modal('show');
+	$('#buyin-agent-code').text(agentCode || '');
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -5443,7 +5458,8 @@ function prepareRollingModal(gameId) {
 	$('.game_list_id').val(gameId || '');
 }
 
-function addRolling(id) {
+function addRolling(id, agentCode) {
+	$('#rolling-agent-code').text(agentCode || '');
 	prepareRollingModal(id);
 	$('#modal-add-rolling').modal('show');
 }
@@ -5508,7 +5524,8 @@ $('#modal-add-rolling').on('hidden.bs.modal', function () {
 	$('#submit-rolling-btn').prop('disabled', false).text('Save');
 });
 
-function addRollerChips(id, returnOnly) {
+function addRollerChips(id, returnOnly, agentCode) {
+	$('#roller-chips-agent-code').text(agentCode || '');
 	$('#modal-add-roller-chips').modal('show');
 
 	$('#modal-add-roller-chips .txtRollerNN').val('');
@@ -5612,7 +5629,8 @@ $('#modal-add-roller-chips').on('hidden.bs.modal', function () {
 	$('#rollerReturn').prop('checked', false);
 });
 
-function addCashout(id, account, total_rolling_chips) {
+function addCashout(id, account, total_rolling_chips, agentCode) {
+	$('#cashout-agent-code').text(agentCode || '');
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -5912,14 +5930,9 @@ function reloadDataRecord() {
         url: '/game_record_data/' + record_id, // Endpoint to fetch data
         method: 'GET',
         success: function (data) {
-            // Set game number and agent name in modal header
+            // Set agent code in modal header
             if (data.length > 0) {
-                if (data[0].game_list_id) {
-                    $('#game_number').text(data[0].game_list_id);
-                }
-                if (data[0].agent_name) {
-                    $('#agent_name').text(data[0].agent_name);
-                }
+                $('#show-agent-code').text(data[0].agent_code || '');
             }
             
             // Calculate totals using the SAME formula as game list (line 304)
@@ -6324,7 +6337,8 @@ function applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoff
 	}
 }
 
-function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, guestId, cutoffParentGameId, cutoffContinuedGameId) {
+function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, guestId, cutoffParentGameId, cutoffContinuedGameId, agentCode) {
+	$('#change-status-agent-code').text(agentCode || '');
 	$('#modal-change_status').modal('show');
 
 	// Store settlement preview data for validation
@@ -6468,19 +6482,18 @@ function loadServiceTotalForStatusModal(gameId) {
 	});
 }
 
-function openServices(id, guestName, gameStatus, settled, agentId) {
+function openServices(id, agentCode, gameStatus, settled, agentId) {
 	// Track settled state
 	_servicesSettled = parseInt(settled || 0, 10);
 
-	// Show Services modal and populate selected game id and guest name
-	const decodedGuest = decodeURIComponent(guestName || '');
+	const decodedAgentCode = decodeURIComponent(agentCode || '');
+	$('#services-agent-code').text(decodedAgentCode);
+	$('#services-edit-agent-code').text(decodedAgentCode);
 	$('#modal-services').modal('show');
-	const title = decodedGuest ? `Services - Game ${id} | ${decodedGuest}` : `Services - Game ${id}`;
-	$('#modal-services-label').text(title);
 	const $gameInput = $('#services-game-id-input');
 	if ($gameInput.length) $gameInput.val(id);
 	const $guestInput = $('#services-guest-name-input');
-	if ($guestInput.length) $guestInput.val(decodedGuest || '');
+	if ($guestInput.length) $guestInput.val(decodedAgentCode || '');
 	const $agentInput = $('#services-agent-id-input');
 	if ($agentInput.length) $agentInput.val(agentId != null ? agentId : '');
 
@@ -6999,10 +7012,11 @@ function archive_game_list(id) {
 }
 
 // Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement_games
-function delete_game_list(id) {
+function delete_game_list(id, gameNoLabel) {
+	var label = (gameNoLabel != null && String(gameNoLabel).trim() !== '') ? String(gameNoLabel).trim() : String(id);
 	Swal.fire({
-		title: 'Delete Game?',
-		html: 'This will delete the<strong> Game</strong>  and related records.',
+		title: 'Delete Game #' + label + '?',
+		html: 'This will delete <strong>Game #' + label + '</strong> and related records.',
 		icon: 'warning',
 		showCancelButton: true,
 		confirmButtonColor: '#d33',
@@ -7211,6 +7225,7 @@ function editService(id, service, amount, remarks, transaction) {
 		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
 	}
 
+	$('#services-edit-agent-code').text($('#services-agent-code').text() || '');
 	$('#modal-services-edit').modal('show');
 }
 
@@ -7303,7 +7318,7 @@ $(document).ready(function () {
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
 						<i class="fa fa-file-alt"></i>
 						</button>
-						<button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+						<button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
 						<i class="fa fa-exchange-alt"></i>
 						</button>
@@ -7321,7 +7336,7 @@ $(document).ready(function () {
                     </button>
                </div>`;
                     var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
                             data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
                             style="font-size:8px !important; margin-right: 5px;">
                             <i class="fa fa-concierge-bell"></i>
@@ -7464,19 +7479,19 @@ $(document).ready(function () {
 							var cashout_td = '';
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
+								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
 									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:10px !important;">${onGameText}</button>`;
 
-								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 								
 								buyin_td = formatBuyinPlainStats(total_amount);
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
@@ -8069,6 +8084,7 @@ function settlement_history(record_id, acc_id) {
     $settlementModal.find('#settlement-cutoff-tabs .nav-link').removeClass('active');
     $settlementModal.find('#settlement-tab-total').addClass('active');
     $settlementModal.find('#settlement-telegram-opts').hide();
+    $('#settlement-agent-code').text('');
     $settlementModal.modal('show');
     // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
     $settlementModal.find('.deposit-cashout-row').show();
@@ -8285,6 +8301,7 @@ function settlement_history(record_id, acc_id) {
                 var account_id = primaryData[0].ACCOUNT_ID;
 
                 $('#accNo').text(accNo || 'N/A');
+                $('#settlement-agent-code').text(primaryData[0].agent_code || '');
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
 
