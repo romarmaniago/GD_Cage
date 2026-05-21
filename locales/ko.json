@@ -902,6 +902,7 @@
 		"yes_delete": "dashboard_marker.yes_delete",
 		"action": "Action",
 		"tab_all": "전체",
+		"tab_total_credit": "총 크레딧",
 		"tab_credit": "준켓 크레딧",
 		"tab_buyin": "게임 크레딧",
 		"show_balance_section": "크레딧 잔액 표시",

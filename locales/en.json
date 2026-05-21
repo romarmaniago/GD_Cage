@@ -893,6 +893,7 @@
 		"remarks_updated": "Remarks updated.",
 		"error_update_remarks": "Could not update remarks.",
 		"tab_all": "All",
+		"tab_total_credit": "Total Credit",
 		"tab_credit": "Junket Credit",
 		"tab_buyin": "Game Credit",
 		"show_balance_section": "Show balance of accounts with credit",

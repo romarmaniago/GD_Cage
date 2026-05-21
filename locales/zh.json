@@ -902,6 +902,7 @@
 		"yes_delete": "dashboard_marker.yes_delete",
 		"action": "Action",
 		"tab_all": "全部",
+		"tab_total_credit": "总信用",
 		"tab_credit": "局信用",
 		"tab_buyin": "游戏信用",
 		"show_balance_section": "显示信用账户余额",

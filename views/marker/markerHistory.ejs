@@ -112,10 +112,10 @@
 
 					<hr class="my-3" />
 
-					<!-- 3 Tabs: Marker History, Junket Credit, Game Credit -->
+					<!-- 4 Tabs: Total Credit (default), Junket Credit, Game Credit, History -->
 					<ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
 						<li class="nav-item" role="presentation">
-							<button class="nav-link active" id="tab-marker-history" data-tab="marker-history" type="button" role="tab"><%= __('dashboard_marker.marker_history') %></button>
+							<button class="nav-link active" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
 						</li>
 						<li class="nav-item" role="presentation">
 							<button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
@@ -123,9 +123,29 @@
 						<li class="nav-item" role="presentation">
 							<button class="nav-link" id="tab-buyin-balance" data-tab="buyin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin') %></button>
 						</li>
+						<li class="nav-item" role="presentation">
+							<button class="nav-link" id="tab-marker-history" data-tab="marker-history" type="button" role="tab"><%= __('dashboard_marker.marker_history') %></button>
+						</li>
 					</ul>
 
-					<div id="marker-history-wrapper" class="marker-tab-panel mb-3" data-panel="marker-history">
+					<div id="marker-accounts-total-wrapper" class="marker-tab-panel mb-3" data-panel="total">
+						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+							<table id="marker-accounts-total-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+								<thead>
+									<tr>
+										<th class="marker-total-col-account"><%= __('dashboard_marker.account_name') %></th>
+										<th class="text-end marker-balance-col-amount marker-total-col-junket"><%= __('dashboard_marker.tab_credit') %></th>
+										<th class="text-end marker-balance-col-amount marker-total-col-game"><%= __('dashboard_marker.tab_buyin') %></th>
+										<th class="text-end marker-balance-col-amount marker-total-col-sum"><%= __('dashboard_marker.total') %></th>
+									</tr>
+								</thead>
+								<tbody></tbody>
+								<tfoot><tr><th></th><th class="text-end marker-balance-col-amount marker-total-col-junket"></th><th class="text-end marker-balance-col-amount marker-total-col-game"></th><th class="text-end marker-balance-col-amount marker-total-col-sum"></th></tr></tfoot>
+							</table>
+						</div>
+					</div>
+
+					<div id="marker-history-wrapper" class="marker-tab-panel mb-3" data-panel="marker-history" style="display: none;">
 						<div class="d-flex justify-content-between align-items-center mb-2">
 							<span class="text-muted small"><%= __('dashboard_marker.marker_history') %></span>
 							<button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
@@ -154,11 +174,11 @@
 								<thead>
 									<tr>
 										<th><%= __('dashboard_marker.account_name') %></th>
-										<th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+										<th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
-								<tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
+								<tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
 							</table>
 						</div>
 					</div>
@@ -173,11 +193,11 @@
 								<thead>
 									<tr>
 										<th><%= __('dashboard_marker.account_name') %></th>
-										<th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+										<th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
-								<tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
+								<tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
 							</table>
 						</div>
 					</div>
@@ -358,6 +378,87 @@ $(document).ready(function() {
 }
 #marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
 #marker-history-tbl .marker-history-remarks-actions .btn { padding: 0.2rem 0.45rem; }
+
+/* Junket / Game Credit — right-align balance */
+#marker-accounts-credit-wrapper .marker-balance-table thead th.marker-balance-col-amount,
+#marker-accounts-credit-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
+#marker-accounts-credit-wrapper .marker-balance-table tfoot th.marker-balance-col-amount,
+#marker-accounts-buyin-wrapper .marker-balance-table thead th.marker-balance-col-amount,
+#marker-accounts-buyin-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
+#marker-accounts-buyin-wrapper .marker-balance-table tfoot th.marker-balance-col-amount {
+	text-align: right !important;
+	padding-right: 1.5rem !important;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Total Credit tab */
+#marker-accounts-total-wrapper .marker-balance-dt-wrap,
+#marker-accounts-total-wrapper .marker-balance-card {
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+#marker-accounts-total-tbl.dataTable.marker-total-table,
+#marker-accounts-total-tbl.marker-total-table {
+	width: 100% !important;
+	table-layout: fixed;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-account,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-account,
+#marker-accounts-total-wrapper .marker-total-table tfoot th:first-child {
+	width: 34%;
+	max-width: 12.5rem;
+	min-width: 8rem;
+	text-align: left;
+	white-space: normal;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-junket,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-junket,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-junket {
+	width: 18%;
+	max-width: 7rem;
+	min-width: 5.5rem;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game {
+	width: 18%;
+	max-width: 7rem;
+	min-width: 5.5rem;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
+	width: 30%;
+	max-width: 9rem;
+	min-width: 6rem;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-balance-col-amount,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-balance-col-amount,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-balance-col-amount {
+	padding-left: 0.4rem;
+	font-variant-numeric: tabular-nums;
+	text-align: right !important;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-junket,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-junket,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-junket,
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game,
+#marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
+#marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
+	padding-right: 1.5rem !important;
+}
+#marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td {
+	background-color: #fafbfd;
+}
+#marker-accounts-total-wrapper .marker-total-table tbody tr:hover td {
+	background-color: #f0f6ff !important;
+}
 </style>
 
 
