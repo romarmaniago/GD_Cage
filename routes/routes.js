@@ -4109,13 +4109,31 @@ pageRouter.post('/add_game_list', (req, res) => {
 	} = req.body;
 	const rawGameDate = txtGameEncodedDate == null ? '' : String(txtGameEncodedDate).trim();
 	let date_now = new Date();
-	if (/^\d{4}-\d{2}-\d{2}$/.test(rawGameDate)) {
-		const parts = rawGameDate.split('-').map((n) => parseInt(n, 10));
+	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawGameDate);
+	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawGameDate);
+	if (dateOnly || dateTime) {
+		const parts = rawGameDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
 		const y = parts[0];
 		const mo = parts[1];
 		const d = parts[2];
-		const now = new Date();
-		const dt = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+		let hours = 0;
+		let minutes = 0;
+		let seconds = 0;
+		let ms = 0;
+		if (dateTime) {
+			const tp = rawGameDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
+			if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
+				hours = tp[0];
+				minutes = tp[1];
+			}
+		} else {
+			const now = new Date();
+			hours = now.getHours();
+			minutes = now.getMinutes();
+			seconds = now.getSeconds();
+			ms = now.getMilliseconds();
+		}
+		const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
 		if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
 			date_now = dt;
 		}

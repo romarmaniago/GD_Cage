@@ -531,7 +531,7 @@ function openNewGameAfterCutoff(previousGameId, transferRollerNN, transferRoller
 	});
 }
 
-/** Flatpickr on New Game modal: default today, editable (maps to game_list.ENCODED_DT date part). */
+/** Flatpickr on New Game modal: default now, editable (maps to game_list.ENCODED_DT). */
 function ensureNewGameEncodedDatePicker() {
 	var el = document.getElementById('txtGameEncodedDate');
 	if (!el || typeof flatpickr === 'undefined') return;
@@ -539,9 +539,10 @@ function ensureNewGameEncodedDatePicker() {
 		el._flatpickr.setDate(new Date(), false);
 	} else {
 		flatpickr(el, {
-			dateFormat: 'Y-m-d',
+			enableTime: true,
+			dateFormat: 'Y-m-d H:i',
 			altInput: true,
-			altFormat: 'F j, Y',
+			altFormat: 'M j, Y H:i',
 			defaultDate: new Date(),
 			allowInput: true,
 			disableMobile: true,
@@ -3361,10 +3362,10 @@ $('#add_game_list').submit(function (event) {
     var $btn = $('#submit-game-list-btn'); // Reference to the submit button
     var gameDateEl = document.getElementById('txtGameEncodedDate');
     var gameDateVal = ($('#txtGameEncodedDate').val() || '').trim();
-    if (gameDateVal && !/^\d{4}-\d{2}-\d{2}$/.test(gameDateVal)) {
+    if (gameDateVal && !/^\d{4}-\d{2}-\d{2}(\s+\d{1,2}:\d{2})?$/.test(gameDateVal)) {
         Swal.fire({
-            title: 'Invalid date',
-            text: 'Please use YYYY-MM-DD or choose from the calendar.',
+            title: 'Invalid date/time',
+            text: 'Please use YYYY-MM-DD HH:mm or choose from the calendar.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
@@ -3373,7 +3374,7 @@ $('#add_game_list').submit(function (event) {
     if (!gameDateVal) {
         var today = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
-        gameDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+        gameDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + ' ' + pad(today.getHours()) + ':' + pad(today.getMinutes());
         $('#txtGameEncodedDate').val(gameDateVal);
         if (gameDateEl && gameDateEl._flatpickr) {
             gameDateEl._flatpickr.setDate(gameDateVal, false);

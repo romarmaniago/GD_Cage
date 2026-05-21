@@ -350,17 +350,36 @@ async function resolveTelegramGameIdForGuest(db, gameId) {
 	return ctx.telegramGameNo;
 }
 
-/** Client sends YYYY-MM-DD (New Game modal); combine with server clock for ENCODED_DT / TRADING_DATE. */
-function parseGameListEncodedDateTime(ymdRaw) {
-	const s = ymdRaw == null ? '' : String(ymdRaw).trim();
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date();
-	const parts = s.split('-').map((n) => parseInt(n, 10));
+/** Client sends YYYY-MM-DD HH:mm (New Game modal) or date-only; used for ENCODED_DT / TRADING_DATE. */
+function parseGameListEncodedDateTime(raw) {
+	const s = raw == null ? '' : String(raw).trim();
+	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
+	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(s);
+	if (!dateOnly && !dateTime) return new Date();
+	const parts = s.slice(0, 10).split('-').map((n) => parseInt(n, 10));
 	const y = parts[0];
 	const mo = parts[1];
 	const d = parts[2];
 	if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return new Date();
-	const now = new Date();
-	const dt = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+	let hours = 0;
+	let minutes = 0;
+	let seconds = 0;
+	let ms = 0;
+	if (dateTime) {
+		const timePart = s.slice(11).trim();
+		const tp = timePart.split(':').map((n) => parseInt(n, 10));
+		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
+			hours = tp[0];
+			minutes = tp[1];
+		}
+	} else {
+		const now = new Date();
+		hours = now.getHours();
+		minutes = now.getMinutes();
+		seconds = now.getSeconds();
+		ms = now.getMilliseconds();
+	}
+	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
 	if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return new Date();
 	return dt;
 }
