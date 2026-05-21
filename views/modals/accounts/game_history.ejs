@@ -1,424 +1,937 @@
 <!-- Game History Modal -->
+
 <div class="modal fade" id="modal-game-history" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+
   <div class="modal-dialog modal-xl modal-dialog-centered">
+
     <div class="modal-content">
+
       <div class="modal-header bg-primary">
+
         <h5 class="modal-title text-white">
+
           <i class="fa fa-gamepad me-2"></i>Game History
+
         </h5>
+
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
       </div>
+
       <div class="modal-body">
+
         <div class="table-responsive">
+
           <table class="table nowrap small-text" style="width:100%" id="game-history-tbl">
+
             <thead class="table-light">
+
               <tr>
-                <th class="text-center" style="width: 150px;">GAME START</th>
-                <th class="text-center" style="width: 100px;">TYPE</th>
-                <th class="text-center" style="width: 80px;">GAME #</th>
-                <th class="text-center" style="width: 120px;">GUEST</th>
-                <th class="text-center col-buyin" style="width: 100px;">BUY-IN</th>
-                <th class="text-center" style="width: 100px;">CASH-OUT</th>
-                <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
-                <th class="text-center" style="width: 100px;">ROLLING</th>
-                <th class="text-center col-total-rolling" style="width: 120px;">TOTAL ROLLING</th>
-                <th class="text-center" style="width: 120px;">GAME RATE</th>
-                <th class="text-center" style="width: 100px;">COMMISSION</th>
-                <th class="text-center" style="width: 100px;">ADD CHG</th>
-                <th class="text-center" style="width: 110px;">TOTAL SETTLE</th>
-                <th class="text-center" style="width: 150px;">GAME END</th>
-                <th class="text-center" style="width: 100px;">ROLLER CHIPS</th>
+
+                <th class="text-center">GAME START</th>
+
+                <th class="text-center">TYPE</th>
+
+                <th class="text-center">GAME #</th>
+
+                <th class="text-center col-guest">GUEST</th>
+
+                <th class="text-center col-buyin">BUY-IN</th>
+
+                <th class="text-center col-cashout">CASH-OUT</th>
+
+                <th class="text-center col-winloss">WIN/LOSS</th>
+
+                <th class="text-center col-total-rolling">ROLLING</th>
+
+                <th class="text-center col-game-rate">GAME RATE</th>
+
+                <th class="text-center col-commission">COMMISSION</th>
+
+                <th class="text-center col-add-chg">ADD CHG</th>
+
+                <th class="text-center col-total-settle">TOTAL SETTLE</th>
+
+                <th class="text-center col-game-end">GAME END</th>
+
+                <th class="text-center col-roller-chips">ROLLER CHIPS</th>
+
               </tr>
+
             </thead>
+
             <tbody>
+
             </tbody>
+
             <tfoot class="game-history-tfoot-total">
+
               <tr id="game-history-totals-row">
+
                 <td class="text-center" colspan="4">TOTAL</td>
-                <td class="text-center" id="gh-total-buyin">0</td>
-                <td class="text-center" id="gh-total-cashout">0</td>
-                <td class="text-center" id="gh-total-winloss">0</td>
-                <td class="text-center" id="gh-total-rolling">0</td>
-                <td class="text-center" id="gh-total-total-rolling">0</td>
-                <td class="text-center">—</td>
-                <td class="text-center" id="gh-total-commission">0</td>
-                <td class="text-center" id="gh-total-addchg">0</td>
-                <td class="text-center" id="gh-total-totalsettle">0</td>
-                <td class="text-center">—</td>
-                <td class="text-center" id="gh-total-rollerchips">0</td>
+
+                <td class="col-buyin" id="gh-total-buyin">0</td>
+
+                <td class="col-cashout" id="gh-total-cashout">0</td>
+
+                <td class="col-winloss" id="gh-total-winloss">0</td>
+
+                <td class="col-total-rolling" id="gh-total-total-rolling">0</td>
+
+                <td class="col-game-rate text-center">—</td>
+
+                <td class="col-commission" id="gh-total-commission">0</td>
+
+                <td class="col-add-chg" id="gh-total-addchg">0</td>
+
+                <td class="col-total-settle" id="gh-total-totalsettle">0</td>
+
+                <td class="col-game-end text-center">—</td>
+
+                <td class="col-roller-chips" id="gh-total-rollerchips">0</td>
+
               </tr>
+
             </tfoot>
+
           </table>
+
         </div>
+
       </div>
-      <!-- <div class="modal-footer">
-        <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">Close</button>
-      </div> -->
+
     </div>
+
   </div>
+
 </div>
 
+
+
 <style>
-/* Game History Modal - Larger Size */
+
 #modal-game-history .modal-dialog.modal-xl {
-    max-width: 1850px;
-    width: 1850px;
+
+    max-width: 1720px;
+
+    width: 1720px;
+
 }
+
+
 
 @media (max-width: 1600px) {
+
     #modal-game-history .modal-dialog.modal-xl {
+
         max-width: 100%;
+
         width: 100%;
+
     }
+
 }
+
+
 
 #modal-game-history .modal-content {
+
     height: auto;
+
     max-height: 800px;
+
     display: flex;
+
     flex-direction: column;
+
 }
+
+
 
 #modal-game-history .modal-body {
+
     flex: 1 1 auto;
+
     overflow-y: auto;
+
     max-height: 680px;
+
     padding: 1rem;
+
 }
+
+
 
 #modal-game-history .table-responsive {
+
     max-height: 600px;
+
     overflow-y: auto;
+
 }
 
-/* Commission badge styles */
+
+
 .commission-badge {
+
     display: inline-block;
+
     padding: 3px 6px;
+
     margin-left: 4px;
+
     font-size: 0.65rem;
+
     font-weight: 600;
+
     border-radius: 8px;
+
     vertical-align: middle;
+
 }
+
+
 
 .commission-badge-r {
+
     background-color: #e3f2fd;
+
     color: #1565c0;
+
     border: 1px solid #90caf9;
+
 }
+
+
 
 .commission-badge-s {
+
     background-color: #fff3e0;
+
     color: #ef6c00;
+
     border: 1px solid #ffcc80;
+
 }
+
+
 
 .commission-badge-l {
+
     background-color: #e8f5e9;
+
     color: #2e7d32;
+
     border: 1px solid #a5d6a7;
+
 }
 
-/* Column background colors */
-td.col-buyin,
-th.col-buyin {
+
+
+#game-history-tbl td.col-buyin,
+
+#game-history-tbl th.col-buyin {
+
     background-color: #e4f0fb !important;
+
     color: #1565c0 !important;
+
     font-weight: 600;
+
+    text-align: right !important;
+
+    padding-right: 12px;
+
 }
 
-td.col-total-rolling,
-th.col-total-rolling {
+
+
+#game-history-tbl td.col-total-rolling,
+
+#game-history-tbl th.col-total-rolling {
+
     background-color: #e8f5e9 !important;
+
     color: #2e7d32 !important;
+
     font-weight: 600;
+
+    text-align: right !important;
+
+    padding-right: 12px;
+
 }
 
-td.col-winloss,
-th.col-winloss {
+
+
+#game-history-tbl td.col-winloss,
+
+#game-history-tbl th.col-winloss {
+
     background-color: #fff0e1 !important;
+
     color: #ef6c00 !important;
+
     font-weight: 600;
+
+    text-align: right !important;
+
+    padding-right: 12px;
+
 }
 
-/* TOTAL row - gray for all cells */
+
+
+#game-history-tbl th.col-guest,
+
+#game-history-tbl td.col-guest {
+
+    width: 120px !important;
+
+    min-width: 120px !important;
+
+    max-width: 120px !important;
+
+    box-sizing: border-box;
+
+    text-align: center !important;
+
+}
+
+
+
+#game-history-tbl th.col-buyin,
+
+#game-history-tbl td.col-buyin,
+
+#game-history-tbl th.col-cashout,
+
+#game-history-tbl td.col-cashout,
+
+#game-history-tbl th.col-winloss,
+
+#game-history-tbl td.col-winloss,
+
+#game-history-tbl th.col-total-rolling,
+
+#game-history-tbl td.col-total-rolling {
+
+    width: 130px !important;
+
+    min-width: 130px !important;
+
+    max-width: 130px !important;
+
+    box-sizing: border-box;
+
+}
+
+
+
+#game-history-tbl th.col-cashout,
+
+#game-history-tbl td.col-cashout,
+
+#game-history-tbl th.col-commission,
+
+#game-history-tbl td.col-commission,
+
+#game-history-tbl th.col-add-chg,
+
+#game-history-tbl td.col-add-chg,
+
+#game-history-tbl th.col-total-settle,
+
+#game-history-tbl td.col-total-settle {
+
+    text-align: right !important;
+
+    padding-right: 12px;
+
+}
+
+
+
+#game-history-tbl th.col-roller-chips,
+
+#game-history-tbl td.col-roller-chips {
+
+    text-align: right !important;
+
+    padding-right: 12px;
+
+}
+
+
+
+#game-history-tbl th.col-game-end,
+
+#game-history-tbl td.col-game-end {
+
+    text-align: center !important;
+
+}
+
+
+
+#game-history-tbl th.col-game-rate,
+
+#game-history-tbl td.col-game-rate {
+
+    white-space: nowrap;
+
+    text-align: center !important;
+
+}
+
+
+
 #modal-game-history .game-history-tfoot-total,
+
 #modal-game-history .game-history-tfoot-total td {
+
     background-color: #e9ecef !important;
+
     color: #6c757d !important;
+
     font-weight: 700 !important;
+
 }
 
-/* TOTAL row - WIN/LOSS red when negative */
+
+
 #modal-game-history .game-history-tfoot-total td.gh-total-winloss-negative {
+
     color: #dc3545 !important;
+
 }
+
 </style>
 
+
+
 <script>
+
 (function() {
+
     let gameHistoryModal = null;
+
     let gameHistoryDataTable = null;
 
+
+
     const formatDate = (val) => {
+
         if (!val) return '';
+
         if (typeof moment !== 'undefined') {
+
             const m = moment.utc(val).utcOffset(8);
+
             if (m.isValid()) return m.format('MMMM DD, HH:mm');
+
         }
+
         const d = new Date(val);
+
         return isNaN(d.getTime())
+
             ? ''
+
             : d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
     };
+
+
 
     const formatAmount = (val) => {
+
         const num = Number(val || 0);
+
         return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
     };
+
+
 
     function updateGameHistoryTotals(rows) {
+
+        const totalIds = [
+
+            'gh-total-buyin',
+
+            'gh-total-cashout',
+
+            'gh-total-winloss',
+
+            'gh-total-total-rolling',
+
+            'gh-total-commission',
+
+            'gh-total-addchg',
+
+            'gh-total-totalsettle',
+
+            'gh-total-rollerchips'
+
+        ];
+
         if (!rows || !rows.length) {
-            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-winloss', 'gh-total-rolling', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-addchg', 'gh-total-totalsettle', 'gh-total-rollerchips'].forEach(id => {
+
+            totalIds.forEach(id => {
+
                 const el = document.getElementById(id);
+
                 if (el) el.textContent = '0';
+
             });
+
             const winlossEl = document.getElementById('gh-total-winloss');
+
             if (winlossEl) winlossEl.classList.remove('gh-total-winloss-negative');
+
             return;
+
         }
-        let buyIn = 0, cashOut = 0, rolling = 0, totalRolling = 0, commission = 0, addChg = 0, totalSettle = 0, rollerChips = 0, winLoss = 0;
+
+        let buyIn = 0, cashOut = 0, totalRolling = 0, commission = 0, addChg = 0, totalSettle = 0, rollerChips = 0, winLoss = 0;
+
         rows.forEach(r => {
+
             buyIn += Number(r.BUY_IN) || 0;
+
             cashOut += Number(r.CASH_OUT) || 0;
-            rolling += Number(r.ROLLING) || 0;
+
             totalRolling += Number(r.TOTAL_ROLLING) || 0;
+
             commission += Number(r.COMMISSION) || 0;
+
             addChg += Number(r.ADD_CHG) || 0;
+
             totalSettle += Number(r.TOTAL_SETTLE) || 0;
+
             rollerChips += Number(r.ROLLER_CHIPS) || 0;
+
             winLoss += Number(r.WIN_LOSS) || 0;
+
         });
+
         const set = (id, val) => {
+
             const el = document.getElementById(id);
+
             if (el) el.textContent = formatAmount(val);
+
         };
+
         set('gh-total-buyin', buyIn);
+
         set('gh-total-cashout', cashOut);
-        set('gh-total-rolling', rolling);
+
         set('gh-total-total-rolling', totalRolling);
+
         set('gh-total-commission', commission);
+
         set('gh-total-addchg', addChg);
+
         set('gh-total-totalsettle', totalSettle);
+
         set('gh-total-rollerchips', rollerChips);
+
         set('gh-total-winloss', winLoss);
+
         const winlossEl = document.getElementById('gh-total-winloss');
+
         if (winlossEl) {
+
             if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative');
+
             else winlossEl.classList.remove('gh-total-winloss-negative');
+
         }
+
     }
+
+
 
     async function loadGameHistoryRows(accountId, guestId) {
+
         try {
+
             const url = guestId
+
                 ? `/account_game_history/${accountId}?guestId=${encodeURIComponent(guestId)}`
+
                 : `/account_game_history/${accountId}`;
+
             const res = await fetch(url);
+
             const rows = await res.json();
+
             const dataRows = rows || [];
 
+
+
             if (gameHistoryDataTable) {
+
                 gameHistoryDataTable.clear().rows.add(dataRows).draw();
+
                 updateGameHistoryTotals(dataRows);
+
                 return;
+
             }
+
+
 
             gameHistoryDataTable = $('#game-history-tbl').DataTable({
+
                 data: dataRows,
+
                 order: [[0, 'desc']],
+
                 pageLength: 10,
+
                 autoWidth: false,
+
                 columnDefs: [
-                    { width: "150px", targets: 0 },  // GAME START
-                    { width: "100px", targets: 1 },  // TYPE
-                    { width: "80px", targets: 2 },   // GAME #
-                    { width: "120px", targets: 3 },  // GUEST
-                    { width: "100px", targets: 4 },  // BUY-IN
-                    { width: "100px", targets: 5 },  // CASH-OUT
-                    { width: "100px", targets: 6 },  // WIN/LOSS
-                    { width: "100px", targets: 7 },  // ROLLING
-                    { width: "120px", targets: 8 },  // TOTAL ROLLING
-                    { width: "120px", targets: 9 },  // GAME RATE
-                    { width: "100px", targets: 10 }, // COMMISSION
-                    { width: "100px", targets: 11 }, // ADD CHG
-                    { width: "110px", targets: 12 }, // TOTAL SETTLE
-                    { width: "150px", targets: 13 }, // GAME END
-                    { width: "100px", targets: 14 }  // ROLLER CHIPS
+
+                    { width: '150px', targets: 0 },
+
+                    { width: '100px', targets: 1 },
+
+                    { width: '80px', targets: 2 },
+
+                    { className: 'col-guest', width: '120px', targets: 3 },
+
+                    { className: 'col-buyin', width: '130px', targets: 4 },
+
+                    { className: 'col-cashout', width: '130px', targets: 5 },
+
+                    { className: 'col-winloss', width: '130px', targets: 6 },
+
+                    { className: 'col-total-rolling', width: '130px', targets: 7 },
+
+                    { className: 'col-game-rate', width: '120px', targets: 8 },
+
+                    { className: 'col-commission', width: '100px', targets: 9 },
+
+                    { className: 'col-add-chg', width: '100px', targets: 10 },
+
+                    { className: 'col-total-settle', width: '110px', targets: 11 },
+
+                    { className: 'col-game-end', width: '150px', targets: 12 },
+
+                    { className: 'col-roller-chips', width: '100px', targets: 13 }
+
                 ],
+
                 language: {
-                    search: "Search:",
-                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+
+                    search: 'Search:',
+
+                    info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+
                     paginate: {
-                        previous: "Previous",
-                        next: "Next"
+
+                        previous: 'Previous',
+
+                        next: 'Next'
+
                     },
-                    emptyTable: "No game history available"
+
+                    emptyTable: 'No game history available'
+
                 },
+
                 columns: [
+
                     {
+
                         data: 'game_date_start',
+
                         className: 'text-center',
+
                         render: function (data, type) {
+
                             if (type === 'sort' || type === 'type') {
+
                                 const t = Date.parse(data);
+
                                 return isNaN(t) ? 0 : t;
+
                             }
+
                             return formatDate(data);
+
                         }
+
                     },
+
                     {
+
                         data: 'GAME_TYPE',
+
                         className: 'text-center',
+
                         render: function (data) { return data || '-'; }
+
                     },
+
                     {
+
                         data: 'game_list_id',
+
                         className: 'text-center',
+
                         render: function (data) { return data || ''; }
+
                     },
+
                     {
+
                         data: 'guest_name',
-                        className: 'text-center',
+
+                        className: 'col-guest',
+
                         render: function (data) { return data || '-'; }
+
                     },
+
                     {
+
                         data: 'BUY_IN',
-                        className: 'text-center col-buyin',
+
+                        className: 'col-buyin',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: 'CASH_OUT',
-                        className: 'text-center',
+
+                        className: 'col-cashout',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: 'WIN_LOSS',
-                        className: 'text-center col-winloss',
-                        render: function (data) {
-                            const amount = Number(data || 0);
-                            return formatAmount(amount);
-                        }
-                    },
-                    {
-                        data: 'ROLLING',
-                        className: 'text-center',
+
+                        className: 'col-winloss',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: 'TOTAL_ROLLING',
-                        className: 'text-center col-total-rolling',
+
+                        className: 'col-total-rolling',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: null,
-                        className: 'text-center',
+
+                        className: 'col-game-rate',
+
                         render: function (_data, _type, row) {
+
                             let badge = '';
+
                             if (row.COMMISSION_TYPE == 1) {
+
                                 badge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
+
                             } else if (row.COMMISSION_TYPE == 2) {
+
                                 badge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
+
                             } else if (row.COMMISSION_TYPE == 3) {
+
                                 badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+
                             }
+
                             return `${row.COMMISSION_PERCENTAGE || 0}% ${badge}`;
+
                         }
+
                     },
+
                     {
+
                         data: 'COMMISSION',
-                        className: 'text-center',
+
+                        className: 'col-commission',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: 'ADD_CHG',
-                        className: 'text-center',
+
+                        className: 'col-add-chg',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: 'TOTAL_SETTLE',
-                        className: 'text-center',
+
+                        className: 'col-total-settle',
+
                         render: function (data) { return formatAmount(data); }
+
                     },
+
                     {
+
                         data: null,
-                        className: 'text-center',
+
+                        className: 'col-game-end',
+
                         render: function (_data, _type, row) {
+
                             if (row.game_status == 2) {
+
                                 return '<span class="badge bg-primary-subtle text-primary" style="font-size:10px !important;">ON GAME</span>';
+
                             } else if (row.game_status == 3) {
+
                                 return '<span class="badge bg-warning-subtle text-warning" style="font-size:10px !important;">PENDING</span>';
+
                             } else if (row.GAME_ENDED) {
+
                                 if (typeof moment !== 'undefined') {
+
                                     return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, HH:mm');
+
                                 }
+
                                 const d = new Date(row.GAME_ENDED);
+
                                 return d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
                             }
+
                             return '-';
+
                         }
+
                     },
+
                     {
+
                         data: 'ROLLER_CHIPS',
-                        className: 'text-center',
+
+                        className: 'col-roller-chips',
+
                         render: function (data) { return formatAmount(data); }
+
                     }
+
                 ]
+
             });
+
             updateGameHistoryTotals(dataRows);
+
         } catch (err) {
+
             console.error('Error loading game history', err);
+
             if (gameHistoryDataTable) {
+
                 gameHistoryDataTable.clear().draw();
+
             }
+
         }
+
     }
+
+
 
     function getGameHistoryModal() {
+
         if (!gameHistoryModal) {
+
             const modalElement = document.getElementById('modal-game-history');
+
             if (modalElement && typeof bootstrap !== 'undefined') {
+
                 gameHistoryModal = new bootstrap.Modal(modalElement);
+
             } else {
+
                 console.error('Modal element #modal-game-history not found or Bootstrap not loaded');
+
                 return null;
+
             }
+
         }
+
         return gameHistoryModal;
+
     }
 
-    // Make function globally accessible
+
+
     window.game_history = async function(accountId, guestId) {
+
         if (!accountId) {
-            // Try to get account ID from the modal
-            accountId = document.getElementById('account_id')?.value || 
+
+            accountId = document.getElementById('account_id')?.value ||
+
                        document.getElementById('account_id_add')?.value;
-        }
-        
-        if (!accountId) {
-            alert('Account ID not found');
-            return;
+
         }
 
-        const modal = getGameHistoryModal();
-        if (modal) {
-            await loadGameHistoryRows(accountId, guestId);
-            modal.show();
-        } else {
-            console.error('Game history modal not initialized');
+
+
+        if (!accountId) {
+
+            alert('Account ID not found');
+
+            return;
+
         }
+
+
+
+        const modal = getGameHistoryModal();
+
+        if (modal) {
+
+            await loadGameHistoryRows(accountId, guestId);
+
+            modal.show();
+
+        } else {
+
+            console.error('Game history modal not initialized');
+
+        }
+
     };
+
 })();
+
 </script>
+
 

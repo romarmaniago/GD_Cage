@@ -99,26 +99,23 @@
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game#') %>
 												</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-center col-acct-no">
 												<%= __('gamelist.acct_no') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-center col-guest">
 												Guest
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-center col-buyin">
 												<%= __('gamelist.buyin') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-center col-cashout">
 												<%= __('gamelist.cash_out') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-winloss" >
 												<%= __('gamelist.win_loss') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
-												<%= __('gamelist.real_rolling') %>
-											</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
-												<%= __('gamelist.total_rolling') %>
+												<%= __('gamelist.real_rolling') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center col-game-rate">
 													<%= __('gamelist.game_rate') %>
@@ -132,13 +129,13 @@
 												<th class="d-none d-sm-table-cell text-center">
 													TOTAL SETTLE
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-game-end">
 													<%= __('gamelist.game_end') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-roller-chips">
 													<%= __('gamelist.roller_chips') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-action">
 													<%= __('gamelist.action') %>
 												</th>
 											</tr>
@@ -152,20 +149,19 @@
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_CHIPS_RETURN">
+											<th class="d-none d-sm-table-cell text-center col-cashout" id="GRAND_CHIPS_RETURN">
 												0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00
 											</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_REAL_ROLLING">0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
 												0.00</th>
 											<th class="col-game-rate"></th>
 											<th class="d-none d-sm-table-cell text-center col-commission" id="GRAND_COMMISSION">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_ADD_CHG">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_TOTAL_SETTLE">0.00</th>
-											<th></th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_ROLLER_CHIPS">0.00</th>
-											<th></th>
+											<th class="col-game-end"></th>
+											<th class="d-none d-sm-table-cell text-center col-roller-chips" id="GRAND_ROLLER_CHIPS">0.00</th>
+											<th class="col-action"></th>
 											</tr>
 										</tfoot>
 									</table>
@@ -551,6 +547,8 @@ th.col-buyin {
     background-color: #e4f0fb !important; /* Light blue */
     color: #1565c0 !important; /* Darker blue text */
     font-weight: 600;
+    text-align: right !important;
+    padding-right: 20px;
 }
 
 /* Header + Footer Colors - TOTAL ROLLING (Green) */
@@ -567,6 +565,32 @@ th.col-winloss {
     background-color: #fff0e1 !important; /* Light orange */
     color: #ef6c00 !important; /* Darker orange text */
     font-weight: 600;
+}
+
+/* ACCT No, Guest — equal column width */
+#game_list-tbl th.col-acct-no,
+#game_list-tbl td.col-acct-no,
+#game_list-tbl th.col-guest,
+#game_list-tbl td.col-guest {
+	width: 115px !important;
+	min-width: 115px !important;
+	max-width: 115px !important;
+	box-sizing: border-box;
+}
+
+/* BUY-IN, CASH-OUT, WIN/LOSS, TOTAL ROLLING — equal column width */
+#game_list-tbl th.col-buyin,
+#game_list-tbl td.col-buyin,
+#game_list-tbl th.col-cashout,
+#game_list-tbl td.col-cashout,
+#game_list-tbl th.col-winloss,
+#game_list-tbl td.col-winloss,
+#game_list-tbl th.col-total-rolling,
+#game_list-tbl td.col-total-rolling {
+	width: 120px !important;
+	min-width: 120px !important;
+	max-width: 120px !important;
+	box-sizing: border-box;
 }
 
 /* GAME RATE + COMMISSION: single line */
@@ -631,6 +655,7 @@ th.col-winloss {
 	padding-left: 20px;
 }
 
+/* Numeric columns (buy-in through total settle): right-aligned — 16-column layout */
 #game_list-tbl thead th:nth-child(6),
 #game_list-tbl thead th:nth-child(7),
 #game_list-tbl thead th:nth-child(8),
@@ -639,8 +664,6 @@ th.col-winloss {
 #game_list-tbl thead th:nth-child(11),
 #game_list-tbl thead th:nth-child(12),
 #game_list-tbl thead th:nth-child(13),
-#game_list-tbl thead th:nth-child(14),
-#game_list-tbl thead th:nth-child(16),
 #game_list-tbl tbody td:nth-child(6),
 #game_list-tbl tbody td:nth-child(7),
 #game_list-tbl tbody td:nth-child(8),
@@ -649,22 +672,39 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11),
 #game_list-tbl tbody td:nth-child(12),
 #game_list-tbl tbody td:nth-child(13),
-#game_list-tbl tbody td:nth-child(14),
-#game_list-tbl tbody td:nth-child(16),
-#game_list-tbl tfoot th:nth-child(6),
+#game_list-tbl thead th:nth-child(15),
+#game_list-tbl tbody td:nth-child(15),
+#game_list-tbl tfoot th:nth-child(2),
+#game_list-tbl tfoot th:nth-child(3),
+#game_list-tbl tfoot th:nth-child(4),
+#game_list-tbl tfoot th:nth-child(5),
 #game_list-tbl tfoot th:nth-child(7),
 #game_list-tbl tfoot th:nth-child(8),
 #game_list-tbl tfoot th:nth-child(9),
-#game_list-tbl tfoot th:nth-child(10),
-#game_list-tbl tfoot th:nth-child(12),
-#game_list-tbl tfoot th:nth-child(13),
-#game_list-tbl tfoot th:nth-child(14),
-#game_list-tbl tfoot th:nth-child(16) {
+#game_list-tbl tfoot th:nth-child(11) {
 	text-align: right !important;
 	padding-right: 20px;
 }
 
-#game_list-tbl tfoot th:not(:first-child) {
+#game_list-tbl thead th.col-roller-chips,
+#game_list-tbl tbody td.col-roller-chips,
+#game_list-tbl tfoot th.col-roller-chips {
+	text-align: right !important;
+	padding-right: 20px;
+}
+
+#game_list-tbl thead th.col-game-end,
+#game_list-tbl tbody td.col-game-end,
+#game_list-tbl thead th.col-action,
+#game_list-tbl tbody td.col-action,
+#game_list-tbl tfoot th.col-game-end,
+#game_list-tbl tfoot th.col-action {
+	text-align: center !important;
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
+#game_list-tbl tfoot th:not(:first-child):not(.col-game-end):not(.col-action) {
 	text-align: right !important;
 	padding-right: 20px;
 }
@@ -677,8 +717,6 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) .btn,
 #game_list-tbl tbody td:nth-child(12) .btn,
 #game_list-tbl tbody td:nth-child(13) .btn,
-#game_list-tbl tbody td:nth-child(14) .btn,
-#game_list-tbl tbody td:nth-child(16) .btn,
 #game_list-tbl tbody td:nth-child(6) a,
 #game_list-tbl tbody td:nth-child(7) a,
 #game_list-tbl tbody td:nth-child(8) a,
@@ -687,8 +725,8 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) a,
 #game_list-tbl tbody td:nth-child(12) a,
 #game_list-tbl tbody td:nth-child(13) a,
-#game_list-tbl tbody td:nth-child(14) a,
-#game_list-tbl tbody td:nth-child(16) a {
+#game_list-tbl tbody td:nth-child(15) .btn,
+#game_list-tbl tbody td:nth-child(15) a {
 	display: inline-block;
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -1099,7 +1137,6 @@ table.dataTable tbody tr.highlight-row {
 										{ "data": "buy_in" },
 										{ "data": "chips_return" },
 										{ "data": "win_loss" },
-										{ "data": "real_rolling" },
 										{ "data": "total_rolling" },
 										{ "data": "game_rate" },
 										{ "data": "commission" },
@@ -1203,7 +1240,6 @@ table.dataTable tbody tr.highlight-row {
 								var totalChipsReturn = 0;
 								var totalWinLoss = 0;
 								var totalRollerChips = 0;
-								var totalRealRolling = 0;
 								var totalCommission = 0;
 								var totalAddChg = 0;
 								var totalSettle = 0;
@@ -1213,49 +1249,41 @@ table.dataTable tbody tr.highlight-row {
 								// Process only the rows on the current page
 								table.rows({ page: 'current' }).every(function () {
 									var data = this.data();
-									// console.log("Processing object:", data);
 
-									// Adjust these indices based on your columns configuration
-									var amountIndex = 5; // "BUY-IN" is at index 5
-									var rollingIndex = 9; // "TOTAL ROLLING" is at index 9
-									var rollerChipsIndex = 15; // "ROLLER CHIPS" is at index 15
-									var chipsReturnIndex = 6; // "CASH-OUT" is at index 6
-									var winLossIndex = 7; // "WIN/LOSS" is at index 7
-									var realRollingIndex = 8; // "REAL ROLLING" is at index 8
-									var commissionIndex = 11; // "COMMISSION" is at index 11
-									var addChgIndex = 12; // "ADD CHG" is at index 12
-									var totalSettleIndex = 13; // "TOTAL SETTLE" is at index 13
+									var amountIndex = 5; // BUY-IN
+									var rollingIndex = 8; // TOTAL ROLLING
+									var rollerChipsIndex = 14; // ROLLER CHIPS
+									var chipsReturnIndex = 6; // CASH-OUT
+									var winLossIndex = 7; // WIN/LOSS
+									var commissionIndex = 10; // COMMISSION
+									var addChgIndex = 11; // ADD CHG
+									var totalSettleIndex = 12; // TOTAL SETTLE
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';
 									var rollerChipsValue = data[rollerChipsIndex] || '0';
 									var chipsReturnValue = data[chipsReturnIndex] || '0';
-									var realRollingValue = data[realRollingIndex] || '0';
 									var commissionValue = data[commissionIndex] || '0';
 									var addChgValue = data[addChgIndex] || '0';
 									var totalSettleValue = data[totalSettleIndex] || '0';
 									var winLossValue = data[winLossIndex] || '0';
 
-									// Extract text content from HTML (handles buttons and plain text)
-									// Create a temporary div to parse HTML and extract text
 									var tempDiv = $('<div>').html(amountValue);
 									var amountText = tempDiv.text().trim() || amountValue;
-									
+
 									tempDiv = $('<div>').html(rollerChipsValue);
 									var rollerChipsText = tempDiv.text().trim() || rollerChipsValue;
-									
+
 									tempDiv = $('<div>').html(chipsReturnValue);
 									var chipsReturnText = tempDiv.text().trim() || chipsReturnValue;
-									
-									tempDiv = $('<div>').html(realRollingValue);
-									var realRollingText = tempDiv.text().trim() || realRollingValue;
 
-									// Remove HTML tags and clean values
+									tempDiv = $('<div>').html(rollingValue);
+									var rollingText = tempDiv.text().trim() || rollingValue;
+
 									var cleanedAmountValue = parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRollingValue = parseFloat(rollingValue.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedRollingValue = parseFloat(rollingText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedRollerChipsValue = parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRealRollingValue = parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedAddChgValue = parseFloat(addChgValue.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedTotalSettleValue = parseFloat(totalSettleValue.replace(/[^0-9.-]/g, '')) || 0;
@@ -1265,41 +1293,34 @@ table.dataTable tbody tr.highlight-row {
 									totalRolling += cleanedRollingValue;
 									totalRollerChips += cleanedRollerChipsValue;
 									totalChipsReturn += cleanedChipsReturnValue;
-									totalRealRolling += cleanedRealRollingValue;
 									totalCommission += cleanedCommissionValue;
 									totalAddChg += cleanedAddChgValue;
 									totalSettle += cleanedTotalSettleValue;
 									totalWinLoss += cleanedWinLossValue;
 								});
 
-								// Format the totals
 								var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedRollerChips = totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-								var formattedRealRolling = totalRealRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedAddChg = totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedTotalSettle = totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-								// Update the footer content for the current page's totals (removed peso sign)
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
 								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
 								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
-								$('#game_list-tbl tfoot #GRAND_REAL_ROLLING').text(formattedRealRolling);
 								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
 								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(formattedAddChg);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(formattedTotalSettle);
 								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
 
-								// Apply red font color if the total is negative
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
 								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
 								applyNegativeStyle('#GRAND_ROLLER_CHIPS', totalRollerChips);
 								applyNegativeStyle('#GRAND_CHIPS_RETURN', totalChipsReturn);
-								applyNegativeStyle('#GRAND_REAL_ROLLING', totalRealRolling);
 								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
 								applyNegativeStyle('#GRAND_ADD_CHG', totalAddChg);
 								applyNegativeStyle('#GRAND_TOTAL_SETTLE', totalSettle);
