@@ -124,6 +124,362 @@ function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	$modal.data('totalReturnCC', rollerTotals.totalReturnCC);
 }
 
+/** Orange GAME END: ACTIVE=3 (pending) or any game with PENDING_ROLLER_RESOLVE set. */
+function isPendingRollerOrangeRow(row) {
+	var resolve = parseInt(row.PENDING_ROLLER_RESOLVE, 10) || 0;
+	return parseInt(row.game_status, 10) === 3 || resolve > 0;
+}
+
+function buildPendingGameEndStatusHtml(row, changeStatusOnclick, opts) {
+	opts = opts || {};
+	var resolve = parseInt(row.PENDING_ROLLER_RESOLVE, 10) || 0;
+	var gameStatus = parseInt(row.game_status, 10);
+	var mainText = 'PENDING';
+	var subHtml = '';
+	var tooltip = 'Pending — roller chips not fully returned';
+	var btnClass = 'btn btn-sm btn-warning-subtle';
+
+	if (resolve === 1 || resolve === 2) {
+		var displayDt = null;
+		if (gameStatus === 1 && row.GAME_ENDED) {
+			displayDt = row.GAME_ENDED;
+		} else {
+			displayDt = row.PENDING_ROLLER_RESOLVED_DT || row.EDITED_DT;
+		}
+		if (displayDt && typeof moment !== 'undefined') {
+			mainText = moment(displayDt).format('MMMM DD, HH:mm');
+		}
+		if (resolve === 1) {
+			tooltip = gameStatus === 1
+				? 'Ended after guest additional buy-in (' + mainText + '). Roller chips returned.'
+				: 'Fault settled via guest additional buy-in on ' + mainText + '. Roller chips returned.';
+		} else {
+			var linkId = parseInt(row.PENDING_ROLLER_LINK_GAME_ID, 10) || 0;
+			tooltip = gameStatus === 1
+				? 'Ended after junket new game #' + (linkId || '?') + ' (' + mainText + '). Roller chips returned.'
+				: 'Fault settled via junket new game #' + (linkId || '?') + ' on ' + mainText + '. Roller chips returned.';
+		}
+	}
+
+	var onclickAttr = changeStatusOnclick
+		? ' onclick="' + changeStatusOnclick + '"'
+		: (opts.readonlyOnclick ? ' onclick="' + opts.readonlyOnclick + '"' : '');
+
+	return '<button type="button"' + onclickAttr +
+		' class="' + btnClass + ' js-bs-tooltip-enabled" data-bs-toggle="tooltip"' +
+		' aria-label="Pending Review" data-bs-original-title="' + tooltip.replace(/"/g, '&quot;') + '"' +
+		' style="font-size:10px !important;padding:4px 8px;">' + mainText + subHtml + '</button>';
+}
+
+function isPendingFaultSettled() {
+	return parseInt($('#modal-change_status').data('pendingRollerResolve'), 10) > 0;
+}
+
+function applyPendingFaultSettledUi() {
+	if (isPendingFaultSettled()) {
+		$('#roller-chips-return-section').hide();
+		$('#roller-chips-return-summary').hide();
+		$('#roller-chips-return-inputs').hide();
+		$('#pending-resolution-section').hide();
+		$('#txtReturnRollerNN, #txtReturnRollerCC').val('');
+		$('#pending-resolve-status-banner').show();
+		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', true);
+		return;
+	}
+	$('#pending-resolve-status-banner').hide();
+	if ($('#modal-change_status').data('isPendingResolve')) {
+		$('#roller-chips-return-summary').show();
+		$('#roller-chips-return-inputs').show();
+		$('#pending-resolution-section').show();
+		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+	}
+}
+
+function refreshPendingResolveModalTotals(gameId, gameRow) {
+	$('#modal-change_status').data('pendingRollerResolve', gameRow ? gameRow.PENDING_ROLLER_RESOLVE : null);
+	$.getJSON('/game_list/' + gameId + '/record', function (response) {
+		var rollerTotals = computeRollerChipsBalanceFromRecords(response);
+		storeChangeStatusRollerTotals(rollerTotals, gameId);
+		$('#required-return-total-add-nn').text(parseFloat(rollerTotals.totalAddNN).toLocaleString());
+		$('#required-return-total-add-cc').text(parseFloat(rollerTotals.totalAddCC).toLocaleString());
+		$('#required-return-total-return-nn').text(parseFloat(rollerTotals.totalReturnNN).toLocaleString());
+		$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString());
+		$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString());
+		updatePendingResolveBanner(gameRow);
+	});
+}
+
+function updatePendingResolveBanner(gameRow) {
+	var resolve = parseInt(gameRow && gameRow.PENDING_ROLLER_RESOLVE, 10) || 0;
+	var $banner = $('#pending-resolve-status-banner');
+	var $text = $('#pending-resolve-status-text');
+
+	$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+
+	if (!resolve) {
+		$banner.hide();
+		applyPendingFaultSettledUi();
+		return;
+	}
+
+	applyPendingFaultSettledUi();
+
+	if (resolve === 1) {
+		$text.html('<strong>Guest:</strong> Additional buy-in recorded.  Click <strong>Save</strong> to end game.');
+		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
+		$('#btn-pending-guest-buyin').prop('disabled', true);
+	} else if (resolve === 2) {
+		var linkId = parseInt(gameRow.PENDING_ROLLER_LINK_GAME_ID, 10) || 0;
+		$text.html('<strong>Junket:</strong> New game #' + linkId + ' created. Click <strong>Save</strong> to end game.');
+		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
+		$('#btn-pending-junket-new-game').prop('disabled', true);
+	}
+}
+
+function setChangeStatusPendingResolveFlags(gameRow) {
+	var $modal = $('#modal-change_status');
+	var resolve = parseInt(gameRow && gameRow.PENDING_ROLLER_RESOLVE, 10) || 0;
+	$modal.data('pendingRollerResolve', resolve > 0 ? resolve : null);
+	if (resolve > 0) {
+		updatePendingResolveBanner(gameRow);
+	}
+}
+
+function applyChangeStatusFromGameRow(game, currentStatus, agentCode) {
+	if (!game) return;
+	var $modal = $('#modal-change_status');
+	var activeStatus = currentStatus != null && currentStatus !== undefined && currentStatus !== ''
+		? parseInt(currentStatus, 10)
+		: parseInt(game.game_status, 10);
+	var code = agentCode || game.agent_code || '';
+
+	applyChangeStatusCutoffOption(
+		activeStatus,
+		game.CUTOFF_PARENT_GAME_ID || game.cutoff_parent_game_id,
+		game.CUTOFF_CONTINUED_GAME_ID || game.cutoff_continued_game_id
+	);
+	setChangeStatusPendingResolveFlags(game);
+
+	if (activeStatus === 3) {
+		setChangeStatusPendingMode(true);
+		$('#status').val('1');
+		$('#staticBackdropLiveLabel').html('Resolve Pending - <span id="change-status-agent-code">' + code + '</span>');
+		refreshPendingResolveModalTotals(game.game_list_id || game.IDNo, game);
+		return;
+	}
+
+	setChangeStatusPendingMode(false);
+	$('#staticBackdropLiveLabel').html(
+		(window.gamelistTranslations && window.gamelistTranslations.change_status
+			? window.gamelistTranslations.change_status
+			: 'Change Status') + ' - <span id="change-status-agent-code">' + code + '</span>'
+	);
+	if (activeStatus === 2) {
+		$('#status').val('2');
+	} else if (activeStatus === 1) {
+		$('#status').val('1');
+	} else {
+		$('#status option:first').prop('selected', true);
+	}
+	$('#status').trigger('change');
+}
+
+function setChangeStatusPendingMode(isPending) {
+	var $modal = $('#modal-change_status');
+	$modal.data('isPendingResolve', !!isPending);
+	if (isPending) {
+		$('#change-status-normal-section').show();
+		$('#status').val('1');
+		$('#submit-status-btn').show();
+		$('#cutoff-parent-date-section').hide();
+		$('#cutoff-roller-auto-section').hide();
+		applyPendingFaultSettledUi();
+	} else {
+		$('#change-status-normal-section').show();
+		$('#pending-resolution-section').hide();
+		$('#submit-status-btn').show();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+			$('#roller-chips-return-summary').show();
+			$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+		}
+	}
+}
+
+function getPendingResolveContext() {
+	var $modal = $('#modal-change_status');
+	return {
+		gameId: $('.txtGameId', $modal).val() || game_id,
+		accountId: $('.txtAccountCode', $modal).val(),
+		agentCode: $('#change-status-agent-code').text() || '',
+		balance: parseFloat($modal.data('requiredReturnTotal')) || 0,
+		prefillNN: parseFloat($modal.data('requiredReturnNN')) || parseFloat($modal.data('cutoffTransferRollerNN')) || 0,
+		prefillCC: parseFloat($modal.data('requiredReturnCC')) || parseFloat($modal.data('cutoffTransferRollerCC')) || 0,
+		guestId: $modal.data('cutoffGuestId') || null
+	};
+}
+
+function setFormattedChipInputValue($input, amount) {
+	var n = parseFloat(amount) || 0;
+	if (n <= 0) {
+		$input.val('');
+		return;
+	}
+	$input.val(String(Math.floor(n))).trigger('input');
+}
+
+function openPendingGuestBuyinModal() {
+	var ctx = getPendingResolveContext();
+	if (!ctx.gameId || ctx.balance <= 0) {
+		Swal.fire({ icon: 'warning', title: 'No balance', text: 'There is no outstanding roller chips balance to resolve.' });
+		return;
+	}
+
+	var preNN = ctx.prefillNN;
+	var preCC = ctx.prefillCC;
+	if (preNN <= 0 && preCC <= 0) {
+		preNN = ctx.balance;
+		preCC = 0;
+	}
+
+	$('#pending-guest-agent-code').text(ctx.agentCode);
+	$('#pending_guest_game_id').val(ctx.gameId);
+	$('#pending_guest_account_id').val(ctx.accountId);
+	$('#pending_guest_required_balance').val(ctx.balance);
+	$('#pending-guest-balance-display').text(parseFloat(ctx.balance).toLocaleString());
+	setFormattedChipInputValue($('#pending_guest_txtNN'), preNN);
+	setFormattedChipInputValue($('#pending_guest_txtCC'), preCC);
+	$('#pending_guest_txtRemarks').val('');
+	$('#pending_guest_cash').prop('checked', true);
+
+	setPendingResolveChildModalOpen(true);
+	$('#modal-pending-guest-buyin').modal('show');
+
+	$.ajax({
+		url: '/account_details_data_deposit/' + ctx.accountId,
+		method: 'GET',
+		success: function (data) {
+			var deposit_amount = 0, withdraw_amount = 0, marker_return = 0, marker_deposit_amount = 0;
+			(data || []).forEach(function (row) {
+				var amount = parseFloat(row.AMOUNT) || 0;
+				if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
+				else if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
+				else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return += amount;
+				else if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
+			});
+			var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
+			$('#pending_guest_total_balance').val(totalBalance);
+			$('#pending_guest_balance_guest').val(
+				Number(totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+			);
+		}
+	});
+
+	$.ajax({
+		url: '/game_list/' + ctx.gameId + '/record',
+		method: 'GET',
+		success: function (response) {
+			var totalAmount = 0;
+			(response || []).forEach(function (res) {
+				if (res.CAGE_TYPE == 1) totalAmount += (parseFloat(res.NN_CHIPS) || 0) + (parseFloat(res.CC_CHIPS) || 0);
+			});
+			$('#pending_guest_total_buyin').val(totalAmount);
+		}
+	});
+}
+
+function populatePendingJunketAccountSelect(defaultAccountId) {
+	var $select = $('#pending_junket_txtAccount');
+	if (!$select.length) return Promise.resolve();
+
+	function applyOptions(options) {
+		if ($select.data('select2')) {
+			$select.select2('destroy');
+		}
+		$select.empty();
+		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
+		(options || []).forEach(function (option) {
+			var code = option.agent_code || '';
+			var name = option.agent_name || '';
+			var $opt = $('<option>', {
+				value: option.account_id,
+				text: (code ? code + ' - ' : '') + name
+			});
+			$opt.attr('data-guest-id', option.guest_id || option.GUESTNo || '');
+			$opt.attr('data-agent-id', option.agent_id || option.AGENT_ID || '');
+			$select.append($opt);
+		});
+		$select.select2({
+			placeholder: 'Choose account...',
+			dropdownParent: '#modal-pending-junket-new-game',
+			width: '100%'
+		});
+		if (defaultAccountId) {
+			$select.val(String(defaultAccountId)).trigger('change');
+		}
+	}
+
+	if (Array.isArray(_accountOptionsCache)) {
+		applyOptions(_accountOptionsCache);
+		return Promise.resolve();
+	}
+	return preloadAccounts().then(function (opts) {
+		applyOptions(opts);
+	}).catch(function () {
+		applyOptions([]);
+	});
+}
+
+function setPendingJunketNewGameDefaults() {
+	$('#pending_junket_game_type').val('LIVE');
+	$('#pending_junket_commission_type').val('1');
+	$('#pending_junket_commission_rate').val('0');
+}
+
+function setPendingResolveChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('pending-resolve-child-open');
+		$('#modal-change_status').addClass('pending-resolve-parent-hidden');
+	} else {
+		$('body').removeClass('pending-resolve-child-open');
+		$('#modal-change_status').removeClass('pending-resolve-parent-hidden');
+	}
+}
+
+function openPendingJunketNewGameModal() {
+	var ctx = getPendingResolveContext();
+	if (!ctx.gameId || ctx.balance <= 0) {
+		Swal.fire({ icon: 'warning', title: 'No balance', text: 'There is no outstanding roller chips balance to resolve.' });
+		return;
+	}
+
+	setPendingJunketNewGameDefaults();
+
+	var preNN = ctx.prefillNN;
+	var preCC = ctx.prefillCC;
+	if (preNN <= 0 && preCC <= 0) {
+		preNN = ctx.balance;
+		preCC = 0;
+	}
+
+	$('#pending_junket_pending_game_id').val(ctx.gameId);
+	$('#pending_junket_required_balance').val(ctx.balance);
+	$('#pending-junket-balance-display').text(parseFloat(ctx.balance).toLocaleString());
+	setFormattedChipInputValue($('#pending_junket_txtNN'), preNN);
+	setFormattedChipInputValue($('#pending_junket_txtCC'), preCC);
+	$('#pending_junket_txtRemarks').val('');
+
+	setPendingResolveChildModalOpen(true);
+	$('#modal-pending-junket-new-game').modal('show');
+
+	$.getJSON('/game_list_data?id=' + encodeURIComponent(ctx.gameId), function (rows) {
+		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
+		setPendingJunketNewGameDefaults();
+		var defaultAccountId = game && game.ACCOUNT_ID ? game.ACCOUNT_ID : ctx.accountId;
+		populatePendingJunketAccountSelect(defaultAccountId);
+	});
+}
+
 function getCutoffAutoRollerReturnAmounts() {
 	var nn = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerNN')) || 0);
 	var cc = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerCC')) || 0);
@@ -2160,17 +2516,15 @@ $(document).ready(function () {
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// PENDING STATUS (discrepancy in roller chips return)
-								const pendingText = "PENDING";
-								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
-									// PENDING STATUS EDITABLE - pass current status (3) so modal auto-selects END GAME
-									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
-										status = `<button type="button" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="${settledTooltip}" style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${pendingText}</button>`;
+								var pendingChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ", '" + (row.agent_code || '').replace(/'/g, "\\'") + "')";
+								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
+									if (isSettled && userPermissions !== 0) {
+										status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showSettledAlert(); return false;' });
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+										status = buildPendingGameEndStatusHtml(row, pendingChangeOnclick);
 									}
 								} else {
-									// PENDING STATUS NOT EDITABLE
-									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:10px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
+									status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showEndGameAlert()' });
 								}
 								
 								// No add when settled (all users). When not settled, Super admin can add
@@ -2275,20 +2629,25 @@ $(document).ready(function () {
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// END GAME STATUS (status = 1)
-								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
-									// END GAME STATUS EDITABLE(ON GAME & END GAME)
-									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
+								var endGameChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')';
+								if (isPendingRollerOrangeRow(row)) {
+									if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
+										if (isSettled && userPermissions !== 0) {
+											status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showSettledAlert(); return false;' });
+										} else {
+											status = buildPendingGameEndStatusHtml(row, endGameChangeOnclick);
+										}
+									} else {
+										status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showEndGameAlert()' });
+									}
+								} else if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
+									if (isSettled && userPermissions !== 0) {
 										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									} else {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									}
-
 								} else {
-									
-								// //END GAME STATUS NOT EDITABLE
-								status = `<a href="#" onclick="showEndGameAlert()">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
-
-									
+									status = `<a href="#" onclick="showEndGameAlert()">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 								}
 	
 								// No add when settled (all users). When not settled, Super admin can add Buy-in, Cash-out, Rolling
@@ -5021,16 +5380,18 @@ $('#edit_status').submit(function (event) {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-		
-		// Skip all validation if required return total is 0 or less
-		if (requiredReturnTotal <= 0) {
-			// Clear input fields if no return is required
+		var faultAlreadySettled = isPendingFaultSettled() && !isCutoff;
+
+		if (faultAlreadySettled) {
+			$('#txtReturnRollerNN').val('');
+			$('#txtReturnRollerCC').val('');
+		} else if (requiredReturnTotal <= 0) {
 			$('#txtReturnRollerNN').val('');
 			$('#txtReturnRollerCC').val('');
 		}
-		
-		// Only validate if there is a required return total
-		if (requiredReturnTotal > 0) {
+
+		// Skip return validation when fault already settled via Guest Buy-in / New Game
+		if (!faultAlreadySettled && requiredReturnTotal > 0) {
 			if (isCutoff) {
 				applyCutoffAutoRollerReturnToForm();
 			}
@@ -5184,8 +5545,7 @@ $('#edit_status').submit(function (event) {
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 
-		// Only show roller chips return info if required return total is greater than 0
-		if (requiredReturnTotal > 0) {
+		if (requiredReturnTotal > 0 && !(isPendingFaultSettled() && status != '4')) {
 			if (status == '4') {
 				applyCutoffAutoRollerReturnToForm();
 			}
@@ -6355,19 +6715,6 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$changeStatusModal.data('cutoffGuestId', guestId || null);
 	loadServiceTotalForStatusModal(id);
 
-	if (arguments.length >= 10) {
-		applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoffContinuedGameId);
-	} else {
-		$.getJSON('/game_list_data?id=' + encodeURIComponent(id), function (rows) {
-			var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
-			var parentId = game ? (game.CUTOFF_PARENT_GAME_ID || game.cutoff_parent_game_id) : null;
-			var continuedId = game ? (game.CUTOFF_CONTINUED_GAME_ID || game.cutoff_continued_game_id) : null;
-			applyChangeStatusCutoffOption(currentStatus, parentId, continuedId);
-		}).fail(function () {
-			applyChangeStatusCutoffOption(currentStatus, null, null);
-		});
-	}
-
 	$('.txtGameId').val(id);
 	$('.txtAccountCode').val(account);
 	$('.txtCapital').val(total_amount);
@@ -6385,16 +6732,21 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('#modal-change_status').data('cutoffTransferRollerCC', 0);
 
 	game_id = id;
-	
-	// If current status is PENDING (3), auto-select END GAME (1)
-	if (currentStatus == 3) {
-		$('#status').val('1'); // Select END GAME
-	} else {
-		// Reset status select to placeholder for other statuses
+
+	$.getJSON('/game_list_data?id=' + encodeURIComponent(id), function (rows) {
+		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
+		applyChangeStatusFromGameRow(game, currentStatus, agentCode);
+	}).fail(function () {
+		$changeStatusModal.data('pendingRollerResolve', null);
+		applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoffContinuedGameId);
+		setChangeStatusPendingMode(currentStatus == 3);
+		if (currentStatus == 3) {
+			$('#staticBackdropLiveLabel').html('Resolve Pending - <span id="change-status-agent-code">' + (agentCode || '') + '</span>');
+		}
 		$('#status option:first').prop('selected', true);
 		$('#status').trigger('change');
-	}
-	
+	});
+
 	// Fetch game records to calculate required roller chips return
 	$.ajax({
 		url: '/game_list/' + id + '/record',
@@ -6430,24 +6782,49 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 				$('#cutoff-roller-auto-section').hide();
 
 				if (selectedStatus == '1' && currentRequiredTotal > 0) {
-					$('#roller-chips-return-section').show();
+					if (isPendingFaultSettled()) {
+						applyPendingFaultSettledUi();
+					} else {
+						$('#roller-chips-return-section').show();
+						$('#roller-chips-return-summary').show();
+						$('#roller-chips-return-inputs').show();
+						if ($('#modal-change_status').data('isPendingResolve')) {
+							$('#pending-resolution-section').show();
+						}
+						$('#pending-resolve-status-banner').hide();
+					}
 				} else {
 					$('#txtReturnRollerNN').val('');
 					$('#txtReturnRollerCC').val('');
 					$('#roller-chips-return-section').hide();
+					if (!isPendingFaultSettled()) {
+						$('#pending-resolve-status-banner').hide();
+					}
 				}
 			});
 			
 			var requiredReturnTotal = rollerTotals.requiredReturnTotal;
 
-			// Show section only if requiredReturnTotal > 0
 			if (requiredReturnTotal > 0) {
-				if ($('#status').val() == '4') {
+				if (currentStatus == 3 || $('#status').val() == '1') {
+					if (isPendingFaultSettled()) {
+						applyPendingFaultSettledUi();
+					} else {
+						$('#roller-chips-return-section').show();
+						$('#roller-chips-return-summary').show();
+						$('#roller-chips-return-inputs').show();
+						if ($('#modal-change_status').data('isPendingResolve')) {
+							$('#pending-resolution-section').show();
+						}
+					}
+				} else if ($('#status').val() == '4') {
 					updateChangeStatusCutoffDateSection();
 					updateCutoffRollerAutoSection();
-				} else if (currentStatus == 3 || $('#status').val() == '1') {
-					$('#roller-chips-return-section').show();
 				}
+			} else if (currentStatus == 3) {
+				$('#roller-chips-return-section').show();
+				$('#txtReturnRollerNN').val('');
+				$('#txtReturnRollerCC').val('');
 			} else {
 				$('#txtReturnRollerNN').val('');
 				$('#txtReturnRollerCC').val('');
@@ -6989,7 +7366,150 @@ $(document).ready(function () {
 
 	$('#modal-change_status').on('hidden.bs.modal', function () {
 		resetChangeStatusParentDateField();
+		setChangeStatusPendingMode(false);
+		$('#modal-change_status').data('pendingRollerResolve', null);
 	});
+
+	$('#btn-pending-guest-buyin').on('click', function () {
+		openPendingGuestBuyinModal();
+	});
+
+	$('#btn-pending-junket-new-game').on('click', function () {
+		openPendingJunketNewGameModal();
+	});
+
+	$('#pending_guest_buyin_form').on('submit', function (event) {
+		event.preventDefault();
+		var $btn = $('#submit-pending-guest-buyin-btn');
+		var requiredBal = parseFloat($('#pending_guest_required_balance').val()) || 0;
+		var nn = parseFloat(String($('#pending_guest_txtNN').val() || '').replace(/,/g, '')) || 0;
+		var cc = parseFloat(String($('#pending_guest_txtCC').val() || '').replace(/,/g, '')) || 0;
+		var total = nn + cc;
+		var transType = $('input[name="txtTransType"]:checked', '#modal-pending-guest-buyin').val();
+
+		if (!transType) {
+			Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Please select Cash, Deposit, or Credit.' });
+			return;
+		}
+		if (total <= 0 || Math.abs(total - requiredBal) > 0.001) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Amount mismatch',
+				html: 'Total (NN + CC) must equal <strong>' + parseFloat(requiredBal).toLocaleString() + '</strong>.'
+			});
+			return;
+		}
+		if (nn > 0 && nn % 1000 !== 0) {
+			Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+			return;
+		}
+
+		$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Loading...');
+		$.ajax({
+			url: '/game_list/pending_resolve/guest_buyin',
+			type: 'POST',
+			data: $(this).serialize(),
+			success: function () {
+				Swal.fire({
+					icon: 'success',
+					title: 'Saved',
+					text: 'Additional buy-in saved. Roller chips returned automatically.',
+					timer: 2000,
+					showConfirmButton: false
+				});
+				$('#modal-pending-guest-buyin').modal('hide');
+				$('#modal-change_status').modal('hide');
+				reloadData();
+				refreshSettlementModalLockIfOpen();
+			},
+			error: function (xhr) {
+				Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.error || 'Failed to save.' });
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Save');
+			}
+		});
+	});
+
+	$('#modal-pending-guest-buyin').on('hidden.bs.modal', function () {
+		$('#pending_guest_txtRemarks').val('');
+		setPendingResolveChildModalOpen(false);
+	});
+
+	$('#modal-pending-junket-new-game').on('hidden.bs.modal', function () {
+		var $select = $('#pending_junket_txtAccount');
+		if ($select.data('select2')) {
+			$select.select2('destroy');
+		}
+		$select.empty().append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
+		$('#pending_junket_txtRemarks').val('');
+		setPendingResolveChildModalOpen(false);
+	});
+
+	$('#pending_junket_new_game_form').on('submit', function (event) {
+		event.preventDefault();
+		var $btn = $('#submit-pending-junket-new-game-btn');
+		var requiredBal = parseFloat($('#pending_junket_required_balance').val()) || 0;
+		var nn = parseFloat(String($('#pending_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
+		var cc = parseFloat(String($('#pending_junket_txtCC').val() || '').replace(/,/g, '')) || 0;
+		var total = nn + cc;
+		var accountId = $('#pending_junket_txtAccount').val();
+
+		if (!accountId) {
+			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Please select an account for the new game.' });
+			return;
+		}
+
+		if (total <= 0 || Math.abs(total - requiredBal) > 0.001) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Amount mismatch',
+				html: 'Buy-in total must equal <strong>' + parseFloat(requiredBal).toLocaleString() + '</strong>.'
+			});
+			return;
+		}
+		if (nn > 0 && nn % 1000 !== 0) {
+			Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+			return;
+		}
+
+		var accountLabel = $('#pending_junket_txtAccount option:selected').text() || accountId;
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm New Game',
+			html: 'Create a new game for <strong>' + accountLabel + '</strong> with buy-in <strong>' + parseFloat(total).toLocaleString() + '</strong>?<br>',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm'
+		}).then(function (result) {
+			if (!result.isConfirmed) return;
+			$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Loading...');
+			$.ajax({
+				url: '/game_list/pending_resolve/junket_new_game',
+				type: 'POST',
+				data: $('#pending_junket_new_game_form').serialize(),
+				success: function (res) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Saved',
+						text: res.message || 'New game created. Roller chips returned on pending game.',
+						timer: 2200,
+						showConfirmButton: false
+					});
+					$('#modal-pending-junket-new-game').modal('hide');
+					$('#modal-change_status').modal('hide');
+					reloadData();
+					refreshSettlementModalLockIfOpen();
+				},
+				error: function (xhr) {
+					Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.error || 'Failed to save.' });
+				},
+				complete: function () {
+					$btn.prop('disabled', false).text('Save');
+				}
+			});
+		});
+	});
+
 });
 
 
@@ -7496,9 +8016,8 @@ $(document).ready(function () {
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
-								// PENDING STATUS (discrepancy in roller chips return)
-								const pendingText = "PENDING";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+								var pendingChangeOnclickStats = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ", '" + (row.agent_code || '').replace(/'/g, "\\'") + "')";
+								status = buildPendingGameEndStatusHtml(row, pendingChangeOnclickStats);
 								
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
@@ -7507,12 +8026,12 @@ $(document).ready(function () {
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
-								
-								//END GAME STATUS EDITABLE(ON GAME & END GAME)
-								//status = `<a href="#" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID })">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
-
-								//END GAME STATUS NOT EDITABLE
-								status = `<a href="#" value="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID })">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
+								var statsEndOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')';
+								if (isPendingRollerOrangeRow(row)) {
+									status = buildPendingGameEndStatusHtml(row, statsEndOnclick);
+								} else {
+									status = `<a href="#" value="${statsEndOnclick}">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
+								}
 
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);

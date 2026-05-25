@@ -132,6 +132,549 @@ function telegramSettlementGameTypeLines(rawGameType) {
 
 const SETTLEMENT_GAME_RECORD_TOTALS_SQL = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
 
+/** Mirror of public computeRollerChipsBalanceFromRecords (game_list.js). */
+function computeRollerChipsBalanceFromRecordsNode(rows) {
+	let totalRollerNn = 0;
+	let totalRollerCc = 0;
+	let totalAddNN = 0;
+	let totalAddCC = 0;
+	let totalReturnNN = 0;
+	let totalReturnCC = 0;
+
+	for (const row of rows || []) {
+		if (parseInt(row.CAGE_TYPE, 10) !== 5) continue;
+		let rollerTransaction = parseInt(row.ROLLER_TRANSACTION, 10);
+		if (Number.isNaN(rollerTransaction) || rollerTransaction === 0) rollerTransaction = 1;
+		const nn = Number(row.ROLLER_NN_CHIPS) || 0;
+		const cc = Number(row.ROLLER_CC_CHIPS) || 0;
+		if (rollerTransaction === 1) {
+			totalRollerNn += nn;
+			totalRollerCc += cc;
+			totalAddNN += nn;
+			totalAddCC += cc;
+		} else if (rollerTransaction === 2) {
+			totalRollerNn -= nn;
+			totalRollerCc -= cc;
+			totalReturnNN += nn;
+			totalReturnCC += cc;
+		}
+	}
+
+	const netNNRaw = totalRollerNn;
+	const netCCRaw = totalRollerCc;
+	const combinedNet = Math.max(0, netNNRaw + netCCRaw);
+	let transferNN = 0;
+	let transferCC = 0;
+	if (combinedNet > 0) {
+		if (netNNRaw >= 0 && netCCRaw > 0) {
+			transferNN = netNNRaw;
+			transferCC = netCCRaw;
+		} else if (netNNRaw >= 0 && netCCRaw <= 0) {
+			transferNN = combinedNet;
+			transferCC = 0;
+		} else if (netNNRaw < 0 && netCCRaw >= 0) {
+			transferNN = 0;
+			transferCC = combinedNet;
+		} else {
+			transferNN = combinedNet;
+			transferCC = 0;
+		}
+	}
+
+	return {
+		netNNRaw,
+		netCCRaw,
+		combinedNet,
+		transferNN,
+		transferCC,
+		requiredReturnTotal: combinedNet
+	};
+}
+
+async function getRollerTotalsForGame(db, gameId) {
+	const [rows] = await db.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
+	return computeRollerChipsBalanceFromRecordsNode(rows);
+}
+
+/** Auto roller RETURN on pending game when fault is resolved (guest buy-in / junket new game). */
+/** Soft-delete junket_loss row(s) linked to a game (JUNKET_LOSS_ID and/or GAME_ID). */
+async function softDeleteJunketLossLinkedToGame(db, gameId, junketLossId, editedBy, dateNow) {
+	if (!gameId || !editedBy) return;
+	const lossId = parseInt(junketLossId, 10) || null;
+	try {
+		if (lossId) {
+			await db.execute(
+				`UPDATE junket_loss SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+				[editedBy, dateNow, lossId]
+			);
+		}
+		await db.execute(
+			`UPDATE junket_loss SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1`,
+			[editedBy, dateNow, gameId]
+		);
+	} catch (err) {
+		if (lossId) {
+			try {
+				await db.execute(
+					`UPDATE junket_loss SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+					[editedBy, dateNow, lossId]
+				);
+			} catch (innerErr) {
+				console.error('softDeleteJunketLossLinkedToGame by ID:', innerErr);
+			}
+		}
+	}
+}
+
+/**
+ * Auto roller RETURN on resolve. Uses buy-in NN/CC split when provided (guest/junket modal);
+ * otherwise falls back to outstanding split from roller records.
+ */
+async function insertAutoRollerReturnForPendingGame(db, gameId, encodedBy, dateNow, rollerTotals, buyinSplit) {
+	const totals = rollerTotals || (await getRollerTotalsForGame(db, gameId));
+	const requiredTotal = parseFloat(totals.requiredReturnTotal) || 0;
+	let returnNN = 0;
+	let returnCC = 0;
+
+	if (buyinSplit && (buyinSplit.returnNN != null || buyinSplit.returnCC != null)) {
+		returnNN = Math.max(0, parseFloat(buyinSplit.returnNN) || 0);
+		returnCC = Math.max(0, parseFloat(buyinSplit.returnCC) || 0);
+		if (requiredTotal > 0 && Math.abs(returnNN + returnCC - requiredTotal) > 0.001) {
+			const err = new Error(
+				`Return split (${returnNN} NN + ${returnCC} CC) must equal outstanding balance (${requiredTotal}).`
+			);
+			err.statusCode = 400;
+			throw err;
+		}
+	} else {
+		returnNN = totals.transferNN || 0;
+		returnCC = totals.transferCC || 0;
+	}
+
+	if (returnNN <= 0 && returnCC <= 0) {
+		return { inserted: false, returnNN: 0, returnCC: 0 };
+	}
+
+	const rollerChipsReturnSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const [insertResult] = await db.execute(rollerChipsReturnSQL, [
+		gameId,
+		dateNow,
+		5,
+		0,
+		0,
+		0,
+		returnNN,
+		returnCC,
+		2,
+		encodedBy,
+		dateNow
+	]);
+	return {
+		inserted: true,
+		returnNN,
+		returnCC,
+		recordId: insertResult.insertId
+	};
+}
+
+function normalizePendingRemarks(raw) {
+	const text = String(raw || '').trim();
+	if (!text) return null;
+	return text.length > 500 ? text.slice(0, 500) : text;
+}
+
+function parsePendingBuyinRecordIds(csv) {
+	if (!csv) return [];
+	return String(csv)
+		.split(',')
+		.map((s) => parseInt(s.trim(), 10))
+		.filter((n) => n > 0);
+}
+
+async function setPendingRollerResolve(db, gameId, resolveType, linkGameId, editedBy, remarks, returnRecordId, buyinRecordIds) {
+	const dateNow = new Date();
+	const remarksVal = normalizePendingRemarks(remarks);
+	const returnId = parseInt(returnRecordId, 10) || null;
+	const buyinIds =
+		resolveType === 1 && buyinRecordIds
+			? String(buyinRecordIds)
+					.split(',')
+					.map((s) => parseInt(s.trim(), 10))
+					.filter((n) => n > 0)
+					.join(',') || null
+			: null;
+	try {
+		await db.execute(
+			`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, PENDING_ROLLER_BUYIN_RECORD_IDS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[resolveType, linkGameId || null, dateNow, remarksVal, returnId, buyinIds, editedBy, dateNow, gameId]
+		);
+	} catch (err) {
+		try {
+			await db.execute(
+				`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[resolveType, linkGameId || null, dateNow, remarksVal, returnId, editedBy, dateNow, gameId]
+			);
+		} catch (fallbackErr) {
+			try {
+				await db.execute(
+					`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+					[resolveType, linkGameId || null, dateNow, remarksVal, editedBy, dateNow, gameId]
+				);
+			} catch (fallbackErr2) {
+				console.error('PENDING_ROLLER_RESOLVE columns missing? Run database/add_pending_roller_resolve.sql', fallbackErr2);
+				throw fallbackErr2;
+			}
+		}
+	}
+}
+
+/**
+ * When a junket "new game" (#122) is deleted, undo resolve on parent pending game (#121):
+ * restore roller RETURN, archive junket_loss, clear resolve flags, set ACTIVE back to PENDING (3).
+ */
+async function revertPendingRollerResolveWhenLinkGameDeleted(db, deletedGameId, editedBy, dateNow) {
+	const linkId = parseInt(deletedGameId, 10);
+	if (!linkId || !editedBy) return [];
+
+	let parentRows = [];
+	try {
+		const [rows] = await db.execute(
+			`SELECT IDNo, JUNKET_LOSS_ID, PENDING_ROLLER_RETURN_RECORD_ID, PENDING_ROLLER_RESOLVED_DT
+			 FROM game_list
+			 WHERE PENDING_ROLLER_LINK_GAME_ID = ? AND PENDING_ROLLER_RESOLVE = 2 AND ACTIVE != 0`,
+			[linkId]
+		);
+		parentRows = rows;
+	} catch (err) {
+		const [rows] = await db.execute(
+			`SELECT IDNo, JUNKET_LOSS_ID, PENDING_ROLLER_RESOLVED_DT
+			 FROM game_list
+			 WHERE PENDING_ROLLER_LINK_GAME_ID = ? AND PENDING_ROLLER_RESOLVE = 2 AND ACTIVE != 0`,
+			[linkId]
+		);
+		parentRows = rows;
+	}
+
+	const revertedParentIds = [];
+	for (const parent of parentRows) {
+		const parentId = parseInt(parent.IDNo, 10);
+		if (!parentId) continue;
+
+		let returnRecordId = parseInt(parent.PENDING_ROLLER_RETURN_RECORD_ID, 10) || null;
+		if (!returnRecordId && parent.PENDING_ROLLER_RESOLVED_DT) {
+			const [retRows] = await db.execute(
+				`SELECT IDNo FROM game_record
+				 WHERE GAME_ID = ? AND ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 2
+				 ORDER BY ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) ASC, IDNo DESC
+				 LIMIT 1`,
+				[parentId, parent.PENDING_ROLLER_RESOLVED_DT]
+			);
+			if (retRows.length) returnRecordId = retRows[0].IDNo;
+		}
+
+		if (returnRecordId) {
+			await db.execute(
+				`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND GAME_ID = ?`,
+				[editedBy, dateNow, returnRecordId, parentId]
+			);
+		}
+
+		await softDeleteJunketLossLinkedToGame(db, parentId, parent.JUNKET_LOSS_ID, editedBy, dateNow);
+
+		try {
+			await db.execute(
+				`UPDATE game_list SET
+					ACTIVE = 3,
+					GAME_ENDED = NULL,
+					PENDING_ROLLER_RESOLVE = NULL,
+					PENDING_ROLLER_LINK_GAME_ID = NULL,
+					PENDING_ROLLER_RESOLVED_DT = NULL,
+					PENDING_ROLLER_REMARKS = NULL,
+					PENDING_ROLLER_RETURN_RECORD_ID = NULL,
+					PENDING_ROLLER_BUYIN_RECORD_IDS = NULL,
+					JUNKET_LOSS_ID = NULL,
+					EDITED_BY = ?,
+					EDITED_DT = ?
+				 WHERE IDNo = ?`,
+				[editedBy, dateNow, parentId]
+			);
+		} catch (clearErr) {
+			await db.execute(
+				`UPDATE game_list SET
+					ACTIVE = 3,
+					GAME_ENDED = NULL,
+					PENDING_ROLLER_RESOLVE = NULL,
+					PENDING_ROLLER_LINK_GAME_ID = NULL,
+					PENDING_ROLLER_RESOLVED_DT = NULL,
+					PENDING_ROLLER_REMARKS = NULL,
+					JUNKET_LOSS_ID = NULL,
+					EDITED_BY = ?,
+					EDITED_DT = ?
+				 WHERE IDNo = ?`,
+				[editedBy, dateNow, parentId]
+			);
+		}
+
+		revertedParentIds.push(parentId);
+	}
+
+	return revertedParentIds;
+}
+
+/**
+ * When guest additional buy-in on a pending game is archived, undo resolve on that same game:
+ * soft-delete resolve buy-in pair (if still active), undo auto roller RETURN, archive junket_loss, clear flags, ACTIVE = PENDING (3).
+ */
+async function revertPendingGuestResolveOnGame(db, gameId, editedBy, dateNow) {
+	const gid = parseInt(gameId, 10);
+	if (!gid || !editedBy) return false;
+
+	let gameRows = [];
+	try {
+		const [rows] = await db.execute(
+			`SELECT IDNo, JUNKET_LOSS_ID, PENDING_ROLLER_RETURN_RECORD_ID, PENDING_ROLLER_RESOLVED_DT, PENDING_ROLLER_BUYIN_RECORD_IDS
+			 FROM game_list
+			 WHERE IDNo = ? AND PENDING_ROLLER_RESOLVE = 1 AND ACTIVE != 0`,
+			[gid]
+		);
+		gameRows = rows;
+	} catch (err) {
+		const [rows] = await db.execute(
+			`SELECT IDNo, JUNKET_LOSS_ID, PENDING_ROLLER_RETURN_RECORD_ID, PENDING_ROLLER_RESOLVED_DT
+			 FROM game_list
+			 WHERE IDNo = ? AND PENDING_ROLLER_RESOLVE = 1 AND ACTIVE != 0`,
+			[gid]
+		);
+		gameRows = rows;
+	}
+	if (!gameRows.length) return false;
+
+	const game = gameRows[0];
+	let buyinIds = parsePendingBuyinRecordIds(game.PENDING_ROLLER_BUYIN_RECORD_IDS);
+	if (!buyinIds.length && game.PENDING_ROLLER_RESOLVED_DT) {
+		const [fallbackBuyin] = await db.execute(
+			`SELECT IDNo FROM game_record
+			 WHERE GAME_ID = ? AND ACTIVE = 1 AND CAGE_TYPE IN (1, 3)
+			 AND ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) <= 3
+			 ORDER BY IDNo ASC`,
+			[gid, game.PENDING_ROLLER_RESOLVED_DT]
+		);
+		buyinIds = fallbackBuyin.map((r) => parseInt(r.IDNo, 10)).filter(Boolean);
+	}
+
+	for (const buyinId of buyinIds) {
+		await db.execute(
+			`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND GAME_ID = ? AND ACTIVE = 1`,
+			[editedBy, dateNow, buyinId, gid]
+		);
+	}
+
+	let returnRecordId = parseInt(game.PENDING_ROLLER_RETURN_RECORD_ID, 10) || null;
+	if (!returnRecordId && game.PENDING_ROLLER_RESOLVED_DT) {
+		const [retRows] = await db.execute(
+			`SELECT IDNo FROM game_record
+			 WHERE GAME_ID = ? AND ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 2
+			 ORDER BY ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) ASC, IDNo DESC
+			 LIMIT 1`,
+			[gid, game.PENDING_ROLLER_RESOLVED_DT]
+		);
+		if (retRows.length) returnRecordId = retRows[0].IDNo;
+	}
+	if (returnRecordId) {
+		await db.execute(
+			`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND GAME_ID = ?`,
+			[editedBy, dateNow, returnRecordId, gid]
+		);
+	}
+
+	await softDeleteJunketLossLinkedToGame(db, gid, game.JUNKET_LOSS_ID, editedBy, dateNow);
+
+	try {
+		await db.execute(
+			`UPDATE game_list SET
+				ACTIVE = 3,
+				GAME_ENDED = NULL,
+				PENDING_ROLLER_RESOLVE = NULL,
+				PENDING_ROLLER_LINK_GAME_ID = NULL,
+				PENDING_ROLLER_RESOLVED_DT = NULL,
+				PENDING_ROLLER_REMARKS = NULL,
+				PENDING_ROLLER_RETURN_RECORD_ID = NULL,
+				PENDING_ROLLER_BUYIN_RECORD_IDS = NULL,
+				JUNKET_LOSS_ID = NULL,
+				EDITED_BY = ?,
+				EDITED_DT = ?
+			 WHERE IDNo = ?`,
+			[editedBy, dateNow, gid]
+		);
+	} catch (clearErr) {
+		await db.execute(
+			`UPDATE game_list SET
+				ACTIVE = 3,
+				GAME_ENDED = NULL,
+				PENDING_ROLLER_RESOLVE = NULL,
+				PENDING_ROLLER_LINK_GAME_ID = NULL,
+				PENDING_ROLLER_RESOLVED_DT = NULL,
+				PENDING_ROLLER_REMARKS = NULL,
+				JUNKET_LOSS_ID = NULL,
+				EDITED_BY = ?,
+				EDITED_DT = ?
+			 WHERE IDNo = ?`,
+			[editedBy, dateNow, gid]
+		);
+	}
+
+	return true;
+}
+
+async function isArchivedPendingGuestResolveBuyin(db, gameId, recordId) {
+	const gid = parseInt(gameId, 10);
+	const rid = parseInt(recordId, 10);
+	if (!gid || !rid) return false;
+
+	let gameRows = [];
+	try {
+		const [rows] = await db.execute(
+			`SELECT PENDING_ROLLER_RESOLVE, PENDING_ROLLER_RESOLVED_DT, PENDING_ROLLER_BUYIN_RECORD_IDS
+			 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+			[gid]
+		);
+		gameRows = rows;
+	} catch (_) {
+		return false;
+	}
+	if (!gameRows.length || parseInt(gameRows[0].PENDING_ROLLER_RESOLVE, 10) !== 1) return false;
+
+	const storedIds = parsePendingBuyinRecordIds(gameRows[0].PENDING_ROLLER_BUYIN_RECORD_IDS);
+	if (storedIds.length) return storedIds.includes(rid);
+
+	const resolvedDt = gameRows[0].PENDING_ROLLER_RESOLVED_DT;
+	if (!resolvedDt) return false;
+
+	const [recRows] = await db.execute(
+		`SELECT IDNo, CAGE_TYPE, ENCODED_DT FROM game_record WHERE IDNo = ? AND GAME_ID = ? LIMIT 1`,
+		[rid, gid]
+	);
+	if (!recRows.length) return false;
+	const rec = recRows[0];
+	if (![1, 3].includes(parseInt(rec.CAGE_TYPE, 10))) return false;
+	const [diffRows] = await db.execute(
+		`SELECT ABS(TIMESTAMPDIFF(SECOND, ?, ?)) AS diff_sec`,
+		[rec.ENCODED_DT, resolvedDt]
+	);
+	return diffRows.length > 0 && parseInt(diffRows[0].diff_sec, 10) <= 3;
+}
+
+/**
+ * Record roller chips "missing" in junket_loss once per game, only when fault is resolved (guest buy-in / junket new game).
+ */
+async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, resolveLabel, remarks) {
+	const missingAmount = parseFloat(amount) || 0;
+	if (!gameId || missingAmount <= 0 || !encodedBy) return null;
+
+	const dateNow = new Date();
+	try {
+		const [gameRows] = await db.execute(
+			`SELECT gl.JUNKET_LOSS_ID, ag.AGENT_CODE
+			 FROM game_list gl
+			 JOIN account ac ON ac.IDNo = gl.ACCOUNT_ID
+			 JOIN agent ag ON ag.IDNo = ac.AGENT_ID
+			 WHERE gl.IDNo = ? LIMIT 1`,
+			[gameId]
+		);
+		if (!gameRows.length) return null;
+
+		const agentCode = gameRows[0].AGENT_CODE || '';
+		const label = (resolveLabel || 'Resolved').trim();
+		let description = `Roller chips missing (${label}) - Game #${gameId} (${agentCode})`;
+		const remarksText = normalizePendingRemarks(remarks);
+		if (remarksText) {
+			description += ' — ' + remarksText;
+		}
+		const inCharge = '-';
+
+		const linkedLossId = parseInt(gameRows[0].JUNKET_LOSS_ID, 10) || null;
+		if (linkedLossId) {
+			await db.execute(
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, GAME_ID = ?,
+				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[description, missingAmount, inCharge, gameId, encodedBy, dateNow, encodedBy, dateNow, linkedLossId]
+			);
+			return linkedLossId;
+		}
+
+		// One row per GAME_ID (unique index) — reuse archived row after junket resolve was undone
+		const [existingByGame] = await db.execute(
+			`SELECT IDNo, ACTIVE FROM junket_loss WHERE GAME_ID = ? LIMIT 1`,
+			[gameId]
+		);
+		if (existingByGame.length) {
+			const lossId = existingByGame[0].IDNo;
+			await db.execute(
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?,
+				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[description, missingAmount, inCharge, encodedBy, dateNow, encodedBy, dateNow, lossId]
+			);
+			await db.execute(`UPDATE game_list SET JUNKET_LOSS_ID = ? WHERE IDNo = ?`, [lossId, gameId]);
+			return lossId;
+		}
+
+		const [insertResult] = await db.execute(
+			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, GAME_ID, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			[description, missingAmount, inCharge, gameId, encodedBy, dateNow]
+		);
+		const newLossId = insertResult.insertId;
+		await db.execute(`UPDATE game_list SET JUNKET_LOSS_ID = ? WHERE IDNo = ?`, [newLossId, gameId]);
+		return newLossId;
+	} catch (err) {
+		console.error('ensureJunketLossForRollerMissing (run database/add_game_junket_loss_link.sql?):', err);
+		return null;
+	}
+}
+
+async function assertPendingGame(db, gameId) {
+	const [rows] = await db.execute(
+		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE,
+		 PENDING_ROLLER_RESOLVE, PENDING_ROLLER_LINK_GAME_ID
+		 FROM game_list WHERE IDNo = ? AND ACTIVE = 3 LIMIT 1`,
+		[gameId]
+	);
+	if (!rows.length) {
+		const err = new Error('Game is not in PENDING status.');
+		err.statusCode = 400;
+		throw err;
+	}
+	if (rows[0].SETTLED === 1) {
+		const err = new Error('Cannot resolve a settled game.');
+		err.statusCode = 403;
+		throw err;
+	}
+	return rows[0];
+}
+
+async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, nnAmount, ccAmount, encodedBy, dateNow }) {
+	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const [nnInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+	const [ccInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+	const buyinRecordIds = `${nnInsert.insertId},${ccInsert.insertId}`;
+	const totalAmount = nnAmount + ccAmount;
+	if (transType === 2) {
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, encodedBy, dateNow]
+		);
+	} else if (transType === 3) {
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, gameId, 10, transType, totalAmount, `Add Buy-in Game: ${gameId}`, encodedBy, dateNow]
+		);
+	}
+	return { buyinRecordIds };
+}
+
 function computeSettlementTotalsFromRecords(gameRecords) {
 	let total_nn_init = 0;
 	let total_cc_init = 0;
@@ -2530,18 +3073,36 @@ router.get('/game_list/:id/record', async (req, res) => {
 
 // DELETE GAME LIST (Deactivate - soft delete)
 router.put('/game_list/remove/:id', async (req, res) => {
-    const id = parseInt(req.params.id);
-    let date_now = new Date();
+	const id = parseInt(req.params.id, 10);
+	const date_now = new Date();
+	const editedBy = req.session.user_id || null;
 
-    const query = `UPDATE game_list SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+	if (!id || !editedBy) {
+		return res.status(400).send('Invalid request');
+	}
 
-    try {
-        await pool.execute(query, [0, req.session.user_id, date_now, id]);
-        res.send('GAME LIST updated successfully');
-    } catch (err) {
-        console.error('Error updating GAME LIST:', err);
-        res.status(500).send('Error updating GAME LIST');
-    }
+	try {
+		let junketLossId = null;
+		try {
+			const [rows] = await pool.execute(
+				'SELECT JUNKET_LOSS_ID FROM game_list WHERE IDNo = ? LIMIT 1',
+				[id]
+			);
+			if (rows.length) junketLossId = rows[0].JUNKET_LOSS_ID;
+		} catch (_) {
+			/* JUNKET_LOSS_ID column may be missing */
+		}
+
+		await softDeleteJunketLossLinkedToGame(pool, id, junketLossId, editedBy, date_now);
+		await pool.execute(
+			'UPDATE game_list SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[0, editedBy, date_now, id]
+		);
+		res.send('GAME LIST updated successfully');
+	} catch (err) {
+		console.error('Error updating GAME LIST:', err);
+		res.status(500).send('Error updating GAME LIST');
+	}
 });
 
 // DELETE GAME LIST (Super Admin only - SOFT DELETE, excludes game_services & daily_settlement_games)
@@ -2563,6 +3124,14 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 	try {
 		await connection.beginTransaction();
 
+		// 0. If this game was the junket "new game" for a pending resolve, undo parent resolve first
+		const revertedParents = await revertPendingRollerResolveWhenLinkGameDeleted(
+			connection,
+			gameId,
+			editedBy,
+			date_now
+		);
+
 		// 1. Get game info (ACCOUNT_ID, ENCODED_DT for account_ledger matching)
 		const [gameRows] = await connection.execute(
 			'SELECT ACCOUNT_ID, FNB, PAYMENT, SETTLED, ENCODED_DT FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
@@ -2576,6 +3145,16 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 		const gamePayment = gameRows[0].PAYMENT != null ? gameRows[0].PAYMENT : gameRows[0].FNB;
 		const isSettled = gameRows[0].SETTLED === 1;
 		const gameEncodedDt = gameRows[0].ENCODED_DT;
+		let junketLossId = null;
+		try {
+			const [jlRows] = await connection.execute(
+				'SELECT JUNKET_LOSS_ID FROM game_list WHERE IDNo = ? LIMIT 1',
+				[gameId]
+			);
+			if (jlRows.length) junketLossId = jlRows[0].JUNKET_LOSS_ID;
+		} catch (_) {
+			/* JUNKET_LOSS_ID column may be missing */
+		}
 
 		// 2. Get all game_record IDs (exclude game_services - not touched)
 		const [recordRows] = await connection.execute(
@@ -2701,6 +3280,9 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 
 		// 7. EXCLUDED: game_services
 
+		// 7b. Soft-delete linked junket_loss (roller missing from pending resolve)
+		await softDeleteJunketLossLinkedToGame(connection, gameId, junketLossId, editedBy, date_now);
+
 		// 8. Clear cut-off links on partner game(s), then soft delete game_list
 		await clearCutoffLinksOnGameDelete(connection, gameId, editedBy, date_now);
 		try {
@@ -2722,7 +3304,15 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 		}
 
 		await connection.commit();
-		res.json({ success: true, message: 'Game and related records deleted successfully.' });
+		const msg =
+			revertedParents.length > 0
+				? `Game deleted. Game(s) ${revertedParents.join(', ')} restored to PENDING (roller chips and resolve undone).`
+				: 'Game and related records deleted successfully.';
+		res.json({
+			success: true,
+			message: msg,
+			reverted_pending_parents: revertedParents
+		});
 	} catch (err) {
 		await connection.rollback();
 		console.error('Error soft deleting game:', err);
@@ -2885,6 +3475,183 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 	} catch (error) {
 		console.error('Error processing request:', error);
 		res.status(500).send('Error processing request');
+	}
+});
+
+// PENDING resolve — guest fault: additional buy-in only (game stays PENDING)
+router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
+	try {
+		const encodedBy = req.session.user_id;
+		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+
+		const gameId = parseInt(req.body.pending_game_id || req.body.game_id, 10);
+		const accountId = parseInt(req.body.txtAccountCode, 10);
+		const transType = parseInt(req.body.txtTransType, 10);
+		const nnAmount = parseFloat(String(req.body.txtNN || '0').replace(/,/g, '')) || 0;
+		const ccAmount = parseFloat(String(req.body.txtCC || '0').replace(/,/g, '')) || 0;
+		const requiredBalance = parseFloat(String(req.body.required_balance || '0').replace(/,/g, '')) || 0;
+		const enteredTotal = nnAmount + ccAmount;
+
+		if (!gameId || !accountId || !transType) {
+			return res.status(400).json({ error: 'Missing required fields.' });
+		}
+		if (enteredTotal <= 0) {
+			return res.status(400).json({ error: 'Buy-in amount must be greater than zero.' });
+		}
+		if (nnAmount > 0 && nnAmount % 1000 !== 0) {
+			return res.status(400).json({ error: 'NN Chips must be in thousands (e.g. 1,000 / 2,000).' });
+		}
+
+		const pendingGame = await assertPendingGame(pool, gameId);
+		if (parseInt(pendingGame.ACCOUNT_ID, 10) !== accountId) {
+			return res.status(400).json({ error: 'Account does not match this game.' });
+		}
+
+		const rollerTotals = await getRollerTotalsForGame(pool, gameId);
+		const balance = rollerTotals.requiredReturnTotal;
+		if (balance <= 0) {
+			return res.status(400).json({ error: 'No outstanding roller chips balance on this game.' });
+		}
+		if (Math.abs(enteredTotal - balance) > 0.001) {
+			return res.status(400).json({
+				error: `Buy-in total (${enteredTotal}) must equal outstanding balance (${balance}).`
+			});
+		}
+		if (requiredBalance > 0 && Math.abs(requiredBalance - balance) > 0.001) {
+			return res.status(400).json({ error: 'Outstanding balance has changed. Please reopen the modal.' });
+		}
+
+		if (transType === 2) {
+			const guestBal = parseFloat(String(req.body.totalBalanceGuest2 || '0').replace(/,/g, '')) || 0;
+			if (enteredTotal > guestBal) {
+				return res.status(400).json({ error: 'Deposit amount exceeds guest available balance.' });
+			}
+		}
+
+		const dateNow = new Date();
+
+		const buyinResult = await insertAdditionalBuyinForGame(pool, {
+			gameId,
+			accountId,
+			transType,
+			nnAmount,
+			ccAmount,
+			encodedBy,
+			dateNow
+		});
+		const rollerReturn = await insertAutoRollerReturnForPendingGame(pool, gameId, encodedBy, dateNow, rollerTotals, {
+			returnNN: nnAmount,
+			returnCC: ccAmount
+		});
+		const remarks = req.body.txtRemarks;
+		await setPendingRollerResolve(
+			pool,
+			gameId,
+			1,
+			null,
+			encodedBy,
+			remarks,
+			rollerReturn.inserted ? rollerReturn.recordId : null,
+			buyinResult.buyinRecordIds
+		);
+		const junketLossId = await ensureJunketLossForRollerMissing(pool, gameId, balance, encodedBy, 'Additional Buy-in', remarks);
+
+		res.json({
+			success: true,
+			message: 'Additional buy-in saved. Roller chips returned automatically.',
+			junket_loss_id: junketLossId,
+			pending_roller_resolve: 1,
+			roller_return: rollerReturn
+		});
+	} catch (error) {
+		console.error('pending_resolve guest_buyin:', error);
+		res.status(error.statusCode || 500).json({ error: error.message || 'Error processing request' });
+	}
+});
+
+// PENDING resolve — junket fault: new game buy-in only (pending game stays PENDING)
+router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
+	try {
+		const encodedBy = req.session.user_id;
+		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+
+		const pendingGameId = parseInt(req.body.pending_game_id, 10);
+		const accountId = parseInt(req.body.txtAccountCode, 10);
+		const guestId = null;
+		const gameType = 'LIVE';
+		const commType = 1;
+		const commRate = 0;
+		const nnAmount = parseFloat(String(req.body.txtNN || '0').replace(/,/g, '')) || 0;
+		const ccAmount = parseFloat(String(req.body.txtCC || '0').replace(/,/g, '')) || 0;
+		const requiredBalance = parseFloat(String(req.body.required_balance || '0').replace(/,/g, '')) || 0;
+		const enteredTotal = nnAmount + ccAmount;
+		const transType = 1;
+
+		if (!pendingGameId || !accountId) {
+			return res.status(400).json({ error: 'Missing required fields.' });
+		}
+		if (enteredTotal <= 0) {
+			return res.status(400).json({ error: 'Buy-in amount must be greater than zero.' });
+		}
+		if (nnAmount > 0 && nnAmount % 1000 !== 0) {
+			return res.status(400).json({ error: 'NN Chips must be in thousands (e.g. 1,000 / 2,000).' });
+		}
+
+		await assertPendingGame(pool, pendingGameId);
+
+		const rollerTotals = await getRollerTotalsForGame(pool, pendingGameId);
+		const balance = rollerTotals.requiredReturnTotal;
+		if (balance <= 0) {
+			return res.status(400).json({ error: 'No outstanding roller chips balance on this game.' });
+		}
+		if (Math.abs(enteredTotal - balance) > 0.001) {
+			return res.status(400).json({
+				error: `Buy-in total (${enteredTotal}) must equal outstanding balance (${balance}).`
+			});
+		}
+		if (requiredBalance > 0 && Math.abs(requiredBalance - balance) > 0.001) {
+			return res.status(400).json({ error: 'Outstanding balance has changed. Please reopen the modal.' });
+		}
+
+		const dateNow = new Date();
+		const initialMOP = 'CASH';
+
+		const [newGameResult] = await pool.execute(
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, dateNow]
+		);
+		const newGameId = newGameResult.insertId;
+
+		const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(gameRecordSQL, [newGameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+		await pool.execute(gameRecordSQL, [newGameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+		const rollerReturn = await insertAutoRollerReturnForPendingGame(pool, pendingGameId, encodedBy, dateNow, rollerTotals, {
+			returnNN: nnAmount,
+			returnCC: ccAmount
+		});
+		const remarks = req.body.txtRemarks;
+		await setPendingRollerResolve(
+			pool,
+			pendingGameId,
+			2,
+			newGameId,
+			encodedBy,
+			remarks,
+			rollerReturn.inserted ? rollerReturn.recordId : null
+		);
+		const junketLossId = await ensureJunketLossForRollerMissing(pool, pendingGameId, balance, encodedBy, 'New Game', remarks);
+
+		res.json({
+			success: true,
+			message: 'New game created. Roller chips returned on pending game automatically.',
+			new_game_id: newGameId,
+			junket_loss_id: junketLossId,
+			pending_roller_resolve: 2,
+			roller_return: rollerReturn
+		});
+	} catch (error) {
+		console.error('pending_resolve junket_new_game:', error);
+		res.status(error.statusCode || 500).json({ error: error.message || 'Error processing request' });
 	}
 });
 
@@ -4717,9 +5484,29 @@ router.put('/game_record/remove/:id', checkSession, async (req, res) => {
 			`;
 			await pool.execute(rollerDeleteQuery, [0, req.session.user_id, date_now, gameId, encodedDt]);
 
+			let guestRevertSuffix = '';
+			if (deleteResult.affectedRows > 0) {
+				const shouldRevertGuest = await isArchivedPendingGuestResolveBuyin(pool, gameId, id);
+				if (shouldRevertGuest) {
+					const reverted = await revertPendingGuestResolveOnGame(
+						pool,
+						gameId,
+						req.session.user_id,
+						date_now
+					);
+					if (reverted) {
+						guestRevertSuffix =
+							' Game restored to PENDING (guest resolve and roller chips undone).';
+					}
+				}
+			}
+
 			// Check if any rows were updated
 			if (deleteResult.affectedRows > 0) {
-				res.send('GAME LIST updated successfully for IDNo and matching CAGE_TYPE 1 and 3, including roller chips if added together');
+				res.send(
+					'GAME LIST updated successfully for IDNo and matching CAGE_TYPE 1 and 3, including roller chips if added together.' +
+						guestRevertSuffix
+				);
 			} else {
 				res.send('No matching records found for deletion with CAGE_TYPE 1 and 3');
 			}

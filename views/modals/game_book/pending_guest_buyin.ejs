@@ -1,0 +1,91 @@
+<div class="modal fade" id="modal-pending-guest-buyin" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white">Pending - Additional Buy-in - <span id="pending-guest-agent-code"></span></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="pending_guest_buyin_form">
+				<div class="modal-body">
+					<!-- <div class="alert alert-warning mb-3" role="alert">
+						<small>
+							<strong>Guest pays</strong> for the outstanding balance as additional buy-in (added to capital).
+							Roller chips on this game are <strong>not</strong> changed — balance stays as shown.
+						</small>
+					</div> -->
+					<div class="alert alert-info mb-3 py-2" role="alert">
+						<small>Outstanding balance: <strong id="pending-guest-balance-display">0</strong></small>
+					</div>
+					<input type="hidden" name="pending_game_id" id="pending_guest_game_id">
+					<input type="hidden" name="txtAccountCode" id="pending_guest_account_id">
+					<input type="hidden" name="totalBalanceGuest2" id="pending_guest_total_balance">
+					<input type="hidden" name="txtTotalAmountBuyin" id="pending_guest_total_buyin">
+					<input type="hidden" name="required_balance" id="pending_guest_required_balance">
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<input type="text" class="form-control text-center" id="pending_guest_balance_guest" readonly />
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-6">
+							<label class="form-label">NN Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtNN" id="pending_guest_txtNN" placeholder="NN Chips">
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label">CC Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtCC" id="pending_guest_txtCC" placeholder="CC Chips">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<small class="text-muted">Total must equal the outstanding balance.</small>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Remarks</label>
+							<textarea class="form-control" name="txtRemarks" id="pending_guest_txtRemarks" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
+						</div>
+					</div>
+
+					<div class="row mb-2">
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="pending_guest_cash" name="txtTransType" checked>
+								<label class="form-check-label" for="pending_guest_cash">Cash</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="pending_guest_deposit" name="txtTransType">
+								<label class="form-check-label" for="pending_guest_deposit">Deposit</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="pending_guest_credit" name="txtTransType">
+								<label class="form-check-label" for="pending_guest_credit">Credit</label>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" id="submit-pending-guest-buyin-btn" class="btn btn-sm btn-primary">Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<style>
+body.pending-resolve-child-open #modal-change_status.pending-resolve-parent-hidden {
+	visibility: hidden !important;
+	pointer-events: none !important;
+}
+</style>
