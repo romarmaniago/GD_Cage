@@ -1,5 +1,6 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config(); // Load .env variables
+const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategorySchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -12,12 +13,13 @@ const pool = mysql.createPool({
 	queueLimit: 0
 });
 
-// log connection success on startup
+// log connection success + idempotent expense_category schema/seed on startup
 (async () => {
 	try {
 		const connection = await pool.getConnection();
 		console.log(`✅ Connected to MySQL at ${process.env.DB_HOST}:${process.env.DB_PORT} - DB: ${process.env.DB_NAME}`);
 		connection.release();
+		await ensureExpenseCategorySchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}

@@ -397,7 +397,7 @@ aside.sidebar .sidebar-footer {
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link" href="/manage_users">
+                  <a class="nav-link <%= currentPage === 'manage_users' ? 'active bg-gradient-primary' : '' %>" href="/manage_users">
                       <i class="icon">
                         <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                             <g>
@@ -409,7 +409,7 @@ aside.sidebar .sidebar-footer {
                   </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/user_roles">
+                <a class="nav-link <%= currentPage === 'user_roles' ? 'active bg-gradient-primary' : '' %>" href="/user_roles">
                     <i class="icon">
                         <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                             <g>
@@ -421,7 +421,7 @@ aside.sidebar .sidebar-footer {
                 </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/expense_category">
+              <a class="nav-link <%= currentPage === 'expense_category' ? 'active bg-gradient-primary' : '' %>" href="/expense_category">
                   <i class="icon">
                     <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                         <g>
@@ -445,7 +445,7 @@ aside.sidebar .sidebar-footer {
             </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/Change_Game_No">
+          <a class="nav-link <%= currentPage === 'Change_Game_No' ? 'active bg-gradient-primary' : '' %>" href="/Change_Game_No">
               <i class="icon">
                 <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                     <g>

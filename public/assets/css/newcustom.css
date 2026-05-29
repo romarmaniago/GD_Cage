@@ -738,7 +738,34 @@ opacity: 0.95;
     background-color: rgba(var(--bs-primary-rgb), 0.1);
 }
 
+/*
+ * Pull main page card up over the top banner.
+ * Hope UI uses .iq-banner + .content-inner, but announcement modals in topbar
+ * sit between them, so the theme sibling rule never applies. Also overrides
+ * per-page mt-4 that pushed content down.
+ */
+.main-content .container-fluid.content-inner,
+.main-content .conatiner-fluid.content-inner {
+    margin-top: -5.5rem !important;
+    padding-top: 0;
+    padding-bottom: 0;
+}
 
+@media (max-width: 991.98px) {
+    .main-content .container-fluid.content-inner,
+    .main-content .conatiner-fluid.content-inner {
+        margin-top: -2.5rem !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .main-content .container-fluid.content-inner,
+    .main-content .conatiner-fluid.content-inner {
+        margin-top: 0 !important;
+        padding-top: calc(var(--bs-gutter-x, 0.75rem) * 2);
+        padding-bottom: calc(var(--bs-gutter-x, 0.75rem) * 2);
+    }
+}
 
 
 

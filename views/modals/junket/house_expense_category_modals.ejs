@@ -1,0 +1,96 @@
+<div class="modal fade" id="modal-house-expense-add-category" role="dialog" aria-labelledby="modal-house-expense-add-category-title"
+    aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0" id="house-expense-add-category-title">Add category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-house-expense-add-category" novalidate>
+                    <input type="hidden" name="txtParent" id="house-expense-add-cat-parent" value="" />
+                    <input type="hidden" name="ajax" value="1" />
+                    <div id="house-expense-add-cat-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-add-cat-name">Category name</label>
+                            <input type="text" class="form-control" name="txtCategory" id="house-expense-add-cat-name" required autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-add-cat-type">Type</label>
+                            <select class="form-select" name="txtType" id="house-expense-add-cat-type" required>
+                                <option value="1">Goods / Consumables</option>
+                                <option value="2" selected>Non-goods / Services</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="house-expense-add-cat-parent-hint" class="small text-muted d-none"></div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="submit" class="btn btn-sm btn-primary" id="house-expense-add-cat-save">Save</button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-house-expense-edit-category" role="dialog" aria-labelledby="modal-house-expense-edit-category-title"
+    aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0" id="house-expense-edit-category-title">Edit category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-house-expense-edit-category" novalidate>
+                    <input type="hidden" id="house-expense-edit-cat-id" value="" />
+                    <input type="hidden" name="txtParent" id="house-expense-edit-cat-parent" value="" />
+                    <div id="house-expense-edit-cat-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-edit-cat-name">Category name</label>
+                            <input type="text" class="form-control" name="txtCategory" id="house-expense-edit-cat-name" required autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-edit-cat-type">Type</label>
+                            <select class="form-select" name="txtType" id="house-expense-edit-cat-type" required>
+                                <option value="1">Goods / Consumables</option>
+                                <option value="2">Non-goods / Services</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="submit" class="btn btn-sm btn-primary" id="house-expense-edit-cat-save">Save</button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-house-expense-delete-category" role="dialog" aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0">Delete category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="house-expense-delete-cat-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                <p class="mb-1"><%= __('house_expense.delete_confirmation') || 'Are you sure you want to delete this?' %></p>
+                <p class="mb-0 fw-semibold text-primary" id="house-expense-delete-cat-label"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-danger" id="house-expense-delete-cat-confirm" data-original-text="Delete">Delete</button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

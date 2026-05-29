@@ -14,7 +14,14 @@
             <div class="modal-body">
                 <form id="add_junket_house_expense" novalidate>
 
-                    <div class="row mb-3">
+                    <input type="hidden" id="house-expense-new-expense-category-id" value="" />
+                    <div class="row mb-3 d-none" id="house-expense-new-cat-preset-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.category_placeholder') || 'Category' %></label>
+                            <div id="house-expense-new-cat-preset-label" class="form-control bg-light text-primary fw-semibold"></div>
+                        </div>
+                    </div>
+                    <div class="row mb-3" id="house-expense-new-cat-select-wrap">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.category_placeholder') || 'Category' %></label>
                             <select class="select2 form-select" id="expense-category-select" name="txtCategory" style="width: 100%;" data-placeholder="" required>

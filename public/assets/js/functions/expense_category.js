@@ -1,6 +1,25 @@
 
 var expense_category_id;
 
+function isMainExpenseCategory(row) {
+    if (!row) return false;
+    var p = row.PARENT_ID;
+    return p == null || p === '' || Number(p) === 0;
+}
+
+function populateParentSelects(rows, selectedParentId, excludeId) {
+    var mains = (rows || []).filter(function (r) {
+        return isMainExpenseCategory(r) && String(r.IDNo) !== String(excludeId || '');
+    });
+    var options = '<option value="">— Main category (no parent) —</option>';
+    mains.forEach(function (m) {
+        var sel = selectedParentId != null && String(selectedParentId) === String(m.IDNo) ? ' selected' : '';
+        options +=
+            '<option value="' + m.IDNo + '"' + sel + '>' + (m.CATEGORY || '') + '</option>';
+    });
+    $('#txtParentNew, #txtParentEdit').html(options);
+}
+
 $(document).ready(function () {
     if ($.fn.DataTable.isDataTable('#expense-category-tbl')) {
         $('#expense-category-tbl').DataTable().destroy();
@@ -36,6 +55,8 @@ $(document).ready(function () {
             url: '/expense_category_data',
             method: 'GET',
             success: function (data) {
+                window.expenseCategoryRowsCache = data || [];
+                populateParentSelects(data);
                 dataTable.clear();
                 data.forEach(function (row) {
                     var status = '';
@@ -54,8 +75,15 @@ $(document).ready(function () {
                     }
                     const escapedCategory = escapeForInline(row.CATEGORY);
                     const escapedType = escapeForInline(typeValue);
+                    var parentLabel = '—';
+                    if (row.PARENT_ID != null && row.PARENT_ID !== '' && Number(row.PARENT_ID) !== 0) {
+                        var parentRow = (data || []).find(function (p) {
+                            return String(p.IDNo) === String(row.PARENT_ID);
+                        });
+                        parentLabel = parentRow ? parentRow.CATEGORY : 'ID ' + row.PARENT_ID;
+                    }
                     var btn = `<div class="btn-group">
-                        <button type="button" onclick="editCreditStatus(${row.IDNo}, '${escapedCategory}', '${escapedType}')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
+                        <button type="button" onclick="editCreditStatus(${row.IDNo}, '${escapedCategory}', '${escapedType}', ${row.PARENT_ID != null && row.PARENT_ID !== '' ? row.PARENT_ID : 'null'})" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
                         <i class="fa fa-pencil-alt"></i>
                         </button>
@@ -65,7 +93,7 @@ $(document).ready(function () {
                         </button>
                     </div>`;
 
-                    dataTable.row.add([row.CATEGORY, typeLabel, status, btn]).draw();
+                    dataTable.row.add([row.CATEGORY, parentLabel, typeLabel, status, btn]).draw();
                 });
                 if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
                     window.PermissionViewOnly.disableForViewOnly('#expense-category-tbl .btn-alt-danger');
@@ -101,13 +129,21 @@ $(document).ready(function () {
 
 
 function addExpenseCategory() {
+    if (window.expenseCategoryRowsCache) {
+        populateParentSelects(window.expenseCategoryRowsCache, null, null);
+    }
+    $('#txtParentNew').val('');
     $('#modal-new-expense-category').modal('show');
 }
 
-function editCreditStatus(id, category, typeValue) {
+function editCreditStatus(id, category, typeValue, parentId) {
+    if (window.expenseCategoryRowsCache) {
+        populateParentSelects(window.expenseCategoryRowsCache, parentId, id);
+    }
     $('#modal-edit-expense-category').modal('show');
     $('#txtCategory').val(category);
     $('#txtType').val(typeValue || '1');
+    $('#txtParentEdit').val(parentId != null && parentId !== '' && parentId !== 'null' ? String(parentId) : '');
     expense_category_id = id;
 }
 

@@ -87,15 +87,18 @@ router.get("/house_expense", checkSession, async function (req, res) {
 		}
 
 		let expenseCategoryCatalog = [];
+		let expenseCategoryRows = [];
 		try {
 			const [catRows] = await pool.execute(
-				'SELECT CATEGORY FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC'
+				'SELECT IDNo, CATEGORY, TYPE, PARENT_ID FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC'
 			);
-			expenseCategoryCatalog = (catRows || [])
+			expenseCategoryRows = catRows || [];
+			expenseCategoryCatalog = expenseCategoryRows
 				.map((r) => (r.CATEGORY != null ? String(r.CATEGORY).trim() : ''))
 				.filter(Boolean);
 		} catch (e) {
 			expenseCategoryCatalog = [];
+			expenseCategoryRows = [];
 		}
 
 		res.render("junket/house_expense", {
@@ -106,7 +109,8 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			maxSettlementDate: maxSettlementDate,
 			settledDatesForMonth: settledDatesForMonth,
 			todayStr: todayStr,
-			expenseCategoryCatalog: expenseCategoryCatalog
+			expenseCategoryCatalog: expenseCategoryCatalog,
+			expenseCategoryRows: expenseCategoryRows
 		});
 	} catch (err) {
 		console.error('Error loading house_expense page:', err);
@@ -140,18 +144,44 @@ router.get('/expense_category_data', async (req, res) => {
 
 // ADD EXPENSE CATEGORY
 router.post('/add_expense_category', async (req, res) => {
-	const { txtCategory, txtType } = req.body;
+	const { txtCategory, txtType, txtParent } = req.body;
 	const date_now = new Date();
+	const wantsJson =
+		req.xhr ||
+		(req.get('accept') || '').includes('application/json') ||
+		String(req.body?.ajax || '') === '1';
 
 	const categoryType = parseInt(txtType, 10);
 	const normalizedType = categoryType === 2 ? 2 : 1;
-	const query = `INSERT INTO expense_category(CATEGORY, TYPE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?)`;
+	const parentId = txtParent && String(txtParent).trim() !== '' ? parseInt(txtParent, 10) : null;
+	const name = txtCategory != null ? String(txtCategory).trim() : '';
+	if (!name) {
+		if (wantsJson) return res.status(400).json({ success: false, error: 'Category name is required' });
+		return res.status(400).send('Category name is required');
+	}
+
+	const query = `INSERT INTO expense_category(CATEGORY, TYPE, PARENT_ID, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?)`;
 
 	try {
-		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now]);
+		const [result] = await pool.execute(query, [
+			name,
+			normalizedType,
+			parentId,
+			req.session.user_id,
+			date_now
+		]);
+		if (wantsJson) {
+			return res.json({
+				success: true,
+				id: result.insertId,
+				category: name,
+				parentId: parentId
+			});
+		}
 		res.redirect('/expense_category');
 	} catch (err) {
 		console.error('Error inserting Expense Category:', err);
+		if (wantsJson) return res.status(500).json({ success: false, error: 'Error inserting Expense Category' });
 		res.status(500).send('Error inserting Expense Category');
 	}
 });
@@ -159,16 +189,17 @@ router.post('/add_expense_category', async (req, res) => {
 // EDIT EXPENSE CATEGORY
 router.put('/expense_category/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
-	const { txtCategory, txtType } = req.body;
+	const { txtCategory, txtType, txtParent } = req.body;
 	const date_now = new Date();
 
 	const categoryType = parseInt(txtType, 10);
 	const normalizedType = categoryType === 2 ? 2 : 1;
+	const parentId = txtParent && String(txtParent).trim() !== '' ? parseInt(txtParent, 10) : null;
 
-	const query = `UPDATE expense_category SET CATEGORY = ?, TYPE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+	const query = `UPDATE expense_category SET CATEGORY = ?, TYPE = ?, PARENT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 
 	try {
-		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now, id]);
+		await pool.execute(query, [txtCategory, normalizedType, parentId, req.session.user_id, date_now, id]);
 		res.send('Expense category updated successfully');
 	} catch (err) {
 		console.error('Error updating Expense category:', err);
@@ -178,17 +209,59 @@ router.put('/expense_category/:id', async (req, res) => {
 
 // DELETE EXPENSE CATEGORY
 router.put('/expense_category/remove/:id', async (req, res) => {
-	const id = parseInt(req.params.id);
+	const id = parseInt(req.params.id, 10);
 	const date_now = new Date();
 
-	const query = `UPDATE expense_category SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+	if (!id) {
+		return res.status(400).json({ error: 'Invalid category id' });
+	}
 
 	try {
+		const [catRows] = await pool.execute(
+			'SELECT IDNo, PARENT_ID FROM expense_category WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!catRows.length) {
+			return res.status(404).json({ error: 'Category not found' });
+		}
+
+		const parentId = catRows[0].PARENT_ID;
+		const isMain = parentId == null || parentId === '' || Number(parentId) === 0;
+		const categoryIds = [id];
+
+		if (isMain) {
+			const [subRows] = await pool.execute(
+				'SELECT IDNo FROM expense_category WHERE ACTIVE = 1 AND PARENT_ID = ?',
+				[id]
+			);
+			subRows.forEach(function (row) {
+				categoryIds.push(row.IDNo);
+			});
+		}
+
+		const placeholders = categoryIds.map(function () {
+			return '?';
+		}).join(',');
+		const [countRows] = await pool.execute(
+			`SELECT COUNT(*) AS cnt FROM junket_house_expense WHERE ACTIVE = 1 AND CATEGORY_ID IN (${placeholders})`,
+			categoryIds
+		);
+		const itemCount = countRows[0] ? Number(countRows[0].cnt) : 0;
+
+		if (itemCount > 0) {
+			return res.status(400).json({
+				error:
+					'Cannot delete this category because it has expense item(s). Remove or reassign those items first.',
+				itemCount: itemCount
+			});
+		}
+
+		const query = `UPDATE expense_category SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 		res.send('Expense category updated successfully');
 	} catch (err) {
 		console.error('Error deleting Expense category:', err);
-		res.status(500).send('Error deleting Expense category');
+		res.status(500).json({ error: 'Error deleting Expense category' });
 	}
 });
 // ADD JUNKET EXPENSE

@@ -11,10 +11,35 @@ window.houseExpenseBreakdownState = {
     sortDir: 'desc'
 };
 
-/** Main category explorer + graph (date range only for graph race). */
+/** Main category / item explorer + graph (date range only for graph race). */
 window.houseExpenseExplorerState = {
-    mainCategory: null
+    mainCategoryId: null,
+    mainCategory: null,
+    itemCategoryId: null,
+    itemCategory: null
 };
+window.houseExpenseCategoryRows = [];
+window.houseExpenseItemSearchQuery = '';
+window.houseExpenseAnimateItemTable = false;
+
+function resetHouseExpenseExplorerState() {
+    window.houseExpenseExplorerState = {
+        mainCategoryId: null,
+        mainCategory: null,
+        itemCategoryId: null,
+        itemCategory: null
+    };
+}
+
+function houseExpenseApplyDefaultMainFromRows(mainRows) {
+    var st = window.houseExpenseExplorerState || {};
+    if (st.mainCategoryId || !mainRows || !mainRows.length) return;
+    var first = mainRows[0];
+    window.houseExpenseExplorerState.mainCategoryId = String(first.IDNo);
+    window.houseExpenseExplorerState.mainCategory = first.CATEGORY || null;
+    window.houseExpenseExplorerState.itemCategoryId = null;
+    window.houseExpenseExplorerState.itemCategory = null;
+}
 
 function getHouseExpenseFilterMode() {
     return $('input[name="filter-mode"]:checked').val() || 'settlement';
@@ -53,16 +78,421 @@ function houseExpenseSumExpenseRows(rows, predicate) {
     return sum;
 }
 
-function applyHouseExpenseExplorerDataTableFilter() {
-    if (!$.fn.DataTable.isDataTable('#expense-tbl')) return;
-    var dt = $('#expense-tbl').DataTable();
+function houseExpenseIsMainCategoryRow(catRow) {
+    if (!catRow) return false;
+    var parentId = catRow.PARENT_ID;
+    return parentId == null || parentId === '' || Number(parentId) === 0;
+}
+
+function houseExpenseGetCategoryIdsUnderMain(mainId) {
+    var ids = [String(mainId)];
+    (window.houseExpenseCategoryRows || []).forEach(function (c) {
+        if (c && String(c.PARENT_ID) === String(mainId)) {
+            ids.push(String(c.IDNo));
+        }
+    });
+    return ids;
+}
+
+function houseExpenseCategoryKindFromId(catId) {
+    var row = houseExpenseFindCategoryRow(catId);
+    if (!row) return 'sub';
+    return houseExpenseIsMainCategoryRow(row) ? 'main' : 'sub';
+}
+
+/** Count expense rows in current item table for category (main includes all subs). */
+function houseExpenseGetCategoryItemCount(catId, kind) {
+    if (!kind || (kind !== 'main' && kind !== 'sub')) {
+        kind = houseExpenseCategoryKindFromId(catId);
+    }
+    var ids = kind === 'main' ? houseExpenseGetCategoryIdsUnderMain(catId) : [String(catId)];
+    var stats = houseExpenseBuildCategoryStats(window.houseExpenseLastRows || []);
+    var total = 0;
+    ids.forEach(function (cid) {
+        if (stats[cid]) total += stats[cid].count;
+    });
+    return total;
+}
+
+function houseExpenseRowMatchesExplorer(row) {
+    if (!row || row.record_type === 'return_money') return true;
     var st = window.houseExpenseExplorerState || {};
-    dt.column(0).search(
-        st.mainCategory ? '^' + houseExpenseEscapeRegex(st.mainCategory) + '$' : '',
-        true,
-        false
+    var catId = row.expense_category_id != null ? String(row.expense_category_id) : '';
+    if (st.itemCategoryId) {
+        return catId === String(st.itemCategoryId);
+    }
+    if (st.mainCategoryId) {
+        return houseExpenseGetCategoryIdsUnderMain(st.mainCategoryId).indexOf(catId) !== -1;
+    }
+    if (st.mainCategory) {
+        return String(row.expense_category || '').trim() === st.mainCategory;
+    }
+    return true;
+}
+
+function applyHouseExpenseExplorerDataTableFilter() {
+    renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || []);
+}
+
+function houseExpenseCategoryTypeLabel(typeValue) {
+    var parsed = parseInt(typeValue, 10);
+    var t = window.houseExpenseTranslations || {};
+    return parsed === 2 ? (t.type_non_goods || 'Non-goods / Services') : (t.type_goods || 'Goods / Consumables');
+}
+
+function houseExpenseBuildCategoryStats(expenseRows) {
+    var stats = {};
+    (expenseRows || []).forEach(function (r) {
+        if (!r || r.record_type === 'return_money') return;
+        var id = r.expense_category_id != null ? String(r.expense_category_id) : '';
+        if (!id) return;
+        if (!stats[id]) stats[id] = { count: 0, sum: 0 };
+        stats[id].count += 1;
+        stats[id].sum += Number(r.AMOUNT) || 0;
+    });
+    return stats;
+}
+
+function getHouseExpenseSubCategoryRows(mainId) {
+    if (mainId == null || mainId === '') return [];
+    var mainIdStr = String(mainId);
+    return (window.houseExpenseCategoryRows || [])
+        .filter(function (c) {
+            return c && String(c.PARENT_ID) === mainIdStr;
+        })
+        .sort(function (a, b) {
+            return String(a.CATEGORY || '').localeCompare(String(b.CATEGORY || ''), undefined, {
+                sensitivity: 'base'
+            });
+        });
+}
+
+function houseExpenseGetExplorerSubtitleText(st) {
+    st = st || window.houseExpenseExplorerState || {};
+    if (!st.mainCategoryId && !st.mainCategory) return '';
+
+    var mainName = st.mainCategory || '';
+    if (!mainName && st.mainCategoryId) {
+        var mainRow = (window.houseExpenseCategoryRows || []).find(function (c) {
+            return c && String(c.IDNo) === String(st.mainCategoryId);
+        });
+        mainName = mainRow ? mainRow.CATEGORY || '' : '';
+    }
+
+    if (st.itemCategoryId) {
+        var subName = st.itemCategory || '';
+        if (!subName) {
+            var subRow = (window.houseExpenseCategoryRows || []).find(function (c) {
+                return c && String(c.IDNo) === String(st.itemCategoryId);
+            });
+            subName = subRow ? subRow.CATEGORY || '' : '';
+        }
+        if (subName && mainName) return mainName + ' \u203a ' + subName;
+        return subName || mainName;
+    }
+
+    return mainName;
+}
+
+function getHouseExpenseMainCategoryRows(expenseRows) {
+    var catalogMains = (window.houseExpenseCategoryRows || []).filter(houseExpenseIsMainCategoryRow);
+    if (catalogMains.length) {
+        return catalogMains.slice();
+    }
+    var byId = {};
+    (expenseRows || []).forEach(function (r) {
+        if (!r || r.record_type === 'return_money') return;
+        var id = r.expense_category_id;
+        if (id == null || id === '') return;
+        var key = String(id);
+        if (byId[key]) return;
+        byId[key] = {
+            IDNo: id,
+            CATEGORY: String(r.expense_category || 'Uncategorized').trim() || 'Uncategorized',
+            TYPE: r.expense_type,
+            PARENT_ID: null
+        };
+    });
+    return Object.keys(byId)
+        .map(function (k) {
+            return byId[k];
+        })
+        .sort(function (a, b) {
+            return String(a.CATEGORY || '').localeCompare(String(b.CATEGORY || ''), undefined, {
+                sensitivity: 'base'
+            });
+        });
+}
+
+function buildHouseExpenseActionButtons(row, amount) {
+    var permissions = parseInt($('#user-role').data('permissions'), 10);
+    var logCount = houseExpenseEditLogCount(row);
+    var histTitle =
+        (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) || 'Edit history';
+    var historyBtnHtml =
+        logCount > 0
+            ? '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseEditHistory(' +
+              row.expense_id +
+              ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+              String(histTitle).replace(/"/g, '&quot;') +
+              '"><i class="fa fa-history"></i></button>'
+            : '';
+    var editBtnClass =
+        logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
+    var editBtnClassReadonly =
+        logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
+    if (permissions !== 2) {
+        return (
+            '<div class="house-expense-actions">' +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="viewReceipt(\'' +
+            houseExpenseJsQuote(row.photoUrl || '') +
+            '\')" ' +
+            (row.record_type === 'return_money' ? 'disabled' : '') +
+            ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            (window.houseExpenseTranslations?.view_receipt || 'View Receipt') +
+            '"><i class="fa fa-eye"></i></button>' +
+            '<button type="button" class="' +
+            editBtnClass +
+            '" data-record-type="' +
+            (row.record_type || 'expense') +
+            '" data-expense-id="' +
+            row.expense_id +
+            '" data-category-id="' +
+            attrEncode(row.expense_category_id || '') +
+            '" data-receipt-no="' +
+            attrEncode(row.RECEIPT_NO || '') +
+            '" data-date-time="' +
+            attrEncode(row.DATE_TIME || row.ENCODED_DT || '') +
+            '" data-description="' +
+            attrEncode(row.DESCRIPTION || '') +
+            '" data-amount="' +
+            amount +
+            '" data-oic="' +
+            attrEncode(row.OIC || '') +
+            '" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            (window.houseExpenseTranslations?.edit_expense || 'Edit Expense') +
+            '"><i class="fa fa-pencil-alt"></i></button>' +
+            historyBtnHtml +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="downloadReceipt(\'' +
+            houseExpenseJsQuote(row.photoUrl || '') +
+            '\')" ' +
+            (row.record_type === 'return_money' ? 'disabled' : '') +
+            ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            (window.houseExpenseTranslations?.download_receipt || 'Download Receipt') +
+            '"><i class="fa fa-download"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="' +
+            (row.record_type === 'return_money'
+                ? 'archive_return_money(' + row.expense_id + ')'
+                : 'archive_expense(' + row.expense_id + ')') +
+            '" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            (window.houseExpenseTranslations?.archive_expense || 'Archive Expense') +
+            '"><i class="fa fa-trash-alt"></i></button>' +
+            '</div>'
+        );
+    }
+    return (
+        '<div class="house-expense-actions">' +
+        '<button type="button" class="btn btn-sm btn-primary" onclick="viewReceipt(\'' +
+        houseExpenseJsQuote(row.photoUrl || '') +
+        '\')" ' +
+        (row.record_type === 'return_money' ? 'disabled' : '') +
+        ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        (window.houseExpenseTranslations?.view_receipt || 'View Receipt') +
+        '"><i class="fa fa-eye"></i></button>' +
+        '<button type="button" class="' +
+        editBtnClassReadonly +
+        '" disabled data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        (window.houseExpenseTranslations?.edit_expense || 'Edit Expense') +
+        '"><i class="fa fa-pencil-alt"></i></button>' +
+        historyBtnHtml +
+        '<button type="button" class="btn btn-sm btn-secondary" onclick="downloadReceipt(\'' +
+        houseExpenseJsQuote(row.photoUrl || '') +
+        '\')" ' +
+        (row.record_type === 'return_money' ? 'disabled' : '') +
+        ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        (window.houseExpenseTranslations?.download_receipt || 'Download Receipt') +
+        '"><i class="fa fa-download"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-alt-secondary" disabled data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        (window.houseExpenseTranslations?.archive_expense || 'Archive Expense') +
+        '"><i class="fa fa-trash-alt"></i></button>' +
+        '</div>'
     );
-    dt.draw();
+}
+
+function houseExpenseRowMatchesSearch(row, query) {
+    if (!query) return true;
+    var q = query.toLowerCase();
+    var parts = [
+        row.expense_category,
+        row.RECEIPT_NO,
+        row.DESCRIPTION,
+        row.OIC,
+        row.FIRSTNAME,
+        row.AMOUNT
+    ];
+    return parts.some(function (p) {
+        return p != null && String(p).toLowerCase().indexOf(q) !== -1;
+    });
+}
+
+function houseExpenseGetFilteredItemRows(allRows) {
+    var st = window.houseExpenseExplorerState || {};
+    var rows = (allRows || []).slice();
+    var searchQ = String(window.houseExpenseItemSearchQuery || '').trim();
+
+    if (!st.mainCategoryId && !st.mainCategory) {
+        return [];
+    }
+
+    return rows.filter(function (row) {
+        if (!row) return false;
+        if (row.record_type === 'return_money') {
+            return !st.itemCategoryId;
+        }
+        if (!houseExpenseRowMatchesExplorer(row)) return false;
+        return houseExpenseRowMatchesSearch(row, searchQ);
+    });
+}
+
+function houseExpenseSumRowsForFooter(rows) {
+    var totalExpense = 0;
+    var totalReturnMoney = 0;
+    (rows || []).forEach(function (row) {
+        var amount = parseFloat(row.AMOUNT) || 0;
+        if (row.record_type === 'return_money') totalReturnMoney += amount;
+        else totalExpense += amount;
+    });
+    return { totalExpense: totalExpense, totalReturnMoney: totalReturnMoney };
+}
+
+function updateHouseExpenseItemFooterTotals(allRows) {
+    var sums = houseExpenseSumRowsForFooter(houseExpenseGetFilteredItemRows(allRows));
+    setHouseExpenseFooterTotals(sums.totalExpense, sums.totalReturnMoney);
+}
+
+function runHouseExpenseItemTableTransition(paintFn) {
+    if (typeof paintFn !== 'function') return;
+
+    var $wrap = $('.expense-item-table-wrap');
+    if (!$wrap.length) {
+        paintFn();
+        return;
+    }
+
+    var el = $wrap[0];
+    $wrap.removeClass('is-bounce-in').off('animationend.expenseItemBounce');
+    paintFn();
+    void el.offsetWidth;
+    $wrap.addClass('is-bounce-in');
+    $wrap.on('animationend.expenseItemBounce', function (e) {
+        if (e.target !== el) return;
+        $wrap.removeClass('is-bounce-in').off('animationend.expenseItemBounce');
+    });
+}
+
+function renderHouseExpenseItemEntriesTable(allRows, options) {
+    options = options || {};
+    var shouldAnimate = options.animate === true;
+
+    function paintItemTableBody() {
+        var $tbody = $('#expense-item-cat-tbody');
+        if (!$tbody.length) return;
+
+        var st = window.houseExpenseExplorerState || {};
+        var rows = (allRows || []).slice();
+        var noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
+
+        if (!st.mainCategoryId && !st.mainCategory) {
+            $('#expense-item-panel-subtitle').text('');
+            $tbody.html(
+                '<tr><td colspan="6" class="text-muted small text-center py-3">Select a main category</td></tr>'
+            );
+            updateHouseExpenseItemFooterTotals(allRows);
+            return;
+        }
+
+        $('#expense-item-panel-subtitle').text(houseExpenseGetExplorerSubtitleText(st));
+
+        rows = houseExpenseGetFilteredItemRows(allRows);
+
+        rows.sort(function (a, b) {
+            return new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
+        });
+
+        if (rows.length === 0) {
+            $tbody.html(
+                '<tr><td colspan="6" class="text-center text-muted py-3">' +
+                    houseExpenseHtmlEscape(noDataText) +
+                    '</td></tr>'
+            );
+            updateHouseExpenseItemFooterTotals(allRows);
+            if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
+                window.syncHouseExpenseSelectAllCheckboxState();
+            }
+            return;
+        }
+
+        var html = rows
+            .map(function (row) {
+                var amount = parseFloat(row.AMOUNT) || 0;
+                var formattedDate = row.ENCODED_DT
+                    ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss')
+                    : '-';
+                var formattedAmount = amount.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                var amountDisplay =
+                    row.record_type === 'return_money'
+                        ? '<span style="color: green;">' + formattedAmount + '</span>'
+                        : formattedAmount;
+                var nameLabel =
+                    row.record_type === 'return_money' ? 'Return Money' : row.expense_category || 'N/A';
+                /* Headers: description key = IN-CHARGE, receipt_no key = DESCRIPTION (see locales) */
+                var inChargeCol =
+                    row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-';
+                var descriptionCol =
+                    row.record_type === 'return_money' ? row.DESCRIPTION || '-' : row.RECEIPT_NO || '-';
+
+                return (
+                    '<tr class="js-expense-entry-row" data-expense-id="' +
+                    attrEncode(row.expense_id) +
+                    '">' +
+                    '<td>' +
+                    buildExpenseNameCell(row, nameLabel) +
+                    '</td>' +
+                    '<td>' +
+                    houseExpenseHtmlEscape(inChargeCol) +
+                    '</td>' +
+                    '<td>' +
+                    houseExpenseHtmlEscape(descriptionCol) +
+                    '</td>' +
+                    '<td class="text-end">' +
+                    amountDisplay +
+                    '</td>' +
+                    '<td class="text-end expense-item-date-cell">' +
+                    houseExpenseHtmlEscape(formattedDate) +
+                    '</td>' +
+                    '<td class="text-end expense-item-action-cell">' +
+                    buildHouseExpenseActionButtons(row, amount) +
+                    '</td>' +
+                    '</tr>'
+                );
+            })
+            .join('');
+
+        $tbody.html(html);
+        updateHouseExpenseItemFooterTotals(allRows);
+        if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
+            window.syncHouseExpenseSelectAllCheckboxState();
+        }
+    }
+
+    if (shouldAnimate) {
+        runHouseExpenseItemTableTransition(paintItemTableBody);
+    } else {
+        paintItemTableBody();
+    }
 }
 
 function refreshHouseExpenseExplorerOnly() {
@@ -87,6 +517,14 @@ function attrEncode(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/\r\n|\r|\n/g, '&#10;');
+}
+
+/** Safe string for inline onclick="fn('...')" handlers */
+function houseExpenseJsQuote(str) {
+    return String(str == null ? '' : str)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r\n|\r|\n/g, '');
 }
 
 function getClientTodayYmd() {
@@ -187,6 +625,50 @@ function houseExpenseHtmlEscape(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function houseExpenseCatCountBadgeHtml(count) {
+    var n = Number(count) || 0;
+    var wideClass = n >= 10 ? ' is-wide' : '';
+    return '<span class="expense-cat-count' + wideClass + '">' + n + '</span>';
+}
+
+function houseExpenseCanManageCategories() {
+    return !(
+        window.PermissionViewOnly &&
+        window.PermissionViewOnly.isViewOnly &&
+        window.PermissionViewOnly.isViewOnly()
+    );
+}
+
+function houseExpenseFindCategoryRow(catId) {
+    return (window.houseExpenseCategoryRows || []).find(function (c) {
+        return c && String(c.IDNo) === String(catId);
+    });
+}
+
+function houseExpenseCatRowEndHtml(count, catId, kind) {
+    var html =
+        '<div class="expense-cat-item-end">' + houseExpenseCatCountBadgeHtml(count);
+    if (catId && kind && houseExpenseCanManageCategories()) {
+        html +=
+            '<div class="expense-cat-actions" role="group" aria-label="Category actions">' +
+            '<button type="button" class="expense-cat-action-btn js-house-expense-edit-cat" data-cat-kind="' +
+            attrEncode(kind) +
+            '" data-cat-id="' +
+            attrEncode(String(catId)) +
+            '" title="Edit" aria-label="Edit">' +
+            '<i class="fa fa-pencil-alt" aria-hidden="true"></i></button>' +
+            '<button type="button" class="expense-cat-action-btn js-house-expense-delete-cat" data-cat-kind="' +
+            attrEncode(kind) +
+            '" data-cat-id="' +
+            attrEncode(String(catId)) +
+            '" title="Delete" aria-label="Delete">' +
+            '<i class="fa fa-trash-alt" aria-hidden="true"></i></button>' +
+            '</div>';
+    }
+    html += '</div>';
+    return html;
 }
 
 /** Amount line in edit log: show number only (no ₱) in the modal. */
@@ -316,6 +798,64 @@ function setHouseExpenseFooterTotals(totalExpense, totalReturnMoney) {
     $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpensePeso(te));
     $('#TOTAL_RETURN_MONEY_AMOUNT').text(formatHouseExpensePeso(tr));
     $('#TOTAL_NET_EXPENSES_AMOUNT').text(formatHouseExpensePeso(te - tr));
+}
+
+function houseExpenseApplyLoadedData(data) {
+    var rows = data || [];
+    var total_expense = 0;
+    var total_return_money = 0;
+    rows.forEach(function (row) {
+        var amount = parseFloat(row.AMOUNT) || 0;
+        if (row && row.record_type === 'return_money') total_return_money += amount;
+        else total_expense += amount;
+    });
+    window.houseExpenseLastRows = rows;
+    renderHouseExpenseAnalytics(rows, total_expense, total_return_money);
+    houseExpenseReconcileExplorerState();
+    if (typeof window.updateSettleButtonState === 'function') {
+        window.updateSettleButtonState(rows.length);
+    }
+    if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
+        window.syncHouseExpenseSelectAllCheckboxState();
+    }
+}
+
+/** Keep main/sub selection after reload; only clear if category no longer exists */
+function houseExpenseReconcileExplorerState() {
+    var st = window.houseExpenseExplorerState || {};
+    var catRows = window.houseExpenseCategoryRows || [];
+    if (!st.mainCategoryId) return;
+
+    var mainRow = catRows.find(function (c) {
+        return c && String(c.IDNo) === String(st.mainCategoryId);
+    });
+    var mainValid = mainRow && houseExpenseIsMainCategoryRow(mainRow);
+    if (!mainValid) {
+        resetHouseExpenseExplorerState();
+        var expenseRows = (window.houseExpenseLastRows || []).filter(function (r) {
+            return r && r.record_type !== 'return_money';
+        });
+        houseExpenseApplyDefaultMainFromRows(getHouseExpenseMainCategoryRows(expenseRows));
+        refreshHouseExpenseExplorerOnly();
+        return;
+    }
+
+    st.mainCategory = mainRow.CATEGORY || st.mainCategory;
+    var subCleared = false;
+    if (st.itemCategoryId) {
+        var subRow = catRows.find(function (c) {
+            return c && String(c.IDNo) === String(st.itemCategoryId);
+        });
+        if (!subRow || String(subRow.PARENT_ID) !== String(st.mainCategoryId)) {
+            st.itemCategoryId = null;
+            st.itemCategory = null;
+            subCleared = true;
+        } else {
+            st.itemCategory = subRow.CATEGORY || st.itemCategory;
+        }
+    }
+    window.houseExpenseExplorerState = st;
+    if (subCleared) refreshHouseExpenseExplorerOnly();
 }
 
 function renderHouseExpenseGraphRaceBarsHtml(entries, opts) {
@@ -454,73 +994,118 @@ function renderHouseExpenseCategoryLists(data) {
     var expenseRows = (data || []).filter(function (r) {
         return r && r.record_type !== 'return_money';
     });
+    var stats = houseExpenseBuildCategoryStats(expenseRows);
+    var $mainList = $('#expense-main-cat-list');
 
-    var byMain = {};
-    expenseRows.forEach(function (r) {
-        var m = String(r.expense_category || 'Uncategorized').trim() || 'Uncategorized';
-        if (!byMain[m]) byMain[m] = { count: 0, sum: 0 };
-        byMain[m].count += 1;
-        byMain[m].sum += Number(r.AMOUNT) || 0;
+    if (!$mainList.length) return;
+
+    var mainRows = getHouseExpenseMainCategoryRows(expenseRows);
+
+    mainRows.sort(function (a, b) {
+        var sa = stats[String(a.IDNo)] ? stats[String(a.IDNo)].sum : 0;
+        var sb = stats[String(b.IDNo)] ? stats[String(b.IDNo)].sum : 0;
+        if (sb !== sa) return sb - sa;
+        return String(a.CATEGORY || '').localeCompare(String(b.CATEGORY || ''), undefined, { sensitivity: 'base' });
     });
 
-    var dbCatalog = (window.houseExpenseCategoryCatalog || []).slice().filter(Boolean);
-    dbCatalog.sort(function (a, b) {
-        return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
-    });
+    houseExpenseApplyDefaultMainFromRows(mainRows);
+    st = window.houseExpenseExplorerState || {};
 
-    var inDb = {};
-    dbCatalog.forEach(function (k) {
-        inDb[k] = true;
-    });
-
-    var extras = Object.keys(byMain)
-        .filter(function (k) {
-            return !inDb[k];
-        })
-        .sort(function (a, b) {
-            return byMain[b].sum - byMain[a].sum;
-        });
-
-    var mainKeys = dbCatalog.concat(extras);
-
-    if (mainKeys.length === 0) {
-        $('#expense-main-cat-list').html('<div class="text-muted small p-2">No categories</div>');
+    if (mainRows.length === 0) {
+        $mainList.html('<div class="text-muted small p-2">No main categories</div>');
+        renderHouseExpenseSubCategoryList(data || []);
+        renderHouseExpenseItemEntriesTable(data || []);
         return;
     }
 
     var mainHtml = [];
-    mainHtml.push(
-        '<div class="expense-cat-item js-expense-main-cat' +
-            (!st.mainCategory ? ' is-active' : '') +
-            '" data-main="">' +
-            '<span class="expense-cat-name">All categories</span>' +
-            '<span class="expense-cat-count">' +
-            expenseRows.length +
-            '</span>' +
-            '</div>'
-    );
-    mainKeys.forEach(function (k) {
-        var active = st.mainCategory === k ? ' is-active' : '';
-        var row = byMain[k];
-        var cnt = row ? row.count : 0;
+
+    mainRows.forEach(function (main) {
+        var mainId = String(main.IDNo);
+        var childIds = houseExpenseGetCategoryIdsUnderMain(mainId);
+        var itemCount = 0;
+        childIds.forEach(function (cid) {
+            var s = stats[cid];
+            if (s) itemCount += s.count;
+        });
+
+        var active = st.mainCategoryId && String(st.mainCategoryId) === mainId ? ' is-active' : '';
         mainHtml.push(
-            '<div class="expense-cat-item js-expense-main-cat' +
+            '<div class="expense-cat-item js-expense-main-cat-row' +
                 active +
-                '" data-main="' +
-                attrEncode(k) +
+                '" data-main-id="' +
+                attrEncode(mainId) +
+                '" data-main-name="' +
+                attrEncode(main.CATEGORY || '') +
                 '">' +
                 '<span class="expense-cat-name" title="' +
-                attrEncode(k) +
+                attrEncode(main.CATEGORY || '') +
                 '">' +
-                houseExpenseHtmlEscape(k) +
+                houseExpenseHtmlEscape(main.CATEGORY || '') +
                 '</span>' +
-                '<span class="expense-cat-count">' +
-                cnt +
-                '</span>' +
+                houseExpenseCatRowEndHtml(itemCount, mainId, 'main') +
                 '</div>'
         );
     });
-    $('#expense-main-cat-list').html(mainHtml.join(''));
+
+    $mainList.html(mainHtml.join(''));
+
+    renderHouseExpenseSubCategoryList(data);
+    houseExpenseSyncCategoryAddButtons();
+    renderHouseExpenseItemEntriesTable(data || [], {
+        animate: !!window.houseExpenseAnimateItemTable
+    });
+    window.houseExpenseAnimateItemTable = false;
+}
+
+function renderHouseExpenseSubCategoryList(data) {
+    var $list = $('#expense-sub-cat-list');
+    if (!$list.length) return;
+
+    var st = window.houseExpenseExplorerState || {};
+    var expenseRows = (data || []).filter(function (r) {
+        return r && r.record_type !== 'return_money';
+    });
+    var stats = houseExpenseBuildCategoryStats(expenseRows);
+
+    if (!st.mainCategoryId) {
+        $list.html('<div class="text-muted small p-2">Select a main category</div>');
+        return;
+    }
+
+    var mainId = String(st.mainCategoryId);
+
+    var subRows = getHouseExpenseSubCategoryRows(mainId);
+    if (!subRows.length) {
+        $list.html('<div class="text-muted small p-2">No sub categories for this main</div>');
+        return;
+    }
+
+    var html = [];
+
+    subRows.forEach(function (sub) {
+        var subId = String(sub.IDNo);
+        var s = stats[subId] || { count: 0 };
+        var active = st.itemCategoryId && String(st.itemCategoryId) === subId ? ' is-active' : '';
+        html.push(
+            '<div class="expense-cat-item js-expense-sub-cat-row' +
+                active +
+                '" data-sub-id="' +
+                attrEncode(subId) +
+                '" data-sub-name="' +
+                attrEncode(sub.CATEGORY || '') +
+                '">' +
+                '<span class="expense-cat-name" title="' +
+                attrEncode(sub.CATEGORY || '') +
+                '">' +
+                houseExpenseHtmlEscape(sub.CATEGORY || '') +
+                '</span>' +
+                houseExpenseCatRowEndHtml(s.count, subId, 'sub') +
+                '</div>'
+        );
+    });
+
+    $list.html(html.join(''));
 }
 
 function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
@@ -531,8 +1116,7 @@ function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
     $('#expense-kpi-grand-range').text(getHouseExpenseGrandDateLabel());
 
     var selected = houseExpenseSumExpenseRows(data, function (r) {
-        if (st.mainCategory && String(r.expense_category || '').trim() !== st.mainCategory) return false;
-        return true;
+        return houseExpenseRowMatchesExplorer(r);
     });
 
     $('#expense-kpi-selected-amount').text(formatHouseExpensePeso(selected));
@@ -556,13 +1140,13 @@ function toggleHouseExpenseBreakdownPanel(mode) {
     var $g = $('#expense-graph-race-column');
     var $stack = $('#expense-kpi-stack-col');
     var $dash = $('#house-expense-dashboard');
-    var $catCol = $('.expense-explorer-cat-col');
-    var $tableHead = $('.expense-table-panel-head');
+    var $catCol = $('.expense-explorer-main-col, .expense-explorer-sub-col, .expense-explorer-item-col');
+    var $explorerRow = $('.expense-explorer-row');
     if (!$g.length) return;
     if (rangeReady) {
         if ($dash.length) $dash.removeClass('d-none');
         $catCol.removeClass('d-none');
-        if ($tableHead.length) $tableHead.removeClass('d-none');
+        if ($explorerRow.length) $explorerRow.removeClass('d-none');
         $g.removeClass('d-none').addClass('d-flex align-items-stretch');
         if ($stack.length) {
             $stack.removeClass('col-12').addClass('col-lg-5 col-xl-4');
@@ -570,8 +1154,8 @@ function toggleHouseExpenseBreakdownPanel(mode) {
         $('#expense-kpi-col-grand, #expense-kpi-col-selected').removeClass('col-md-6');
     } else {
         if ($dash.length) $dash.addClass('d-none');
-        $catCol.addClass('d-none');
-        if ($tableHead.length) $tableHead.addClass('d-none');
+        $catCol.removeClass('d-none');
+        if ($explorerRow.length) $explorerRow.removeClass('d-none');
         $g.addClass('d-none').removeClass('d-flex align-items-stretch');
         if ($stack.length) {
             $stack.removeClass('col-lg-5 col-xl-4').addClass('col-12');
@@ -579,9 +1163,10 @@ function toggleHouseExpenseBreakdownPanel(mode) {
         $('#expense-kpi-col-grand, #expense-kpi-col-selected').addClass('col-md-6');
         $('#expense-graph-race-body').empty();
         $('#expense-graph-subtitle').text('By category');
-        window.houseExpenseExplorerState = window.houseExpenseExplorerState || {};
-        window.houseExpenseExplorerState.mainCategory = null;
-        if (typeof applyHouseExpenseExplorerDataTableFilter === 'function') {
+        resetHouseExpenseExplorerState();
+        if (window.houseExpenseLastRows && window.houseExpenseLastRows.length) {
+            refreshHouseExpenseExplorerOnly();
+        } else if (typeof applyHouseExpenseExplorerDataTableFilter === 'function') {
             applyHouseExpenseExplorerDataTableFilter();
         }
     }
@@ -622,7 +1207,7 @@ function getBreakdownSortValue(row, key) {
     if (!row) return '';
     if (key === 'amount') return Number(row.AMOUNT) || 0;
     if (key === 'description') return String(row.RECEIPT_NO || '').toLowerCase();
-    if (key === 'in_charge') return String(row.OIC || row.DESCRIPTION || '').toLowerCase();
+    if (key === 'in_charge') return String(row.DESCRIPTION || row.OIC || '').toLowerCase();
     if (key === 'encoded_by') return String(row.FIRSTNAME || '').toLowerCase();
     if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
     return '';
@@ -683,9 +1268,9 @@ $(document).ready(function () {
         if (!$master.length) return;
         var $cbs = $();
         if ($('body').hasClass('open-pool-select-mode')) {
-            $cbs = $('#expense-tbl tbody .open-pool-checkbox');
+            $cbs = $('#expense-item-cat-tbody .open-pool-checkbox');
         } else if ($('body').hasClass('daily-settle-select-mode')) {
-            $cbs = $('#expense-tbl tbody .daily-settle-checkbox');
+            $cbs = $('#expense-item-cat-tbody .daily-settle-checkbox');
         }
         if (!$cbs.length) {
             $master.prop('checked', false).prop('indeterminate', false);
@@ -696,6 +1281,7 @@ $(document).ready(function () {
         $master.prop('checked', c === n && n > 0);
         $master.prop('indeterminate', c > 0 && c < n);
     }
+    window.syncHouseExpenseSelectAllCheckboxState = syncHouseExpenseSelectAllCheckboxState;
 
     function setHouseExpenseDailySettleSelectionMode(enabled) {
         if (enabled && window.isOpenPoolSelectionMode) setHouseExpenseOpenPoolSelectionMode(false);
@@ -781,85 +1367,14 @@ $(document).ready(function () {
     };
 
     function clearExpenseTableDisplay() {
-        window.houseExpenseExplorerState = { mainCategory: null };
-        if ($.fn.DataTable.isDataTable('#expense-tbl')) {
-            var dt = $('#expense-tbl').DataTable();
-            dt.clear();
-            dt.draw();
-        }
-        setHouseExpenseFooterTotals(0, 0);
-        renderHouseExpenseAnalytics([], 0, 0);
+        resetHouseExpenseExplorerState();
+        window.houseExpenseItemSearchQuery = '';
+        $('#expense-item-search').val('');
+        houseExpenseApplyLoadedData([]);
     }
 
     function initializeExpenseTable() {
-
-        // 1. Initialize DataTable (date range picker removed - using settlement date picker instead)
-        if ($.fn.DataTable.isDataTable('#expense-tbl')) {
-            var $shell = $('#house-expense-filter-shell');
-            if ($shell.length && $('#expense-tbl_wrapper').length) {
-                $shell.insertBefore('#expense-tbl_wrapper');
-            }
-            $('#expense-tbl').DataTable().destroy();
-        }
-
-        const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
-        const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
-        var dataTable = $('#expense-tbl').DataTable({
-            "dom": '<"house-expense-dt-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-2"<"d-flex flex-wrap align-items-end gap-3 flex-grow-1 min-w-0"<"flex-shrink-0 align-self-end"l><"house-expense-filter-mount flex-grow-1 min-w-0"div>><"flex-shrink-0 align-self-end ms-md-auto house-expense-dt-search"f>>' +
-                'rt<"row mt-2"<"col-12 d-flex justify-content-end"p>>',
-            "order": [[5, 'desc']],
-            "pageLength": 100,
-            "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
-            "initComplete": function () {
-                var $mount = $('#expense-tbl_wrapper .house-expense-filter-mount');
-                var $filter = $('#house-expense-filter-shell');
-                if ($mount.length && $filter.length) {
-                    $mount.append($filter);
-                }
-                function stopSortBubble(e) {
-                    e.stopPropagation();
-                }
-                $('#house-expense-select-all, .house-expense-select-all-slot')
-                    .off('click.dtHouseExpSelectAll mousedown.dtHouseExpSelectAll pointerdown.dtHouseExpSelectAll')
-                    .on('click.dtHouseExpSelectAll mousedown.dtHouseExpSelectAll pointerdown.dtHouseExpSelectAll', stopSortBubble);
-            },
-            "drawCallback": function () {
-                syncHouseExpenseSelectAllCheckboxState();
-            },
-            "columnDefs": [
-                {
-                    "targets": 5,
-                    "render": function (data, type, row) {
-                        // Check if this is a "no data" row - return empty string
-                        if (!data || data === '' || (row && Array.isArray(row) && row.length > 0 && (row[0] === (window.houseExpenseTranslations?.no_data_found || 'No data found')))) {
-                            return '';
-                        }
-                        if (type === 'sort') {
-                            if (!data) return '';
-                            return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
-                        }
-                        if (!data) return '';
-                        const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
-                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : '';
-                    },
-                    "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-                        $(cell).addClass('text-center');
-                    }
-                }
-            ],
-            "info": false,
-            "language": {
-                "search": (window.houseExpenseTranslations?.search || "Search:"),
-                "paginate": {
-                    "previous": (window.houseExpenseTranslations?.previous || "Previous"),
-                    "next": (window.houseExpenseTranslations?.next || "Next")
-                },
-                "emptyTable": (window.houseExpenseTranslations?.no_data_found || "No data found")
-            }
-        });
-
-        // 2. reloadData function - Supports both settlement date and date range modes
-        function reloadData() {
+        function reloadData(resetExplorer) {
             var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
             var requestData = {};
             var requestMode = filterMode;
@@ -903,146 +1418,10 @@ $(document).ready(function () {
                         // Ignore stale response from previous mode
                         return;
                     }
-                    window.houseExpenseExplorerState = { mainCategory: null };
-                    dataTable.clear();
-                    var total_expense = 0;
-                    var total_return_money = 0;
-
-                    if (data.length === 0) {
-                        // Add centered "No data found" message
-                        const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
-                        var tbody = dataTable.table().body();
-                        $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
-                        setHouseExpenseFooterTotals(0, 0);
-                        renderHouseExpenseAnalytics([], 0, 0);
-                        window.houseExpenseLastRows = [];
-                        syncHouseExpenseSelectAllCheckboxState();
-                        return;
+                    if (resetExplorer === true) {
+                        resetHouseExpenseExplorerState();
                     }
-
-                    data.forEach(function (row) {
-                        const amount = parseFloat(row.AMOUNT) || 0; // 🛡️ Ensure valid number
-                        
-                        // Calculate totals separately
-                        if (row.record_type === 'return_money') {
-                            total_return_money += amount;
-                        } else {
-                            total_expense += amount;
-                        }
-                    
-                        const permissions = parseInt($('#user-role').data('permissions'));
-                        const logCount = houseExpenseEditLogCount(row);
-                        const histTitle =
-                            (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) ||
-                            'Edit history';
-                        const historyBtnHtml =
-                            logCount > 0
-                                ? '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseEditHistory(' +
-                                  row.expense_id +
-                                  ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-                                  String(histTitle).replace(/"/g, '&quot;') +
-                                  '"><i class="fa fa-history"></i></button>'
-                                : '';
-                        const editBtnClass =
-                            logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
-                        const editBtnClassReadonly =
-                            logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
-                        let btn = '';
-                        if (permissions !== 2) {
-                            btn = `
-                                <div class="house-expense-actions">
-                                    <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="viewReceipt('${row.photoUrl}')"
-                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
-                                        <i class="fa fa-eye"></i>
-                                    </button>
-                                    <button type="button" class="${editBtnClass}"
-                                            data-record-type="${row.record_type || 'expense'}"
-                                            data-expense-id="${row.expense_id}"
-                                            data-category-id="${attrEncode(row.expense_category_id || '')}"
-                                            data-receipt-no="${attrEncode(row.RECEIPT_NO || '')}"
-                                            data-date-time="${attrEncode(row.DATE_TIME || row.ENCODED_DT || '')}"
-                                            data-description="${attrEncode(row.DESCRIPTION || '')}"
-                                            data-amount="${amount}"
-                                            data-oic="${attrEncode(row.OIC || '')}"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
-                                        <i class="fa fa-pencil-alt"></i>
-                                    </button>
-                                    ${historyBtnHtml}
-                                    <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="downloadReceipt('${row.photoUrl}')"
-                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
-                                        <i class="fa fa-download"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
-                                        <i class="fa fa-trash-alt"></i>
-                                    </button>
-                                </div>`;
-                        } else {
-                            btn = `
-                                <div class="house-expense-actions">
-                                    <button type="button" class="btn btn-sm btn-primary"
-                                            onclick="viewReceipt('${row.photoUrl}')"
-                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
-                                        <i class="fa fa-eye"></i>
-                                    </button>
-                                    <button type="button" class="${editBtnClassReadonly}" disabled
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
-                                        <i class="fa fa-pencil-alt"></i>
-                                    </button>
-                                    ${historyBtnHtml}
-                                    <button type="button" class="btn btn-sm btn-secondary"
-                                            onclick="downloadReceipt('${row.photoUrl}')"
-                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
-                                        <i class="fa fa-download"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary" disabled
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
-                                        <i class="fa fa-trash-alt"></i>
-                                    </button>
-                                </div>`;
-                        }
-                    
-                    const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                    
-                    // For return money records, show "-" for Type, otherwise use expense_type
-                    let expenseTypeLabel = '-';
-                    if (row.record_type !== 'return_money') {
-                        const typeValue = parseInt(row.expense_type, 10);
-                        expenseTypeLabel = (typeValue === 2)
-                            ? nonGoodsTypeLabel
-                            : goodsTypeLabel;
-                    }
-                    
-                    // Format amount - green color for return money records
-                    const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                    const amountDisplay = row.record_type === 'return_money' 
-                        ? `<span style="color: green;">${formattedAmount}</span>`
-                        : formattedAmount;
-                    
-                    // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
-                    dataTable.row.add([
-                        buildExpenseNameCell(row, row.expense_category || 'N/A'),
-                        // expenseTypeLabel, // Type column hidden per request
-                        row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
-                        row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
-                        amountDisplay,
-                        row.FIRSTNAME || 'N/A',
-                        formattedDate,
-                        btn
-                    ]).draw();
-                    });
-                    
-                    setHouseExpenseFooterTotals(total_expense, total_return_money);
-                    renderHouseExpenseAnalytics(data, total_expense, total_return_money);
-                    window.houseExpenseLastRows = data;
-                    syncHouseExpenseSelectAllCheckboxState();
+                    houseExpenseApplyLoadedData(data);
 
                 },
                 error: function (xhr, status, error) {
@@ -1063,42 +1442,47 @@ $(document).ready(function () {
     $(document).on('change', '#house-expense-select-all', function () {
         var checked = $(this).prop('checked');
         if ($('body').hasClass('open-pool-select-mode')) {
-            $('#expense-tbl tbody .open-pool-checkbox').prop('checked', checked);
+            $('#expense-item-cat-tbody .open-pool-checkbox').prop('checked', checked);
         } else if ($('body').hasClass('daily-settle-select-mode')) {
-            $('#expense-tbl tbody .daily-settle-checkbox').prop('checked', checked);
+            $('#expense-item-cat-tbody .daily-settle-checkbox').prop('checked', checked);
         }
         syncHouseExpenseSelectAllCheckboxState();
     });
 
     $(document).on(
         'change',
-        '#expense-tbl tbody .open-pool-checkbox, #expense-tbl tbody .daily-settle-checkbox',
+        '#expense-item-cat-tbody .open-pool-checkbox, #expense-item-cat-tbody .daily-settle-checkbox',
         function () {
             syncHouseExpenseSelectAllCheckboxState();
         }
     );
 
+    $(document).on('input', '#expense-item-search', function () {
+        window.houseExpenseItemSearchQuery = $(this).val() || '';
+        renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || []);
+    });
+
     function getHouseExpensePrintRows() {
-        if (!$.fn.DataTable.isDataTable('#expense-tbl')) return { headers: [], rows: [] };
-        var dt = $('#expense-tbl').DataTable();
-        var actionColIndex = 6;
+        var actionColIndex = 5;
         var headers = [];
-        $('#expense-tbl thead tr:first th').each(function (i) {
+        $('#expense-item-cat-tbl thead tr:first th').each(function (i) {
             if (i === actionColIndex) return;
             headers.push($(this).text().trim());
         });
         var rows = [];
-        dt.rows({ search: 'applied', order: 'applied' }).every(function () {
+        $('#expense-item-cat-tbody tr.js-expense-entry-row').each(function () {
             var cells = [];
-            $(this.node()).find('td').each(function (i) {
-                if (i === actionColIndex) return;
-                cells.push($(this).text().trim());
-            });
+            $(this)
+                .find('td')
+                .each(function (i) {
+                    if (i === actionColIndex) return;
+                    cells.push($(this).text().trim());
+                });
             if (cells.length) rows.push(cells);
         });
         if (rows.length) {
             rows.push([
-                $('#expense-tbl tfoot tr').eq(0).find('th').eq(0).text().trim(),
+                $('#expense-item-cat-tbl tfoot tr').eq(0).find('th').eq(0).text().trim(),
                 '',
                 '',
                 $('#TOTAL_EXPENSE_AMOUNT').text().trim(),
@@ -1106,7 +1490,7 @@ $(document).ready(function () {
                 ''
             ]);
             rows.push([
-                $('#expense-tbl tfoot tr').eq(1).find('th').eq(0).text().trim(),
+                $('#expense-item-cat-tbl tfoot tr').eq(1).find('th').eq(0).text().trim(),
                 '',
                 '',
                 $('#TOTAL_RETURN_MONEY_AMOUNT').text().trim(),
@@ -1114,7 +1498,7 @@ $(document).ready(function () {
                 ''
             ]);
             rows.push([
-                $('#expense-tbl tfoot tr').eq(2).find('th').eq(0).text().trim(),
+                $('#expense-item-cat-tbl tfoot tr').eq(2).find('th').eq(0).text().trim(),
                 '',
                 '',
                 $('#TOTAL_NET_EXPENSES_AMOUNT').text().trim(),
@@ -1223,7 +1607,7 @@ $(document).ready(function () {
             }
             return;
         }
-        var headers = ['Name', 'Receipt No', 'Description', 'Amount', 'Encoded By', 'Date & Time'];
+        var headers = ['Name', 'In-Charge', 'Description', 'Amount', 'Date & Time'];
         var rows = data.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
             var formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -1232,10 +1616,9 @@ $(document).ready(function () {
                 : '';
             return [
                 row.expense_category || 'N/A',
-                row.record_type === 'return_money' ? '-' : (row.RECEIPT_NO || '-'),
-                row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.DESCRIPTION || '-'),
+                row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-',
+                row.record_type === 'return_money' ? row.DESCRIPTION || '-' : row.RECEIPT_NO || '-',
                 formattedAmount,
-                row.FIRSTNAME || 'N/A',
                 enc
             ];
         });
@@ -1710,180 +2093,10 @@ $(document).ready(function () {
         }
     });
 
-    // Update reloadData to support settlement date
-    window.reloadExpenseBySettlementDate = function() {
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        if (filterMode !== 'settlement') {
-            clearExpenseTableDisplay();
-            return;
+    window.reloadExpenseBySettlementDate = function () {
+        if (typeof window.reloadData === 'function') {
+            window.reloadData();
         }
-        // Get fresh date each time function is called
-        var date = window.selectedSettlementDate || 'current';
-        $.ajax({
-            url: '/junket_house_expense_data',
-            method: 'GET',
-            data: {
-                date: date,
-                settlement_view: window.selectedSettlementSubView || 'open'
-            },
-                    success: function (data) {
-                        var currentMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-                        if (currentMode !== 'settlement') {
-                            clearExpenseTableDisplay();
-                            return;
-                        }
-                        window.houseExpenseExplorerState = { mainCategory: null };
-                        var dataTable = $('#expense-tbl').DataTable();
-                        dataTable.clear();
-                        var total_expense = 0;
-                        var total_return_money = 0;
-
-                        if (data.length === 0) {
-                            const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
-                            var tbody = dataTable.table().body();
-                            $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
-                            setHouseExpenseFooterTotals(0, 0);
-                            renderHouseExpenseAnalytics([], 0, 0);
-                            window.houseExpenseLastRows = [];
-                            if (typeof window.updateSettleButtonState === 'function') {
-                                window.updateSettleButtonState(0);
-                            }
-                            syncHouseExpenseSelectAllCheckboxState();
-                            return;
-                        }
-
-                        const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
-                        const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
-
-                        data.forEach(function (row) {
-                            const amount = parseFloat(row.AMOUNT) || 0;
-                            
-                            if (row.record_type === 'return_money') {
-                                total_return_money += amount;
-                            } else {
-                                total_expense += amount;
-                            }
-                        
-                            const permissions = parseInt($('#user-role').data('permissions'));
-                            const logCount = houseExpenseEditLogCount(row);
-                            const histTitle =
-                                (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) ||
-                                'Edit history';
-                            const historyBtnHtml =
-                                logCount > 0
-                                    ? '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseEditHistory(' +
-                                      row.expense_id +
-                                      ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-                                      String(histTitle).replace(/"/g, '&quot;') +
-                                      '"><i class="fa fa-history"></i></button>'
-                                    : '';
-                            const editBtnClass =
-                                logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
-                            const editBtnClassReadonly =
-                                logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
-                            let btn = '';
-                            if (permissions !== 2) {
-                                btn = `
-                                    <div class="house-expense-actions">
-                                        <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="viewReceipt('${row.photoUrl}')"
-                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
-                                            <i class="fa fa-eye"></i>
-                                        </button>
-                                        <button type="button" class="${editBtnClass}"
-                                                data-record-type="${row.record_type || 'expense'}"
-                                                data-expense-id="${row.expense_id}"
-                                                data-category-id="${attrEncode(row.expense_category_id || '')}"
-                                                data-receipt-no="${attrEncode(row.RECEIPT_NO || '')}"
-                                                data-date-time="${attrEncode(row.DATE_TIME || row.ENCODED_DT || '')}"
-                                                data-description="${attrEncode(row.DESCRIPTION || '')}"
-                                                data-amount="${amount}"
-                                                data-oic="${attrEncode(row.OIC || '')}"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
-                                            <i class="fa fa-pencil-alt"></i>
-                                        </button>
-                                        ${historyBtnHtml}
-                                        <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="downloadReceipt('${row.photoUrl}')"
-                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
-                                            <i class="fa fa-download"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
-                                            <i class="fa fa-trash-alt"></i>
-                                        </button>
-                                    </div>`;
-                            } else {
-                                btn = `
-                                    <div class="house-expense-actions">
-                                        <button type="button" class="btn btn-sm btn-primary"
-                                                onclick="viewReceipt('${row.photoUrl}')"
-                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
-                                            <i class="fa fa-eye"></i>
-                                        </button>
-                                        <button type="button" class="${editBtnClassReadonly}" disabled
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
-                                            <i class="fa fa-pencil-alt"></i>
-                                        </button>
-                                        ${historyBtnHtml}
-                                        <button type="button" class="btn btn-sm btn-secondary"
-                                                onclick="downloadReceipt('${row.photoUrl}')"
-                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
-                                            <i class="fa fa-download"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-alt-secondary" disabled
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
-                                            <i class="fa fa-trash-alt"></i>
-                                        </button>
-                                    </div>`;
-                            }
-                        
-                            const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                            
-                            let expenseTypeLabel = '-';
-                            if (row.record_type !== 'return_money') {
-                                const typeValue = parseInt(row.expense_type, 10);
-                                expenseTypeLabel = (typeValue === 2)
-                                    ? nonGoodsTypeLabel
-                                    : goodsTypeLabel;
-                            }
-                            
-                            const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                            const amountDisplay = row.record_type === 'return_money' 
-                                ? `<span style="color: green;">${formattedAmount}</span>`
-                                : formattedAmount;
-                            
-                            // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
-                            dataTable.row.add([
-                                buildExpenseNameCell(row, row.expense_category || 'N/A'),
-                                // expenseTypeLabel, // Type column hidden per request
-                                row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
-                                row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
-                                amountDisplay,
-                                row.FIRSTNAME || 'N/A',
-                                formattedDate,
-                                btn
-                            ]).draw();
-                        });
-                        
-                        setHouseExpenseFooterTotals(total_expense, total_return_money);
-                        renderHouseExpenseAnalytics(data, total_expense, total_return_money);
-                        window.houseExpenseLastRows = data;
-                        
-                        if (typeof window.updateSettleButtonState === 'function') {
-                            window.updateSettleButtonState(data.length);
-                        }
-                        syncHouseExpenseSelectAllCheckboxState();
-                    },
-            error: function (xhr, status, error) {
-                // Error fetching data
-            }
-        });
     };
 
     // Settlement button click handler
@@ -2217,6 +2430,8 @@ $(document).ready(function () {
     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
 
+    expense_category();
+
     // Initial load with settlement date
     if (typeof window.reloadData === 'function') {
         window.reloadData();
@@ -2245,9 +2460,36 @@ $(document).ready(function () {
         showExpenseBreakdownModalByCategory(categoryName);
     });
 
-    $(document).on('click', '.js-expense-main-cat', function () {
-        var raw = $(this).attr('data-main');
-        window.houseExpenseExplorerState.mainCategory = raw ? raw : null;
+    $(document).on('click', '.js-expense-main-cat-row', function () {
+        var mainId = $(this).attr('data-main-id') || '';
+        var mainName = $(this).attr('data-main-name') || '';
+        if (!mainId) return;
+
+        var stBefore = window.houseExpenseExplorerState || {};
+        var sameSelection = String(stBefore.mainCategoryId) === String(mainId) && !stBefore.itemCategoryId;
+        window.houseExpenseAnimateItemTable = !sameSelection;
+        window.houseExpenseExplorerState = {
+            mainCategoryId: mainId,
+            mainCategory: mainName || null,
+            itemCategoryId: null,
+            itemCategory: null
+        };
+        refreshHouseExpenseExplorerOnly();
+    });
+
+    /* Category modal UI init runs from house_expense.ejs (after this file loads), same as new-expense bindings. */
+
+    $(document).on('click', '.js-expense-sub-cat-row', function () {
+        var subId = $(this).attr('data-sub-id') || '';
+        var subName = $(this).attr('data-sub-name') || '';
+        var st = window.houseExpenseExplorerState || {};
+        if (!st.mainCategoryId) return;
+
+        var sameSelection =
+            (!subId && !st.itemCategoryId) || (subId && String(st.itemCategoryId) === String(subId));
+        window.houseExpenseAnimateItemTable = !sameSelection;
+        window.houseExpenseExplorerState.itemCategoryId = subId || null;
+        window.houseExpenseExplorerState.itemCategory = subId ? subName || null : null;
         refreshHouseExpenseExplorerOnly();
     });
 
@@ -2319,17 +2561,16 @@ $(document).ready(function () {
             processData: false,
             contentType: false,
             success: function (response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: window.houseExpenseTranslations?.updated_successfully || 'Updated successfully!',
-                    text: window.houseExpenseTranslations?.expense_updated || 'House expense has been updated.',
+                houseExpenseFinishSaveSuccess({
+                    $modal: $('#modal-edit-house-expense'),
+                    title:
+                        window.houseExpenseTranslations?.updated_successfully ||
+                        'Updated successfully!',
+                    text:
+                        window.houseExpenseTranslations?.expense_updated ||
+                        'House expense has been updated.',
                     confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
                     allowOutsideClick: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#modal-edit-house-expense').modal('hide');
-                        window.location.reload(); // 🔁 Full page refresh after confirm
-                    }
                 });
             },
             error: function (error) {
@@ -2349,11 +2590,111 @@ $(document).ready(function () {
 });
 
 
-function addHouseExpense() {
-    $('#modal-new-house-expense').modal('show');
+function houseExpenseSetNewExpenseCategory(categoryId) {
+    var $sel = $('#expense-category-select');
+    if (!$sel.length || categoryId == null || categoryId === '') return;
+    $sel.val(String(categoryId));
+    if ($sel.data('select2')) {
+        $sel.trigger('change.select2');
+    } else {
+        $sel.trigger('change');
+    }
+}
 
-    expense_category();
+/** Explorer add item: lock category from main/sub; top New Expense keeps dropdown. */
+function houseExpenseApplyNewExpenseCategoryUi(categoryId) {
+    var $selectWrap = $('#house-expense-new-cat-select-wrap');
+    var $presetWrap = $('#house-expense-new-cat-preset-wrap');
+    var $select = $('#expense-category-select');
+    var $hidden = $('#house-expense-new-expense-category-id');
+    var $presetLabel = $('#house-expense-new-cat-preset-label');
+
+    if (!$selectWrap.length) return;
+
+    if (categoryId != null && categoryId !== '') {
+        var st = window.houseExpenseExplorerState || {};
+        var label = houseExpenseGetExplorerSubtitleText(st);
+        if (!label) {
+            var row = houseExpenseFindCategoryRow(categoryId);
+            label = row ? row.CATEGORY || '' : '';
+        }
+
+        $selectWrap.addClass('d-none');
+        $select.prop('required', false).removeAttr('name');
+        $presetWrap.removeClass('d-none');
+        $hidden.val(String(categoryId)).attr('name', 'txtCategory');
+        if ($presetLabel.length) $presetLabel.text(label || '—');
+        houseExpenseSetNewExpenseCategory(categoryId);
+    } else {
+        $selectWrap.removeClass('d-none');
+        $select.prop('required', true).attr('name', 'txtCategory');
+        $presetWrap.addClass('d-none');
+        $hidden.val('').removeAttr('name');
+        if ($presetLabel.length) $presetLabel.text('');
+    }
+}
+
+/** Category id to use when adding an item from the explorer (+ on Items panel). */
+function houseExpenseGetAddItemCategoryId() {
+    var st = window.houseExpenseExplorerState || {};
+    if (!st.mainCategoryId) return null;
+    if (st.itemCategoryId) return String(st.itemCategoryId);
+    var subs = getHouseExpenseSubCategoryRows(st.mainCategoryId);
+    if (!subs.length) return String(st.mainCategoryId);
+    return null;
+}
+
+function addHouseExpense(categoryId) {
+    if (categoryId != null && categoryId !== '') {
+        window.houseExpensePendingNewExpenseCategoryId = String(categoryId);
+    } else {
+        window.houseExpensePendingNewExpenseCategoryId = null;
+    }
+
+    $('#modal-new-house-expense').modal('show');
     get_agent();
+    reloadHouseExpenseCategoryCatalog(function () {
+        if (window.houseExpensePendingNewExpenseCategoryId) {
+            houseExpenseApplyNewExpenseCategoryUi(window.houseExpensePendingNewExpenseCategoryId);
+        } else {
+            houseExpenseApplyNewExpenseCategoryUi(null);
+        }
+    });
+}
+
+function addHouseExpenseFromExplorer() {
+    var t = window.houseExpenseTranslations || {};
+    var categoryId = houseExpenseGetAddItemCategoryId();
+    if (!categoryId) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: t.add_item || 'Add item',
+                text: t.select_sub_for_item || 'Select a sub category first',
+                confirmButtonColor: '#0d6efd'
+            });
+        }
+        return;
+    }
+    addHouseExpense(categoryId);
+}
+
+/** Same wiring as addHouseExpense(): $('#modal-...').modal('show') */
+function addHouseExpenseMainCategory() {
+    openHouseExpenseAddCategoryModal('main');
+}
+
+function addHouseExpenseSubCategory() {
+    openHouseExpenseAddCategoryModal('sub');
+}
+
+/** Move modal to body so it stacks above .modal-backdrop (fixes backdrop-only visible). */
+function houseExpenseShowCategoryModal($modal) {
+    if (!$modal || !$modal.length) return;
+    if ($modal.parent().length && !$modal.parent().is('body')) {
+        $modal.appendTo('body');
+    }
+    $modal.modal('show');
 }
 
 function returnMoney() {
@@ -2408,10 +2749,8 @@ function archive_expense(id) {
                         text: window.houseExpenseTranslations?.expense_deleted || 'House expense has been deleted.',
                         confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
                         allowOutsideClick: false
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.reload();
-                        }
+                    }).then(function () {
+                        if (typeof window.reloadData === 'function') window.reloadData();
                     });
                 },
                 error: function (error) {
@@ -2462,10 +2801,8 @@ function archive_return_money(id) {
                         text: window.houseExpenseTranslations?.return_deleted || 'Return money has been deleted.',
                         confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
                         allowOutsideClick: false
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.reload();
-                        }
+                    }).then(function () {
+                        if (typeof window.reloadData === 'function') window.reloadData();
                     });
                 },
                 error: function (error) {
@@ -2504,17 +2841,14 @@ $(document).ready(function() {
             type: 'PUT',
             data: formData,
             success: function (response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: window.houseExpenseTranslations?.updated_successfully || 'Updated successfully!',
+                houseExpenseFinishSaveSuccess({
+                    $modal: $('#modal-edit-return-money'),
+                    title:
+                        window.houseExpenseTranslations?.updated_successfully ||
+                        'Updated successfully!',
                     text: 'Return money has been updated.',
                     confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
                     allowOutsideClick: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#modal-edit-return-money').modal('hide');
-                        window.location.reload();
-                    }
                 });
             },
             error: function (error) {
@@ -2533,12 +2867,39 @@ $(document).ready(function() {
     });
 });
 
-function expense_category() {
-    $.ajax({
+/** Original success Swal; on OK reload table and close modal — no full page reload */
+function houseExpenseFinishSaveSuccess(opts) {
+    opts = opts || {};
+    var afterOk = function () {
+        if (typeof opts.resetSubmitting === 'function') opts.resetSubmitting();
+        if (opts.$modal && opts.$modal.length) opts.$modal.modal('hide');
+        if (opts.$btn && opts.$btn.length) {
+            var html = opts.originalHtml || opts.$btn.data('original-text');
+            opts.$btn.prop('disabled', false).html(html || 'Save');
+        }
+        if (typeof window.reloadData === 'function') window.reloadData();
+    };
+    if (typeof Swal !== 'undefined' && (opts.title || opts.message)) {
+        Swal.fire({
+            icon: 'success',
+            title: opts.title || opts.message,
+            text: opts.text || undefined,
+            confirmButtonText: opts.confirmButtonText || 'OK',
+            showConfirmButton: true,
+            allowOutsideClick: opts.allowOutsideClick !== false
+        }).then(afterOk);
+    } else {
+        afterOk();
+    }
+}
+
+function reloadHouseExpenseCategoryCatalog(afterLoad) {
+    return $.ajax({
         url: '/expense_category_data',
         method: 'GET',
         success: function (response) {
-            window.houseExpenseCategoryCatalog = (response || [])
+            window.houseExpenseCategoryRows = (response || []).slice();
+            window.houseExpenseCategoryCatalog = window.houseExpenseCategoryRows
                 .map(function (o) {
                     return o.CATEGORY != null ? String(o.CATEGORY).trim() : '';
                 })
@@ -2546,7 +2907,9 @@ function expense_category() {
                 .sort(function (a, b) {
                     return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
                 });
-            if (window.houseExpenseLastRows && $('#expense-main-cat-list').length) {
+            if (typeof afterLoad === 'function') {
+                afterLoad(response);
+            } else if (window.houseExpenseLastRows && $('#expense-main-cat-list').length) {
                 refreshHouseExpenseExplorerOnly();
             }
             var selectOptions = $('#expense-category-select');
@@ -2556,18 +2919,430 @@ function expense_category() {
                 value: '',
                 text: window.houseExpenseTranslations?.select_expense_category || '--SELECT EXPENSE CATEGORY--'
             }));
-            response.forEach(function (option) {
+            (response || []).forEach(function (option) {
                 selectOptions.append($('<option>', {
                     value: option.IDNo,
                     text: option.CATEGORY
                 }));
             });
         },
-        error: function (xhr, status, error) {
-            // Error fetching options
+        error: function () {
+            if (typeof afterLoad === 'function') afterLoad(null);
         }
     });
 }
+
+function expense_category() {
+    reloadHouseExpenseCategoryCatalog();
+}
+
+function houseExpenseShowModal($modal) {
+    if (!$modal || !$modal.length) return;
+    if ($modal.parent().length && !$modal.parent().is('body')) {
+        $modal.appendTo('body');
+    }
+    if (typeof $modal.modal === 'function') {
+        $modal.modal({ backdrop: 'static', keyboard: false, show: true });
+        return;
+    }
+    try {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance($modal[0]).show();
+        }
+    } catch (e) {
+        /* ignore */
+    }
+}
+
+function houseExpenseHideModal($modal) {
+    if (!$modal || !$modal.length) return;
+    if (typeof $modal.modal === 'function') {
+        $modal.modal('hide');
+        return;
+    }
+    try {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getInstance($modal[0]);
+            if (inst) inst.hide();
+        }
+    } catch (e) {
+        /* ignore */
+    }
+}
+
+function houseExpenseSyncCategoryAddButtons() {
+    var t = window.houseExpenseTranslations || {};
+    var st = window.houseExpenseExplorerState || {};
+    var hasMain = !!(st.mainCategoryId);
+    var $subBtn = $('.js-house-expense-add-sub-cat');
+    $subBtn.prop('disabled', !hasMain);
+    $subBtn.attr(
+        'title',
+        hasMain ? t.add_sub_category || 'Add sub category' : t.select_main_first || 'Select a main category first'
+    );
+
+    var itemCatId = houseExpenseGetAddItemCategoryId();
+    var $itemBtn = $('.js-house-expense-add-item');
+    $itemBtn.prop('disabled', !itemCatId);
+    $itemBtn.attr(
+        'title',
+        itemCatId ? t.add_item || 'Add item' : t.select_sub_for_item || 'Select a sub category first'
+    );
+}
+
+function houseExpenseAfterCategoryCatalogChange(deletedId) {
+    var st = window.houseExpenseExplorerState || {};
+    if (deletedId != null && String(st.mainCategoryId) === String(deletedId)) {
+        window.houseExpenseExplorerState = {
+            mainCategoryId: null,
+            mainCategory: null,
+            itemCategoryId: null,
+            itemCategory: null
+        };
+    } else if (deletedId != null && String(st.itemCategoryId) === String(deletedId)) {
+        st.itemCategoryId = null;
+        st.itemCategory = null;
+    }
+    refreshHouseExpenseExplorerOnly();
+}
+
+function houseExpenseShowCategoryFormError($errorEl, message) {
+    if (!$errorEl || !$errorEl.length) return;
+    if (message) {
+        $errorEl.removeClass('d-none').text(message);
+    } else {
+        $errorEl.addClass('d-none').text('');
+    }
+}
+
+function openHouseExpenseEditCategoryModal(catId, kind) {
+    var t = window.houseExpenseTranslations || {};
+    var row = houseExpenseFindCategoryRow(catId);
+    if (!row) return;
+
+    var isSub = kind === 'sub';
+    var typeVal = row.TYPE != null ? String(row.TYPE) : '2';
+
+    $('#house-expense-edit-cat-id').val(String(catId));
+    $('#house-expense-edit-cat-name').val(row.CATEGORY || '').removeClass('is-invalid');
+    $('#house-expense-edit-cat-type').val(typeVal === '1' ? '1' : '2');
+    $('#house-expense-edit-cat-parent').val(isSub && row.PARENT_ID != null ? String(row.PARENT_ID) : '');
+    $('#house-expense-edit-category-title').text(
+        isSub ? t.edit_sub_category || 'Edit sub category' : t.edit_main_category || 'Edit main category'
+    );
+    houseExpenseShowCategoryFormError($('#house-expense-edit-cat-error'), '');
+    window.houseExpenseEditCategoryKind = kind;
+
+    houseExpenseShowCategoryModal($('#modal-house-expense-edit-category'));
+    $('#modal-house-expense-edit-category').one('shown.bs.modal', function () {
+        $('#house-expense-edit-cat-name').trigger('focus').trigger('select');
+    });
+}
+
+function openHouseExpenseDeleteCategoryModal(catId, kind) {
+    var t = window.houseExpenseTranslations || {};
+    var row = houseExpenseFindCategoryRow(catId);
+    var label = row ? row.CATEGORY || '' : '';
+    kind = kind || houseExpenseCategoryKindFromId(catId);
+    var itemCount = houseExpenseGetCategoryItemCount(catId, kind);
+
+    window.houseExpenseDeleteCategoryId = catId;
+    window.houseExpenseDeleteCategoryKind = kind;
+    $('#house-expense-delete-cat-label').text(label);
+
+    var $confirm = $('#house-expense-delete-cat-confirm');
+    $confirm.removeClass('d-none').prop('disabled', false);
+    var confirmText = $confirm.data('original-text') || 'Delete';
+    $confirm.html(confirmText);
+
+    if (itemCount > 0) {
+        var msg = t.category_has_items ||
+            'Cannot delete: this category has expense item(s) in the list. Remove or reassign them first.';
+        houseExpenseShowCategoryFormError($('#house-expense-delete-cat-error'), msg + ' (' + itemCount + ')');
+        $confirm.addClass('d-none').prop('disabled', true);
+    } else {
+        houseExpenseShowCategoryFormError($('#house-expense-delete-cat-error'), '');
+    }
+
+    houseExpenseShowCategoryModal($('#modal-house-expense-delete-category'));
+}
+
+function confirmDeleteHouseExpenseCategory() {
+    var t = window.houseExpenseTranslations || {};
+    var catId = window.houseExpenseDeleteCategoryId;
+    var kind = window.houseExpenseDeleteCategoryKind || houseExpenseCategoryKindFromId(catId);
+    if (catId == null || catId === '') return;
+
+    if (houseExpenseGetCategoryItemCount(catId, kind) > 0) {
+        houseExpenseShowCategoryFormError(
+            $('#house-expense-delete-cat-error'),
+            t.category_has_items ||
+                'Cannot delete: this category has expense item(s). Remove or reassign them first.'
+        );
+        return;
+    }
+
+    var $btn = $('#house-expense-delete-cat-confirm');
+    var saveHtml = $btn.html();
+    $btn.prop('disabled', true).html(t.saving || 'Saving...');
+
+    $.ajax({
+        url: '/expense_category/remove/' + catId,
+        method: 'PUT',
+        success: function () {
+            $('#modal-house-expense-delete-category').modal('hide');
+            reloadHouseExpenseCategoryCatalog(function () {
+                houseExpenseAfterCategoryCatalogChange(catId);
+            });
+        },
+        error: function (xhr) {
+            var msg =
+                (xhr.responseJSON && xhr.responseJSON.error) ||
+                t.error_deleting_category ||
+                'Could not delete category';
+            houseExpenseShowCategoryFormError($('#house-expense-delete-cat-error'), msg);
+            $btn.removeClass('d-none');
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html(saveHtml);
+        }
+    });
+}
+
+function houseExpenseInitCategoryAddUi() {
+    if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly()) {
+        $('.js-house-expense-add-main-cat, .js-house-expense-add-sub-cat, .js-house-expense-add-item').addClass('d-none');
+    }
+    houseExpenseSyncCategoryAddButtons();
+
+    $(document)
+        .off('click.houseExpenseCatRow', '.js-house-expense-edit-cat')
+        .on('click.houseExpenseCatRow', '.js-house-expense-edit-cat', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).attr('data-cat-id');
+            var kind = $(this).attr('data-cat-kind');
+            if (id) openHouseExpenseEditCategoryModal(id, kind);
+        });
+
+    $(document)
+        .off('click.houseExpenseCatRow', '.js-house-expense-delete-cat')
+        .on('click.houseExpenseCatRow', '.js-house-expense-delete-cat', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).attr('data-cat-id');
+            var kind = $(this).attr('data-cat-kind');
+            if (id) openHouseExpenseDeleteCategoryModal(id, kind);
+        });
+
+    $(document)
+        .off('submit.houseExpenseAddCat', '#form-house-expense-add-category')
+        .on('submit.houseExpenseAddCat', '#form-house-expense-add-category', function (e) {
+            e.preventDefault();
+            submitHouseExpenseAddCategoryForm($(this));
+        });
+
+    $(document)
+        .off('submit.houseExpenseEditCat', '#form-house-expense-edit-category')
+        .on('submit.houseExpenseEditCat', '#form-house-expense-edit-category', function (e) {
+            e.preventDefault();
+            submitHouseExpenseEditCategoryForm($(this));
+        });
+
+    $(document)
+        .off('click.houseExpenseDeleteCat', '#house-expense-delete-cat-confirm')
+        .on('click.houseExpenseDeleteCat', '#house-expense-delete-cat-confirm', function (e) {
+            e.preventDefault();
+            confirmDeleteHouseExpenseCategory();
+        });
+
+    $('#modal-house-expense-add-category').on('hidden.bs.modal', function () {
+        var $form = $('#form-house-expense-add-category');
+        if ($form.length) $form[0].reset();
+        $('#house-expense-add-cat-type').val('2');
+        $('#house-expense-add-cat-name').removeClass('is-invalid');
+        houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), '');
+        var $save = $('#house-expense-add-cat-save');
+        var originalText = $save.data('original-text') || 'Save';
+        $save.prop('disabled', false).html(originalText);
+    });
+
+    $('#modal-house-expense-edit-category').on('hidden.bs.modal', function () {
+        $('#house-expense-edit-cat-name').removeClass('is-invalid');
+        houseExpenseShowCategoryFormError($('#house-expense-edit-cat-error'), '');
+        var $save = $('#house-expense-edit-cat-save');
+        var originalText = $save.data('original-text') || 'Save';
+        $save.prop('disabled', false).html(originalText);
+    });
+
+    $('#modal-house-expense-delete-category').on('hidden.bs.modal', function () {
+        window.houseExpenseDeleteCategoryId = null;
+        window.houseExpenseDeleteCategoryKind = null;
+        $('#house-expense-delete-cat-label').text('');
+        houseExpenseShowCategoryFormError($('#house-expense-delete-cat-error'), '');
+        var $btn = $('#house-expense-delete-cat-confirm');
+        var originalText = $btn.data('original-text') || 'Delete';
+        $btn.removeClass('d-none').prop('disabled', false).html(originalText);
+    });
+}
+
+function submitHouseExpenseAddCategoryForm($form) {
+    var t = window.houseExpenseTranslations || {};
+    var mode = window.houseExpenseAddCategoryMode;
+    var name = String($('#house-expense-add-cat-name').val() || '').trim();
+    var typeVal = $('#house-expense-add-cat-type').val() || '2';
+    var parentId = $('#house-expense-add-cat-parent').val() || '';
+
+    if (!name) {
+        $('#house-expense-add-cat-name').addClass('is-invalid');
+        houseExpenseShowCategoryFormError(
+            $('#house-expense-add-cat-error'),
+            t.category_name_required || 'Category name is required'
+        );
+        return;
+    }
+
+    var $save = $('#house-expense-add-cat-save');
+    var saveHtml = $save.data('original-text') || $save.html();
+    if (!$save.data('original-text')) $save.data('original-text', saveHtml);
+    $save.prop('disabled', true).html(t.saving || 'Saving...');
+    houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), '');
+
+    $.ajax({
+        url: '/add_expense_category',
+        method: 'POST',
+        data: {
+            txtCategory: name,
+            txtType: typeVal,
+            txtParent: parentId,
+            ajax: '1'
+        },
+        headers: { Accept: 'application/json' },
+        success: function (res) {
+            $('#modal-house-expense-add-category').modal('hide');
+            reloadHouseExpenseCategoryCatalog(function () {
+                if (res && res.success && res.id) {
+                    if (mode === 'sub') {
+                        window.houseExpenseExplorerState.itemCategoryId = String(res.id);
+                        window.houseExpenseExplorerState.itemCategory = res.category || name;
+                    } else {
+                        window.houseExpenseExplorerState = {
+                            mainCategoryId: String(res.id),
+                            mainCategory: res.category || name,
+                            itemCategoryId: null,
+                            itemCategory: null
+                        };
+                    }
+                }
+                refreshHouseExpenseExplorerOnly();
+                houseExpenseSyncCategoryAddButtons();
+            });
+        },
+        error: function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.error) || t.error || 'Could not save category';
+            houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), msg);
+        },
+        complete: function () {
+            $save.prop('disabled', false).html(saveHtml);
+        }
+    });
+}
+
+function submitHouseExpenseEditCategoryForm($form) {
+    var t = window.houseExpenseTranslations || {};
+    var catId = $('#house-expense-edit-cat-id').val();
+    var name = String($('#house-expense-edit-cat-name').val() || '').trim();
+    var typeVal = $('#house-expense-edit-cat-type').val() || '2';
+    var parentId = $('#house-expense-edit-cat-parent').val() || '';
+
+    if (!catId) return;
+    if (!name) {
+        $('#house-expense-edit-cat-name').addClass('is-invalid');
+        houseExpenseShowCategoryFormError(
+            $('#house-expense-edit-cat-error'),
+            t.category_name_required || 'Category name is required'
+        );
+        return;
+    }
+
+    var $save = $('#house-expense-edit-cat-save');
+    var saveHtml = $save.data('original-text') || $save.html();
+    if (!$save.data('original-text')) $save.data('original-text', saveHtml);
+    $save.prop('disabled', true).html(t.saving || 'Saving...');
+    houseExpenseShowCategoryFormError($('#house-expense-edit-cat-error'), '');
+
+    $.ajax({
+        url: '/expense_category/' + catId,
+        method: 'PUT',
+        data: {
+            txtCategory: name,
+            txtType: typeVal,
+            txtParent: parentId
+        },
+        success: function () {
+            $('#modal-house-expense-edit-category').modal('hide');
+            reloadHouseExpenseCategoryCatalog(function () {
+                var st = window.houseExpenseExplorerState || {};
+                if (String(st.mainCategoryId) === String(catId)) {
+                    st.mainCategory = name;
+                }
+                if (String(st.itemCategoryId) === String(catId)) {
+                    st.itemCategory = name;
+                }
+                refreshHouseExpenseExplorerOnly();
+            });
+        },
+        error: function () {
+            houseExpenseShowCategoryFormError(
+                $('#house-expense-edit-cat-error'),
+                t.error_updating_category || 'Could not update category'
+            );
+        },
+        complete: function () {
+            $save.prop('disabled', false).html(saveHtml);
+        }
+    });
+}
+
+function openHouseExpenseAddCategoryModal(mode) {
+    var t = window.houseExpenseTranslations || {};
+    var st = window.houseExpenseExplorerState || {};
+
+    if (mode === 'sub' && !st.mainCategoryId) {
+        return;
+    }
+
+    $('#house-expense-add-cat-name').val('').removeClass('is-invalid');
+    $('#house-expense-add-cat-type').val('2');
+    houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), '');
+
+    if (mode === 'sub') {
+        $('#house-expense-add-cat-parent').val(String(st.mainCategoryId));
+        $('#house-expense-add-category-title').text(t.add_sub_category || 'Add sub category');
+        $('#house-expense-add-cat-parent-hint')
+            .removeClass('d-none')
+            .html('Under: <strong>' + houseExpenseHtmlEscape(st.mainCategory || '') + '</strong>');
+    } else {
+        $('#house-expense-add-cat-parent').val('');
+        $('#house-expense-add-category-title').text(t.add_main_category || 'Add main category');
+        $('#house-expense-add-cat-parent-hint').addClass('d-none').text('');
+    }
+
+    window.houseExpenseAddCategoryMode = mode;
+    houseExpenseShowCategoryModal($('#modal-house-expense-add-category'));
+    $('#modal-house-expense-add-category').one('shown.bs.modal', function () {
+        $('#house-expense-add-cat-name').trigger('focus');
+    });
+}
+
+window.addHouseExpense = addHouseExpense;
+window.addHouseExpenseFromExplorer = addHouseExpenseFromExplorer;
+window.addHouseExpenseMainCategory = addHouseExpenseMainCategory;
+window.addHouseExpenseSubCategory = addHouseExpenseSubCategory;
+window.openHouseExpenseAddCategoryModal = openHouseExpenseAddCategoryModal;
+window.openHouseExpenseEditCategoryModal = openHouseExpenseEditCategoryModal;
+window.openHouseExpenseDeleteCategoryModal = openHouseExpenseDeleteCategoryModal;
+window.houseExpenseInitCategoryAddUi = houseExpenseInitCategoryAddUi;
 
 function get_agent() {
     $.ajax({
@@ -2639,7 +3414,6 @@ $(document).ready(function () {
     // New house expense modal: bind only when jQuery and DOM are ready (fixes "$ is not defined")
     var isSubmittingNewExpense = false;
     $('#modal-new-house-expense').on('shown.bs.modal', function () {
-        expense_category();
         isSubmittingNewExpense = false;
         var $btn = $('#btn-save-new-expense');
         var originalText = $btn.data('original-text') || $btn.html();
@@ -2647,9 +3421,16 @@ $(document).ready(function () {
         if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
         var $form = $('#add_junket_house_expense');
         if ($form.length) $form[0].reset();
+        if (window.houseExpensePendingNewExpenseCategoryId) {
+            houseExpenseApplyNewExpenseCategoryUi(window.houseExpensePendingNewExpenseCategoryId);
+        } else {
+            houseExpenseApplyNewExpenseCategoryUi(null);
+        }
     });
     $('#modal-new-house-expense').on('hidden.bs.modal', function () {
         isSubmittingNewExpense = false;
+        window.houseExpensePendingNewExpenseCategoryId = null;
+        houseExpenseApplyNewExpenseCategoryUi(null);
         var $btn = $('#btn-save-new-expense');
         var originalText = $btn.data('original-text') || $btn.html();
         var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly();
@@ -2686,17 +3467,16 @@ $(document).ready(function () {
             processData: false,
             contentType: false,
             success: function (response) {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
-                        if (typeof reloadData === 'function') reloadData();
-                        $('#modal-new-house-expense').modal('hide');
-                        window.location.reload();
-                    });
-                } else {
-                    if (typeof reloadData === 'function') reloadData();
-                    $('#modal-new-house-expense').modal('hide');
-                    window.location.reload();
-                }
+                houseExpenseFinishSaveSuccess({
+                    resetSubmitting: function () {
+                        isSubmittingNewExpense = false;
+                    },
+                    $modal: $('#modal-new-house-expense'),
+                    $btn: $submitBtn,
+                    originalHtml: originalText,
+                    title: 'Added successfully',
+                    confirmButtonText: 'OK'
+                });
             },
             error: function (xhr, status, error) {
                 isSubmittingNewExpense = false;
@@ -2769,17 +3549,16 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
-                        if (typeof reloadData === 'function') reloadData();
-                        $('#modal-new-return-money').modal('hide');
-                        window.location.reload();
-                    });
-                } else {
-                    if (typeof reloadData === 'function') reloadData();
-                    $('#modal-new-return-money').modal('hide');
-                    window.location.reload();
-                }
+                houseExpenseFinishSaveSuccess({
+                    resetSubmitting: function () {
+                        isSubmittingReturnMoney = false;
+                    },
+                    $modal: $('#modal-new-return-money'),
+                    $btn: $submitBtn,
+                    originalHtml: originalText,
+                    title: 'Added successfully',
+                    confirmButtonText: 'OK'
+                });
             },
             error: function (xhr, status, error) {
                 isSubmittingReturnMoney = false;
