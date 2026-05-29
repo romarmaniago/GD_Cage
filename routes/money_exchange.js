@@ -120,25 +120,16 @@ router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 		if (inCcy === exCcy) {
 			return res.status(400).send('In currency and exchange currency must differ');
 		}
-		const { inCode, exCode } = await getCurrencyCodesByIds(inCcy, exCcy);
-		const computedExchangeAmt = computeExchangeAmountByDirection(
-			amountIn,
-			ratePct,
-			inCode,
-			exCode
-		);
+		const exchangeAmt = Number(Number(clientExchangeAmt).toFixed(2));
 		if (
 			Number.isNaN(amountIn) ||
 			Number.isNaN(ratePct) ||
-			Number.isNaN(clientExchangeAmt) ||
+			Number.isNaN(exchangeAmt) ||
 			amountIn <= 0 ||
 			ratePct <= 0 ||
-			computedExchangeAmt <= 0
+			exchangeAmt <= 0
 		) {
 			return res.status(400).send('Enter valid amount, rate %, and exchange amount');
-		}
-		if (Math.abs(clientExchangeAmt - computedExchangeAmt) > 0.01) {
-			return res.status(400).send('Exchange amount does not match amount x rate');
 		}
 
 		await pool.execute(
@@ -156,7 +147,7 @@ router.post('/add_money_exchange_deposit', checkSession, async (req, res) => {
 				amountIn,
 				exCcy,
 				ratePct,
-				computedExchangeAmt,
+				exchangeAmt,
 				uid,
 				dateNow,
 			]
@@ -432,29 +423,18 @@ router.put(
 						.status(400)
 						.send('In currency and exchange currency must differ');
 				}
-				const { inCode, exCode } = await getCurrencyCodesByIds(inCcy, exCcy);
-				const computedExchangeAmt = computeExchangeAmountByDirection(
-					amountIn,
-					ratePct,
-					inCode,
-					exCode
-				);
+				const exchangeAmt = Number(Number(clientExchangeAmt).toFixed(2));
 				if (
 					Number.isNaN(amountIn) ||
 					Number.isNaN(ratePct) ||
-					Number.isNaN(clientExchangeAmt) ||
+					Number.isNaN(exchangeAmt) ||
 					amountIn <= 0 ||
 					ratePct <= 0 ||
-					computedExchangeAmt <= 0
+					exchangeAmt <= 0
 				) {
 					return res
 						.status(400)
 						.send('Enter valid amount, rate %, and exchange amount');
-				}
-				if (Math.abs(clientExchangeAmt - computedExchangeAmt) > 0.01) {
-					return res
-						.status(400)
-						.send('Exchange amount does not match amount x rate');
 				}
 
 				const [result] = await pool.execute(
@@ -471,7 +451,7 @@ router.put(
 						amountIn,
 						exCcy,
 						ratePct,
-						computedExchangeAmt,
+						exchangeAmt,
 						uid,
 						dateNow,
 						id,

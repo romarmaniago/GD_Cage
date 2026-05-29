@@ -80,6 +80,10 @@
 		KRW: 1,
 	};
 
+	/** When true, amount/rate/currency changes do not overwrite exchange amount */
+	let mxExchangeAmountManual = false;
+	let mxEditExchangeAmountManual = false;
+
 	function getCurrencyRank(code) {
 		const c = String(code || '').toUpperCase();
 		if (!c) return 0;
@@ -462,6 +466,7 @@
 	}
 
 	function updateMxEditExchangeAmount() {
+		if (mxEditExchangeAmountManual) return;
 		const rawA = String($('#mx-edit-amount-in').val() || '').trim();
 		const rawR = String($('#mx-edit-rate-percent').val() || '').trim();
 		const amt = parseFormattedNumber(rawA);
@@ -519,7 +524,12 @@
 			}
 			$('#mx-edit-amount-in').val(mxAmountInputStr(row.amount_in));
 			$('#mx-edit-rate-percent').val(row.rate_percent != null ? row.rate_percent : '');
-			updateMxEditExchangeAmount();
+			$('#mx-edit-exchange-amount').val(
+				row.exchange_amount != null
+					? formatCommaNumberFixed(row.exchange_amount, 2)
+					: ''
+			);
+			mxEditExchangeAmountManual = false;
 		} else {
 			$('#mx-edit-deposit-fields').addClass('d-none');
 			$('#mx-edit-return-fields').removeClass('d-none');
@@ -535,6 +545,7 @@
 
 	/** Exchange amount = Amount × Rate (both fields use the raw numbers entered) */
 	function updateMxExchangeAmount() {
+		if (mxExchangeAmountManual) return;
 		const rawA = String($('#mx-amount-in').val() || '').trim();
 		const rawR = String($('#mx-rate-percent').val() || '').trim();
 		const amt = parseFormattedNumber(rawA);
@@ -556,6 +567,7 @@
 		$acc.val('').trigger('change');
 		$('#mx-guest-name, #mx-remark').val('');
 		$('#mx-amount-in, #mx-rate-percent, #mx-exchange-amount').val('');
+		mxExchangeAmountManual = false;
 		$('#mx-return-amount, #mx-margin-return, #mx-return-remark').val('');
 		$('#mx-source-deposit-id').val('');
 		$('#mx-source-deposit-note').text('Select a deposit to return.');
@@ -851,10 +863,15 @@
 		if (this.id === 'mx-edit-amount-in') {
 			formatInputWithCommasLive(this);
 		}
+		mxEditExchangeAmountManual = false;
 		updateMxEditExchangeAmount();
 	});
 	$(document).on('change', '#mx-edit-in-currency, #mx-edit-exchange-currency', function () {
+		mxEditExchangeAmountManual = false;
 		updateMxEditExchangeAmount();
+	});
+	$(document).on('input', '#mx-edit-exchange-amount', function () {
+		mxEditExchangeAmountManual = true;
 	});
 
 	$(document).on('click', '.btn-mx-txn-edit', function () {
@@ -928,7 +945,11 @@
 				);
 				return;
 			}
-			updateMxEditExchangeAmount();
+			const editExAmt = parseFormattedNumber($('#mx-edit-exchange-amount').val());
+			if (!Number.isFinite(editExAmt) || editExAmt <= 0) {
+				Swal.fire('Validation', 'Enter a valid exchange amount.', 'warning');
+				return;
+			}
 		} else {
 			const ra = Number($('#mx-edit-return-amount').val());
 			if (Number.isNaN(ra) || ra <= 0) {
@@ -989,10 +1010,15 @@
 		if (this.id === 'mx-amount-in') {
 			formatInputWithCommasLive(this);
 		}
+		mxExchangeAmountManual = false;
 		updateMxExchangeAmount();
 	});
 	$(document).on('change', '#in-currency, #exchange-currency', function () {
+		mxExchangeAmountManual = false;
 		updateMxExchangeAmount();
+	});
+	$(document).on('input', '#mx-exchange-amount', function () {
+		mxExchangeAmountManual = true;
 	});
 	$(document).on('input change', '#mx-return-amount', function () {
 		formatInputWithCommasLive(this);
@@ -1007,10 +1033,20 @@
 			if (raw === '') return;
 			const n = parseFormattedNumber(raw);
 			if (!Number.isFinite(n)) return;
-			$(this).val(formatCommaNumber(n));
 			const id = this.id;
-			if (id === 'mx-amount-in') updateMxExchangeAmount();
-			if (id === 'mx-edit-amount-in') updateMxEditExchangeAmount();
+			if (id === 'mx-exchange-amount' || id === 'mx-edit-exchange-amount') {
+				$(this).val(formatCommaNumberFixed(n, 2));
+			} else {
+				$(this).val(formatCommaNumber(n));
+			}
+			if (id === 'mx-amount-in') {
+				mxExchangeAmountManual = false;
+				updateMxExchangeAmount();
+			}
+			if (id === 'mx-edit-amount-in') {
+				mxEditExchangeAmountManual = false;
+				updateMxEditExchangeAmount();
+			}
 		}
 	);
 
@@ -1039,7 +1075,11 @@
 			Swal.fire('Validation', 'In currency and exchange currency must differ.', 'warning');
 			return;
 		}
-		updateMxExchangeAmount();
+		const exAmt = parseFormattedNumber($('#mx-exchange-amount').val());
+		if (!Number.isFinite(exAmt) || exAmt <= 0) {
+			Swal.fire('Validation', 'Enter a valid exchange amount.', 'warning');
+			return;
+		}
 		const $btn = $(this);
 		$btn.prop('disabled', true);
 		$.post(urlMxDeposit, {

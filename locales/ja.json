@@ -194,12 +194,11 @@
 		"welcome_to_the_cage_system_demo": "無限ケージXへようこそ!",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "取引を管理し、資金を追跡し、当社の先進的なケージシステムでスムーズな運営を実現しましょう。",
 		"announcements": "お知らせ",
-		"guest_broadcast": "ゲスト一斉送信",
+		"guest_broadcast": "topbar.guest_broadcast",
 		"kr": "韓国語",
 		"jp": "日本語",
 		"zh": "中国語",
-		"us": "英語",
-		"guest_broadcast": "topbar.guest_broadcast"
+		"us": "英語"
 	},
 	"dashboard_history": {
 		"reset_history": "履歴をリセット",
