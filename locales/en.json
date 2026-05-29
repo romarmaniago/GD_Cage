@@ -432,7 +432,18 @@
 		"previous": "Previous",
 		"next": "Next",
 		"please_select_date_range": "Please select a date range.",
-		"no_data_found": "No data found"
+		"no_data_found": "No data found",
+		"compare_hint": "Search the table, tick specific rows, then click Preview to view them in a popup.",
+		"compare_confirm": "Preview",
+		"compare_clear": "Clear",
+		"compare_max_accounts": "",
+		"compare_select_one": "Select at least one row.",
+		"compare_selected": "Selected",
+		"compare_modal_title": "Commission",
+		"compare_preview": "Click to preview",
+		"search_account": "Account",
+		"search_name": "Name",
+		"search_game_no": "Game #"
 	},
 	"junket_loss": {
 		"junket": "Junket",
