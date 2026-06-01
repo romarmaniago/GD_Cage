@@ -578,6 +578,12 @@ th.col-winloss {
 	box-sizing: border-box;
 }
 
+#game_list-tbl td.col-guest .js-assign-game-guest {
+	font-size: inherit;
+	line-height: inherit;
+	vertical-align: baseline;
+}
+
 /* BUY-IN, CASH-OUT, WIN/LOSS, TOTAL ROLLING — equal column width */
 #game_list-tbl th.col-buyin,
 #game_list-tbl td.col-buyin,
@@ -1359,6 +1365,7 @@ table.dataTable tbody tr.highlight-row {
 							<%- include ('../modals/game_book/pending_guest_buyin') %>
 							<%- include ('../modals/game_book/pending_junket_new_game') %>
 							<%- include ('../modals/game_book/add_buyin') %>
+							<%- include ('../modals/game_book/assign_game_guest') %>
 								<%- include ('../modals/game_book/add_rolling') %>
 									<%- include ('../modals/game_book/add_cashout') %>
 										<%- include ('../modals/game_book/add_roller_chips') %>

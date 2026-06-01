@@ -3478,6 +3478,119 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 	}
 });
 
+// Assign or change guest on an existing game (ON GAME, END GAME, or PENDING).
+router.put('/game_list/:id/guest', async (req, res) => {
+	try {
+		const encodedBy = req.session.user_id;
+		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+
+		const gameId = parseInt(req.params.id, 10);
+		if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+		let guestIdRaw = req.body.guest_id ?? req.body.GUEST_ID ?? req.body.txtGuestId;
+		let guestId = null;
+		if (guestIdRaw !== undefined && guestIdRaw !== null && String(guestIdRaw).trim() !== '' && String(guestIdRaw).toLowerCase() !== 'null') {
+			guestId = parseInt(guestIdRaw, 10) || null;
+			if (!guestId) return res.status(400).json({ error: 'Invalid guest ID.' });
+		}
+
+		const [gameRows] = await pool.execute(
+			`SELECT gl.IDNo, gl.ACTIVE, gl.ACCOUNT_ID, gl.GUEST_ID, acc.AGENT_ID
+			 FROM game_list gl
+			 JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 WHERE gl.IDNo = ? AND gl.ACTIVE != 0
+			 LIMIT 1`,
+			[gameId]
+		);
+		if (!gameRows.length) {
+			return res.status(404).json({ error: 'Game not found.' });
+		}
+		const game = gameRows[0];
+		const activeStatus = parseInt(game.ACTIVE, 10);
+		if (![1, 2, 3].includes(activeStatus)) {
+			return res.status(400).json({ error: 'Guest can only be assigned on active games (ON GAME, END GAME, or PENDING).' });
+		}
+
+		if (guestId) {
+			const [guestRows] = await pool.execute(
+				`SELECT IDNo FROM guest WHERE IDNo = ? AND AGENT_ID = ? AND ACTIVE = 1 LIMIT 1`,
+				[guestId, game.AGENT_ID]
+			);
+			if (!guestRows.length) {
+				return res.status(400).json({ error: 'Guest does not belong to this account.' });
+			}
+		}
+
+		const prevGuestIdRaw = game.GUEST_ID;
+		const prevGuestId =
+			prevGuestIdRaw !== undefined && prevGuestIdRaw !== null && String(prevGuestIdRaw).trim() !== ''
+				? parseInt(prevGuestIdRaw, 10) || null
+				: null;
+		const guestUnchanged =
+			(prevGuestId == null && guestId == null) ||
+			(prevGuestId != null && guestId != null && prevGuestId === guestId);
+
+		const dateNow = new Date();
+		await pool.execute(
+			`UPDATE game_list SET GUEST_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[guestId, encodedBy, dateNow, gameId]
+		);
+
+		if (!guestUnchanged) {
+			try {
+				await pool.execute(
+					`INSERT INTO game_guest_history (GAME_ID, PREV_GUEST_ID, NEW_GUEST_ID, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?)`,
+					[gameId, prevGuestId, guestId, encodedBy, dateNow]
+				);
+			} catch (histErr) {
+				console.error('game_guest_history insert failed:', histErr);
+			}
+		}
+
+		const guestName = guestId ? await fetchGuestDisplayNameById(pool, guestId) : '';
+		res.json({
+			success: true,
+			game_id: gameId,
+			guest_id: guestId,
+			guest_name: guestName || '-'
+		});
+	} catch (error) {
+		console.error('PUT /game_list/:id/guest:', error);
+		res.status(500).json({ error: error.message || 'Error updating guest.' });
+	}
+});
+
+router.get('/game_list/:id/guest_history', async (req, res) => {
+	try {
+		const gameId = parseInt(req.params.id, 10);
+		if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+		const [rows] = await pool.execute(
+			`SELECT
+				h.IDNo AS id,
+				DATE_FORMAT(h.ENCODED_DT, '%b %e, %Y %H:%i') AS changed_at,
+				UNIX_TIMESTAMP(h.ENCODED_DT) AS changed_sort,
+				h.PREV_GUEST_ID AS prev_guest_id,
+				h.NEW_GUEST_ID AS new_guest_id,
+				COALESCE(NULLIF(TRIM(g1.NAME), ''), '-') AS prev_guest_name,
+				COALESCE(NULLIF(TRIM(g2.NAME), ''), '-') AS new_guest_name,
+				COALESCE(ui.USERNAME, CAST(h.ENCODED_BY AS CHAR)) AS changed_by
+			FROM game_guest_history h
+			LEFT JOIN guest g1 ON g1.IDNo = h.PREV_GUEST_ID
+			LEFT JOIN guest g2 ON g2.IDNo = h.NEW_GUEST_ID
+			LEFT JOIN user_info ui ON ui.IDNo = h.ENCODED_BY
+			WHERE h.GAME_ID = ?
+			ORDER BY h.ENCODED_DT DESC, h.IDNo DESC`,
+			[gameId]
+		);
+		return res.json(rows || []);
+	} catch (error) {
+		console.error('GET /game_list/:id/guest_history:', error);
+		return res.status(500).json({ error: error.message || 'Error loading guest history.' });
+	}
+});
+
 // PENDING resolve — guest fault: additional buy-in only (game stays PENDING)
 router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 	try {

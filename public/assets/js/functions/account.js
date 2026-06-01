@@ -1224,6 +1224,27 @@ function account_details(account_id_data, agent_code, account_name) {
 	reloadDataDetails();
 }
 
+function isJunketFundsTransferDesc(transactionDesc) {
+	const normalized = String(transactionDesc || '').trim().toUpperCase();
+	return normalized === 'JUNKET FUNDS' || normalized === 'Transffered from Junket Funds';
+}
+
+function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
+	const trans = String(transaction || '').trim();
+	const desc = String(transactionDesc || '').trim();
+
+	if (isJunketFundsTransferDesc(desc)) {
+		return 'Transffered from Junket Funds';
+	}
+	if (trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:CREDIT') {
+		return 'JUNKET CREDIT RETURN THRU DEPOSIT';
+	}
+	if (trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:BUYIN') {
+		return 'GAME CREDIT RETURN THRU DEPOSIT';
+	}
+	return desc ? `${trans} - <strong>${desc}</strong>` : trans;
+}
+
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
@@ -1289,24 +1310,7 @@ function reloadDataDetails() {
 							}
 						});
 					} else {
-						let displayTransaction = row.TRANSACTION;
-						let displayDesc = transactionDesc;
-
-						// Friendly label for IOU return tagged as CREDIT
-						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:CREDIT') {
-							displayTransaction = 'JUNKET CREDIT RETURN THRU DEPOSIT';
-							displayDesc = '';
-						}
-
-						// Friendly label for IOU return tagged as BUYIN (Game)
-						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:BUYIN') {
-							displayTransaction = 'GAME CREDIT RETURN THRU DEPOSIT';
-							displayDesc = '';
-						}
-
-						const transactionCell = displayDesc
-							? `${displayTransaction} - <strong>${displayDesc}</strong>`
-							: displayTransaction;
+						const transactionCell = formatAccountLedgerTransactionCell(row.TRANSACTION, transactionDesc);
 
 						rowsToAdd.push([
 							dateFormat,
@@ -1427,7 +1431,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 			const amt = parseFloat(r.AMOUNT)||0;
 			const rowApi = dt.row.add([
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
-			  `${r.TRANSACTION} - <strong>${r.TRANSACTION_DESC||''}</strong>`,
+			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
 			  `₱${amt.toLocaleString()}`,
 			  r.REMARKS||''
 			]).draw(false);

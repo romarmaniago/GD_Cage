@@ -1,9 +1,10 @@
 let jflTable;
-let jflFundsBalance = 0;
+let jflFundsBalances = {};
+let jflFundsBalanceCodes = {};
 let jflEditingRow = null;
 
-const JFL_CREDIT_TYPES = new Set([1, 3]);
-const JFL_DEBIT_TYPES = new Set([2, 4]);
+const JFL_CREDIT_TYPES = new Set([1]);
+const JFL_DEBIT_TYPES = new Set([2, 3, 4]);
 
 function sanitizeAmountInput(value) {
 	return String(value || '').replace(/[^\d.]/g, '');
@@ -28,32 +29,72 @@ function formatMoney(n) {
 
 function isTransferModeSelected() {
 	const checked = document.querySelector('input[name="jfl-trans-type"]:checked');
-	return checked && checked.value === 'transfer';
+	return checked && Number(checked.value) === 3;
+}
+
+function isDepositOrWithdrawalSelected() {
+	const t = getSelectedTransType();
+	return t === 1 || t === 2;
+}
+
+function getPhpCurrencyId() {
+	if (window.jflPhpCurrencyId != null && window.jflPhpCurrencyId !== '') {
+		return Number(window.jflPhpCurrencyId);
+	}
+	let found = null;
+	$('input[name="jfl-currency"]').each(function () {
+		if (String($(this).data('code') || '').trim().toUpperCase() === 'PHP') {
+			found = parseInt($(this).val(), 10);
+			return false;
+		}
+	});
+	return found;
+}
+
+function clearCurrencySelection() {
+	$('input[name="jfl-currency"]').prop('checked', false);
+}
+
+function setCurrencyInForm(currencyId) {
+	clearCurrencySelection();
+	if (!currencyId) return;
+	const $radio = $('#jfl-currency-' + currencyId);
+	if ($radio.length) {
+		$radio.prop('checked', true);
+	}
 }
 
 function syncTransferUi() {
-	const show = isTransferModeSelected();
-	const $wrap = $('#jfl-account-wrap');
-	if (show) {
-		$wrap.removeClass('d-none');
+	const isTransfer = isTransferModeSelected();
+	const showCurrency = isDepositOrWithdrawalSelected();
+	const $accountWrap = $('#jfl-account-wrap');
+	const $currencyWrap = $('#jfl-currency-wrap');
+
+	if (isTransfer) {
+		$accountWrap.removeClass('d-none');
+		$currencyWrap.addClass('d-none');
 		if (!$('#jfl-account option').length) {
 			loadJflAccounts();
 		}
+	} else if (showCurrency) {
+		$accountWrap.addClass('d-none');
+		$currencyWrap.removeClass('d-none');
+		$('#jfl-account').val('').trigger('change');
 	} else {
-		$wrap.addClass('d-none');
+		$accountWrap.addClass('d-none');
+		$currencyWrap.addClass('d-none');
 		$('#jfl-account').val('').trigger('change');
 	}
+	refreshModalBalance();
 }
 
 function clearTransTypeSelection() {
 	$('input[name="jfl-trans-type"]').prop('checked', false);
+	clearCurrencySelection();
 	syncTransferUi();
 }
 
 function getSelectedTransType() {
-	if (isTransferModeSelected()) {
-		return 4;
-	}
 	const checked = document.querySelector('input[name="jfl-trans-type"]:checked');
 	if (!checked) {
 		return null;
@@ -69,11 +110,11 @@ function setTransTypeInForm(transType) {
 		return;
 	}
 	const t = Number(transType);
-	if (t === 4) {
+	if (t === 3) {
 		$('#jfl-type-transfer').prop('checked', true);
 	} else if (t === 2) {
 		$('#jfl-type-withdrawal').prop('checked', true);
-	} else if (t === 3 || t === 1) {
+	} else if (t === 1) {
 		$('#jfl-type-deposit').prop('checked', true);
 	}
 	syncTransferUi();
@@ -86,9 +127,9 @@ function transTypeLabel(transType) {
 		case 2:
 			return 'Withdrawal';
 		case 3:
-			return 'Transfer In (legacy)';
-		case 4:
 			return 'Transfer';
+		case 4:
+			return 'Money Exchange';
 		default:
 			return 'Unknown';
 	}
@@ -103,22 +144,56 @@ function isDebitType(transType) {
 }
 
 function isTransferTransType(transType) {
+	return Number(transType) === 3;
+}
+
+function isMoneyExchangeTransType(transType) {
 	return Number(transType) === 4;
 }
 
 function jflTypeColorClass(transType) {
 	if (isCreditType(transType)) return 'jfl-amount-in';
 	if (isTransferTransType(transType)) return 'jfl-amount-transfer';
+	if (isMoneyExchangeTransType(transType)) return 'jfl-amount-exchange';
 	return 'jfl-amount-out';
 }
 
-function junketDebitAmountForRow(row) {
+function junketDebitAmountForRow(row, currencyId) {
 	if (!row || !isDebitType(row.TRANS_TYPE)) return 0;
+	if (currencyId && Number(row.CURRENCY_ID) !== Number(currencyId)) return 0;
 	return Number(row.AMOUNT) || 0;
 }
 
-function getAvailableJunketBalanceForDebit(editingRow) {
-	return jflFundsBalance + junketDebitAmountForRow(editingRow);
+function getSelectedCurrencyId() {
+	if (isTransferModeSelected()) {
+		return getPhpCurrencyId();
+	}
+	const checked = document.querySelector('input[name="jfl-currency"]:checked');
+	if (!checked) {
+		return null;
+	}
+	const n = parseInt(checked.value, 10);
+	return Number.isNaN(n) ? null : n;
+}
+
+function getSelectedCurrencyCode() {
+	if (isTransferModeSelected()) {
+		return 'PHP';
+	}
+	const checked = document.querySelector('input[name="jfl-currency"]:checked');
+	if (!checked) return '';
+	const id = parseInt(checked.value, 10);
+	return jflFundsBalanceCodes[id] || String($(checked).data('code') || '').trim();
+}
+
+function getBalanceForCurrency(currencyId) {
+	if (currencyId == null) return 0;
+	return Number(jflFundsBalances[currencyId]) || 0;
+}
+
+function getAvailableJunketBalanceForDebit(editingRow, currencyId) {
+	const cid = currencyId != null ? currencyId : getSelectedCurrencyId();
+	return getBalanceForCurrency(cid) + junketDebitAmountForRow(editingRow, cid);
 }
 
 function showJflValidationSwal(text, title) {
@@ -130,27 +205,30 @@ function showJflValidationSwal(text, title) {
 	});
 }
 
-function showJflInsufficientBalanceSwal(available, requested) {
+function showJflInsufficientBalanceSwal(available, requested, currencyCode) {
+	const ccy = currencyCode ? ' ' + currencyCode : '';
 	Swal.fire({
 		icon: 'warning',
 		title: 'Insufficient Balance',
 		html:
-			'<p class="mb-2 text-muted">Amount exceeds available junket funds.</p>' +
+			'<p class="mb-2 text-muted">Amount exceeds available balance for this currency.</p>' +
 			'<p class="mb-0">' +
 			'<strong>Available:</strong> ' +
 			formatMoney(available) +
+			ccy +
 			'<br><strong>Requested:</strong> ' +
 			formatMoney(requested) +
+			ccy +
 			'</p>',
 		confirmButtonText: 'OK'
 	});
 }
 
 function isInsufficientBalanceMessage(msg) {
-	return /insufficient junket funds balance/i.test(String(msg || ''));
+	return /insufficient.*balance/i.test(String(msg || ''));
 }
 
-function checkJflDebitAmount(transType, amountRaw, editingRow) {
+function checkJflDebitAmount(transType, amountRaw, editingRow, currencyId) {
 	const clean = sanitizeAmountInput(amountRaw);
 	if (clean === '' || Number.isNaN(Number(clean))) {
 		return { ok: false, message: 'Enter a valid amount greater than zero' };
@@ -159,12 +237,22 @@ function checkJflDebitAmount(transType, amountRaw, editingRow) {
 	if (amount <= 0) {
 		return { ok: false, message: 'Enter a valid amount greater than zero' };
 	}
+	const cid = currencyId != null ? currencyId : getSelectedCurrencyId();
+	if (!cid) {
+		return { ok: false, message: 'Select a currency' };
+	}
 	if (!isDebitType(transType)) {
 		return { ok: true };
 	}
-	const available = getAvailableJunketBalanceForDebit(editingRow);
+	const available = getAvailableJunketBalanceForDebit(editingRow, cid);
 	if (amount > available) {
-		return { ok: false, insufficient: true, available, amount };
+		return {
+			ok: false,
+			insufficient: true,
+			available,
+			amount,
+			currencyCode: getSelectedCurrencyCode()
+		};
 	}
 	return { ok: true };
 }
@@ -213,21 +301,115 @@ function loadJflAccounts() {
 		});
 }
 
+function renderBalanceCards(balances) {
+	const $row = $('#jfl-balance-row');
+	$row.empty();
+	if (!balances || !balances.length) {
+		$row.append('<div class="col-12 text-muted small">No currencies configured.</div>');
+		return;
+	}
+	const items = balances
+		.map(function (b) {
+			const code = String(b.currency_code || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+			const bal = formatMoney(b.balance);
+			return (
+				'<span class="jfl-page-balance-item">' +
+				'<span class="jfl-page-balance-code">' +
+				code +
+				' Balance</span>' +
+				'<span class="jfl-page-balance-amt">' +
+				bal +
+				'</span>' +
+				'</span>'
+			);
+		})
+		.join('');
+	$row.append(
+		'<div class="col-12">' +
+			'<div class="jfl-balance-banner jfl-page-balance-strip">' +
+			'<div class="jfl-page-balance-list">' +
+			items +
+			'</div></div></div>'
+	);
+}
+
+function renderModalBalanceList(items) {
+	const $el = $('#jfl-modal-balance');
+	if (!$el.length) return;
+	if (!items || !items.length) {
+		$el.html('<span class="jfl-modal-balance-item">—</span>');
+		return;
+	}
+	$el.html(
+		items
+			.map(function (text) {
+				const safe = String(text || '')
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;');
+				return '<span class="jfl-modal-balance-item">' + safe + '</span>';
+			})
+			.join('')
+	);
+}
+
+function collectModalBalanceItems() {
+	const items = [];
+	$('input[name="jfl-currency"]').each(function () {
+		const id = parseInt($(this).val(), 10);
+		if (!id) return;
+		const code = String($(this).data('code') || jflFundsBalanceCodes[id] || '').trim();
+		const bal = formatMoney(getBalanceForCurrency(id));
+		items.push(bal + (code ? ' ' + code : ''));
+	});
+	if (items.length) return items;
+	Object.keys(jflFundsBalances || {}).forEach(function (idKey) {
+		const id = Number(idKey);
+		const code = String(jflFundsBalanceCodes[id] || '').trim();
+		const bal = formatMoney(getBalanceForCurrency(id));
+		items.push(bal + (code ? ' ' + code : ''));
+	});
+	return items;
+}
+
 function refreshModalBalance() {
-	$('#jfl-modal-balance').text(formatMoney(jflFundsBalance));
+	if (isTransferModeSelected()) {
+		const cid = getPhpCurrencyId();
+		const bal = formatMoney(getBalanceForCurrency(cid));
+		renderModalBalanceList(['PHP ' + bal]);
+		return;
+	}
+	renderModalBalanceList(collectModalBalanceItems());
 }
 
 function loadJunketFundsBalance() {
 	return $.get('/multipurpose_ledger/balance')
 		.then(function (res) {
-			jflFundsBalance = Number(res && res.balance) || 0;
-			$('#jfl-funds-balance').text(formatMoney(jflFundsBalance));
+			jflFundsBalances = {};
+			jflFundsBalanceCodes = {};
+			const list = (res && res.balances) || [];
+			list.forEach(function (b) {
+				const id = Number(b.currency_id);
+				jflFundsBalances[id] = Number(b.balance) || 0;
+				jflFundsBalanceCodes[id] = String(b.currency_code || '');
+			});
+			renderBalanceCards(list);
 			refreshModalBalance();
+			return list;
 		})
 		.fail(function () {
-			$('#jfl-funds-balance').text('—');
+			$('#jfl-balance-row').html(
+				'<div class="col-12 text-muted small">Failed to load balances.</div>'
+			);
 		});
 }
+
+window.getJflBalanceForCurrency = function (currencyId) {
+	return getBalanceForCurrency(currencyId);
+};
 
 function openJflModal(data) {
 	jflEditingRow = data || null;
@@ -240,6 +422,9 @@ function openJflModal(data) {
 		setTransTypeInForm(data.TRANS_TYPE);
 	} else {
 		clearTransTypeSelection();
+	}
+	if (data && data.CURRENCY_ID) {
+		setCurrencyInForm(data.CURRENCY_ID);
 	}
 	if (data && data.ACCOUNT_ID) {
 		const setAccount = function () {
@@ -300,11 +485,11 @@ function removeJfl(id) {
 
 $(document).ready(function () {
 	const t = window.jflTranslations || {};
-	const actionColIndex = 7;
+	const actionColIndex = 8;
 
 	jflTable = $('#jfl-tbl').DataTable({
 		pageLength: 25,
-		order: [[6, 'desc']],
+		order: [[7, 'desc']],
 		columns: [
 			{
 				data: 'TRANS_TYPE',
@@ -313,6 +498,13 @@ $(document).ready(function () {
 					if (type === 'sort') return label;
 					const cls = jflTypeColorClass(data);
 					return '<span class="' + cls + '">' + label + '</span>';
+				}
+			},
+			{
+				data: 'CURRENCY_CODE',
+				defaultContent: '-',
+				render: function (data) {
+					return data ? String(data) : '-';
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
@@ -358,11 +550,23 @@ $(document).ready(function () {
 	loadJunketFundsBalance();
 	fetchJflData();
 
+	window.fetchJflData = fetchJflData;
+	window.loadJunketFundsBalance = loadJunketFundsBalance;
+	window.syncTransferUi = syncTransferUi;
+
 	$('input[name="jfl-trans-type"]').on('change', syncTransferUi);
+
+	$('#btn-jfl-money-exchange').on('click', function () {
+		if (typeof window.openJflExchangeModal === 'function') {
+			window.openJflExchangeModal();
+		}
+	});
 
 	$('#modal-jfl').on('hidden.bs.modal', function () {
 		clearTransTypeSelection();
 	});
+
+	$('input[name="jfl-currency"]').on('change', refreshModalBalance);
 
 	$('#jfl-amount').on('input', function () {
 		$(this).val(formatAmountInput($(this).val()));
@@ -381,7 +585,15 @@ $(document).ready(function () {
 			.find(function (r) {
 				return Number(r.IDNo) === Number(id);
 			});
-		if (row) openJflModal(row);
+		if (row) {
+			if (Number(row.TRANS_TYPE) === 4) {
+				if (typeof window.openJflExchangeModal === 'function') {
+					window.openJflExchangeModal();
+				}
+				return;
+			}
+			openJflModal(row);
+		}
 	});
 
 	$('#jfl-tbl').on('click', '.btn-jfl-remove', function () {
@@ -398,11 +610,18 @@ $(document).ready(function () {
 		}
 		const payload = {
 			txtTransType: transType,
+			txtCurrencyId: getSelectedCurrencyId(),
 			txtAccountId: isTransferModeSelected() ? $('#jfl-account').val() : '',
 			txtAmount: sanitizeAmountInput($('#jfl-amount').val()),
 			txtInCharge: $('#jfl-incharge').val(),
 			txtRemarks: $('#jfl-remarks').val()
 		};
+		if (!payload.txtCurrencyId) {
+			showJflValidationSwal(
+				isTransferModeSelected() ? 'PHP currency is not configured.' : 'Select a currency.'
+			);
+			return;
+		}
 		if (!String(payload.txtRemarks || '').trim()) {
 			showJflValidationSwal('Remarks is required.');
 			return;
@@ -418,11 +637,16 @@ $(document).ready(function () {
 		const amountCheck = checkJflDebitAmount(
 			payload.txtTransType,
 			payload.txtAmount,
-			jflEditingRow
+			jflEditingRow,
+			payload.txtCurrencyId
 		);
 		if (!amountCheck.ok) {
 			if (amountCheck.insufficient) {
-				showJflInsufficientBalanceSwal(amountCheck.available, amountCheck.amount);
+				showJflInsufficientBalanceSwal(
+					amountCheck.available,
+					amountCheck.amount,
+					amountCheck.currencyCode
+				);
 			} else {
 				showJflValidationSwal(amountCheck.message);
 			}
@@ -446,9 +670,16 @@ $(document).ready(function () {
 					(xhr.responseJSON && xhr.responseJSON.message) ||
 					'Failed to save entry.';
 				if (isInsufficientBalanceMessage(msg)) {
-					const available = getAvailableJunketBalanceForDebit(jflEditingRow);
+					const available = getAvailableJunketBalanceForDebit(
+						jflEditingRow,
+						payload.txtCurrencyId
+					);
 					const requested = Number(payload.txtAmount) || 0;
-					showJflInsufficientBalanceSwal(available, requested);
+					showJflInsufficientBalanceSwal(
+						available,
+						requested,
+						getSelectedCurrencyCode()
+					);
 					return;
 				}
 				Swal.fire({
