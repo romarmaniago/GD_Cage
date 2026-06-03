@@ -8,7 +8,8 @@ window.selectedSettlementSubView = 'open';
 window.houseExpenseBreakdownState = {
     rows: [],
     sortKey: 'date_time',
-    sortDir: 'desc'
+    sortDir: 'desc',
+    showVehicleColumns: false
 };
 
 /** Main category / item explorer + graph (date range only for graph race). */
@@ -1482,6 +1483,54 @@ function toggleHouseExpenseBreakdownPanel(mode) {
     }
 }
 
+function houseExpenseFindCategoryRowByName(categoryName) {
+    var name = String(categoryName || '').trim();
+    if (!name) return null;
+    return (
+        (window.houseExpenseCategoryRows || []).find(function (c) {
+            return c && String(c.CATEGORY || '').trim() === name;
+        }) || null
+    );
+}
+
+/** True for Car main category or any sub-category under Car (Fuel, PMS, etc.). */
+function houseExpenseIsCarBreakdownCategory(categoryName) {
+    var name = String(categoryName || '').trim();
+    if (!name || name === 'Return Money') return false;
+    if (name.toUpperCase() === 'CAR') return true;
+    var row = houseExpenseFindCategoryRowByName(name);
+    if (!row) return false;
+    if (houseExpenseIsMainCategoryRow(row)) {
+        return name.toUpperCase() === 'CAR';
+    }
+    return houseExpenseIsCarSubCategoryId(row.IDNo);
+}
+
+function houseExpenseBreakdownColumnCount(showVehicleColumns) {
+    return showVehicleColumns ? 7 : 5;
+}
+
+function setHouseExpenseBreakdownVehicleColumnsVisible(show) {
+    var visible = !!show;
+    var state = window.houseExpenseBreakdownState || {};
+    state.showVehicleColumns = visible;
+    window.houseExpenseBreakdownState = state;
+    $('.js-breakdown-vehicle-col').toggleClass('d-none', !visible);
+    $('#breakdown-modal-foot-grand-label').attr('colspan', visible ? 4 : 2);
+}
+
+function houseExpenseBreakdownVehiclePlateText(row) {
+    if (!row || row.record_type === 'return_money') return '-';
+    var plate = row.vehicle_plate != null ? String(row.vehicle_plate).trim() : '';
+    return plate || '-';
+}
+
+function houseExpenseBreakdownVehicleModelText(row) {
+    if (!row || row.record_type === 'return_money') return '-';
+    var model = row.vehicle_model != null ? String(row.vehicle_model).trim() : '';
+    return model || '-';
+}
+
 function showExpenseBreakdownModalByCategory(categoryName) {
     var category = String(categoryName || '').trim();
     if (!category) return;
@@ -1496,8 +1545,16 @@ function showExpenseBreakdownModalByCategory(categoryName) {
 
     $('#breakdown-modal-category-name').text(category);
 
+    var showVehicleColumns = houseExpenseIsCarBreakdownCategory(category);
+    setHouseExpenseBreakdownVehicleColumnsVisible(showVehicleColumns);
+    var colCount = houseExpenseBreakdownColumnCount(showVehicleColumns);
+
     if (rows.length === 0) {
-        $('#breakdown-modal-tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+        $('#breakdown-modal-tbody').html(
+            '<tr><td colspan="' +
+                colCount +
+                '" class="text-center text-muted py-3">No entries found.</td></tr>'
+        );
         $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(0));
     } else {
         window.houseExpenseBreakdownState.rows = rows.slice();
@@ -1519,6 +1576,8 @@ function getBreakdownSortValue(row, key) {
     if (key === 'description') {
         return String(houseExpenseItemDescriptionColumnText(row) || '').toLowerCase();
     }
+    if (key === 'plate_no') return String(houseExpenseBreakdownVehiclePlateText(row) || '').toLowerCase();
+    if (key === 'model') return String(houseExpenseBreakdownVehicleModelText(row) || '').toLowerCase();
     if (key === 'in_charge') return String(row.DESCRIPTION || row.OIC || '').toLowerCase();
     if (key === 'encoded_by') return String(row.FIRSTNAME || '').toLowerCase();
     if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
@@ -1530,6 +1589,8 @@ function renderExpenseBreakdownModalRows() {
     var rows = (state.rows || []).slice();
     var key = state.sortKey || 'date_time';
     var dir = state.sortDir === 'asc' ? 'asc' : 'desc';
+    var showVehicleColumns = !!state.showVehicleColumns;
+    var colCount = houseExpenseBreakdownColumnCount(showVehicleColumns);
 
     rows.sort(function (a, b) {
         var av = getBreakdownSortValue(a, key);
@@ -1548,10 +1609,21 @@ function renderExpenseBreakdownModalRows() {
             : '-';
         var isReturnMoney = row.record_type === 'return_money';
         var descriptionText = houseExpenseItemDescriptionColumnText(row);
+        var plateText = houseExpenseBreakdownVehiclePlateText(row);
+        var modelText = houseExpenseBreakdownVehicleModelText(row);
         var inChargeText = isReturnMoney ? '-' : (row.OIC || row.DESCRIPTION || '-');
+        var vehicleCells = showVehicleColumns
+            ? '<td class="js-breakdown-vehicle-col">' +
+              houseExpenseHtmlEscape(modelText) +
+              '</td>' +
+              '<td class="js-breakdown-vehicle-col">' +
+              houseExpenseHtmlEscape(plateText) +
+              '</td>'
+            : '';
         return (
             '<tr>' +
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
+                vehicleCells +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
                 '<td class="fw-semibold text-end">' + formatHouseExpenseNumber(amount) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
@@ -1560,7 +1632,12 @@ function renderExpenseBreakdownModalRows() {
         );
     }).join('');
 
-    $('#breakdown-modal-tbody').html(html || '<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+    $('#breakdown-modal-tbody').html(
+        html ||
+            '<tr><td colspan="' +
+                colCount +
+                '" class="text-center text-muted py-3">No entries found.</td></tr>'
+    );
     $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(total));
 
     $('#breakdown-modal-head-table thead th.sortable-col').each(function () {
