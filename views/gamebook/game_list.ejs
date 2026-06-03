@@ -475,6 +475,14 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+.flatpickr-calendar .cur-month {
+	cursor: pointer;
+}
+
+.flatpickr-calendar .cur-month:hover {
+	text-decoration: underline;
+}
+
 .day-selector-wrapper #settlement-range-picker:focus {
 	outline: none;
 	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
@@ -1378,6 +1386,7 @@ table.dataTable tbody tr.highlight-row {
 														<%- include ('../partials/permission_view_only_script') %>
 
 
+												<script src="/assets/js/functions/flatpickr_month_range.js"></script>
 												<script src="/assets/js/functions/game_list.js"></script>
 												<script src="/assets/js/functions/account.js"></script>
 												<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>

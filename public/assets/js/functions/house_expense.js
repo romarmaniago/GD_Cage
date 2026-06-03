@@ -1809,6 +1809,9 @@ $(document).ready(function () {
             },
             onReady: function (selectedDates, dateStr, instance) {
                 jumpHouseExpenseRangeToCurrentThreeMonths(instance);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
                 // Highlight settled dates when calendar is ready (initial render)
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
@@ -1827,6 +1830,9 @@ $(document).ready(function () {
             },
             onOpen: function (selectedDates, dateStr, instance) {
                 jumpHouseExpenseRangeToCurrentThreeMonths(instance);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];
@@ -1843,6 +1849,9 @@ $(document).ready(function () {
                 }, 0);
             },
             onMonthChange: function (selectedDates, dateStr, instance) {
+                if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                    window.styleFlatpickrMonthNameClickable(instance);
+                }
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];

@@ -390,6 +390,7 @@
             };
         </script>
         
+        <script src="/assets/js/functions/flatpickr_month_range.js"></script>
         <script src="/assets/js/functions/house_expense.js"></script>
         <script>
             /* Category modals — wired like #modal-new-house-expense (see $(document).ready in house_expense.js) */
@@ -899,6 +900,14 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             
             .day-selector-wrapper #daterange-picker.flatpickr-input {
                 cursor: pointer;
+            }
+
+            .flatpickr-calendar .cur-month {
+                cursor: pointer;
+            }
+
+            .flatpickr-calendar .cur-month:hover {
+                text-decoration: underline;
             }
 
             /* Settled day styling in calendar */

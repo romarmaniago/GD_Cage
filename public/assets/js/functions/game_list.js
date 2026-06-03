@@ -3285,6 +3285,19 @@ $(document).ready(function () {
             onOpen: function (selectedDates, dateStr, instance) {
                 var n = new Date();
                 instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
+            onReady: function (selectedDates, dateStr, instance) {
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
+            onMonthChange: function (selectedDates, dateStr, instance) {
+                if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                    window.styleFlatpickrMonthNameClickable(instance);
+                }
             },
             onChange: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) {
@@ -3420,6 +3433,9 @@ $(document).ready(function () {
             defaultMonth: dateRangeVisibleStart,
             defaultDate: [],
             onReady: function (selectedDates, dateStr, instance) {
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
                 var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
                 if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
                     setTimeout(function() {
@@ -3430,6 +3446,14 @@ $(document).ready(function () {
             onOpen: function (selectedDates, dateStr, instance) {
                 var anchor = new Date();
                 instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
+            onMonthChange: function (selectedDates, dateStr, instance) {
+                if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                    window.styleFlatpickrMonthNameClickable(instance);
+                }
             },
             onChange: function(selectedDates, dateStr, instance) {
                 if (selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {

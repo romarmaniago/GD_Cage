@@ -102,9 +102,20 @@ $(document).ready(function () {
             showMonths: 3,
             onReady: function (_selectedDates, _dateStr, instance) {
                 jumpJunketLossRangeToCurrentThreeMonths(instance);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
             },
             onOpen: function (_selectedDates, _dateStr, instance) {
                 jumpJunketLossRangeToCurrentThreeMonths(instance);
+                if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                    window.setupFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
+            onMonthChange: function (_selectedDates, _dateStr, instance) {
+                if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                    window.styleFlatpickrMonthNameClickable(instance);
+                }
             },
             onClose: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) return;

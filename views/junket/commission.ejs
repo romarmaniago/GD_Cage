@@ -266,6 +266,7 @@
 				export_label: "<%= __('commission.export') || 'Export' %>"
 			};
 		</script>
+		<script src="/assets/js/functions/flatpickr_month_range.js"></script>
 		<script src="/assets/js/functions/commission.js"></script>
 		
 		
@@ -421,6 +422,14 @@
 /* Remove margin from the last input */
 .input-daterange .form-control:last-child {
     margin-right: 0;
+}
+
+.flatpickr-calendar .cur-month {
+    cursor: pointer;
+}
+
+.flatpickr-calendar .cur-month:hover {
+    text-decoration: underline;
 }
 
 /* Responsive tweaks */

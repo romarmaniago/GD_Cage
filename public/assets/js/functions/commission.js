@@ -19,9 +19,20 @@ $(document).ready(function() {
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             jumpCommissionRangeToCurrentThreeMonths(instance);
+            if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                window.setupFlatpickrMonthNameRangeSelect(instance);
+            }
         },
         onOpen: function (selectedDates, dateStr, instance) {
             jumpCommissionRangeToCurrentThreeMonths(instance);
+            if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                window.setupFlatpickrMonthNameRangeSelect(instance);
+            }
+        },
+        onMonthChange: function (selectedDates, dateStr, instance) {
+            if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                window.styleFlatpickrMonthNameClickable(instance);
+            }
         }
     });
 

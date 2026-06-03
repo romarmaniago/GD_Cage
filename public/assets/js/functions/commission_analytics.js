@@ -871,6 +871,12 @@ $(document).ready(function () {
 
     var commissionPanelSkipMonthRange = false;
 
+    function jumpCommissionPanelRangeToCurrentThreeMonths(instance) {
+        if (!instance) return;
+        var current = new Date();
+        instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+    }
+
     function applyFullMonthRangeForVisibleLeft(instance) {
         if (!instance || instance.config.mode !== 'range') return;
         var y = instance.currentYear;
@@ -891,13 +897,27 @@ $(document).ready(function () {
             moment().startOf('month').format('YYYY-MM-DD'),
             moment().endOf('month').format('YYYY-MM-DD')
         ],
-        showMonths: 2,
+        showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             commissionPanelSkipMonthRange = true;
-            instance.changeMonth(-1, true);
+            jumpCommissionPanelRangeToCurrentThreeMonths(instance);
             commissionPanelSkipMonthRange = false;
+            if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                window.setupFlatpickrMonthNameRangeSelect(instance);
+            }
+        },
+        onOpen: function (selectedDates, dateStr, instance) {
+            commissionPanelSkipMonthRange = true;
+            jumpCommissionPanelRangeToCurrentThreeMonths(instance);
+            commissionPanelSkipMonthRange = false;
+            if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+                window.setupFlatpickrMonthNameRangeSelect(instance);
+            }
         },
         onMonthChange: function (selectedDates, dateStr, instance) {
+            if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                window.styleFlatpickrMonthNameClickable(instance);
+            }
             if (commissionPanelSkipMonthRange) return;
             applyFullMonthRangeForVisibleLeft(instance);
         },

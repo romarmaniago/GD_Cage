@@ -25,12 +25,16 @@
 						</button>
 					</div>
 				</div>
-				<div class="commission-date-filter-wrap">
-					<input type="text" id="commission-panel-daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
+				<!-- DATE FILTER -->
+				<div class="dataTables_wrapper">
+					<div class="row mb-2">
+						<div class="col-sm-4">
+							<input type="text" id="commission-panel-daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
+						</div>
+					</div>
 				</div>
 				<div class="card-body">
-					<div class="table-responsive">
-						<table id="commission-panel-tbl" class="table nowrap small-text" style="width:100%">
+					<table id="commission-panel-tbl" class="table nowrap small-text" style="width:100%">
 							<thead>
 								<tr>
 									<th>Ranking #</th>
@@ -45,7 +49,6 @@
 							</thead>
 							<tbody></tbody>
 						</table>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -155,6 +158,7 @@
 </div>
 
 <%- include('../partials/footer') %>
+<script src="/assets/js/functions/flatpickr_month_range.js"></script>
 <script src="/assets/js/functions/commission_analytics.js"></script>
 
 <style>
@@ -164,41 +168,39 @@
 	border-collapse: collapse;
 }
 
-.commission-date-filter-wrap {
-	max-width: 260px;
-	margin: 8px 24px 0;
+.dataTables_wrapper .row {
+	margin-bottom: 15px;
+	font-size: 12px;
 }
 
-.commission-date-filter-wrap .input-daterange {
-	width: 100%;
-	max-width: 100%;
-	margin: 4px 0 0 0;
+.input-daterange {
+	display: flex;
+	justify-content: space-between;
+	position: relative;
+	left: 7.5rem;
+	top: 4rem;
+	max-width: 300px;
 	font-size: 12px;
-	border: 1px solid #dbe2f3;
-	border-radius: 8px;
-	background: #fff;
-	padding: 8px 10px;
-	line-height: 1.2;
-	color: #344054;
 }
 
-.commission-date-filter-wrap .flatpickr-alt-input {
-	width: 100% !important;
-	max-width: 100%;
-	margin: 4px 0 0 0;
+.input-daterange .form-control {
+	flex: 1;
+	margin-right: 5px;
+	max-width: 120px;
 	font-size: 12px;
-	border: 1px solid #dbe2f3 !important;
-	border-radius: 8px;
-	background: #fff !important;
-	padding: 8px 10px;
-	line-height: 1.2;
-	color: #344054;
-	box-shadow: none !important;
+	padding: 8px;
+}
+
+.input-daterange .form-control:last-child {
+	margin-right: 0;
+}
+
+.flatpickr-calendar .cur-month {
 	cursor: pointer;
 }
 
-.commission-date-filter-wrap .flatpickr-input[readonly] {
-	cursor: pointer;
+.flatpickr-calendar .cur-month:hover {
+	text-decoration: underline;
 }
 
 #commission-panel-tbl thead th {
@@ -299,16 +301,14 @@
 }
 
 @media (max-width: 768px) {
-	.commission-date-filter-wrap {
-		max-width: 100%;
-		margin: 8px 12px 0;
+	.dataTables_wrapper .row,
+	.input-daterange,
+	.input-daterange .form-control {
+		font-size: 10px;
 	}
 
-	.commission-date-filter-wrap .input-daterange,
-	.commission-date-filter-wrap .flatpickr-alt-input {
-		margin-top: 4px;
-		font-size: 10px;
-		padding: 7px 9px;
+	.input-daterange .form-control {
+		padding: 5px;
 	}
 
 	#commission-panel-tbl {
