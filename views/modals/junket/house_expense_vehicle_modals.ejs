@@ -1,0 +1,118 @@
+<div class="modal fade" id="modal-house-expense-manage-vehicles" role="dialog" aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1055 !important;">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0">Vehicles</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="house-expense-manage-vehicle-list" class="expense-manage-vehicle-list">
+                    <div class="text-muted small p-3">No vehicles</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-primary js-house-expense-add-vehicle" title="Add vehicle" aria-label="Add vehicle">
+                    <i class="fa fa-plus me-1" aria-hidden="true"></i>Add
+                </button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-house-expense-add-vehicle" role="dialog" aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0">Add vehicle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-house-expense-add-vehicle" novalidate>
+                    <div id="house-expense-add-vehicle-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-add-vehicle-plate">Plate no.</label>
+                            <input type="text" class="form-control" name="txtPlateNo" id="house-expense-add-vehicle-plate" required autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-add-vehicle-model">Model</label>
+                            <input type="text" class="form-control" name="txtModel" id="house-expense-add-vehicle-model" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-add-vehicle-remarks">Remarks</label>
+                            <input type="text" class="form-control" name="txtRemarks" id="house-expense-add-vehicle-remarks" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="submit" class="btn btn-sm btn-primary" id="house-expense-add-vehicle-save">Save</button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-house-expense-edit-vehicle" role="dialog" aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0">Edit vehicle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="form-house-expense-edit-vehicle" novalidate>
+                    <input type="hidden" id="house-expense-edit-vehicle-id" value="" />
+                    <div id="house-expense-edit-vehicle-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-edit-vehicle-plate">Plate no.</label>
+                            <input type="text" class="form-control" name="txtPlateNo" id="house-expense-edit-vehicle-plate" required autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-edit-vehicle-model">Model</label>
+                            <input type="text" class="form-control" name="txtModel" id="house-expense-edit-vehicle-model" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="house-expense-edit-vehicle-remarks">Remarks</label>
+                            <input type="text" class="form-control" name="txtRemarks" id="house-expense-edit-vehicle-remarks" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0">
+                        <button type="submit" class="btn btn-sm btn-primary" id="house-expense-edit-vehicle-save">Save</button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-house-expense-delete-vehicle" role="dialog" aria-hidden="true" data-keyboard="false" data-backdrop="static" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white mb-0">Delete vehicle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="house-expense-delete-vehicle-error" class="alert alert-danger py-2 small d-none mb-2" role="alert"></div>
+                <p class="mb-1"><%= __('house_expense.delete_confirmation') || 'Are you sure you want to delete this?' %></p>
+                <p class="mb-0 fw-semibold text-primary" id="house-expense-delete-vehicle-label"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-danger" id="house-expense-delete-vehicle-confirm" data-original-text="Delete">Delete</button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

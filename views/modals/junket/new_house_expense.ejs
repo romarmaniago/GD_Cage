@@ -35,6 +35,20 @@
                             <input type="file" name="photo" class="form-control" />
                         </div>
                     </div>
+                    <div class="row mb-3 d-none" id="house-expense-vehicle-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="txtVehicleId">Vehicle</label>
+                            <select class="form-select" name="txtVehicleId" id="txtVehicleId">
+                                <option value="">-- Select vehicle --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3 d-none" id="house-expense-km-l-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="txtKmL">KM</label>
+                            <input type="text" class="form-control" name="txtKmL" id="txtKmL" />
+                        </div>
+                    </div>
                     <div class="row mb-3">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.receipt_no') %></label>
@@ -58,7 +72,6 @@
                                 class="form-control" name="txtAmount" required />
                         </div>
                     </div>
-              
 
                     <div class="modal-footer">
                         <button id="btn-save-new-expense" type="submit" class="btn btn-sm btn-primary" data-original-text="<%= __('modal_edit_house_expense.save') %>">

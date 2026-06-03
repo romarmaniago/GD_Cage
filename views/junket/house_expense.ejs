@@ -31,9 +31,6 @@
                                 <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
                                     <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-primary" onclick="addHouseExpense()">
-                                    <i class="fa fa-plus" aria-hidden="true"></i> <%= __('house_expense.new_expense') %>
-                                </button>
                                 <button type="button" class="btn btn-sm btn-success" onclick="returnMoney()">
                                     <i class="fa fa-undo" aria-hidden="true"></i> <%= __('house_expense.return_money') %>
                                 </button>
@@ -167,6 +164,9 @@
                                                 <span id="expense-item-panel-subtitle" class="text-muted small text-truncate"></span>
                                             </div>
                                             <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                                <button type="button" class="expense-cat-panel-add-btn js-house-expense-open-vehicle-modal d-none" title="Vehicles" aria-label="Vehicles">
+                                                    <i class="fa fa-car" aria-hidden="true"></i>
+                                                </button>
                                                 <button type="button" class="expense-cat-panel-add-btn js-house-expense-add-item" title="Add item" aria-label="Add item" disabled>
                                                     <i class="fa fa-plus" aria-hidden="true"></i>
                                                 </button>
@@ -195,7 +195,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="expense-item-cat-tbody">
-                                                    <tr><td colspan="7" class="text-muted small text-center py-3">Select a main category</td></tr>
+                                                    <tr><td colspan="7" class="text-muted small text-center py-3">Loading...</td></tr>
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
@@ -236,6 +236,7 @@
         <%- include ('../modals/junket/new_house_expense') %>
         <%- include ('../modals/junket/house_expense_edit_history') %>
         <%- include ('../modals/junket/house_expense_category_modals') %>
+        <%- include ('../modals/junket/house_expense_vehicle_modals') %>
         <div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
@@ -386,7 +387,20 @@
                 error_deleting_category: "Could not delete category",
                 category_has_items: "Cannot delete: this category has expense item(s) in the list. Remove or reassign them first.",
                 add_item: "Add item",
-                select_sub_for_item: "Select a sub category first"
+                select_sub_for_item: "Select a sub category first",
+                filter_all: "All",
+                filter_all_categories: "All categories",
+                manage_vehicles: "Vehicles",
+                no_vehicles: "No vehicles",
+                vehicle: "Vehicle",
+                select_vehicle: "Select vehicle",
+                add_vehicle: "Add vehicle",
+                edit_vehicle: "Edit vehicle",
+                delete_vehicle: "Delete vehicle",
+                plate_no_required: "Plate no. is required",
+                vehicle_saved: "Vehicle saved",
+                vehicle_deleted: "Vehicle deleted",
+                vehicle_has_expenses: "Cannot delete: this vehicle is used in expense record(s)."
             };
         </script>
         
@@ -397,6 +411,9 @@
             $(function () {
                 if (typeof window.houseExpenseInitCategoryAddUi === 'function') {
                     window.houseExpenseInitCategoryAddUi();
+                }
+                if (typeof window.houseExpenseInitVehicleUi === 'function') {
+                    window.houseExpenseInitVehicleUi();
                 }
 
                 $(document).on('click', '.js-house-expense-add-main-cat', function (e) {
@@ -455,7 +472,9 @@
             #modal-new-return-money .form-floating-outline .form-label,
             #modal-edit-return-money .form-floating-outline .form-label,
             #modal-house-expense-add-category .form-floating-outline .form-label,
-            #modal-house-expense-edit-category .form-floating-outline .form-label {
+            #modal-house-expense-edit-category .form-floating-outline .form-label,
+            #modal-house-expense-add-vehicle .form-floating-outline .form-label,
+            #modal-house-expense-edit-vehicle .form-floating-outline .form-label {
                 display: block;
                 font-size: 0.8125rem;
                 font-weight: 500;
@@ -1843,6 +1862,15 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-explorer-main-col .expense-main-cat-list-scroll,
             .expense-explorer-sub-col .expense-sub-cat-list-scroll {
                 max-height: 420px;
+            }
+            #modal-house-expense-manage-vehicles .expense-manage-vehicle-list {
+                max-height: min(60vh, 420px);
+                overflow-y: auto;
+            }
+            #modal-house-expense-manage-vehicles .expense-cat-item {
+                border-radius: 0;
+                border-left: 0;
+                border-right: 0;
             }
             .expense-explorer-sub-col .expense-cat-panel-body .text-muted {
                 line-height: 1.35;

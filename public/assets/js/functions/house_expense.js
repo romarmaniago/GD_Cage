@@ -19,6 +19,7 @@ window.houseExpenseExplorerState = {
     itemCategory: null
 };
 window.houseExpenseCategoryRows = [];
+window.houseExpenseVehicleRows = [];
 window.houseExpenseItemSearchQuery = '';
 window.houseExpenseAnimateItemTable = false;
 
@@ -31,14 +32,9 @@ function resetHouseExpenseExplorerState() {
     };
 }
 
-function houseExpenseApplyDefaultMainFromRows(mainRows) {
-    var st = window.houseExpenseExplorerState || {};
-    if (st.mainCategoryId || !mainRows || !mainRows.length) return;
-    var first = mainRows[0];
-    window.houseExpenseExplorerState.mainCategoryId = String(first.IDNo);
-    window.houseExpenseExplorerState.mainCategory = first.CATEGORY || null;
-    window.houseExpenseExplorerState.itemCategoryId = null;
-    window.houseExpenseExplorerState.itemCategory = null;
+function houseExpenseIsAllExplorerFilter(st) {
+    st = st || window.houseExpenseExplorerState || {};
+    return !st.mainCategoryId && !st.mainCategory;
 }
 
 function getHouseExpenseFilterMode() {
@@ -169,6 +165,10 @@ function getHouseExpenseSubCategoryRows(mainId) {
 
 function houseExpenseGetExplorerSubtitleText(st) {
     st = st || window.houseExpenseExplorerState || {};
+    if (houseExpenseIsAllExplorerFilter(st)) {
+        var t = window.houseExpenseTranslations || {};
+        return t.filter_all || 'All';
+    }
     if (!st.mainCategoryId && !st.mainCategory) return '';
 
     var mainName = st.mainCategory || '';
@@ -315,6 +315,10 @@ function buildHouseExpenseActionButtons(row, amount) {
             attrEncode(row.DESCRIPTION || '') +
             '" data-amount="' +
             amount +
+            '" data-km-l="' +
+            attrEncode(row.KM_L != null && row.KM_L !== '' ? String(row.KM_L) : '') +
+            '" data-vehicle-id="' +
+            attrEncode(row.VEHICLE_ID != null && row.VEHICLE_ID !== '' ? String(row.VEHICLE_ID) : '') +
             '" data-oic="' +
             attrEncode(row.OIC || '') +
             '" data-receiver="' +
@@ -378,17 +382,46 @@ function houseExpenseRowMatchesSearch(row, query) {
         row.DESCRIPTION,
         row.OIC,
         row.FIRSTNAME,
-        row.AMOUNT
+        row.AMOUNT,
+        row.KM_L,
+        row.vehicle_plate,
+        row.vehicle_model,
+        row.VEHICLE_ID
     ];
     return parts.some(function (p) {
         return p != null && String(p).toLowerCase().indexOf(q) !== -1;
     });
 }
 
+/** Item table DESCRIPTION column: description text + optional KM/L. */
+function houseExpenseItemDescriptionColumnText(row) {
+    if (!row) return '-';
+    if (row.record_type === 'return_money') {
+        return row.DESCRIPTION || '-';
+    }
+    var text =
+        row.RECEIPT_NO != null && String(row.RECEIPT_NO).trim() !== ''
+            ? String(row.RECEIPT_NO).trim()
+            : '';
+    var kmL = row.KM_L;
+    if (kmL != null && kmL !== '' && !Number.isNaN(Number(kmL))) {
+        var kmPart = String(Number(kmL)) + 'km';
+        text = text ? text + ' - ' + kmPart : kmPart;
+    }
+    return text || '-';
+}
+
 function houseExpenseGetFilteredItemRows(allRows) {
     var st = window.houseExpenseExplorerState || {};
     var rows = (allRows || []).slice();
     var searchQ = String(window.houseExpenseItemSearchQuery || '').trim();
+
+    if (houseExpenseIsAllExplorerFilter(st)) {
+        return rows.filter(function (row) {
+            if (!row) return false;
+            return houseExpenseRowMatchesSearch(row, searchQ);
+        });
+    }
 
     if (!st.mainCategoryId && !st.mainCategory) {
         return [];
@@ -453,7 +486,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
         var rows = (allRows || []).slice();
         var noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
 
-        if (!st.mainCategoryId && !st.mainCategory) {
+        if (!houseExpenseIsAllExplorerFilter(st) && !st.mainCategoryId && !st.mainCategory) {
             $('#expense-item-panel-subtitle').text('');
             $tbody.html(
                 '<tr><td colspan="7" class="text-muted small text-center py-3">Select a main category</td></tr>'
@@ -497,15 +530,13 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     row.record_type === 'return_money'
                         ? '<span style="color: green;">' + formattedAmount + '</span>'
                         : formattedAmount;
-                var nameLabel =
-                    row.record_type === 'return_money' ? 'Return Money' : row.expense_category || 'N/A';
+                var nameLabel = houseExpenseGetExpenseNameLabel(row);
                 /* Headers: description key = IN-CHARGE, receipt_no key = DESCRIPTION (see locales) */
                 var inChargeCol =
                     row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-';
                 var receiverCol =
                     row.record_type === 'return_money' ? '-' : row.RECEIVER || '-';
-                var descriptionCol =
-                    row.record_type === 'return_money' ? row.DESCRIPTION || '-' : row.RECEIPT_NO || '-';
+                var descriptionCol = houseExpenseItemDescriptionColumnText(row);
 
                 return (
                     '<tr class="js-expense-entry-row" data-expense-id="' +
@@ -703,6 +734,207 @@ function houseExpenseFindCategoryRow(catId) {
     });
 }
 
+/** True when category is a sub-category under main "Car". */
+function houseExpenseIsCarSubCategoryId(categoryId) {
+    if (categoryId == null || categoryId === '') return false;
+    var row = houseExpenseFindCategoryRow(categoryId);
+    if (!row || row.PARENT_ID == null || row.PARENT_ID === '') return false;
+    var parent = houseExpenseFindCategoryRow(row.PARENT_ID);
+    if (!parent) return false;
+    return String(parent.CATEGORY || '').trim().toUpperCase() === 'CAR';
+}
+
+/** Show optional Vehicle + KM/L fields for Car sub-category expenses. */
+function houseExpenseToggleCarExpenseFields(categoryId) {
+    var show = houseExpenseIsCarSubCategoryId(categoryId);
+    var $newVehicleWrap = $('#house-expense-vehicle-wrap');
+    var $editVehicleWrap = $('#house-expense-edit-vehicle-wrap');
+    var $newKmWrap = $('#house-expense-km-l-wrap');
+    var $editKmWrap = $('#house-expense-edit-km-l-wrap');
+    if ($newVehicleWrap.length) {
+        if (show) {
+            $newVehicleWrap.removeClass('d-none');
+            houseExpensePopulateVehicleSelects($('#txtVehicleId').val() || '');
+        } else {
+            $newVehicleWrap.addClass('d-none');
+            $('#txtVehicleId').val('');
+        }
+    }
+    if ($editVehicleWrap.length) {
+        if (show) {
+            $editVehicleWrap.removeClass('d-none');
+        } else {
+            $editVehicleWrap.addClass('d-none');
+            $('#editTxtVehicleId').val('');
+        }
+    }
+    if ($newKmWrap.length) {
+        if (show) $newKmWrap.removeClass('d-none');
+        else {
+            $newKmWrap.addClass('d-none');
+            $('#txtKmL').val('');
+        }
+    }
+    if ($editKmWrap.length) {
+        if (show) $editKmWrap.removeClass('d-none');
+        else {
+            $editKmWrap.addClass('d-none');
+            $('#editTxtKmL').val('');
+        }
+    }
+}
+
+function houseExpenseIsCarMainCategorySelected(st) {
+    st = st || window.houseExpenseExplorerState || {};
+    var name = st.mainCategory || '';
+    if (!name && st.mainCategoryId) {
+        var row = houseExpenseFindCategoryRow(st.mainCategoryId);
+        name = row ? row.CATEGORY || '' : '';
+    }
+    return String(name).trim().toUpperCase() === 'CAR';
+}
+
+function houseExpenseFormatVehicleOptionLabel(v) {
+    if (!v) return '';
+    var plate = v.PLATE_NO != null ? String(v.PLATE_NO).trim() : '';
+    var model = v.MODEL != null ? String(v.MODEL).trim() : '';
+    if (!plate) return model || '';
+    return model ? plate + ' — ' + model : plate;
+}
+
+function houseExpenseFormatVehicleLabel(row) {
+    if (!row) return '';
+    var plate = row.vehicle_plate != null ? String(row.vehicle_plate).trim() : '';
+    var model = row.vehicle_model != null ? String(row.vehicle_model).trim() : '';
+    if (!plate) return '';
+    return model ? plate + ' — ' + model : plate;
+}
+
+function houseExpenseGetExpenseNameLabel(row) {
+    var label =
+        row.record_type === 'return_money' ? 'Return Money' : row.expense_category || 'N/A';
+    var vehicleLabel = houseExpenseFormatVehicleLabel(row);
+    if (vehicleLabel && row.record_type !== 'return_money') {
+        label = label + ' · ' + vehicleLabel;
+    }
+    return label;
+}
+
+function houseExpenseSyncVehicleBtnVisibility() {
+    var $btn = $('.js-house-expense-open-vehicle-modal');
+    if (!$btn.length) return;
+    if (houseExpenseIsCarMainCategorySelected()) $btn.removeClass('d-none');
+    else $btn.addClass('d-none');
+}
+
+function houseExpenseVehicleRowEndHtml(vehicleId) {
+    if (!vehicleId || !houseExpenseCanManageCategories()) {
+        return '<div class="expense-cat-item-end"></div>';
+    }
+    return (
+        '<div class="expense-cat-item-end">' +
+        '<div class="expense-cat-actions" role="group" aria-label="Vehicle actions">' +
+        '<button type="button" class="expense-cat-action-btn js-house-expense-edit-vehicle" data-vehicle-id="' +
+        attrEncode(String(vehicleId)) +
+        '" title="Edit" aria-label="Edit"><i class="fa fa-pencil-alt" aria-hidden="true"></i></button>' +
+        '<button type="button" class="expense-cat-action-btn js-house-expense-delete-vehicle" data-vehicle-id="' +
+        attrEncode(String(vehicleId)) +
+        '" title="Delete" aria-label="Delete"><i class="fa fa-trash-alt" aria-hidden="true"></i></button>' +
+        '</div></div>'
+    );
+}
+
+function renderHouseExpenseVehicleList() {
+    var t = window.houseExpenseTranslations || {};
+    var $list = $('#house-expense-manage-vehicle-list');
+    if (!$list.length) return;
+    var rows = window.houseExpenseVehicleRows || [];
+    if (!rows.length) {
+        $list.html('<div class="text-muted small p-3">' + houseExpenseHtmlEscape(t.no_vehicles || 'No vehicles') + '</div>');
+        return;
+    }
+    var html = rows
+        .map(function (v) {
+            var id = String(v.IDNo);
+            var label = houseExpenseFormatVehicleOptionLabel(v);
+            return (
+                '<div class="expense-cat-item js-expense-vehicle-row" data-vehicle-id="' +
+                attrEncode(id) +
+                '">' +
+                '<span class="expense-cat-name" title="' +
+                attrEncode(label) +
+                '">' +
+                houseExpenseHtmlEscape(label) +
+                '</span>' +
+                houseExpenseVehicleRowEndHtml(id) +
+                '</div>'
+            );
+        })
+        .join('');
+    $list.html(html);
+}
+
+function openHouseExpenseManageVehicleModal() {
+    renderHouseExpenseVehicleList();
+    houseExpenseShowCategoryModal($('#modal-house-expense-manage-vehicles'));
+}
+
+function reloadHouseExpenseVehicleCatalog(afterLoad) {
+    return $.ajax({
+        url: '/house_expense_vehicle_data',
+        method: 'GET',
+        success: function (response) {
+            window.houseExpenseVehicleRows = (response || []).slice();
+            houseExpensePopulateVehicleSelects();
+            renderHouseExpenseVehicleList();
+            houseExpenseSyncVehicleBtnVisibility();
+            if (typeof afterLoad === 'function') afterLoad(response);
+        },
+        error: function () {
+            if (typeof afterLoad === 'function') afterLoad(null);
+        }
+    });
+}
+
+function houseExpensePopulateVehicleSelects(selectedId) {
+    var t = window.houseExpenseTranslations || {};
+    var placeholder = t.select_vehicle || '-- Select vehicle --';
+    var rows = window.houseExpenseVehicleRows || [];
+    var $selects = $('#txtVehicleId, #editTxtVehicleId');
+    $selects.each(function () {
+        var $sel = $(this);
+        var current =
+            selectedId != null && String(selectedId).trim() !== ''
+                ? String(selectedId)
+                : String($sel.val() || '');
+        $sel.empty();
+        $sel.append($('<option>', { value: '', text: placeholder }));
+        rows.forEach(function (v) {
+            var id = String(v.IDNo);
+            $sel.append(
+                $('<option>', {
+                    value: id,
+                    text: houseExpenseFormatVehicleOptionLabel(v),
+                    selected: id === current
+                })
+            );
+        });
+        if (current) $sel.val(current);
+    });
+}
+
+/** @deprecated use houseExpenseToggleCarExpenseFields */
+function houseExpenseToggleKmPerLField(categoryId) {
+    houseExpenseToggleCarExpenseFields(categoryId);
+}
+
+function houseExpenseGetNewExpenseCategoryId() {
+    var hiddenVal = $('#house-expense-new-expense-category-id').val();
+    if (hiddenVal != null && String(hiddenVal).trim() !== '') return String(hiddenVal);
+    var selectVal = $('#expense-category-select').val();
+    return selectVal != null && String(selectVal).trim() !== '' ? String(selectVal) : null;
+}
+
 function houseExpenseCatRowEndHtml(count, catId, kind) {
     var html =
         '<div class="expense-cat-item-end">' + houseExpenseCatCountBadgeHtml(count);
@@ -888,10 +1120,6 @@ function houseExpenseReconcileExplorerState() {
     var mainValid = mainRow && houseExpenseIsMainCategoryRow(mainRow);
     if (!mainValid) {
         resetHouseExpenseExplorerState();
-        var expenseRows = (window.houseExpenseLastRows || []).filter(function (r) {
-            return r && r.record_type !== 'return_money';
-        });
-        houseExpenseApplyDefaultMainFromRows(getHouseExpenseMainCategoryRows(expenseRows));
         refreshHouseExpenseExplorerOnly();
         return;
     }
@@ -1064,7 +1292,6 @@ function renderHouseExpenseCategoryLists(data) {
         return String(a.CATEGORY || '').localeCompare(String(b.CATEGORY || ''), undefined, { sensitivity: 'base' });
     });
 
-    houseExpenseApplyDefaultMainFromRows(mainRows);
     st = window.houseExpenseExplorerState || {};
 
     if (mainRows.length === 0) {
@@ -1075,6 +1302,24 @@ function renderHouseExpenseCategoryLists(data) {
     }
 
     var mainHtml = [];
+    var allLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.filter_all) || 'All';
+    var allCount = (data || []).length;
+    var isAllActive = houseExpenseIsAllExplorerFilter(st);
+
+    mainHtml.push(
+        '<div class="expense-cat-item js-expense-main-cat-row js-expense-main-cat-all' +
+            (isAllActive ? ' is-active' : '') +
+            '" data-main-id="" data-main-name="' +
+            attrEncode(allLabel) +
+            '">' +
+            '<span class="expense-cat-name" title="' +
+            attrEncode(allLabel) +
+            '">' +
+            houseExpenseHtmlEscape(allLabel) +
+            '</span>' +
+            houseExpenseCatRowEndHtml(allCount, '', 'main') +
+            '</div>'
+    );
 
     mainRows.forEach(function (main) {
         var mainId = String(main.IDNo);
@@ -1124,6 +1369,14 @@ function renderHouseExpenseSubCategoryList(data) {
     });
     var stats = houseExpenseBuildCategoryStats(expenseRows);
 
+    if (houseExpenseIsAllExplorerFilter(st)) {
+        var allSubLabel =
+            (window.houseExpenseTranslations && window.houseExpenseTranslations.filter_all_categories) ||
+            'All categories';
+        $list.html('<div class="text-muted small p-2">' + houseExpenseHtmlEscape(allSubLabel) + '</div>');
+        return;
+    }
+
     if (!st.mainCategoryId) {
         $list.html('<div class="text-muted small p-2">Select a main category</div>');
         return;
@@ -1162,6 +1415,7 @@ function renderHouseExpenseSubCategoryList(data) {
     });
 
     $list.html(html.join(''));
+    houseExpenseSyncVehicleBtnVisibility();
 }
 
 function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
@@ -1262,7 +1516,9 @@ function showExpenseBreakdownModalByCategory(categoryName) {
 function getBreakdownSortValue(row, key) {
     if (!row) return '';
     if (key === 'amount') return Number(row.AMOUNT) || 0;
-    if (key === 'description') return String(row.RECEIPT_NO || '').toLowerCase();
+    if (key === 'description') {
+        return String(houseExpenseItemDescriptionColumnText(row) || '').toLowerCase();
+    }
     if (key === 'in_charge') return String(row.DESCRIPTION || row.OIC || '').toLowerCase();
     if (key === 'encoded_by') return String(row.FIRSTNAME || '').toLowerCase();
     if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
@@ -1291,7 +1547,7 @@ function renderExpenseBreakdownModalRows() {
             ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM YYYY, HH:mm:ss')
             : '-';
         var isReturnMoney = row.record_type === 'return_money';
-        var descriptionText = isReturnMoney ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-');
+        var descriptionText = houseExpenseItemDescriptionColumnText(row);
         var inChargeText = isReturnMoney ? '-' : (row.OIC || row.DESCRIPTION || '-');
         return (
             '<tr>' +
@@ -1673,7 +1929,7 @@ $(document).ready(function () {
             return [
                 row.expense_category || 'N/A',
                 row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-',
-                row.record_type === 'return_money' ? row.DESCRIPTION || '-' : row.RECEIPT_NO || '-',
+                houseExpenseItemDescriptionColumnText(row),
                 formattedAmount,
                 enc
             ];
@@ -2517,7 +2773,9 @@ $(document).ready(function () {
             var dateTime = $btn.attr('data-date-time') || '';
             var oic = $btn.attr('data-oic') || '';
             var receiver = $btn.attr('data-receiver') || '';
-            edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic, receiver);
+            var kmL = $btn.attr('data-km-l') || '';
+            var vehicleId = $btn.attr('data-vehicle-id') || '';
+            edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic, receiver, kmL, vehicleId);
         }
     });
 
@@ -2527,19 +2785,27 @@ $(document).ready(function () {
     });
 
     $(document).on('click', '.js-expense-main-cat-row', function () {
-        var mainId = $(this).attr('data-main-id') || '';
+        var mainId = $(this).attr('data-main-id');
         var mainName = $(this).attr('data-main-name') || '';
-        if (!mainId) return;
+        var isAll = $(this).hasClass('js-expense-main-cat-all') || mainId === '';
+
+        if (!isAll && !mainId) return;
 
         var stBefore = window.houseExpenseExplorerState || {};
-        var sameSelection = String(stBefore.mainCategoryId) === String(mainId) && !stBefore.itemCategoryId;
+        var sameSelection = isAll
+            ? houseExpenseIsAllExplorerFilter(stBefore) && !stBefore.itemCategoryId
+            : String(stBefore.mainCategoryId) === String(mainId) && !stBefore.itemCategoryId;
         window.houseExpenseAnimateItemTable = !sameSelection;
-        window.houseExpenseExplorerState = {
-            mainCategoryId: mainId,
-            mainCategory: mainName || null,
-            itemCategoryId: null,
-            itemCategory: null
-        };
+        if (isAll) {
+            resetHouseExpenseExplorerState();
+        } else {
+            window.houseExpenseExplorerState = {
+                mainCategoryId: mainId,
+                mainCategory: mainName || null,
+                itemCategoryId: null,
+                itemCategory: null
+            };
+        }
         refreshHouseExpenseExplorerOnly();
     });
 
@@ -2667,7 +2933,7 @@ function houseExpenseSetNewExpenseCategory(categoryId) {
     }
 }
 
-/** Explorer add item: lock category from main/sub; top New Expense keeps dropdown. */
+/** Explorer add item: lock category from selected main/sub. */
 function houseExpenseApplyNewExpenseCategoryUi(categoryId) {
     var $selectWrap = $('#house-expense-new-cat-select-wrap');
     var $presetWrap = $('#house-expense-new-cat-preset-wrap');
@@ -2691,12 +2957,14 @@ function houseExpenseApplyNewExpenseCategoryUi(categoryId) {
         $hidden.val(String(categoryId)).attr('name', 'txtCategory');
         if ($presetLabel.length) $presetLabel.text(label || '—');
         houseExpenseSetNewExpenseCategory(categoryId);
+        houseExpenseToggleCarExpenseFields(categoryId);
     } else {
         $selectWrap.removeClass('d-none');
         $select.prop('required', true).attr('name', 'txtCategory');
         $presetWrap.addClass('d-none');
         $hidden.val('').removeAttr('name');
         if ($presetLabel.length) $presetLabel.text('');
+        houseExpenseToggleCarExpenseFields(null);
     }
 }
 
@@ -2720,11 +2988,14 @@ function addHouseExpense(categoryId) {
     $('#modal-new-house-expense').modal('show');
     get_agent();
     reloadHouseExpenseCategoryCatalog(function () {
-        if (window.houseExpensePendingNewExpenseCategoryId) {
-            houseExpenseApplyNewExpenseCategoryUi(window.houseExpensePendingNewExpenseCategoryId);
-        } else {
-            houseExpenseApplyNewExpenseCategoryUi(null);
-        }
+        reloadHouseExpenseVehicleCatalog(function () {
+            if (window.houseExpensePendingNewExpenseCategoryId) {
+                houseExpenseApplyNewExpenseCategoryUi(window.houseExpensePendingNewExpenseCategoryId);
+            } else {
+                houseExpenseApplyNewExpenseCategoryUi(null);
+            }
+            houseExpenseToggleCarExpenseFields(houseExpenseGetNewExpenseCategoryId());
+        });
     });
 }
 
@@ -2828,7 +3099,7 @@ function rejectHouseExpense(id) {
 window.approveHouseExpense = approveHouseExpense;
 window.rejectHouseExpense = rejectHouseExpense;
 
-function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic, receiver) {
+function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic, receiver, kmL, vehicleId) {
     $('#modal-edit-house-expense').modal('show');
     $('#txtCategory').val(category_id);
     $('#txtReceiptNo').val(receipt_no);
@@ -2848,11 +3119,15 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
     $('#txtDescription').val(description);
     $('#txtReceiver').val(receiver || '');
     $('#txtAmount').val(amount);
+    $('#editTxtKmL').val(kmL != null && kmL !== '' ? kmL : '');
+    houseExpensePopulateVehicleSelects(vehicleId != null && vehicleId !== '' ? vehicleId : '');
+    $('#editTxtVehicleId').val(vehicleId != null && vehicleId !== '' ? String(vehicleId) : '');
     // $('#txtOfficerInCharge').val(oic);
 
     expense_id = id;
 
     edit_expense_category(category_id);
+    houseExpenseToggleCarExpenseFields(category_id);
     // edit_get_agent(oic);
 }
 
@@ -3062,6 +3337,7 @@ function reloadHouseExpenseCategoryCatalog(afterLoad) {
 
 function expense_category() {
     reloadHouseExpenseCategoryCatalog();
+    reloadHouseExpenseVehicleCatalog();
 }
 
 function houseExpenseShowModal($modal) {
@@ -3463,6 +3739,216 @@ function openHouseExpenseAddCategoryModal(mode) {
     });
 }
 
+function openHouseExpenseAddVehicleModal() {
+    var t = window.houseExpenseTranslations || {};
+    $('#house-expense-add-vehicle-plate').val('').removeClass('is-invalid');
+    $('#house-expense-add-vehicle-model').val('');
+    $('#house-expense-add-vehicle-remarks').val('');
+    houseExpenseShowCategoryFormError($('#house-expense-add-vehicle-error'), '');
+    houseExpenseShowCategoryModal($('#modal-house-expense-add-vehicle'));
+    $('#modal-house-expense-add-vehicle').one('shown.bs.modal', function () {
+        $('#house-expense-add-vehicle-plate').trigger('focus');
+    });
+}
+
+function openHouseExpenseEditVehicleModal(vehicleId) {
+    var t = window.houseExpenseTranslations || {};
+    var row = (window.houseExpenseVehicleRows || []).find(function (v) {
+        return v && String(v.IDNo) === String(vehicleId);
+    });
+    if (!row) return;
+    $('#house-expense-edit-vehicle-id').val(String(row.IDNo));
+    $('#house-expense-edit-vehicle-plate').val(row.PLATE_NO || '').removeClass('is-invalid');
+    $('#house-expense-edit-vehicle-model').val(row.MODEL || '');
+    $('#house-expense-edit-vehicle-remarks').val(row.REMARKS || '');
+    houseExpenseShowCategoryFormError($('#house-expense-edit-vehicle-error'), '');
+    houseExpenseShowCategoryModal($('#modal-house-expense-edit-vehicle'));
+}
+
+function openHouseExpenseDeleteVehicleModal(vehicleId) {
+    var row = (window.houseExpenseVehicleRows || []).find(function (v) {
+        return v && String(v.IDNo) === String(vehicleId);
+    });
+    if (!row) return;
+    window.houseExpenseDeleteVehicleId = String(vehicleId);
+    $('#house-expense-delete-vehicle-label').text(houseExpenseFormatVehicleOptionLabel(row));
+    houseExpenseShowCategoryFormError($('#house-expense-delete-vehicle-error'), '');
+    houseExpenseShowCategoryModal($('#modal-house-expense-delete-vehicle'));
+}
+
+function submitHouseExpenseAddVehicleForm($form) {
+    var t = window.houseExpenseTranslations || {};
+    var plate = String($('#house-expense-add-vehicle-plate').val() || '').trim();
+    if (!plate) {
+        $('#house-expense-add-vehicle-plate').addClass('is-invalid');
+        houseExpenseShowCategoryFormError(
+            $('#house-expense-add-vehicle-error'),
+            t.plate_no_required || 'Plate no. is required'
+        );
+        return;
+    }
+    var $save = $('#house-expense-add-vehicle-save');
+    var saveHtml = $save.data('original-text') || $save.html();
+    if (!$save.data('original-text')) $save.data('original-text', saveHtml);
+    $save.prop('disabled', true).html(t.saving || 'Saving...');
+    houseExpenseShowCategoryFormError($('#house-expense-add-vehicle-error'), '');
+    $.ajax({
+        url: '/house_expense_vehicle',
+        method: 'POST',
+        data: {
+            txtPlateNo: plate,
+            txtModel: $('#house-expense-add-vehicle-model').val(),
+            txtRemarks: $('#house-expense-add-vehicle-remarks').val()
+        },
+        success: function () {
+            $('#modal-house-expense-add-vehicle').modal('hide');
+            reloadHouseExpenseVehicleCatalog();
+        },
+        error: function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not save vehicle';
+            houseExpenseShowCategoryFormError($('#house-expense-add-vehicle-error'), msg);
+        },
+        complete: function () {
+            $save.prop('disabled', false).html(saveHtml);
+        }
+    });
+}
+
+function submitHouseExpenseEditVehicleForm($form) {
+    var t = window.houseExpenseTranslations || {};
+    var id = $('#house-expense-edit-vehicle-id').val();
+    var plate = String($('#house-expense-edit-vehicle-plate').val() || '').trim();
+    if (!plate || !id) {
+        $('#house-expense-edit-vehicle-plate').addClass('is-invalid');
+        houseExpenseShowCategoryFormError(
+            $('#house-expense-edit-vehicle-error'),
+            t.plate_no_required || 'Plate no. is required'
+        );
+        return;
+    }
+    var $save = $('#house-expense-edit-vehicle-save');
+    var saveHtml = $save.data('original-text') || $save.html();
+    if (!$save.data('original-text')) $save.data('original-text', saveHtml);
+    $save.prop('disabled', true).html(t.saving || 'Saving...');
+    houseExpenseShowCategoryFormError($('#house-expense-edit-vehicle-error'), '');
+    $.ajax({
+        url: '/house_expense_vehicle/' + id,
+        method: 'PUT',
+        data: {
+            txtPlateNo: plate,
+            txtModel: $('#house-expense-edit-vehicle-model').val(),
+            txtRemarks: $('#house-expense-edit-vehicle-remarks').val()
+        },
+        success: function () {
+            $('#modal-house-expense-edit-vehicle').modal('hide');
+            reloadHouseExpenseVehicleCatalog(function () {
+                if (typeof window.reloadData === 'function') window.reloadData();
+            });
+        },
+        error: function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not update vehicle';
+            houseExpenseShowCategoryFormError($('#house-expense-edit-vehicle-error'), msg);
+        },
+        complete: function () {
+            $save.prop('disabled', false).html(saveHtml);
+        }
+    });
+}
+
+function confirmDeleteHouseExpenseVehicle() {
+    var t = window.houseExpenseTranslations || {};
+    var id = window.houseExpenseDeleteVehicleId;
+    if (!id) return;
+    var $btn = $('#house-expense-delete-vehicle-confirm');
+    var btnHtml = $btn.data('original-text') || $btn.html();
+    if (!$btn.data('original-text')) $btn.data('original-text', btnHtml);
+    $btn.prop('disabled', true).html(t.saving || 'Saving...');
+    houseExpenseShowCategoryFormError($('#house-expense-delete-vehicle-error'), '');
+    $.ajax({
+        url: '/house_expense_vehicle/remove/' + id,
+        method: 'PUT',
+        success: function () {
+            $('#modal-house-expense-delete-vehicle').modal('hide');
+            reloadHouseExpenseVehicleCatalog(function () {
+                if (typeof window.reloadData === 'function') window.reloadData();
+            });
+        },
+        error: function (xhr) {
+            var msg =
+                (xhr.responseJSON && xhr.responseJSON.error) ||
+                t.vehicle_has_expenses ||
+                'Could not delete vehicle';
+            houseExpenseShowCategoryFormError($('#house-expense-delete-vehicle-error'), msg);
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html(btnHtml);
+        }
+    });
+}
+
+function houseExpenseInitVehicleUi() {
+    if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly()) {
+        $('.js-house-expense-open-vehicle-modal, .js-house-expense-add-vehicle').addClass('d-none');
+    }
+
+    $(document)
+        .off('click.houseExpenseVehicle', '.js-house-expense-open-vehicle-modal')
+        .on('click.houseExpenseVehicle', '.js-house-expense-open-vehicle-modal', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openHouseExpenseManageVehicleModal();
+        });
+
+    $(document)
+        .off('click.houseExpenseVehicle', '.js-house-expense-add-vehicle')
+        .on('click.houseExpenseVehicle', '.js-house-expense-add-vehicle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openHouseExpenseAddVehicleModal();
+        });
+
+    $(document)
+        .off('click.houseExpenseVehicle', '.js-house-expense-edit-vehicle')
+        .on('click.houseExpenseVehicle', '.js-house-expense-edit-vehicle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).attr('data-vehicle-id');
+            if (id) openHouseExpenseEditVehicleModal(id);
+        });
+
+    $(document)
+        .off('click.houseExpenseVehicle', '.js-house-expense-delete-vehicle')
+        .on('click.houseExpenseVehicle', '.js-house-expense-delete-vehicle', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).attr('data-vehicle-id');
+            if (id) openHouseExpenseDeleteVehicleModal(id);
+        });
+
+    $(document)
+        .off('submit.houseExpenseAddVehicle', '#form-house-expense-add-vehicle')
+        .on('submit.houseExpenseAddVehicle', '#form-house-expense-add-vehicle', function (e) {
+            e.preventDefault();
+            submitHouseExpenseAddVehicleForm($(this));
+        });
+
+    $(document)
+        .off('submit.houseExpenseEditVehicle', '#form-house-expense-edit-vehicle')
+        .on('submit.houseExpenseEditVehicle', '#form-house-expense-edit-vehicle', function (e) {
+            e.preventDefault();
+            submitHouseExpenseEditVehicleForm($(this));
+        });
+
+    $(document)
+        .off('click.houseExpenseDeleteVehicle', '#house-expense-delete-vehicle-confirm')
+        .on('click.houseExpenseDeleteVehicle', '#house-expense-delete-vehicle-confirm', function (e) {
+            e.preventDefault();
+            confirmDeleteHouseExpenseVehicle();
+        });
+
+    reloadHouseExpenseVehicleCatalog();
+}
+
 window.addHouseExpense = addHouseExpense;
 window.addHouseExpenseFromExplorer = addHouseExpenseFromExplorer;
 window.addHouseExpenseMainCategory = addHouseExpenseMainCategory;
@@ -3471,6 +3957,7 @@ window.openHouseExpenseAddCategoryModal = openHouseExpenseAddCategoryModal;
 window.openHouseExpenseEditCategoryModal = openHouseExpenseEditCategoryModal;
 window.openHouseExpenseDeleteCategoryModal = openHouseExpenseDeleteCategoryModal;
 window.houseExpenseInitCategoryAddUi = houseExpenseInitCategoryAddUi;
+window.houseExpenseInitVehicleUi = houseExpenseInitVehicleUi;
 
 function get_agent() {
     $.ajax({
@@ -3554,6 +4041,7 @@ $(document).ready(function () {
         } else {
             houseExpenseApplyNewExpenseCategoryUi(null);
         }
+        houseExpenseToggleCarExpenseFields(houseExpenseGetNewExpenseCategoryId());
     });
     $('#modal-new-house-expense').on('hidden.bs.modal', function () {
         isSubmittingNewExpense = false;
@@ -3617,6 +4105,13 @@ $(document).ready(function () {
             }
         });
         return false;
+    });
+
+    $(document).on('change', '#expense-category-select', function () {
+        houseExpenseToggleCarExpenseFields($(this).val());
+    });
+    $(document).on('change', '#txtCategory', function () {
+        houseExpenseToggleCarExpenseFields($(this).val());
     });
 
     // New return money modal: bind after jQuery is ready (fixes "$ is not defined" on house_expense page)

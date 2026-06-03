@@ -33,6 +33,13 @@ async function ensureHouseExpenseApprovalSchema(pool) {
     await pool.execute(
         'UPDATE junket_house_expense SET APPROVAL_STATUS = 1 WHERE APPROVAL_STATUS IS NULL'
     );
+
+    if (!(await columnExists(pool, 'junket_house_expense', 'KM_L'))) {
+        await pool.execute(
+            'ALTER TABLE junket_house_expense ADD COLUMN KM_L DECIMAL(10, 2) NULL DEFAULT NULL AFTER AMOUNT'
+        );
+        console.log('[junket_house_expense] Added column KM_L');
+    }
 }
 
 module.exports = {

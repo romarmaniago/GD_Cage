@@ -79,6 +79,18 @@ const uploadReceiptImg = multer({
 	}
 });
 
+function parseOptionalKmL(value) {
+	if (value == null || String(value).trim() === '') return null;
+	const parsed = parseFloat(String(value).replace(/,/g, ''));
+	return Number.isNaN(parsed) ? null : parsed;
+}
+
+function parseOptionalVehicleId(value) {
+	if (value == null || String(value).trim() === '') return null;
+	const id = parseInt(String(value).trim(), 10);
+	return Number.isNaN(id) ? null : id;
+}
+
 router.get("/house_expense", checkSession, async function (req, res) {
 	try {
 		const permissions = req.session.permissions;
@@ -315,6 +327,97 @@ router.put('/expense_category/remove/:id', async (req, res) => {
 		res.status(500).json({ error: 'Error deleting Expense category' });
 	}
 });
+// HOUSE EXPENSE VEHICLES (Car maintenance file)
+router.get('/house_expense_vehicle_data', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			`SELECT IDNo, PLATE_NO, MODEL, REMARKS, ENCODED_BY, ENCODED_DT, EDITED_BY, EDITED_DT, ACTIVE
+			 FROM house_expense_vehicle
+			 WHERE ACTIVE = 1
+			 ORDER BY PLATE_NO ASC`
+		);
+		res.json(rows || []);
+	} catch (err) {
+		console.error('house_expense_vehicle_data:', err);
+		res.status(500).json({ error: 'Error loading vehicles' });
+	}
+});
+
+router.post('/house_expense_vehicle', checkSession, async (req, res) => {
+	try {
+		const plateNo = req.body.txtPlateNo != null ? String(req.body.txtPlateNo).trim() : '';
+		const model = req.body.txtModel != null ? String(req.body.txtModel).trim() : null;
+		const remarks = req.body.txtRemarks != null ? String(req.body.txtRemarks).trim() : null;
+		if (!plateNo) {
+			return res.status(400).json({ error: 'Plate no. is required' });
+		}
+		const encodedBy = req.session?.user_id || null;
+		const dateNow = new Date();
+		const [result] = await pool.execute(
+			`INSERT INTO house_expense_vehicle (PLATE_NO, MODEL, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, 1)`,
+			[plateNo, model || null, remarks || null, encodedBy, dateNow]
+		);
+		res.json({
+			success: true,
+			id: result.insertId,
+			plate_no: plateNo,
+			model: model || '',
+			remarks: remarks || ''
+		});
+	} catch (err) {
+		console.error('add house_expense_vehicle:', err);
+		res.status(500).json({ error: 'Error saving vehicle' });
+	}
+});
+
+router.put('/house_expense_vehicle/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		const plateNo = req.body.txtPlateNo != null ? String(req.body.txtPlateNo).trim() : '';
+		const model = req.body.txtModel != null ? String(req.body.txtModel).trim() : null;
+		const remarks = req.body.txtRemarks != null ? String(req.body.txtRemarks).trim() : null;
+		if (!plateNo) {
+			return res.status(400).json({ error: 'Plate no. is required' });
+		}
+		const dateNow = new Date();
+		await pool.execute(
+			`UPDATE house_expense_vehicle
+			 SET PLATE_NO = ?, MODEL = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[plateNo, model || null, remarks || null, req.session.user_id, dateNow, id]
+		);
+		res.json({ success: true, id, plate_no: plateNo, model: model || '', remarks: remarks || '' });
+	} catch (err) {
+		console.error('edit house_expense_vehicle:', err);
+		res.status(500).json({ error: 'Error updating vehicle' });
+	}
+});
+
+router.put('/house_expense_vehicle/remove/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		const [used] = await pool.execute(
+			'SELECT COUNT(*) AS cnt FROM junket_house_expense WHERE ACTIVE = 1 AND VEHICLE_ID = ?',
+			[id]
+		);
+		if (Number(used[0]?.cnt || 0) > 0) {
+			return res.status(400).json({ error: 'Cannot delete: this vehicle is used in expense record(s).' });
+		}
+		const dateNow = new Date();
+		await pool.execute(
+			'UPDATE house_expense_vehicle SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[req.session.user_id, dateNow, id]
+		);
+		res.json({ success: true });
+	} catch (err) {
+		console.error('remove house_expense_vehicle:', err);
+		res.status(500).json({ error: 'Error deleting vehicle' });
+	}
+});
+
 // ADD JUNKET EXPENSE
 router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async (req, res) => {
 	try {
@@ -324,7 +427,9 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			txtDateandTime,
 			txtDescription,
 			txtReceiver,
-			txtAmount
+			txtAmount,
+			txtKmL,
+			txtVehicleId
 		} = req.body;
 
 		const date_now = new Date();
@@ -334,13 +439,15 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 		const description = txtDescription || null;
 		const receiver = txtReceiver ? String(txtReceiver).trim() : null;
 		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
+		const kmL = parseOptionalKmL(txtKmL);
+		const vehicleId = parseOptionalVehicleId(txtVehicleId);
 		const encodedBy = req.session?.user_id || null;
 		const receiptFileName = req.file ? req.file.filename : null;
 
 		const query = `
 			INSERT INTO junket_house_expense 
-			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, KM_L, VEHICLE_ID, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
 		`;
 
 		// Determine DAILY_SETTLEMENT status based on latest settlement
@@ -382,6 +489,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			description,
 			receiver,
 			amount,
+			kmL,
+			vehicleId,
 			receiptFileName,
 			encodedBy,
 			date_now,
@@ -502,6 +611,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
 						COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 						e.AMOUNT,
+						e.KM_L,
+						e.VEHICLE_ID,
+						hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+						hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
 						e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 						e.ENCODED_BY,
 						e.ENCODED_DT,
@@ -519,6 +632,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					FROM junket_house_expense e
 					JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 					JOIN user_info u ON u.IDNo = e.ENCODED_BY
+					LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 					WHERE e.ACTIVE = 1
 						AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
 					
@@ -533,6 +647,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
 						1 AS APPROVAL_STATUS,
 						rm.AMOUNT,
+						NULL AS KM_L,
+						NULL AS VEHICLE_ID,
+						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
 						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 						rm.ENCODED_BY,
 						rm.ENCODED_DT,
@@ -582,6 +700,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
 							COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 							e.AMOUNT,
+							e.KM_L,
+							e.VEHICLE_ID,
+							hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+							hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
 							e.ENCODED_DT,
@@ -599,6 +721,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						FROM junket_house_expense e
 						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 						JOIN user_info u ON u.IDNo = e.ENCODED_BY
+						LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 						JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
 						JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
 						WHERE e.ACTIVE = 1
@@ -615,6 +738,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
 							1 AS APPROVAL_STATUS,
 							rm.AMOUNT,
+							NULL AS KM_L,
+							NULL AS VEHICLE_ID,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 							rm.ENCODED_BY,
 							rm.ENCODED_DT,
@@ -663,6 +790,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
 							COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 							e.AMOUNT,
+							e.KM_L,
+							e.VEHICLE_ID,
+							hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+							hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
 							e.ENCODED_DT,
@@ -680,6 +811,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						FROM junket_house_expense e
 						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 						JOIN user_info u ON u.IDNo = e.ENCODED_BY
+						LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 						WHERE e.ACTIVE = 1
 							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
 						
@@ -694,6 +826,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
 							1 AS APPROVAL_STATUS,
 							rm.AMOUNT,
+							NULL AS KM_L,
+							NULL AS VEHICLE_ID,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 							rm.ENCODED_BY,
 							rm.ENCODED_DT,
@@ -784,6 +920,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
 				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				e.AMOUNT,
+				e.KM_L,
+				e.VEHICLE_ID,
+				hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+				hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
 				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 				e.ENCODED_BY,
 				e.ENCODED_DT,
@@ -801,6 +941,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			FROM junket_house_expense e
 			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
+			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
 			JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
 			WHERE e.ACTIVE = 1
@@ -818,6 +959,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
 				1 AS APPROVAL_STATUS,
 				rm.AMOUNT,
+				NULL AS KM_L,
+				NULL AS VEHICLE_ID,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 				rm.ENCODED_BY,
 				rm.ENCODED_DT,
@@ -855,6 +1000,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
 				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				e.AMOUNT,
+				e.KM_L,
+				e.VEHICLE_ID,
+				hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+				hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
 				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 				e.ENCODED_BY,
 				e.ENCODED_DT,
@@ -872,6 +1021,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			FROM junket_house_expense e
 			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
+			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			WHERE e.ACTIVE = 1
 				AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
 			
@@ -887,6 +1037,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
 				1 AS APPROVAL_STATUS,
 				rm.AMOUNT,
+				NULL AS KM_L,
+				NULL AS VEHICLE_ID,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 				rm.ENCODED_BY,
 				rm.ENCODED_DT,
@@ -959,21 +1113,28 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			txtDateandTime,
 			txtDescription,
 			txtReceiver,
-			txtAmount
+			txtAmount,
+			txtKmL,
+			txtVehicleId
 		} = req.body;
 
 		const date_now = new Date();
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
+		const editKmL = parseOptionalKmL(txtKmL);
+		const editVehicleId = parseOptionalVehicleId(txtVehicleId);
 		const safeDateTime = txtDateandTime || null;
 		const receiver = txtReceiver != null ? String(txtReceiver).trim() : null;
 
 		// Build diff text; store in junket_house_expense_edit_log (full history, one row per save with changes)
 		const [oldRows] = await pool.execute(
-			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.RECEIVER, e.AMOUNT, e.PHOTO,
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.RECEIVER, e.AMOUNT, e.KM_L, e.VEHICLE_ID, e.PHOTO,
 				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
+				hv.PLATE_NO AS vehicle_plate,
+				hv.MODEL AS vehicle_model,
 				ec.CATEGORY AS category_name
 			 FROM junket_house_expense e
 			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			 WHERE e.IDNo = ? LIMIT 1`,
 			[id]
 		);
@@ -1014,6 +1175,35 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			if (!amtEq(old.AMOUNT, editXAmount)) {
 				lines.push(`Amount: ${Number(old.AMOUNT).toLocaleString('en-US')}`);
 			}
+			const oldKmL = old.KM_L != null && old.KM_L !== '' ? Number(old.KM_L) : null;
+			const newKmL = editKmL;
+			const kmLEq = (a, b) => {
+				if (a == null && b == null) return true;
+				if (a == null || b == null) return false;
+				return Math.abs(Number(a) - Number(b)) < 0.005;
+			};
+			if (!kmLEq(oldKmL, newKmL)) {
+				const v = oldKmL != null ? String(oldKmL) : 'N/A';
+				lines.push(`KM/L: ${v}`);
+			}
+			const oldVehicleLabel = old.vehicle_plate
+				? String(old.vehicle_plate) + (old.vehicle_model ? ' — ' + old.vehicle_model : '')
+				: '';
+			let newVehicleLabel = '';
+			if (editVehicleId) {
+				const [vehRows] = await pool.execute(
+					'SELECT PLATE_NO, MODEL FROM house_expense_vehicle WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+					[editVehicleId]
+				);
+				if (vehRows.length) {
+					newVehicleLabel =
+						String(vehRows[0].PLATE_NO || '') +
+						(vehRows[0].MODEL ? ' — ' + vehRows[0].MODEL : '');
+				}
+			}
+			if (norm(oldVehicleLabel) !== norm(newVehicleLabel)) {
+				lines.push(`Vehicle: ${oldVehicleLabel || 'N/A'}`);
+			}
 			if (ts(old.DATE_TIME) !== ts(safeDateTime)) {
 				let expStr = 'N/A';
 				if (old.DATE_TIME != null) {
@@ -1050,7 +1240,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 
 		let query = `
 			UPDATE junket_house_expense 
-			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, RECEIVER = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
+			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, RECEIVER = ?, AMOUNT = ?, KM_L = ?, VEHICLE_ID = ?, EDITED_BY = ?, EDITED_DT = ?
 		`;
 		const params = [
 			txtCategory,
@@ -1059,6 +1249,8 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			txtDescription,
 			receiver,
 			editXAmount,
+			editKmL,
+			editVehicleId,
 			req.session.user_id,
 			date_now
 		];

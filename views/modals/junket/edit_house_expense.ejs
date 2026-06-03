@@ -23,13 +23,26 @@
                             <input type="file" name="photo" id="photo" class="form-control" />
                         </div>
                     </div>
+                    <div class="row mb-3 d-none" id="house-expense-edit-vehicle-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="editTxtVehicleId">Vehicle</label>
+                            <select class="form-select" name="txtVehicleId" id="editTxtVehicleId">
+                                <option value="">-- Select vehicle --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3 d-none" id="house-expense-edit-km-l-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="editTxtKmL">KM</label>
+                            <input type="text" class="form-control" name="txtKmL" id="editTxtKmL" />
+                        </div>
+                    </div>
                     <div class="row mb-3">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_edit_house_expense.receipt_no_placeholder') || 'Receipt No' %></label>
                             <textarea class="form-control" name="txtReceiptNo" id="txtReceiptNo" rows="2"></textarea>
                         </div>
                     </div>
-                   
                     <div class="row mb-3">
                         <div class="col-sm-6 form-floating-outline">
                             <label class="form-label"><%= __('modal_edit_house_expense.description_placeholder') || 'In-Charge' %></label>
