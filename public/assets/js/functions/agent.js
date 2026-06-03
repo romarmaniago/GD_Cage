@@ -13,6 +13,75 @@ function escapeJsString(str) {
 // Cache for Telegram usernames
 var telegramUsernameCache = {};
 
+function escapeHtml(s) {
+	const div = document.createElement('div');
+	div.textContent = s == null ? '' : String(s);
+	return div.innerHTML;
+}
+
+function isAgentTelegramEnabledFlag(row) {
+	const v = row && row.telegram_enabled;
+	return v === 1 || v === true || v === '1' || v === undefined || v === null;
+}
+
+function showAgentTelegramToggleSwal(enabled) {
+	const tr = window.translations?.agent || {};
+	Swal.fire({
+		title: tr.success || 'Success',
+		text: enabled
+			? (tr.chat_id_enabled || 'Notifications enabled for this account.')
+			: (tr.chat_id_disabled || 'Notifications disabled for this account.'),
+		icon: 'success',
+		confirmButtonText: tr.ok || 'OK'
+	});
+}
+
+function renderAgentTelegramToggle(row, readOnly) {
+	if (!row || !row.agent_telegram) return '';
+	const enabled = isAgentTelegramEnabledFlag(row);
+	const tr = window.translations?.agent || {};
+	return (
+		'<div class="form-check form-switch d-inline-flex mb-0 align-items-center justify-content-center">' +
+		'<input class="form-check-input notify-toggle-switch btn-toggle-agent-telegram" type="checkbox" role="switch"' +
+		' data-agent-id="' + row.agent_id + '" data-chat-id="' + escapeHtml(String(row.agent_telegram)) + '"' +
+		(readOnly ? ' disabled' : '') +
+		(enabled ? ' checked' : '') +
+		' title="' + escapeHtml(tr.toggle_notifications || 'Enable / disable notifications') + '">' +
+		'</div>'
+	);
+}
+
+function renderAgentActionCell(row, readOnly) {
+	const toggleSlot = row.agent_telegram ? renderAgentTelegramToggle(row, readOnly) : '';
+	const editAttrs = readOnly
+		? ' disabled'
+		: ' onclick="edit_agent(' +
+			row.agent_id +
+			", '" +
+			escapeJsString(row.agent_code) +
+			"', '" +
+			escapeJsString(row.agent_name) +
+			"', '" +
+			escapeJsString(row.agent_contact) +
+			"', '" +
+			escapeJsString(row.agent_telegram) +
+			"', '" +
+			escapeJsString(row.agent_remarks) +
+			"')\"";
+	return (
+		'<div class="agent-action-wrap">' +
+		'<span class="agent-action-toggle-slot">' +
+		toggleSlot +
+		'</span>' +
+		'<span class="agent-action-edit-slot">' +
+		'<button type="button" class="btn btn-link text-primary p-0 border-0 shadow-none btn-edit-agent-icon js-bs-tooltip-enabled"' +
+		editAttrs +
+		' aria-label="Edit"><i class="fa fa-pencil-alt"></i></button>' +
+		'</span>' +
+		'</div>'
+	);
+}
+
 // Pending passport extraction (used to auto-fill New Guest + Passport Details modal before save)
 window.__pendingPassportExtract = null;
 window.__pendingPassportImageDataUrl = null;
@@ -609,7 +678,7 @@ $(document).ready(function () {
 		columnDefs: [
 			{ targets: 6, className: 'text-center' },
 			{ targets: 7, className: 'text-center' },
-			{ targets: 8, className: 'text-center', orderable: false, searchable: false }
+			{ targets: 8, className: 'text-center agent-action-cell', orderable: false, searchable: false }
 		],
 		columns: [
 			{
@@ -635,16 +704,14 @@ $(document).ready(function () {
 					if (type !== 'display') {
 						return data || '';
 					}
-					
+
 					if (!data || data === '' || data === null) {
 						return '';
 					}
 
-					// Create a unique ID for this cell
 					const cellId = 'telegram-' + row.agent_id + '-' + row.account_id;
-					
-					// Return cell with ID for later username update
-					return '<span id="' + cellId + '">' + data + '</span>';
+					const rowClass = isAgentTelegramEnabledFlag(row) ? '' : 'text-muted opacity-75';
+					return '<span id="' + cellId + '" class="' + rowClass + '"><code>' + escapeHtml(String(data)) + '</code></span>';
 				}
 			},
 			{ data: 'agent_remarks' },
@@ -674,37 +741,7 @@ $(document).ready(function () {
 				data: null,
 				render: function (data, type, row) {
 					if (type !== 'display') return '';
-
-					if (permissions === 2) {
-						return `
-							<div class="btn-group">
-								<button type="button" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled" disabled>
-									<i class="fa fa-pencil-alt"></i>
-								</button>
-								<!--
-								<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled>
-									<i class="fa fa-trash-alt"></i>
-								</button>
-								-->
-							</div>
-						`;
-					}
-
-					return `
-						<div class="btn-group">
-							<button type="button" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
-								onclick="edit_agent(${row.agent_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}', '${escapeJsString(row.agent_contact)}', '${escapeJsString(row.agent_telegram)}', '${escapeJsString(row.agent_remarks)}')">
-								<i class="fa fa-pencil-alt"></i>
-							</button>
-							<!--
-							<button type="button" 
-								onclick="checkPermissionToDeleteAgent(${row.agent_id})" 
-								class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled">
-								<i class="fa fa-trash-alt"></i>
-							</button>
-							-->
-						</div>
-					`;
+					return renderAgentActionCell(row, permissions === 2);
 				}
 			}
 		],
@@ -725,7 +762,7 @@ $(document).ready(function () {
 							if (username) {
 								const currentText = $cell.text().trim();
 								if (currentText && !currentText.includes('@')) {
-									$cell.html(currentText + ' <span class="text-muted">(@' + username + ')</span>');
+									$cell.html('<code>' + escapeHtml(currentText) + '</code> <span class="text-muted">(@' + escapeHtml(username) + ')</span>');
 								}
 							}
 						});
@@ -738,6 +775,41 @@ $(document).ready(function () {
 	window.reloadAgentTable = function () {
 		dataTable.ajax.reload(null, false);
 	};
+
+	$(document).on('change', '.btn-toggle-agent-telegram', function () {
+		if (permissions === 2) return;
+
+		const $toggle = $(this);
+		const agentId = parseInt($toggle.data('agent-id'), 10);
+		const enabled = $toggle.prop('checked');
+
+		if (!Number.isFinite(agentId) || agentId <= 0) return;
+
+		$toggle.prop('disabled', true);
+		$.ajax({
+			url: '/agent/' + agentId + '/telegram-enabled',
+			type: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ enabled: enabled }),
+			success: function () {
+				showAgentTelegramToggleSwal(enabled);
+				window.reloadAgentTable();
+			},
+			error: function () {
+				$toggle.prop('checked', !enabled);
+				const tr = window.translations?.agent || {};
+				Swal.fire({
+					title: tr.error_title || 'Error',
+					text: tr.failed_to_update || 'Failed to save.',
+					icon: 'error',
+					confirmButtonText: tr.ok || 'OK'
+				});
+			},
+			complete: function () {
+				$toggle.prop('disabled', false);
+			}
+		});
+	});
 
 	$('#add_new_agent').on('submit', function(event) {
 		event.preventDefault(); // Prevent default form submission

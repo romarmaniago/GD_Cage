@@ -42,6 +42,21 @@
 				cursor: pointer;
 				user-select: none;
 			}
+			.notify-toggle-switch.form-check-input {
+				width: 2.15rem;
+				height: 1.1rem;
+				min-height: 1.1rem;
+				cursor: pointer;
+			}
+			.notify-toggle-switch.form-check-input:not(:checked) {
+				background-color: #dee2e6;
+				border: 1px solid #adb5bd;
+				--bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2364748b'/%3e%3c/svg%3e");
+			}
+			.notify-toggle-switch.form-check-input:checked {
+				background-color: var(--bs-primary);
+				border-color: var(--bs-primary);
+			}
 		</style>
 
 			<div class="container-fluid content-inner py-0">
@@ -109,9 +124,10 @@
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
-													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
+													<th class="text-center" style="width: 90px;"><%= __('telegram_api.status') %></th>
+													<th class="text-center" style="width: 200px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
 											<tbody class="chat-ids-tbody" data-user-type="GUEST"></tbody>
@@ -134,9 +150,10 @@
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
-													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
+													<th class="text-center" style="width: 90px;"><%= __('telegram_api.status') %></th>
+													<th class="text-center" style="width: 200px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
 											<tbody class="agent-chat-ids-tbody"></tbody>
@@ -190,9 +207,10 @@
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
-													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
+													<th class="text-center" style="width: 90px;"><%= __('telegram_api.status') %></th>
+													<th class="text-center" style="width: 200px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
 											<tbody class="chat-ids-tbody" data-user-type="MANAGEMENT"></tbody>
@@ -246,9 +264,10 @@
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
-													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 350px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
+													<th class="text-center" style="width: 90px;"><%= __('telegram_api.status') %></th>
+													<th class="text-center" style="width: 200px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
 											<tbody class="chat-ids-tbody" data-user-type="EMPLOYEE"></tbody>
@@ -359,7 +378,13 @@
 					failed_to_delete: "<%= __('telegram_api.failed_to_delete') %>",
 					success: "<%= __('telegram_api.success') %>",
 					edit: "<%= __('telegram_api.edit') %>",
-					delete: "<%= __('telegram_api.delete') %>"
+					delete: "<%= __('telegram_api.delete') %>",
+					status: "<%= __('telegram_api.status') %>",
+					enabled: "<%= __('telegram_api.enabled') %>",
+					disabled: "<%= __('telegram_api.disabled') %>",
+					toggle_notifications: "<%= __('telegram_api.toggle_notifications') %>",
+					chat_id_enabled: "<%= __('telegram_api.chat_id_enabled') %>",
+					chat_id_disabled: "<%= __('telegram_api.chat_id_disabled') %>"
 				};
 			</script>
 

@@ -3,6 +3,11 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { ensureTelegramSendLogTable } = require('../utils/telegramSendLog');
+const {
+	parseChatIdEntries,
+	serializeChatIdEntries,
+	validateChatIdsPayload
+} = require('../utils/telegramChatIds');
 
 //=============== TELEGRAM API =============
 router.get('/telegramAPI/logs', checkSession, (req, res) => {
@@ -212,12 +217,6 @@ router.get('/telegramAPI/account-info/:accountCode', checkSession, async (req, r
 });
 
 // --------------- Chat IDs (groups/channels) — must be before /telegramAPI/:id ---------------
-function parseChatIds(raw) {
-	if (raw == null || typeof raw !== 'string') return [];
-	const trimmed = String(raw).trim();
-	if (!trimmed) return [];
-	return trimmed.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
-}
 
 // Get chat IDs by USER type (all use CHAT_ID column)
 router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
@@ -227,7 +226,8 @@ router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => 
 			'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
 			[userType]
 		);
-		const chatIds = rows.length && rows[0].CHAT_ID != null ? parseChatIds(rows[0].CHAT_ID) : [];
+		const chatIds =
+			rows.length && rows[0].CHAT_ID != null ? parseChatIdEntries(rows[0].CHAT_ID) : [];
 		res.json({ chatIds });
 	} catch (err) {
 		console.error('Error fetching chat IDs:', err);
@@ -239,14 +239,13 @@ router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => 
 router.put('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
 	try {
 		const userType = req.params.userType || 'GUEST';
-		let chatIds = req.body.chatIds;
-		if (!Array.isArray(chatIds)) chatIds = [];
-		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
+		const chatIds = validateChatIdsPayload(req.body.chatIds);
+		const value = serializeChatIdEntries(chatIds);
 		await pool.execute(
 			'UPDATE telegram_api SET CHAT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1 AND USER = ?',
-			[value || null, req.session.user_id, new Date(), userType]
+			[value, req.session.user_id, new Date(), userType]
 		);
-		res.json({ success: true, chatIds: value ? value.split(',') : [] });
+		res.json({ success: true, chatIds });
 	} catch (err) {
 		console.error('Error updating chat IDs:', err);
 		res.status(500).json({ error: 'Error updating chat IDs' });
@@ -264,26 +263,9 @@ router.get('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 		if (rows.length === 0 || !rows[0].AGENT_CHATID) {
 			return res.json({ agentChatIds: [] });
 		}
-		
-		const raw = String(rows[0].AGENT_CHATID).trim();
-		if (!raw) {
-			return res.json({ agentChatIds: [] });
-		}
-		
-		// Parse JSON format: ["123456", "789012", ...] or comma-separated
-		try {
-			const parsed = JSON.parse(raw);
-			if (Array.isArray(parsed)) {
-				// Array of chat IDs
-				return res.json({ agentChatIds: parsed.filter(Boolean) });
-			}
-		} catch (e) {
-			// Not JSON, try comma-separated format
-			const chatIds = raw.split(',').map(s => s.trim()).filter(Boolean);
-			return res.json({ agentChatIds: chatIds });
-		}
-		
-		res.json({ agentChatIds: [] });
+
+		const agentChatIds = parseChatIdEntries(rows[0].AGENT_CHATID);
+		return res.json({ agentChatIds });
 	} catch (err) {
 		// If AGENT_CHATID column doesn't exist, return empty array
 		console.warn('Error fetching agent chat IDs (AGENT_CHATID column may not exist):', err.message);
@@ -294,25 +276,8 @@ router.get('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 // Update agent-specific notification chat IDs (AGENT_CHATID column for GUEST)
 router.put('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 	try {
-		let agentChatIds = req.body.agentChatIds;
-		if (!Array.isArray(agentChatIds)) {
-			agentChatIds = [];
-		}
-		
-		// Validate: just array of chat ID strings
-		const validated = agentChatIds
-			.map(item => {
-				// Support both string and object format for backward compatibility
-				if (typeof item === 'string') {
-					return item.trim();
-				} else if (item && item.chatId) {
-					return String(item.chatId).trim();
-				}
-				return null;
-			})
-			.filter(Boolean);
-		
-		const value = validated.length > 0 ? JSON.stringify(validated) : null;
+		const validated = validateChatIdsPayload(req.body.agentChatIds);
+		const value = serializeChatIdEntries(validated);
 		
 		await pool.execute(
 			'UPDATE telegram_api SET AGENT_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1 AND USER = ?',

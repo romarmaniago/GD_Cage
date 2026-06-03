@@ -6,6 +6,7 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 
 const validServiceTypes = ['fnb', 'hotel', 'delivery'];
 const validTransactionIds = [1, 2, 3];
@@ -209,7 +210,8 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 			try {
 				const [accountRows] = await pool.execute(
-					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
+					        COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 					 FROM account
 					 JOIN agent ON agent.IDNo = account.AGENT_ID
 					 WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -218,9 +220,10 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 				);
 
 				if (Array.isArray(accountRows) && accountRows.length > 0) {
-					const { AGENT_CODE, NAME, TELEGRAM_ID } = accountRows[0];
+					const { AGENT_CODE, NAME } = accountRows[0];
+					const TELEGRAM_ID = getAgentTelegramChatId(accountRows[0]);
 
-					if (TELEGRAM_ID && TELEGRAM_ID !== '') {
+					if (TELEGRAM_ID) {
 						const formattedAmount = amt.toLocaleString('en-US');
 						const serviceLabel = svc.toUpperCase();
 						const date_nowTG = now.toLocaleDateString();

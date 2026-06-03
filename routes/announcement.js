@@ -52,7 +52,8 @@ router.get('/announcement/agents', checkSession, async (req, res) => {
 		const [rows] = await pool.query(
 			`SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID
 			 FROM agent
-			 WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
+			 WHERE ACTIVE = 1 AND COALESCE(TELEGRAM_ENABLED, 1) = 1
+			   AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
 			 ORDER BY AGENT_CODE ASC, NAME ASC`
 		);
 		res.json({ success: true, agents: rows });
@@ -122,7 +123,8 @@ router.post("/announcement/create", checkSession, (req, res, next) => {
 
 		const [agents] = await pool.query(
 			`SELECT IDNo, AGENT_CODE, NAME, TELEGRAM_ID FROM agent
-			 WHERE ACTIVE = 1 AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
+			 WHERE ACTIVE = 1 AND COALESCE(TELEGRAM_ENABLED, 1) = 1
+			   AND TELEGRAM_ID IS NOT NULL AND TELEGRAM_ID != ""
 			 AND IDNo IN (?)`,
 			[selectedIds]
 		);

@@ -713,7 +713,13 @@
 		"status_failure": "실패",
 		"error_category_internal": "내부",
 		"error_category_network": "네트워크",
-		"error_category_telegram": "텔레그램 API"
+		"error_category_telegram": "텔레그램 API",
+		"status": "상태",
+		"enabled": "활성화",
+		"disabled": "비활성화",
+		"toggle_notifications": "이 채팅의 알림을 활성화 또는 비활성화",
+		"chat_id_enabled": "이 계정의 알림이 활성화되었습니다.",
+		"chat_id_disabled": "이 계정의 알림이 비활성화되었습니다."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 칩",

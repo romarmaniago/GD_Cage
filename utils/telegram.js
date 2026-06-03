@@ -5,6 +5,7 @@ const {
   previewText,
   classifyTelegramError
 } = require('./telegramSendLog');
+const { getEnabledChatIds } = require('./telegramChatIds');
 
 let guestBotInstance; // GUEST bot instance
 let employeeBotInstance; // EMPLOYEE bot instance
@@ -165,16 +166,14 @@ async function sendGuestBotTextMessageStrict(text, telegramId) {
   }
 }
 
-// Get additional chat IDs for GUEST (supports comma- or semicolon-separated in CHAT_ID column)
+// Get enabled chat IDs for GUEST (comma-separated or JSON with per-ID enabled flag)
 async function getAdditionalChatIds() {
   const [rows] = await pool.execute(
     'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
     ['GUEST']
   );
   if (!rows.length || rows[0].CHAT_ID == null) return [];
-  const raw = String(rows[0].CHAT_ID).trim();
-  if (!raw) return [];
-  return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  return getEnabledChatIds(rows[0].CHAT_ID);
 }
 
 // Send message to all additional chat IDs (groups/channels) using GUEST bot
@@ -191,16 +190,14 @@ async function sendTelegramToAdditionalChats(text, options = {}) {
   }
 }
 
-// Get employee chat IDs (supports comma- or semicolon-separated in CHAT_ID column for EMPLOYEE)
+// Get enabled employee chat IDs
 async function getEmployeeChatIds() {
   const [rows] = await pool.execute(
     'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
     ['EMPLOYEE']
   );
   if (!rows.length || rows[0].CHAT_ID == null) return [];
-  const raw = String(rows[0].CHAT_ID).trim();
-  if (!raw) return [];
-  return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  return getEnabledChatIds(rows[0].CHAT_ID);
 }
 
 // Send message to all employee chat IDs using EMPLOYEE bot
@@ -296,16 +293,14 @@ async function sendTelegramToEmployees(text, options = {}) {
   }
 }
 
-// Get management chat IDs (supports comma- or semicolon-separated in CHAT_ID column for MANAGEMENT)
+// Get enabled management chat IDs
 async function getManagementChatIds() {
   const [rows] = await pool.execute(
     'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
     ['MANAGEMENT']
   );
   if (!rows.length || rows[0].CHAT_ID == null) return [];
-  const raw = String(rows[0].CHAT_ID).trim();
-  if (!raw) return [];
-  return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  return getEnabledChatIds(rows[0].CHAT_ID);
 }
 
 // Send message to all management chat IDs using MANAGEMENT bot

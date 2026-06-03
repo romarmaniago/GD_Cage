@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
+const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -1200,6 +1201,7 @@ router.get('/account_data', async (req, res) => {
 				ag.NAME AS agent_name,
 				ag.CONTACTNo AS agent_contact,
 				ag.TELEGRAM_ID AS agent_telegram,
+				COALESCE(ag.TELEGRAM_ENABLED, 1) AS telegram_enabled,
 				ag.REMARKS AS agent_remarks,
 				ag.PHOTO AS PASSPORTPHOTO,
 				CAST(acc.ACTIVE AS UNSIGNED) AS active,
@@ -1237,6 +1239,24 @@ router.get('/account_data', async (req, res) => {
 	}
 });
 
+// Toggle Telegram notifications for an agent (per TELEGRAM_ID on agent record)
+router.put('/agent/:id/telegram-enabled', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!Number.isFinite(id) || id <= 0) {
+			return res.status(400).json({ error: 'Invalid agent id' });
+		}
+		const enabled = req.body.enabled === true || req.body.enabled === 1 || req.body.enabled === '1';
+		await pool.execute(
+			'UPDATE agent SET TELEGRAM_ENABLED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
+			[enabled ? 1 : 0, req.session.user_id, new Date(), id]
+		);
+		res.json({ success: true, agent_id: id, enabled });
+	} catch (err) {
+		console.error('Error updating agent telegram enabled:', err);
+		res.status(500).json({ error: 'Failed to update Telegram notification status' });
+	}
+});
 
 // Get agency name by ID (for modal title)
 router.get('/agency_data/:id', async (req, res) => {
@@ -1489,7 +1509,7 @@ router.post('/add_account_details', async (req, res) => {
 
 			// Fetch the TELEGRAM_ID based on txtAccountId
 			const telegramIdQuery = `
-                SELECT agent.TELEGRAM_ID 
+                SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
                 FROM agent
                 JOIN account ON account.AGENT_ID = agent.IDNo
                 JOIN account_ledger ON account_ledger.ACCOUNT_ID = account.IDNo 
@@ -1551,7 +1571,8 @@ router.post('/add_account_details', async (req, res) => {
 			}
 
 			if (guestAccountNumResults.length > 0 && guestNameResults.length > 0) {
-				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+				const telegramId =
+					telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 				const guestAccountNum = guestAccountNumResults[0].AGENT_CODE;
 				const guestName = guestNameResults[0].NAME;
 
@@ -1656,7 +1677,8 @@ router.post('/check_balance/:accountId', async (req, res) => {
 	try {
 		// Get agent info for the account
 		const [results] = await pool.query(`
-			SELECT agent.TELEGRAM_ID, agent.AGENT_CODE, agent.NAME
+			SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED,
+			       agent.AGENT_CODE, agent.NAME
 			FROM account
 			JOIN agent ON agent.IDNo = account.AGENT_ID
 			WHERE account.IDNo = ?
@@ -1664,7 +1686,8 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		if (results.length === 0) return res.json({ success: false });
 
-		const { TELEGRAM_ID, AGENT_CODE, NAME } = results[0];
+		const { AGENT_CODE, NAME } = results[0];
+		const TELEGRAM_ID = getAgentTelegramChatId(results[0]);
 
 		// Calculate balance from ledger entries (excludes Credit/IOU)
 		const [ledgerResults] = await pool.query(`
@@ -1821,7 +1844,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 		// Fetch Telegram IDs, AGENT_CODE, and NAME for the account from which the transfer is made
 		const telegramIdQueryFrom = `
-            SELECT agent.TELEGRAM_ID, agent.AGENT_CODE, agent.NAME
+            SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED,
+                   agent.AGENT_CODE, agent.NAME
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.IDNo = ?
@@ -1830,7 +1854,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 		// Fetch Telegram IDs, AGENT_CODE, and NAME for the account to which the transfer is made
 		const telegramIdQueryTo = `
-            SELECT agent.TELEGRAM_ID, agent.AGENT_CODE, agent.NAME
+            SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED,
+                   agent.AGENT_CODE, agent.NAME
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.IDNo = ?
@@ -1843,7 +1868,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		// Prepare and send messages for the account from which the transfer is made
 		if (telegramIdResultsFrom.length > 0) {
 			const resultFrom = telegramIdResultsFrom[0];
-			const { TELEGRAM_ID: TELEGRAM_ID_FROM, AGENT_CODE: AGENT_CODE_FROM, NAME: NAME_FROM } = resultFrom;
+			const { AGENT_CODE: AGENT_CODE_FROM, NAME: NAME_FROM } = resultFrom;
+			const TELEGRAM_ID_FROM = getAgentTelegramChatId(resultFrom);
 
 			const SenderCurrentBalance = senderBalanceBefore - totalAmount;
 			let time_now = new Date();
@@ -1894,7 +1920,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		// Prepare and send messages for the account to which the transfer is made
 		if (telegramIdResultsTo.length > 0) {
 			const resultTo = telegramIdResultsTo[0];
-			const { TELEGRAM_ID: TELEGRAM_ID_TO, AGENT_CODE: AGENT_CODE_TO, NAME: NAME_TO } = resultTo;
+			const { AGENT_CODE: AGENT_CODE_TO, NAME: NAME_TO } = resultTo;
+			const TELEGRAM_ID_TO = getAgentTelegramChatId(resultTo);
 
 			const ReceiverCurrentBalance = receiverBalanceBefore + totalAmount;
 			let time_now = new Date();

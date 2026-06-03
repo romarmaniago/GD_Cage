@@ -27,6 +27,38 @@ var agentChatDetailsCache = {};
 
 var currentModalUserType = null;
 
+function normalizeChatIdEntry(item) {
+    if (typeof item === 'string' || typeof item === 'number') {
+        const chatId = String(item).trim();
+        return chatId ? { chatId: chatId, enabled: true } : null;
+    }
+    if (item && item.chatId) {
+        const chatId = String(item.chatId).trim();
+        return chatId ? { chatId: chatId, enabled: item.enabled !== false } : null;
+    }
+    return null;
+}
+
+function normalizeChatIdList(list) {
+    return (Array.isArray(list) ? list : []).map(normalizeChatIdEntry).filter(Boolean);
+}
+
+function chatIdFromEntry(entry) {
+    return typeof entry === 'string' ? String(entry).trim() : (entry && entry.chatId ? String(entry.chatId) : '');
+}
+
+function showChatIdToggleSwal(enabled) {
+    const tr = window.telegramAPITranslations || {};
+    Swal.fire({
+        title: tr.success || 'Success',
+        text: enabled
+            ? (tr.chat_id_enabled || 'Notifications enabled for this account.')
+            : (tr.chat_id_disabled || 'Notifications disabled for this account.'),
+        icon: 'success',
+        confirmButtonText: tr.ok || 'OK'
+    });
+}
+
 $(document).ready(function () {
     const userTypes = ['GUEST', 'EMPLOYEE', 'MANAGEMENT'];
 
@@ -92,8 +124,9 @@ $(document).ready(function () {
             url: '/telegramAPI/chat-ids/' + userType,
             method: 'GET',
             success: function (data) {
-                botData[userType].chatIds = Array.isArray(data.chatIds) ? data.chatIds : [];
-                fetchAllChatDetails(userType, botData[userType].chatIds, botData[userType].chatDetailsCache).then(function() {
+                botData[userType].chatIds = normalizeChatIdList(data.chatIds);
+                const ids = botData[userType].chatIds.map(chatIdFromEntry);
+                fetchAllChatDetails(userType, ids, botData[userType].chatDetailsCache).then(function() {
                     renderChatIdsTable(userType);
                 });
             },
@@ -124,9 +157,15 @@ $(document).ready(function () {
             return;
         }
         emptyEl.hide();
-        tbody.html(chatIds.map(function (id, i) {
+        tbody.html(chatIds.map(function (entry, i) {
+            const id = chatIdFromEntry(entry);
+            const enabled = entry.enabled !== false;
             const chatInfo = cache[id] || { title: 'Loading...', username: null };
-            return '<tr><td class="text-center">' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td>' + formatChatDisplay(chatInfo) + '</td><td class="text-center">' +
+            const rowClass = enabled ? '' : 'text-muted opacity-75';
+            return '<tr class="' + rowClass + '"><td class="text-center">' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td>' + formatChatDisplay(chatInfo) + '</td><td class="text-center">' +
+                '<div class="form-check form-switch d-inline-flex justify-content-center mb-0">' +
+                '<input class="form-check-input notify-toggle-switch btn-toggle-chat-id" type="checkbox" role="switch" data-user-type="' + userType + '" data-index="' + i + '"' + (enabled ? ' checked' : '') + ' title="' + (tr.toggle_notifications || 'Enable / disable notifications') + '">' +
+                '</div></td><td class="text-center">' +
                 '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-chat-id" data-user-type="' + userType + '" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-chat-id" data-user-type="' + userType + '" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
@@ -134,6 +173,7 @@ $(document).ready(function () {
         if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
             window.PermissionViewOnly.disableForViewOnly('.btn-delete-chat-id');
             window.PermissionViewOnly.disableForViewOnly('.btn-edit-chat-id');
+            window.PermissionViewOnly.disableForViewOnly('.btn-toggle-chat-id');
         }
     }
 
@@ -318,10 +358,12 @@ $(document).ready(function () {
         
         const data = botData[userType];
         if (data.chatIdEditIndex === null) {
-            data.chatIds.push(val);
+            data.chatIds.push({ chatId: val, enabled: true });
         } else {
-            const oldChatId = data.chatIds[data.chatIdEditIndex];
-            data.chatIds[data.chatIdEditIndex] = val;
+            const oldEntry = data.chatIds[data.chatIdEditIndex];
+            const oldChatId = chatIdFromEntry(oldEntry);
+            const wasEnabled = oldEntry && oldEntry.enabled !== false;
+            data.chatIds[data.chatIdEditIndex] = { chatId: val, enabled: wasEnabled };
             if (oldChatId !== val) {
                 delete data.chatDetailsCache[oldChatId];
             }
@@ -359,7 +401,7 @@ $(document).ready(function () {
         data.chatIdEditIndex = i;
         currentModalUserType = userType;
         $('#modal-chat-id-label').text(translations().edit_chat_id || 'Edit Chat ID');
-        $('#input-chat-id').val(data.chatIds[i]);
+        $('#input-chat-id').val(chatIdFromEntry(data.chatIds[i]));
         $('#modal-chat-id-user-type').val(userType);
         var modalEl = document.getElementById('modal-chat-id');
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -367,6 +409,38 @@ $(document).ready(function () {
         } else {
             $(modalEl).modal('show');
         }
+    });
+
+    $(document).on('change', '.btn-toggle-chat-id', function () {
+        const $toggle = $(this);
+        const userType = $toggle.data('user-type') || 'GUEST';
+        const i = parseInt($toggle.data('index'), 10);
+        const data = botData[userType];
+        if (isNaN(i) || i < 0 || i >= data.chatIds.length) return;
+
+        const enabled = $toggle.prop('checked');
+        data.chatIds[i].enabled = enabled;
+        $.ajax({
+            url: '/telegramAPI/chat-ids/' + userType,
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ chatIds: data.chatIds }),
+            success: function () {
+                showChatIdToggleSwal(enabled);
+                renderChatIdsTable(userType);
+            },
+            error: function () {
+                data.chatIds[i].enabled = !enabled;
+                $toggle.prop('checked', !enabled);
+                Swal.fire({
+                    title: translations().error_title || 'Error',
+                    text: translations().failed_to_update || 'Failed to save.',
+                    icon: 'error',
+                    confirmButtonText: translations().ok || 'OK'
+                });
+                renderChatIdsTable(userType);
+            }
+        });
     });
 
     $(document).on('click', '.btn-delete-chat-id', function () {
@@ -409,8 +483,8 @@ $(document).ready(function () {
             url: '/telegramAPI/agent-chat-ids',
             method: 'GET',
             success: function (data) {
-                agentChatIds = Array.isArray(data.agentChatIds) ? data.agentChatIds : [];
-                fetchAllAgentChatDetails(agentChatIds, agentChatDetailsCache).then(function() {
+                agentChatIds = normalizeChatIdList(data.agentChatIds);
+                fetchAllAgentChatDetails(agentChatIds.map(chatIdFromEntry), agentChatDetailsCache).then(function() {
                     renderAgentChatIdsTable();
                 });
             },
@@ -438,19 +512,28 @@ $(document).ready(function () {
             return;
         }
         emptyEl.hide();
-        tbody.html(agentChatIds.map(function (chatId, i) {
+        const tr = translations();
+        tbody.html(agentChatIds.map(function (entry, i) {
+            const chatId = chatIdFromEntry(entry);
+            const enabled = entry.enabled !== false;
             const chatInfo = agentChatDetailsCache[chatId] || { title: 'Loading...', username: null };
-            return '<tr><td class="text-center">' + (i + 1) + '</td>' +
+            const rowClass = enabled ? '' : 'text-muted opacity-75';
+            return '<tr class="' + rowClass + '"><td class="text-center">' + (i + 1) + '</td>' +
                 '<td><code>' + escapeHtml(String(chatId)) + '</code></td>' +
                 '<td>' + formatChatDisplay(chatInfo) + '</td>' +
                 '<td class="text-center">' +
-                '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-agent-chat-id" data-index="' + i + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
-                '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-agent-chat-id" data-index="' + i + '" title="Delete"><i class="fa fa-trash"></i></button>' +
+                '<div class="form-check form-switch d-inline-flex justify-content-center mb-0">' +
+                '<input class="form-check-input notify-toggle-switch btn-toggle-agent-chat-id" type="checkbox" role="switch" data-index="' + i + '"' + (enabled ? ' checked' : '') + ' title="' + (tr.toggle_notifications || 'Enable / disable notifications') + '">' +
+                '</div></td>' +
+                '<td class="text-center">' +
+                '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-agent-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-agent-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
         }).join(''));
         if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
             window.PermissionViewOnly.disableForViewOnly('.btn-delete-agent-chat-id');
             window.PermissionViewOnly.disableForViewOnly('.btn-edit-agent-chat-id');
+            window.PermissionViewOnly.disableForViewOnly('.btn-toggle-agent-chat-id');
         }
     }
     
@@ -479,23 +562,25 @@ $(document).ready(function () {
         }
         
         const index = $('#modal-agent-chat-id-index').val();
+        function agentIdsList() {
+            return agentChatIds.map(chatIdFromEntry);
+        }
         if (index === '' || index === null) {
-            // Add new
-            if (agentChatIds.indexOf(chatId) !== -1) {
+            if (agentIdsList().indexOf(chatId) !== -1) {
                 Swal.fire({ title: t.error_title || 'Error', text: t.chat_id_already_exists || 'This Chat ID already exists.', icon: 'warning' });
                 return;
             }
-            agentChatIds.push(chatId);
+            agentChatIds.push({ chatId: chatId, enabled: true });
         } else {
-            // Edit existing
             const i = parseInt(index, 10);
             if (!isNaN(i) && i >= 0 && i < agentChatIds.length) {
-                const oldChatId = agentChatIds[i];
-                if (oldChatId !== chatId && agentChatIds.indexOf(chatId) !== -1) {
+                const oldChatId = chatIdFromEntry(agentChatIds[i]);
+                const wasEnabled = agentChatIds[i].enabled !== false;
+                if (oldChatId !== chatId && agentIdsList().indexOf(chatId) !== -1) {
                     Swal.fire({ title: t.error_title || 'Error', text: t.chat_id_already_exists || 'This Chat ID already exists.', icon: 'warning' });
                     return;
                 }
-                agentChatIds[i] = chatId;
+                agentChatIds[i] = { chatId: chatId, enabled: wasEnabled };
                 if (oldChatId !== chatId) {
                     delete agentChatDetailsCache[oldChatId];
                 }
@@ -531,7 +616,7 @@ $(document).ready(function () {
         
         var t = window.telegramAPITranslations || {};
         agentChatIdEditIndex = i;
-        const chatId = agentChatIds[i];
+        const chatId = chatIdFromEntry(agentChatIds[i]);
         $('#modal-agent-chat-id-label').text(t.edit_agent_chat_id || 'Edit Agent Chat ID');
         $('#input-agent-chat-id').val(chatId);
         $('#modal-agent-chat-id-index').val(i);
@@ -543,6 +628,37 @@ $(document).ready(function () {
         }
     });
     
+    $(document).on('change', '.btn-toggle-agent-chat-id', function () {
+        const $toggle = $(this);
+        const i = parseInt($toggle.data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
+
+        const enabled = $toggle.prop('checked');
+        agentChatIds[i].enabled = enabled;
+        $.ajax({
+            url: '/telegramAPI/agent-chat-ids',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ agentChatIds: agentChatIds }),
+            success: function () {
+                showChatIdToggleSwal(enabled);
+                renderAgentChatIdsTable();
+            },
+            error: function () {
+                agentChatIds[i].enabled = !enabled;
+                $toggle.prop('checked', !enabled);
+                const t = window.telegramAPITranslations || {};
+                Swal.fire({
+                    title: t.error_title || 'Error',
+                    text: t.failed_to_save || 'Failed to save.',
+                    icon: 'error',
+                    confirmButtonText: t.ok || 'OK'
+                });
+                renderAgentChatIdsTable();
+            }
+        });
+    });
+
     // Agent Chat IDs: Delete handler
     $(document).on('click', '.btn-delete-agent-chat-id', function () {
         const i = parseInt($(this).data('index'), 10);
@@ -558,8 +674,8 @@ $(document).ready(function () {
             cancelButtonText: t.cancel || 'Cancel'
         }).then(function (result) {
             if (!result.isConfirmed) return;
-            const deletedChatId = agentChatIds.splice(i, 1)[0];
-            delete agentChatDetailsCache[deletedChatId];
+            const deletedEntry = agentChatIds.splice(i, 1)[0];
+            delete agentChatDetailsCache[chatIdFromEntry(deletedEntry)];
             $.ajax({
                 url: '/telegramAPI/agent-chat-ids',
                 type: 'PUT',

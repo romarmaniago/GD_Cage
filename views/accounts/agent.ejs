@@ -117,10 +117,82 @@
 
 
 
-/* Balance column */
-#agent-tbl td:last-child {
-    text-align: right;
+/* Action column — centered group; edit icons align in a fixed column */
+#agent-tbl th:last-child,
+#agent-tbl td.agent-action-cell {
+    text-align: center !important;
     color: #333;
+}
+
+.agent-action-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.agent-action-toggle-slot {
+    width: 2.9rem;
+    flex: 0 0 2.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Telegram notify toggle — slightly larger; clearer off/disabled look */
+.notify-toggle-switch.form-check-input {
+    width: 2.15rem;
+    height: 1.1rem;
+    min-height: 1.1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.notify-toggle-switch.form-check-input:not(:checked) {
+    background-color: #dee2e6;
+    border: 1px solid #adb5bd;
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2364748b'/%3e%3c/svg%3e");
+}
+
+.notify-toggle-switch.form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.notify-toggle-switch.form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.notify-toggle-switch.form-check-input:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.agent-action-edit-slot {
+    width: 1.25rem;
+    flex: 0 0 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.agent-action-edit-slot .btn-edit-agent-icon {
+    line-height: 1;
+    color: var(--bs-primary) !important;
+}
+
+.agent-action-edit-slot .btn-edit-agent-icon i {
+    font-size: 0.95rem;
+}
+
+.agent-action-edit-slot .btn-edit-agent-icon:hover:not(:disabled),
+.agent-action-edit-slot .btn-edit-agent-icon:focus:not(:disabled) {
+    color: var(--bs-primary) !important;
+    opacity: 0.85;
+}
+
+.agent-action-edit-slot .btn-edit-agent-icon:disabled {
+    opacity: 0.45;
 }
 
 
@@ -222,7 +294,14 @@
               search: "<%= __('agent.search') %>",
               showing_entries: "<%= __('agent.showing_entries') %>",
               previous: "<%= __('agent.previous') %>",
-              next: "<%= __('agent.next') %>"
+              next: "<%= __('agent.next') %>",
+              success: "<%= __('telegram_api.success') %>",
+              ok: "<%= __('telegram_api.ok') %>",
+              error_title: "<%= __('telegram_api.error_title') %>",
+              failed_to_update: "<%= __('telegram_api.failed_to_update') %>",
+              chat_id_enabled: "<%= __('telegram_api.chat_id_enabled') %>",
+              chat_id_disabled: "<%= __('telegram_api.chat_id_disabled') %>",
+              toggle_notifications: "<%= __('telegram_api.toggle_notifications') %>"
             }
           };
         </script>
