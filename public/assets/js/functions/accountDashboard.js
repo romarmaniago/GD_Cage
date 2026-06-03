@@ -2,6 +2,38 @@ var account_id;
 var totalAmountBalance = 0;
 var totalAmountAll = 0;
 
+function guestBalanceCellData(totalAmount) {
+    const numeric = Number(totalAmount) || 0;
+    return {
+        display: `₱${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+        sort: numeric
+    };
+}
+
+function guestBalanceFromRow(row, balanceIndex) {
+    const cell = row[balanceIndex];
+    if (cell != null && typeof cell === 'object' && cell.sort != null) {
+        return Number(cell.sort) || 0;
+    }
+    return parseFloat(String(cell).replace(/[₱,]/g, '')) || 0;
+}
+
+const guestBalanceColumnDef = {
+    targets: [5],
+    render: function (data, type) {
+        if (type === 'sort' || type === 'type') {
+            if (data != null && typeof data === 'object' && data.sort != null) {
+                return data.sort;
+            }
+            return parseFloat(String(data).replace(/[₱,]/g, '')) || 0;
+        }
+        if (typeof data === 'object' && data && data.display !== undefined) {
+            return data.display;
+        }
+        return data;
+    }
+};
+
 $(document).ready(function () {
     // Initialize both DataTables
     if ($.fn.DataTable.isDataTable('#guestAccount-tbl-with-balance')) {
@@ -15,19 +47,19 @@ $(document).ready(function () {
         paging: true,
         searching: true,
         ordering: true,
+        order: [[5, 'desc']],
         info: true,
         deferRender: true,
         processing: true,
         pageLength: 100,
+        columnDefs: [guestBalanceColumnDef],
         drawCallback: function () {
             const table = this.api();
             const pageRows = table.rows({ page: 'current' }).data();
             let pageTotal = 0;
         
             pageRows.each(function (row) {
-                const balanceText = row[5];
-                const numeric = parseFloat(balanceText.replace(/[₱,]/g, '')) || 0;
-                pageTotal += numeric;
+                pageTotal += guestBalanceFromRow(row, 5);
             });
         
             if (table.page.info().pages > 1) {
@@ -43,19 +75,19 @@ $(document).ready(function () {
         paging: true,
         searching: true,
         ordering: true,
+        order: [[5, 'desc']],
         info: true,
         deferRender: true,
         processing: true,
         pageLength: 100,
+        columnDefs: [guestBalanceColumnDef],
         drawCallback: function () {
             const table = this.api();
             const pageRows = table.rows({ page: 'current' }).data();
             let pageTotal = 0;
         
             pageRows.each(function (row) {
-                const balanceText = row[5];
-                const numeric = parseFloat(balanceText.replace(/[₱,]/g, '')) || 0;
-                pageTotal += numeric;
+                pageTotal += guestBalanceFromRow(row, 5);
             });
         
             if (table.page.info().pages > 1) {
@@ -92,8 +124,7 @@ $(document).ready(function () {
                         ? `<a href="#" onclick="account_details(${row.account_id}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code}</a>`
                         : `<span>${row.agent_code}</span>`;
 
-                    const btn = `<button class="btn btn-sm btn-primary" onclick="viewDetails(${row.account_id})">View</button>`;
-                    const formattedTotal = `₱${Number(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+                    const balanceCell = guestBalanceCellData(totalAmount);
 
                     if (totalAmount > 0) {
                         balanceRows.push([
@@ -102,8 +133,7 @@ $(document).ready(function () {
                             row.agency_name,
                             row.agent_telegram,
                             row.agent_contact,
-                            formattedTotal,
-                            btn
+                            balanceCell
                         ]);
                         totalAmountBalance += totalAmount;
                     }
@@ -114,7 +144,7 @@ $(document).ready(function () {
                         row.agency_name || '—',
                         row.agent_telegram || '—',
                         row.agent_contact || '—',
-                        formattedTotal
+                        balanceCell
                     ]);
                 });
 
