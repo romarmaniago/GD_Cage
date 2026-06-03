@@ -5,6 +5,57 @@ const { checkSession, sessions } = require('./auth');
 const multer = require('multer');
 const { sendTelegramToEmployees } = require('../utils/telegram');
 const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
+
+async function insertCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
+	await pool.execute(
+		`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		[expenseId, null, String(amount), 'Expenses', 2, categoryName, encodedBy, dateNow]
+	);
+}
+
+async function sendNewHouseExpenseTelegram(pool, payload) {
+	const {
+		categoryName,
+		receiptNo,
+		description,
+		receiver,
+		amount,
+		encodedBy,
+		dateNow,
+		statusLabel
+	} = payload;
+	const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
+	const encodedByName = userRows.length > 0 ? userRows[0].FIRSTNAME || 'Unknown' : 'Unknown';
+	const dateFormatted = dateNow.toLocaleDateString('en-US', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	});
+	const timeFormatted = dateNow.toLocaleTimeString('en-US', {
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+	const telegramMessage =
+		`Demo Cage\n\n* Junket Expense${statusLabel ? ' (' + statusLabel + ')' : ''} *\n\n` +
+		`Category: ${categoryName}\n` +
+		`Receipt No: ${receiptNo || 'N/A'}\n` +
+		`In-Charge: ${description || 'N/A'}\n` +
+		`Receiver: ${receiver || 'N/A'}\n` +
+		`Amount: ₱${Number(amount).toLocaleString()}\n\n` +
+		`Encoded By: ${encodedByName}\n` +
+		`Date: ${dateFormatted}\n` +
+		`Time: ${timeFormatted}`;
+	try {
+		await sendTelegramToEmployees(telegramMessage, {
+			logPreview: junketExpenseTelegramLogPreview('add'),
+			logMeta: { guestName: encodedByName, amount: Number(amount) }
+		});
+	} catch (telegramError) {
+		console.error('Error sending Telegram notification:', telegramError);
+	}
+}
+
 // I-setup ang multer para sa multiple file uploads (para sa receipts)
 const receiptStorage = multer.diskStorage({
 	destination: 'ReceiptUpload/',
@@ -272,6 +323,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			txtReceiptNo,
 			txtDateandTime,
 			txtDescription,
+			txtReceiver,
 			txtAmount
 		} = req.body;
 
@@ -280,14 +332,15 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 		const receiptNo = txtReceiptNo || null;
 		const dateTime = txtDateandTime || null;
 		const description = txtDescription || null;
+		const receiver = txtReceiver ? String(txtReceiver).trim() : null;
 		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
 		const encodedBy = req.session?.user_id || null;
 		const receiptFileName = req.file ? req.file.filename : null;
 
 		const query = `
 			INSERT INTO junket_house_expense 
-			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, AMOUNT, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
 		`;
 
 		// Determine DAILY_SETTLEMENT status based on latest settlement
@@ -327,6 +380,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			receiptNo,
 			dateTime,
 			description,
+			receiver,
 			amount,
 			receiptFileName,
 			encodedBy,
@@ -334,75 +388,98 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			dailySettlementStatus
 		]);
 
-		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
-			category
-		]);
-		const expenseCategoryName = (categoryRows[0] && categoryRows[0].CATEGORY) ? categoryRows[0].CATEGORY : '-';
-
-		const cashTransactionQuery = `
-			INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`;
-
-		await pool.execute(cashTransactionQuery, [
-			insertResult.insertId,
-			null,
-			amount.toString(),
-			'Expenses',
-			2,
-			expenseCategoryName,
-			encodedBy,
-			date_now
-		]);
-
-		// Get encoded by user name
-		const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
-		const encodedByName = userRows.length > 0 
-			? (userRows[0].FIRSTNAME || 'Unknown')
-			: 'Unknown';
-
-		// Format date and time
-		const dateFormatted = date_now.toLocaleDateString('en-US', { 
-			year: 'numeric', 
-			month: '2-digit', 
-			day: '2-digit' 
-		});
-		const timeFormatted = date_now.toLocaleTimeString('en-US', { 
-			hour: '2-digit', 
-			minute: '2-digit' 
-		});
-
-		// Create Telegram message
-		const telegramMessage = `Demo Cage\n\n* Junket Expense *\n\n` +
-			`Category: ${expenseCategoryName}\n` +
-			`Receipt No: ${receiptNo || 'N/A'}\n` +
-			`Description: ${description || 'N/A'}\n` +
-			`Amount: ₱${amount.toLocaleString()}\n\n` +
-			`Encoded By: ${encodedByName}\n` +
-			`Date: ${dateFormatted}\n` +
-			`Time: ${timeFormatted}`;
-
-		// Send Telegram notification to EMPLOYEE bot (CHAT_ID for USER = 'EMPLOYEE')
-		try {
-			await sendTelegramToEmployees(telegramMessage, {
-				logPreview: junketExpenseTelegramLogPreview('add'),
-				logMeta: {
-					guestName: encodedByName,
-					amount
-				}
-			});
-		} catch (telegramError) {
-			console.error('Error sending Telegram notification:', telegramError);
-			// Don't fail the request if Telegram fails
-		}
-
-		res.redirect('/house_expense');
+		res.json({ success: true, id: insertResult.insertId });
 	} catch (err) {
 		console.error('Error inserting junket:', err);
-		res.status(500).send('Error inserting junket');
+		res.status(500).json({ error: 'Error inserting junket' });
 	}
 });
 
+router.put('/junket_house_expense/approve/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const [rows] = await pool.execute(
+			`SELECT e.*, ec.CATEGORY AS category_name
+			 FROM junket_house_expense e
+			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 WHERE e.IDNo = ? AND e.ACTIVE = 1 LIMIT 1`,
+			[id]
+		);
+		if (!rows.length) return res.status(404).json({ error: 'Expense not found' });
+
+		const exp = rows[0];
+		const status = Number(exp.APPROVAL_STATUS);
+		if (status === 1) return res.json({ success: true });
+		if (status === 2) return res.status(400).json({ error: 'Expense is already rejected' });
+
+		const date_now = new Date();
+		await pool.execute(
+			`UPDATE junket_house_expense SET APPROVAL_STATUS = 1, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[req.session.user_id, date_now, id]
+		);
+
+		const [ctRows] = await pool.execute(
+			`SELECT IDNo FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses' AND ACTIVE = 1 LIMIT 1`,
+			[id]
+		);
+		if (!ctRows.length) {
+			await insertCashTransactionForExpense(
+				pool,
+				id,
+				Number(exp.AMOUNT),
+				exp.category_name || '-',
+				exp.ENCODED_BY,
+				date_now
+			);
+		}
+
+		await sendNewHouseExpenseTelegram(pool, {
+			categoryName: exp.category_name || '-',
+			receiptNo: exp.RECEIPT_NO,
+			description: exp.DESCRIPTION,
+			receiver: exp.RECEIVER,
+			amount: exp.AMOUNT,
+			encodedBy: exp.ENCODED_BY,
+			dateNow: date_now,
+			statusLabel: 'Approved'
+		});
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error approving junket expense:', err);
+		res.status(500).json({ error: 'Failed to approve expense' });
+	}
+});
+
+router.put('/junket_house_expense/reject/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const [rows] = await pool.execute(
+			'SELECT APPROVAL_STATUS FROM junket_house_expense WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!rows.length) return res.status(404).json({ error: 'Expense not found' });
+
+		const status = Number(rows[0].APPROVAL_STATUS);
+		if (status === 2) return res.json({ success: true });
+		if (status === 1) return res.status(400).json({ error: 'Cannot reject an approved expense' });
+
+		const date_now = new Date();
+		await pool.execute(
+			`UPDATE junket_house_expense SET APPROVAL_STATUS = 2, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[req.session.user_id, date_now, id]
+		);
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error rejecting junket expense:', err);
+		res.status(500).json({ error: 'Failed to reject expense' });
+	}
+});
 
 // GET JUNKET EXPENSE
 // Settlement filter: date=current (unsettled), date=YYYY-MM-DD settled that day, or date >= next-day-after-last-settlement with no row → unsettled (local calendar)
@@ -422,6 +499,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 						e.DATE_TIME,
 						e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+						e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
+						COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 						e.AMOUNT,
 						e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 						e.ENCODED_BY,
@@ -451,6 +530,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 						NULL AS DATE_TIME,
 						rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
+						1 AS APPROVAL_STATUS,
 						rm.AMOUNT,
 						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 						rm.ENCODED_BY,
@@ -498,6 +579,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 							e.DATE_TIME,
 							e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
+							COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 							e.AMOUNT,
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
@@ -529,6 +612,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 							NULL AS DATE_TIME,
 							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
+							1 AS APPROVAL_STATUS,
 							rm.AMOUNT,
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 							rm.ENCODED_BY,
@@ -575,6 +660,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 							e.DATE_TIME,
 							e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
+							COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 							e.AMOUNT,
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
@@ -604,6 +691,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 							NULL AS DATE_TIME,
 							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
+							1 AS APPROVAL_STATUS,
 							rm.AMOUNT,
 							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 							rm.ENCODED_BY,
@@ -692,6 +781,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 				e.DATE_TIME,
 				e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
+				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				e.AMOUNT,
 				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 				e.ENCODED_BY,
@@ -724,6 +815,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 				NULL AS DATE_TIME,
 				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
+				1 AS APPROVAL_STATUS,
 				rm.AMOUNT,
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 				rm.ENCODED_BY,
@@ -759,6 +852,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 				e.DATE_TIME,
 				e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
+				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				e.AMOUNT,
 				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 				e.ENCODED_BY,
@@ -789,6 +884,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
 				NULL AS DATE_TIME,
 				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
+				1 AS APPROVAL_STATUS,
 				rm.AMOUNT,
 				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
 				rm.ENCODED_BY,
@@ -861,16 +958,19 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			txtReceiptNo,
 			txtDateandTime,
 			txtDescription,
+			txtReceiver,
 			txtAmount
 		} = req.body;
 
 		const date_now = new Date();
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
 		const safeDateTime = txtDateandTime || null;
+		const receiver = txtReceiver != null ? String(txtReceiver).trim() : null;
 
 		// Build diff text; store in junket_house_expense_edit_log (full history, one row per save with changes)
 		const [oldRows] = await pool.execute(
-			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.PHOTO,
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.RECEIVER, e.AMOUNT, e.PHOTO,
+				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				ec.CATEGORY AS category_name
 			 FROM junket_house_expense e
 			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
@@ -878,6 +978,10 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			[id]
 		);
 		const old = oldRows[0];
+		if (!old) return res.status(404).send('Expense not found');
+		if (Number(old.APPROVAL_STATUS) !== 1) {
+			return res.status(400).send('Only approved expenses can be edited');
+		}
 		const oldAmount = old ? Number(old.AMOUNT) : null;
 		let changesText = null;
 		if (old) {
@@ -902,6 +1006,10 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			if (norm(old.DESCRIPTION) !== norm(txtDescription)) {
 				const v = norm(old.DESCRIPTION) || 'N/A';
 				lines.push(`In-charge: ${v}`);
+			}
+			if (norm(old.RECEIVER) !== norm(receiver)) {
+				const v = norm(old.RECEIVER) || 'N/A';
+				lines.push(`Receiver: ${v}`);
 			}
 			if (!amtEq(old.AMOUNT, editXAmount)) {
 				lines.push(`Amount: ${Number(old.AMOUNT).toLocaleString('en-US')}`);
@@ -942,9 +1050,18 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 
 		let query = `
 			UPDATE junket_house_expense 
-			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
+			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, RECEIVER = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
 		`;
-		const params = [txtCategory, txtReceiptNo, safeDateTime, txtDescription, editXAmount, req.session.user_id, date_now];
+		const params = [
+			txtCategory,
+			txtReceiptNo,
+			safeDateTime,
+			txtDescription,
+			receiver,
+			editXAmount,
+			req.session.user_id,
+			date_now
+		];
 
 		if (req.file) {
 			query += `, PHOTO = ?`;

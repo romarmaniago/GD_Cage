@@ -350,7 +350,14 @@
 		"type_salary": "工资",
 		"type_maintenance": "维护",
 		"type_other": "其他",
-		"settle": "house_expense.settle"
+		"settle": "house_expense.settle",
+		"receiver": "house_expense.receiver",
+		"approve": "house_expense.approve",
+		"reject": "house_expense.reject",
+		"rejected": "house_expense.rejected",
+		"pending_approval": "house_expense.pending_approval",
+		"approve_confirm": "house_expense.approve_confirm",
+		"reject_confirm": "house_expense.reject_confirm"
 	},
 	"hotel_booking": {
 		"junket": "接待",
@@ -972,7 +979,8 @@
 		"amount": "金额",
 		"save": "保存",
 		"close": "关闭",
-		"receipt_photo": "modal_new_house_expense.receipt_photo"
+		"receipt_photo": "modal_new_house_expense.receipt_photo",
+		"receiver": "modal_new_house_expense.receiver"
 	},
 	"modal_show_rolling": {
 		"date": "日期",
@@ -1020,7 +1028,8 @@
 		"amount_placeholder": "金额",
 		"save": "保存",
 		"close": "关闭",
-		"receipt_photo": "modal_edit_house_expense.receipt_photo"
+		"receipt_photo": "modal_edit_house_expense.receipt_photo",
+		"receiver": "modal_edit_house_expense.receiver"
 	},
 	"modal_new_booking": {
 		"add_booking": "添加预订",

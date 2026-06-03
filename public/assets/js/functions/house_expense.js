@@ -224,8 +224,56 @@ function getHouseExpenseMainCategoryRows(expenseRows) {
         });
 }
 
+function houseExpenseGetApprovalStatus(row) {
+    if (!row || row.record_type === 'return_money') return 1;
+    var s = parseInt(row.APPROVAL_STATUS, 10);
+    return Number.isNaN(s) ? 1 : s;
+}
+
+function houseExpenseIsApprovedForTotals(row) {
+    return houseExpenseGetApprovalStatus(row) === 1;
+}
+
 function buildHouseExpenseActionButtons(row, amount) {
     var permissions = parseInt($('#user-role').data('permissions'), 10);
+    var approvalStatus = houseExpenseGetApprovalStatus(row);
+    var t = window.houseExpenseTranslations || {};
+
+    if (row.record_type !== 'return_money' && approvalStatus === 0) {
+        if (permissions === 2) {
+            return (
+                '<div class="house-expense-actions house-expense-approval-actions">' +
+                '<span class="house-expense-status-pill house-expense-status-pill--pending">' +
+                '<i class="fa fa-clock-o" aria-hidden="true"></i>' +
+                houseExpenseHtmlEscape(t.pending_approval || 'Pending') +
+                '</span></div>'
+            );
+        }
+        return (
+            '<div class="house-expense-actions house-expense-approval-actions">' +
+            '<button type="button" class="btn btn-sm house-expense-btn-approve" onclick="approveHouseExpense(' +
+            row.expense_id +
+            ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            houseExpenseHtmlEscape(t.approve || 'Approve') +
+            '"><i class="fa fa-check" aria-hidden="true"></i></button>' +
+            '<button type="button" class="btn btn-sm house-expense-btn-reject" onclick="rejectHouseExpense(' +
+            row.expense_id +
+            ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            houseExpenseHtmlEscape(t.reject || 'Reject') +
+            '"><i class="fa fa-times" aria-hidden="true"></i></button></div>'
+        );
+    }
+
+    if (row.record_type !== 'return_money' && approvalStatus === 2) {
+        return (
+            '<div class="house-expense-actions house-expense-approval-actions">' +
+            '<span class="house-expense-status-pill house-expense-status-pill--rejected">' +
+            '<i class="fa fa-ban" aria-hidden="true"></i>' +
+            houseExpenseHtmlEscape(t.rejected || 'Rejected') +
+            '</span></div>'
+        );
+    }
+
     var logCount = houseExpenseEditLogCount(row);
     var histTitle =
         (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) || 'Edit history';
@@ -269,6 +317,8 @@ function buildHouseExpenseActionButtons(row, amount) {
             amount +
             '" data-oic="' +
             attrEncode(row.OIC || '') +
+            '" data-receiver="' +
+            attrEncode(row.RECEIVER || '') +
             '" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
             (window.houseExpenseTranslations?.edit_expense || 'Edit Expense') +
             '"><i class="fa fa-pencil-alt"></i></button>' +
@@ -358,9 +408,10 @@ function houseExpenseSumRowsForFooter(rows) {
     var totalExpense = 0;
     var totalReturnMoney = 0;
     (rows || []).forEach(function (row) {
+        if (!row) return;
         var amount = parseFloat(row.AMOUNT) || 0;
         if (row.record_type === 'return_money') totalReturnMoney += amount;
-        else totalExpense += amount;
+        else if (houseExpenseIsApprovedForTotals(row)) totalExpense += amount;
     });
     return { totalExpense: totalExpense, totalReturnMoney: totalReturnMoney };
 }
@@ -405,7 +456,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
         if (!st.mainCategoryId && !st.mainCategory) {
             $('#expense-item-panel-subtitle').text('');
             $tbody.html(
-                '<tr><td colspan="6" class="text-muted small text-center py-3">Select a main category</td></tr>'
+                '<tr><td colspan="7" class="text-muted small text-center py-3">Select a main category</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
             return;
@@ -421,7 +472,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
 
         if (rows.length === 0) {
             $tbody.html(
-                '<tr><td colspan="6" class="text-center text-muted py-3">' +
+                '<tr><td colspan="7" class="text-center text-muted py-3">' +
                     houseExpenseHtmlEscape(noDataText) +
                     '</td></tr>'
             );
@@ -451,6 +502,8 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 /* Headers: description key = IN-CHARGE, receipt_no key = DESCRIPTION (see locales) */
                 var inChargeCol =
                     row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-';
+                var receiverCol =
+                    row.record_type === 'return_money' ? '-' : row.RECEIVER || '-';
                 var descriptionCol =
                     row.record_type === 'return_money' ? row.DESCRIPTION || '-' : row.RECEIPT_NO || '-';
 
@@ -463,6 +516,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '</td>' +
                     '<td>' +
                     houseExpenseHtmlEscape(inChargeCol) +
+                    '</td>' +
+                    '<td>' +
+                    houseExpenseHtmlEscape(receiverCol) +
                     '</td>' +
                     '<td>' +
                     houseExpenseHtmlEscape(descriptionCol) +
@@ -503,7 +559,7 @@ function refreshHouseExpenseExplorerOnly() {
         if (!r) return;
         var a = Number(r.AMOUNT) || 0;
         if (r.record_type === 'return_money') tr += a;
-        else te += a;
+        else if (houseExpenseIsApprovedForTotals(r)) te += a;
     });
     refreshHouseExpenseDashboard(rows, te, tr);
 }
@@ -807,7 +863,7 @@ function houseExpenseApplyLoadedData(data) {
     rows.forEach(function (row) {
         var amount = parseFloat(row.AMOUNT) || 0;
         if (row && row.record_type === 'return_money') total_return_money += amount;
-        else total_expense += amount;
+        else if (houseExpenseIsApprovedForTotals(row)) total_expense += amount;
     });
     window.houseExpenseLastRows = rows;
     renderHouseExpenseAnalytics(rows, total_expense, total_return_money);
@@ -1116,7 +1172,7 @@ function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
     $('#expense-kpi-grand-range').text(getHouseExpenseGrandDateLabel());
 
     var selected = houseExpenseSumExpenseRows(data, function (r) {
-        return houseExpenseRowMatchesExplorer(r);
+        return houseExpenseRowMatchesExplorer(r) && houseExpenseIsApprovedForTotals(r);
     });
 
     $('#expense-kpi-selected-amount').text(formatHouseExpensePeso(selected));
@@ -2451,7 +2507,8 @@ $(document).ready(function () {
             var receiptNo = $btn.attr('data-receipt-no') || '';
             var dateTime = $btn.attr('data-date-time') || '';
             var oic = $btn.attr('data-oic') || '';
-            edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic);
+            var receiver = $btn.attr('data-receiver') || '';
+            edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic, receiver);
         }
     });
 
@@ -2701,7 +2758,68 @@ function returnMoney() {
     $('#modal-new-return-money').modal('show');
 }
 
-function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic) {
+function approveHouseExpense(id) {
+    var t = window.houseExpenseTranslations || {};
+    if (typeof Swal === 'undefined') return;
+    Swal.fire({
+        title: t.approve || 'Approve',
+        text: t.approve_confirm || 'Approve this expense?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: t.yes || 'Yes',
+        confirmButtonColor: '#198754',
+        cancelButtonText: 'Cancel'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/junket_house_expense/approve/' + id,
+            method: 'PUT',
+            success: function () {
+                houseExpenseFinishSaveSuccess({
+                    title: t.updated_successfully || 'Approved successfully'
+                });
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to approve';
+                Swal.fire({ icon: 'error', title: t.error || 'Error', text: msg });
+            }
+        });
+    });
+}
+
+function rejectHouseExpense(id) {
+    var t = window.houseExpenseTranslations || {};
+    if (typeof Swal === 'undefined') return;
+    Swal.fire({
+        title: t.reject || 'Reject',
+        text: t.reject_confirm || 'Reject this expense?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: t.yes || 'Yes',
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: 'Cancel'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/junket_house_expense/reject/' + id,
+            method: 'PUT',
+            success: function () {
+                houseExpenseFinishSaveSuccess({
+                    title: t.rejected || 'Rejected'
+                });
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to reject';
+                Swal.fire({ icon: 'error', title: t.error || 'Error', text: msg });
+            }
+        });
+    });
+}
+
+window.approveHouseExpense = approveHouseExpense;
+window.rejectHouseExpense = rejectHouseExpense;
+
+function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic, receiver) {
     $('#modal-edit-house-expense').modal('show');
     $('#txtCategory').val(category_id);
     $('#txtReceiptNo').val(receipt_no);
@@ -2719,6 +2837,7 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
 
     $('#txtDateandTime').val(formattedDate);
     $('#txtDescription').val(description);
+    $('#txtReceiver').val(receiver || '');
     $('#txtAmount').val(amount);
     // $('#txtOfficerInCharge').val(oic);
 

@@ -348,7 +348,14 @@
 		"type_salary": "給与",
 		"type_maintenance": "メンテナンス",
 		"type_other": "その他",
-		"settle": "house_expense.settle"
+		"settle": "house_expense.settle",
+		"receiver": "house_expense.receiver",
+		"approve": "house_expense.approve",
+		"reject": "house_expense.reject",
+		"rejected": "house_expense.rejected",
+		"pending_approval": "house_expense.pending_approval",
+		"approve_confirm": "house_expense.approve_confirm",
+		"reject_confirm": "house_expense.reject_confirm"
 	},
 	"hotel_booking": {
 		"junket": "ジャンケット",
@@ -972,7 +979,8 @@
 		"amount": "金額",
 		"save": "保存",
 		"close": "閉じる",
-		"receipt_photo": "modal_new_house_expense.receipt_photo"
+		"receipt_photo": "modal_new_house_expense.receipt_photo",
+		"receiver": "modal_new_house_expense.receiver"
 	},
 	"modal_show_rolling": {
 		"date": "日付",
@@ -1020,7 +1028,8 @@
 		"amount_placeholder": "金額",
 		"save": "保存",
 		"close": "閉じる",
-		"receipt_photo": "modal_edit_house_expense.receipt_photo"
+		"receipt_photo": "modal_edit_house_expense.receipt_photo",
+		"receiver": "modal_edit_house_expense.receiver"
 	},
 	"modal_new_booking": {
 		"add_booking": "予約の追加",

@@ -350,7 +350,14 @@
 		"type_salary": "급여",
 		"type_maintenance": "정비",
 		"type_other": "기타",
-		"settle": "house_expense.settle"
+		"settle": "house_expense.settle",
+		"receiver": "house_expense.receiver",
+		"approve": "house_expense.approve",
+		"reject": "house_expense.reject",
+		"rejected": "house_expense.rejected",
+		"pending_approval": "house_expense.pending_approval",
+		"approve_confirm": "house_expense.approve_confirm",
+		"reject_confirm": "house_expense.reject_confirm"
 	},
 	"hotel_booking": {
 		"junket": "정켓",
@@ -972,7 +979,8 @@
 		"amount": "금액",
 		"save": "저장",
 		"close": "닫기",
-		"receipt_photo": "modal_new_house_expense.receipt_photo"
+		"receipt_photo": "modal_new_house_expense.receipt_photo",
+		"receiver": "modal_new_house_expense.receiver"
 	},
 	"modal_show_rolling": {
 		"date": "날짜",
@@ -1020,7 +1028,8 @@
 		"amount_placeholder": "금액",
 		"save": "저장",
 		"close": "닫기",
-		"receipt_photo": "modal_edit_house_expense.receipt_photo"
+		"receipt_photo": "modal_edit_house_expense.receipt_photo",
+		"receiver": "modal_edit_house_expense.receiver"
 	},
 	"modal_new_booking": {
 		"add_booking": "예약 추가",

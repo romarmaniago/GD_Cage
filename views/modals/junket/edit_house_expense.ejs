@@ -31,10 +31,13 @@
                     </div>
                    
                     <div class="row mb-3">
-                        <div class="col-sm-12 form-floating-outline">
-                            <label class="form-label"><%= __('modal_edit_house_expense.description_placeholder') || 'Description' %></label>
-                            <input type="text" class="form-control" name="txtDescription" id="txtDescription"
-                                />
+                        <div class="col-sm-6 form-floating-outline">
+                            <label class="form-label"><%= __('modal_edit_house_expense.description_placeholder') || 'In-Charge' %></label>
+                            <input type="text" class="form-control" name="txtDescription" id="txtDescription" />
+                        </div>
+                        <div class="col-sm-6 form-floating-outline">
+                            <label class="form-label"><%= __('modal_edit_house_expense.receiver') || 'Receiver' %></label>
+                            <input type="text" class="form-control" name="txtReceiver" id="txtReceiver" />
                         </div>
                     </div>
                     <div class="row mb-3">

@@ -42,9 +42,13 @@
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-sm-12 form-floating-outline">
+                        <div class="col-sm-6 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.description') %></label>
-                            <input type="text" class="form-control" name="txtDescription" />
+                            <input type="text" class="form-control" name="txtDescription" id="txtNewExpenseInCharge" />
+                        </div>
+                        <div class="col-sm-6 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.receiver') || 'Receiver' %></label>
+                            <input type="text" class="form-control" name="txtReceiver" id="txtNewExpenseReceiver" />
                         </div>
                     </div>
                     <div class="row mb-3">
