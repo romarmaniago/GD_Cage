@@ -16,22 +16,33 @@
 
 	const $tbody = document.getElementById('bnpp-tbody');
 	const $tfoot = document.getElementById('bnpp-tfoot');
+	const $filterWrap = document.getElementById('bnpp-filter-wrap');
+	const $yearSelect = document.getElementById('bnpp-year');
 	const $rangeInput = document.getElementById('bnpp-range');
 	const $exportBtn = document.getElementById('bnpp-export-excel');
 	const $printBtn = document.getElementById('bnpp-print');
+	const $colPeriod = document.getElementById('bnpp-col-period');
+	const $viewTabs = document.getElementById('bnpp-view-tabs');
 
 	let fpInstance = null;
 	let rangeStart = defaultStart;
 	let rangeEnd = defaultEnd;
+	let dailyRangeStart = defaultStart;
+	let dailyRangeEnd = defaultEnd;
+	let selectedYear = parseInt(String(todayStr || defaultStart).slice(0, 4), 10) || new Date().getFullYear();
+	let viewMode = 'monthly';
 
 	function fmt(n) {
 		if (n == null || Number.isNaN(Number(n))) return '0';
-		return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+		return Math.ceil(Number(n)).toLocaleString(undefined, {
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		});
 	}
 
 	function fmtPct(n) {
 		if (n == null || Number.isNaN(Number(n))) return '';
-		return `${fmt(n)}%`;
+		return `${Math.ceil(Number(n))}%`;
 	}
 
 	function formatPctInput(n) {
@@ -59,7 +70,136 @@
 	}
 
 	function buildQuery() {
-		return `start=${encodeURIComponent(rangeStart)}&end=${encodeURIComponent(rangeEnd)}`;
+		return `start=${encodeURIComponent(rangeStart)}&end=${encodeURIComponent(rangeEnd)}&view=${encodeURIComponent(viewMode)}`;
+	}
+
+	function isMonthlyView() {
+		return viewMode === 'monthly';
+	}
+
+	function yearRangeFromYear(year) {
+		const y = Number(year);
+		if (!Number.isFinite(y)) return { start: defaultStart, end: defaultEnd };
+		return {
+			start: `${y}-01-01`,
+			end: `${y}-12-31`,
+		};
+	}
+
+	function syncRangeFromYear() {
+		const r = yearRangeFromYear(selectedYear);
+		rangeStart = r.start;
+		rangeEnd = r.end;
+	}
+
+	function updateFilterVisibility() {
+		if (!$filterWrap) return;
+		$filterWrap.classList.toggle('is-monthly', isMonthlyView());
+		$filterWrap.classList.toggle('is-daily', !isMonthlyView());
+	}
+
+	function populateYearSelect() {
+		if (!$yearSelect) return;
+		const currentYear = parseInt(String(todayStr || defaultStart).slice(0, 4), 10) || new Date().getFullYear();
+		const minYear = currentYear - 15;
+		const maxYear = currentYear + 1;
+		const options = [];
+		for (let y = maxYear; y >= minYear; y -= 1) {
+			options.push(`<option value="${y}"${y === selectedYear ? ' selected' : ''}>${y}</option>`);
+		}
+		$yearSelect.innerHTML = options.join('');
+		syncYearSelectValue();
+	}
+
+	function syncYearSelectValue() {
+		if (!$yearSelect) return;
+		$yearSelect.value = String(selectedYear);
+		if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+			const $el = jQuery($yearSelect);
+			if ($el.data('select2')) {
+				$el.val(String(selectedYear)).trigger('change.select2');
+			}
+		}
+	}
+
+	function initYearSelect() {
+		if (!$yearSelect || !window.jQuery || typeof jQuery.fn.select2 !== 'function') return;
+		const $el = jQuery($yearSelect);
+		if ($el.data('select2')) {
+			$el.select2('destroy');
+		}
+		$el.select2({
+			minimumResultsForSearch: Infinity,
+			dropdownParent: jQuery('body'),
+			width: '100%',
+			containerCssClass: 'bnpp-year-select2',
+			dropdownCssClass: 'bnpp-year-dropdown',
+		});
+		$el.val(String(selectedYear)).trigger('change.select2');
+		$el.off('change.bnpp').on('change.bnpp', function () {
+			selectedYear = parseInt($el.val(), 10) || selectedYear;
+			syncRangeFromYear();
+			loadData();
+		});
+	}
+
+	function getFilterSubtitle() {
+		if (isMonthlyView()) return `Year ${selectedYear}`;
+		return `${formatDisplayDatePlain(rangeStart)} to ${formatDisplayDatePlain(rangeEnd)}`;
+	}
+
+	function getExportFilenameSuffix() {
+		if (isMonthlyView()) return `${selectedYear}`;
+		return `${rangeStart}_${rangeEnd}`;
+	}
+
+	function updatePeriodColumnHeader() {
+		if ($colPeriod) {
+			$colPeriod.textContent = isMonthlyView() ? 'Month' : 'Date';
+		}
+	}
+
+	function setActiveViewTab(mode) {
+		const nextMode = mode === 'daily' ? 'daily' : 'monthly';
+		if (nextMode === viewMode) {
+			updateFilterVisibility();
+			updatePeriodColumnHeader();
+			return;
+		}
+
+		if (viewMode === 'daily') {
+			dailyRangeStart = rangeStart;
+			dailyRangeEnd = rangeEnd;
+		}
+
+		viewMode = nextMode;
+
+		if (isMonthlyView()) {
+			if (/^\d{4}-\d{2}-\d{2}$/.test(dailyRangeStart)) {
+				selectedYear = parseInt(dailyRangeStart.slice(0, 4), 10) || selectedYear;
+			}
+			syncYearSelectValue();
+			syncRangeFromYear();
+		} else {
+			rangeStart = dailyRangeStart;
+			rangeEnd = dailyRangeEnd;
+			if (fpInstance) {
+				fpInstance.setDate([rangeStart, rangeEnd], false);
+			}
+		}
+
+		if (!$viewTabs) {
+			updateFilterVisibility();
+			updatePeriodColumnHeader();
+			return;
+		}
+		$viewTabs.querySelectorAll('[data-view]').forEach(function (btn) {
+			const active = btn.dataset.view === viewMode;
+			btn.classList.toggle('active', active);
+			btn.setAttribute('aria-selected', active ? 'true' : 'false');
+		});
+		updateFilterVisibility();
+		updatePeriodColumnHeader();
 	}
 
 	function netProfitCurrentMonthDate() {
@@ -91,13 +231,43 @@
 		return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 	}
 
+	function formatDisplayMonthPlain(isoOrLabel) {
+		if (isoOrLabel == null || isoOrLabel === '') return '';
+		const s = String(isoOrLabel).trim();
+		if (!/^\d{4}-\d{2}/.test(s)) return s.slice(0, 128);
+		const y = parseInt(s.slice(0, 4), 10);
+		const mo = parseInt(s.slice(5, 7), 10) - 1;
+		const dt = new Date(y, mo, 1);
+		if (Number.isNaN(dt.getTime())) return s;
+		return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+	}
+
+	function formatPeriodLabel(row, monthly) {
+		if (monthly) {
+			if (row.settlement_label) return escapeHtml(String(row.settlement_label));
+			return escapeHtml(formatDisplayMonthPlain(row.settlement_date));
+		}
+		const raw = row.settlement_label != null ? row.settlement_label : row.settlement_date;
+		return formatDisplayDate(raw);
+	}
+
+	function formatPeriodPlain(row, monthly) {
+		if (monthly) {
+			if (row.settlement_label) return String(row.settlement_label);
+			return formatDisplayMonthPlain(row.settlement_date);
+		}
+		const raw = row.settlement_label != null ? row.settlement_label : row.settlement_date;
+		return formatDisplayDatePlain(raw);
+	}
+
 	function buildExportPayload(payload) {
+		const monthly = (payload.view || viewMode) === 'monthly';
 		const pct =
 			payload.house_share_pct != null && !Number.isNaN(Number(payload.house_share_pct))
 				? Number(payload.house_share_pct)
-				: 60;
+				: 65;
 		const headers = [
-			'Date',
+			monthly ? 'Month' : 'Date',
 			'Games',
 			'Win / loss',
 			'Share Percentage',
@@ -108,9 +278,8 @@
 		];
 		const rows = [];
 		for (const r of payload.rows || []) {
-			const raw = r.settlement_label != null ? r.settlement_label : r.settlement_date;
 			rows.push([
-				formatDisplayDatePlain(raw),
+				formatPeriodPlain(r, monthly),
 				r.game_count,
 				r.win_loss,
 				fmtPct(r.share_percentage != null ? r.share_percentage : pct),
@@ -143,7 +312,8 @@
 			const payload = await res.json();
 			if (!payload.success) throw new Error(payload.error || 'Request failed');
 			const { headers, rows } = buildExportPayload(payload);
-			const filename = `NetProfit_${rangeStart}_${rangeEnd}.xlsx`;
+			const viewSuffix = isMonthlyView() ? 'Monthly' : 'Daily';
+			const filename = `NetProfit_${viewSuffix}_${getExportFilenameSuffix()}.xlsx`;
 			const exportRes = await fetch('/net_profit/export_xlsx', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -152,7 +322,7 @@
 					headers,
 					rows,
 					filename,
-					sheetName: 'Net profit'
+					sheetName: isMonthlyView() ? 'Net profit (monthly)' : 'Net profit (daily)'
 				})
 			});
 			if (!exportRes.ok) {
@@ -230,7 +400,7 @@
 			getPrintStyles(),
 			'</style></head><body><div class="print-wrap">',
 			'<h2>Net Profit</h2>',
-			'<div class="subtitle">', escapeHtml(`${formatDisplayDatePlain(rangeStart)} to ${formatDisplayDatePlain(rangeEnd)}`), '</div>',
+			'<div class="subtitle">', escapeHtml(getFilterSubtitle()), '</div>',
 			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
 			'</div></body></html>'
 		].join(''));
@@ -273,9 +443,12 @@
 	}
 
 	async function saveSharePercentage(input) {
+		const settlementMonth = input && input.dataset ? input.dataset.settlementMonth : '';
 		const settlementDate = input && input.dataset ? input.dataset.settlementDate : '';
 		const sharePercentage = Number(input ? input.value : NaN);
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(settlementDate)) return;
+		const isMonth = /^\d{4}-\d{2}$/.test(settlementMonth);
+		const isDay = /^\d{4}-\d{2}-\d{2}$/.test(settlementDate);
+		if (!isMonth && !isDay) return;
 		if (!Number.isFinite(sharePercentage) || sharePercentage < 0 || sharePercentage > 100) {
 			if (typeof Swal !== 'undefined') {
 				Swal.fire({ icon: 'warning', title: 'Invalid percentage', text: 'Share percentage must be between 0 and 100.' });
@@ -287,14 +460,15 @@
 
 		input.disabled = true;
 		try {
-			const res = await fetch('/net_profit/share_percentage', {
+			const res = await fetch(isMonth ? '/net_profit/share_percentage/month' : '/net_profit/share_percentage', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'same-origin',
-				body: JSON.stringify({
-					settlement_date: settlementDate,
-					share_percentage: sharePercentage
-				})
+				body: JSON.stringify(
+					isMonth
+						? { month: settlementMonth, share_percentage: sharePercentage }
+						: { settlement_date: settlementDate, share_percentage: sharePercentage }
+				)
 			});
 			const payload = await res.json().catch(() => ({}));
 			if (!res.ok || !payload.success) throw new Error(payload.error || 'Failed to save share percentage.');
@@ -313,25 +487,35 @@
 		}
 	}
 
+	function buildShareInputCell(r, monthly, pct) {
+		const sharePct = r.share_percentage != null ? r.share_percentage : pct;
+		const monthKey = r.month_key != null ? String(r.month_key) : String(r.settlement_date || '').slice(0, 7);
+		const settlementDate = String(r.settlement_date || '').slice(0, 10);
+		const ariaLabel = monthly
+			? `Share percentage for ${formatDisplayMonthPlain(monthKey)}`
+			: `Share percentage for ${formatDisplayDatePlain(settlementDate)}`;
+		const dataAttr = monthly
+			? `data-settlement-month="${escapeHtml(monthKey)}"`
+			: `data-settlement-date="${escapeHtml(settlementDate)}"`;
+		return `<div class="d-inline-flex align-items-center justify-content-end gap-1">
+			<input type="number" class="form-control form-control-sm bnpp-share-input" min="0" max="100" step="0.01" value="${escapeHtml(formatPctInput(sharePct))}" ${dataAttr} aria-label="${escapeHtml(ariaLabel)}">
+			<span>%</span>
+		</div>`;
+	}
+
 	function render(payload) {
 		if (!$tbody || !$tfoot) return;
+		const monthly = (payload.view || viewMode) === 'monthly';
 		const pct = payload.house_share_pct != null ? Number(payload.house_share_pct) : NaN;
 		const list = payload.rows || [];
 		const rows = list.map((r) => {
-			const raw = r.settlement_label != null ? r.settlement_label : r.settlement_date;
-			const label = formatDisplayDate(raw);
-			const settlementDate = String(r.settlement_date || raw || '').slice(0, 10);
-			const sharePct = r.share_percentage != null ? r.share_percentage : pct;
+			const label = formatPeriodLabel(r, monthly);
+			const shareCell = buildShareInputCell(r, monthly, pct);
 			return `<tr>
 				<td>${label}</td>
 				<td>${r.game_count}</td>
 				<td>${fmt(r.win_loss)}</td>
-				<td>
-					<div class="d-inline-flex align-items-center justify-content-end gap-1">
-						<input type="number" class="form-control form-control-sm bnpp-share-input" min="0" max="100" step="0.01" value="${escapeHtml(formatPctInput(sharePct))}" data-settlement-date="${escapeHtml(settlementDate)}" aria-label="Share percentage for ${escapeHtml(formatDisplayDatePlain(settlementDate))}">
-						<span>%</span>
-					</div>
-				</td>
+				<td>${shareCell}</td>
 				<td>${fmt(r.casino_share)}</td>
 				<td>${fmt(r.commission)}</td>
 				<td>${fmt(r.house_expenses_settled)}</td>
@@ -375,8 +559,28 @@
 	}
 
 	document.addEventListener('DOMContentLoaded', function () {
-		rangeStart = defaultStart;
-		rangeEnd = defaultEnd;
+		dailyRangeStart = defaultStart;
+		dailyRangeEnd = defaultEnd;
+		selectedYear = parseInt(String(todayStr || defaultStart).slice(0, 4), 10) || new Date().getFullYear();
+		populateYearSelect();
+		syncRangeFromYear();
+		setActiveViewTab('monthly');
+		initYearSelect();
+		if ($viewTabs) {
+			$viewTabs.addEventListener('click', function (event) {
+				const btn = event.target && event.target.closest ? event.target.closest('[data-view]') : null;
+				if (!btn || btn.dataset.view === viewMode) return;
+				setActiveViewTab(btn.dataset.view);
+				loadData();
+			});
+		}
+		if ($yearSelect) {
+			$yearSelect.addEventListener('change', function () {
+				selectedYear = parseInt($yearSelect.value, 10) || selectedYear;
+				syncRangeFromYear();
+				loadData();
+			});
+		}
 		if (typeof flatpickr !== 'undefined' && $rangeInput) {
 			fpInstance = flatpickr($rangeInput, {
 				mode: 'range',
@@ -398,6 +602,8 @@
 					if (selectedDates.length === 2) {
 						rangeStart = instance.formatDate(selectedDates[0], 'Y-m-d');
 						rangeEnd = instance.formatDate(selectedDates[1], 'Y-m-d');
+						dailyRangeStart = rangeStart;
+						dailyRangeEnd = rangeEnd;
 						loadData();
 					}
 				},

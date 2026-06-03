@@ -24,6 +24,20 @@ const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
 
+/** Super Admin only — same as elsewhere (`permissions === 0`). */
+function requireSuperAdmin(req, res, next) {
+	const p = req.session.permissions;
+	if (p !== 0 && p !== '0') {
+		if (req.xhr || (req.headers.accept && String(req.headers.accept).includes('application/json'))) {
+			return res.status(403).json({ success: false, error: 'Forbidden' });
+		}
+		return res.status(403).send('Forbidden');
+	}
+	next();
+}
+
+const superAdminOnly = [checkSession, requireSuperAdmin];
+
 const path = require('path');
 const ExcelJS = require('exceljs');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
@@ -31,7 +45,7 @@ const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountForma
 const MAX_RANGE_DAYS = 400;
 
 /** Default % for net profit share rows when no settlement-date override exists. */
-const DEFAULT_NET_PROFIT_SHARE_PCT = 60;
+const DEFAULT_NET_PROFIT_SHARE_PCT = 65;
 const NET_PROFIT_SHARE_TABLE = 'net_profit_share_percentages';
 
 
@@ -40,6 +54,15 @@ function pad2(n) {
 
 	return String(n).padStart(2, '0');
 
+}
+
+
+
+/** Whole currency/units — always round up (toward +∞). */
+function ceilAmount(n) {
+	const x = Number(n);
+	if (!Number.isFinite(x)) return 0;
+	return Math.ceil(x);
 }
 
 
@@ -82,6 +105,43 @@ function isValidYmd(d) {
 
 
 
+function isValidMonthKey(mk) {
+	if (typeof mk !== 'string' || !/^\d{4}-\d{2}$/.test(mk)) return false;
+	const m = Number(mk.slice(5, 7));
+	return Number.isFinite(m) && m >= 1 && m <= 12;
+}
+
+
+
+function calendarDatesInMonth(monthKey) {
+	const y = Number(monthKey.slice(0, 4));
+	const m = Number(monthKey.slice(5, 7));
+	const dim = new Date(y, m, 0).getDate();
+	const out = [];
+	for (let d = 1; d <= dim; d += 1) {
+		out.push(`${y}-${pad2(m)}-${pad2(d)}`);
+	}
+	return out;
+}
+
+
+
+async function upsertSharePercentage(settlementDate, sharePercentage, userId) {
+	await pool.execute(
+		`INSERT INTO \`${NET_PROFIT_SHARE_TABLE}\`
+			(SETTLEMENT_DATE, SHARE_PERCENTAGE, ACTIVE, ENCODED_BY, ENCODED_DT)
+		 VALUES (?, ?, 1, ?, NOW())
+		 ON DUPLICATE KEY UPDATE
+			SHARE_PERCENTAGE = VALUES(SHARE_PERCENTAGE),
+			ACTIVE = 1,
+			EDITED_BY = VALUES(ENCODED_BY),
+			EDITED_DT = VALUES(ENCODED_DT)`,
+		[settlementDate, sharePercentage, userId]
+	);
+}
+
+
+
 function daySpanInclusive(startStr, endStr) {
 
 	const a = new Date(`${startStr}T12:00:00`);
@@ -91,6 +151,153 @@ function daySpanInclusive(startStr, endStr) {
 	if (a > b) return 0;
 
 	return Math.floor((b - a) / 86400000) + 1;
+
+}
+
+
+
+function monthKeyFromYmd(ymd) {
+
+	return String(ymd || '').slice(0, 7);
+
+}
+
+
+
+function formatMonthLabel(monthKey) {
+
+	const parts = String(monthKey || '').split('-');
+
+	const y = Number(parts[0]);
+
+	const m = Number(parts[1]);
+
+	if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return monthKey;
+
+	const dt = new Date(y, m - 1, 1);
+
+	return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+}
+
+
+
+/** Roll up per-day net profit rows into one row per calendar month (ascending). */
+function aggregateRowsByMonth(rowsAsc) {
+
+	const byMonth = new Map();
+
+	for (const r of rowsAsc || []) {
+
+		const mk = monthKeyFromYmd(r.settlement_date);
+
+		if (!/^\d{4}-\d{2}$/.test(mk)) continue;
+
+		if (!byMonth.has(mk)) {
+
+			byMonth.set(mk, {
+
+				game_count: 0,
+
+				win_loss: 0,
+
+				casino_share: 0,
+
+				commission: 0,
+
+				house_expenses_settled: 0,
+
+				grand_net_profit: 0,
+
+				share_percentages: [],
+
+			});
+
+		}
+
+		const agg = byMonth.get(mk);
+
+		agg.game_count += r.game_count;
+
+		agg.win_loss += r.win_loss;
+
+		agg.casino_share += r.casino_share;
+
+		agg.commission += r.commission;
+
+		agg.house_expenses_settled += r.house_expenses_settled;
+
+		agg.grand_net_profit += r.grand_net_profit;
+
+		if (Number.isFinite(Number(r.share_percentage))) {
+
+			agg.share_percentages.push(Number(r.share_percentage));
+
+		}
+
+	}
+
+
+
+	return [...byMonth.entries()]
+
+		.sort((a, b) => a[0].localeCompare(b[0]))
+
+		.map(([mk, agg]) => {
+
+			const win_loss = ceilAmount(agg.win_loss);
+
+			const casino_share = ceilAmount(agg.casino_share);
+
+			const house_expenses_settled = ceilAmount(agg.house_expenses_settled);
+
+			const grand_net_profit = ceilAmount(agg.grand_net_profit);
+
+			const pcts = agg.share_percentages;
+
+			const firstPct = pcts[0];
+
+			let share_percentage;
+
+			if (pcts.length > 0 && pcts.every((pct) => pct === firstPct)) {
+
+				share_percentage = firstPct;
+
+			} else if (win_loss !== 0) {
+
+				share_percentage = Math.round((casino_share / win_loss) * 100 * 10000) / 10000;
+
+			} else {
+
+				share_percentage = DEFAULT_NET_PROFIT_SHARE_PCT;
+
+			}
+
+			return {
+
+				settlement_date: `${mk}-01`,
+
+				settlement_label: formatMonthLabel(mk),
+
+				month_key: mk,
+
+				game_count: agg.game_count,
+
+				win_loss,
+
+				share_percentage,
+
+				casino_share,
+
+				commission: ceilAmount(agg.commission),
+
+				house_expenses_settled,
+
+				grand_net_profit,
+
+			};
+
+		});
 
 }
 
@@ -252,11 +459,11 @@ function computeGameMetrics(records, gl) {
 
 		if (commissionType === 1 || commissionType === 3) {
 
-			commission = Math.round((total_rolling_chips * commissionPct) / 100);
+			commission = Math.ceil((total_rolling_chips * commissionPct) / 100);
 
 		} else if (commissionType === 2) {
 
-			commission = Math.round((winLoss * commissionPct) / 100);
+			commission = Math.ceil((winLoss * commissionPct) / 100);
 
 		}
 
@@ -587,7 +794,7 @@ async function loadUnsettledGamesForLive() {
 
 
 
-router.get('/net_profit', checkSession, async (req, res) => {
+router.get('/net_profit', superAdminOnly, async (req, res) => {
 
 	try {
 
@@ -621,7 +828,7 @@ router.get('/net_profit', checkSession, async (req, res) => {
 
 
 
-router.get('/net_profit_data', checkSession, async (req, res) => {
+router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 	try {
 
@@ -632,6 +839,10 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 		let start = String(req.query.start || '').trim();
 
 		let end = String(req.query.end || '').trim();
+
+		const viewRaw = String(req.query.view || 'monthly').trim().toLowerCase();
+
+		const view = viewRaw === 'daily' ? 'daily' : 'monthly';
 
 		if (!isValidYmd(start) || !isValidYmd(end)) {
 
@@ -819,17 +1030,17 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 				game_count: games.length,
 
-				win_loss: Math.round(win_loss * 100) / 100,
+				win_loss: ceilAmount(win_loss),
 
 				share_percentage: sharePercentage,
 
-				casino_share: Math.round(casino_share * 100) / 100,
+				casino_share: ceilAmount(casino_share),
 
-				commission,
+				commission: ceilAmount(commission),
 
-				house_expenses_settled: Math.round(houseExp * 100) / 100,
+				house_expenses_settled: ceilAmount(houseExp),
 
-				grand_net_profit: Math.round(grand * 100) / 100,
+				grand_net_profit: ceilAmount(grand),
 
 			};
 
@@ -837,7 +1048,9 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 
 
-		const rows = rowsAsc.slice().reverse();
+		const displayRowsAsc = view === 'monthly' ? aggregateRowsByMonth(rowsAsc) : rowsAsc;
+
+		const rows = displayRowsAsc.slice().reverse();
 
 
 
@@ -879,13 +1092,15 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 		);
 
-		range_totals.win_loss = Math.round(range_totals.win_loss * 100) / 100;
+		range_totals.win_loss = ceilAmount(range_totals.win_loss);
 
-		range_totals.casino_share = Math.round(range_totals.casino_share * 100) / 100;
+		range_totals.casino_share = ceilAmount(range_totals.casino_share);
 
-		range_totals.house_expenses_settled = Math.round(range_totals.house_expenses_settled * 100) / 100;
+		range_totals.house_expenses_settled = ceilAmount(range_totals.house_expenses_settled);
 
-		range_totals.grand_net_profit = Math.round(range_totals.grand_net_profit * 100) / 100;
+		range_totals.grand_net_profit = ceilAmount(range_totals.grand_net_profit);
+
+		range_totals.commission = ceilAmount(range_totals.commission);
 		const sharePercentages = rowsAsc.map((r) => Number(r.share_percentage)).filter(Number.isFinite);
 		const firstSharePercentage = sharePercentages[0];
 		range_totals.share_percentage =
@@ -900,6 +1115,8 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 			success: true,
 
 			mode: 'range',
+
+			view,
 
 			start,
 
@@ -927,7 +1144,7 @@ router.get('/net_profit_data', checkSession, async (req, res) => {
 
 
 
-router.post('/net_profit/share_percentage', checkSession, async (req, res) => {
+router.post('/net_profit/share_percentage', superAdminOnly, async (req, res) => {
 	try {
 		const settlementDate = String(req.body?.settlement_date || '').trim();
 		const sharePercentage = normalizeSharePercentage(req.body?.share_percentage);
@@ -940,22 +1157,44 @@ router.post('/net_profit/share_percentage', checkSession, async (req, res) => {
 		}
 
 		const userId = req.session.user_id || null;
-		await pool.execute(
-			`INSERT INTO \`${NET_PROFIT_SHARE_TABLE}\`
-				(SETTLEMENT_DATE, SHARE_PERCENTAGE, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, 1, ?, NOW())
-			 ON DUPLICATE KEY UPDATE
-				SHARE_PERCENTAGE = VALUES(SHARE_PERCENTAGE),
-				ACTIVE = 1,
-				EDITED_BY = VALUES(ENCODED_BY),
-				EDITED_DT = VALUES(ENCODED_DT)`,
-			[settlementDate, sharePercentage, userId]
-		);
+		await upsertSharePercentage(settlementDate, sharePercentage, userId);
 
 		res.json({ success: true, settlement_date: settlementDate, share_percentage: sharePercentage });
 	} catch (err) {
 		console.error('net_profit/share_percentage:', err);
 		res.status(500).json({ success: false, error: 'Error saving share percentage' });
+	}
+});
+
+
+
+router.post('/net_profit/share_percentage/month', superAdminOnly, async (req, res) => {
+	try {
+		const monthKey = String(req.body?.month || req.body?.month_key || '').trim();
+		const sharePercentage = normalizeSharePercentage(req.body?.share_percentage);
+
+		if (!isValidMonthKey(monthKey)) {
+			return res.status(400).json({ success: false, error: 'Invalid month' });
+		}
+		if (sharePercentage == null) {
+			return res.status(400).json({ success: false, error: 'Share percentage must be between 0 and 100' });
+		}
+
+		const userId = req.session.user_id || null;
+		const dates = calendarDatesInMonth(monthKey);
+		for (const settlementDate of dates) {
+			await upsertSharePercentage(settlementDate, sharePercentage, userId);
+		}
+
+		res.json({
+			success: true,
+			month: monthKey,
+			days_updated: dates.length,
+			share_percentage: sharePercentage,
+		});
+	} catch (err) {
+		console.error('net_profit/share_percentage/month:', err);
+		res.status(500).json({ success: false, error: 'Error saving share percentage for month' });
 	}
 });
 
@@ -982,7 +1221,7 @@ function sanitizeNetProfitSheetName(raw) {
 	return s;
 }
 
-router.post('/net_profit/export_xlsx', checkSession, async function (req, res) {
+router.post('/net_profit/export_xlsx', superAdminOnly, async function (req, res) {
 	try {
 		const { headers, rows, filename, sheetName } = req.body || {};
 		if (!Array.isArray(headers) || headers.length === 0) {
@@ -1098,7 +1337,7 @@ router.post('/net_profit/export_xlsx', checkSession, async function (req, res) {
 	}
 });
 
-router.get('/business_net_profit', checkSession, (req, res) => {
+router.get('/business_net_profit', superAdminOnly, (req, res) => {
 
 	res.redirect(301, '/net_profit');
 
@@ -1106,7 +1345,7 @@ router.get('/business_net_profit', checkSession, (req, res) => {
 
 
 
-router.get('/business_net_profit_data', checkSession, (req, res) => {
+router.get('/business_net_profit_data', superAdminOnly, (req, res) => {
 
 	const i = req.url.indexOf('?');
 
