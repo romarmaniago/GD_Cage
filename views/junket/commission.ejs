@@ -29,20 +29,20 @@
 							</button>
 						</div>
 					</div>
-					<div class="commission-page-filters px-3 pb-0">
-						<div id="commission-compare-bar" class="commission-compare-bar d-none mt-2 mb-2">
-							<div class="d-flex flex-wrap align-items-center gap-2">
-								<span class="small text-muted commission-compare-label"><%= __('commission.compare_selected') %>:</span>
-								<div id="commission-compare-chips" class="d-flex flex-wrap gap-1"></div>
-								<div class="ms-auto d-flex flex-wrap gap-2">
-									<button type="button" id="btn-commission-compare-clear" class="btn btn-sm btn-outline-secondary"><%= __('commission.compare_clear') %></button>
-									<button type="button" id="btn-commission-compare-confirm" class="btn btn-sm btn-primary" disabled><%= __('commission.compare_confirm') %></button>
-								</div>
-							</div>
-							<p class="small text-muted mb-0 mt-1"><%= __('commission.compare_hint') %></p>
-						</div>
-					</div>
 					<div class="card-body pt-2">
+						<div id="commission-compare-selection-mount" class="commission-compare-selection-mount d-none">
+							<span class="small text-muted commission-compare-label"><%= __('commission.compare_selected') %>:</span>
+							<div id="commission-compare-chips" class="d-flex flex-wrap gap-1"></div>
+						</div>
+						<div id="commission-compare-toolbar-mount" class="commission-compare-toolbar-mount">
+							<div id="commission-compare-toolbar-idle">
+								<button type="button" id="btn-commission-compare-start" class="btn btn-sm btn-primary"><%= __('commission.compare_confirm') %></button>
+							</div>
+							<div id="commission-compare-toolbar-active" class="d-none commission-compare-toolbar-active">
+								<button type="button" id="btn-commission-compare-clear" class="btn btn-sm btn-outline-secondary"><%= __('commission.compare_clear') %></button>
+								<button type="button" id="btn-commission-compare-confirm" class="btn btn-sm btn-primary" disabled><%= __('commission.compare_confirm') %></button>
+							</div>
+						</div>
 						<div id="commission-daterange-mount" class="commission-daterange-mount">
 							<div class="commission-daterange-wrap">
 								<input type="text" id="daterange" class="form-control form-control-sm" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
@@ -52,8 +52,10 @@
 								<table id="commission-tbl" class="table  nowrap small-text" style="width:100%">
 									<thead>
 										<tr>
-										<th class="commission-compare-col text-center" style="width: 42px;" title="<%= __('commission.compare_hint') %>">
-											<i class="fa fa-check-square-o" aria-hidden="true"></i>
+										<th class="commission-compare-col text-center" style="width: 42px;">
+											<span class="commission-compare-col-icon" title="<%= __('commission.compare_hint') %>">
+												<i class="fa fa-check-square-o" aria-hidden="true"></i>
+											</span>
 										</th>
 										<th class="d-none d-sm-table-cell" style="width: 75px;"><%= __('commission.game_no') %></th>
 										<th class="d-none d-sm-table-cell"><%= __('commission.account_name') %></th>
@@ -180,11 +182,13 @@
 				no_data_found: "<%= __('commission.no_data_found') %>",
 				export_label: "<%= __('commission.export') || 'Export' %>",
 				compare_hint: "<%= __('commission.compare_hint') %>",
+				compare_hint_start: "<%= __('commission.compare_hint_start') %>",
 				compare_confirm: "<%= __('commission.compare_confirm') %>",
 				compare_clear: "<%= __('commission.compare_clear') %>",
 				compare_max: "<%= __('commission.compare_max_accounts') %>",
 				compare_select_one: "<%= __('commission.compare_select_one') %>",
 				compare_selected: "<%= __('commission.compare_selected') %>",
+				compare_select_all: "<%= __('commission.compare_select_all') %>",
 				compare_modal_title: "<%= __('commission.compare_modal_title') %>",
 				rolling_rate: "<%= __('commission.rolling_rate') %>",
 				compare_preview: "<%= __('commission.compare_preview') %>",
@@ -227,11 +231,6 @@
     border: none;
 }
 
-.commission-page-filters {
-	position: relative;
-	z-index: 1;
-}
-
 .commission-daterange-mount {
 	display: none;
 	align-items: center;
@@ -244,10 +243,41 @@
 	display: inline-flex;
 }
 
-.commission-daterange-wrap {
-	width: auto;
-	min-width: 220px;
-	max-width: 300px;
+.commission-compare-toolbar-mount {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	margin-right: 12px;
+	vertical-align: middle;
+}
+
+.commission-compare-toolbar-mount.is-placed {
+	display: inline-flex;
+}
+
+.commission-compare-toolbar-active {
+	gap: 8px;
+}
+
+.commission-compare-selection-mount {
+	display: none;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-left: 12px;
+	vertical-align: middle;
+	min-width: 120px;
+	flex: 1 1 auto;
+	max-width: min(480px, 50vw);
+}
+
+.commission-compare-selection-mount.is-placed {
+	display: inline-flex;
+}
+
+.commission-compare-selection-mount .badge {
+	font-weight: 500;
+	font-size: 12px;
 }
 
 #commission-tbl_wrapper .dataTables_length {
@@ -255,6 +285,25 @@
 	align-items: center;
 	flex-wrap: wrap;
 	gap: 4px;
+	flex: 1 1 auto;
+}
+
+#commission-tbl_wrapper .dataTables_filter {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+#commission-tbl_wrapper .dataTables_filter label {
+	margin-bottom: 0;
+}
+
+.commission-daterange-wrap {
+	width: auto;
+	min-width: 220px;
+	max-width: 300px;
 }
 
 #commission-tbl thead th.commission-date-sort-col {
@@ -275,21 +324,6 @@
 	width: 100% !important;
 	max-width: 100%;
 	margin: 0;
-}
-
-.commission-compare-bar {
-	background: #f0f4ff;
-	border: 1px solid #dbe2f3;
-	border-radius: 8px;
-	padding: 10px 12px;
-	clear: both;
-	position: relative;
-	z-index: 2;
-}
-
-.commission-compare-bar .badge {
-	font-weight: 500;
-	font-size: 12px;
 }
 
 #commission-tbl thead th:nth-child(1) {
@@ -342,6 +376,12 @@
     color: #666;
 }
 
+#commission-tbl:not(.commission-compare-select-mode) .commission-compare-col,
+#commission-tbl:not(.commission-compare-select-mode) tbody td.commission-compare-cell,
+#commission-tbl:not(.commission-compare-select-mode) tfoot th:first-child {
+	display: none;
+}
+
 #commission-tbl tbody td.commission-compare-cell {
 	text-align: center;
 	vertical-align: middle;
@@ -351,7 +391,8 @@
 	color: var(--bs-primary);
 }
 
-#commission-tbl .commission-compare-cb.form-check-input {
+#commission-tbl .commission-compare-cb.form-check-input,
+#commission-tbl .commission-compare-select-all.form-check-input {
 	width: 1.15rem;
 	height: 1.15rem;
 	margin: 0;
@@ -360,12 +401,14 @@
 	background-color: #fff;
 }
 
-#commission-tbl .commission-compare-cb.form-check-input:checked {
+#commission-tbl .commission-compare-cb.form-check-input:checked,
+#commission-tbl .commission-compare-select-all.form-check-input:checked {
 	background-color: var(--bs-primary, #0d6efd);
 	border-color: var(--bs-primary, #0d6efd);
 }
 
-#commission-tbl .commission-compare-cb.form-check-input:focus {
+#commission-tbl .commission-compare-cb.form-check-input:focus,
+#commission-tbl .commission-compare-select-all.form-check-input:focus {
 	border-color: var(--bs-primary, #0d6efd);
 	box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb, 13, 110, 253), 0.25);
 }

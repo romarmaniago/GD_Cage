@@ -3,6 +3,7 @@ $(document).ready(function() {
     var compareSelection = new Map();
     var commissionGameMeta = new Map();
     var compareModalRows = [];
+    var compareSelectMode = false;
 
     function compareT() {
         return window.commissionTranslations || {};
@@ -17,28 +18,68 @@ $(document).ready(function() {
             .replace(/'/g, '&#39;');
     }
 
-    function updateCompareBar() {
-        var $bar = $('#commission-compare-bar');
+    function updateCompareUi() {
+        var $selectionMount = $('#commission-compare-selection-mount');
+        var $toolbarIdle = $('#commission-compare-toolbar-idle');
+        var $toolbarActive = $('#commission-compare-toolbar-active');
         var $chips = $('#commission-compare-chips');
         var $btn = $('#btn-commission-compare-confirm');
-        if (!$bar.length) return;
+        if (!$toolbarIdle.length) return;
 
-        if (!compareSelection.size) {
-            $bar.addClass('d-none');
+        if (!compareSelectMode) {
+            $selectionMount.addClass('d-none');
+            $toolbarIdle.removeClass('d-none');
+            $toolbarActive.addClass('d-none');
             $chips.empty();
             $btn.prop('disabled', true);
             return;
         }
 
-        $bar.removeClass('d-none');
-        $chips.html(
-            Array.from(compareSelection.values())
-                .map(function (row) {
-                    return '<span class="badge bg-primary">' + escapeHtml(row.chipLabel || ('Game #' + row.gameNo)) + '</span>';
-                })
-                .join('')
-        );
-        $btn.prop('disabled', false);
+        $toolbarIdle.addClass('d-none');
+        $toolbarActive.removeClass('d-none');
+
+        if (compareSelection.size) {
+            $selectionMount.removeClass('d-none');
+            $chips.html(
+                Array.from(compareSelection.values())
+                    .map(function (row) {
+                        return '<span class="badge bg-primary">' +
+                            escapeHtml(row.chipLabel || ('Game #' + row.gameNo)) + '</span>';
+                    })
+                    .join('')
+            );
+        } else {
+            $selectionMount.addClass('d-none');
+            $chips.empty();
+        }
+
+        $btn.prop('disabled', !compareSelection.size);
+    }
+
+    function enterCompareSelectMode() {
+        if (compareSelectMode) return;
+        compareSelectMode = true;
+        $('#commission-tbl').addClass('commission-compare-select-mode');
+        if (dataTable) {
+            dataTable.rows().invalidate();
+            dataTable.draw(false);
+            refreshCompareSelectAllHeader();
+            refreshCompareCheckboxCells();
+        }
+        updateCompareUi();
+    }
+
+    function exitCompareSelectMode() {
+        compareSelectMode = false;
+        compareSelection.clear();
+        $('#commission-tbl').removeClass('commission-compare-select-mode');
+        if (dataTable) {
+            dataTable.rows().invalidate();
+            dataTable.draw(false);
+            refreshCompareSelectAllHeader();
+            refreshCompareCheckboxCells();
+        }
+        updateCompareUi();
     }
 
     function parseNumCell(value) {
@@ -276,10 +317,107 @@ $(document).ready(function() {
         });
     }
 
+    function forEachFilteredCompareRow(callback) {
+        if (!dataTable || typeof callback !== 'function') return;
+        dataTable.rows({ search: 'applied' }).every(function () {
+            var data = this.data();
+            if (data) callback(data);
+        });
+    }
+
+    function addRowToCompareSelection(rowData) {
+        var snapshot = rowSnapshotFromData(rowData);
+        if (!snapshot) return;
+        var meta = commissionGameMeta.get(snapshot.gameNo);
+        snapshot.commissionType = meta ? meta.commissionType : 1;
+        compareSelection.set(snapshot.gameNo, snapshot);
+    }
+
+    function refreshCompareSelectAllHeader() {
+        var $th = $('#commission-tbl thead th.commission-compare-col');
+        if (!$th.length) return;
+        if (!compareSelectMode) {
+            if (!$th.find('.commission-compare-col-icon').length) {
+                $th.html(
+                    '<span class="commission-compare-col-icon" title="' +
+                    escapeHtml(compareT().compare_hint || '') +
+                    '"><i class="fa fa-check-square-o" aria-hidden="true"></i></span>'
+                );
+            }
+            return;
+        }
+        if (!$th.find('#commission-compare-select-all').length) {
+            $th.html(
+                '<input type="checkbox" id="commission-compare-select-all" ' +
+                'class="commission-compare-select-all form-check-input m-0" ' +
+                'title="' + escapeHtml(compareT().compare_select_all || 'Select all filtered rows') + '">'
+            );
+        }
+        updateCompareSelectAllState();
+    }
+
+    function updateCompareSelectAllState() {
+        var $all = $('#commission-compare-select-all');
+        if (!$all.length || !compareSelectMode) return;
+        var total = 0;
+        var selected = 0;
+        forEachFilteredCompareRow(function (data) {
+            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            if (!gameId) return;
+            total++;
+            if (compareSelection.has(gameId)) selected++;
+        });
+        if (!total) {
+            $all.prop({ checked: false, indeterminate: false, disabled: true });
+            return;
+        }
+        $all.prop('disabled', false);
+        $all.prop('checked', selected === total);
+        $all.prop('indeterminate', selected > 0 && selected < total);
+    }
+
+    function toggleSelectAllFiltered(checked) {
+        forEachFilteredCompareRow(function (data) {
+            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            if (!gameId) return;
+            if (checked) {
+                addRowToCompareSelection(data);
+            } else {
+                compareSelection.delete(gameId);
+            }
+        });
+        refreshCompareCheckboxCells();
+        updateCompareSelectAllState();
+        updateCompareUi();
+    }
+
+    function refreshCompareCheckboxCells() {
+        if (!dataTable) return;
+        dataTable.rows({ page: 'current' }).every(function () {
+            var data = this.data();
+            var node = this.node();
+            if (!data || !node) return;
+            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            var $cell = $('td:eq(0)', node);
+            if (!compareSelectMode) {
+                $cell.empty();
+                return;
+            }
+            var $existing = $cell.find('.commission-compare-cb');
+            if ($existing.length) {
+                $existing.prop('checked', gameId && compareSelection.has(gameId));
+                return;
+            }
+            var $cb = $('<input type="checkbox" class="commission-compare-cb form-check-input m-0">')
+                .attr('data-game-id', gameId)
+                .prop('checked', gameId && compareSelection.has(gameId));
+            $cell.html($cb);
+        });
+        updateCompareSelectAllState();
+    }
+
     function clearCompareSelection() {
-        compareSelection.clear();
-        syncCompareCheckboxes();
-        updateCompareBar();
+        exitCompareSelectMode();
     }
 
     function notifyCompare(message, icon) {
@@ -353,6 +491,27 @@ $(document).ready(function() {
         if (!$mount.length || !$length.length) return;
         if ($mount.data('placed')) return;
         $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+    }
+
+    function placeCommissionCompareToolbar() {
+        var $mount = $('#commission-compare-toolbar-mount');
+        var $filter = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_filter').first();
+        if (!$mount.length || !$filter.length) return;
+        if ($mount.data('placed')) return;
+        $mount.detach().prependTo($filter).addClass('is-placed').data('placed', true);
+    }
+
+    function placeCommissionCompareSelection() {
+        var $mount = $('#commission-compare-selection-mount');
+        var $date = $('#commission-daterange-mount');
+        var $length = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
+        if (!$mount.length) return;
+        if ($mount.data('placed')) return;
+        if ($date.length && $date.hasClass('is-placed')) {
+            $mount.detach().insertAfter($date).addClass('is-placed').data('placed', true);
+        } else if ($length.length) {
+            $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        }
     }
 
     function getCommissionDateRangeValue() {
@@ -443,16 +602,14 @@ $(document).ready(function() {
       }
     ],
     "createdRow": function (row, data) {
-        var gameId = String(data[1] == null ? '' : data[1]).trim();
-        var $cb = $('<input type="checkbox" class="commission-compare-cb form-check-input m-0">')
-            .attr('data-game-id', gameId)
-            .prop('checked', gameId && compareSelection.has(gameId));
-        $('td:eq(0)', row).html($cb);
         applyWinLossColor($('td:eq(5)', row), data[5]);
     },
     "drawCallback": function () {
         placeCommissionDateFilter();
-        syncCompareCheckboxes();
+        placeCommissionCompareSelection();
+        placeCommissionCompareToolbar();
+        refreshCompareSelectAllHeader();
+        refreshCompareCheckboxCells();
         calculateCommissionTotals();
     },
     "language": {
@@ -467,6 +624,8 @@ $(document).ready(function() {
 });
 
     placeCommissionDateFilter();
+    placeCommissionCompareSelection();
+    placeCommissionCompareToolbar();
 
     function reloadData() {
 
@@ -976,7 +1135,23 @@ $(document).ready(function() {
             compareSelection.delete(gameId);
         }
 
-        updateCompareBar();
+        updateCompareSelectAllState();
+        updateCompareUi();
+    });
+
+    $(document).on('change', '#commission-compare-select-all', function () {
+        toggleSelectAllFiltered($(this).is(':checked'));
+    });
+
+    $('#commission-tbl').on('search.dt draw.dt', function () {
+        if (!compareSelectMode) return;
+        refreshCompareCheckboxCells();
+        updateCompareSelectAllState();
+    });
+
+    $('#btn-commission-compare-start').on('click', function (e) {
+        e.preventDefault();
+        enterCompareSelectMode();
     });
 
     $('#btn-commission-compare-clear').on('click', function (e) {
@@ -988,4 +1163,6 @@ $(document).ready(function() {
         e.preventDefault();
         openCompareModal();
     });
+
+    updateCompareUi();
 });
