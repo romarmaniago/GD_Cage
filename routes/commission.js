@@ -59,10 +59,11 @@ router.get('/commission_data', async (req, res) => {
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
         JOIN agency ON agency.IDNo = agent.AGENCY
-        WHERE game_list.ACTIVE != 0 
-          AND DATE(game_list.ENCODED_DT) >= ? 
-          AND DATE(game_list.ENCODED_DT) <= ?
-        ORDER BY game_list.IDNo ASC`;
+        WHERE game_list.ACTIVE != 0
+          AND game_list.SETTLED = 1
+          AND DATE(COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT)) >= ?
+          AND DATE(COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT)) <= ?
+        ORDER BY COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT) DESC, game_list.IDNo DESC`;
 
     try {
         const [rows] = await pool.execute(query, [start, end]);

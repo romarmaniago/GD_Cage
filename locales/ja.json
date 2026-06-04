@@ -438,7 +438,18 @@
 		"previous": "前へ",
 		"next": "次へ",
 		"please_select_date_range": "日付範囲を選択してください。",
-		"no_data_found": "データが見つかりません"
+		"no_data_found": "データが見つかりません",
+		"compare_hint": "表を検索し、行を選択してから Preview を押してください。",
+		"compare_confirm": "Preview",
+		"compare_clear": "クリア",
+		"compare_max_accounts": "",
+		"compare_select_one": "比較する行を1件以上選択してください。",
+		"compare_selected": "選択中",
+		"compare_modal_title": "Commission",
+		"compare_preview": "プレビュー",
+		"search_account": "アカウント",
+		"search_name": "名前",
+		"search_game_no": "ゲーム #"
 	},
 	"junket_loss": {
 		"junket": "ジャンケット",

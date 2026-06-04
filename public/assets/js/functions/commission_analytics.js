@@ -110,6 +110,35 @@ $(document).ready(function () {
         return 0;
     }
 
+    function placeCommissionPanelDateFilter() {
+        var $mount = $('#commission-panel-daterange-mount');
+        var $length = $('#commission-panel-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
+        if (!$mount.length || !$length.length) return;
+        if ($mount.data('placed')) return;
+        $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+    }
+
+    function getCommissionPanelDateRangeValue() {
+        var el = document.getElementById('commission-panel-daterange');
+        if (el && el._flatpickr) {
+            var fp = el._flatpickr;
+            if (fp.selectedDates && fp.selectedDates.length === 2) {
+                return moment(fp.selectedDates[0]).format('YYYY-MM-DD') + ' to ' +
+                    moment(fp.selectedDates[1]).format('YYYY-MM-DD');
+            }
+            return (fp.input.value || '').trim();
+        }
+        return ($('#commission-panel-daterange').val() || '').trim();
+    }
+
+    function getCommissionPanelDateRangeLabel() {
+        var el = document.getElementById('commission-panel-daterange');
+        if (el && el._flatpickr && el._flatpickr.altInput && el._flatpickr.altInput.value) {
+            return el._flatpickr.altInput.value.trim();
+        }
+        return getCommissionPanelDateRangeValue();
+    }
+
     var rankTable = $('#commission-panel-tbl').DataTable({
         ordering: false,
         pageLength: 25,
@@ -117,6 +146,9 @@ $(document).ready(function () {
             { targets: 0, className: 'text-center' },
             { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' }
         ],
+        drawCallback: function () {
+            placeCommissionPanelDateFilter();
+        },
         language: {
             search: 'Search:',
             info: 'Showing _START_ to _END_ of _TOTAL_ entries',
@@ -125,13 +157,24 @@ $(document).ready(function () {
         }
     });
 
+    placeCommissionPanelDateFilter();
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var compareFilterFromUrl = (urlParams.get('compare') || '')
+        .split(',')
+        .map(function (s) { return s.trim().toUpperCase(); })
+        .filter(Boolean);
+    var compareStartFromUrl = urlParams.get('start') || '';
+    var compareEndFromUrl = urlParams.get('end') || '';
+
     var drilldownState = {
         agents: {},
         rankingSortKey: 'commission',
         rankingSortDir: 'desc',
         panelTxnSortKey: 'dateTime',
         panelTxnSortDir: 'desc',
-        panelModalAgentKey: null
+        panelModalAgentKey: null,
+        compareFilter: compareFilterFromUrl.length ? compareFilterFromUrl : null
     };
 
     var RANKING_METRIC_KEYS = ['totalBuyIn', 'totalChipsReturn', 'winLoss', 'totalRolling', 'commission', 'ngr'];
@@ -352,7 +395,7 @@ $(document).ready(function () {
             return;
         }
 
-        var dateRange = $('#commission-panel-daterange').val() || '';
+        var dateRange = getCommissionPanelDateRangeLabel();
         var headerHtml = payload.headers.map(function (h) {
             return '<th>' + escapeHtml(h) + '</th>';
         }).join('');
@@ -530,13 +573,43 @@ $(document).ready(function () {
         $('#commission-panel-tbl tbody td.commission-rank-col-' + key).addClass('is-active');
     }
 
+    function agentMatchesCompareFilter(item) {
+        if (!drilldownState.compareFilter || !drilldownState.compareFilter.length) {
+            return true;
+        }
+        var code = String(item.agentCode || '').trim().toUpperCase();
+        if (!code && item.name) {
+            var idx = String(item.name).indexOf(' - ');
+            code = (idx >= 0 ? String(item.name).slice(0, idx) : String(item.name)).trim().toUpperCase();
+        }
+        return drilldownState.compareFilter.indexOf(code) >= 0;
+    }
+
     function buildSortedAgentRowsFromState() {
         var rows = Object.keys(drilldownState.agents || {}).map(function (k) {
             var item = drilldownState.agents[k];
             item.ngr = (Number(item.winLoss) || 0) - (Number(item.commission) || 0);
             return item;
-        });
+        }).filter(agentMatchesCompareFilter);
         return sortAgentRowsForRanking(rows);
+    }
+
+    function updateCompareModeBanner() {
+        var $banner = $('#commission-analytics-compare-banner');
+        if (!$banner.length) return;
+        if (!drilldownState.compareFilter || !drilldownState.compareFilter.length) {
+            $banner.addClass('d-none').empty();
+            return;
+        }
+        $banner
+            .removeClass('d-none')
+            .html(
+                '<span class="me-2"><i class="fa fa-check-square-o" aria-hidden="true"></i> Comparing:</span>' +
+                drilldownState.compareFilter.map(function (code) {
+                    return '<span class="badge bg-primary me-1">' + escapeHtml(code) + '</span>';
+                }).join('') +
+                ' <a href="/commission" class="ms-2 small">Change selection</a>'
+            );
     }
 
     function getPanelTxnSortValue(row, key) {
@@ -701,7 +774,7 @@ $(document).ready(function () {
     });
 
     function loadRankingData() {
-        var dateRange = $('#commission-panel-daterange').val();
+        var dateRange = getCommissionPanelDateRangeValue();
         if (!dateRange) return;
 
         var start;
@@ -741,6 +814,7 @@ $(document).ready(function () {
                     var agentName = game.agent_name || '-';
                     return {
                         key: String(game.agent_id || game.ACCOUNT_ID || agentCode + '-' + agentName),
+                        agentCode: agentCode,
                         name: agentCode + ' - ' + agentName,
                         txn: {
                             gameNo: game.game_list_id,
@@ -764,6 +838,7 @@ $(document).ready(function () {
                     if (!agentMap[r.key]) {
                         agentMap[r.key] = {
                             key: r.key,
+                            agentCode: r.agentCode,
                             name: r.name,
                             totalBuyIn: 0,
                             totalChipsReturn: 0,
@@ -784,10 +859,12 @@ $(document).ready(function () {
                 });
 
                 drilldownState.agents = agentMap;
+                updateCompareModeBanner();
                 renderRankTable(buildSortedAgentRowsFromState());
             });
         }).fail(function () {
             drilldownState.agents = {};
+            updateCompareModeBanner();
             renderRankTable([]);
         });
     }
@@ -888,15 +965,15 @@ $(document).ready(function () {
         loadRankingData();
     }
 
+    var panelDefaultStart = compareStartFromUrl || moment().startOf('month').format('YYYY-MM-DD');
+    var panelDefaultEnd = compareEndFromUrl || moment().endOf('month').format('YYYY-MM-DD');
+
     flatpickr('#commission-panel-daterange', {
         mode: 'range',
         altInput: true,
         altFormat: 'M d, Y',
         dateFormat: 'Y-m-d',
-        defaultDate: [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().endOf('month').format('YYYY-MM-DD')
-        ],
+        defaultDate: [panelDefaultStart, panelDefaultEnd],
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             commissionPanelSkipMonthRange = true;
@@ -926,6 +1003,7 @@ $(document).ready(function () {
         }
     });
 
+    updateCompareModeBanner();
     loadRankingData();
 });
 

@@ -440,7 +440,18 @@
 		"previous": "上一页",
 		"next": "下一页",
 		"please_select_date_range": "请选择日期范围。",
-		"no_data_found": "未找到数据"
+		"no_data_found": "未找到数据",
+		"compare_hint": "搜索表格后勾选行，再点击 Preview 在弹窗中查看。",
+		"compare_confirm": "Preview",
+		"compare_clear": "清除",
+		"compare_max_accounts": "",
+		"compare_select_one": "请至少选择一行进行比较。",
+		"compare_selected": "已选",
+		"compare_modal_title": "Commission",
+		"compare_preview": "点击预览",
+		"search_account": "账户",
+		"search_name": "姓名",
+		"search_game_no": "局号"
 	},
 	"junket_loss": {
 		"junket": "接待",
