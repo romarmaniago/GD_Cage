@@ -164,6 +164,7 @@
         var pageActionSelectors = [
             '#btn-daily-settle',
             '#btn-merge-settle-game-list',
+            '#btn-commission-compare-merge-settle',
             '#send-merge-settlement-telegram-btn',
             '#btn-breadcrumb-open-pool',
             '#game-list-select-all',

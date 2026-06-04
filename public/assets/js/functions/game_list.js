@@ -1701,10 +1701,28 @@ $(document).ready(function () {
 		}
 	);
 
+	function getMergeSettleIdsFromModalFields() {
+		var raw = String($('#mergeGameIds').val() || '').trim();
+		if (!raw) return [];
+		return raw.split(',').map(function (s) {
+			return parseInt(String(s).trim(), 10);
+		}).filter(function (n) { return !isNaN(n); });
+	}
+
+	function getMergeAccountIdsFromModalFields() {
+		var raw = String($('#txtAccountIDMergeSettle').val() || '').trim();
+		if (!raw) return [];
+		return raw.split(',').map(function (s) {
+			return parseInt(String(s).trim(), 10);
+		}).filter(function (n) { return !isNaN(n); });
+	}
+
 	$(document).on('click', '#send-merge-settlement-telegram-btn', function (e) {
 		e.preventDefault();
 		var selectedIds = getSelectedMergeSettleIds();
 		var accountIds = getSelectedMergeAccountIds();
+		if (!selectedIds.length) selectedIds = getMergeSettleIdsFromModalFields();
+		if (!accountIds.length) accountIds = getMergeAccountIdsFromModalFields();
 		if (selectedIds.length === 0 || accountIds.length === 0) {
 			Swal.fire({ icon: 'warning', title: 'No selected games', text: 'Please select settled games first.' });
 			return;

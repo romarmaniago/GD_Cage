@@ -36,11 +36,11 @@
 						</div>
 						<div id="commission-compare-toolbar-mount" class="commission-compare-toolbar-mount">
 							<div id="commission-compare-toolbar-idle">
-								<button type="button" id="btn-commission-compare-start" class="btn btn-sm btn-primary"><%= __('commission.compare_confirm') %></button>
+								<button type="button" id="btn-commission-compare-start" class="btn btn-sm btn-primary"><%= __('commission.compare_merge') %></button>
 							</div>
 							<div id="commission-compare-toolbar-active" class="d-none commission-compare-toolbar-active">
 								<button type="button" id="btn-commission-compare-clear" class="btn btn-sm btn-outline-secondary"><%= __('commission.compare_clear') %></button>
-								<button type="button" id="btn-commission-compare-confirm" class="btn btn-sm btn-primary" disabled><%= __('commission.compare_confirm') %></button>
+								<button type="button" id="btn-commission-compare-confirm" class="btn btn-sm btn-primary" disabled><%= __('commission.compare_merge') %></button>
 							</div>
 						</div>
 						<div id="commission-daterange-mount" class="commission-daterange-mount">
@@ -103,22 +103,27 @@
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 					</div>
 					<div class="modal-body">
-						<div class="small mb-2 commission-compare-modal-range" id="commission-compare-modal-range"></div>
+						<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 commission-compare-modal-toolbar">
+							<div class="small commission-compare-modal-range mb-0" id="commission-compare-modal-range"></div>
+							<button type="button" id="btn-commission-compare-merge-settle" class="btn btn-primary btn-sm flex-shrink-0">
+								<i class="fa fa-compress me-1" aria-hidden="true"></i><%= __('commission.compare_settle') %>
+							</button>
+						</div>
 						<div class="commission-compare-modal-wrap">
 							<table id="commission-compare-modal-tbl" class="table nowrap small-text" style="width:100%">
 								<thead>
 									<tr>
-										<th style="width: 75px;"><%= __('commission.game_no') %></th>
-										<th><%= __('commission.account_name') %></th>
-										<th><%= __('commission.total_buyin') %></th>
-										<th><%= __('commission.chips_return') %></th>
-										<th><%= __('commission.win_loss') %></th>
-										<th><%= __('commission.total_rolling') %></th>
-										<th><%= __('commission.rolling_rate') %></th>
-										<th><%= __('commission.settlement') %></th>
-										<th><%= __('commission.fb') %></th>
-										<th><%= __('commission.payment') %></th>
-										<th><%= __('commission.date_time') %></th>
+										<th class="commission-compare-sortable-col" style="width: 75px;" data-sort-key="gameNo"><%= __('commission.game_no') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="account"><%= __('commission.account_name') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="totalBuyIn"><%= __('commission.total_buyin') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="chipsReturn"><%= __('commission.chips_return') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="winLoss"><%= __('commission.win_loss') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="totalRolling"><%= __('commission.total_rolling') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="rollingRate"><%= __('commission.rolling_rate') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="settlement"><%= __('commission.settlement') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="fnb"><%= __('commission.fb') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="payment"><%= __('commission.payment') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="dateTime"><%= __('commission.date_time') %> <span class="commission-compare-sort-indicator">-</span></th>
 									</tr>
 								</thead>
 								<tbody id="commission-compare-modal-body"></tbody>
@@ -166,6 +171,7 @@
 		</div>
 
 		<%- include ('../modals/junket/edit_commission') %>
+		<%- include ('../modals/game_book/merge_settlement') %>
 
 		<%- include ('../partials/footer'); -%>
 
@@ -183,12 +189,14 @@
 				export_label: "<%= __('commission.export') || 'Export' %>",
 				compare_hint: "<%= __('commission.compare_hint') %>",
 				compare_hint_start: "<%= __('commission.compare_hint_start') %>",
-				compare_confirm: "<%= __('commission.compare_confirm') %>",
+				compare_merge: "<%= __('commission.compare_merge') %>",
+				compare_confirm: "<%= __('commission.compare_merge') %>",
 				compare_clear: "<%= __('commission.compare_clear') %>",
 				compare_max: "<%= __('commission.compare_max_accounts') %>",
 				compare_select_one: "<%= __('commission.compare_select_one') %>",
 				compare_selected: "<%= __('commission.compare_selected') %>",
 				compare_select_all: "<%= __('commission.compare_select_all') %>",
+				compare_settle: "<%= __('commission.compare_settle') %>",
 				compare_modal_title: "<%= __('commission.compare_modal_title') %>",
 				rolling_rate: "<%= __('commission.rolling_rate') %>",
 				compare_preview: "<%= __('commission.compare_preview') %>",
@@ -468,10 +476,34 @@
     padding-right: 20px;
 }
 
+.commission-compare-modal-toolbar {
+	width: 100%;
+}
+
 .commission-compare-modal-range,
 #commission-compare-modal-range {
 	color: #000;
 	font-weight: 500;
+}
+
+#commission-compare-modal-tbl thead th.commission-compare-sortable-col {
+	cursor: pointer;
+	user-select: none;
+}
+
+#commission-compare-modal-tbl thead th.commission-compare-sortable-col:hover {
+	background: #dfe6ff !important;
+}
+
+#commission-compare-modal-tbl thead th.commission-compare-sortable-col.is-active {
+	background: #d9eadf !important;
+	color: #1f7a37 !important;
+}
+
+.commission-compare-sort-indicator {
+	font-size: 10px;
+	margin-left: 4px;
+	color: #6c757d;
 }
 
 #commission-compare-modal-tbl tbody tr.commission-compare-first-row {

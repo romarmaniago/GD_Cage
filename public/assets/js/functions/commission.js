@@ -4,6 +4,8 @@ $(document).ready(function() {
     var commissionGameMeta = new Map();
     var compareModalRows = [];
     var compareSelectMode = false;
+    var compareModalSortKey = 'dateTime';
+    var compareModalSortDir = 'desc';
 
     function compareT() {
         return window.commissionTranslations || {};
@@ -142,6 +144,74 @@ $(document).ready(function() {
         };
     }
 
+    function parseCompareModalSortDate(value) {
+        var raw = String(value || '');
+        var m = moment.utc(raw, ['MMMM DD, YYYY HH:mm:ss', 'DD MMM, YYYY HH:mm:ss', moment.ISO_8601], true);
+        if (m.isValid()) return m.valueOf();
+        m = moment(raw, ['MMMM DD, YYYY HH:mm:ss', 'DD MMM, YYYY HH:mm:ss'], true);
+        return m.isValid() ? m.valueOf() : 0;
+    }
+
+    function getCompareModalSortValue(row, key) {
+        if (!row) return '';
+        if (key === 'gameNo') return Number(row.gameNo) || 0;
+        if (key === 'account') return String(row.account || '').toLowerCase();
+        if (key === 'totalBuyIn') return parseNumCell(row.totalBuyIn);
+        if (key === 'chipsReturn') return parseNumCell(row.chipsReturn);
+        if (key === 'winLoss') return row.winLossNum || 0;
+        if (key === 'totalRolling') return row.totalRollingNum || 0;
+        if (key === 'rollingRate') return row.rollingRateNum || 0;
+        if (key === 'settlement') return row.settlementNum || 0;
+        if (key === 'fnb') return row.fnbNum || 0;
+        if (key === 'payment') return row.paymentNum || 0;
+        if (key === 'dateTime') return parseCompareModalSortDate(row.dateTime);
+        return '';
+    }
+
+    function sortCompareModalRowsInPlace() {
+        var sortKey = compareModalSortKey || 'dateTime';
+        var sortDir = compareModalSortDir === 'asc' ? 'asc' : 'desc';
+        compareModalRows.sort(function (a, b) {
+            var av = getCompareModalSortValue(a, sortKey);
+            var bv = getCompareModalSortValue(b, sortKey);
+            if (typeof av === 'string' && typeof bv === 'string') {
+                var cmp = av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+                return sortDir === 'asc' ? cmp : -cmp;
+            }
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    function renderCompareModalSortIndicators() {
+        var key = compareModalSortKey || 'dateTime';
+        var dir = compareModalSortDir === 'asc' ? 'asc' : 'desc';
+        $('#commission-compare-modal-tbl thead th.commission-compare-sortable-col').each(function () {
+            var $th = $(this);
+            var thKey = $th.attr('data-sort-key');
+            var indicator = '-';
+            if (thKey === key) {
+                indicator = dir === 'asc' ? '▲' : '▼';
+                $th.addClass('is-active');
+            } else {
+                $th.removeClass('is-active');
+            }
+            $th.find('.commission-compare-sort-indicator').text(indicator);
+        });
+    }
+
+    function rerenderCompareModalTableBody() {
+        sortCompareModalRowsInPlace();
+        $('#commission-compare-modal-body').html(
+            compareModalRows.map(function (row, idx) {
+                return renderCompareModalRowHtml(row, idx);
+            }).join('')
+        );
+        updateCompareModalTotals();
+        renderCompareModalSortIndicators();
+    }
+
     function renderCompareModalRowHtml(row, rowIndex) {
         var rateCell = '<span class="commission-compare-rate-display">' +
             escapeHtml(formatRollingRatePercent(row.rollingRateNum)) + '</span>';
@@ -218,6 +288,7 @@ $(document).ready(function() {
             row.paymentNum = amounts.payment;
         });
         refreshCompareModalRowCells();
+        renderCompareModalSortIndicators();
     }
 
     function openCompareRatePreviewPopup(currentRate) {
@@ -424,7 +495,7 @@ $(document).ready(function() {
         if (window.Swal) {
             Swal.fire({
                 icon: icon || 'info',
-                title: compareT().compare_confirm || 'Preview',
+                title: compareT().compare_merge || 'Merge',
                 text: message,
                 confirmButtonColor: '#0d6efd'
             });
@@ -678,7 +749,8 @@ $(document).ready(function() {
                     // Only process records that are settled
                     if (row.SETTLED === 1) {
                         commissionGameMeta.set(String(row.game_list_id), {
-                            commissionType: Number(row.COMMISSION_TYPE) || 1
+                            commissionType: Number(row.COMMISSION_TYPE) || 1,
+                            accountId: row.ACCOUNT_ID
                         });
                         var RollingRate = row.COMMISSION_PERCENTAGE; // Ensure the RollingRate is correct
                         var fb = row.fnb || 0; // Use the FNB value from the row
@@ -1056,6 +1128,118 @@ $(document).ready(function() {
         printCommissionTable();
     });
 
+    function formatMergeNumeric(value) {
+        return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function fetchMergeServicesTotal(selectedIds) {
+        if (!Array.isArray(selectedIds) || !selectedIds.length) return Promise.resolve(0);
+        var requests = selectedIds.map(function (gameId) {
+            return $.ajax({
+                url: '/game_services/' + gameId,
+                method: 'GET'
+            }).then(function (rows) {
+                if (!Array.isArray(rows)) return 0;
+                return rows.reduce(function (sum, item) {
+                    var amt = parseFloat(item.AMOUNT || item.amount || 0);
+                    return sum + (isNaN(amt) ? 0 : amt);
+                }, 0);
+            }).catch(function () {
+                return 0;
+            });
+        });
+        return Promise.all(requests).then(function (totals) {
+            return totals.reduce(function (sum, n) { return sum + (parseFloat(n) || 0); }, 0);
+        });
+    }
+
+    function openMergeSettlementFromCommissionCompare(rowsToMerge) {
+        var rows = rowsToMerge || compareModalRows;
+        if (!rows.length) {
+            notifyCompare(compareT().compare_select_one || 'Select at least one row.', 'warning');
+            return;
+        }
+
+        var $modal = $('#modal-merge-settlement');
+        if (!$modal.length) {
+            notifyCompare('Merge settlement modal is not loaded.', 'error');
+            return;
+        }
+
+        var selectedIds = [];
+        var accountIds = [];
+        var selectedAccountDisplays = [];
+        var selectedRates = [];
+        var totalBuyIn = 0;
+        var totalChipsReturn = 0;
+        var totalRolling = 0;
+        var totalSettlement = 0;
+        var totalWinLoss = 0;
+
+        rows.forEach(function (row) {
+            var gameId = parseInt(String(row.gameNo), 10);
+            if (!isNaN(gameId) && selectedIds.indexOf(gameId) === -1) selectedIds.push(gameId);
+
+            var accountText = String(row.account || '').replace(/\s+/g, ' ').trim();
+            if (accountText && selectedAccountDisplays.indexOf(accountText) === -1) {
+                selectedAccountDisplays.push(accountText);
+            }
+
+            var meta = commissionGameMeta.get(String(row.gameNo));
+            if (meta && meta.accountId != null) {
+                var accId = parseInt(meta.accountId, 10);
+                if (!isNaN(accId) && accountIds.indexOf(accId) === -1) accountIds.push(accId);
+            }
+
+            totalBuyIn += row.totalBuyIn != null ? parseNumCell(row.totalBuyIn) : 0;
+            totalChipsReturn += row.chipsReturn != null ? parseNumCell(row.chipsReturn) : 0;
+            totalRolling += row.totalRollingNum || 0;
+            totalSettlement += row.settlementNum || 0;
+            totalWinLoss += row.winLossNum || 0;
+
+            var rateText = formatRollingRatePercent(row.rollingRateNum).replace(/%/g, '').trim();
+            if (rateText && selectedRates.indexOf(rateText) === -1) selectedRates.push(rateText);
+        });
+
+        if (!selectedIds.length) {
+            notifyCompare('No valid games to merge.', 'warning');
+            return;
+        }
+
+        var now = moment();
+        var nameText = selectedAccountDisplays.length === 1
+            ? selectedAccountDisplays[0]
+            : (selectedAccountDisplays.length > 1 ? selectedAccountDisplays.join(', ') : '-');
+        var rateTextValue = selectedRates.length === 1
+            ? selectedRates[0]
+            : (selectedRates.length > 1 ? 'Mixed' : '0');
+
+        fetchMergeServicesTotal(selectedIds).then(function (servicesTotal) {
+            var paymentAmount = totalSettlement - servicesTotal;
+
+            $modal.find('#mergeGameIds').val(selectedIds.join(','));
+            $modal.find('#txtAccountIDMergeSettle').val(accountIds.join(','));
+            $modal.find('#accNoMerge').text(nameText);
+            $modal.find('#gameNoMerge').text(selectedIds.join(', '));
+            $modal.find('#dateMerge').text(now.format('MMMM DD, YYYY'));
+            $modal.find('#timeMerge').text(now.format('HH:mm'));
+            $modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
+            $modal.find('#chipsReturnMerge').val(formatMergeNumeric(totalChipsReturn));
+            $modal.find('#winLossMerge').val(formatMergeNumeric(totalWinLoss));
+            $modal.find('#rollingMerge').val(formatMergeNumeric(totalRolling));
+            $modal.find('#rollingRateMerge').val(rateTextValue);
+            $modal.find('#rollingSettlementMerge').val(formatMergeNumeric(totalSettlement));
+            $modal.find('#fbMerge').val(formatMergeNumeric(servicesTotal));
+            $modal.find('#paymentMerge').val(formatMergeNumeric(paymentAmount));
+
+            if ($modal.modal) {
+                $modal.modal('show');
+            } else if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance($modal[0]).show();
+            }
+        });
+    }
+
     function openCompareModal() {
         var snapshots = Array.from(compareSelection.values()).sort(function (a, b) {
             return String(b.gameNo).localeCompare(String(a.gameNo), undefined, { numeric: true });
@@ -1065,13 +1249,10 @@ $(document).ready(function() {
             return;
         }
 
+        compareModalSortKey = 'dateTime';
+        compareModalSortDir = 'desc';
         compareModalRows = snapshots.map(buildCompareModalRowFromSnapshot);
-        $('#commission-compare-modal-body').html(
-            compareModalRows.map(function (row, idx) {
-                return renderCompareModalRowHtml(row, idx);
-            }).join('')
-        );
-        updateCompareModalTotals();
+        rerenderCompareModalTableBody();
 
         var dateRange = getCommissionDateRangeLabel();
         $('#commission-compare-modal-range').text(
@@ -1086,6 +1267,17 @@ $(document).ready(function() {
             $('#modal-commission-compare').modal('show');
         }
     }
+
+    $(document).on('click', '#commission-compare-modal-tbl thead th.commission-compare-sortable-col', function () {
+        var key = $(this).attr('data-sort-key') || 'dateTime';
+        if (compareModalSortKey === key) {
+            compareModalSortDir = compareModalSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            compareModalSortKey = key;
+            compareModalSortDir = key === 'dateTime' || key === 'gameNo' ? 'desc' : 'asc';
+        }
+        rerenderCompareModalTableBody();
+    });
 
     $(document).on('click', '#commission-compare-modal-body tr.commission-compare-first-row', function () {
         var row = compareModalRows[0];
@@ -1162,6 +1354,73 @@ $(document).ready(function() {
     $('#btn-commission-compare-confirm').on('click', function (e) {
         e.preventDefault();
         openCompareModal();
+    });
+
+    $('#btn-commission-compare-merge-settle').on('click', function (e) {
+        e.preventDefault();
+        openMergeSettlementFromCommissionCompare(compareModalRows);
+    });
+
+    $(document).on('click', '#send-merge-settlement-telegram-btn', function (e) {
+        if (!$('#modal-commission-compare').length) return;
+        e.preventDefault();
+        var $modal = $('#modal-merge-settlement');
+        var rawIds = String($modal.find('#mergeGameIds').val() || '').trim();
+        var rawAccounts = String($modal.find('#txtAccountIDMergeSettle').val() || '').trim();
+        if (!rawIds || !rawAccounts) {
+            notifyCompare('No selected games for merge settlement.', 'warning');
+            return;
+        }
+
+        var payload = {
+            account_ids: rawAccounts.split(',').map(function (s) {
+                return parseInt(String(s).trim(), 10);
+            }).filter(function (n) { return !isNaN(n); }),
+            account_display: ($modal.find('#accNoMerge').text() || '').trim(),
+            game_numbers: ($modal.find('#gameNoMerge').text() || '').trim(),
+            date: ($modal.find('#dateMerge').text() || '').trim(),
+            time: ($modal.find('#timeMerge').text() || '').trim(),
+            buy_in: ($modal.find('#buyInMerge').val() || '').trim(),
+            chips_return: ($modal.find('#chipsReturnMerge').val() || '').trim(),
+            win_loss: ($modal.find('#winLossMerge').val() || '').trim(),
+            rolling: ($modal.find('#rollingMerge').val() || '').trim(),
+            rate: ($modal.find('#rollingRateMerge').val() || '').trim(),
+            settlement: ($modal.find('#rollingSettlementMerge').val() || '').trim(),
+            services: ($modal.find('#fbMerge').val() || '').trim(),
+            payment: ($modal.find('#paymentMerge').val() || '').trim()
+        };
+
+        if (!payload.account_ids.length) {
+            notifyCompare('Account information is missing.', 'warning');
+            return;
+        }
+
+        var $btn = $('#send-merge-settlement-telegram-btn');
+        $btn.prop('disabled', true).text('Sending...');
+        $.ajax({
+            url: '/merge_settlement_telegram',
+            method: 'POST',
+            data: payload,
+            success: function (response) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Telegram sent',
+                        text: response && response.message ? response.message : 'Sent successfully.',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                }
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.error)
+                    ? xhr.responseJSON.error
+                    : 'Failed to send telegram.';
+                notifyCompare(msg, 'error');
+            },
+            complete: function () {
+                $btn.prop('disabled', false).text('Send Telegram');
+            }
+        });
     });
 
     updateCompareUi();
