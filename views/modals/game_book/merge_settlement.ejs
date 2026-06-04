@@ -28,19 +28,37 @@
         text-align: right;
     }
 
-    #modal-merge-settlement .header-logo {
-        max-width: 340px;
+    #modal-merge-settlement .block-content.header-with-logo {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        width: 100%;
+        min-height: 160px;
+        padding: 1.5rem 2rem;
     }
 
-    #modal-merge-settlement .block-content.header-with-logo {
-        position: relative;
-        justify-content: flex-start;
+    #modal-merge-settlement .header-logo {
+        flex: 0 0 auto;
+        align-self: center;
+        display: block;
+        max-width: min(320px, 40vw);
+        width: auto;
+        height: auto;
+        max-height: 160px;
+        margin: 0;
+        object-fit: contain;
     }
 
     #modal-merge-settlement .settlement-title {
-        position: absolute;
-        right: 2rem;
-        margin: 0 !important;
+        flex: 0 1 auto;
+        align-self: center;
+        margin: 0 0 0 auto !important;
+        text-align: right;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
     }
 
     #modal-merge-settlement .block-content {
@@ -153,8 +171,8 @@
                     <h3 class="block-title text-white">Merge Settlement</h3>
                 </div>
 
-                <div class="block-content text-center d-flex align-items-center header-with-logo">
-                    <img src="/assets/images/infinityLOGO.png" alt="Infinity CAGE-X Logo" class="img-fluid header-logo me-3" style="margin-left: 2rem;">
+                <div class="block-content d-flex align-items-center header-with-logo">
+                    <img src="/assets/images/demoLogo.png" alt="Demo CAGE-X Logo" class="img-fluid header-logo">
                     <h2 class="text-muted mb-0 settlement-title">MERGE SETTLEMENT</h2>
                 </div>
 
@@ -259,7 +277,7 @@
 
                 <div class="receipt-print-only">
                     <div class="receipt-print-content">
-                        <p class="receipt-brand">INFINITY CAGE</p>
+                        <p class="receipt-brand">CAGEX DEMO</p>
                         <p class="receipt-subtitle">Merge Settlement</p>
                         <div class="receipt-line"></div>
                         <p class="receipt-datetime" id="printMergeReceiptDateTime"></p>
