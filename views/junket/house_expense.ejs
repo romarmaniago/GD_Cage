@@ -197,24 +197,24 @@
                                                 <tbody id="expense-item-cat-tbody">
                                                     <tr><td colspan="7" class="text-muted small text-center py-3">Loading...</td></tr>
                                                 </tbody>
-                                                <tfoot>
-                                                    <tr>
-                                                        <th colspan="4"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></th>
-                                                        <th id="TOTAL_EXPENSE_AMOUNT" class="text-end">₱0</th>
-                                                        <th colspan="2"></th>
-                                                    </tr>
-                                                    <tr>
-                                                        <th colspan="4"><%= __('house_expense.total_return_money') || 'TOTAL RETURN MONEY' %></th>
-                                                        <th id="TOTAL_RETURN_MONEY_AMOUNT" class="text-end">₱0</th>
-                                                        <th colspan="2"></th>
-                                                    </tr>
-                                                    <tr>
-                                                        <th colspan="4"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></th>
-                                                        <th id="TOTAL_NET_EXPENSES_AMOUNT" class="text-end">₱0</th>
-                                                        <th colspan="2"></th>
-                                                    </tr>
-                                                </tfoot>
                                             </table>
+                                            <div class="expense-item-table-separator" role="presentation" aria-hidden="true"></div>
+                                            <div class="expense-item-totals-wrap">
+                                                <div class="expense-item-footer-summary" aria-label="<%= __('house_expense.total_expenses') || 'Expense totals' %>">
+                                                    <div class="expense-item-footer-line">
+                                                        <span class="expense-item-footer-label"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></span>
+                                                        <span id="TOTAL_EXPENSE_AMOUNT" class="expense-item-footer-value">₱0</span>
+                                                    </div>
+                                                    <div class="expense-item-footer-line">
+                                                        <span class="expense-item-footer-label"><%= __('house_expense.total_return_money') || 'TOTAL RETURN MONEY' %></span>
+                                                        <span id="TOTAL_RETURN_MONEY_AMOUNT" class="expense-item-footer-value">₱0</span>
+                                                    </div>
+                                                    <div class="expense-item-footer-line">
+                                                        <span class="expense-item-footer-label"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></span>
+                                                        <span id="TOTAL_NET_EXPENSES_AMOUNT" class="expense-item-footer-value">₱0</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1921,13 +1921,54 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-search-wrap .form-control-sm {
                 font-size: 0.8rem;
             }
-            .expense-item-tbl tfoot th {
-                background: var(--bs-primary-bg-subtle);
-                color: #334155;
+            .expense-item-table-separator {
+                display: block;
+                width: 100%;
+                height: 0;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                border-top: 2px solid #cbd5e1;
+                opacity: 1;
+            }
+            .expense-item-totals-wrap {
+                display: flex;
+                justify-content: flex-end;
+                padding: 0.75rem 0.65rem 0.65rem;
+            }
+            .expense-item-footer-summary {
+                display: inline-block;
+                width: 100%;
+                max-width: 340px;
+                margin-left: auto;
+                background: #e4e4f6;
+                border-radius: 10px;
+                overflow: hidden;
+                box-shadow: 0 1px 2px rgba(45, 53, 97, 0.06);
+            }
+            .expense-item-footer-line {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 1rem;
+                padding: 0.55rem 0.9rem;
+                font-size: 0.78rem;
                 font-weight: 600;
-                font-size: 0.8rem;
-                padding: 0.5rem 0.65rem;
-                border-top: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+                color: #2a3160;
+                border-bottom: 1px solid rgba(42, 49, 96, 0.14);
+            }
+            .expense-item-footer-line:last-child {
+                border-bottom: none;
+            }
+            .expense-item-footer-label {
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+                text-align: left;
+            }
+            .expense-item-footer-value {
+                text-align: right;
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
             }
             .expense-item-tbl td.text-end,
             .expense-item-tbl th.text-end {

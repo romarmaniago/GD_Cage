@@ -1870,30 +1870,16 @@ $(document).ready(function () {
             if (cells.length) rows.push(cells);
         });
         if (rows.length) {
-            rows.push([
-                $('#expense-item-cat-tbl tfoot tr').eq(0).find('th').eq(0).text().trim(),
-                '',
-                '',
-                $('#TOTAL_EXPENSE_AMOUNT').text().trim(),
-                '',
-                ''
-            ]);
-            rows.push([
-                $('#expense-item-cat-tbl tfoot tr').eq(1).find('th').eq(0).text().trim(),
-                '',
-                '',
-                $('#TOTAL_RETURN_MONEY_AMOUNT').text().trim(),
-                '',
-                ''
-            ]);
-            rows.push([
-                $('#expense-item-cat-tbl tfoot tr').eq(2).find('th').eq(0).text().trim(),
-                '',
-                '',
-                $('#TOTAL_NET_EXPENSES_AMOUNT').text().trim(),
-                '',
-                ''
-            ]);
+            $('.expense-item-table-wrap .expense-item-footer-line').each(function () {
+                rows.push([
+                    $(this).find('.expense-item-footer-label').text().trim(),
+                    '',
+                    '',
+                    $(this).find('.expense-item-footer-value').text().trim(),
+                    '',
+                    ''
+                ]);
+            });
         }
         return { headers: headers, rows: rows };
     }
