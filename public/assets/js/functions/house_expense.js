@@ -23,6 +23,10 @@ window.houseExpenseCategoryRows = [];
 window.houseExpenseVehicleRows = [];
 window.houseExpenseItemSearchQuery = '';
 window.houseExpenseAnimateItemTable = false;
+window.houseExpenseItemTableSortState = {
+    sortKey: 'date_time',
+    sortDir: 'desc'
+};
 
 function resetHouseExpenseExplorerState() {
     window.houseExpenseExplorerState = {
@@ -233,6 +237,67 @@ function houseExpenseGetApprovalStatus(row) {
 
 function houseExpenseIsApprovedForTotals(row) {
     return houseExpenseGetApprovalStatus(row) === 1;
+}
+
+/** Pending/rejected first; approved (and return money) last. */
+function houseExpenseItemApprovalSortRank(row) {
+    if (!row) return 1;
+    if (row.record_type === 'return_money') return 1;
+    var status = houseExpenseGetApprovalStatus(row);
+    if (status === 1) return 1;
+    return 0;
+}
+
+function getHouseExpenseItemSortValue(row, key) {
+    if (!row) return '';
+    if (key === 'name') return String(houseExpenseGetExpenseNameLabel(row) || '').toLowerCase();
+    if (key === 'in_charge') {
+        return row.record_type === 'return_money'
+            ? ''
+            : String(row.DESCRIPTION || row.OIC || '').toLowerCase();
+    }
+    if (key === 'receiver') {
+        return row.record_type === 'return_money' ? '' : String(row.RECEIVER || '').toLowerCase();
+    }
+    if (key === 'description') return String(houseExpenseItemDescriptionColumnText(row) || '').toLowerCase();
+    if (key === 'amount') return parseFloat(row.AMOUNT) || 0;
+    if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
+    return '';
+}
+
+function sortHouseExpenseItemRows(rows) {
+    var list = (rows || []).slice();
+    var sortState = window.houseExpenseItemTableSortState || {};
+    var key = sortState.sortKey || 'date_time';
+    var dir = sortState.sortDir === 'asc' ? 'asc' : 'desc';
+
+    list.sort(function (a, b) {
+        var approvalDiff = houseExpenseItemApprovalSortRank(a) - houseExpenseItemApprovalSortRank(b);
+        if (approvalDiff !== 0) return approvalDiff;
+
+        var av = getHouseExpenseItemSortValue(a, key);
+        var bv = getHouseExpenseItemSortValue(b, key);
+        if (av < bv) return dir === 'asc' ? -1 : 1;
+        if (av > bv) return dir === 'asc' ? 1 : -1;
+
+        return new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
+    });
+
+    return list;
+}
+
+function syncHouseExpenseItemTableSortHeaders() {
+    var sortState = window.houseExpenseItemTableSortState || {};
+    var key = sortState.sortKey || 'date_time';
+    var dir = sortState.sortDir === 'asc' ? 'asc' : 'desc';
+
+    $('#expense-item-cat-tbl thead th.sortable-col').each(function () {
+        var $th = $(this);
+        var thKey = $th.attr('data-sort-key');
+        var active = thKey === key;
+        $th.toggleClass('is-sorted', active);
+        $th.attr('aria-sort', active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none');
+    });
 }
 
 function buildHouseExpenseActionButtons(row, amount) {
@@ -493,16 +558,14 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 '<tr><td colspan="7" class="text-muted small text-center py-3">Select a main category</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
+            syncHouseExpenseItemTableSortHeaders();
             return;
         }
 
         $('#expense-item-panel-subtitle').text(houseExpenseGetExplorerSubtitleText(st));
 
         rows = houseExpenseGetFilteredItemRows(allRows);
-
-        rows.sort(function (a, b) {
-            return new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
-        });
+        rows = sortHouseExpenseItemRows(rows);
 
         if (rows.length === 0) {
             $tbody.html(
@@ -511,6 +574,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
+            syncHouseExpenseItemTableSortHeaders();
             if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
                 window.syncHouseExpenseSelectAllCheckboxState();
             }
@@ -570,6 +634,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
             .join('');
 
         $tbody.html(html);
+        syncHouseExpenseItemTableSortHeaders();
         updateHouseExpenseItemFooterTotals(allRows);
         if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
             window.syncHouseExpenseSelectAllCheckboxState();
@@ -2886,6 +2951,26 @@ $(document).ready(function () {
         window.houseExpenseExplorerState.itemCategoryId = subId || null;
         window.houseExpenseExplorerState.itemCategory = subId ? subName || null : null;
         refreshHouseExpenseExplorerOnly();
+    });
+
+    $(document).on('click', '#expense-item-cat-tbl thead th.sortable-col', function (e) {
+        if ($(e.target).closest('.house-expense-select-all-slot, .house-expense-select-all-cb').length) return;
+
+        var key = $(this).attr('data-sort-key') || 'date_time';
+        var sortState = window.houseExpenseItemTableSortState || {
+            sortKey: 'date_time',
+            sortDir: 'desc'
+        };
+
+        if (sortState.sortKey === key) {
+            sortState.sortDir = sortState.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.sortKey = key;
+            sortState.sortDir = key === 'date_time' || key === 'amount' ? 'desc' : 'asc';
+        }
+
+        window.houseExpenseItemTableSortState = sortState;
+        renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || []);
     });
 
     $(document).on('click', '#breakdown-modal-head-table thead th.sortable-col', function () {

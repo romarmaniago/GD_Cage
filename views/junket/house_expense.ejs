@@ -180,17 +180,17 @@
                                             <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl mb-0" style="width:100%">
                                                 <thead>
                                                     <tr>
-                                                        <th class="expense-name-th">
+                                                        <th class="expense-name-th sortable-col" data-sort-key="name">
                                                             <span class="house-expense-select-all-slot">
                                                                 <input type="checkbox" id="house-expense-select-all" class="house-expense-select-all-cb" title="Select all" />
                                                             </span>
                                                             <span class="expense-name-th-label"><%= __('house_expense.name') %></span>
                                                         </th>
-                                                        <th><%= __('house_expense.description') %></th>
-                                                        <th><%= __('house_expense.receiver') || 'RECEIVER' %></th>
-                                                        <th><%= __('house_expense.receipt_no') %></th>
-                                                        <th class="text-end"><%= __('house_expense.amount') %></th>
-                                                        <th class="text-end"><%= __('house_expense.date_time') %></th>
+                                                        <th class="sortable-col" data-sort-key="in_charge"><%= __('house_expense.description') %></th>
+                                                        <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
+                                                        <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
+                                                        <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
+                                                        <th class="sortable-col text-end" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
                                                         <th class="text-end"><%= __('house_expense.action') %></th>
                                                     </tr>
                                                 </thead>
@@ -1714,6 +1714,17 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 padding: 0.55rem 0.65rem;
                 border: none;
                 white-space: nowrap;
+            }
+            #expense-item-cat-tbl thead th.sortable-col {
+                cursor: pointer;
+                user-select: none;
+            }
+            #expense-item-cat-tbl thead th.sortable-col:hover,
+            #expense-item-cat-tbl thead th.sortable-col.is-sorted {
+                background: #dfe6ff;
+            }
+            #expense-item-cat-tbl thead th.expense-name-th.sortable-col .house-expense-select-all-slot {
+                cursor: default;
             }
             .expense-master-tbl tbody td {
                 padding: 0.55rem 0.65rem;
