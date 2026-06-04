@@ -454,7 +454,10 @@
 		"compare_select_one": "Select at least one row.",
 		"compare_selected": "Selected",
 		"compare_modal_title": "Commission",
-		"compare_preview": "Click to preview"
+		"compare_preview": "Click to preview",
+		"search_account": "Account",
+		"search_name": "Name",
+		"search_game_no": "Game #"
 	},
 	"junket_loss": {
 		"junket": "Junket",
