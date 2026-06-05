@@ -23,7 +23,7 @@
                 </div>
                 <div class="row mb-1">
                     <div class="col-sm-6">
-                        <label class="form-label text-muted small mb-1 text-center">Total Junket Credit</label>
+                        <label class="form-label text-muted small mb-1 text-center">Total Cash Credit</label>
                         <input type="text" class="form-control text-center" id="txtTotalJunketCredit" readonly />
                     </div>
                     <div class="col-sm-6">
@@ -117,7 +117,7 @@
                 </div>
             <hr style="border: none; border-top: 0.2rem solid black;">
 
-            <!-- 4 Tabs: Total Credit (default), Junket Credit, Game Credit, History -->
+            <!-- 4 Tabs: Total Credit (default), Cash Credit, Game Credit, History -->
             <ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
@@ -470,7 +470,7 @@
             color: var(--bs-primary);
         }
 
-        /* Junket Credit / Game Credit — same look as History + narrow Balance */
+        /* Cash Credit / Game Credit — same look as History + narrow Balance */
         #marker-accounts-credit-tbl.dataTable.marker-balance-table,
         #marker-accounts-buyin-tbl.dataTable.marker-balance-table {
             width: 100% !important;
