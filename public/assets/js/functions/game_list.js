@@ -4799,6 +4799,67 @@ $('#add_buyin').submit(function (event) {
 });
 
 
+	function parseCashoutAmount(raw) {
+		var v = (raw || '').toString().replace(/,/g, '').trim();
+		if (v === '') return 0;
+		var n = parseFloat(v);
+		return Number.isFinite(n) ? n : NaN;
+	}
+
+	function validateCashoutTipAmounts(expectedTotal, $btn) {
+		if (!$('#enableTipCashout').is(':checked')) {
+			return true;
+		}
+
+		var $rollerInput = $('#tipRollerAmount');
+		var $dealerInput = $('#tipDealerAmount');
+		var roller = parseCashoutAmount($rollerInput.val());
+		var dealer = parseCashoutAmount($dealerInput.val());
+
+		$rollerInput.removeClass('is-invalid');
+		$dealerInput.removeClass('is-invalid');
+
+		if (Number.isNaN(roller) || roller < 0 || Number.isNaN(dealer) || dealer < 0) {
+			if (Number.isNaN(roller) || roller < 0) $rollerInput.addClass('is-invalid');
+			if (Number.isNaN(dealer) || dealer < 0) $dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Tip Amount',
+				text: 'Please enter valid Roller and/or Dealer amounts.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		if (roller <= 0 && dealer <= 0) {
+			$rollerInput.addClass('is-invalid');
+			$dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Tip Amount',
+				text: 'Enter a Roller and/or Dealer amount for the tip.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		var tipTotal = roller + dealer;
+		var expected = Number(expectedTotal) || 0;
+		if (Math.abs(tipTotal - expected) > 0.001) {
+			$rollerInput.addClass('is-invalid');
+			$dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'warning',
+				title: 'Tip Amount Mismatch',
+				text: 'Roller + Dealer (' + tipTotal.toLocaleString() + ') must equal total NN & CC chips (' + expected.toLocaleString() + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		return true;
+	}
+
 	$('#add_cashout').submit(function (event) {
 		event.preventDefault();
 	
@@ -4890,6 +4951,10 @@ $('#add_buyin').submit(function (event) {
 				return;
 			}
 
+			if (!validateCashoutTipAmounts(totalChips, $btn)) {
+				return;
+			}
+
 			var tableCell = 'padding:4px 8px;';
 			var legTitleCell = tableCell + 'font-weight:600;text-align:center;vertical-align:middle;white-space:nowrap;';
 			var rowLabelCell = tableCell + 'font-weight:600;white-space:nowrap;';
@@ -4937,6 +5002,25 @@ $('#add_buyin').submit(function (event) {
 				'<td style="' + totalValueCell + '">' + totalChips.toLocaleString() + '<\/td>' +
 				'<\/tr>';
 
+			if ($('#enableTipCashout').is(':checked')) {
+				var splitTipRoller = parseCashoutAmount($('#tipRollerAmount').val());
+				var splitTipDealer = parseCashoutAmount($('#tipDealerAmount').val());
+				if (splitTipRoller > 0) {
+					splitRows += '<tr>' +
+						'<td style="' + legTitleCell + '">Tip — Roller<\/td>' +
+						'<td style="' + totalMidCell + '"><\/td>' +
+						'<td style="' + rowValueCell + '">' + splitTipRoller.toLocaleString() + '<\/td>' +
+						'<\/tr>';
+				}
+				if (splitTipDealer > 0) {
+					splitRows += '<tr>' +
+						'<td style="' + legTitleCell + '">Tip — Dealer<\/td>' +
+						'<td style="' + totalMidCell + '"><\/td>' +
+						'<td style="' + rowValueCell + '">' + splitTipDealer.toLocaleString() + '<\/td>' +
+						'<\/tr>';
+				}
+			}
+
 			var splitConfirmHtml =
 				'<div style="max-width:420px;margin:0 auto;text-align:left;">' +
 				'<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm cash-out transaction:</div>' +
@@ -4979,7 +5063,10 @@ $('#add_buyin').submit(function (event) {
 					split_cash_nn: fmt(nnCash),
 					split_cash_cc: fmt(ccCash),
 					split_dep_nn: fmt(nnDep),
-					split_dep_cc: fmt(ccDep)
+					split_dep_cc: fmt(ccDep),
+					optTip: $('#enableTipCashout').is(':checked') ? '1' : '',
+					txtTipRoller: $('#tipRollerAmount').val(),
+					txtTipDealer: $('#tipDealerAmount').val()
 				});
 
 				$.ajax({
@@ -5011,17 +5098,53 @@ $('#add_buyin').submit(function (event) {
 		}
 	
 		// Get the values of txtNN and txtTotalRolling
-		var txtTotalRolling = parseFloat($('#TotalRollingCashout').val()); 
-		var txtNN = parseFloat(($('#txtNNCashout').val() || '0').replace(/,/g, '')); 
-		var txtCC = parseFloat(($('#txtCCCashout').val() || '0').replace(/,/g, '')); 
-		var markerChipsReturn = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')); 
-		var txtTransType = $('input[name="txtTransType"]:checked').val(); 
-
-		// Thousands-only validation for NN Cashout (positive multiples of 1,000)
+		var txtTotalRolling = parseFloat($('#TotalRollingCashout').val());
 		var nnRaw = ($('#txtNNCashout').val() || '').toString().replace(/,/g, '');
 		var nnTrimmed = nnRaw.trim();
+		var ccRaw = ($('#txtCCCashout').val() || '').toString().replace(/,/g, '');
+		var ccTrimmed = ccRaw.trim();
+		var txtNN = parseFloat(nnTrimmed || '0');
+		var txtCC = parseFloat(ccTrimmed || '0');
+		var markerChipsReturn = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, ''));
+		var txtTransType = $('input[name="txtTransType"]:checked').val();
 		var $nnInput = $('#txtNNCashout');
+		var $ccInput = $('#txtCCCashout');
+
 		$nnInput.removeClass('is-invalid');
+		$ccInput.removeClass('is-invalid');
+
+		if (!txtTransType) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Input',
+				text: 'Please select a payment type (Cash, Deposit, or Credit).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if ((nnTrimmed === '' && ccTrimmed === '') || (txtNN <= 0 && txtCC <= 0)) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Input',
+				text: 'Please enter NN Chips and/or CC Chips amount.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (ccTrimmed !== '' && (!Number.isFinite(txtCC) || txtCC <= 0)) {
+			$ccInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid CC Chips amount',
+				text: 'Please enter a valid CC Chips amount.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		// Thousands-only validation for NN Cashout (positive multiples of 1,000)
 		if (nnTrimmed !== '' && (txtNN <= 0 || txtNN % 1000 !== 0)) {
 			$nnInput.addClass('is-invalid');
 			Swal.fire({
@@ -5065,6 +5188,11 @@ $('#add_buyin').submit(function (event) {
 				return;
 			}
 		}
+
+		var cashoutChipTotal = txtNN + txtCC;
+		if (!validateCashoutTipAmounts(cashoutChipTotal, $btn)) {
+			return;
+		}
 	
 		// All validations passed, show confirmation dialog
 		var transTypeText = '';
@@ -5089,6 +5217,16 @@ $('#add_buyin').submit(function (event) {
 		}
 		if ((txtNN + txtCC) > 0) {
 			confirmationRows += buildRow('Total Amount:', parseFloat(txtNN + txtCC).toLocaleString());
+		}
+		if ($('#enableTipCashout').is(':checked')) {
+			var tipRollerAmt = parseCashoutAmount($('#tipRollerAmount').val());
+			var tipDealerAmt = parseCashoutAmount($('#tipDealerAmount').val());
+			if (tipRollerAmt > 0) {
+				confirmationRows += buildRow('Tip — Roller:', tipRollerAmt.toLocaleString());
+			}
+			if (tipDealerAmt > 0) {
+				confirmationRows += buildRow('Tip — Dealer:', tipDealerAmt.toLocaleString());
+			}
 		}
 
 		var confirmationMessage = `
@@ -6222,6 +6360,12 @@ function addCashout(id, account, total_rolling_chips, agentCode) {
 	}
 
 	$('#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount').val('');
+	$('#tipRollerAmount, #tipDealerAmount').val('').removeClass('is-invalid');
+
+	var tipRow = document.getElementById('tip-amount-row');
+	if (tipRow) {
+		tipRow.style.display = 'none';
+	}
 
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);

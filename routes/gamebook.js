@@ -10,6 +10,7 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
+const { isTipEnabled, saveCashoutTips, archiveTipsForCashout } = require('../utils/saveCashoutTips');
 
 // Helper function to get agent notification chat IDs from telegram_api table
 // Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
@@ -4666,25 +4667,75 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 	let CashOutDESC = 'Chips Returned'; // TRANSACTION DETAILS
 
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+	`;
+
+	const connection = await pool.getConnection();
+	let gameRecordId;
+	let agentResults = [];
+
 	try {
-		// First insert into game_record table (CAGE_TYPE = 2)
+		await connection.beginTransaction();
+
 		const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		const [result1] = await pool.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		const [result1] = await connection.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		gameRecordId = result1.insertId;
 
-		const gameRecordId = result1.insertId;
-
-		// Second insert into account_ledger table (GAME_ID for direct link)
 		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
+		await connection.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
 
-		// Fetch agent info (also used for cash_transaction)
-		const agentQuery = `
-			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
-			FROM agent
-			JOIN account ON account.AGENT_ID = agent.IDNo
-			WHERE account.ACTIVE = 1 AND account.IDNo = ?
-		`;
-		const [agentResults] = await pool.execute(agentQuery, [txtAccountCode]);
+		if (isTipEnabled(req.body)) {
+			await saveCashoutTips(connection, {
+				gameId: game_id,
+				accountId: txtAccountCode,
+				cashoutId: gameRecordId,
+				rollerAmount: req.body.txtTipRoller,
+				dealerAmount: req.body.txtTipDealer,
+				expectedTotal: chipsReturn,
+				userId: req.session.user_id,
+				dateNow: date_now
+			});
+		}
+
+		const [agentRows] = await connection.execute(agentQuery, [txtAccountCode]);
+		agentResults = agentRows || [];
+
+		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await connection.execute(cashTransactionQuery, [
+				gameRecordId,
+				agentResults[0].agent_id,
+				chipsReturn.toString(),
+				'Game Cash-out',
+				2,
+				`Game - ${game_id}`,
+				req.session.user_id,
+				date_now
+			]);
+		}
+
+		await connection.commit();
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('cashout rollback:', rbErr);
+		}
+		console.error('Error in /game_list/add/cashout:', err);
+		const msg = err && err.message ? err.message : 'Internal Server Error';
+		return res.status(500).send(msg);
+	} finally {
+		connection.release();
+	}
+
+	try {
 
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
@@ -4756,27 +4807,9 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			}
 		}
 
-		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
-			const cashTransactionQuery = `
-				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-			`;
-
-			await pool.execute(cashTransactionQuery, [
-				gameRecordId,
-				agentResults[0].agent_id,
-				chipsReturn.toString(),
-				'Game Cash-out',
-				2,
-				`Game - ${game_id}`,
-				req.session.user_id,
-				date_now
-			]);
-		}
-
 		res.redirect('/game_list');
 	} catch (err) {
-		console.error('Error in /game_list/add/cashout:', err);
+		console.error('Error in /game_list/add/cashout (post-commit):', err);
 		res.status(500).send('Internal Server Error');
 	}
 });
@@ -4915,6 +4948,19 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				userId,
 				date_now
 			]);
+		}
+
+		if (isTipEnabled(req.body)) {
+			await saveCashoutTips(connection, {
+				gameId: game_id,
+				accountId: txtAccountCode,
+				cashoutId: gameRecordIdCash,
+				rollerAmount: req.body.txtTipRoller,
+				dealerAmount: req.body.txtTipDealer,
+				expectedTotal: splitGrandTotal,
+				userId,
+				dateNow: date_now
+			});
 		}
 
 		await connection.commit();
@@ -5457,6 +5503,9 @@ router.put('/game_record/remove/:id', checkSession, async (req, res) => {
 				'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
 				[req.session.user_id, new Date(), id]
 			);
+
+			await archiveTipsForCashout(pool, id, req.session.user_id, date_now);
+
 			return res.send('Cash out record deleted successfully');
 		}
 

@@ -1,0 +1,266 @@
+<%- include('../partials/header') %>
+
+<%- include('../partials/loader') %>
+
+<%- include('../partials/sidebar') %>
+
+<%- include('../partials/topbar') %>
+
+
+
+<div class="container-fluid content-inner py-0">
+
+  <div class="row">
+
+    <div class="col-sm-12">
+
+      <div class="card">
+
+        <div id="user-role" data-permissions="<%= permissions %>"></div>
+
+        <div class="card-header d-flex justify-content-between align-items-center">
+
+          <h3 class="card-title">
+
+            <div class="breadcrumb1 flat">
+
+              <a href="/dashboard"><span class="fa fa-home"></span></a>
+
+              <a href="/tip" class="active"><%= __('sidebar.tip') %></a>
+
+            </div>
+
+          </h3>
+
+        </div>
+
+        <div class="card-body">
+
+          <table id="tip-tbl" class="table nowrap small-text" style="width:100%">
+
+            <thead>
+
+              <tr>
+
+                <th><%= __('tip.date_time') %></th>
+
+                <th><%= __('tip.account') %></th>
+
+                <th><%= __('tip.game_no') %></th>
+
+                <th><%= __('tip.amount') %></th>
+
+                <th><%= __('tip.tip_type') %></th>
+
+              </tr>
+
+            </thead>
+
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <th><%= __('tip.total') || 'TOTAL' %></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<%- include ('../partials/permission_view_only_script') %>
+
+<%- include('../partials/footer') %>
+
+
+
+<script src="/assets/js/functions/tip.js"></script>
+
+
+
+<style>
+
+  .card-body {
+
+    overflow-x: auto;
+
+  }
+
+
+
+  #tip-tbl {
+
+    width: 100%;
+
+    font-size: 13px;
+
+    border-collapse: collapse;
+
+  }
+
+
+
+  #tip-tbl thead th {
+
+    background: var(--bs-primary-bg-subtle);
+
+    color: var(--bs-primary);
+
+    font-weight: 500;
+
+    padding: 12px 15px;
+
+    border: none;
+
+    text-align: center;
+
+    vertical-align: middle;
+
+  }
+
+
+
+  #tip-tbl thead th:nth-child(4),
+  #tip-tbl tbody td:nth-child(4),
+  #tip-tbl tfoot th:nth-child(4) {
+    text-align: right;
+  }
+
+  #tip-tbl tfoot th {
+    padding: 10px 15px;
+    font-weight: 600;
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+
+
+  #tip-tbl tbody tr {
+
+    border-bottom: 1px solid #eee;
+
+  }
+
+
+
+  #tip-tbl td {
+
+    padding: 12px 15px;
+
+    color: #666;
+
+    vertical-align: middle;
+
+    text-align: center;
+
+  }
+
+
+
+  #tip-tbl tbody tr:hover {
+
+    background-color: #f5f5f5 !important;
+
+  }
+
+
+
+  .tip-type-roller {
+
+    color: #0d6efd;
+
+    font-weight: 600;
+
+  }
+
+
+
+  .tip-type-dealer {
+
+    color: #e89149;
+
+    font-weight: 600;
+
+  }
+
+
+
+  #tip-tbl tfoot .tip-amount {
+    color: #198754;
+    font-weight: 600;
+  }
+
+
+
+  .dataTables_length label {
+
+    font-size: 0;
+
+  }
+
+
+
+  .dataTables_length select {
+
+    font-size: 12px;
+
+  }
+
+
+
+  .dataTables_wrapper .row {
+
+    margin-bottom: 15px;
+
+    font-size: 12px;
+
+  }
+
+
+
+  @media (max-width: 768px) {
+
+    #tip-tbl {
+
+      font-size: 10px;
+
+    }
+
+
+
+    #tip-tbl th,
+
+    #tip-tbl td {
+
+      padding: 5px;
+
+    }
+
+
+
+    .dataTables_wrapper .row {
+
+      font-size: 10px;
+
+    }
+
+  }
+
+</style>
+
+

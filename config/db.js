@@ -3,6 +3,7 @@ require('dotenv').config(); // Load .env variables
 const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategorySchema');
 const { ensureHouseExpenseApprovalSchema } = require('../utils/ensureHouseExpenseApprovalSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
+const { ensureTipSchema } = require('../utils/ensureTipSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -24,6 +25,7 @@ const pool = mysql.createPool({
 		await ensureExpenseCategorySchema(pool);
 		await ensureHouseExpenseApprovalSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
+		await ensureTipSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}

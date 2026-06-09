@@ -308,6 +308,24 @@ aside.sidebar .sidebar-footer {
                 </a>
                 </li>
               <li class="nav-item">
+                <a class="nav-link <%= currentPage === 'tip' ? 'active bg-gradient-primary' : '' %>" href="/tip">
+                    <i class="icon">
+                      <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
+                          <path opacity="0.4" d="M12 2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path d="M12 18V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path opacity="0.4" d="M4.93 4.93L7.76 7.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path opacity="0.4" d="M16.24 16.24L19.07 19.07" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path d="M2 12H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path d="M18 12H22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path opacity="0.4" d="M4.93 19.07L7.76 16.24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <path opacity="0.4" d="M16.24 7.76L19.07 4.93" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                          <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"></circle>
+                      </svg>
+                    </i>
+                    <span class="item-name"><%= __('sidebar.tip') %></span>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link <%= currentPage === 'multipurpose_ledger' ? 'active bg-gradient-primary' : '' %>" href="/multipurpose_ledger">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
