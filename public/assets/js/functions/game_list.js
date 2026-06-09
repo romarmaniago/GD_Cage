@@ -229,6 +229,82 @@ function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	$modal.data('totalReturnCC', rollerTotals.totalReturnCC);
 }
 
+function updateReturnRollerRemainingHint() {
+	var $hint = $('#return-roller-remaining-hint');
+	if (!$hint.length) return;
+
+	var requiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+	if (requiredTotal <= 0 || !$('#roller-chips-return-inputs').is(':visible')) {
+		$hint.hide().text('');
+		return;
+	}
+
+	var returnNN = parseFloat(($('#txtReturnRollerNN').val() || '').replace(/,/g, '').trim()) || 0;
+	var returnCC = parseFloat(($('#txtReturnRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
+	var enteredTotal = returnNN + returnCC;
+	var remaining = requiredTotal - enteredTotal;
+
+	if (enteredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	if (remaining > 0) {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
+			.show();
+	} else if (remaining === 0) {
+		$hint.removeClass('text-danger').addClass('text-success')
+			.text('Complete')
+			.show();
+	} else {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Exceeds required by: ' + Math.abs(remaining).toLocaleString('en-US'))
+			.show();
+	}
+}
+
+function updateRollerChipsRemainingHint() {
+	var $hint = $('#roller-chips-remaining-hint');
+	if (!$hint.length) return;
+
+	var transType = $('#modal-add-roller-chips input[name="txtTransType"]:checked').val();
+	if (transType !== '2') {
+		$hint.hide().text('');
+		return;
+	}
+
+	var requiredTotal = parseFloat($('#modal-add-roller-chips').data('requiredReturnTotal')) || 0;
+	if (requiredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	var returnNN = parseFloat(($('#modal-add-roller-chips .txtRollerNN').val() || '').replace(/,/g, '').trim()) || 0;
+	var returnCC = parseFloat(($('#modal-add-roller-chips .txtRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
+	var enteredTotal = returnNN + returnCC;
+	var remaining = requiredTotal - enteredTotal;
+
+	if (enteredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	if (remaining > 0) {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
+			.show();
+	} else if (remaining === 0) {
+		$hint.removeClass('text-danger').addClass('text-success')
+			.text('Complete')
+			.show();
+	} else {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Exceeds required by: ' + Math.abs(remaining).toLocaleString('en-US'))
+			.show();
+	}
+}
+
 /** Orange GAME END: ACTIVE=3 (pending) or any game with PENDING_ROLLER_RESOLVE set. */
 function isPendingRollerOrangeRow(row) {
 	var resolve = parseInt(row.PENDING_ROLLER_RESOLVE, 10) || 0;
@@ -287,6 +363,7 @@ function applyPendingFaultSettledUi() {
 		$('#roller-chips-return-inputs').hide();
 		$('#pending-resolution-section').hide();
 		$('#txtReturnRollerNN, #txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
 		$('#pending-resolve-status-banner').show();
 		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', true);
 		return;
@@ -5217,37 +5294,45 @@ $('#add_buyin').submit(function (event) {
 			var txtTotalRollingSplit = parseFloat($('#TotalRollingCashout').val()) || 0;
 			var $nnCashInput = $('#nnCashAmount');
 			var $nnDepInput = $('#nnDepositAmount');
+			var $nnCreditInput = $('#nnCreditAmount');
 			var $ccCashInput = $('#ccCashAmount');
 			var $ccDepInput = $('#ccDepositAmount');
+			var $ccCreditInput = $('#ccCreditAmount');
 			$nnCashInput.removeClass('is-invalid');
 			$nnDepInput.removeClass('is-invalid');
+			$nnCreditInput.removeClass('is-invalid');
 			$ccCashInput.removeClass('is-invalid');
 			$ccDepInput.removeClass('is-invalid');
+			$ccCreditInput.removeClass('is-invalid');
 			var parseSplitNum = function ($el) {
 				var v = ($el.val() || '').toString().replace(/,/g, '').trim();
 				return v === '' ? 0 : parseFloat(v);
 			};
 			var nnCash = parseSplitNum($nnCashInput);
 			var nnDep = parseSplitNum($nnDepInput);
+			var nnCredit = parseSplitNum($nnCreditInput);
 			var ccCash = parseSplitNum($ccCashInput);
 			var ccDep = parseSplitNum($ccDepInput);
+			var ccCredit = parseSplitNum($ccCreditInput);
+			var markerChipsReturnSplit = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')) || 0;
 
-			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(ccCash) || !Number.isFinite(ccDep)) {
+			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(nnCredit) ||
+				!Number.isFinite(ccCash) || !Number.isFinite(ccDep) || !Number.isFinite(ccCredit)) {
 				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Please enter valid numbers for all split fields.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
-			if (nnCash < 0 || nnDep < 0 || ccCash < 0 || ccDep < 0) {
+			if (nnCash < 0 || nnDep < 0 || nnCredit < 0 || ccCash < 0 || ccDep < 0 || ccCredit < 0) {
 				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Amounts cannot be negative.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
 
-			var totalNN = nnCash + nnDep;
-			var totalCC = ccCash + ccDep;
+			var totalNN = nnCash + nnDep + nnCredit;
+			var totalCC = ccCash + ccDep + ccCredit;
 			var totalChips = totalNN + totalCC;
 			if (totalChips <= 0) {
-				Swal.fire({ icon: 'warning', title: 'Invalid Input', text: 'Enter at least one Cash or Deposit amount for NN or CC chips.' });
+				Swal.fire({ icon: 'warning', title: 'Invalid Input', text: 'Enter at least one Cash, Deposit, or Credit amount for NN or CC chips.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
@@ -5266,7 +5351,9 @@ $('#add_buyin').submit(function (event) {
 				}
 				return true;
 			};
-			if (!checkNnThousands('NN Cash', nnCash, $nnCashInput) || !checkNnThousands('NN Deposit', nnDep, $nnDepInput)) {
+			if (!checkNnThousands('NN Cash', nnCash, $nnCashInput) ||
+				!checkNnThousands('NN Deposit', nnDep, $nnDepInput) ||
+				!checkNnThousands('NN Credit', nnCredit, $nnCreditInput)) {
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
@@ -5275,22 +5362,23 @@ $('#add_buyin').submit(function (event) {
 				Swal.fire({
 					icon: 'warning',
 					title: 'Invalid Input',
-					text: 'Total NN (Cash + Deposit) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
+					text: 'Total NN (Cash + Deposit + Credit) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
 				});
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
 
-			var cashLeg = nnCash + ccCash;
-			var depLeg = nnDep + ccDep;
-			if (cashLeg <= 0 || depLeg <= 0) {
-				Swal.fire({
-					icon: 'warning',
-					title: 'Split requires both',
-					text: 'Enter amounts for both Cash and Deposit.'
-				});
-				$btn.prop('disabled', false).html('Save');
-				return;
+			var creditLeg = nnCredit + ccCredit;
+			if (creditLeg > 0) {
+				if (nnCredit > markerChipsReturnSplit || ccCredit > markerChipsReturnSplit || creditLeg > markerChipsReturnSplit) {
+					Swal.fire({
+						icon: 'warning',
+						title: 'Invalid Input',
+						text: 'Credit return cannot exceed Credit Balance: ' + formatNumberWithCommas(markerChipsReturnSplit)
+					});
+					$btn.prop('disabled', false).html('Save');
+					return;
+				}
 			}
 
 			if (!validateCashoutTipAmounts(totalChips, $btn)) {
@@ -5338,6 +5426,7 @@ $('#add_buyin').submit(function (event) {
 			var splitRows = '';
 			splitRows += buildLegRows('Cash', nnCash, ccCash);
 			splitRows += buildLegRows('Deposit', nnDep, ccDep);
+			splitRows += buildLegRows('Credit', nnCredit, ccCredit);
 			splitRows += '<tr>' +
 				'<td style="' + totalTitleCell + '">Total:<\/td>' +
 				'<td style="' + totalMidCell + '"><\/td>' +
@@ -5406,6 +5495,8 @@ $('#add_buyin').submit(function (event) {
 					split_cash_cc: fmt(ccCash),
 					split_dep_nn: fmt(nnDep),
 					split_dep_cc: fmt(ccDep),
+					split_credit_nn: fmt(nnCredit),
+					split_credit_cc: fmt(ccCredit),
 					optTip: $('#enableTipCashout').is(':checked') ? '1' : '',
 					txtTipRoller: $('#tipRollerAmount').val(),
 					txtTipDealer: $('#tipDealerAmount').val()
@@ -6754,6 +6845,7 @@ function addRollerChips(id, returnOnly, agentCode, guestName) {
 
 	$('#modal-add-roller-chips .txtRollerNN').val('');
 	$('#modal-add-roller-chips .txtRollerCC').val('');
+	updateRollerChipsRemainingHint();
 	$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // No default selection
 
 	// If RETURN only mode (END GAME but not settled), disable ADD option and auto-select RETURN
@@ -6839,7 +6931,9 @@ function addRollerChips(id, returnOnly, agentCode, guestName) {
 			$('#modal-add-roller-chips').data('totalAddCC', totalAddCC);
 			$('#modal-add-roller-chips').data('totalReturnNN', totalReturnNN);
 			$('#modal-add-roller-chips').data('totalReturnCC', totalReturnCC);
+			$('#modal-add-roller-chips').data('requiredReturnTotal', requiredReturnTotal);
 			$('#modal-add-roller-chips').data('netAddNN', netAddNN);
+			updateRollerChipsRemainingHint();
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
@@ -6851,6 +6945,7 @@ function addRollerChips(id, returnOnly, agentCode, guestName) {
 $('#modal-add-roller-chips').on('hidden.bs.modal', function () {
 	$('#rollerAdd').prop('disabled', false).closest('.form-check').css('opacity', '1');
 	$('#rollerReturn').prop('checked', false);
+	updateRollerChipsRemainingHint();
 });
 
 function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
@@ -6881,7 +6976,7 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 		nnCcRow.style.display = '';
 	}
 
-	$('#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount').val('');
+	$('#nnCashAmount, #nnDepositAmount, #nnCreditAmount, #ccCashAmount, #ccDepositAmount, #ccCreditAmount').val('');
 	$('#tipRollerAmount, #tipDealerAmount').val('').removeClass('is-invalid');
 
 	var tipRow = document.getElementById('tip-amount-row');
@@ -7589,6 +7684,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	// Reset roller chips return fields and hide section immediately
 	$('.txtReturnRollerNN').val('');
 	$('.txtReturnRollerCC').val('');
+	updateReturnRollerRemainingHint();
 	$('#roller-chips-return-section').hide();
 	$('#cutoff-roller-auto-section').hide();
 	resetChangeStatusParentDateField();
@@ -7660,6 +7756,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 				} else {
 					$('#txtReturnRollerNN').val('');
 					$('#txtReturnRollerCC').val('');
+					updateReturnRollerRemainingHint();
 					$('#roller-chips-return-section').hide();
 					if (!isPendingFaultSettled()) {
 						$('#pending-resolve-status-banner').hide();
@@ -7789,6 +7886,21 @@ function formatServiceTransactionLabel(id) {
 	return labels[id] || '';
 }
 
+function destroyServicesListTable() {
+	var $table = $('#services-list-tbl');
+	if (!$table.length) return;
+	if (!$.fn.DataTable.isDataTable($table)) return;
+	try {
+		$table.DataTable().destroy();
+	} catch (err) {
+		var $wrapper = $table.closest('.dataTables_wrapper');
+		if ($wrapper.length) {
+			$table.detach();
+			$wrapper.replaceWith($table);
+		}
+	}
+}
+
 function renderServicesList(list) {
 	const $tbody = $('#services-list-body');
 	const $table = $('#services-list-tbl');
@@ -7799,23 +7911,11 @@ function renderServicesList(list) {
 	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	const isSettled = parseInt(_servicesSettled || 0, 10) === 1 && userPermissions !== 0; // Super admin can edit even when settled
 
-	if ($.fn.DataTable.isDataTable($table)) {
-		$table.DataTable().clear().destroy();
-	}
+	destroyServicesListTable();
 
 	if (data.length === 0) {
 		if ($total.length) $total.text('0');
-		// Let DataTables render its own empty-table row to avoid column-count warnings
-		$tbody.empty();
-		$table.DataTable({
-			paging: false,
-			lengthChange: false,
-			searching: false,
-			ordering: false,
-			info: false,
-			autoWidth: false,
-			language: { emptyTable: 'No services availed.' }
-		});
+		$tbody.html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
 		return;
 	}
 
@@ -7823,6 +7923,8 @@ function renderServicesList(list) {
 		const id = item.IDNo || item.id || '';
 		const service = item.SERVICE_TYPE || item.service_type || '';
 		const amount = item.AMOUNT || item.amount || 0;
+		const deliveryFee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
+		const deliveryFeeDisplay = deliveryFee > 0 ? deliveryFee.toLocaleString('en-US') : '';
 		const remarks = item.REMARKS || item.remarks || '';
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
@@ -7832,6 +7934,7 @@ function renderServicesList(list) {
 		return `<tr>
 			<td>${service}</td>
 			<td class="text-end">${parseFloat(amount).toLocaleString('en-US')}</td>
+			<td class="text-end">${deliveryFeeDisplay}</td>
 			<td>${remarks || ''}</td>
 			<td>${transactionLabel || '-'}</td>
 			<td>${processed || ''}</td>
@@ -7859,10 +7962,11 @@ function renderServicesList(list) {
 		</tr>`;
 	});
 
-	// Total amount of all services
+	// Total amount of all services (amount + delivery fee)
 	const totalAmt = data.reduce((sum, item) => {
 		const amt = parseFloat(item.AMOUNT || item.amount || 0);
-		return sum + (isNaN(amt) ? 0 : amt);
+		const fee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
+		return sum + (isNaN(amt) ? 0 : amt) + fee;
 	}, 0);
 	if ($total.length) $total.text(totalAmt.toLocaleString('en-US'));
 
@@ -7883,6 +7987,12 @@ function renderServicesList(list) {
 		if (modalEl) window.PermissionViewOnly.disableModalSubmitAndDelete(null, modalEl);
 	}
 }
+
+$(document).on('hidden.bs.modal', '#modal-services', function () {
+	destroyServicesListTable();
+	$('#services-list-body').html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
+	$('#services-total').text('0');
+});
 
 // Save service
 $(document).on('click', '#services-save-btn', function (e) {

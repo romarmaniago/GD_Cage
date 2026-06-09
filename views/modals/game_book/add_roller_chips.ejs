@@ -43,6 +43,7 @@
 			<div class="row mb-2">
 				<div class="col-sm-6">
 					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerNN" placeholder="NN Chips" name="txtRollerNN">
+					<small id="roller-chips-remaining-hint" class="d-block mt-1 text-danger fw-semibold" style="display: none;"></small>
 				</div>
 				<div class="col-sm-6">
 					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerCC" placeholder="CC Chips" name="txtRollerCC">
@@ -193,13 +194,26 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	}
 
-	if (nnInput) nnInput.addEventListener('input', validateRollerNNInline);
-	if (ccInput) ccInput.addEventListener('input', validateRollerCCInline);
+	function onRollerInputChange() {
+		if (typeof updateRollerChipsRemainingHint === 'function') {
+			updateRollerChipsRemainingHint();
+		}
+	}
+
+	if (nnInput) {
+		nnInput.addEventListener('input', validateRollerNNInline);
+		nnInput.addEventListener('input', onRollerInputChange);
+	}
+	if (ccInput) {
+		ccInput.addEventListener('input', validateRollerCCInline);
+		ccInput.addEventListener('input', onRollerInputChange);
+	}
 
 	transRadios.forEach(function (r) {
 		r.addEventListener('change', function () {
 			validateRollerNNInline();
 			validateRollerCCInline();
+			onRollerInputChange();
 		});
 	});
 });

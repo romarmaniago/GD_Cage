@@ -62,7 +62,7 @@
 							<div class="form-check mb-0">
 								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="enableSplitCashout">
 								<label class="form-check-label" for="enableSplitCashout">
-									Split to Cash &amp; Deposit
+									Split Cash-out
 								</label>
 							</div>
 							<div class="form-check mb-0">
@@ -83,10 +83,15 @@
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 										class="form-control text-center" placeholder="NN Chips" id="nnCashAmount">
 								</div>
-								<div>
+								<div class="mb-2">
 									<label class="form-label mb-1">Deposit</label>
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 										class="form-control text-center" placeholder="NN Chips" id="nnDepositAmount">
+								</div>
+								<div>
+									<label class="form-label mb-1">Credit</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="NN Chips" id="nnCreditAmount">
 								</div>
 							</div>
 						</div>
@@ -98,10 +103,15 @@
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 										class="form-control text-center" placeholder="CC Chips" id="ccCashAmount">
 								</div>
-								<div>
+								<div class="mb-2">
 									<label class="form-label mb-1">Deposit</label>
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 										class="form-control text-center" placeholder="CC Chips" id="ccDepositAmount">
+								</div>
+								<div>
+									<label class="form-label mb-1">Credit</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="CC Chips" id="ccCreditAmount">
 								</div>
 							</div>
 						</div>
@@ -163,8 +173,10 @@
 		const nnCcRow = document.getElementById('nn-cc-row');
 		const nnCashInput = document.getElementById('nnCashAmount');
 		const nnDepositInput = document.getElementById('nnDepositAmount');
+		const nnCreditInput = document.getElementById('nnCreditAmount');
 		const ccCashInput = document.getElementById('ccCashAmount');
 		const ccDepositInput = document.getElementById('ccDepositAmount');
+		const ccCreditInput = document.getElementById('ccCreditAmount');
 		const validateNnSplitInput = function (inputEl) {
 			if (!inputEl) return;
 			const raw = (inputEl.value || '').toString().replace(/,/g, '').trim();
@@ -189,6 +201,12 @@
 		if (nnDepositInput) {
 			nnDepositInput.addEventListener('input', function () {
 				validateNnSplitInput(nnDepositInput);
+			});
+		}
+
+		if (nnCreditInput) {
+			nnCreditInput.addEventListener('input', function () {
+				validateNnSplitInput(nnCreditInput);
 			});
 		}
 
@@ -235,12 +253,16 @@
 				if (!isOn) {
 					if (nnCashInput) nnCashInput.value = '';
 					if (nnDepositInput) nnDepositInput.value = '';
+					if (nnCreditInput) nnCreditInput.value = '';
 					if (ccCashInput) ccCashInput.value = '';
 					if (ccDepositInput) ccDepositInput.value = '';
+					if (ccCreditInput) ccCreditInput.value = '';
 					if (nnCashInput) nnCashInput.classList.remove('is-invalid');
 					if (nnDepositInput) nnDepositInput.classList.remove('is-invalid');
+					if (nnCreditInput) nnCreditInput.classList.remove('is-invalid');
 					if (ccCashInput) ccCashInput.classList.remove('is-invalid');
 					if (ccDepositInput) ccDepositInput.classList.remove('is-invalid');
+					if (ccCreditInput) ccCreditInput.classList.remove('is-invalid');
 				} else {
 					// When enabling split, clear transaction type radios to avoid confusion
 					const transTypeRadios = document.querySelectorAll('input[name="txtTransType"]');
