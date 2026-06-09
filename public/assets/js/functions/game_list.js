@@ -7886,6 +7886,21 @@ function formatServiceTransactionLabel(id) {
 	return labels[id] || '';
 }
 
+function destroyServicesListTable() {
+	var $table = $('#services-list-tbl');
+	if (!$table.length) return;
+	if (!$.fn.DataTable.isDataTable($table)) return;
+	try {
+		$table.DataTable().destroy();
+	} catch (err) {
+		var $wrapper = $table.closest('.dataTables_wrapper');
+		if ($wrapper.length) {
+			$table.detach();
+			$wrapper.replaceWith($table);
+		}
+	}
+}
+
 function renderServicesList(list) {
 	const $tbody = $('#services-list-body');
 	const $table = $('#services-list-tbl');
@@ -7896,23 +7911,11 @@ function renderServicesList(list) {
 	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	const isSettled = parseInt(_servicesSettled || 0, 10) === 1 && userPermissions !== 0; // Super admin can edit even when settled
 
-	if ($.fn.DataTable.isDataTable($table)) {
-		$table.DataTable().clear().destroy();
-	}
+	destroyServicesListTable();
 
 	if (data.length === 0) {
 		if ($total.length) $total.text('0');
-		// Let DataTables render its own empty-table row to avoid column-count warnings
-		$tbody.empty();
-		$table.DataTable({
-			paging: false,
-			lengthChange: false,
-			searching: false,
-			ordering: false,
-			info: false,
-			autoWidth: false,
-			language: { emptyTable: 'No services availed.' }
-		});
+		$tbody.html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
 		return;
 	}
 
@@ -7920,6 +7923,8 @@ function renderServicesList(list) {
 		const id = item.IDNo || item.id || '';
 		const service = item.SERVICE_TYPE || item.service_type || '';
 		const amount = item.AMOUNT || item.amount || 0;
+		const deliveryFee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
+		const deliveryFeeDisplay = deliveryFee > 0 ? deliveryFee.toLocaleString('en-US') : '';
 		const remarks = item.REMARKS || item.remarks || '';
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
@@ -7929,6 +7934,7 @@ function renderServicesList(list) {
 		return `<tr>
 			<td>${service}</td>
 			<td class="text-end">${parseFloat(amount).toLocaleString('en-US')}</td>
+			<td class="text-end">${deliveryFeeDisplay}</td>
 			<td>${remarks || ''}</td>
 			<td>${transactionLabel || '-'}</td>
 			<td>${processed || ''}</td>
@@ -7956,10 +7962,11 @@ function renderServicesList(list) {
 		</tr>`;
 	});
 
-	// Total amount of all services
+	// Total amount of all services (amount + delivery fee)
 	const totalAmt = data.reduce((sum, item) => {
 		const amt = parseFloat(item.AMOUNT || item.amount || 0);
-		return sum + (isNaN(amt) ? 0 : amt);
+		const fee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
+		return sum + (isNaN(amt) ? 0 : amt) + fee;
 	}, 0);
 	if ($total.length) $total.text(totalAmt.toLocaleString('en-US'));
 
@@ -7980,6 +7987,12 @@ function renderServicesList(list) {
 		if (modalEl) window.PermissionViewOnly.disableModalSubmitAndDelete(null, modalEl);
 	}
 }
+
+$(document).on('hidden.bs.modal', '#modal-services', function () {
+	destroyServicesListTable();
+	$('#services-list-body').html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
+	$('#services-total').text('0');
+});
 
 // Save service
 $(document).on('click', '#services-save-btn', function (e) {
