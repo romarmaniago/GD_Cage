@@ -13,13 +13,13 @@ function tipTypeColorClass(tipType) {
 
 function updateTipAmountTotal(api) {
 	const total = api
-		.column(3, { search: 'applied' })
+		.column(4, { search: 'applied' })
 		.data()
 		.reduce(function (sum, val) {
 			return sum + (Number(val) || 0);
 		}, 0);
 
-	$(api.column(3).footer()).html('<span class="tip-amount">' + formatMoney(total) + '</span>');
+	$(api.column(4).footer()).html('<span class="tip-amount">' + formatMoney(total) + '</span>');
 }
 
 function fetchTipData() {
@@ -49,6 +49,13 @@ $(document).ready(function () {
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
+			{
+				data: 'GUEST_NAME',
+				defaultContent: '-',
+				render: function (data) {
+					return data != null && String(data).trim() !== '' ? String(data) : '-';
+				}
+			},
 			{
 				data: 'GAME_NO',
 				defaultContent: '-',

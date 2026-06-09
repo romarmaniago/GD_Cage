@@ -122,7 +122,7 @@
 		"telegram_API": "Telegram",
 		"Change_Game_No": "Modify Game Number",
 		"title": "Junket",
-		"tip": "sidebar.tip"
+		"tip": "Tip"
 	},
 	"footer": {
 		"privacy_policy": "Privacy Policy",
@@ -1330,11 +1330,28 @@
 		"failed_to_delete": "Failed to delete service record."
 	},
 	"tip": {
-		"date_time": "tip.date_time",
-		"account": "tip.account",
-		"game_no": "tip.game_no",
-		"amount": "tip.amount",
-		"tip_type": "tip.tip_type",
-		"total": "tip.total"
+		"new_record": "New Tip",
+		"edit_record": "Edit Tip",
+		"amount": "Amount",
+		"game_no": "Game #",
+		"account": "Account",
+		"guest": "Guest",
+		"tip_type": "Tip Type",
+		"roller": "Roller",
+		"dealer": "Dealer",
+		"date_time": "Date & Time",
+		"remarks_optional": "Remarks (optional)",
+		"choose_game": "Choose game",
+		"choose_account": "Choose account",
+		"processed_by": "Processed By",
+		"action": "Action",
+		"save": "Save",
+		"close": "Close",
+		"saved": "Saved successfully.",
+		"updated": "Updated successfully.",
+		"deleted": "Deleted successfully.",
+		"delete_confirm": "Delete this record?",
+		"delete_confirm_text": "This cannot be undone.",
+		"total": "TOTAL"
 	}
 }

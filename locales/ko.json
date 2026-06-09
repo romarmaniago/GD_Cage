@@ -131,6 +131,7 @@
 		"amount": "금액",
 		"game_no": "게임 #",
 		"account": "계정",
+		"guest": "게스트",
 		"tip_type": "팁 유형",
 		"roller": "롤러",
 		"dealer": "딜러",
@@ -147,7 +148,7 @@
 		"deleted": "삭제되었습니다.",
 		"delete_confirm": "이 기록을 삭제하시겠습니까?",
 		"delete_confirm_text": "되돌릴 수 없습니다.",
-		"total": "tip.total"
+		"total": "합계"
 	},
 	"footer": {
 		"privacy_policy": "개인정보 보호정책",

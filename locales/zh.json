@@ -130,6 +130,7 @@
 		"amount": "金额",
 		"game_no": "游戏 #",
 		"account": "账户",
+		"guest": "客人",
 		"tip_type": "小费类型",
 		"roller": "滚轮",
 		"dealer": "荷官",
@@ -146,7 +147,7 @@
 		"deleted": "删除成功。",
 		"delete_confirm": "删除此记录？",
 		"delete_confirm_text": "此操作无法撤销。",
-		"total": "tip.total"
+		"total": "合计"
 	},
 	"footer": {
 		"privacy_policy": "隐私政策",

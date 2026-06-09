@@ -58,39 +58,20 @@
 					</div>
 
 					<div class="row mb-2">
-						<div class="col-12 d-flex align-items-center justify-content-between">
+						<div class="col-12 d-flex align-items-center justify-content-between cashout-option-row">
 							<div class="form-check mb-0">
-								<input class="form-check-input" type="checkbox" id="enableSplitCashout">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="enableSplitCashout">
 								<label class="form-check-label" for="enableSplitCashout">
 									Split to Cash &amp; Deposit
 								</label>
 							</div>
-						</div>
-					</div>
-
-					<div class="row mb-2">
-						<div class="col-12">
 							<div class="form-check mb-0">
-								<input class="form-check-input" type="checkbox" id="enableTipCashout" name="optTip" value="1">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="enableTipCashout" name="optTip" value="1">
 								<label class="form-check-label" for="enableTipCashout">
 									Tip
 								</label>
 							</div>
 						</div>
-					</div>
-
-					<div class="row mb-3" id="tip-amount-row" style="display:none;">
-						<div class="col-sm-6 mb-2 mb-sm-0">
-							<label class="form-label mb-1" for="tipRollerAmount">Roller</label>
-							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center" placeholder="Roller" name="txtTipRoller" id="tipRollerAmount">
-						</div>
-						<div class="col-sm-6">
-							<label class="form-label mb-1" for="tipDealerAmount">Dealer</label>
-							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center" placeholder="Dealer" name="txtTipDealer" id="tipDealerAmount">
-						</div>
-						
 					</div>
 
 					<div class="row mb-3" id="split-cashout-row" style="display:none;">
@@ -123,6 +104,19 @@
 										class="form-control text-center" placeholder="CC Chips" id="ccDepositAmount">
 								</div>
 							</div>
+						</div>
+					</div>
+
+					<div class="row mb-3" id="tip-amount-row" style="display:none;">
+						<div class="col-sm-6 mb-2 mb-sm-0">
+							<label class="form-label mb-1" for="tipRollerAmount">Roller</label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" placeholder="Roller" name="txtTipRoller" id="tipRollerAmount">
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label mb-1" for="tipDealerAmount">Dealer</label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" placeholder="Dealer" name="txtTipDealer" id="tipDealerAmount">
 						</div>
 					</div>
 				</div>

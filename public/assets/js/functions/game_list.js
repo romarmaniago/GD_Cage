@@ -1195,7 +1195,7 @@ function syncUnreturnedRollerFilterBanner() {
 	$(
 		'<div id="game-list-unreturned-roller-banner" class="row mb-2">' +
 		'<div class="col-12">' +
-		'<div class="alert alert-warning py-2 mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+		'<div class="alert game-list-roller-chips-banner py-2 mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
 		'<span>' + label + '</span>' +
 		'<a href="/game_list" class="btn btn-sm btn-outline-secondary">' + clearLabel + '</a>' +
 		'</div></div></div>'

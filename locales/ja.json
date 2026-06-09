@@ -130,6 +130,7 @@
 		"amount": "金額",
 		"game_no": "ゲーム #",
 		"account": "アカウント",
+		"guest": "ゲスト",
 		"tip_type": "チップ種別",
 		"roller": "ローラー",
 		"dealer": "ディーラー",
@@ -146,7 +147,7 @@
 		"deleted": "削除しました。",
 		"delete_confirm": "この記録を削除しますか？",
 		"delete_confirm_text": "元に戻せません。",
-		"total": "tip.total"
+		"total": "合計"
 	},
 	"footer": {
 		"by": "バイ",

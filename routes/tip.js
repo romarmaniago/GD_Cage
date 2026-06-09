@@ -123,9 +123,11 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(t.GAME_ID AS CHAR)) AS GAME_NO,
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
+				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
 				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME
 			 FROM tip t
 			 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
+			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
 			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
 			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			 LEFT JOIN user_info ui ON ui.IDNo = t.ENCODED_BY
