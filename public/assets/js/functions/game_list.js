@@ -1234,24 +1234,45 @@ function buildGameTypeCell(row, userPermissions) {
 		'style="font-size:inherit;text-decoration:none;cursor:pointer;" ' +
 		'data-game-id="' + row.game_list_id + '" ' +
 		'data-game-type="' + gameType + '" ' +
-		'data-agent-code="' + escapeHtmlText(row.agent_code || '') + '" ' +
-		'data-guest-name="' + escapeHtmlText(row.guest_name || '') + '" ' +
 		'title="Change game type">' +
 		escapeHtmlText(displayLabel) +
 		'</button>'
 	);
 }
 
-function openGameTypeModal(gameId, currentType, agentCode, guestName) {
+function confirmGameTypeChange(gameId, currentType) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
-	if (userPermissions === 2) return;
-	var gameType = normalizeCutoffGameType(currentType);
-	setGameListModalAccountLabel('#edit-game-type-agent-code', agentCode, guestName);
-	$('#edit-game-type-game-id').val(gameId);
-	$('#edit-game-type-prev').val(gameType);
-	$('input[name="editGameType"][value="' + gameType + '"]').prop('checked', true);
-	$('#edit-game-type-save-btn').prop('disabled', false).text('Update');
-	$('#modal-edit-game-type').modal('show');
+	if (userPermissions === 2 || !gameId) return;
+	var prevType = normalizeCutoffGameType(currentType);
+	var newType = prevType === 'TELEBET' ? 'LIVE' : 'TELEBET';
+	var translations = window.gamelistTranslations || {};
+	var prevLabel = prevType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
+	var newLabel = newType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
+
+	Swal.fire({
+		icon: 'question',
+		title: 'Change game type?',
+		html: 'Change type from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong>?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (!result.isConfirmed) return;
+		$.ajax({
+			url: '/game_list/' + gameId + '/game_type',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ game_type: newType }),
+			success: function () {
+				updateGameTypeCellDisplay(gameId, newType);
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			},
+			error: function (xhr) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			}
+		});
+	});
 }
 
 function updateGameTypeCellDisplay(gameId, newType) {
@@ -1603,55 +1624,10 @@ $(document).on('submit', '#form-game-remarks', function (e) {
 
 $(document).on('click', '.js-game-type-btn', function () {
 	var $btn = $(this);
-	openGameTypeModal(
-		parseInt($btn.data('game-id'), 10),
-		$btn.data('game-type') || 'LIVE',
-		$btn.data('agent-code') || '',
-		$btn.data('guest-name') || ''
+	confirmGameTypeChange(
+		parseInt($btn.attr('data-game-id'), 10),
+		$btn.attr('data-game-type') || 'LIVE'
 	);
-});
-
-$(document).on('submit', '#form-edit-game-type', function (e) {
-	e.preventDefault();
-	var gameId = parseInt($('#edit-game-type-game-id').val(), 10);
-	var newType = $('input[name="editGameType"]:checked').val();
-	var prevType = $('#edit-game-type-prev').val() || 'LIVE';
-	if (!gameId || !newType) return;
-	if (newType === prevType) {
-		$('#modal-edit-game-type').modal('hide');
-		return;
-	}
-
-	Swal.fire({
-		icon: 'question',
-		title: 'Change game type?',
-		html: 'Change type from <strong>' + escapeHtmlText(prevType) + '</strong> to <strong>' + escapeHtmlText(newType) + '</strong>?',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, update',
-		cancelButtonText: 'Cancel'
-	}).then(function (result) {
-		if (!result.isConfirmed) return;
-		var $btn = $('#edit-game-type-save-btn');
-		$btn.prop('disabled', true).text('Saving...');
-		$.ajax({
-			url: '/game_list/' + gameId + '/game_type',
-			method: 'PUT',
-			contentType: 'application/json',
-			data: JSON.stringify({ game_type: newType }),
-			success: function () {
-				$('#modal-edit-game-type').modal('hide');
-				updateGameTypeCellDisplay(gameId, newType);
-				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
-			},
-			error: function (xhr) {
-				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
-				Swal.fire({ icon: 'error', title: 'Error', text: msg });
-			},
-			complete: function () {
-				$btn.prop('disabled', false).text('Update');
-			}
-		});
-	});
 });
 
 $(document).on('submit', '#form-edit-commission-type', function (e) {
@@ -6575,7 +6551,7 @@ function normalizeGameGuestName(raw) {
 }
 
 function formatServicesAccountLabel(agentCode, guestName) {
-	var code = (agentCode || '').trim();
+	var code = String(agentCode == null ? '' : agentCode).trim();
 	var name = normalizeGameGuestName(guestName);
 	return code + (name ? ' (' + name + ')' : '');
 }
