@@ -569,18 +569,20 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 
 		const data = (rows || []).map((row) => {
 			let accountDisplay = '-';
+			let guestDisplay = '';
 			if (Number(row.TRANS_TYPE) === TRANS_TYPE.MONEY_EXCHANGE) {
 				if (row.EXCHANGE_AGENT_CODE) {
 					accountDisplay = `${row.EXCHANGE_AGENT_CODE}${row.EXCHANGE_AGENT_NAME ? ` — ${row.EXCHANGE_AGENT_NAME}` : ''}`;
-				} else if (row.EXCHANGE_GUEST_NAME) {
-					accountDisplay = String(row.EXCHANGE_GUEST_NAME).trim();
 				}
+				guestDisplay = row.EXCHANGE_GUEST_NAME ? String(row.EXCHANGE_GUEST_NAME).trim() : '';
 			} else if (row.ACCOUNT_ID && row.AGENT_CODE) {
 				accountDisplay = `${row.AGENT_CODE}${row.AGENT_NAME ? ` — ${row.AGENT_NAME}` : ''}`;
 			}
 			return {
 				...row,
 				ACCOUNT_DISPLAY: accountDisplay,
+				GUEST_DISPLAY: guestDisplay || '-',
+				APPROVED_BY_DISPLAY: row.IN_CHARGE ? String(row.IN_CHARGE).trim() : '',
 				TRANS_TYPE_LABEL: transTypeLabel(row.TRANS_TYPE)
 			};
 		});
@@ -614,7 +616,7 @@ router.post('/add_multipurpose_ledger', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Remarks is required' });
 		}
 		if (!inCharge) {
-			return res.status(400).json({ message: 'Person in charge is required' });
+			return res.status(400).json({ message: 'Approved by is required' });
 		}
 
 		await connection.beginTransaction();
@@ -687,7 +689,7 @@ router.put('/multipurpose_ledger/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Remarks is required' });
 		}
 		if (!inCharge) {
-			return res.status(400).json({ message: 'Person in charge is required' });
+			return res.status(400).json({ message: 'Approved by is required' });
 		}
 
 		const [existingRows] = await connection.execute(
@@ -1073,7 +1075,7 @@ router.post('/multipurpose_ledger/exchange/deposit', checkSession, async (req, r
 		const dateNow = new Date();
 
 		if (!inCharge) {
-			return res.status(400).send('Person in charge is required');
+			return res.status(400).send('Approved by is required');
 		}
 		if (!accountId && !guestName) {
 			return res.status(400).send('Guest name is required when no account is selected');

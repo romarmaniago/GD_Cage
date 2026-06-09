@@ -3,43 +3,230 @@
 <%- include('../partials/sidebar') %>
 <%- include('../partials/topbar') %>
 <style>
-  .daily-report-matrix {
+  .card-body {
+    overflow-x: visible;
+  }
+
+  .daily-report-table-wrap {
+    width: 100%;
+    overflow-x: visible;
+  }
+
+  #daily-report-view-table_wrapper,
+  #daily-report-view-table_wrapper .dataTables_scroll,
+  #daily-report-view-table_wrapper .dataTables_scrollBody,
+  #daily-report-view-table_wrapper .dataTables_scrollHead {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  #daily-report-view-table {
+    width: 100% !important;
+    max-width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
     table-layout: fixed;
+  }
+
+  #daily-report-view-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 8px 4px;
+    text-align: center;
+    border: none;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    vertical-align: middle;
+    text-transform: uppercase;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+
+  #daily-report-view-table thead th.daily-report-date-col {
+    text-align: left;
+    padding-left: 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  #daily-report-view-table thead th.daily-report-amount-col,
+  #daily-report-view-table thead th.daily-report-total-col {
+    text-align: right;
+    padding-right: 6px;
+  }
+
+  #daily-report-view-table tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  #daily-report-view-table tbody tr:hover {
+    background-color: #f5f5f5 !important;
+  }
+
+  #daily-report-view-table td {
+    padding: 8px 4px;
+    color: #666;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  #daily-report-view-table td.daily-report-date-col {
+    text-align: left;
+    padding-left: 10px;
+    color: #333;
+  }
+
+  #daily-report-view-table td.daily-report-amount-col,
+  #daily-report-view-table td.daily-report-total-col {
+    text-align: right;
+    padding-right: 6px;
+  }
+
+  #daily-report-view-table tfoot th {
+    padding: 8px 4px;
+    font-weight: 600;
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  #daily-report-view-table tfoot th.daily-report-date-col {
+    text-align: left;
+    padding-left: 10px;
+  }
+
+  #daily-report-view-table tfoot th.daily-report-amount-col,
+  #daily-report-view-table tfoot th.daily-report-total-col {
+    text-align: right;
+    padding-right: 6px;
+  }
+
+  #daily-report-view-table .daily-report-winloss-positive {
+    color: #16a34a !important;
+    font-weight: 600;
+  }
+
+  #daily-report-view-table .daily-report-winloss-negative {
+    color: #dc2626 !important;
+    font-weight: 600;
+  }
+
+  #daily-report-view-table td.daily-report-editable-cell {
+    cursor: pointer;
+  }
+
+  #daily-report-view-table td.daily-report-editable-cell:hover {
+    background-color: #eef4ff !important;
+  }
+
+  #daily-report-view-table td.daily-report-editable-cell.is-editing {
+    padding: 2px 4px;
+  }
+
+  #daily-report-view-table td.daily-report-editable-cell.is-saving {
+    opacity: 0.65;
+  }
+
+  #daily-report-view-table .daily-report-cell-input {
+    width: 100%;
+    min-width: 0;
+    text-align: right;
+    font-size: 11px;
+    padding: 4px 6px;
+    border: 2px solid var(--bs-primary, #0d6efd);
+    box-shadow: none;
+  }
+
+  #daily-report-view-table .daily-report-cell-input:focus {
+    border-color: var(--bs-primary, #0d6efd);
+    box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.2);
+    outline: none;
+  }
+
+  .daily-report-daterange-mount {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    vertical-align: middle;
+  }
+
+  .daily-report-daterange-mount.is-placed {
+    display: inline-flex;
+  }
+
+  .daily-report-list-daterange-wrap {
+    width: auto;
+    min-width: 220px;
+    max-width: 300px;
+  }
+
+  .daily-report-list-daterange-wrap .flatpickr-wrapper {
+    display: block;
     width: 100%;
   }
-  /* Override theme nowrap on thead/cells so long table names wrap */
-  .daily-report-matrix thead {
-    white-space: normal;
-  }
-  .daily-report-matrix th,
-  .daily-report-matrix td {
-    padding: 0.35rem 0.5rem;
-    min-width: 0;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    vertical-align: middle;
-    line-height: 1.25;
-  }
-  .daily-report-matrix .daily-report-total-col,
-  .daily-report-matrix .daily-report-total-row td {
-    background-color: #fff3cd;
-    font-weight: 700;
-  }
-  .daily-report-matrix tbody td:not(:first-child) {
-    text-align: right !important;
-    padding-right: 20px;
-  }
-  .daily-report-list-daterange-wrap {
-    display: inline-block;
-    max-width: 100%;
-  }
+
   .daily-report-list-daterange-wrap .form-control,
-  .daily-report-list-daterange-wrap input.flatpickr-alt-input {
-    width: 15rem;
+  .daily-report-list-daterange-wrap input.flatpickr-alt-input,
+  .daily-report-list-daterange-wrap .flatpickr-input.form-control {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
     max-width: 100%;
-    border-radius: 0.5rem;
-    text-align: center;
+    margin: 0;
+    font-size: 12px;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_length {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 auto;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_filter {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_filter label {
+    margin-bottom: 0;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_length label {
+    font-size: 0;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_length select {
+    font-size: 12px;
+  }
+
+  #daily-report-view-table_wrapper .row {
+    margin-bottom: 15px;
+    font-size: 12px;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_info {
+    font-size: 12px;
+    color: #666;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_paginate {
+    font-size: 12px;
+  }
+
+  #daily-report-view-table_wrapper .dataTables_paginate .pagination {
+    margin-bottom: 0;
   }
   #daily-report-modal .daily-report-entries-table {
     table-layout: fixed;
@@ -72,7 +259,7 @@
             <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="btn-print-daily-report-matrix">
               <i class="fa fa-print opacity-90"></i><span>Print</span>
             </button>
-            <button type="button" class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1" id="btn-export-daily-report-matrix">
+            <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="btn-export-daily-report-matrix">
               <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
             </button>
             <button type="button" class="btn btn-sm btn-success" id="btn-add-daily-report">
@@ -84,23 +271,23 @@
             </button>
           </div>
         </div>
-        <div class="card-body">
-          <hr class="my-3">
-          <div class="d-flex justify-content-start mb-2">
+        <div class="card-body pt-2">
+          <div id="daily-report-daterange-mount" class="daily-report-daterange-mount">
             <div class="daily-report-list-daterange-wrap">
-              <input type="text" class="form-control form-control-sm" id="daily-report-list-daterange" placeholder="Date range">
+              <input type="text" class="form-control form-control-sm" id="daily-report-list-daterange" placeholder="Select date range" autocomplete="off">
             </div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-bordered table-sm text-center align-middle mb-0 daily-report-matrix" id="daily-report-view-table">
+          <div class="daily-report-table-wrap">
+            <table id="daily-report-view-table" class="table small-text mb-0" style="width:100%">
               <thead id="daily-report-list-thead">
-                <tr><th>Date</th><th>Total</th></tr>
+                <tr><th class="daily-report-date-col">Date</th><th class="daily-report-total-col">Total</th></tr>
               </thead>
               <tbody id="daily-report-list-tbody">
                 <tr>
                   <td colspan="2" class="text-center text-muted py-3">Loading reports...</td>
                 </tr>
               </tbody>
+              <tfoot id="daily-report-list-tfoot"></tfoot>
             </table>
           </div>
         </div>

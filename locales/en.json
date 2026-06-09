@@ -960,7 +960,8 @@
 		"accounts_with_credit": "Balance of accounts with credit",
 		"balance_from_credit": "Credit (3)",
 		"balance_from_buyin": "Buy-in (10)",
-		"total": "Total"
+		"total": "Total",
+		"game_start": "Game Start"
 	},
 	"modal_new_agent": {
 		"new_guest": "New Agent",

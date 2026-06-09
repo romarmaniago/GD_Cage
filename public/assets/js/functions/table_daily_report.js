@@ -17,6 +17,7 @@
   const reportListDateRange = document.getElementById('daily-report-list-daterange');
   const reportListThead = document.getElementById('daily-report-list-thead');
   const reportListTbody = document.getElementById('daily-report-list-tbody');
+  const reportListTfoot = document.getElementById('daily-report-list-tfoot');
   const reportMatrixTable = document.getElementById('daily-report-view-table');
   const btnExportMatrix = document.getElementById('btn-export-daily-report-matrix');
   const btnPrintMatrix = document.getElementById('btn-print-daily-report-matrix');
@@ -78,6 +79,226 @@
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return '0';
     return Math.round(numeric).toLocaleString('en-US');
+  }
+
+  function getWinlossAmountClass(value) {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric) || numeric === 0) return '';
+    return numeric > 0 ? ' daily-report-winloss-positive' : ' daily-report-winloss-negative';
+  }
+
+  function formatMatrixAmountCell(value) {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric) || numeric === 0) return '';
+    if (numeric < 0) return `(${formatAmount(Math.abs(numeric))})`;
+    return formatAmount(numeric);
+  }
+
+  function parseMatrixAmountInput(raw) {
+    let s = String(raw ?? '').replace(/,/g, '').trim();
+    if (!s || s === '-') return 0;
+    const parenMatch = s.match(/^\((.+)\)$/);
+    if (parenMatch) {
+      const inner = parenMatch[1].replace(/,/g, '').trim();
+      const n = Number(inner);
+      return Number.isNaN(n) ? NaN : -Math.abs(Math.round(n));
+    }
+    const n = Number(s);
+    return Number.isNaN(n) ? NaN : Math.round(n);
+  }
+
+  function escapeAttr(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;');
+  }
+
+  function buildMatrixAmountCell(amount, tableName, junketTableId) {
+    const amountClass = `daily-report-amount-col daily-report-editable-cell${getWinlossAmountClass(amount)}`;
+    const idAttr = junketTableId ? ` data-junket-table-id="${junketTableId}"` : '';
+    return `<td class="${amountClass}" data-table-name="${escapeAttr(tableName)}"${idAttr} data-amount="${amount}">${formatMatrixAmountCell(amount)}</td>`;
+  }
+
+  let matrixActiveEditor = null;
+
+  function applyMatrixCellDisplay(cell, amount) {
+    if (!cell) return;
+    cell.dataset.amount = String(amount);
+    cell.className = `daily-report-amount-col daily-report-editable-cell${getWinlossAmountClass(amount)}`;
+    cell.textContent = formatMatrixAmountCell(amount);
+  }
+
+  function recalculateMatrixRowAndFooter() {
+    const { table, tfoot } = getMatrixTableRefs();
+    if (!table) return;
+
+    const tableNames = Array.from(table.querySelectorAll('thead th.daily-report-amount-col'))
+      .map((th) => th.textContent.trim());
+    const columnTotals = {};
+    tableNames.forEach((name) => { columnTotals[name] = 0; });
+    let grandTotal = 0;
+
+    table.querySelectorAll('tbody tr').forEach((tr) => {
+      let rowTotal = 0;
+      tr.querySelectorAll('td.daily-report-editable-cell').forEach((cell, idx) => {
+        const amt = Number(cell.dataset.amount) || 0;
+        rowTotal += amt;
+        const name = tableNames[idx];
+        if (name) columnTotals[name] += amt;
+      });
+      grandTotal += rowTotal;
+
+      const totalCell = tr.querySelector('td.daily-report-total-col');
+      if (totalCell) {
+        totalCell.dataset.amount = String(rowTotal);
+        totalCell.className = `daily-report-total-col${getWinlossAmountClass(rowTotal)}`;
+        totalCell.textContent = formatMatrixAmountCell(rowTotal);
+      }
+    });
+
+    const footerRow = tfoot ? tfoot.querySelector('tr') : null;
+    if (!footerRow) return;
+
+    footerRow.querySelectorAll('th.daily-report-amount-col').forEach((th, idx) => {
+      const name = tableNames[idx];
+      const total = name ? columnTotals[name] : 0;
+      th.className = `daily-report-amount-col${getWinlossAmountClass(total)}`;
+      th.textContent = formatMatrixAmountCell(total) || '0';
+    });
+
+    const grandCell = footerRow.querySelector('th.daily-report-total-col');
+    if (grandCell) {
+      grandCell.className = `daily-report-total-col${getWinlossAmountClass(grandTotal)}`;
+      grandCell.textContent = formatMatrixAmountCell(grandTotal) || '0';
+    }
+  }
+
+  async function saveMatrixCellValue(cell, amount) {
+    const tableName = cell.dataset.tableName;
+    const junketTableId = parseInt(cell.dataset.junketTableId, 10);
+    const row = cell.closest('tr');
+    const reportDate = row ? row.dataset.reportDate : '';
+    const originalAmount = Number(cell.dataset.amount) || 0;
+
+    if (!reportDate || !junketTableId) {
+      applyMatrixCellDisplay(cell, originalAmount);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Unable to identify table for this cell.' });
+      return;
+    }
+
+    cell.classList.add('is-saving');
+    const payload = {
+      report_date: reportDate,
+      report_mode: reportMode,
+      reports: [{
+        junket_table_id: junketTableId,
+        table_name: tableName,
+        rolling: reportMode === 'rolling' ? amount : 0,
+        winloss: reportMode === 'winloss' ? amount : 0
+      }]
+    };
+
+    try {
+      const response = await fetch('/add_daily_table_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || 'Unable to save');
+
+      applyMatrixCellDisplay(cell, amount);
+      recalculateMatrixRowAndFooter();
+    } catch (err) {
+      console.error('saveMatrixCellValue:', err);
+      applyMatrixCellDisplay(cell, originalAmount);
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save cell.' });
+    } finally {
+      cell.classList.remove('is-saving');
+    }
+  }
+
+  async function finishMatrixCellEdit(editor, cancel) {
+    if (!editor || !editor.cell) return;
+    const { cell, input, originalAmount } = editor;
+    if (!cell.classList.contains('is-editing')) return;
+
+    matrixActiveEditor = null;
+    cell.classList.remove('is-editing');
+
+    if (cancel) {
+      applyMatrixCellDisplay(cell, originalAmount);
+      return;
+    }
+
+    const parsed = parseMatrixAmountInput(input.value);
+    if (Number.isNaN(parsed)) {
+      applyMatrixCellDisplay(cell, originalAmount);
+      Swal.fire({ icon: 'warning', title: 'Invalid', text: 'Enter a valid number (e.g. -1000 or (1000)).' });
+      return;
+    }
+
+    if (parsed === originalAmount) {
+      applyMatrixCellDisplay(cell, parsed);
+      return;
+    }
+
+    await saveMatrixCellValue(cell, parsed);
+  }
+
+  async function beginMatrixCellEdit(cell) {
+    if (!cell || !cell.classList.contains('daily-report-editable-cell')) return;
+    if (cell.classList.contains('is-editing')) return;
+
+    if (matrixActiveEditor && matrixActiveEditor.cell !== cell) {
+      await finishMatrixCellEdit(matrixActiveEditor, false);
+    }
+
+    const currentAmount = Number(cell.dataset.amount) || 0;
+    const rawEdit = currentAmount === 0 ? '' : String(currentAmount);
+
+    cell.classList.add('is-editing');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'daily-report-cell-input form-control form-control-sm';
+    input.value = rawEdit;
+    input.inputMode = 'decimal';
+    cell.textContent = '';
+    cell.appendChild(input);
+    matrixActiveEditor = { cell, input, originalAmount: currentAmount };
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        finishMatrixCellEdit(matrixActiveEditor, false);
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        finishMatrixCellEdit(matrixActiveEditor, true);
+      }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (matrixActiveEditor && matrixActiveEditor.cell === cell) {
+          finishMatrixCellEdit(matrixActiveEditor, false);
+        }
+      }, 120);
+    });
+  }
+
+  function initMatrixCellEditing() {
+    const wrap = document.querySelector('.daily-report-table-wrap');
+    if (!wrap || wrap.dataset.matrixEditBound === '1') return;
+    wrap.dataset.matrixEditBound = '1';
+    wrap.addEventListener('click', (event) => {
+      const cell = event.target.closest('td.daily-report-editable-cell');
+      if (!cell || event.target.closest('.daily-report-cell-input')) return;
+      beginMatrixCellEdit(cell).catch((err) => console.error('beginMatrixCellEdit:', err));
+    });
   }
 
   function formatDateDisplay(value) {
@@ -230,23 +451,134 @@
     return { from, to };
   }
 
-  /** Every calendar day from `from` to `to` inclusive as `YYYY-MM-DD`, ascending. */
-  function replaceMatrixColgroup(colCount) {
-    if (!reportMatrixTable || colCount < 1) return;
-    reportMatrixTable.querySelectorAll('colgroup').forEach((el) => el.remove());
+  function resetDailyReportDateFilterMount() {
+    const $ = window.jQuery;
+    if (!$) return;
+    const $mount = $('#daily-report-daterange-mount');
+    if (!$mount.length) return;
+    const $cardBody = $mount.closest('.card-body');
+    $mount.detach().removeClass('is-placed').removeData('placed');
+    const $tableWrap = $cardBody.find('.daily-report-table-wrap, .table-responsive').first();
+    if ($tableWrap.length) {
+      $mount.insertBefore($tableWrap);
+    } else if ($cardBody.length) {
+      $cardBody.prepend($mount);
+    }
+  }
+
+  /** DataTables destroy(true) removes the table from the DOM; restore shell if missing. */
+  function ensureMatrixTableShell() {
+    const wrap = document.querySelector('.daily-report-table-wrap');
+    if (!wrap) return;
+    if (document.getElementById('daily-report-view-table')) return;
+    wrap.innerHTML = [
+      '<table id="daily-report-view-table" class="table small-text mb-0" style="width:100%">',
+      '<thead id="daily-report-list-thead">',
+      '<tr><th class="daily-report-date-col">Date</th><th class="daily-report-total-col">Total</th></tr>',
+      '</thead>',
+      '<tbody id="daily-report-list-tbody"></tbody>',
+      '<tfoot id="daily-report-list-tfoot"></tfoot>',
+      '</table>'
+    ].join('');
+  }
+
+  function getMatrixTableRefs() {
+    ensureMatrixTableShell();
+    return {
+      table: document.getElementById('daily-report-view-table'),
+      thead: document.getElementById('daily-report-list-thead'),
+      tbody: document.getElementById('daily-report-list-tbody'),
+      tfoot: document.getElementById('daily-report-list-tfoot')
+    };
+  }
+
+  function placeDailyReportDateFilter() {
+    const $ = window.jQuery;
+    if (!$) return;
+    const $mount = $('#daily-report-daterange-mount');
+    const $length = $('#daily-report-view-table').closest('.dataTables_wrapper').find('.dataTables_length').first();
+    if (!$mount.length || !$length.length || $mount.data('placed')) return;
+    $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+  }
+
+  function destroyMatrixDataTable() {
+    const $ = window.jQuery;
+    if (!$ || !$.fn.DataTable) return;
+    resetDailyReportDateFilterMount();
+    const $table = $('#daily-report-view-table');
+    if ($.fn.DataTable.isDataTable('#daily-report-view-table')) {
+      $table.DataTable().destroy(false);
+    }
+  }
+
+  function applyMatrixColumnWidths(columnCount) {
+    const matrixTable = getMatrixTableRefs().table;
+    if (!matrixTable || columnCount < 2) return;
+    matrixTable.querySelectorAll('colgroup').forEach((el) => el.remove());
     const cg = document.createElement('colgroup');
-    const pct = `${(100 / colCount).toFixed(6)}%`;
-    for (let i = 0; i < colCount; i += 1) {
+    const datePct = 7.5;
+    const totalPct = 7.5;
+    const amountCols = columnCount - 2;
+    const amountPct = amountCols > 0 ? (100 - datePct - totalPct) / amountCols : 0;
+    const addCol = (pct) => {
       const col = document.createElement('col');
-      col.style.width = pct;
+      col.style.width = `${pct}%`;
       cg.appendChild(col);
-    }
-    const firstSection = reportMatrixTable.querySelector('thead, tbody, tfoot, caption');
+    };
+    addCol(datePct);
+    for (let i = 0; i < amountCols; i += 1) addCol(amountPct);
+    addCol(totalPct);
+    const firstSection = matrixTable.querySelector('thead, tbody, tfoot');
     if (firstSection) {
-      reportMatrixTable.insertBefore(cg, firstSection);
+      matrixTable.insertBefore(cg, firstSection);
     } else {
-      reportMatrixTable.appendChild(cg);
+      matrixTable.appendChild(cg);
     }
+  }
+
+  function initMatrixDataTable(columnCount) {
+    const $ = window.jQuery;
+    const matrixTable = getMatrixTableRefs().table;
+    if (!$ || !$.fn.DataTable || !matrixTable || columnCount < 2) return;
+    if ($.fn.DataTable.isDataTable('#daily-report-view-table')) return;
+
+    applyMatrixColumnWidths(columnCount);
+
+    const amountTargets = [];
+    for (let i = 1; i < columnCount - 1; i += 1) {
+      amountTargets.push(i);
+    }
+
+    $('#daily-report-view-table').DataTable({
+      paging: true,
+      searching: true,
+      ordering: true,
+      order: [[0, 'asc']],
+      pageLength: -1,
+      lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+      autoWidth: false,
+      scrollX: false,
+      info: true,
+      language: {
+        search: 'Search:',
+        info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+        paginate: {
+          previous: 'Previous',
+          next: 'Next'
+        },
+        emptyTable: 'No data available in table'
+      },
+      columnDefs: [
+        { targets: 0, className: 'daily-report-date-col' },
+        { targets: amountTargets, className: 'daily-report-amount-col', orderable: false },
+        { targets: columnCount - 1, className: 'daily-report-total-col' }
+      ],
+      drawCallback: function () {
+        placeDailyReportDateFilter();
+      }
+    });
+
+    placeDailyReportDateFilter();
   }
 
   function enumerateDatesIso(from, to) {
@@ -320,16 +652,27 @@
       mode: 'range',
       dateFormat: 'Y-m-d',
       altInput: true,
-      altFormat: 'M j, Y',
-      conjunction: ' - ',
+      altFormat: 'M d, Y',
+      conjunction: ' to ',
       allowInput: false,
       defaultDate: [monthRange.from, monthRange.to],
       showMonths: 3,
       onReady: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);
+        if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+          window.setupFlatpickrMonthNameRangeSelect(instance);
+        }
       },
       onOpen: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);
+        if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+          window.setupFlatpickrMonthNameRangeSelect(instance);
+        }
+      },
+      onMonthChange: (_selectedDates, _dateStr, instance) => {
+        if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+          window.styleFlatpickrMonthNameClickable(instance);
+        }
       },
       onChange: (selectedDates) => {
         if (selectedDates.length === 2) loadSubmittedReports();
@@ -337,8 +680,16 @@
     });
   }
 
+  function clearMatrixFooter() {
+    const { tfoot } = getMatrixTableRefs();
+    if (tfoot) tfoot.innerHTML = '';
+  }
+
   function renderSubmittedReports(rows, range, junketRows) {
-    if (!reportListTbody || !reportListThead) return;
+    const { thead, tbody } = getMatrixTableRefs();
+    if (!tbody || !thead) return;
+    destroyMatrixDataTable();
+    clearMatrixFooter();
     const listRows = Array.isArray(rows) ? rows : [];
     const junket = Array.isArray(junketRows) ? junketRows : [];
     const effectiveRange = range && range.from && range.to ? range : getSelectedListRange();
@@ -350,6 +701,16 @@
       junket,
       listRows
     );
+
+    const tableNameToId = {};
+    junket.forEach((row) => {
+      const name = String(row.table_name || '').trim();
+      if (name) tableNameToId[name] = Number(row.id);
+    });
+    listRows.forEach((row) => {
+      const name = String(row.table_name || '').trim();
+      if (name && row.junket_table_id) tableNameToId[name] = Number(row.junket_table_id);
+    });
 
     const dateMap = new Map();
     listRows.forEach((row) => {
@@ -369,16 +730,15 @@
     }
 
     if (tableNames.length === 0 && dateKeys.length === 0) {
-      replaceMatrixColgroup(2);
-      reportListThead.innerHTML = '<tr><th>Date</th><th>Total</th></tr>';
-      reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No added reports for selected date.</td></tr>';
+      destroyMatrixDataTable();
+      thead.innerHTML = '<tr><th class="daily-report-date-col">Date</th><th class="daily-report-total-col">Total</th></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">No added reports for selected date.</td></tr>';
       return;
     }
-    const headCols = tableNames.map((name) => `<th>${escapeHtml(name)}</th>`).join('');
-    replaceMatrixColgroup(tableNames.length + 2);
-    reportListThead.innerHTML = `
+    const headCols = tableNames.map((name) => `<th class="daily-report-amount-col">${escapeHtml(name)}</th>`).join('');
+    thead.innerHTML = `
       <tr>
-        <th>Date</th>
+        <th class="daily-report-date-col">Date</th>
         ${headCols}
         <th class="daily-report-total-col">Total</th>
       </tr>
@@ -395,34 +755,47 @@
         const amount = Number(perDate[name] || 0);
         columnTotals[name] += amount;
         rowTotal += amount;
-        return `<td>${amount === 0 ? '' : formatAmount(amount)}</td>`;
+        return buildMatrixAmountCell(amount, name, tableNameToId[name]);
       }).join('');
 
       grandTotal += rowTotal;
+      const rowTotalClass = `daily-report-total-col${getWinlossAmountClass(rowTotal)}`;
       return `
-        <tr>
-          <td>${formatDateDisplay(dateKey)}</td>
+        <tr data-report-date="${escapeAttr(dateKey)}">
+          <td class="daily-report-date-col">${formatDateDisplay(dateKey)}</td>
           ${valueCols}
-          <td class="daily-report-total-col">${formatAmount(rowTotal)}</td>
+          <td class="${rowTotalClass}">${formatMatrixAmountCell(rowTotal)}</td>
         </tr>
       `;
     });
 
-    const totalCols = tableNames.map((name) => `<td>${formatAmount(columnTotals[name])}</td>`).join('');
-    items.push(`
-      <tr class="fw-bold daily-report-total-row">
-        <td>Total</td>
-        ${totalCols}
-        <td class="daily-report-total-col">${formatAmount(grandTotal)}</td>
-      </tr>
-    `);
+    tbody.innerHTML = items.join('');
 
-    reportListTbody.innerHTML = items.join('');
+    const { tfoot } = getMatrixTableRefs();
+    if (tfoot) {
+      const totalCols = tableNames.map((name) => {
+        const total = columnTotals[name];
+        const amountClass = `daily-report-amount-col${getWinlossAmountClass(total)}`;
+        return `<th class="${amountClass}">${formatMatrixAmountCell(total) || '0'}</th>`;
+      }).join('');
+      const grandTotalClass = `daily-report-total-col${getWinlossAmountClass(grandTotal)}`;
+      tfoot.innerHTML = `
+        <tr>
+          <th class="daily-report-date-col">GRAND TOTAL</th>
+          ${totalCols}
+          <th class="${grandTotalClass}">${formatMatrixAmountCell(grandTotal) || '0'}</th>
+        </tr>
+      `;
+    }
+
+    initMatrixDataTable(tableNames.length + 2);
+    initMatrixCellEditing();
   }
 
   async function exportDailyReportMatrix() {
-    if (!reportMatrixTable) return;
-    const theadRow = reportMatrixTable.querySelector('thead tr');
+    const matrixTable = getMatrixTableRefs().table;
+    if (!matrixTable) return;
+    const theadRow = matrixTable.querySelector('thead tr');
     if (!theadRow) return;
     const headers = Array.from(theadRow.querySelectorAll('th')).map((th) => th.textContent.trim());
     if (headers.length < 2) {
@@ -430,12 +803,16 @@
       return;
     }
     const rows = [];
-    reportMatrixTable.querySelectorAll('tbody tr').forEach((tr) => {
-      const tds = tr.querySelectorAll('td');
-      if (tds.length === 1 && tds[0].hasAttribute('colspan')) return;
-      const cells = Array.from(tds).map((td) => td.textContent.trim());
-      if (cells.length === headers.length) rows.push(cells);
-    });
+    const collectMatrixRows = (selector) => {
+      matrixTable.querySelectorAll(selector).forEach((tr) => {
+        const cells = tr.querySelectorAll('td, th');
+        if (cells.length === 1 && cells[0].hasAttribute('colspan')) return;
+        const values = Array.from(cells).map((cell) => cell.textContent.trim());
+        if (values.length === headers.length) rows.push(values);
+      });
+    };
+    collectMatrixRows('tbody tr');
+    collectMatrixRows('tfoot tr');
     if (rows.length === 0) {
       Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export for the current view.' });
       return;
@@ -474,16 +851,21 @@
   }
 
   function getDailyReportMatrixPayload() {
-    if (!reportMatrixTable) return { headers: [], rows: [] };
-    const theadRow = reportMatrixTable.querySelector('thead tr');
+    const matrixTable = getMatrixTableRefs().table;
+    if (!matrixTable) return { headers: [], rows: [] };
+    const theadRow = matrixTable.querySelector('thead tr');
     const headers = theadRow ? Array.from(theadRow.querySelectorAll('th')).map((th) => th.textContent.trim()) : [];
     const rows = [];
-    reportMatrixTable.querySelectorAll('tbody tr').forEach((tr) => {
-      const tds = tr.querySelectorAll('td');
-      if (tds.length === 1 && tds[0].hasAttribute('colspan')) return;
-      const cells = Array.from(tds).map((td) => td.textContent.trim());
-      if (cells.length === headers.length) rows.push(cells);
-    });
+    const collectMatrixRows = (selector) => {
+      matrixTable.querySelectorAll(selector).forEach((tr) => {
+        const cells = tr.querySelectorAll('td, th');
+        if (cells.length === 1 && cells[0].hasAttribute('colspan')) return;
+        const values = Array.from(cells).map((cell) => cell.textContent.trim());
+        if (values.length === headers.length) rows.push(values);
+      });
+    };
+    collectMatrixRows('tbody tr');
+    collectMatrixRows('tfoot tr');
     return { headers, rows };
   }
 
@@ -496,10 +878,11 @@
       '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
       'table{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;}',
       'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;}',
-      'th{text-align:center;background:#d9e1f2;font-weight:700;}',
-      'td{text-align:right;padding-right:14px;}',
-      'td:first-child{text-align:left;padding-left:10px;padding-right:7px;}',
-      'tbody tr:last-child td,td:last-child{font-weight:700;background:#fff3cd;}'
+      'th{text-align:center;background:var(--bs-primary-bg-subtle,#d9e1f2);color:var(--bs-primary,#0d6efd);font-weight:500;}',
+      'td{text-align:right;padding-right:14px;color:#666;}',
+      'td:first-child,th:first-child{text-align:left;padding-left:14px;padding-right:7px;color:#333;}',
+      'tfoot th{background:#f4f6fa;font-weight:600;border-top:2px solid #dee2e6;}',
+      'tbody tr{border-bottom:1px solid #eee;}'
     ].join('');
   }
 
@@ -551,8 +934,11 @@
   }
 
   async function loadSubmittedReports() {
-    if (!reportListTbody || !reportListThead) return;
-    reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Loading reports...</td></tr>';
+    const { thead, tbody } = getMatrixTableRefs();
+    if (!tbody || !thead) return;
+    destroyMatrixDataTable();
+    clearMatrixFooter();
+    tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">Loading reports...</td></tr>';
     try {
       const range = getSelectedListRange();
       const [listRes, junketRes] = await Promise.all([
@@ -569,7 +955,11 @@
       renderSubmittedReports(data || [], range, junketData);
     } catch (error) {
       console.error('loadSubmittedReports:', error);
-      reportListTbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-3">Unable to load reports.</td></tr>';
+      clearMatrixFooter();
+      const errRefs = getMatrixTableRefs();
+      if (errRefs.tbody) {
+        errRefs.tbody.innerHTML = '<tr><td colspan="2" class="text-center text-danger py-3">Unable to load reports.</td></tr>';
+      }
     }
   }
 
@@ -785,6 +1175,7 @@
   });
   if (reportListDateRange) {
     initReportListDateRangePicker();
+    initMatrixCellEditing();
     loadSubmittedReports();
   }
   if (btnExportMatrix) {

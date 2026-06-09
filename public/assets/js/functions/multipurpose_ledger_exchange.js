@@ -5,6 +5,7 @@
 
 	let depositHistoryRowsCache = [];
 	let jflxExchangeAmountManual = false;
+	let jflxAccountsById = {};
 
 	const currencyStrengthRank = {
 		USD: 5,
@@ -18,6 +19,31 @@
 		const d = document.createElement('div');
 		d.textContent = s == null ? '' : String(s);
 		return d.innerHTML;
+	}
+
+	function compareTextAz(a, b) {
+		return String(a || '').localeCompare(String(b || ''), undefined, {
+			sensitivity: 'base',
+			numeric: true
+		});
+	}
+
+	function jflxAccountOptionLabel(a) {
+		const id = a.account_id;
+		const parts = [a.agent_code, a.agent_name].filter(Boolean);
+		return parts.length ? parts.join(' — ') : 'Account #' + id;
+	}
+
+	function compareJflxAccountsAz(a, b) {
+		const nameA = String(a.agent_name || '').trim();
+		const nameB = String(b.agent_name || '').trim();
+		const byName = compareTextAz(nameA, nameB);
+		if (byName !== 0) return byName;
+		const codeA = String(a.agent_code || '').trim();
+		const codeB = String(b.agent_code || '').trim();
+		const byCode = compareTextAz(codeA, codeB);
+		if (byCode !== 0) return byCode;
+		return compareTextAz(a.account_id, b.account_id);
 	}
 
 	function fmtNum(n) {
@@ -152,6 +178,105 @@
 			});
 	}
 
+	function initJflxGuestSelect2(opts) {
+		opts = opts || {};
+		const $sel = $('#jflx-guest-name');
+		if (!$sel.length || typeof $sel.select2 !== 'function') return;
+		if ($sel.data('select2')) {
+			try {
+				$sel.select2('destroy');
+			} catch (e) {}
+		}
+		$sel.select2({
+			placeholder: opts.tags ? 'Guest name' : 'Select guest',
+			allowClear: true,
+			tags: !!opts.tags,
+			dropdownParent: $('#modal-jfl-exchange'),
+			width: '100%'
+		});
+	}
+
+	function getJflxGuestNameValue() {
+		const $sel = $('#jflx-guest-name');
+		const selected = $sel.find('option:selected');
+		if (selected.length) {
+			const text = String(selected.text() || '').trim();
+			if (text && !/^select guest$/i.test(text)) return text;
+		}
+		return String($sel.val() || '').trim();
+	}
+
+	function loadJflxGuestsForAccount(accountId, preselectGuestName) {
+		const $sel = $('#jflx-guest-name');
+		const prevName = preselectGuestName != null ? String(preselectGuestName).trim() : '';
+		const agentId = accountId ? jflxAccountsById[String(accountId)] : null;
+
+		if ($sel.data('select2')) {
+			try {
+				$sel.select2('destroy');
+			} catch (e) {}
+		}
+		$sel.empty().append($('<option/>', { value: '', text: 'Select guest' }));
+
+		if (!accountId || !agentId) {
+			initJflxGuestSelect2({ tags: true });
+			if (prevName) {
+				const opt = new Option(prevName, prevName, true, true);
+				$sel.append(opt).trigger('change');
+			} else {
+				$sel.val('').trigger('change');
+			}
+			return $.Deferred().resolve().promise();
+		}
+
+		return $.getJSON('/guest_data?agentId=' + encodeURIComponent(agentId))
+			.done(function (rows) {
+				const guests = (rows || [])
+					.filter(function (g) {
+						return g.guest_id != null;
+					})
+					.slice()
+					.sort(function (a, b) {
+						const nameA = String(a.guest_name || '').trim() || 'Guest #' + a.guest_id;
+						const nameB = String(b.guest_name || '').trim() || 'Guest #' + b.guest_id;
+						return compareTextAz(nameA, nameB);
+					});
+				guests.forEach(function (g) {
+					const name = String(g.guest_name || '').trim() || 'Guest #' + g.guest_id;
+					$sel.append(
+						$('<option/>', {
+							value: String(g.guest_id),
+							text: name
+						})
+					);
+				});
+				initJflxGuestSelect2({ tags: false });
+				if (prevName) {
+					let matched = false;
+					$sel.find('option').each(function () {
+						if (String($(this).text()).trim().toLowerCase() === prevName.toLowerCase()) {
+							$sel.val($(this).val()).trigger('change');
+							matched = true;
+							return false;
+						}
+					});
+					if (!matched) {
+						const opt = new Option(prevName, prevName, true, true);
+						$sel.append(opt).trigger('change');
+					}
+				} else {
+					$sel.val('').trigger('change');
+				}
+			})
+			.fail(function () {
+				initJflxGuestSelect2({ tags: true });
+				if (prevName) {
+					const opt = new Option(prevName, prevName, true, true);
+					$sel.append(opt).trigger('change');
+				}
+			});
+	}
+
 	function initJflxAccountSelect2() {
 		const $sel = $('#jflx-account');
 		if (!$sel.length || typeof $sel.select2 !== 'function') return;
@@ -173,18 +298,31 @@
 			.done(function (rows) {
 				const $sel = $('#jflx-account');
 				const prev = $sel.val();
+				jflxAccountsById = {};
 				if ($sel.data('select2')) {
 					try {
 						$sel.select2('destroy');
 					} catch (e) {}
 				}
 				$sel.empty().append($('<option/>', { value: '', text: 'No account' }));
-				(rows || []).forEach(function (a) {
+				const accounts = (rows || [])
+					.filter(function (a) {
+						return a.account_id != null;
+					})
+					.slice()
+					.sort(compareJflxAccountsAz);
+				accounts.forEach(function (a) {
 					const id = a.account_id;
-					if (id == null) return;
-					const parts = [a.agent_code, a.agent_name].filter(Boolean);
-					const label = parts.length ? parts.join(' — ') : 'Account #' + id;
-					$sel.append($('<option/>', { value: String(id), text: label }));
+					const agentId = a.agent_id != null ? a.agent_id : a.AGENT_ID;
+					jflxAccountsById[String(id)] = agentId;
+					const label = jflxAccountOptionLabel(a);
+					$sel.append(
+						$('<option/>', {
+							value: String(id),
+							text: label,
+							'data-agent-id': agentId != null ? String(agentId) : ''
+						})
+					);
 				});
 				if (prev && $sel.find('option[value="' + prev + '"]').length) {
 					$sel.val(prev);
@@ -270,10 +408,11 @@
 		);
 		setReturnFormEnabled(true);
 		const accountId = row.account_id != null ? String(row.account_id) : '';
-		$('#jflx-account').val(accountId).trigger('change');
-		if (!accountId) {
-			$('#jflx-guest-name').val(row.guest_name != null ? String(row.guest_name) : '');
-		}
+		$('#jflx-account').val(accountId).trigger('change.select2');
+		loadJflxGuestsForAccount(
+			accountId,
+			row.guest_name != null ? String(row.guest_name) : ''
+		);
 		$('#jflx-return-amount, #jflx-margin-return, #jflx-return-remark').val('');
 		updateReturnMarginAuto();
 	}
@@ -375,8 +514,9 @@
 	}
 
 	function resetJflxForm() {
-		$('#jflx-account').val('').trigger('change');
-		$('#jflx-guest-name, #jflx-incharge, #jflx-remark').val('');
+		$('#jflx-account').val('').trigger('change.select2');
+		loadJflxGuestsForAccount('', '');
+		$('#jflx-incharge, #jflx-remark').val('');
 		$('#jflx-amount-in, #jflx-rate-percent, #jflx-exchange-amount').val('');
 		jflxExchangeAmountManual = false;
 		$('#jflx-return-amount, #jflx-margin-return, #jflx-return-remark').val('');
@@ -424,7 +564,13 @@
 
 	$(document).ready(function () {
 		initJflxAccountSelect2();
+		initJflxGuestSelect2({ tags: true });
 		setReturnFormEnabled(false);
+
+		$(document).on('change', '#jflx-account', function () {
+			const accountId = String($(this).val() || '').trim();
+			loadJflxGuestsForAccount(accountId, '');
+		});
 
 		$('#modal-jfl-exchange').on('hidden.bs.modal', function () {
 			$('input[name="jfl-trans-type"]').prop('checked', false);
@@ -454,10 +600,14 @@
 		});
 
 		$(document).on('click', '#btn-jflx-save-deposit', function () {
-			const guestName = String($('#jflx-guest-name').val() || '').trim();
+			const guestName = getJflxGuestNameValue();
 			const inCharge = String($('#jflx-incharge').val() || '').trim();
 			if (!inCharge) {
-				Swal.fire('Validation', 'Person in charge is required.', 'warning');
+				Swal.fire('Validation', 'Approved by is required.', 'warning');
+				return;
+			}
+			if (jflxHasAccountId() && !guestName) {
+				Swal.fire('Validation', 'Select a guest for the selected account.', 'warning');
 				return;
 			}
 			if (!jflxHasAccountId() && !guestName) {
@@ -544,7 +694,7 @@
 			const marginVal = String($('#jflx-margin-return').val() || '').trim();
 			const payload = {
 				txtAccountId: $('#jflx-account').val() || '',
-				txtGuestName: String($('#jflx-guest-name').val() || '').trim(),
+				txtGuestName: getJflxGuestNameValue(),
 				txtRemark: String($('#jflx-return-remark').val() || '').trim(),
 				txtReturnAmount: String(ret),
 				txtSourceDepositId: sourceDepositId

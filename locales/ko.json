@@ -973,7 +973,8 @@
 		"total": "합계",
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"remarks_updated": "dashboard_marker.remarks_updated",
-		"error_update_remarks": "dashboard_marker.error_update_remarks"
+		"error_update_remarks": "dashboard_marker.error_update_remarks",
+		"game_start": "dashboard_marker.game_start"
 	},
 	"modal_new_agent": {
 		"new_guest": "새 게스트",

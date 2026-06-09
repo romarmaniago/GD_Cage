@@ -273,6 +273,27 @@ function initJflAccountSelect2() {
 	});
 }
 
+function jflAccountOptionLabel(a) {
+	const id = a.account_id;
+	const parts = [a.agent_code, a.agent_name].filter(Boolean);
+	return parts.length ? parts.join(' — ') : 'Account #' + id;
+}
+
+function compareJflAccountsAz(a, b) {
+	const nameA = String(a.agent_name || '').trim();
+	const nameB = String(b.agent_name || '').trim();
+	const byName = nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+	if (byName !== 0) return byName;
+	const codeA = String(a.agent_code || '').trim();
+	const codeB = String(b.agent_code || '').trim();
+	const byCode = codeA.localeCompare(codeB, undefined, { sensitivity: 'base', numeric: true });
+	if (byCode !== 0) return byCode;
+	return String(a.account_id || '').localeCompare(String(b.account_id || ''), undefined, {
+		sensitivity: 'base',
+		numeric: true
+	});
+}
+
 function loadJflAccounts() {
 	return $.getJSON('/account_data')
 		.done(function (rows) {
@@ -284,11 +305,15 @@ function loadJflAccounts() {
 				} catch (e) {}
 			}
 			$sel.empty().append($('<option/>', { value: '', text: 'Select account' }));
-			(rows || []).forEach(function (a) {
+			const accounts = (rows || [])
+				.filter(function (a) {
+					return a.account_id != null;
+				})
+				.slice()
+				.sort(compareJflAccountsAz);
+			accounts.forEach(function (a) {
 				const id = a.account_id;
-				if (id == null) return;
-				const parts = [a.agent_code, a.agent_name].filter(Boolean);
-				const label = parts.length ? parts.join(' — ') : 'Account #' + id;
+				const label = jflAccountOptionLabel(a);
 				$sel.append($('<option/>', { value: String(id), text: label }));
 			});
 			if (prev && $sel.find('option[value="' + prev + '"]').length) {
@@ -485,44 +510,23 @@ function removeJfl(id) {
 
 $(document).ready(function () {
 	const t = window.jflTranslations || {};
-	const actionColIndex = 8;
+	const actionColIndex = 6;
 
 	jflTable = $('#jfl-tbl').DataTable({
 		pageLength: 25,
-		order: [[7, 'desc']],
+		order: [[5, 'desc']],
 		columns: [
 			{
-				data: 'TRANS_TYPE',
-				render: function (data, type, row) {
-					const label = row.TRANS_TYPE_LABEL || transTypeLabel(data);
-					if (type === 'sort') return label;
-					const cls = jflTypeColorClass(data);
-					return '<span class="' + cls + '">' + label + '</span>';
-				}
-			},
-			{
-				data: 'CURRENCY_CODE',
-				defaultContent: '-',
-				render: function (data) {
-					return data ? String(data) : '-';
+				data: 'ENCODED_DT',
+				render: function (data, type) {
+					if (!data) return '';
+					if (type === 'sort') return data;
+					return moment(data).format('DD/MM/YYYY');
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
-			{
-				data: 'AMOUNT',
-				render: function (data, type, row) {
-					const n = Number(data) || 0;
-					const cls = jflTypeColorClass(row.TRANS_TYPE);
-					if (type === 'sort') return n;
-					if (isCreditType(row.TRANS_TYPE)) {
-						if (window.fmtIn) return '<span class="' + cls + '">' + window.fmtIn(n) + '</span>';
-						return '<span class="' + cls + '">+' + formatMoney(n) + '</span>';
-					}
-					if (window.fmtOut) return '<span class="' + cls + '">' + window.fmtOut(n) + '</span>';
-					return '<span class="' + cls + '">(' + formatMoney(n) + ')</span>';
-				}
-			},
-			{ data: 'IN_CHARGE', defaultContent: '' },
+			{ data: 'GUEST_DISPLAY', defaultContent: '-' },
+			{ data: 'APPROVED_BY_DISPLAY', defaultContent: '' },
 			{
 				data: 'REMARKS',
 				defaultContent: '',
@@ -536,7 +540,6 @@ $(document).ready(function () {
 					});
 				}
 			},
-			{ data: 'ENCODED_BY_NAME', defaultContent: '' },
 			{
 				data: 'ENCODED_DT',
 				render: function (data, type) {
@@ -643,7 +646,7 @@ $(document).ready(function () {
 			return;
 		}
 		if (!String(payload.txtInCharge || '').trim()) {
-			showJflValidationSwal('Person in charge is required.');
+			showJflValidationSwal('Approved by is required.');
 			return;
 		}
 		if (isTransferModeSelected() && !payload.txtAccountId) {

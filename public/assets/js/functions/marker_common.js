@@ -8,6 +8,8 @@
     var $ = window.jQuery;
     if (!$) return;
 
+    var skipMarkerModalReload = false;
+
     function formatWithCommas(value) {
         if (value === '' || value === null || value === undefined) return value;
         var num = Number(value);
@@ -604,6 +606,38 @@
         });
     }
 
+    function loadGameListScriptOnce() {
+        return new Promise(function (resolve, reject) {
+            if (typeof window.addGameList === 'function') {
+                resolve();
+                return;
+            }
+            var src = '/assets/js/functions/game_list.js';
+            var existing = document.querySelector('script[src="' + src + '"]');
+            var waitForAddGameList = function (attempt) {
+                var tryNo = attempt || 0;
+                if (typeof window.addGameList === 'function') {
+                    resolve();
+                    return;
+                }
+                if (tryNo >= 100) {
+                    reject(new Error('addGameList not available'));
+                    return;
+                }
+                setTimeout(function () { waitForAddGameList(tryNo + 1); }, 50);
+            };
+            if (existing) {
+                waitForAddGameList(0);
+                return;
+            }
+            var script = document.createElement('script');
+            script.src = src;
+            script.onload = function () { waitForAddGameList(0); };
+            script.onerror = function () { reject(new Error('Failed to load game_list.js')); };
+            document.body.appendChild(script);
+        });
+    }
+
     function initForm(table, opts) {
         opts = opts || {};
         var formSelector = opts.formSelector || '#add_marker_settlement';
@@ -614,6 +648,8 @@
         var remarksSelector = opts.remarksSelector || '#txtRemarks';
         var submitBtnSelector = opts.submitBtnSelector || '#submit_marker_settlement';
         var agentBalanceSelector = opts.agentBalanceSelector || '#AgentBalance';
+        var gameStartBtnSelector = opts.gameStartBtnSelector || '#btn-credits-game-start';
+        var hideModalOnGameStartSelector = opts.hideModalOnGameStartSelector || '#modal-new-marker';
         var optTransTypeName = opts.optTransTypeName || 'optTransType';
         var optReturnSourceName = opts.optReturnSourceName || 'optReturnSource';
         var selectPlaceholder = opts.selectPlaceholder || 'Select account';
@@ -685,11 +721,62 @@
             initAccountSelect2();
         }
 
+        function updateCreditsGameStartButton() {
+            var $btn = $(gameStartBtnSelector);
+            if (!$btn.length) return;
+            var hasAccount = !!String($accountSelect.val() || '').trim();
+            var hasSource = !!getSelectedReturnSource();
+            $btn.toggleClass('d-none', !(hasAccount && hasSource));
+        }
+
+        function openCreditsGameStart() {
+            var accountId = String($accountSelect.val() || '').trim();
+            if (!accountId) {
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'warning', title: 'No account', text: 'Please select an account first.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
+            if (!$('#modal-new-game-list').length) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Unavailable',
+                        text: 'New Game modal is not available on this page.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+                return;
+            }
+            loadGameListScriptOnce().then(function () {
+                var openingBalance = parseFloat($(agentBalanceSelector).val()) || 0;
+                if (!openingBalance) {
+                    openingBalance = parseFloat(String($(markerBalanceSelector).val() || '').replace(/,/g, '')) || 0;
+                }
+                var $hideModal = $(hideModalOnGameStartSelector);
+                if ($hideModal.length) {
+                    skipMarkerModalReload = true;
+                    $hideModal.modal('hide');
+                }
+                window.addGameList(accountId, { openingBalance: openingBalance, lockAccount: true });
+            }).catch(function () {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Unavailable',
+                        text: 'Unable to open New Game modal right now.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
+        }
+
         function updateIssueAndBalanceBySelectedAccount() {
             var selectedAccountId = $accountSelect.val();
             if (!selectedAccountId) {
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedSource = getSelectedReturnSource();
@@ -698,12 +785,14 @@
                 var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
                 $(markerIssueSelector).val(formatWithCommas(sourceAmount));
                 $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
             var totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
             $(markerIssueSelector).val(formatWithCommas(totalIssue));
             $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            updateCreditsGameStartButton();
         }
 
         // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
@@ -744,6 +833,13 @@
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
             }
+            updateCreditsGameStartButton();
+        });
+
+        $(document).off('click.markerGameStart', gameStartBtnSelector).on('click.markerGameStart', gameStartBtnSelector, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openCreditsGameStart();
         });
 
         // Agent balance for deposit check (account_details_data_deposit)
@@ -1235,6 +1331,10 @@
 
         if (options.modalSelector && options.reloadOnModalHidden) {
             $(options.modalSelector).off('hidden.bs.modal.markerCommon').on('hidden.bs.modal.markerCommon', function () {
+                if (skipMarkerModalReload) {
+                    skipMarkerModalReload = false;
+                    return;
+                }
                 if (typeof window.reloadData === 'function') window.reloadData();
                 window.location.reload();
             });
