@@ -1299,21 +1299,14 @@ function buildGameTypeCell(row, userPermissions) {
 	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
 	var canEdit = (userPermissions !== 2) && isEditableActive;
 
-<<<<<<< Updated upstream
 	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
 	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
 
 	if (!canEdit) {
-=======
-	if (!canEdit) {
-		var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
-		var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
->>>>>>> Stashed changes
 		return '<span class="' + cls + '">' + escapeHtmlText(displayLabel) + '</span>';
 	}
 
 	return (
-<<<<<<< Updated upstream
 		'<button type="button" class="btn btn-link p-0 js-game-type-btn ' + cls + '" ' +
 		'style="font-size:inherit;text-decoration:none;cursor:pointer;" ' +
 		'data-game-id="' + row.game_list_id + '" ' +
@@ -1374,18 +1367,6 @@ function updateGameTypeCellDisplay(gameId, newType) {
 	});
 }
 
-=======
-		'<select class="form-select form-select-sm game-type-select" ' +
-		'data-game-id="' + row.game_list_id + '" ' +
-		'data-prev="' + gameType + '" ' +
-		'style="min-width:5.5rem;font-size:11px;padding:2px 4px;height:auto;">' +
-		'<option value="LIVE"' + (gameType === 'LIVE' ? ' selected' : '') + '>' + liveLabel + '</option>' +
-		'<option value="TELEBET"' + (gameType === 'TELEBET' ? ' selected' : '') + '>' + telebetLabel + '</option>' +
-		'</select>'
-	);
-}
-
->>>>>>> Stashed changes
 function buildGameRemarksButton(row) {
 	var remarks = String(row.REMARKS || '').trim();
 	var hasRemark = remarks !== '';
@@ -1396,10 +1377,7 @@ function buildGameRemarksButton(row) {
 		'<button type="button" class="btn btn-sm ' + btnClass + ' action-btn-square js-game-remarks-btn js-bs-tooltip-enabled"' +
 		' data-game-id="' + row.game_list_id + '"' +
 		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
-<<<<<<< Updated upstream
 		' data-guest-name="' + escapeHtmlText(row.guest_name || '') + '"' +
-=======
->>>>>>> Stashed changes
 		' data-remarks="' + encodeURIComponent(remarks) + '"' +
 		' data-bs-toggle="tooltip" aria-label="Remarks" data-bs-original-title="' + escapeHtmlText(tooltipText) + '" title="' + escapeHtmlText(tooltipText) + '"' +
 		' style="font-size:8px !important; margin-right: 5px;">' +
@@ -1407,19 +1385,11 @@ function buildGameRemarksButton(row) {
 	);
 }
 
-<<<<<<< Updated upstream
 function openGameRemarks(gameId, agentCode, remarks, guestName) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = userPermissions !== 2;
 	$('#game-remarks-game-id').val(gameId);
 	setGameListModalAccountLabel('#game-remarks-agent-code', agentCode, guestName);
-=======
-function openGameRemarks(gameId, agentCode, remarks) {
-	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
-	var canEdit = userPermissions !== 2;
-	$('#game-remarks-game-id').val(gameId);
-	$('#game-remarks-agent-code').text(agentCode || '');
->>>>>>> Stashed changes
 	$('#game-remarks-text').val(remarks || '').prop('readonly', !canEdit);
 	$('#game-remarks-save-btn').toggle(canEdit);
 	$('#modal-game-remarks').modal('show');
@@ -1516,6 +1486,8 @@ function buildGameGuestCell(row) {
 		' data-game-id="' + row.game_list_id + '"' +
 		' data-account-id="' + row.ACCOUNT_ID + '"' +
 		' data-agent-id="' + (row.AGENT_ID || '') + '"' +
+		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
+		' data-agent-name="' + escapeHtmlText(row.agent_name || '') + '"' +
 		' data-guest-id="' + guestId + '"' +
 		' data-bs-toggle="tooltip" title="' + (guestName ? escapeHtmlText('Change guest') : 'Add guest') + '">' +
 		inner +
@@ -1623,7 +1595,34 @@ function loadAssignGameGuestSelect(agentId, currentGuestId, onReady) {
 	});
 }
 
-function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId) {
+function buildAssignGameGuestLineLabel(agentCode, agentName) {
+	var code = String(agentCode || '').trim().toUpperCase();
+	var name = String(agentName || '').trim().toUpperCase();
+	if (code && name) return code + ' · ' + name;
+	return code || name || '-';
+}
+
+function openAddGuestFromAssignGameGuest() {
+	if (!canAssignGameGuest()) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot add a guest.' });
+		return;
+	}
+	var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+	if (!agentId) {
+		Swal.fire({ icon: 'warning', title: 'Missing data', text: 'Could not load line for this game.' });
+		return;
+	}
+	var $assignModal = $('#modal-assign-game-guest');
+	var agentCode = $assignModal.data('agentCode') || '';
+	var agentName = $assignModal.data('agentName') || '';
+	$('#guest_agent_id').val(agentId);
+	$('#guest_agent_display').text(buildAssignGameGuestLineLabel(agentCode, agentName));
+	$('#guest_name_input').val('');
+	$('#guest_remarks_input').val('');
+	$('#modal-add-guest-table').modal('show');
+}
+
+function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId, agentCode, agentName) {
 	if (!canAssignGameGuest()) {
 		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot assign a guest.' });
 		return;
@@ -1637,6 +1636,9 @@ function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId) {
 	$('#assign_guest_game_id').val(gameId);
 	$('#assign_guest_account_id').val(accountId);
 	$('#assign_guest_agent_id').val(agentId);
+	$('#modal-assign-game-guest')
+		.data('agentCode', agentCode || '')
+		.data('agentName', agentName || '');
 
 	loadAssignGameGuestSelect(agentId, currentGuestId, function () {
 		loadAssignGameGuestHistory(gameId);
@@ -1694,12 +1696,8 @@ $(document).on('click', '.js-game-remarks-btn', function () {
 	openGameRemarks(
 		parseInt($btn.data('game-id'), 10),
 		$btn.attr('data-agent-code') || '',
-<<<<<<< Updated upstream
 		remarks,
 		$btn.attr('data-guest-name') || ''
-=======
-		remarks
->>>>>>> Stashed changes
 	);
 });
 
@@ -1733,54 +1731,12 @@ $(document).on('submit', '#form-game-remarks', function (e) {
 	});
 });
 
-<<<<<<< Updated upstream
 $(document).on('click', '.js-game-type-btn', function () {
 	var $btn = $(this);
 	confirmGameTypeChange(
 		parseInt($btn.attr('data-game-id'), 10),
 		$btn.attr('data-game-type') || 'LIVE'
 	);
-=======
-$(document).on('change', '.game-type-select', function () {
-	var $sel = $(this);
-	var gameId = parseInt($sel.data('game-id'), 10);
-	var newType = $sel.val();
-	var prevType = $sel.data('prev') || 'LIVE';
-	if (!gameId || newType === prevType) return;
-
-	Swal.fire({
-		icon: 'question',
-		title: 'Change game type?',
-		html: 'Change type from <strong>' + escapeHtmlText(prevType) + '</strong> to <strong>' + escapeHtmlText(newType) + '</strong>?',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, update',
-		cancelButtonText: 'Cancel'
-	}).then(function (result) {
-		if (!result.isConfirmed) {
-			$sel.val(prevType);
-			return;
-		}
-		$sel.prop('disabled', true);
-		$.ajax({
-			url: '/game_list/' + gameId + '/game_type',
-			method: 'PUT',
-			contentType: 'application/json',
-			data: JSON.stringify({ game_type: newType }),
-			success: function () {
-				$sel.data('prev', newType);
-				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
-			},
-			error: function (xhr) {
-				$sel.val(prevType);
-				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
-				Swal.fire({ icon: 'error', title: 'Error', text: msg });
-			},
-			complete: function () {
-				$sel.prop('disabled', false);
-			}
-		});
-	});
->>>>>>> Stashed changes
 });
 
 $(document).on('submit', '#form-edit-commission-type', function (e) {
@@ -3369,14 +3325,9 @@ $(document).ready(function () {
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
-<<<<<<< Updated upstream
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
-=======
-						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
->>>>>>> Stashed changes
                            if (row.DAILY_SETTLEMENT != 2) {
                                $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
                            }
@@ -8437,8 +8388,54 @@ $(document).ready(function () {
 			parseInt($btn.data('game-id'), 10),
 			parseInt($btn.data('account-id'), 10),
 			parseInt($btn.data('agent-id'), 10),
-			parseInt($btn.data('guest-id'), 10) || null
+			parseInt($btn.data('guest-id'), 10) || null,
+			$btn.attr('data-agent-code') || '',
+			$btn.attr('data-agent-name') || ''
 		);
+	});
+
+	$(document).on('click', '#btn-assign-game-guest-add', function (e) {
+		e.preventDefault();
+		openAddGuestFromAssignGameGuest();
+	});
+
+	$('#add_guest_form').on('submit', function (e) {
+		e.preventDefault();
+		var $form = $(this);
+		var $btn = $('#btn-save-guest-table');
+		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+		var gameId = parseInt($('#assign_guest_game_id').val(), 10);
+
+		$btn.prop('disabled', true).text('Saving...');
+		$.ajax({
+			url: '/add_guest',
+			type: 'POST',
+			data: $form.serialize(),
+			success: function (res) {
+				$('#modal-add-guest-table').modal('hide');
+				var newGuestId = res && res.guest_id ? parseInt(res.guest_id, 10) : null;
+				loadAssignGameGuestSelect(agentId, newGuestId, function () {
+					if (gameId) loadAssignGameGuestHistory(gameId);
+				});
+				Swal.fire({
+					icon: 'success',
+					title: 'Success',
+					text: 'Guest has been added.',
+					timer: 1200,
+					showConfirmButton: false
+				});
+			},
+			error: function (xhr) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to add guest.'
+				});
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Save');
+			}
+		});
 	});
 
 	$('#modal-assign-game-guest').on('hidden.bs.modal', function () {
