@@ -859,13 +859,19 @@ function renderGuestPanel(guests) {
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
-    const guestNameHtml = remarks
+    const guestNameHtml = permissions !== 2
       ? `<button
           type="button"
           class="btn btn-link p-0 agency-guest-remarks-link"
-          title="View Remarks"
+          title="${remarks ? 'View / Edit Remarks' : 'Add Remarks'}"
           onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
-      : safeName;
+      : (remarks
+          ? `<button
+              type="button"
+              class="btn btn-link p-0 agency-guest-remarks-link"
+              title="View Remarks"
+              onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
+          : safeName);
     const editButtonHtml = permissions !== 2 ? `
           <button
             type="button"
@@ -933,14 +939,35 @@ function openGuestRemarks(guestId) {
   const target = currentGuestRows.find(function (row) {
     return String(row.guest_id) === String(numericGuestId);
   });
-  const remarks = String(target?.guest_remarks || target?.REMARKS || '').trim();
+  if (!target || !numericGuestId) return;
 
-  if (!remarks) return;
+  const remarks = String(target.guest_remarks || target.REMARKS || '').trim();
+  const guestName = String(target.guest_name || target.NAME || '').trim();
+
+  if (window.RemarksEditor && window.RemarksEditor.canEdit()) {
+    window.RemarksEditor.openEditor(remarks, function (newVal) {
+      window.RemarksEditor.patchRemarks('guest', numericGuestId, newVal, {
+        onSuccess: function () {
+          target.guest_remarks = newVal;
+          target.REMARKS = newVal;
+          if (window.Swal) {
+            window.Swal.fire({ icon: 'success', title: 'Saved', text: 'Guest remarks updated.', timer: 1500, showConfirmButton: false });
+          }
+        },
+        onError: function (err) {
+          if (window.Swal) {
+            window.Swal.fire({ icon: 'error', title: 'Error', text: (err && err.message) || 'Could not update remarks.' });
+          }
+        }
+      });
+    });
+    return;
+  }
 
   Swal.fire({
     icon: 'info',
-    title: 'Remarks',
-    text: remarks,
+    title: guestName || 'Remarks',
+    text: remarks || 'No remarks.',
     confirmButtonText: 'OK'
   });
 }

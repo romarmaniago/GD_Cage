@@ -28,7 +28,18 @@ function addBooking() {
       pageLength: 10,
       // Itago ang booking ID column (na nasa index 0)
       columnDefs: [
-        { targets: 0, visible: false, searchable: false }
+        { targets: 0, visible: false, searchable: false },
+        {
+          targets: 11,
+          render: function (data, type, row) {
+            if (type !== 'display') return data;
+            if (!window.RemarksEditor || !row[0]) return data || '';
+            return window.RemarksEditor.renderCell(data || '', {
+              source: 'booking',
+              recordId: row[0]
+            });
+          }
+        }
       ],
       // Order ayon sa Booking Date na nasa index 1 (dahil nadagdag na ang booking ID sa index 0)
       order: [[1, 'desc']],

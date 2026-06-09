@@ -852,7 +852,10 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 					var m = moment(encoded);
 					if (m.isValid()) dateDisplay = m.format('DD MMM, YYYY HH:mm');
 				}
-				var remarks = row.REMARKS || '—';
+				var remarks = row.REMARKS || '';
+				var remarksCell = window.RemarksEditor && row.IDNo
+					? window.RemarksEditor.renderCell(remarks, { source: 'account_ledger', recordId: row.IDNo })
+					: escapeHtml(remarks || '—');
 				var accountDisplay = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
 				return '' +
 					'<tr>' +
@@ -860,7 +863,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 						'<td class="text-center">' + (window.fmtAmt ? window.fmtAmt(amountNum) : amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })) + '</td>' +
 						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO, row)) + '</td>' +
 						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
-						'<td>' + escapeHtml(remarks) + '</td>' +
+						'<td>' + remarksCell + '</td>' +
 					'</tr>';
 			}).join('');
 
@@ -1337,6 +1340,18 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 		return '₱' + n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 	}
 
+	function formatAccountLedgerRemarks(row) {
+		const remarks = row.REMARKS || '';
+		const ledgerId = row.account_details_id || row.IDNo;
+		if (window.RemarksEditor && ledgerId) {
+			return window.RemarksEditor.renderCell(remarks, {
+				source: 'account_ledger',
+				recordId: ledgerId
+			});
+		}
+		return remarks;
+	}
+
 	function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
@@ -1383,7 +1398,7 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
-									row.REMARKS
+									formatAccountLedgerRemarks(row)
 								]);
 								resolve();
 							},
@@ -1396,7 +1411,7 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
-									row.REMARKS
+									formatAccountLedgerRemarks(row)
 								]);
 								resolve();
 							}
@@ -1408,7 +1423,7 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 							dateFormat,
 							transactionCell,
 							formatAccountLedgerAmount(amount, row.TRANSACTION),
-							row.REMARKS
+							formatAccountLedgerRemarks(row)
 						]);
 						resolve();
 					}

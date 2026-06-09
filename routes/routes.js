@@ -5730,8 +5730,8 @@ pageRouter.delete('/marker_record/:id', async (req, res) => {
 
 pageRouter.patch('/marker_record/:id/remarks', async (req, res) => {
 	const permissions = req.session?.permissions;
-	if (permissions !== 0) {
-		return res.status(403).json({ success: false, message: 'Only Super Admin can edit remarks.' });
+	if (permissions === 2) {
+		return res.status(403).json({ success: false, message: 'Not authorized to edit remarks.' });
 	}
 
 	const id = parseInt(req.params.id, 10);
@@ -5760,7 +5760,7 @@ pageRouter.patch('/marker_record/:id/remarks', async (req, res) => {
 			[remarks, req.session.user_id, date_now, id]
 		);
 
-		res.json({ success: true, message: 'Remarks updated.' });
+		res.json({ success: true, message: 'Remarks updated.', remarks });
 	} catch (err) {
 		console.error('Error updating marker remarks:', err);
 		res.status(500).json({ success: false, message: 'Error updating remarks.' });

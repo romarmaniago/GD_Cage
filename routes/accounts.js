@@ -942,6 +942,26 @@ router.post('/add_guest', async (req, res) => {
 	}
 });
 
+// PATCH GUEST REMARKS ONLY
+router.patch('/guest/:id/remarks', async (req, res) => {
+	try {
+		if (req.session?.permissions === 2) {
+			return res.status(403).json({ success: false, message: 'Not authorized to edit remarks.' });
+		}
+		const guestId = parseInt(req.params.id, 10);
+		if (!guestId) {
+			return res.status(400).json({ success: false, message: 'Guest is required.' });
+		}
+		const { updateRemarks } = require('../utils/remarksUpdate');
+		const remarks = await updateRemarks('guest', guestId, req.body && req.body.remarks, req.session?.user_id);
+		return res.json({ success: true, remarks });
+	} catch (err) {
+		const status = err.status || 500;
+		if (status >= 500) console.error('Error updating guest remarks:', err);
+		return res.status(status).json({ success: false, message: err.message || 'Failed to update remarks.' });
+	}
+});
+
 // EDIT GUEST
 router.put('/guest/:id', async (req, res) => {
 	try {

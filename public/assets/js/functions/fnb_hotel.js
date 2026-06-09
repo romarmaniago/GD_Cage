@@ -191,7 +191,12 @@ $(document).ready(function() {
 					const serviceTypeHtml = service.SERVICE_TYPE || '';
 					const amountHtml = `<span class="${amountClass}">${displayAmt}</span>`;
 					const paymentHtml = paymentLabel(service.TRANSACTION_ID);
-					const remarksHtml = service.REMARKS || '-';
+					const remarksHtml = window.RemarksEditor
+						? window.RemarksEditor.renderCell(service.REMARKS || '', {
+							source: 'game_services',
+							recordId: service.IDNo
+						})
+						: (service.REMARKS || '-');
 					const encodedByHtml = service.encoded_by_name || '-';
 					const rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
 					const dateDisplay = formatDateForDisplay(service.ENCODED_DT);

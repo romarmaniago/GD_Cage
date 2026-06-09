@@ -11,6 +11,7 @@ module.exports = [
     require('./net_profit'),
     require('./changeGame'),
     require('./dashboard'),
+    require('./remarks'),
     require('./activity_log'),
     require('./junket_loss'),
     require('./multipurpose_ledger'),

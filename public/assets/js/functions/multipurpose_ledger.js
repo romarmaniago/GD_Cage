@@ -523,7 +523,19 @@ $(document).ready(function () {
 				}
 			},
 			{ data: 'IN_CHARGE', defaultContent: '' },
-			{ data: 'REMARKS', defaultContent: '' },
+			{
+				data: 'REMARKS',
+				defaultContent: '',
+				render: function (data, type, row) {
+					var raw = data != null ? String(data) : '';
+					if (type !== 'display') return raw;
+					if (!window.RemarksEditor) return raw;
+					return window.RemarksEditor.renderCell(raw, {
+						source: 'junket_funds_ledger',
+						recordId: row.IDNo
+					});
+				}
+			},
 			{ data: 'ENCODED_BY_NAME', defaultContent: '' },
 			{
 				data: 'ENCODED_DT',

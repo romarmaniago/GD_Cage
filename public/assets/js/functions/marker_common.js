@@ -190,7 +190,7 @@
                         }
                         var safe = escapeHtml(raw);
                         var textHtml = safe ? safe : '<span class="text-muted">—</span>';
-                        if (!isSuperAdmin) {
+                        if (!(window.RemarksEditor ? window.RemarksEditor.canEdit() : isSuperAdmin)) {
                             return textHtml;
                         }
                         var id = row.IDNo != null ? String(row.IDNo) : '';
@@ -218,8 +218,7 @@
             var btn = $(this);
             var id = btn.data('id');
             if (!id) return;
-            var perms = parseInt($('#user-role').data('permissions'), 10);
-            if ($('#user-role').length && perms !== 0) return;
+            if (window.RemarksEditor && !window.RemarksEditor.canEdit()) return;
 
             var rawRemarks = '';
             try {
