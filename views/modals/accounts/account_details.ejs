@@ -145,19 +145,22 @@
                                 </div>
                             </div>
                                 <div class="card-body">
-                                <div class="text-end mb-4">
-                                    <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
-                                    <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
-                                    <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary" id="btn-reset-account-details-filter" data-bs-toggle="tooltip" data-bs-placement="top" title="Reset filter">
-                                        <i class="fa fa-refresh"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
-                                    <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
-                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
-                                        <i class="fa fa-id-card me-1"></i>Info
-                                    </button>
-                                    <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 guest-portal-action-row">
+                                    <button type="button" class="btn btn-sm btn-success" id="btn-guest-portal-game-start"><%= __('modal_account_details.game_start') %></button>
+                                    <div class="d-flex flex-wrap justify-content-end gap-2 ms-auto">
+                                        <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
+                                        <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
+                                        <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
+                                        <button type="button" class="btn btn-sm btn-alt-secondary" id="btn-reset-account-details-filter" data-bs-toggle="tooltip" data-bs-placement="top" title="Reset filter">
+                                            <i class="fa fa-refresh"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
+                                        <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
+                                            <i class="fa fa-id-card me-1"></i>Info
+                                        </button>
+                                        <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
+                                    </div>
                                 </div>
                                 <input type="hidden" id="account_id">
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
@@ -536,13 +539,7 @@
     border-radius: 8px;
     font-weight: 600;
 }
-#modal-account-details .text-end.mb-4 {
-    margin-bottom: 0.85rem !important;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.35rem;
-}
+#modal-account-details .guest-portal-action-row .btn,
 #modal-account-details .text-end.mb-4 .btn {
     border-radius: 6px;
     font-size: 0.78rem;
@@ -556,6 +553,7 @@
     border-radius: 999px;
 }
 #modal-account-details #btn-game-history,
+#modal-account-details #btn-guest-portal-game-start,
 #modal-account-details .text-end.mb-4 .btn.btn-primary {
     background: #16a34a;
     border-color: #16a34a;
@@ -1147,3 +1145,4 @@
 
 <!-- Include Game History Modal -->
 <%- include ('game_history') %>
+<%- include ('../game_book/new_game_list') %>

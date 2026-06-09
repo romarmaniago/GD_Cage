@@ -2161,7 +2161,7 @@ router.get('/account_game_history/:id', async (req, res) => {
 				game_list.ENCODED_DT AS game_date_start,
 				game_list.GAME_ENDED AS game_date_end,
 				COALESCE((
-					SELECT SUM(gs.AMOUNT)
+					SELECT SUM(gs.AMOUNT + COALESCE(gs.DELIVERY_FEE, 0))
 					FROM game_services gs
 					WHERE gs.GAME_ID = game_list.IDNo
 					  AND gs.ACTIVE = 1

@@ -25,6 +25,9 @@ function resetNewGameInputs() {
 	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
 	$('#txtGuestId').val('');
 	ensureNewGameEncodedDatePicker();
+	if (typeof newGameListRefreshCommissionRate === 'function') {
+		newGameListRefreshCommissionRate();
+	}
 }
 
 function isEndGameOrCutoffStatus(status) {
@@ -975,10 +978,87 @@ function loadGuestsForSelectedAccount() {
 }
 
 
-function addGameList(id) {
+function fetchAndApplyAvailableChipsForNewGameModal() {
+	$.ajax({
+		url: '/game_list_available_chips',
+		method: 'GET',
+		success: function (payload) {
+			var nn = Number(payload && payload.availableNN) || 0;
+			var cc = Number(payload && payload.availableCC) || 0;
+			var $nn = $('#availableNN');
+			var $cc = $('#availableCC');
+			if ($nn.length) $nn.text(nn.toLocaleString());
+			if ($cc.length) $cc.text(cc.toLocaleString());
+		},
+		error: function () {
+			if ($('#availableNN').length) $('#availableNN').text('0');
+			if ($('#availableCC').length) $('#availableCC').text('0');
+		}
+	});
+}
+window.fetchAndApplyAvailableChipsForNewGameModal = fetchAndApplyAvailableChipsForNewGameModal;
+
+function applyNewGameAccountPreset(accountId, options) {
+	options = options || {};
+	var accountIdText = String(accountId || '').trim();
+	if (!accountIdText) return;
+
+	var lockAccount = options.lockAccount !== false;
+	var guestIdText = options.guestId != null ? String(options.guestId).trim() : '';
+	var openingBalance = options.openingBalance;
+
+	function applyDefaults(attempt) {
+		var tryNo = attempt || 0;
+		var $accountSelect = $('#txtTrans');
+		var $guestSelect = $('#txtGuestGame');
+
+		if (!$accountSelect.length) {
+			if (tryNo < 20) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+			return;
+		}
+
+		if ($accountSelect.find('option[value="' + accountIdText + '"]').length === 0) {
+			if (tryNo < 25) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+			return;
+		}
+
+		$accountSelect.val(accountIdText).trigger('change');
+		if (lockAccount) {
+			$accountSelect.attr('data-readonly', '1');
+			$accountSelect.attr('data-locked-value', accountIdText);
+		}
+
+		if (openingBalance != null && !isNaN(openingBalance)) {
+			var safeBalance = Number(openingBalance) || 0;
+			$('#total_balanceGuest1').val(safeBalance);
+			$('#total_balanceGuestGameList').val(safeBalance.toLocaleString());
+		}
+
+		if (!guestIdText) return;
+
+		setTimeout(function () {
+			if (!$guestSelect.length) {
+				if (tryNo < 25) applyDefaults(tryNo + 1);
+				return;
+			}
+			if ($guestSelect.find('option[value="' + guestIdText + '"]').length > 0) {
+				$guestSelect.val(guestIdText).trigger('change');
+				$guestSelect.attr('data-readonly', '1');
+				$guestSelect.attr('data-locked-value', guestIdText);
+			} else if (tryNo < 25) {
+				applyDefaults(tryNo + 1);
+			}
+		}, 140);
+	}
+
+	setTimeout(function () { applyDefaults(0); }, 120);
+}
+
+function addGameList(id, presetOptions) {
 	var $select = $('#txtTrans');
 	var $guest = $('#txtGuestGame');
 	resetNewGameInputs();
+	fetchAndApplyAvailableChipsForNewGameModal();
 	resetNewGameSubmitButton();
 	$('#txtTrans').prop('disabled', false);
 	$('#txtGuestGame').prop('disabled', true);
@@ -1052,6 +1132,14 @@ function addGameList(id) {
 		});
 	}
 	ensureNewGameEncodedDatePicker();
+	if (typeof newGameListRefreshCommissionRate === 'function') {
+		newGameListRefreshCommissionRate();
+	}
+
+	if (id != null && String(id).trim() !== '') {
+		var opts = $.extend({ lockAccount: true }, presetOptions || {});
+		applyNewGameAccountPreset(id, opts);
+	}
 }
 
 function getQueryParam(param) {
@@ -1778,11 +1866,13 @@ $(document).ready(function () {
 
 	const highlightId = getQueryParam('id');
 
-    if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
-        $('#game_list-tbl').DataTable().destroy();
-    }
+	var dataTable = null;
+	if ($('#game_list-tbl').length) {
+		if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+			$('#game_list-tbl').DataTable().destroy();
+		}
 
-	var dataTable = $('#game_list-tbl').DataTable({
+		dataTable = $('#game_list-tbl').DataTable({
 		responsive: false,
 		paging: true,
 		lengthChange: true,
@@ -1872,6 +1962,7 @@ $(document).ready(function () {
 			syncGameListSelectAllCheckboxState();
 		}
 	});
+	}
 
 	function getGameListExportFilename() {
 		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
@@ -2378,14 +2469,6 @@ $(document).ready(function () {
                             <i class="fa fa-history"></i>
                         </button>
                     </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
-                        </button>
-                    </div>`;
-
                     var ref = '';
                     var acct_code = '';
 
@@ -2620,7 +2703,7 @@ $(document).ready(function () {
 								// 	gameIdDisplay = `⭐ ${row.game_list_id}`;
 								// }
 
-                                var actionButtons = btn_services;
+                                var actionButtons = '';
                                 if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
                                     actionButtons += btn_his;
                                 }
@@ -2630,6 +2713,7 @@ $(document).ready(function () {
                                 }
 
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.agent_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 let rowNode = dataTable.row.add([
                                     gameStartCellOg,
                                     `${row.GAME_TYPE}`,
@@ -2642,7 +2726,7 @@ $(document).ready(function () {
                                     total_rolling_td,
                                     buildGameRateCell(row, userPermissions, isSettled),
                                     formattedNet,
-                                    addChgValue.toLocaleString(),
+                                    add_chg_td,
                                     totalSettleValue.toLocaleString(),
                                     status,
                                     roller_chips_td,
@@ -2750,11 +2834,12 @@ $(document).ready(function () {
 									canOpenPoolSelect
 								);
 								
-								var actionButtons = btn_services + btn_settle;
+								var actionButtons = btn_settle;
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
 								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.agent_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
 								let rowNode = dataTable.row.add([
 									gameStartCell,
@@ -2768,7 +2853,7 @@ $(document).ready(function () {
 									total_rolling_td,
 									buildGameRateCell(row, userPermissions, isSettled),
 									formattedNet,
-									addChgValue.toLocaleString(),
+									add_chg_td,
 									totalSettleValue.toLocaleString(),
 									status,
 									roller_chips_td,
@@ -2871,12 +2956,13 @@ $(document).ready(function () {
 							   canDailySettleEnd,
 							   canOpenPoolSelect
 						   );
-						   var actionButtons = btn_services + btn_settle;
+						   var actionButtons = btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCellEnd,`${row.GAME_TYPE}`, buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
+						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.agent_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
+						   let rowNode = dataTable.row.add([gameStartCellEnd,`${row.GAME_TYPE}`, buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
                            if (row.DAILY_SETTLEMENT != 2) {
                                $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
                            }
@@ -4008,6 +4094,29 @@ $('#add_game_list').submit(function (event) {
             return;
         }
 
+        var commissionRateRaw = ($('#commissionRate').val() || '').trim();
+        var commissionRateNum = parseFloat(commissionRateRaw);
+        var splitCommType = parseInt($('#commissionType').val(), 10);
+        $('#commissionRate').removeClass('is-invalid');
+        if (!commissionRateRaw) {
+            $('#commissionRate').addClass('is-invalid');
+            Swal.fire({ title: 'Warning', text: 'Please enter a Commission Rate.', icon: 'warning', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if (!Number.isFinite(commissionRateNum) || commissionRateNum < 0) {
+            $('#commissionRate').addClass('is-invalid');
+            Swal.fire({ title: 'Invalid Input', text: 'Please enter a valid Commission Rate.', icon: 'error', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if (splitCommType === 2 && commissionRateNum < 50) {
+            $('#commissionRate').addClass('is-invalid');
+            Swal.fire({ title: 'Invalid Input', text: 'Shared Game commission rate must be at least 50%.', icon: 'error', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+
         var gameType = $('input[name="txtGameType"]:checked').val() || '';
         var accountCode = $('#txtTrans').val() || '';
         var accountText = $('#txtTrans option:selected').text() || accountCode;
@@ -4040,7 +4149,7 @@ $('#add_game_list').submit(function (event) {
         if (splitCreditCC > 0) rows += buildRow('Credit (CC):', splitCreditCC.toLocaleString());
         rows += buildRow('Total Amount:', splitTotal.toLocaleString());
         rows += buildRow('Commission Type:', commissionTypeText || '-');
-        if (parseFloat(commissionRate) > 0) rows += buildRow('Commission Rate:', `${commissionRate}%`);
+        rows += buildRow('Commission Rate:', `${commissionRateRaw}%`);
 
         var splitConfirmation = `
             <div style="max-width:420px;margin:0 auto;text-align:center;">
@@ -6151,6 +6260,111 @@ function prepareRollingModal(gameId) {
 	$('.game_list_id').val(gameId || '');
 }
 
+function formatServicesAccountLabel(agentCode, agentName) {
+	var code = (agentCode || '').trim();
+	var name = (agentName || '').trim();
+	return code + (name ? ' (' + name + ')' : '');
+}
+
+var LEGACY_SERVICE_TYPE_LABELS = {
+	fnb: 'F & B',
+	hotel: 'Hotel',
+	delivery: 'Delivery'
+};
+
+function formatServiceDisplayLabel(service) {
+	var raw = (service || '').trim();
+	if (!raw) return '';
+	var legacy = LEGACY_SERVICE_TYPE_LABELS[raw.toLowerCase()];
+	return legacy || raw;
+}
+
+function isDeliveryServiceType(serviceType) {
+	return formatServiceDisplayLabel(serviceType).trim().toLowerCase() === 'delivery';
+}
+
+function parseServiceDeliveryFeeInput(raw) {
+	var fee = parseFloat(String(raw || '0').replace(/,/g, '').trim());
+	return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+}
+
+function getServiceLineTotal(amount, deliveryFee, serviceType) {
+	var base = parseFloat(amount || 0);
+	if (isNaN(base)) base = 0;
+	var fee = isDeliveryServiceType(serviceType) ? parseServiceDeliveryFeeInput(deliveryFee) : 0;
+	return base + fee;
+}
+
+function toggleServicesDeliveryFeeField(selectSelector, wrapSelector, feeInputSelector) {
+	if (isDeliveryServiceType($(selectSelector).val())) {
+		$(wrapSelector).removeClass('d-none');
+	} else {
+		$(wrapSelector).addClass('d-none');
+		if (feeInputSelector) $(feeInputSelector).val('');
+	}
+}
+
+function resetServicesDeliveryFeeFields() {
+	$('#services-delivery-fee-wrap, #services-edit-delivery-fee-wrap').addClass('d-none');
+	$('#services-delivery-fee, #services-edit-delivery-fee').val('');
+}
+
+function escapeServiceCategoryOption(value) {
+	return String(value || '')
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function populateServicesCategorySelects(selectedValue, callback) {
+	var placeholder = '<option value="" selected disabled>Select service</option>';
+	var selects = ['#services-type', '#services-edit-type'];
+	var selected = formatServiceDisplayLabel(selectedValue || '');
+
+	$.ajax({
+		url: '/services_category_data',
+		method: 'GET',
+		success: function (rows) {
+			var options = placeholder;
+			var hasSelected = false;
+			(rows || []).forEach(function (row) {
+				var category = (row.CATEGORY || '').trim();
+				if (!category) return;
+				var isSelected = selected && selected.toLowerCase() === category.toLowerCase();
+				if (isSelected) hasSelected = true;
+				options += '<option value="' + escapeServiceCategoryOption(category) + '"' + (isSelected ? ' selected' : '') + '>' +
+					escapeServiceCategoryOption(category) + '</option>';
+			});
+			if (selected && !hasSelected) {
+				options += '<option value="' + escapeServiceCategoryOption(selected) + '" selected>' +
+					escapeServiceCategoryOption(selected) + ' (legacy)</option>';
+			}
+			selects.forEach(function (selector) {
+				$(selector).html(options);
+			});
+			toggleServicesDeliveryFeeField('#services-type', '#services-delivery-fee-wrap', '#services-delivery-fee');
+			toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+			if (typeof callback === 'function') callback();
+		},
+		error: function () {
+			selects.forEach(function (selector) {
+				$(selector).html(placeholder);
+			});
+			if (typeof callback === 'function') callback();
+		}
+	});
+}
+
+function buildAddChgTd(gameListId, agentCode, agentName, addChgValue, gameStatus, settled, agentId) {
+	var display = parseFloat(addChgValue || 0).toLocaleString();
+	var safeCode = encodeURIComponent(agentCode || '');
+	var safeName = encodeURIComponent(agentName || '');
+	return '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="openServices(' +
+		gameListId + ', \'' + safeCode + '\', \'' + safeName + '\', ' +
+		parseInt(gameStatus, 10) + ', ' + parseInt(settled || 0, 10) + ', ' + parseInt(agentId || 0, 10) + ')">' + display + '</button>';
+}
+
 function buildTotalRollingTd(gameListId, agentCode, totalRollingChips, canAddRolling) {
 	var display = parseFloat(totalRollingChips || 0).toLocaleString();
 	if (!canAddRolling) {
@@ -6530,8 +6744,7 @@ function addCashout(id, account, total_rolling_chips, agentCode) {
 
 function showHistory(record_id) {
 	$('#modal-show-history').modal('show');
-
-	
+	$('#show-agent-label').text('');
 
 	if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
 		$('#game_record-tbl').DataTable().destroy();
@@ -6640,7 +6853,9 @@ function reloadDataRecord() {
         success: function (data) {
             // Set agent code in modal header
             if (data.length > 0) {
-                $('#show-agent-code').text(data[0].agent_code || '');
+                var agentCode = data[0].agent_code || '';
+                var agentName = data[0].agent_name || '';
+                $('#show-agent-label').text(agentCode + (agentName ? ' (' + agentName + ')' : ''));
             }
             
             // Calculate totals using the SAME formula as game list (line 304)
@@ -6886,10 +7101,8 @@ function reloadDataRecord() {
             // Add total row first
             allRows.push([
                 '<strong>TOTAL</strong>',
-                '<strong>' + totalBuyIn.toLocaleString() + '</strong>',
-                '<strong>' + totalAdditionalBuyIn.toLocaleString() + '</strong>',
+                '<strong>' + (totalBuyIn + totalAdditionalBuyIn).toLocaleString() + '</strong>',
                 '<strong>' + totalCashOut.toLocaleString() + '</strong>',
-                '<strong>' + totalRealRolling.toLocaleString() + '</strong>',
                 '<strong>' + totalRolling.toLocaleString() + '</strong>',
                 // '<strong>' + totalNN.toLocaleString() + '</strong>',
                 // '<strong>' + totalCC.toLocaleString() + '</strong>',
@@ -6909,6 +7122,13 @@ function reloadDataRecord() {
                 // For cash-out via credit (TRANSACTION = 4), also use blue marker style
                 if (transType === 4) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
                 return str;
+            }
+            function formatMergedBuyinCell(rowData) {
+                var buyIn = (rowData.buy_in || 0) + (rowData.additional_buyin || 0);
+                var buyInType = (rowData.buy_in || 0) > 0
+                    ? (parseInt(rowData.buy_in_type, 10) || 1)
+                    : (parseInt(rowData.additional_buyin_type, 10) || 1);
+                return formatBuyinCell(buyIn, buyInType);
             }
             function buildActionButtons(rowData) {
                 const gameEnded = rowData.game_status == 1 && userPermissions !== 0;
@@ -6935,15 +7155,11 @@ function reloadDataRecord() {
             for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 const rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
-                var buyInType = parseInt(rowData.buy_in_type, 10) || 1;
-                var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
                 var cashOutType = parseInt(rowData.cash_out_type, 10) || 1;
                 allRows.push([
                     rowData.displayDate || date,
-                    formatBuyinCell(rowData.buy_in, buyInType),
-                    formatBuyinCell(rowData.additional_buyin, addBuyinType),
+                    formatMergedBuyinCell(rowData),
                     formatBuyinCell(rowData.cash_out, cashOutType),
-                    rowData.real_rolling.toLocaleString(),
                     (rowData.total_rolling_actual || 0).toLocaleString(),
                     rowData.nn.toLocaleString(),
                     rowData.cc.toLocaleString(),
@@ -7194,7 +7410,11 @@ function loadServiceTotalForStatusModal(gameId) {
 					if (transactionId !== 3) {
 						return sum;
 					}
-					const amt = parseFloat(item.AMOUNT || item.amount || 0);
+					const amt = getServiceLineTotal(
+						item.AMOUNT || item.amount || 0,
+						item.DELIVERY_FEE || item.delivery_fee || 0,
+						item.SERVICE_TYPE || item.service_type || ''
+					);
 					return sum + (isNaN(amt) ? 0 : amt);
 				}, 0)
 				: 0;
@@ -7207,18 +7427,21 @@ function loadServiceTotalForStatusModal(gameId) {
 	});
 }
 
-function openServices(id, agentCode, gameStatus, settled, agentId) {
+function openServices(id, agentCode, agentName, gameStatus, settled, agentId) {
 	// Track settled state
 	_servicesSettled = parseInt(settled || 0, 10);
 
 	const decodedAgentCode = decodeURIComponent(agentCode || '');
-	$('#services-agent-code').text(decodedAgentCode);
-	$('#services-edit-agent-code').text(decodedAgentCode);
+	const decodedAgentName = decodeURIComponent(agentName || '');
+	const accountLabel = formatServicesAccountLabel(decodedAgentCode, decodedAgentName);
+	$('#services-agent-label').text(accountLabel);
+	$('#services-edit-agent-label').text(accountLabel);
+	populateServicesCategorySelects();
 	$('#modal-services').modal('show');
 	const $gameInput = $('#services-game-id-input');
 	if ($gameInput.length) $gameInput.val(id);
 	const $guestInput = $('#services-guest-name-input');
-	if ($guestInput.length) $guestInput.val(decodedAgentCode || '');
+	if ($guestInput.length) $guestInput.val(accountLabel || '');
 	const $agentInput = $('#services-agent-id-input');
 	if ($agentInput.length) $agentInput.val(agentId != null ? agentId : '');
 
@@ -7234,6 +7457,8 @@ function openServices(id, agentCode, gameStatus, settled, agentId) {
 	// Clear inputs
 	$('#services-type').val('');
 	$('#services-amount').val('');
+	$('#services-delivery-fee').val('');
+	resetServicesDeliveryFeeFields();
 	$('#services-remarks').val('');
 	$('input[name="services-transaction"]').prop('checked', false);
 	$('input[name="services-transaction"][value="3"]').prop('checked', true);
@@ -7286,6 +7511,8 @@ function renderServicesList(list) {
 			ordering: false,
 			info: false,
 			autoWidth: false,
+			scrollX: false,
+			responsive: false,
 			language: { emptyTable: 'No services availed.' }
 		});
 		return;
@@ -7293,8 +7520,11 @@ function renderServicesList(list) {
 
 	const rows = data.map(item => {
 		const id = item.IDNo || item.id || '';
-		const service = item.SERVICE_TYPE || item.service_type || '';
+		const service = formatServiceDisplayLabel(item.SERVICE_TYPE || item.service_type || '');
 		const amount = item.AMOUNT || item.amount || 0;
+		const deliveryFee = isDeliveryServiceType(service)
+			? parseServiceDeliveryFeeInput(item.DELIVERY_FEE || item.delivery_fee || 0)
+			: 0;
 		const remarks = item.REMARKS || item.remarks || '';
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
@@ -7304,6 +7534,7 @@ function renderServicesList(list) {
 		return `<tr>
 			<td>${service}</td>
 			<td class="text-end">${parseFloat(amount).toLocaleString()}</td>
+			<td class="text-end">${deliveryFee > 0 ? deliveryFee.toLocaleString() : '-'}</td>
 			<td>${remarks || ''}</td>
 			<td>${transactionLabel || '-'}</td>
 			<td>${processed || ''}</td>
@@ -7316,6 +7547,7 @@ function renderServicesList(list) {
 					data-id="${id}"
 					data-service="${service}"
 					data-amount="${amount}"
+					data-delivery-fee="${deliveryFee}"
 					data-remarks="${encodeURIComponent(remarks || '')}"
 					data-transaction="${transactionId}">
 					<i class="fa fa-edit"></i>
@@ -7333,7 +7565,11 @@ function renderServicesList(list) {
 
 	// Total amount of all services
 	const totalAmt = data.reduce((sum, item) => {
-		const amt = parseFloat(item.AMOUNT || item.amount || 0);
+		const amt = getServiceLineTotal(
+			item.AMOUNT || item.amount || 0,
+			item.DELIVERY_FEE || item.delivery_fee || 0,
+			item.SERVICE_TYPE || item.service_type || ''
+		);
 		return sum + (isNaN(amt) ? 0 : amt);
 	}, 0);
 	if ($total.length) $total.text(totalAmt.toLocaleString());
@@ -7346,7 +7582,9 @@ function renderServicesList(list) {
 		searching: false,
 		ordering: false,
 		info: true,
-		autoWidth: false
+		autoWidth: false,
+		scrollX: false,
+		responsive: false
 	});
 
 	// View-only: disable delete/edit in Services modal after list is rendered (buttons are dynamic)
@@ -7363,12 +7601,17 @@ $(document).on('click', '#services-save-btn', function (e) {
 	const type = $('#services-type').val();
 	const amountRaw = $('#services-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = parseServiceDeliveryFeeInput($('#services-delivery-fee').val());
 	const remarks = $('#services-remarks').val().trim();
 	const editId = $('#services-edit-id-input').val();
 	const transactionId = $('input[name="services-transaction"]:checked').val();
 
 	if (!gameId || !type) {
 		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+	if (isDeliveryServiceType(type) && !String($('#services-delivery-fee').val() || '').trim()) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Enter delivery fee for Delivery service.' });
 		return;
 	}
 	if (!transactionId) {
@@ -7378,6 +7621,7 @@ $(document).on('click', '#services-save-btn', function (e) {
 
 	const $btn = $('#services-save-btn');
 	const isEdit = !!editId;
+	const lineTotal = getServiceLineTotal(amount, deliveryFee, type);
 	let agentId = parseInt($('#services-agent-id-input').val(), 10);
 	if (Number.isNaN(agentId)) {
 		agentId = null;
@@ -7385,8 +7629,12 @@ $(document).on('click', '#services-save-btn', function (e) {
 	
 	// Build confirmation message
 	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
-	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
+	confirmationMessage += `<strong>Service Type:</strong> ${type}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	if (isDeliveryServiceType(type)) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString()}<br>`;
+		confirmationMessage += `<strong>Total:</strong> ${lineTotal.toLocaleString()}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
@@ -7414,7 +7662,7 @@ $(document).on('click', '#services-save-btn', function (e) {
 			$.ajax({
 				url,
 				method,
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId, agent_id: agentId },
+				data: { game_id: gameId, service_type: type, amount, delivery_fee: deliveryFee, remarks, transaction_id: transactionId, agent_id: agentId },
 				success: function (list) {
 					// Show success message
 					Swal.fire({
@@ -7430,6 +7678,8 @@ $(document).on('click', '#services-save-btn', function (e) {
 							window.reloadData();
 						}
 						$('#services-amount').val('');
+						$('#services-delivery-fee').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-remarks').val('');
 						$('#services-type').val('');
 						$('#services-edit-id-input').val('');
@@ -7458,9 +7708,10 @@ $(document).on('click', '.service-edit-btn', function () {
 	const id = $btn.data('id');
 	const service = $btn.data('service');
 	const amount = $btn.data('amount');
+	const deliveryFee = $btn.data('delivery-fee');
 	const remarks = decodeURIComponent($btn.attr('data-remarks') || '');
 	const transaction = $btn.data('transaction');
-	editService(id, service, amount, remarks, transaction);
+	editService(id, service, amount, deliveryFee, remarks, transaction);
 });
 
 // Delete button handler (delegated)
@@ -7479,11 +7730,16 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	const type = $('#services-edit-type').val();
 	const amountRaw = $('#services-edit-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = parseServiceDeliveryFeeInput($('#services-edit-delivery-fee').val());
 	const remarks = $('#services-edit-remarks').val().trim();
 	const transactionId = $('input[name="services-edit-transaction"]:checked').val();
 
 	if (!serviceId || !gameId || !type) {
 		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+	if (isDeliveryServiceType(type) && !String($('#services-edit-delivery-fee').val() || '').trim()) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Enter delivery fee for Delivery service.' });
 		return;
 	}
 	if (!transactionId) {
@@ -7492,11 +7748,16 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	}
 
 	const $btn = $('#services-edit-save-btn');
+	const lineTotal = getServiceLineTotal(amount, deliveryFee, type);
 	
 	// Build confirmation message
 	var confirmationMessage = `Confirm Update Service:<br><br>`;
-	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
+	confirmationMessage += `<strong>Service Type:</strong> ${type}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	if (isDeliveryServiceType(type)) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString()}<br>`;
+		confirmationMessage += `<strong>Total:</strong> ${lineTotal.toLocaleString()}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
@@ -7521,7 +7782,7 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 			$.ajax({
 				url: `/game_services/${serviceId}`,
 				method: 'PUT',
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
+				data: { game_id: gameId, service_type: type, amount, delivery_fee: deliveryFee, remarks, transaction_id: transactionId },
 				success: function (list) {
 					// Show success message
 					Swal.fire({
@@ -7540,6 +7801,8 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 						$('#services-edit-id').val('');
 						$('#services-edit-type').val('');
 						$('#services-edit-amount').val('');
+						$('#services-edit-delivery-fee').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-edit-remarks').val('');
 					});
 				},
@@ -8163,11 +8426,12 @@ $(document).ready(function () {
 	});
 })
 
-function editService(id, service, amount, remarks, transaction) {
+function editService(id, service, amount, deliveryFee, remarks, transaction) {
 	const safeAmount = parseFloat(amount || 0);
+	const safeDeliveryFee = parseServiceDeliveryFeeInput(deliveryFee);
 	$('#services-edit-id').val(id || '');
-	$('#services-edit-type').val(service || '');
 	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString());
+	$('#services-edit-delivery-fee').val(safeDeliveryFee > 0 ? safeDeliveryFee.toLocaleString() : '');
 	$('#services-edit-remarks').val(remarks || '');
 	$('input[name="services-edit-transaction"]').prop('checked', false);
 	const txnValue = parseInt(transaction, 10);
@@ -8175,9 +8439,23 @@ function editService(id, service, amount, remarks, transaction) {
 		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
 	}
 
-	$('#services-edit-agent-code').text($('#services-agent-code').text() || '');
-	$('#modal-services-edit').modal('show');
+	$('#services-edit-agent-label').text($('#services-agent-label').text() || '');
+	populateServicesCategorySelects(service || '', function () {
+		toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap');
+		if (isDeliveryServiceType(service) && safeDeliveryFee > 0) {
+			$('#services-edit-delivery-fee').val(safeDeliveryFee.toLocaleString());
+		}
+		$('#modal-services-edit').modal('show');
+	});
 }
+
+$(document).on('change', '#services-type', function () {
+	toggleServicesDeliveryFeeField('#services-type', '#services-delivery-fee-wrap', '#services-delivery-fee');
+});
+
+$(document).on('change', '#services-edit-type', function () {
+	toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+});
 
 function deleteService(id) {
 	const gameId = $('#services-game-id-input').val();
@@ -8204,6 +8482,8 @@ function deleteService(id) {
 				$('#services-save-btn').text('Save');
 				$('#services-type').val('');
 				$('#services-amount').val('');
+				$('#services-delivery-fee').val('');
+				resetServicesDeliveryFeeFields();
 				$('#services-remarks').val('');
 				Swal.fire({
 					icon: 'success',
@@ -8285,17 +8565,6 @@ $(document).ready(function () {
                             <i class="fa fa-history"></i>
                     </button>
                </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
-                        </button>
-                    </div>`;
-
-
-						
-
 					var ref = '';
 					var acct_code = '';
 
@@ -8435,7 +8704,7 @@ $(document).ready(function () {
 								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, true);
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-                                var actionButtons = btn_services + btn_his;
+                                var actionButtons = btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
@@ -8445,7 +8714,7 @@ $(document).ready(function () {
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
 								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
-                                var actionButtons = btn_services + btn_his;
+                                var actionButtons = btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
@@ -8475,7 +8744,7 @@ $(document).ready(function () {
 										<i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
-						   var actionButtons = btn_services + btn_settle;
+						   var actionButtons = btn_settle;
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 

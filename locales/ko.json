@@ -101,6 +101,7 @@
 		"manage_user": "사용자 관리",
 		"user_role": "권한 설정",
 		"expense_category": "지출 항목",
+		"services_category": "서비스 카테고리",
 		"telegram_api": "텔레그램",
 		"modify_game": "게임 수정",
 		"activity_log": "활동 로그",
@@ -171,6 +172,7 @@
 		"manage_user": "사용자 관리",
 		"user_role": "권한 설정",
 		"expense_category": "지출 항목",
+		"services_category": "서비스 카테고리",
 		"telegram_api": "텔레그램",
 		"modify_game": "게임 수정",
 		"monthly_reset": "게임 초기화",
@@ -1218,7 +1220,8 @@
 		"passport_lbl_nationality": "국적",
 		"passport_lbl_dob": "생년월일",
 		"passport_lbl_expiry": "만료일",
-		"passport_lbl_gender": "성별"
+		"passport_lbl_gender": "성별",
+		"game_start": "modal_account_details.game_start"
 	},
 	"modal_change_status": {
 		"change_status": "상태 변경",
@@ -1317,5 +1320,30 @@
 		"service_deleted": "서비스 기록이 삭제되었습니다.",
 		"delete_failed": "삭제 실패",
 		"failed_to_delete": "서비스 기록 삭제에 실패했습니다."
+	},
+	"services_category": {
+		"services_category": "services_category.services_category",
+		"new_category": "services_category.new_category",
+		"category": "services_category.category",
+		"status": "services_category.status",
+		"action": "services_category.action",
+		"search": "services_category.search",
+		"showing_entries": "services_category.showing_entries",
+		"previous": "services_category.previous",
+		"next": "services_category.next",
+		"active": "services_category.active",
+		"inactive": "services_category.inactive"
+	},
+	"modal_new_services_category": {
+		"new_category": "modal_new_services_category.new_category",
+		"category_placeholder": "modal_new_services_category.category_placeholder",
+		"save": "modal_new_services_category.save",
+		"close": "modal_new_services_category.close"
+	},
+	"modal_edit_services_category": {
+		"edit_category": "modal_edit_services_category.edit_category",
+		"category_placeholder": "modal_edit_services_category.category_placeholder",
+		"save": "modal_edit_services_category.save",
+		"close": "modal_edit_services_category.close"
 	}
 }

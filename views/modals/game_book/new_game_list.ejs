@@ -446,6 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 inputEl.classList.remove('is-invalid');
             });
         }
+        newGameListRefreshCommissionRate();
     });
 });
 
@@ -500,63 +501,85 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
     
+function newGameListRefreshCommissionRate() {
+    const commissionType = document.getElementById('commissionType');
+    const commissionRate = document.getElementById('commissionRate');
+    if (!commissionType || !commissionRate) return;
+
+    const defaultRollingGameRate = 1.50;
+    const defaultSharedGameRate = 50;
+    const defaultMarkerRollingRate = 1.50;
+
+    if (newGameListSplitBuyinEnabled()) {
+        commissionRate.value = '';
+        commissionRate.setAttribute('required', 'required');
+        commissionRate.classList.remove('is-invalid');
+        if (commissionType.value === '1') {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.setAttribute('min', '0');
+        } else if (commissionType.value === '2') {
+            commissionRate.setAttribute('step', '0.1');
+            commissionRate.setAttribute('min', '50');
+        } else {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.removeAttribute('min');
+        }
+        return;
+    }
+
+    commissionRate.removeAttribute('required');
+    commissionRate.classList.remove('is-invalid');
+
+    const selectedTransactionRadio = document.querySelector('#modal-new-game-list input[name="txtTransType"]:checked');
+    const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
+
+    if (!selectedTransaction) {
+        commissionRate.value = '';
+        if (commissionType.value === '1') {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.setAttribute('min', '0');
+        } else if (commissionType.value === '2') {
+            commissionRate.setAttribute('step', '0.1');
+            commissionRate.setAttribute('min', '50');
+        } else {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.removeAttribute('min');
+        }
+        return;
+    }
+
+    if (commissionType.value === '1') {
+        commissionRate.setAttribute('step', '0.05');
+        if (selectedTransaction === '3') {
+            commissionRate.value = defaultMarkerRollingRate;
+            commissionRate.setAttribute('min', '0');
+        } else {
+            commissionRate.value = defaultRollingGameRate;
+            commissionRate.setAttribute('min', '0');
+        }
+    } else if (commissionType.value === '2') {
+        commissionRate.setAttribute('step', '0.1');
+        commissionRate.value = defaultSharedGameRate;
+        commissionRate.setAttribute('min', '50');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const commissionType = document.getElementById('commissionType');
     const commissionRate = document.getElementById('commissionRate');
     const form = document.getElementById('add_game_list');
 
-    // Set default commission rates
-    let defaultRollingGameRate = 1.50;  // Default for Rolling Game (CASH/DEPOSIT)
-    let defaultSharedGameRate = 50;    // Default for Shared Game (CASH/DEPOSIT and Marker)
-    let defaultMarkerRollingRate = 1.50;  // Default for Rolling Game (Marker)
-
-    // Initialize commission rate based on selected commission type
-    const setCommissionRate = () => {
-        // Check if elements exist
-        if (!commissionType || !commissionRate) {
-            return; // Exit early if elements don't exist
-        }
-
-        // Get selected transaction with null check
-        const selectedTransactionRadio = document.querySelector('input[name="txtTransType"]:checked');
-        const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
-
-        // Handle different commission type logic based on transaction
-        if (commissionType.value === "1") { // Rolling Game
-            commissionRate.setAttribute("step", "0.05"); // 0.05 increment for Rolling Game only
-            if (selectedTransaction === "3") { // Marker selected
-                commissionRate.value = defaultMarkerRollingRate; // Set to 0% for Marker
-                commissionRate.setAttribute("min", "0"); // Minimum 0% for Marker
-            } else {
-                commissionRate.value = defaultRollingGameRate; // Default 1.5% for CASH/DEPOSIT
-                commissionRate.setAttribute("min", "0"); // Minimum 1.4% for Rolling Game (CASH/DEPOSIT)
-            }
-        } else if (commissionType.value === "2") { // Shared Game
-            commissionRate.setAttribute("step", "0.1"); // Shared keeps its own increment (keydown 2.5)
-            commissionRate.value = defaultSharedGameRate; // Default 50% for both CASH/DEPOSIT and Marker
-            commissionRate.setAttribute("min", "50"); // Minimum 50% for Shared Game
-        }
-    };
-
-    // Listen to commission type changes (Rolling, Shared, etc.)
     if (commissionType && commissionRate) {
-        commissionType.addEventListener('change', function () {
-            setCommissionRate();
-        });
+        commissionType.addEventListener('change', newGameListRefreshCommissionRate);
     }
 
-    // Listen to transaction type changes (CASH/DEPOSIT or MARKER)
-    const transactionTypeRadios = document.querySelectorAll('input[name="txtTransType"]');
-    transactionTypeRadios.forEach(radio => {
-        radio.addEventListener('change', function () {
-            setCommissionRate();
-        });
+    const transactionTypeRadios = document.querySelectorAll('#modal-new-game-list input[name="txtTransType"]');
+    transactionTypeRadios.forEach(function (radio) {
+        radio.addEventListener('change', newGameListRefreshCommissionRate);
     });
 
-    // Set initial step and rate (Rolling Game selected by default)
-    // Only call if elements exist
     if (commissionType && commissionRate) {
-        setCommissionRate();
+        newGameListRefreshCommissionRate();
     }
 
     // Event listener for keydown (Arrow Up & Arrow Down)

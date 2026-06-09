@@ -1,0 +1,72 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+	<%- include('../partials/sidebar') %>
+
+		<%- include('../partials/topbar') %>
+
+			<div class="container-fluid content-inner py-0">
+				<div class="row">
+					<div class="col-sm-12">
+						<div class="card">
+							<div id="user-role" data-permissions="<%= permissions %>"></div>
+							<div class="card-header d-flex justify-content-between align-items-center">
+								<h3 class="card-title"><div class="breadcrumb1 flat">
+									<a href="/dashboard"><span class="fa fa-home"></span></a>
+									<a href="/services_category" class="active"><%= __('services_category.services_category') %></a>
+								</div></h3>
+								<button type="button" class="btn btn-primary" onclick="addServicesCategory()">
+									<i class="fa fa-plus" aria-hidden="true"></i> <%= __('services_category.new_category') %>
+								</button>
+							</div>
+
+							<div class="card-body">
+								<table id="services-category-tbl" class="table nowrap small-text" style="width:100%">
+									<thead>
+										<tr>
+											<th class="d-none d-sm-table-cell"><%= __('services_category.category') %></th>
+											<th class="d-none d-sm-table-cell" style="width: 150px;"><%= __('services_category.status') %></th>
+											<th class="d-none d-sm-table-cell" style="width: 100px;"><%= __('services_category.action') %></th>
+										</tr>
+									</thead>
+									<tbody></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<%- include('../modals/popups/new_services_category') %>
+			<%- include('../modals/popups/edit_services_category') %>
+			<%- include('../partials/permission_view_only_script') %>
+			<%- include('../partials/footer') %>
+
+			<script>
+				window.servicesCategoryTranslations = {
+					search: "<%= __('services_category.search') %>",
+					showing_entries: "<%= __('services_category.showing_entries') %>",
+					previous: "<%= __('services_category.previous') %>",
+					next: "<%= __('services_category.next') %>",
+					active: "<%= __('services_category.active') %>",
+					inactive: "<%= __('services_category.inactive') %>"
+				};
+			</script>
+			<script src="/assets/js/functions/services_category.js"></script>
+
+			<style>
+				.card-body { overflow-x: auto; }
+				#services-category-tbl { width: 100%; font-size: 13px; border-collapse: collapse; }
+				#services-category-tbl thead th {
+					background: var(--bs-primary-bg-subtle);
+					color: var(--bs-primary);
+					font-weight: 500;
+					padding: 12px 15px;
+					text-align: left;
+					border: none;
+				}
+				#services-category-tbl tbody tr { border-bottom: 1px solid #eee; }
+				#services-category-tbl td { padding: 12px 15px; color: #666; }
+				#services-category-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
+				#services-category-tbl th,
+				#services-category-tbl td { white-space: nowrap; }
+			</style>

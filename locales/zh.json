@@ -101,6 +101,7 @@
 		"manage_user": "管理用户",
 		"user_role": "用户角色",
 		"expense_category": "费用类别",
+		"services_category": "服务类别",
 		"telegram_api": "Telegram",
 		"modify_game": "修改游戏",
 		"activity_log": "活动日志",
@@ -170,6 +171,7 @@
 		"manage_user": "管理用户",
 		"user_role": "用户角色",
 		"expense_category": "费用类别",
+		"services_category": "服务类别",
 		"telegram_api": "Telegram API",
 		"modify_game": "修改游戏",
 		"monthly_reset": "每月重置",
@@ -1218,7 +1220,8 @@
 		"passport_lbl_nationality": "国籍",
 		"passport_lbl_dob": "出生日期",
 		"passport_lbl_expiry": "有效期限",
-		"passport_lbl_gender": "性别"
+		"passport_lbl_gender": "性别",
+		"game_start": "modal_account_details.game_start"
 	},
 	"modal_change_status": {
 		"change_status": "更改状态",
@@ -1317,5 +1320,30 @@
 		"service_deleted": "服务记录已删除。",
 		"delete_failed": "删除失败",
 		"failed_to_delete": "删除服务记录失败。"
+	},
+	"services_category": {
+		"services_category": "services_category.services_category",
+		"new_category": "services_category.new_category",
+		"category": "services_category.category",
+		"status": "services_category.status",
+		"action": "services_category.action",
+		"search": "services_category.search",
+		"showing_entries": "services_category.showing_entries",
+		"previous": "services_category.previous",
+		"next": "services_category.next",
+		"active": "services_category.active",
+		"inactive": "services_category.inactive"
+	},
+	"modal_new_services_category": {
+		"new_category": "modal_new_services_category.new_category",
+		"category_placeholder": "modal_new_services_category.category_placeholder",
+		"save": "modal_new_services_category.save",
+		"close": "modal_new_services_category.close"
+	},
+	"modal_edit_services_category": {
+		"edit_category": "modal_edit_services_category.edit_category",
+		"category_placeholder": "modal_edit_services_category.category_placeholder",
+		"save": "modal_edit_services_category.save",
+		"close": "modal_edit_services_category.close"
 	}
 }

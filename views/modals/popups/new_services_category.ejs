@@ -1,0 +1,26 @@
+<div class="modal fade" id="modal-new-services-category" role="dialog" aria-labelledby="modal-default-popout"
+	aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white"><%= __('modal_new_services_category.new_category') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<form id="add_services_category">
+					<div class="block-content">
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtCategory" placeholder="<%= __('modal_new_services_category.category_placeholder') %>" required>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-sm btn-primary"><%= __('modal_new_services_category.save') %></button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_services_category.close') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>

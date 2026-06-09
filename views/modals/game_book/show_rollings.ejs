@@ -2,7 +2,7 @@
 	<div class="modal-dialog modal-dialog-centered modal-xl">
 		<div class="modal-content">
 		<div class="modal-header bg-primary">
-			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_show_rolling.title') %> - <span id="show-agent-code"></span></h5>
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_show_rolling.title') %> - <span id="show-agent-label"></span></h5>
 			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 		</div>
 		<div class="modal-body">
@@ -14,9 +14,7 @@
 							<tr>
 								<th class="text-center"><%= __('modal_show_rolling.date') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.buyin') %></th>
-								<th class="text-center"><%= __('modal_show_rolling.additional_buyin') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.cash_out') %></th>
-								<th class="text-center"><%= __('modal_show_rolling.real_rolling') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.total_rolling') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.nn') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.cc') %></th>
@@ -84,7 +82,7 @@
 
 			const headers = $('#game_record-tbl thead th').map(function (index) {
 				// Skip Action column (last column)
-				if (index === 9) {
+				if (index === 7) {
 					return null;
 				}
 				return $(this).text().trim();
@@ -92,13 +90,13 @@
 
 			const rows = table.rows({ search: 'applied' }).data().toArray();
 			const bodyHtml = rows.map(function (row) {
-				const cols = row.slice(0, 9).map(function (col) {
+				const cols = row.slice(0, 7).map(function (col) {
 					return `<td>${col}</td>`;
 				}).join('');
 				return `<tr>${cols}</tr>`;
 			}).join('');
 
-			const agentCode = ($('#show-agent-code').text() || '').trim();
+			const accountLabel = ($('#show-agent-label').text() || '').trim();
 
 			const printFrame = document.createElement('iframe');
 			printFrame.style.position = 'fixed';
@@ -143,7 +141,7 @@
 						</style>
 					</head>
 					<body>
-						<h3>Game Record History - ${agentCode}</h3>
+						<h3>Game Record History - ${accountLabel}</h3>
 						<table>
 							<thead>
 								<tr>${headers.map(function (h) { return `<th>${h}</th>`; }).join('')}</tr>

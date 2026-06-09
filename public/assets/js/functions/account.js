@@ -652,6 +652,88 @@ $(document).off('click', '#btn-reset-account-details-filter').on('click', '#btn-
 	table.draw();
 });
 
+function loadGameListScriptOnce() {
+	return new Promise(function (resolve, reject) {
+		if (typeof window.addGameList === 'function') {
+			resolve();
+			return;
+		}
+
+		var src = '/assets/js/functions/game_list.js';
+		var existing = document.querySelector('script[src="' + src + '"]');
+		var waitForAddGameList = function (attempt) {
+			var tryNo = attempt || 0;
+			if (typeof window.addGameList === 'function') {
+				resolve();
+				return;
+			}
+			if (tryNo >= 100) {
+				reject(new Error('addGameList not available'));
+				return;
+			}
+			setTimeout(function () { waitForAddGameList(tryNo + 1); }, 50);
+		};
+
+		if (existing) {
+			waitForAddGameList(0);
+			return;
+		}
+
+		var script = document.createElement('script');
+		script.src = src;
+		script.onload = function () { waitForAddGameList(0); };
+		script.onerror = function () { reject(new Error('Failed to load game_list.js')); };
+		document.body.appendChild(script);
+	});
+}
+
+function openGuestPortalGameStart() {
+	var accountId = $('#account_id').val() || $('#account_id_add').val() || account_id || '';
+	accountId = String(accountId || '').trim();
+	if (!accountId) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'warning', title: 'No account', text: 'Please open an account first.', confirmButtonText: 'OK' });
+		}
+		return;
+	}
+
+	if (!$('#modal-new-game-list').length) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({
+				icon: 'error',
+				title: 'Unavailable',
+				text: 'New Game modal is not available on this page.',
+				confirmButtonText: 'OK'
+			});
+		}
+		return;
+	}
+
+	loadGameListScriptOnce().then(function () {
+		var openingBalance = parseFloat($('#total_balanceGuest').val()) || 0;
+		if (!openingBalance) {
+			var balanceText = ($('#modal-account-details .total_balance').first().text() || '').replace(/[^0-9.-]/g, '');
+			openingBalance = parseFloat(balanceText) || 0;
+		}
+		$('#modal-account-details').modal('hide');
+		window.addGameList(accountId, { openingBalance: openingBalance });
+	}).catch(function () {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({
+				icon: 'error',
+				title: 'Unavailable',
+				text: 'Unable to open New Game modal right now.',
+				confirmButtonText: 'OK'
+			});
+		}
+	});
+}
+window.openGuestPortalGameStart = openGuestPortalGameStart;
+
+$(document).off('click', '#btn-guest-portal-game-start').on('click', '#btn-guest-portal-game-start', function () {
+	openGuestPortalGameStart();
+});
+
 // Open per-account Credit modal and show account-specific credit transactions
 $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	var requestSeq = ++creditDetailsRequestSeq;
