@@ -5,18 +5,6 @@ function escapeForInline(value) {
 	return value.toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function directionLabel(direction) {
-	var t = window.servicesCategoryTranslations || {};
-	var n = parseInt(direction, 10);
-	if (n === 1) {
-		return '<span class="css-blue">' + (t.in || 'In') + '</span>';
-	}
-	if (n === 2) {
-		return '<span class="css-red">' + (t.out || 'Out') + '</span>';
-	}
-	return t.direction_none || '-';
-}
-
 var servicesCategoryDataTable;
 
 function reloadServicesCategoryData() {
@@ -39,7 +27,7 @@ function reloadServicesCategoryData() {
 					'<i class="fa fa-pencil-alt"></i></button>' +
 					'<button type="button" onclick="archiveServicesCategory(' + row.IDNo + ')" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">' +
 					'<i class="fa fa-trash-alt"></i></button></div>';
-				servicesCategoryDataTable.row.add([row.CATEGORY, directionLabel(row.DIRECTION), status, btn]).draw();
+				servicesCategoryDataTable.row.add([row.CATEGORY, status, btn]).draw();
 			});
 		},
 		error: function (xhr, status, error) {
@@ -58,7 +46,7 @@ $(document).ready(function () {
 			createdCell: function (cell) {
 				$(cell).addClass('text-center');
 			},
-			targets: [1, 2, 3]
+			targets: [1, 2]
 		}],
 		language: {
 			search: (window.servicesCategoryTranslations?.search || 'Search:'),
