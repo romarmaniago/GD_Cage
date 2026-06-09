@@ -1119,7 +1119,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 NULL AS REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                NULL AS REMARKS_SOURCE
             FROM junket_total_chips j
             LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo 
             WHERE j.ACTIVE = 1 AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
@@ -1144,7 +1145,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 k.REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'junket_capital' AS REMARKS_SOURCE
             FROM junket_capital k
             LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo 
             WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
@@ -1167,9 +1169,10 @@ router.get('/junket_capital_data', async (req, res) => {
                 al.TRANSACTION_DESC COLLATE utf8mb4_general_ci AS comms_description,   
                 NULL AS capital_amount, 
                 al.AMOUNT AS ledger_amount, 
-                NULL AS REMARKS, 
+                al.REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'account_ledger' AS REMARKS_SOURCE
             FROM account_ledger al
             LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo 
             WHERE al.ACTIVE = 1 AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
@@ -1194,7 +1197,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 je.DESCRIPTION AS REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'junket_house_expense' AS REMARKS_SOURCE
             FROM junket_house_expense je
             LEFT JOIN expense_category CE ON CE.IDNo = je.CATEGORY_ID
             LEFT JOIN user_info u ON je.ENCODED_BY = u.IDNo 
@@ -1220,7 +1224,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 gr.REMARKS, 
                 gr.CAGE_TYPE,  
-                gr.GAME_ID
+                gr.GAME_ID,
+                'game_record' AS REMARKS_SOURCE
             FROM game_record gr
             LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo 
             WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 1 AND gr.TRANSACTION IN (1, 2) AND DATE(gr.ENCODED_DT) BETWEEN ? AND ?
@@ -1343,7 +1348,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_capital'
 		}));
 
 		// 2. Account deposits (ACCOUNT_DEPOSIT)
@@ -1386,7 +1392,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 3. Settlement deposits (SETTLEMENT_DEPOSIT -> Commission Deposit)
@@ -1456,7 +1463,9 @@ router.get('/cash_in_details', async (req, res) => {
 				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 				AGENT_NAME: row.AGENT_NAME || '-',
 				SERVICE_TRANSACTION_ID: null,
-				SERVICE_SOURCE_TYPE: null
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'account_ledger',
+				REMARKS_EDIT: ledgerRem || fromCash || ''
 			};
 		});
 
@@ -1491,7 +1500,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_total_chips'
 		}));
 
 		// 5. Game cash buy-ins (NN/CC cash-only)
@@ -1500,6 +1510,7 @@ router.get('/cash_in_details', async (req, res) => {
 			SELECT
 				gr.IDNo,
 				gr.GAME_ID,
+				gr.REMARKS,
 				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
 				gr.ENCODED_BY,
 				gr.ENCODED_DT,
@@ -1518,20 +1529,26 @@ router.get('/cash_in_details', async (req, res) => {
 			dateParams
 		);
 
-		const gameBuyinRows = gameBuyinRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.GAME_ID,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Game buy-in',
-			TYPE: 1,
-			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: row.AGENT_NAME || '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
-		}));
+		const gameBuyinRows = gameBuyinRaw.map((row) => {
+			const gameRemarks = row.REMARKS && String(row.REMARKS).trim();
+			const displayRemarks = gameRemarks || (row.GAME_ID ? `Game - ${row.GAME_ID}` : '');
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.GAME_ID,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Game buy-in',
+				TYPE: 1,
+				REMARKS: displayRemarks,
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: row.AGENT_NAME || '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'game_record',
+				REMARKS_EDIT: gameRemarks || ''
+			};
+		});
 
 		// 6. Guest services (ServiceCashGuest + ServiceDepositGuest)
 		const [guestServicesRaw] = await pool.execute(
@@ -1570,7 +1587,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
-			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE,
+			REMARKS_SOURCE: 'game_services'
 		}));
 
 		// 7. Marker return cash (MARKER_RETURN_CASH)
@@ -1610,7 +1628,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 8. Return money (RETURN_MONEY)
@@ -1643,7 +1662,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_return_money'
 		}));
 
 		const allRows = [
@@ -1713,7 +1733,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_capital'
 		}));
 
 		// 2. Chips Buy-in (junket_total_chips, TRANSACTION_ID = 1)
@@ -1747,7 +1768,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_total_chips'
 		}));
 
 		// 3. Game Cash-out (game_record, CAGE_TYPE = 2)
@@ -1756,6 +1778,7 @@ router.get('/cash_out_details', async (req, res) => {
 			SELECT
 				gr.IDNo,
 				gr.GAME_ID,
+				gr.REMARKS,
 				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
 				gr.ENCODED_BY,
 				gr.ENCODED_DT,
@@ -1774,20 +1797,26 @@ router.get('/cash_out_details', async (req, res) => {
 			dateParams
 		);
 
-		const gameCashoutRows = gameCashoutRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.GAME_ID,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Game Cash-out',
-			TYPE: 2,
-			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: row.AGENT_NAME || '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
-		}));
+		const gameCashoutRows = gameCashoutRaw.map((row) => {
+			const gameRemarks = row.REMARKS && String(row.REMARKS).trim();
+			const displayRemarks = gameRemarks || (row.GAME_ID ? `Game - ${row.GAME_ID}` : '');
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.GAME_ID,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Game Cash-out',
+				TYPE: 2,
+				REMARKS: displayRemarks,
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: row.AGENT_NAME || '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'game_record',
+				REMARKS_EDIT: gameRemarks || ''
+			};
+		});
 
 		// 4. Account Withdraw (ACCOUNT_WITHDRAW)
 		const [accountWithdrawRaw] = await pool.execute(
@@ -1826,7 +1855,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 5. Account Credit (ACCOUNT_CREDIT from account_ledger)
@@ -1866,7 +1896,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 6. Commission Cash-out (ACCOUNT_SETTLEMENT, TRANSACTION_TYPE = 5, TRANSACTION_ID = 5)
@@ -1906,7 +1937,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 7. Junket services (ServiceCashJunket + ServiceDepositJunket)
@@ -1946,7 +1978,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
-			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE,
+			REMARKS_SOURCE: 'game_services'
 		}));
 
 		// 8. Expenses (junket_house_expense)
@@ -1983,7 +2016,9 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_house_expense',
+			REMARKS_EDIT: row.REMARKS || ''
 		}));
 
 		const allRows = [
@@ -2644,8 +2679,8 @@ router.delete('/marker_record/:id', async (req, res) => {
 // PATCH MARKER REMARKS (account_ledger) — Super Admin only
 router.patch('/marker_record/:id/remarks', async (req, res) => {
 	const permissions = req.session?.permissions;
-	if (permissions !== 0) {
-		return res.status(403).json({ success: false, message: 'Only Super Admin can edit remarks.' });
+	if (permissions === 2) {
+		return res.status(403).json({ success: false, message: 'Not authorized to edit remarks.' });
 	}
 
 	const id = parseInt(req.params.id, 10);
@@ -2674,7 +2709,7 @@ router.patch('/marker_record/:id/remarks', async (req, res) => {
 			[remarks, req.session.user_id, date_now, id]
 		);
 
-		res.json({ success: true, message: 'Remarks updated.' });
+		res.json({ success: true, message: 'Remarks updated.', remarks });
 	} catch (err) {
 		console.error('Error updating marker remarks:', err);
 		res.status(500).json({ success: false, message: 'Error updating remarks.' });

@@ -53,7 +53,11 @@ $(document).ready(function() {
 				rolling = row.AMOUNT;
 			}
 
-			dataTable.row.add([trading, buy_in, cash_out , rolling ,row.REMARKS ,btn]).draw();
+			var recordId = row.game_record_id || row.IDNo;
+			var remarksCell = window.RemarksEditor && recordId
+				? window.RemarksEditor.renderCell(row.REMARKS || '', { source: 'game_record', recordId: recordId })
+				: (row.REMARKS || '');
+			dataTable.row.add([trading, buy_in, cash_out , rolling , remarksCell ,btn]).draw();
 		});
 		},
 		error: function(xhr, status, error) {

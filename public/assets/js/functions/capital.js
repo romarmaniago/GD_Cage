@@ -14,6 +14,19 @@ function fmtCapitalSigned(value) {
     return n.toLocaleString('en-US');
 }
 
+function renderCapitalRemarksCell(row, displayText, suffixHtml) {
+    if (!window.RemarksEditor || !row.REMARKS_SOURCE || !row.IDNo) {
+        return (displayText || '') + (suffixHtml || '');
+    }
+    const editText = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : (displayText || '');
+    return window.RemarksEditor.renderCell(editText, {
+        source: row.REMARKS_SOURCE,
+        recordId: row.IDNo,
+        displayText: displayText || '',
+        suffixHtml: suffixHtml || ''
+    });
+}
+
 function reloadData() {
     // Kunin ang value ng date range mula sa Flatpickr
     const dateRange = $('#main-daterange').val();
@@ -137,11 +150,13 @@ function reloadData() {
                 var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
 
                  // Prepare REMARKS with GAME_ID if applicable
-                 var remarks = row.REMARKS || '';
+                 var remarksText = row.REMARKS || '';
+                 var remarksSuffix = '';
                  if ((row.TRANSACTION_ID == 1 || row.TRANSACTION_ID == 2) && row.GAME_ID) {
                      const gameId = row.GAME_ID;
-                     remarks += ` <a href="/game_list?id=${gameId}"  title="Go to Game" target="_blank">Game-${gameId}</a>`;
+                     remarksSuffix = ` <a href="/game_list?id=${gameId}"  title="Go to Game" target="_blank">Game-${gameId}</a>`;
                  }
+                 var remarks = renderCapitalRemarksCell(row, remarksText, remarksSuffix);
 
                 // Check NN_CHIPS, PAYMENT, IOU, or AMOUNT with labels for combinedChipsText
                 var nnChips = row.NN_CHIPS !== null ? row.NN_CHIPS : 0;
@@ -527,7 +542,8 @@ function loadCashInData() {
                         const typeText = row.CATEGORY || 'Capital In';
                         const accountName = row.AGENT_NAME || '-';
                         const amount = window.fmtAmt ? window.fmtAmt(row.AMOUNT) : parseFloat(row.AMOUNT || 0).toLocaleString('en-US');
-                        const remarks = row.REMARKS || '';
+                        const remarksDisplay = row.REMARKS || '';
+                        const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
                         const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
                         const serviceTransactionId = row.SERVICE_TRANSACTION_ID != null
@@ -538,10 +554,13 @@ function loadCashInData() {
                             typeText,
                             accountName,
                             amount,
-                            remarks,
+                            remarksDisplay,
                             encodedBy,
                             formattedDate,
-                            serviceTransactionId
+                            serviceTransactionId,
+                            row.IDNo,
+                            row.REMARKS_SOURCE || '',
+                            remarksEdit
                         ];
                     });
             }
@@ -552,8 +571,23 @@ function loadCashInData() {
             { "className": "text-end" },
             { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" }
+            { "className": "text-center" },
+            { "visible": false },
+            { "visible": false },
+            { "visible": false }
         ],
+        "columnDefs": [{
+            targets: 3,
+            render: function (data, type, row) {
+                if (type !== 'display') return data;
+                if (!window.RemarksEditor || !row[8]) return data || '';
+                return window.RemarksEditor.renderCell(row[9] != null ? row[9] : (data || ''), {
+                    source: row[8],
+                    recordId: row[7],
+                    displayText: data || ''
+                });
+            }
+        }],
         "createdRow": function (row, data) {
             const serviceTransactionId = data && data.length > 6 ? parseInt(data[6], 10) : null;
             if (serviceTransactionId === 3) {
@@ -636,7 +670,8 @@ function loadCashOutData() {
                         const typeText = row.CATEGORY || 'Capital Out';
                         const accountName = row.AGENT_NAME || '-';
                         const amount = window.fmtOut ? window.fmtOut(row.AMOUNT) : parseFloat(row.AMOUNT || 0).toLocaleString('en-US');
-                        const remarks = row.REMARKS || '';
+                        const remarksDisplay = row.REMARKS || '';
+                        const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
                         const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
 
@@ -644,9 +679,12 @@ function loadCashOutData() {
                             typeText,
                             accountName,
                             amount,
-                            remarks,
+                            remarksDisplay,
                             encodedBy,
-                            formattedDate
+                            formattedDate,
+                            row.IDNo,
+                            row.REMARKS_SOURCE || '',
+                            remarksEdit
                         ];
                     });
             }
@@ -657,8 +695,23 @@ function loadCashOutData() {
             { "className": "text-end" },
             { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" }
+            { "className": "text-center" },
+            { "visible": false },
+            { "visible": false },
+            { "visible": false }
         ],
+        "columnDefs": [{
+            targets: 3,
+            render: function (data, type, row) {
+                if (type !== 'display') return data;
+                if (!window.RemarksEditor || !row[7]) return data || '';
+                return window.RemarksEditor.renderCell(row[8] != null ? row[8] : (data || ''), {
+                    source: row[7],
+                    recordId: row[6],
+                    displayText: data || ''
+                });
+            }
+        }],
         "responsive": true,
         "language": {
             "emptyTable": "No cash-out transactions found",
@@ -886,7 +939,7 @@ function loadChipsTransaction() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                        renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1066,7 +1119,7 @@ function loadNNChipsHistory() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                        renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1322,7 +1375,7 @@ function loadJunketExpenseData() {
                         row.ENCODED_BY_NAME || 'N/A',
                         fmtCapitalAmount(row.capital_amount, 'out'),
                         description,
-                        row.REMARKS || '',
+                        renderCapitalRemarksCell(row, row.REMARKS || ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];

@@ -190,6 +190,9 @@ $(document).ready(function() {
               rawCategory: row.CATEGORY || '',
               amount: formatAmount(row.AMOUNT, row.TYPE),
               remarks: row.REMARKS || '',
+              remarksEdit: row.REMARKS_EDIT != null ? row.REMARKS_EDIT : (row.REMARKS || ''),
+              remarksSource: row.REMARKS_SOURCE || '',
+              recordId: row.IDNo,
               encodedBy: row.ENCODED_BY_NAME || 'N/A',
               date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
               sortDate: row.ENCODED_DT ? moment.utc(row.ENCODED_DT).valueOf() : 0,
@@ -209,7 +212,19 @@ $(document).ready(function() {
       columns: [
         { data: 'typeText', className: 'text-center' },
         { data: 'amount', className: 'text-end' },
-        { data: 'remarks', className: 'text-start' },
+        {
+          data: 'remarks',
+          className: 'text-start',
+          render: function(data, type, row) {
+            if (type !== 'display') return data;
+            if (!window.RemarksEditor || !row.remarksSource || !row.recordId) return data || '';
+            return window.RemarksEditor.renderCell(row.remarksEdit != null ? row.remarksEdit : (data || ''), {
+              source: row.remarksSource,
+              recordId: row.recordId,
+              displayText: data || ''
+            });
+          }
+        },
         { data: 'encodedBy', className: 'text-center' },
         {
           data: 'date',
