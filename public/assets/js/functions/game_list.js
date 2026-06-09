@@ -1299,14 +1299,21 @@ function buildGameTypeCell(row, userPermissions) {
 	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
 	var canEdit = (userPermissions !== 2) && isEditableActive;
 
+<<<<<<< Updated upstream
 	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
 	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
 
 	if (!canEdit) {
+=======
+	if (!canEdit) {
+		var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
+		var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
+>>>>>>> Stashed changes
 		return '<span class="' + cls + '">' + escapeHtmlText(displayLabel) + '</span>';
 	}
 
 	return (
+<<<<<<< Updated upstream
 		'<button type="button" class="btn btn-link p-0 js-game-type-btn ' + cls + '" ' +
 		'style="font-size:inherit;text-decoration:none;cursor:pointer;" ' +
 		'data-game-id="' + row.game_list_id + '" ' +
@@ -1367,6 +1374,18 @@ function updateGameTypeCellDisplay(gameId, newType) {
 	});
 }
 
+=======
+		'<select class="form-select form-select-sm game-type-select" ' +
+		'data-game-id="' + row.game_list_id + '" ' +
+		'data-prev="' + gameType + '" ' +
+		'style="min-width:5.5rem;font-size:11px;padding:2px 4px;height:auto;">' +
+		'<option value="LIVE"' + (gameType === 'LIVE' ? ' selected' : '') + '>' + liveLabel + '</option>' +
+		'<option value="TELEBET"' + (gameType === 'TELEBET' ? ' selected' : '') + '>' + telebetLabel + '</option>' +
+		'</select>'
+	);
+}
+
+>>>>>>> Stashed changes
 function buildGameRemarksButton(row) {
 	var remarks = String(row.REMARKS || '').trim();
 	var hasRemark = remarks !== '';
@@ -1377,7 +1396,10 @@ function buildGameRemarksButton(row) {
 		'<button type="button" class="btn btn-sm ' + btnClass + ' action-btn-square js-game-remarks-btn js-bs-tooltip-enabled"' +
 		' data-game-id="' + row.game_list_id + '"' +
 		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
+<<<<<<< Updated upstream
 		' data-guest-name="' + escapeHtmlText(row.guest_name || '') + '"' +
+=======
+>>>>>>> Stashed changes
 		' data-remarks="' + encodeURIComponent(remarks) + '"' +
 		' data-bs-toggle="tooltip" aria-label="Remarks" data-bs-original-title="' + escapeHtmlText(tooltipText) + '" title="' + escapeHtmlText(tooltipText) + '"' +
 		' style="font-size:8px !important; margin-right: 5px;">' +
@@ -1385,11 +1407,19 @@ function buildGameRemarksButton(row) {
 	);
 }
 
+<<<<<<< Updated upstream
 function openGameRemarks(gameId, agentCode, remarks, guestName) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = userPermissions !== 2;
 	$('#game-remarks-game-id').val(gameId);
 	setGameListModalAccountLabel('#game-remarks-agent-code', agentCode, guestName);
+=======
+function openGameRemarks(gameId, agentCode, remarks) {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	var canEdit = userPermissions !== 2;
+	$('#game-remarks-game-id').val(gameId);
+	$('#game-remarks-agent-code').text(agentCode || '');
+>>>>>>> Stashed changes
 	$('#game-remarks-text').val(remarks || '').prop('readonly', !canEdit);
 	$('#game-remarks-save-btn').toggle(canEdit);
 	$('#modal-game-remarks').modal('show');
@@ -1664,8 +1694,12 @@ $(document).on('click', '.js-game-remarks-btn', function () {
 	openGameRemarks(
 		parseInt($btn.data('game-id'), 10),
 		$btn.attr('data-agent-code') || '',
+<<<<<<< Updated upstream
 		remarks,
 		$btn.attr('data-guest-name') || ''
+=======
+		remarks
+>>>>>>> Stashed changes
 	);
 });
 
@@ -1699,12 +1733,54 @@ $(document).on('submit', '#form-game-remarks', function (e) {
 	});
 });
 
+<<<<<<< Updated upstream
 $(document).on('click', '.js-game-type-btn', function () {
 	var $btn = $(this);
 	confirmGameTypeChange(
 		parseInt($btn.attr('data-game-id'), 10),
 		$btn.attr('data-game-type') || 'LIVE'
 	);
+=======
+$(document).on('change', '.game-type-select', function () {
+	var $sel = $(this);
+	var gameId = parseInt($sel.data('game-id'), 10);
+	var newType = $sel.val();
+	var prevType = $sel.data('prev') || 'LIVE';
+	if (!gameId || newType === prevType) return;
+
+	Swal.fire({
+		icon: 'question',
+		title: 'Change game type?',
+		html: 'Change type from <strong>' + escapeHtmlText(prevType) + '</strong> to <strong>' + escapeHtmlText(newType) + '</strong>?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (!result.isConfirmed) {
+			$sel.val(prevType);
+			return;
+		}
+		$sel.prop('disabled', true);
+		$.ajax({
+			url: '/game_list/' + gameId + '/game_type',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ game_type: newType }),
+			success: function () {
+				$sel.data('prev', newType);
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			},
+			error: function (xhr) {
+				$sel.val(prevType);
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			},
+			complete: function () {
+				$sel.prop('disabled', false);
+			}
+		});
+	});
+>>>>>>> Stashed changes
 });
 
 $(document).on('submit', '#form-edit-commission-type', function (e) {
@@ -3293,9 +3369,14 @@ $(document).ready(function () {
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
+<<<<<<< Updated upstream
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
+=======
+						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
+>>>>>>> Stashed changes
                            if (row.DAILY_SETTLEMENT != 2) {
                                $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
                            }
