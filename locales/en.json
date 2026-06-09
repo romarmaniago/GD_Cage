@@ -1037,7 +1037,7 @@
 		"date": "Date",
 		"time": "Time",
 		"buyin": "BUY-IN",
-		"chips_return": "CHIPS RETURN",
+		"chips_return": "CASH-OUT",
 		"win_loss": "WIN/LOSS",
 		"rolling": "ROLLING",
 		"rate": "RATE",
