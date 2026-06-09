@@ -1059,6 +1059,36 @@ function getQueryParam(param) {
 	return urlParams.get(param);
 }
 
+function isTruthyQueryFlag(value) {
+	return ['1', 'true', 'yes'].includes(String(value || '').toLowerCase());
+}
+
+function syncUnreturnedRollerFilterBanner() {
+	var $filterRow = $('#settlement-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
+	var $banner = $('#game-list-unreturned-roller-banner');
+	var active = !!window.gameListUnreturnedRollerOnly;
+
+	if (!active) {
+		$filterRow.show();
+		$banner.remove();
+		return;
+	}
+
+	$filterRow.hide();
+	if ($banner.length) return;
+
+	var label = window.gamelistTranslations?.unreturned_roller_filter || 'Showing games with roller chips only';
+	var clearLabel = window.gamelistTranslations?.clear_filter || 'Show all games';
+	$(
+		'<div id="game-list-unreturned-roller-banner" class="row mb-2">' +
+		'<div class="col-12">' +
+		'<div class="alert alert-warning py-2 mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+		'<span>' + label + '</span>' +
+		'<a href="/game_list" class="btn btn-sm btn-outline-secondary">' + clearLabel + '</a>' +
+		'</div></div></div>'
+	).insertBefore($filterRow);
+}
+
 // Function to translate game source
 function translateGameSource(source) {
 	const translations = window.gamelistTranslations || {};
@@ -1947,6 +1977,7 @@ $(document).ready(function () {
 	};
 
 	const highlightId = getQueryParam('id');
+	window.gameListUnreturnedRollerOnly = isTruthyQueryFlag(getQueryParam('unreturned_roller'));
 
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
         $('#game_list-tbl').DataTable().destroy();
@@ -2334,10 +2365,13 @@ $(document).ready(function () {
         }
 		var reloadGeneration = (window._gameListReloadGeneration || 0) + 1;
 		window._gameListReloadGeneration = reloadGeneration;
-		// Build params; if highlightId exists, pass it to bypass date filtering on backend
+		syncUnreturnedRollerFilterBanner();
+		// Build params; highlight id or unreturned-roller filter bypass date filtering on backend
 		const params = {};
 		if (highlightId) {
 			params.id = highlightId;
+		} else if (window.gameListUnreturnedRollerOnly) {
+			params.unreturned_roller = 1;
 		} else {
 			// Check filter mode: settlement or date range
 			var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
@@ -2666,6 +2700,11 @@ $(document).ready(function () {
 	
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
+
+							if (window.gameListUnreturnedRollerOnly && total_roller_chips <= 0) {
+								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); }
+								return;
+							}
 	
 							var gross = total_buy_in - total_cash_out;
 	

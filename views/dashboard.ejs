@@ -243,6 +243,7 @@
                   
                   const netJunketMoney = houseBalance - guestBalance;
                   const netJunketCash = cashBalance - guestBalance;
+                  const unreturnedRollerChipsTotal = (+sqlUnreturnedRollerChips[0].TOTAL_UNRETURNED || 0);
                   
                   // Detailed breakdown for tracing Cash Balance
                   const cashBalanceDebug = [
@@ -408,7 +409,7 @@ c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- totalChipsBalance.toLocaleString('en-US') %>
+                                             <h6 class="counter"><%- totalChipsBalance.toLocaleString() %>
                                              </h6>
                                           </div>
                                        </div>
@@ -530,7 +531,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- nnChipsBalance.toLocaleString('en-US') %>
+                                             <h6 class="counter"><%- nnChipsBalance.toLocaleString() %>
                                              </h6>
                                              <input type="hidden" name="NN_CASHOUT" value="<%- nnChipsBalance %>">
                                           </div>
@@ -684,9 +685,32 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- ccChipsBalance.toLocaleString('en-US') %>
+                                             <h6 class="counter"><%- ccChipsBalance.toLocaleString() %>
                                              </h6>
                                              <input type="hidden" name="CC_CASHOUT" value="<%- ccChipsBalance %>">
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="1000">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver d-flex align-items-center justify-content-center">
+                                             <i class="fa-solid fa-coins icon-25" style="font-size: 25px; color: #fff;"></i>
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.unreturned_roller_chips') %>
+                                                <a href="/game_list?unreturned_roller=1" target="_blank">
+                                                   <span class="ms-2 plus-spacing">
+                                                      <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                         data-bs-toggle="tooltip" data-bs-placement="top"
+                                                         title="<%= __('dashboard.view_game_book') %>"></i>
+                                                   </span>
+                                                </a>
+                                             </h6>
+                                             <h6 class="counter"><%- unreturnedRollerChipsTotal.toLocaleString() %></h6>
                                           </div>
                                        </div>
                                     </div>
@@ -867,6 +891,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                      .highlight-row {
                         background-color: #ffeaa7 !important;
                      }
+
                   </style>
                   <!-- END CARDS -->
                   <!-- JUNKET BALANC -->

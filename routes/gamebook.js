@@ -2440,6 +2440,40 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
+    const unreturnedRollerOnly = ['1', 'true', 'yes'].includes(String(req.query.unreturned_roller || '').toLowerCase());
+    if (unreturnedRollerOnly) {
+        const query = baseSelect + `
+            WHERE game_list.ACTIVE != 0
+              AND game_list.IDNo IN (
+                SELECT gr.GAME_ID
+                FROM game_record gr
+                WHERE gr.CAGE_TYPE = 5
+                  AND gr.ACTIVE = 1
+                GROUP BY gr.GAME_ID
+                HAVING SUM(
+                  CASE
+                    WHEN COALESCE(gr.ROLLER_TRANSACTION, 1) = 1
+                      THEN COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0)
+                    WHEN gr.ROLLER_TRANSACTION = 2
+                      THEN -(COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0))
+                    ELSE 0
+                  END
+                ) > 0
+              )
+            ORDER BY game_list.IDNo DESC
+        `;
+        try {
+            const [rows] = await pool.execute(query);
+            rows.forEach((row) => {
+                row.is_pending = 0;
+            });
+            return res.json(rows);
+        } catch (error) {
+            console.error('Error fetching games with unreturned roller chips:', error);
+            return res.status(500).json({ error: 'Error fetching data' });
+        }
+    }
+
     // Settlement date range: games linked to daily_settlement with SETTLEMENT_DATE in range
     const settlementFrom = req.query.settlementFrom;
     const settlementTo = req.query.settlementTo;

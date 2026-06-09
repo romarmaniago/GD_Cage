@@ -35,6 +35,30 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlReturnRollerCCChips = 'SELECT SUM(ROLLER_CC_CHIPS) AS RETURN_ROLLER_CC FROM game_record WHERE ACTIVE = 1 AND ROLLER_TRANSACTION = 2 AND RESET=1';
 
+	let sqlUnreturnedRollerChips = `
+		SELECT COALESCE(SUM(GREATEST(0, balances.net_balance)), 0) AS TOTAL_UNRETURNED
+		FROM (
+			SELECT
+				gr.GAME_ID,
+				SUM(
+					CASE
+						WHEN COALESCE(gr.ROLLER_TRANSACTION, 1) = 1
+							THEN COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0)
+						WHEN gr.ROLLER_TRANSACTION = 2
+							THEN -(COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0))
+						ELSE 0
+					END
+				) AS net_balance
+			FROM game_record gr
+			INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			WHERE gr.CAGE_TYPE = 5
+				AND gr.ACTIVE = 1
+				AND gl.ACTIVE != 0
+			GROUP BY gr.GAME_ID
+		) balances
+		WHERE balances.net_balance > 0
+	`;
+
 	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
@@ -802,6 +826,7 @@ let sqlServiceSettle = `
 		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
 		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
 		const [ReturnRollerCCChipsResult] = await pool.execute(sqlReturnRollerCCChips);
+		const [UnreturnedRollerChipsResult] = await pool.execute(sqlUnreturnedRollerChips);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
@@ -900,6 +925,7 @@ let sqlServiceSettle = `
 			sqlRollerCCSubtract: RollerCCSubtractResult,
 			sqlRollerCCAdd: RollerCCAddResult,
 			sqlReturnRollerCCChips: ReturnRollerCCChipsResult,
+			sqlUnreturnedRollerChips: UnreturnedRollerChipsResult,
 			sqlAgentCount: AgentCountResult,
 			sqlServiceCashGuest: serviceCashGuestResults,
 			sqlServiceDepositGuest: serviceDepositGuestResults,
