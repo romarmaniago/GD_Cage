@@ -1325,27 +1325,43 @@ function escapeHtmlText(value) {
 		.replace(/"/g, '&quot;');
 }
 
+function buildGameAccountCell(accountId, agentCode, agentName) {
+	var code = (agentCode || '').toString();
+	var name = (agentName || '').toString();
+	var label = code + (name ? ' (' + name + ')' : '');
+	var safeCode = code.replace(/'/g, "\\'");
+	var safeName = name.replace(/'/g, "\\'");
+	return (
+		'<span class="game-list-cell-truncate" title="' + escapeHtmlText(label) + '">' +
+		'<a href="#" class="game-list-acct-link" onclick="account_details(' + accountId + ', \'' + safeCode + '\', \'' + safeName + '\')">' +
+		escapeHtmlText(label) +
+		'</a></span>'
+	);
+}
+
 function buildGameGuestCell(row) {
 	var guestId = parseInt(row.GUEST_ID, 10) || '';
 	var guestName = row.guest_name && row.guest_name !== '-' ? String(row.guest_name).trim() : '';
+	var displayName = guestName || '-';
 	if (!canAssignGameGuest()) {
-		return escapeHtmlText(guestName || '-');
+		return '<span class="game-list-cell-truncate" title="' + escapeHtmlText(displayName) + '">' + escapeHtmlText(displayName) + '</span>';
 	}
 	var btnClass = guestName
-		? 'btn btn-link p-0 text-decoration-underline js-assign-game-guest'
-		: 'btn btn-link p-0 js-assign-game-guest';
+		? 'btn btn-link p-0 text-decoration-underline js-assign-game-guest game-list-guest-link'
+		: 'btn btn-link p-0 js-assign-game-guest game-list-guest-link';
 	var inner = guestName
 		? escapeHtmlText(guestName)
 		: '<i class="fa fa-plus" aria-hidden="true"></i>';
 	return (
+		'<span class="game-list-cell-truncate"' + (guestName ? ' title="' + escapeHtmlText(guestName) + '"' : '') + '>' +
 		'<button type="button" class="' + btnClass + '"' +
 		' data-game-id="' + row.game_list_id + '"' +
 		' data-account-id="' + row.ACCOUNT_ID + '"' +
 		' data-agent-id="' + (row.AGENT_ID || '') + '"' +
 		' data-guest-id="' + guestId + '"' +
-		' data-bs-toggle="tooltip" title="' + (guestName ? 'Change guest' : 'Add guest') + '">' +
+		' data-bs-toggle="tooltip" title="' + (guestName ? escapeHtmlText('Change guest') : 'Add guest') + '">' +
 		inner +
-		'</button>'
+		'</button></span>'
 	);
 }
 
@@ -2409,7 +2425,7 @@ $(document).ready(function () {
 			var match = acctStr.match(/\d+/);
 			var acctNum = match ? parseInt(match[0], 10) : null;
 			if (acctNum === null || acctNum < minNum || acctNum > maxNum) return;
-			var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
+			var acct_no_link = buildGameAccountCell(acc.accountId, acc.agent_code, acc.agent_name);
 			var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
 			
 			dt.row.add([
@@ -2572,7 +2588,7 @@ $(document).ready(function () {
                         var match = acctStr.match(/\d+/);
                         var acctNum = match ? parseInt(match[0], 10) : null;
                         if (acctNum === null || acctNum < minNum || acctNum > maxNum) return;
-						var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
+						var acct_no_link = buildGameAccountCell(acc.accountId, acc.agent_code, acc.agent_name);
 						var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
 						dataTable.row.add([
 							'-',
@@ -2933,7 +2949,7 @@ $(document).ready(function () {
                                     actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
                                 }
 
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 let rowNode = dataTable.row.add([
                                     gameStartCellOg,
@@ -3059,7 +3075,7 @@ $(document).ready(function () {
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
-								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
 								let rowNode = dataTable.row.add([
@@ -3181,7 +3197,7 @@ $(document).ready(function () {
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
-						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
                            if (row.DAILY_SETTLEMENT != 2) {
@@ -8926,7 +8942,7 @@ $(document).ready(function () {
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
                                 var actionButtons = btn_services + btn_remarks + btn_his;
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
 								var pendingChangeOnclickStats = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
@@ -8936,7 +8952,7 @@ $(document).ready(function () {
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
 								cashout_td = formatListAmount(total_cash_out_chips, 'out');
                                 var actionButtons = btn_services + btn_remarks + btn_his;
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
 								var statsEndOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
@@ -8966,7 +8982,7 @@ $(document).ready(function () {
 								</button>
 						   </div>`;
 						   var actionButtons = btn_services + btn_remarks + btn_settle;
-						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 
 							}

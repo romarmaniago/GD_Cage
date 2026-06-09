@@ -575,7 +575,7 @@ th.col-winloss {
     font-weight: 600;
 }
 
-/* ACCT No, Guest — equal column width */
+/* ACCT No, Guest — equal column width + truncate long text */
 #game_list-tbl th.col-acct-no,
 #game_list-tbl td.col-acct-no,
 #game_list-tbl th.col-guest,
@@ -584,6 +584,29 @@ th.col-winloss {
 	min-width: 115px !important;
 	max-width: 115px !important;
 	box-sizing: border-box;
+}
+
+#game_list-tbl td.col-acct-no,
+#game_list-tbl td.col-guest {
+	overflow: hidden;
+}
+
+#game_list-tbl td.col-acct-no .game-list-cell-truncate,
+#game_list-tbl td.col-guest .game-list-cell-truncate {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#game_list-tbl td.col-acct-no .game-list-acct-link,
+#game_list-tbl td.col-guest .game-list-guest-link {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 #game_list-tbl td.col-guest .js-assign-game-guest {
