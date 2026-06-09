@@ -144,20 +144,39 @@
         return actionType || "-";
     }
 
+    function getActivityAmountDirection(log) {
+        const action = String(log.action_type || '').toLowerCase();
+        const outActions = ['withdraw', 'game_cashout', 'game_buyin', 'expense_added', 'junket_chips_added'];
+        const inActions = ['deposit', 'credit_return', 'roller_return', 'return_added'];
+        if (outActions.includes(action)) return 'out';
+        if (inActions.includes(action)) return 'in';
+        if (parseFloat(log.amount) < 0) return 'out';
+        return 'neutral';
+    }
+
     function formatAmount(log) {
         if (log == null) return "-";
         const amt = log.amount;
         const nn = parseFloat(log.nn_amount) || 0;
         const cc = parseFloat(log.cc_amount) || 0;
         const isGame = log.source_table === 'Game' || log.source_table === 'game_list';
+        const fmt = window.AmountFormat;
         if (isGame && (nn > 0 || cc > 0)) {
             const parts = [];
-            if (nn > 0) parts.push('NN : ' + nn.toLocaleString());
-            if (cc > 0) parts.push('CC : ' + cc.toLocaleString());
+            if (nn > 0) parts.push('NN : ' + (fmt ? fmt.formatCommas(nn) : nn.toLocaleString('en-US')));
+            if (cc > 0) parts.push('CC : ' + (fmt ? fmt.formatCommas(cc) : cc.toLocaleString('en-US')));
             return parts.join(', ') || "-";
         }
         if (amt == null || amt === "" || amt === undefined) return "-";
-        return parseFloat(amt).toLocaleString();
+        const n = parseFloat(amt);
+        if (isNaN(n)) return "-";
+        if (fmt) {
+            const dir = getActivityAmountDirection(log);
+            if (dir === 'out') return fmt.formatDirectionalAmount(Math.abs(n), 'out', { html: true });
+            if (dir === 'in') return fmt.formatDirectionalAmount(Math.abs(n), 'in', { html: true, showPositiveSign: true });
+            return fmt.formatSignedAmount(n, { html: true });
+        }
+        return n.toLocaleString('en-US');
     }
 
     function getClickableText(fullText, linkUrl, ledgerId, guest = '', acctName = '', sourceTable = '') {

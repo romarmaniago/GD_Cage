@@ -85,19 +85,6 @@ $(document).ready(function () {
                             var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
                             var total_amount = total_buy_in_chips + total_initial;
 
-                            var cashout_td = `<span style="font-size:11px;">${parseFloat(total_cash_out_chips).toLocaleString()}</span>`;
-
-                            // Append data to the basic table
-                            // $("#on_game-tbl tbody").append(`
-                            //     <tr>
-                            //         <td>${row.game_list_id}</td>
-                            //         <td>${row.agent_code} (${row.agent_name})</td>
-                            //         <td>${row.GAME_TYPE}</td>
-                            //         <td>${total_amount.toLocaleString()}</td>
-                            //         <td>${total_rolling_chips.toLocaleString()}</td>
-                            //         <td>${total_cash_out_chips.toLocaleString()}</td>
-                            //     </tr>
-                            // `);
                             $("#on_game-tbl tbody").append(`
                                 <tr>
                                     <td>
@@ -111,7 +98,9 @@ $(document).ready(function () {
                                             ${row.GAME_TYPE === 'LIVE' ? (window.onGameListTranslations?.live || 'LIVE') : row.GAME_TYPE === 'TELEBET' ? (window.onGameListTranslations?.telebet || 'TELEBET') : row.GAME_TYPE}
                                         </span>
                                     </td>
-                                    <td>${total_amount.toLocaleString()}</td>
+                                    <td>${window.fmtAmt ? window.fmtAmt(total_amount) : total_amount.toLocaleString('en-US')}</td>
+                                    <td>${window.fmtAmt ? window.fmtAmt(total_rolling_chips) : total_rolling_chips.toLocaleString('en-US')}</td>
+                                    <td>${window.fmtOut ? window.fmtOut(total_cash_out_chips) : total_cash_out_chips.toLocaleString('en-US')}</td>
                                 </tr>
                             `);
                             

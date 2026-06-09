@@ -445,11 +445,21 @@
 
 
     const formatAmount = (val) => {
-
         const num = Number(val || 0);
-
+        if (window.fmtAmt) return window.fmtAmt(num);
         return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
 
+    const formatCashoutAmount = (val) => {
+        if (window.fmtOut) return window.fmtOut(val);
+        return formatAmount(val);
+    };
+
+    const formatSignedAmountDisplay = (val) => {
+        const num = Number(val || 0);
+        if (window.fmtSigned) return window.fmtSigned(num);
+        if (num < 0) return '(' + Math.abs(num).toLocaleString('en-US') + ')';
+        return formatAmount(num);
     };
 
 
@@ -516,17 +526,19 @@
 
         });
 
-        const set = (id, val) => {
-
+        const setHtml = (id, html) => {
             const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        };
 
+        const set = (id, val) => {
+            const el = document.getElementById(id);
             if (el) el.textContent = formatAmount(val);
-
         };
 
         set('gh-total-buyin', buyIn);
 
-        set('gh-total-cashout', cashOut);
+        setHtml('gh-total-cashout', formatCashoutAmount(cashOut));
 
         set('gh-total-total-rolling', totalRolling);
 
@@ -538,16 +550,13 @@
 
         set('gh-total-rollerchips', rollerChips);
 
-        set('gh-total-winloss', winLoss);
+        setHtml('gh-total-winloss', formatSignedAmountDisplay(winLoss));
 
         const winlossEl = document.getElementById('gh-total-winloss');
 
         if (winlossEl) {
-
-            if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative');
-
-            else winlossEl.classList.remove('gh-total-winloss-negative');
-
+            if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative', 'text-danger');
+            else winlossEl.classList.remove('gh-total-winloss-negative', 'text-danger');
         }
 
     }
@@ -714,7 +723,7 @@
 
                         className: 'col-cashout',
 
-                        render: function (data) { return formatAmount(data); }
+                        render: function (data) { return formatCashoutAmount(data); }
 
                     },
 
@@ -724,7 +733,7 @@
 
                         className: 'col-winloss',
 
-                        render: function (data) { return formatAmount(data); }
+                        render: function (data) { return formatSignedAmountDisplay(data); }
 
                     },
 

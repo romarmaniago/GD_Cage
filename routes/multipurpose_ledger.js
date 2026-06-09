@@ -187,7 +187,7 @@ function buildJflManagementTelegramText(payload) {
 		transTypeTelegramHeadline(action, transType),
 		'',
 		`유형 : ${transTypeLabel(transType)}`,
-		`금액 Amount : ${(Number(amount) || 0).toLocaleString()}${ccyLabel}`
+		`금액 Amount : ${(Number(amount) || 0).toLocaleString('en-US')}${ccyLabel}`
 	];
 	if (accountLabel) {
 		lines.push(`계정 Account : ${accountLabel}`);
@@ -195,7 +195,7 @@ function buildJflManagementTelegramText(payload) {
 	lines.push(
 		`담당 In charge : ${inCharge || '-'}`,
 		`비고 Remarks : ${remarks || '-'}`,
-		`잔고 Balance${ccyLabel ? ` (${currencyCode})` : ''} : ${(Number(balance) || 0).toLocaleString()}`,
+		`잔고 Balance${ccyLabel ? ` (${currencyCode})` : ''} : ${(Number(balance) || 0).toLocaleString('en-US')}`,
 		`처리 Processed by : ${processedBy || 'Unknown'}`,
 		'',
 		`날짜 Date : ${date}`,
@@ -327,7 +327,7 @@ async function assertSufficientJunketBalance(transType, amount, currencyId, excl
 	if (amount > effectiveBalance) {
 		const code = currency.CODE ? String(currency.CODE) : '';
 		const label = code ? `${code} ` : '';
-		return `Insufficient ${label}balance. Available: ${effectiveBalance.toLocaleString()}`;
+		return `Insufficient ${label}balance. Available: ${effectiveBalance.toLocaleString('en-US')}`;
 	}
 	return null;
 }
@@ -1168,7 +1168,7 @@ router.post('/multipurpose_ledger/exchange/deposit', checkSession, async (req, r
 			action: 'add',
 			transType: TRANS_TYPE.MONEY_EXCHANGE,
 			amount: exchangeAmt,
-			remarks: `${ledgerRemarks} | +${amountIn.toLocaleString()} ${inCode}`,
+			remarks: `${ledgerRemarks} | +${amountIn.toLocaleString('en-US')} ${inCode}`,
 			inCharge,
 			accountLabel,
 			balance: balanceEx,

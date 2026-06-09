@@ -119,7 +119,8 @@
 		"settings": "Settings",
 		"telegram_API": "Telegram",
 		"Change_Game_No": "Modify Game Number",
-		"title": "Junket"
+		"title": "Junket",
+		"tip": "sidebar.tip"
 	},
 	"footer": {
 		"privacy_policy": "Privacy Policy",
@@ -222,7 +223,7 @@
 		"accounts": "Accounts",
 		"guests": "Guests",
 		"new_guest": "New Guest",
-		"agent": "AGENT",
+		"agent": "LINE",
 		"account_no": "ACCOUNT NO.",
 		"name": "NAME",
 		"contact_no": "CONTACT No",
@@ -431,13 +432,13 @@
 		"export": "Export",
 		"game_no": "GAME NO",
 		"account_name": "ACCOUNT NAME",
-		"total_buyin": "TOTAL BUYIN",
-		"chips_return": "CHIPS RETURN",
+		"total_buyin": "BUYIN",
+		"chips_return": "CASHOUT",
 		"win_loss": "WIN/LOSS",
-		"total_rolling": "TOTAL ROLLING",
+		"total_rolling": "ROLLING",
 		"rolling_rate": "ROLLING RATE",
 		"settlement": "SETTLEMENT",
-		"fb": "F&B",
+		"fb": "Add CHG",
 		"payment": "PAYMENT",
 		"date_time": "DATE & TIME",
 		"grand_total": "GRAND TOTAL",
@@ -576,7 +577,11 @@
 		"previous": "Previous",
 		"next": "Next",
 		"active": "Active",
-		"inactive": "Inactive"
+		"inactive": "Inactive",
+		"direction": "Direction",
+		"in": "In",
+		"out": "Out",
+		"direction_none": "-"
 	},
 	"expense_category": {
 		"expense_category": "Expense Category",
@@ -954,7 +959,7 @@
 		"total": "Total"
 	},
 	"modal_new_agent": {
-		"new_guest": "New Guest",
+		"new_guest": "New Agent",
 		"Account_No_placeholder": "Account No.",
 		"Name_placeholder": "Name",
 		"Telegram_placeholder": "Telegram Chat ID",
@@ -1160,13 +1165,19 @@
 		"new_category": "New Service Category",
 		"category_placeholder": "Category",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"direction_none": "No direction",
+		"in": "In",
+		"out": "Out"
 	},
 	"modal_edit_services_category": {
 		"edit_category": "Edit Service Category",
 		"category_placeholder": "Category",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"direction_none": "No direction",
+		"in": "In",
+		"out": "Out"
 	},
 	"modal_new_expense_category": {
 		"new_category": "New Category",

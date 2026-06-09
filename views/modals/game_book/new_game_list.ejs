@@ -37,7 +37,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                 (+_sqlCCChipsRolling[0].CCChipsRolling || 0) + (+_sqlNNBuyin[0].NNBuyin
                  || 0) - (+_sqlNNReturn[0].NNReturn || 0) -
                  (+_sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                 (+_sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
+                 (+_sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString('en-US') %></h6>
             <h6 id="availableCC" class="d-none"><%- ( (+_sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
                 (+_sqlCCChipsCashout[0].CCChipsCashout || 0) +
                  (+_sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
@@ -47,7 +47,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                  (+_sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+_sqlCCBuyin[0].CCBuyin ||
                  0) - (+_sqlCCReturn[0].CCReturn || 0) -
                  (+_sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                 (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
+                 (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString('en-US') %></h6>
              
           
                 <!-- Total Balance Display -->
@@ -325,7 +325,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available NN Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (including Roller NN).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (including Roller NN).`,
                     confirmButtonColor: '#3a57e8'
                 });
 
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available NN Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (NN buy-in + Roller NN).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (NN buy-in + Roller NN).`,
                     confirmButtonColor: '#3a57e8'
                 });
                 this.value = '';
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Exceeds Available NN Chips',
-                        text: 'Split NN total (plus Roller NN) cannot exceed ' + avNN.toLocaleString() + ' Chips.',
+                        text: 'Split NN total (plus Roller NN) cannot exceed ' + avNN.toLocaleString('en-US') + ' Chips.',
                         confirmButtonColor: '#3a57e8'
                     });
                     inputEl.value = '';
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Exceeds Available CC Chips',
-                        text: 'Split CC total (plus Roller CC) cannot exceed ' + avCC.toLocaleString() + ' Chips.',
+                        text: 'Split CC total (plus Roller CC) cannot exceed ' + avCC.toLocaleString('en-US') + ' Chips.',
                         confirmButtonColor: '#3a57e8'
                     });
                     inputEl.value = '';
@@ -470,7 +470,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available CC Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (including Roller CC).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (including Roller CC).`,
                     confirmButtonColor: '#3a57e8'
                 });
 
@@ -491,7 +491,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available CC Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (CC buy-in + Roller CC).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (CC buy-in + Roller CC).`,
                     confirmButtonColor: '#3a57e8'
                 });
                 this.value = '';

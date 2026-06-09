@@ -57,7 +57,7 @@ let winlossChart;
           const label = opts.w.config.xaxis.categories[opts.dataPointIndex];
           return [
             label,
-            '₱' + Number(val).toLocaleString()
+            '₱' + Number(val).toLocaleString('en-US')
           ];
         },
         style: {
@@ -72,7 +72,7 @@ let winlossChart;
         enabled: true,
         y: {
           formatter: function (val) {
-            return '₱' + Number(val).toLocaleString();
+            return '₱' + Number(val).toLocaleString('en-US');
           }
         }
       },
@@ -141,7 +141,7 @@ if (document.querySelectorAll('#d-activity').length) {
         formatter: function (_, { dataPointIndex }) {
           const realVal = winlossChart.realNetData?.[dataPointIndex] || 0;
           const label = realVal >= 0 ? 'Win' : 'Loss';
-          return `${label}: ₱ ${Math.abs(realVal).toLocaleString()}`;
+          return `${label}: ₱ ${Math.abs(realVal).toLocaleString('en-US')}`;
         }
       }
     }
@@ -200,7 +200,7 @@ if (document.querySelectorAll('#d-activity').length) {
             formatter: function (_, { dataPointIndex }) {
               const realVal = realData[dataPointIndex] || 0;
               const label = realVal >= 0 ? 'Win' : 'Loss';
-              return `${label}: ₱ ${Math.abs(realVal).toLocaleString()}`;
+              return `${label}: ₱ ${Math.abs(realVal).toLocaleString('en-US')}`;
             }
           },
           x: {
@@ -217,7 +217,7 @@ if (document.querySelectorAll('#d-activity').length) {
               <div class="custom-tooltip" style="padding: 8px; background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                 <div style="font-weight: bold; margin-bottom: 4px;">${w.globals.labels[dataPointIndex]}</div>
                 <div style="color: ${color}; font-weight: bold;">
-                  ${label}: ₱ ${Math.abs(realVal).toLocaleString()}
+                  ${label}: ₱ ${Math.abs(realVal).toLocaleString('en-US')}
                 </div>
               </div>
             `;

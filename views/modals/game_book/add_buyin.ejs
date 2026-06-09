@@ -169,8 +169,8 @@ document.addEventListener('DOMContentLoaded', function () {
 				const ccEl = document.getElementById('buyin-availableCC');
 				const nn = Number(data && data.availableNN) || 0;
 				const cc = Number(data && data.availableCC) || 0;
-				if (nnEl) nnEl.textContent = nn.toLocaleString();
-				if (ccEl) ccEl.textContent = cc.toLocaleString();
+				if (nnEl) nnEl.textContent = nn.toLocaleString('en-US');
+				if (ccEl) ccEl.textContent = cc.toLocaleString('en-US');
 			})
 			.catch(function () {
 				const nnEl = document.getElementById('buyin-availableNN');
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			if (value > avail) {
 				addBuyinSwalWarn(
 					'Exceeds Available NN Chips',
-					'You only have ' + avail.toLocaleString() + ' NN Chips available.'
+					'You only have ' + avail.toLocaleString('en-US') + ' NN Chips available.'
 				);
 				this.value = '';
 				this.classList.remove('is-invalid');
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			if (value > avail) {
 				addBuyinSwalWarn(
 					'Exceeds Available CC Chips',
-					'You only have ' + avail.toLocaleString() + ' CC Chips available.'
+					'You only have ' + avail.toLocaleString('en-US') + ' CC Chips available.'
 				);
 				this.value = '';
 				this.focus();
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				if (totalNN > avNN) {
 					addBuyinSwalWarn(
 						'Exceeds Available NN Chips',
-						'Split NN total cannot exceed ' + avNN.toLocaleString() + ' Chips.'
+						'Split NN total cannot exceed ' + avNN.toLocaleString('en-US') + ' Chips.'
 					);
 					el.value = '';
 					el.classList.remove('is-invalid');
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				if (totalCC > avCC) {
 					addBuyinSwalWarn(
 						'Exceeds Available CC Chips',
-						'Split CC total cannot exceed ' + avCC.toLocaleString() + ' Chips.'
+						'Split CC total cannot exceed ' + avCC.toLocaleString('en-US') + ' Chips.'
 					);
 					el.value = '';
 					el.classList.remove('is-invalid');

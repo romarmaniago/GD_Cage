@@ -2469,9 +2469,9 @@ router.post('/add_marker_settlement', async (req, res) => {
 			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
 
 			if (optTransType === '12') {
-				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString('en-US')} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else {
-				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString('en-US')} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
 			const markerLogPreview = markerReturnTelegramLogPreview(optTransType, optReturnSource);

@@ -408,7 +408,7 @@ c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- totalChipsBalance.toLocaleString() %>
+                                             <h6 class="counter">₱ <%- totalChipsBalance.toLocaleString('en-US') %>
                                              </h6>
                                           </div>
                                        </div>
@@ -530,7 +530,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- nnChipsBalance.toLocaleString() %>
+                                             <h6 class="counter">₱ <%- nnChipsBalance.toLocaleString('en-US') %>
                                              </h6>
                                              <input type="hidden" name="NN_CASHOUT" value="<%- nnChipsBalance %>">
                                           </div>
@@ -684,7 +684,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- ccChipsBalance.toLocaleString() %>
+                                             <h6 class="counter">₱ <%- ccChipsBalance.toLocaleString('en-US') %>
                                              </h6>
                                              <input type="hidden" name="CC_CASHOUT" value="<%- ccChipsBalance %>">
                                           </div>
@@ -753,7 +753,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 id="comms" class="counter" data-original-commission="<%- Math.round(+sqlCommissionSettlement || 0) %>">₱ <%- Math.round(+sqlCommissionSettlement || 0).toLocaleString() %></h6>
+                                             <h6 id="comms" class="counter" data-original-commission="<%- Math.round(+sqlCommissionSettlement || 0) %>">₱ <%- Math.round(+sqlCommissionSettlement || 0).toLocaleString('en-US') %></h6>
                                              <input type="hidden" name="COMMISSION_HISTORY"
                                                 value="<%- Math.round(+sqlCommissionSettlement || 0) %>">
                                           </div>
@@ -810,7 +810,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <h6 class="card-title mb-0 counter" id="winloss" data-original-winloss="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>"> ₱ <%-
                                                    parseFloat(sqlWinLossReset[0].RESET_CASHIN -
                                                    sqlTotalCashOutReset[0].CASHOUT_RESET +
-                                                   sqlWinlossManual[0].WINLOSS).toLocaleString() %></h6>
+                                                   sqlWinlossManual[0].WINLOSS).toLocaleString('en-US') %></h6>
                                              <div id="winloss-comparison" class="mt-1"
                                                 style="font-weight: 100;  font-size: 12px;"></div>
                                              <input type="hidden" name="WINLOSS_HISTORY"
@@ -850,7 +850,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
                                              (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
                                              (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                                             (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %></h6>
+                                             (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString('en-US') %></h6>
                                        </div>
                                     </div>
                                  </div>
@@ -884,13 +884,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        <h5 class="mb-3">
                                           <%= __('dashboard.house_balance') %>
                                        </h5>
-                                       <h2 class="counter mb-2" id="house-balance-value">₱ <%= houseBalance.toLocaleString() %></h2>
+                                       <h2 class="counter mb-2" id="house-balance-value">₱ <%= houseBalance.toLocaleString('en-US') %></h2>
                                     </div>
                                     <div class="col-6">
                                        <h5 class="mb-3">
                                           <%= __('dashboard.cash_balance') %>
                                        </h5>
-                                       <h2 class="counter mb-2" id="cash-balance-value">₱ <%= cashBalance.toLocaleString() %></h2>
+                                       <h2 class="counter mb-2" id="cash-balance-value">₱ <%= cashBalance.toLocaleString('en-US') %></h2>
                                     </div>
                                  </div>
 
@@ -921,7 +921,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <p class="mt-0">
                                              <%= __('dashboard.cash_in') %>
                                           </p>
-                                          <h6><%= Math.round(cashInTotal).toLocaleString() %></h6>
+                                          <h6><%= Math.round(cashInTotal).toLocaleString('en-US') %></h6>
                                        </div>
                                        <div class="progress bg-primary-subtle shadow-none w-100 mb-1" style="height: 10px">
                                           <div class="progress-bar bg-primary" data-toggle="progress-bar"
@@ -936,7 +936,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <p class="mb-0">
                                             <%= __('dashboard.cash_out') %>
                                           </p>
-                                          <h6><%= Math.round(cashOutTotal).toLocaleString() %></h6>
+                                          <h6 class="text-danger">(<%= Math.round(cashOutTotal).toLocaleString('en-US') %>)</h6>
                                        </div>
                                        <div class="progress bg-warning-subtle shadow-none w-100 mb-1"
                                           style="height: 10px">
@@ -992,7 +992,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <%= __('dashboard.guest_balance') %>
 
                                        </h6>
-                                       <h4 class="counter ">₱ <%- guestBalance.toLocaleString() %>
+                                       <h4 class="counter ">₱ <%- guestBalance.toLocaleString('en-US') %>
                                        </h4>
                                     </div>
                                     <span class="plus-spacing d-flex align-items-center justify-content-center">
@@ -1010,7 +1010,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <h6 class="mb-2 ">
                                              <%= __('dashboard.net_junket_money') %>
                                           </h6>
-                                          <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString() %></h4>
+                                          <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString('en-US') %></h4>
                                        </div>
                                     </div>
                                  </div>
@@ -1020,7 +1020,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <h6 class="mb-2 ">
                                              <%= __('dashboard.net_junket_cash') %>
                                           </h6>
-                                          <h4 class="counter ">₱ <%- netJunketCash.toLocaleString() %></h4>
+                                          <h4 class="counter ">₱ <%- netJunketCash.toLocaleString('en-US') %></h4>
                                        </div>
                                     </div>
                                  </div>
@@ -1154,8 +1154,12 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <th>
                                                 <%= __('dashboard.total_buyin') %>
                                              </th>
-                                             <!-- <th>Total Rolling</th>
-                                       <th>Chips Return</th> -->
+                                             <th>
+                                                <%= __('dashboard.rolling') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.cash_out') %>
+                                             </th>
                                           </tr>
                                        </thead>
                                        <tbody>
@@ -1164,13 +1168,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <td></td>
                                              <td></td>
                                              <td></td>
-                                             <!-- <td></td>
-                                       <td></td> -->
+                                             <td></td>
+                                             <td></td>
                                           </tr>
                                        </tbody>
                                        <tfoot>
                                           <tr>
-                                             <td colspan="4" class="text-center">
+                                             <td colspan="6" class="text-center">
                                                 <a href="/game_list" target="_blank"
                                                    class="btn btn-primary-subtle btn-lg w-100">
                                                    <%= __('dashboard.show_details') %>
@@ -1274,22 +1278,22 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                                            <span class="<%= signColor %>"><%= row.sign %></span>
                                                                         </td>
                                                                         <td style="padding: 12px; font-weight: 500;"><%= row.label %></td>
-                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 15px;">₱ <%= row.value.toLocaleString() %></td>
+                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 15px;">₱ <%= row.value.toLocaleString('en-US') %></td>
                                                                      </tr>
                                                                   <% }); %>
                                                                </tbody>
                                                                <tfoot style="font-size: 16px; font-weight: bold;">
                                                                   <tr class="table-primary">
                                                                      <th colspan="2" style="padding: 14px;">Computed Cash Balance (debug)</th>
-                                                                     <th class="text-end" style="padding: 14px;">₱ <%= debugSubtotal.toLocaleString() %></th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= debugSubtotal.toLocaleString('en-US') %></th>
                                                                   </tr>
                                                                   <tr class="table-success">
                                                                      <th colspan="2" style="padding: 14px;">Displayed Cash Balance</th>
-                                                                     <th class="text-end" style="padding: 14px;">₱ <%= cashBalance.toLocaleString() %></th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= cashBalance.toLocaleString('en-US') %></th>
                                                                   </tr>
                                                                   <tr class="table-danger">
                                                                      <th colspan="2" style="padding: 14px;">Difference</th>
-                                                                     <th class="text-end" style="padding: 14px;">₱ <%= Math.abs(debugSubtotal - cashBalance).toLocaleString() %></th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= Math.abs(debugSubtotal - cashBalance).toLocaleString('en-US') %></th>
                                                                   </tr>
                                                                </tfoot>
                                                             </table>
@@ -1407,7 +1411,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          fetch(`/get_winloss?range=${range}&offset=${offset}`)
                                                             .then(res => res.json())
                                                             .then(data => {
-                                                               const formatted = parseFloat(data.winloss).toLocaleString();
+                                                               const formatted = parseFloat(data.winloss).toLocaleString('en-US');
                                                                document.getElementById('winlossweekly').innerHTML = `₱ ${formatted}`;
                                                                document.querySelector('input[name="WINLOSS_HISTORY1"]').value = data.winloss;
 

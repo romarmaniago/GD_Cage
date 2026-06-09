@@ -230,7 +230,7 @@ $(document).ready(function() {
       Swal.fire({
         icon: 'warning',
         title: 'No LINE selected',
-        text: 'Select a LINE first to export agents and guests.',
+        text: 'Select a LINE first to export LINE and guests.',
         confirmButtonText: 'OK'
       });
       return;
@@ -255,7 +255,7 @@ $(document).ready(function() {
         var cd = res.headers.get('Content-Disposition');
         var d = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
-        var filename = 'Agent-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+        var filename = 'Line-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
         if (cd) {
           var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
           if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
@@ -299,7 +299,7 @@ $(document).ready(function() {
       Swal.fire({
         icon: 'warning',
         title: 'Selection required',
-        text: 'Select AGENCY/LINE and AGENT first.',
+        text: 'Select a LINE first.',
         confirmButtonText: 'OK'
       });
       return;
@@ -494,7 +494,7 @@ $(document).ready(function() {
         Swal.fire({
           icon: 'success',
           title: 'Success!',
-          text: 'Agent updated successfully!',
+          text: 'LINE updated successfully!',
           confirmButtonText: 'OK'
         }).then(() => {
           reloadData();
@@ -553,7 +553,7 @@ function renderPage(data, page = 1, perPage = 30) {
         class="btn btn-outline-primary btn-sm"
         onclick="handleEditAgencyFromRow(${row.IDNo}, this)"
         data-bs-toggle="tooltip"
-        title="Edit Line">
+        title="Edit LINE">
         <i class="fa fa-pen"></i>
       </button>
       <button type="button"
@@ -668,7 +668,7 @@ function renderAgentPanel(accounts) {
   const agents = Object.values(byAgent);
   if (agents.length === 0) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('No agents under this agency.');
+    $empty.removeClass('d-none').text('No LINE under this agency.');
     return;
   }
 
@@ -695,7 +695,7 @@ function renderAgentPanel(accounts) {
           <button
             type="button"
             class="btn btn-sm btn-outline-primary"
-            title="Edit Agent"
+            title="Edit LINE"
             onclick="editAgentFromPanel(${agent.agent_id}, this)">
             <i class="fa fa-pen"></i>
           </button>
@@ -755,7 +755,7 @@ function loadGuestsForSelectedAgent() {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Failed to load guests for this agent.',
+        text: 'Failed to load guests for this LINE.',
         confirmButtonText: 'OK'
       });
     }
@@ -811,7 +811,7 @@ function editAgentFromPanel(agentId, buttonEl) {
     Swal.fire({
       icon: 'warning',
       title: 'Unavailable',
-      text: 'Agent edit is not available for this row.',
+      text: 'LINE edit is not available for this row.',
       confirmButtonText: 'OK'
     });
     return;
@@ -840,13 +840,13 @@ function renderGuestPanel(guests) {
 
   if (!selectedAgentId) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('Select AGENT to load guest list.');
+    $empty.removeClass('d-none').text('Select LINE to load guest list.');
     return;
   }
 
   if (rows.length === 0) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('No guest found under this agent.');
+    $empty.removeClass('d-none').text('No guest found under this LINE.');
     return;
   }
 
@@ -991,8 +991,8 @@ function fetchAndApplyAvailableChipsForNewGameModal() {
     success: function (payload) {
       var nn = Number(payload && payload.availableNN) || 0;
       var cc = Number(payload && payload.availableCC) || 0;
-      $('#availableNN').text(nn.toLocaleString());
-      $('#availableCC').text(cc.toLocaleString());
+      $('#availableNN').text(nn.toLocaleString('en-US'));
+      $('#availableCC').text(cc.toLocaleString('en-US'));
     },
     error: function () {
       $('#availableNN').text('0');
@@ -1007,7 +1007,7 @@ function openAddGameForGuest(guestId) {
     Swal.fire({
       icon: 'warning',
       title: 'Selection required',
-      text: 'Select AGENT and valid GUEST first.',
+      text: 'Select LINE and valid GUEST first.',
       confirmButtonText: 'OK'
     });
     return;
@@ -1046,7 +1046,7 @@ function openAddGameForGuest(guestId) {
   function applyNewGameAvailableBalance(balance) {
     var safe = Number(balance) || 0;
     $('#total_balanceGuest1').val(safe);
-    $('#total_balanceGuestGameList').val(safe.toLocaleString());
+    $('#total_balanceGuestGameList').val(safe.toLocaleString('en-US'));
   }
 
   var applyDefaults = function (attempt) {
@@ -1090,7 +1090,7 @@ function openGuestGameHistory(guestId) {
     Swal.fire({
       icon: 'warning',
       title: 'Selection required',
-      text: 'Select AGENT and valid GUEST first.',
+      text: 'Select LINE and valid GUEST first.',
       confirmButtonText: 'OK'
     });
     return;
@@ -1130,7 +1130,7 @@ function openAddGameForSelectedAgent() {
     Swal.fire({
       icon: 'warning',
       title: 'Selection required',
-      text: 'Select AGENT first.',
+      text: 'Select LINE first.',
       confirmButtonText: 'OK'
     });
     return;
@@ -1180,7 +1180,7 @@ function openAddGameForSelectedAgent() {
     $accountSelect.attr('data-readonly', '1');
     $accountSelect.attr('data-locked-value', accountIdText);
     $('#total_balanceGuest1').val(openingBalance);
-    $('#total_balanceGuestGameList').val(openingBalance.toLocaleString());
+    $('#total_balanceGuestGameList').val(openingBalance.toLocaleString('en-US'));
     fetchAndApplyAvailableChipsForNewGameModal();
   };
 

@@ -117,11 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     });
 
                                                     // Optional: I-update ang mga frontend values bilang 0
-                                                    document.getElementById('expense').textContent = (0).toLocaleString();
-                                                    document.getElementById('totalrolling').textContent = (0).toLocaleString();
-                                                    document.getElementById('totalhouserolling').textContent = (0).toLocaleString();
-                                                    document.getElementById('winloss').textContent = (0).toLocaleString();
-                                                    document.getElementById('comms').textContent = (0).toLocaleString();
+                                                    document.getElementById('expense').textContent = (0).toLocaleString('en-US');
+                                                    document.getElementById('totalrolling').textContent = (0).toLocaleString('en-US');
+                                                    document.getElementById('totalhouserolling').textContent = (0).toLocaleString('en-US');
+                                                    document.getElementById('winloss').textContent = (0).toLocaleString('en-US');
+                                                    document.getElementById('comms').textContent = (0).toLocaleString('en-US');
                                                 } else {
                                                     throw new Error('Reset failed');
                                                 }

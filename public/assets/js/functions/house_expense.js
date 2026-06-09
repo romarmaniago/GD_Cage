@@ -593,8 +593,8 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 });
                 var amountDisplay =
                     row.record_type === 'return_money'
-                        ? '<span style="color: green;">' + formattedAmount + '</span>'
-                        : formattedAmount;
+                        ? (window.fmtIn ? window.fmtIn(amount) : '<span style="color: green;">' + formattedAmount + '</span>')
+                        : (window.fmtOut ? window.fmtOut(amount) : formattedAmount);
                 var nameLabel = houseExpenseGetExpenseNameLabel(row);
                 /* Headers: description key = IN-CHARGE, receipt_no key = DESCRIPTION (see locales) */
                 var inChargeCol =
@@ -1690,7 +1690,9 @@ function renderExpenseBreakdownModalRows() {
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
                 vehicleCells +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
-                '<td class="fw-semibold text-end">' + formatHouseExpenseNumber(amount) + '</td>' +
+                '<td class="fw-semibold text-end">' + (isReturnMoney
+                    ? (window.fmtIn ? window.fmtIn(amount) : formatHouseExpenseNumber(amount))
+                    : (window.fmtOut ? window.fmtOut(amount) : formatHouseExpenseNumber(amount))) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
             '</tr>'

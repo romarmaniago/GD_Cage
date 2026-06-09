@@ -34,7 +34,8 @@
 
 	function fmt(n) {
 		if (n == null || Number.isNaN(Number(n))) return '0';
-		return Math.ceil(Number(n)).toLocaleString(undefined, {
+		if (window.fmtAmt) return window.fmtAmt(Math.ceil(Number(n)));
+		return Math.ceil(Number(n)).toLocaleString('en-US', {
 			minimumFractionDigits: 0,
 			maximumFractionDigits: 0,
 		});

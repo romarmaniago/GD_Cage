@@ -333,7 +333,7 @@
                                     if (table && table.ajax) table.ajax.reload();
                                     $.getJSON('/marker_total_credits_issue', function (data) {
                                         var total = (data && data.total != null) ? data.total : 0;
-                                        var numStr = Number(total).toLocaleString();
+                                        var numStr = Number(total).toLocaleString('en-US');
                                         $('#txtTotalMarkerIssue').val(numStr);
                                         $('#dashboard-credit-value').html('₱ ' + numStr);
                                     });
@@ -362,7 +362,7 @@
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
-                                    var numStr = Number(total).toLocaleString();
+                                    var numStr = Number(total).toLocaleString('en-US');
                                     $('#txtTotalMarkerIssue').val(numStr);
                                     $('#dashboard-credit-value').html('₱ ' + numStr);
                                 });
@@ -839,7 +839,7 @@
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
-                                    var numStr = Number(total).toLocaleString();
+                                    var numStr = Number(total).toLocaleString('en-US');
                                     $('#txtTotalMarkerIssue').val(numStr);
                                     $('#dashboard-credit-value').html('₱ ' + numStr);
                                 });

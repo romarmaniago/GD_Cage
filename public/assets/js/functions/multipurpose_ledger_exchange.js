@@ -45,7 +45,7 @@
 	function formatCommaNumber(v) {
 		const n = parseFormattedNumber(v);
 		if (!Number.isFinite(n)) return '';
-		return Math.round(n).toLocaleString();
+		return Math.round(n).toLocaleString('en-US');
 	}
 
 	function formatCommaNumberFixed(v, fractionDigits) {
@@ -86,7 +86,7 @@
 		}
 		const n = Number(cleaned);
 		if (!Number.isFinite(n)) return;
-		inputEl.value = n.toLocaleString();
+		inputEl.value = n.toLocaleString('en-US');
 	}
 
 	function formatMoney(n) {

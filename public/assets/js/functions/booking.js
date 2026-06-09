@@ -97,9 +97,9 @@ function addBooking() {
           
   
             // Format fees at total amounts
-            var hotelFee = row.HOTEL_FEE ? parseFloat(row.HOTEL_FEE).toLocaleString() : '0';
-            var addFee = row.ADDT_FEE ? parseFloat(row.ADDT_FEE).toLocaleString() : '0';
-            var totalAmount = row.TOTAL_AMOUNT ? parseFloat(row.TOTAL_AMOUNT).toLocaleString() : '0';
+            var hotelFee = row.HOTEL_FEE ? parseFloat(row.HOTEL_FEE).toLocaleString('en-US') : '0';
+            var addFee = row.ADDT_FEE ? parseFloat(row.ADDT_FEE).toLocaleString('en-US') : '0';
+            var totalAmount = row.TOTAL_AMOUNT ? parseFloat(row.TOTAL_AMOUNT).toLocaleString('en-US') : '0';
   
             // Payment Status badge
             const paidText = window.bookingTranslations?.paid || 'Paid';

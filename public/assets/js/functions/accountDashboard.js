@@ -4,8 +4,16 @@ var totalAmountAll = 0;
 
 function guestBalanceCellData(totalAmount) {
     const numeric = Number(totalAmount) || 0;
+    let display;
+    if (window.AmountFormat) {
+        display = numeric < 0
+            ? '₱' + window.AmountFormat.formatAmountNegativeHtml(Math.abs(numeric))
+            : '₱' + window.AmountFormat.formatCommas(numeric);
+    } else {
+        display = `₱${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
     return {
-        display: `₱${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+        display: display,
         sort: numeric
     };
 }
@@ -15,7 +23,8 @@ function guestBalanceFromRow(row, balanceIndex) {
     if (cell != null && typeof cell === 'object' && cell.sort != null) {
         return Number(cell.sort) || 0;
     }
-    return parseFloat(String(cell).replace(/[₱,]/g, '')) || 0;
+    if (window.AmountFormat) return window.AmountFormat.toNumber(cell);
+    return parseFloat(String(cell).replace(/[₱,()]/g, '')) || 0;
 }
 
 const guestBalanceColumnDef = {
@@ -25,7 +34,8 @@ const guestBalanceColumnDef = {
             if (data != null && typeof data === 'object' && data.sort != null) {
                 return data.sort;
             }
-            return parseFloat(String(data).replace(/[₱,]/g, '')) || 0;
+            if (window.AmountFormat) return window.AmountFormat.toNumber(data);
+            return parseFloat(String(data).replace(/[₱,()]/g, '')) || 0;
         }
         if (typeof data === 'object' && data && data.display !== undefined) {
             return data.display;
@@ -64,7 +74,7 @@ $(document).ready(function () {
         
             if (table.page.info().pages > 1) {
                 $('#SUB_TOTAL_VALUE_BALANCE').closest('tr').show();
-                $('#SUB_TOTAL_VALUE_BALANCE').text('₱' + pageTotal.toLocaleString());
+                $('#SUB_TOTAL_VALUE_BALANCE').text('₱' + pageTotal.toLocaleString('en-US'));
             } else {
                 $('#SUB_TOTAL_VALUE_BALANCE').closest('tr').hide();
             }

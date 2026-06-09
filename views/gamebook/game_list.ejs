@@ -1123,7 +1123,9 @@ table.dataTable tbody tr.highlight-row {
 							next: "<%= __('gamelist.next') %>",
 							cash: "<%= __('gamelist.cash') %>",
 							deposit: "<%= __('gamelist.deposit') %>",
-							marker: "<%= __('gamelist.marker') %>"
+							marker: "<%= __('gamelist.marker') %>",
+							live: "<%= __('gamelist.live') %>",
+							telebet: "<%= __('gamelist.telebet') %>"
 						};
 					</script>
 					<script>
@@ -1366,8 +1368,10 @@ table.dataTable tbody tr.highlight-row {
 						}
 					</script>
 
+					<%- include ('../modals/game_book/new_game_list') %>
 						<%- include ('../modals/game_book/new_game_cutoff') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
+						<%- include ('../modals/game_book/game_remarks') %>
 						<%- include ('../modals/game_book/change_status') %>
 							<%- include ('../modals/game_book/pending_guest_buyin') %>
 							<%- include ('../modals/game_book/pending_junket_new_game') %>

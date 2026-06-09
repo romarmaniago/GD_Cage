@@ -76,18 +76,21 @@ $(document).ready(function() {
             </button>
           </div>`;
 
-            dataTable.row.add([`${row.CATEGORY}`, dateFormat, `${row.TRANSACTION}`, `${row.AMOUNT}`,status, btn]).draw();
+            var amountCell = parseInt(row.TRANSACTION_ID, 10) === 2
+              ? (window.fmtOut ? window.fmtOut(row.AMOUNT) : row.AMOUNT)
+              : (window.fmtAmt ? window.fmtAmt(row.AMOUNT) : Number(row.AMOUNT || 0).toLocaleString('en-US'));
+            dataTable.row.add([`${row.CATEGORY}`, dateFormat, `${row.TRANSACTION}`, amountCell, status, btn]).draw();
           });
 
-          $('.total_deposit_buy').text(`P${total_deposit_buy.toLocaleString()}`);
-          $('.total_withdraw_buy').text(`P${total_withdraw_buy.toLocaleString()}`);
-          $('.total_balance_buy').text('P'+(total_deposit_buy - total_withdraw_buy).toLocaleString());
-          $('.total_deposit_cash').text(`P${total_deposit_cash.toLocaleString()}`);
-          $('.total_withdraw_cash').text(`P${total_withdraw_cash.toLocaleString()}`);
-          $('.total_balance_cash').text('P'+(total_deposit_cash - total_withdraw_cash).toLocaleString());
-          $('.total_deposit_rolling').text(`P${total_deposit_rolling.toLocaleString()}`);
-          $('.total_withdraw_rolling').text(`P${total_withdraw_rolling.toLocaleString()}`);
-          $('.total_balance_rolling').text('P'+(total_deposit_rolling - total_withdraw_rolling).toLocaleString());
+          $('.total_deposit_buy').text(`P${total_deposit_buy.toLocaleString('en-US')}`);
+          $('.total_withdraw_buy').text(`P${total_withdraw_buy.toLocaleString('en-US')}`);
+          $('.total_balance_buy').text('P'+(total_deposit_buy - total_withdraw_buy).toLocaleString('en-US'));
+          $('.total_deposit_cash').text(`P${total_deposit_cash.toLocaleString('en-US')}`);
+          $('.total_withdraw_cash').text(`P${total_withdraw_cash.toLocaleString('en-US')}`);
+          $('.total_balance_cash').text('P'+(total_deposit_cash - total_withdraw_cash).toLocaleString('en-US'));
+          $('.total_deposit_rolling').text(`P${total_deposit_rolling.toLocaleString('en-US')}`);
+          $('.total_withdraw_rolling').text(`P${total_withdraw_rolling.toLocaleString('en-US')}`);
+          $('.total_balance_rolling').text('P'+(total_deposit_rolling - total_withdraw_rolling).toLocaleString('en-US'));
 
         },
         error: function(xhr, status, error) {

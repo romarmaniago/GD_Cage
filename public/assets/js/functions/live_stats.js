@@ -92,7 +92,7 @@ $(document).ready(function () {
 
 							var expense = '';
 
-							expense = '<button class="btn btn-link" style="font-size:13px;text-decoration: underline;" onclick="updateExpense(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + row.EXPENSE + ')">' + parseFloat(row.EXPENSE).toLocaleString() + '</button>';
+							expense = '<button class="btn btn-link" style="font-size:13px;text-decoration: underline;" onclick="updateExpense(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + row.EXPENSE + ')">' + parseFloat(row.EXPENSE).toLocaleString('en-US') + '</button>';
 
 
 	
@@ -107,9 +107,9 @@ $(document).ready(function () {
 	
 							var total_amount = total_buy_in_chips + total_initial;
 	
-						//	var net = (total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100)).toLocaleString();
+						//	var net = (total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100)).toLocaleString('en-US');
 	
-							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
+							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString('en-US');
 							
 							var WinLoss = total_amount - total_cash_out_chips;
 
@@ -134,7 +134,7 @@ $(document).ready(function () {
 							// Format net value as an integer
 							var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-							var houseshare = row.HOUSE_SHARE != null ? row.HOUSE_SHARE.toLocaleString() : '';
+							var houseshare = row.HOUSE_SHARE != null ? row.HOUSE_SHARE.toLocaleString('en-US') : '';
 
 							var ngr = (WinLoss * (houseshare / 100)) - net;
 
@@ -146,22 +146,22 @@ $(document).ready(function () {
 							rtp = rtp % 1 === 0 ? rtp.toString() : rtp.toFixed(2);
 							rm = rm % 1 === 0 ? rm.toString() : rm.toFixed(2);
 
-							//expense = parseFloat(row.EXPENSE).toLocaleString();
+							//expense = parseFloat(row.EXPENSE).toLocaleString('en-US');
 
 							var profit = ngr - row.EXPENSE;
 
 								dataTable.row.add([
 									`${row.game_list_id}`,
-									total_amount.toLocaleString(),
+									total_amount.toLocaleString('en-US'),
 									winloss,
-									parseFloat(total_rolling_chips).toLocaleString(),
+									parseFloat(total_rolling_chips).toLocaleString('en-US'),
 									formattedNet,
 									houseshare,
-									Math.round(ngr).toLocaleString(),
+									Math.round(ngr).toLocaleString('en-US'),
 									`${(rtp * 100)}%`,
 									rm,
 									expense,
-									profit.toLocaleString()
+									profit.toLocaleString('en-US')
 								]).draw();
 								
 	

@@ -1332,18 +1332,28 @@
 		"previous": "services_category.previous",
 		"next": "services_category.next",
 		"active": "services_category.active",
-		"inactive": "services_category.inactive"
+		"inactive": "services_category.inactive",
+		"direction": "services_category.direction",
+		"in": "services_category.in",
+		"out": "services_category.out",
+		"direction_none": "services_category.direction_none"
 	},
 	"modal_new_services_category": {
 		"new_category": "modal_new_services_category.new_category",
 		"category_placeholder": "modal_new_services_category.category_placeholder",
 		"save": "modal_new_services_category.save",
-		"close": "modal_new_services_category.close"
+		"close": "modal_new_services_category.close",
+		"direction_none": "modal_new_services_category.direction_none",
+		"in": "modal_new_services_category.in",
+		"out": "modal_new_services_category.out"
 	},
 	"modal_edit_services_category": {
 		"edit_category": "modal_edit_services_category.edit_category",
 		"category_placeholder": "modal_edit_services_category.category_placeholder",
 		"save": "modal_edit_services_category.save",
-		"close": "modal_edit_services_category.close"
+		"close": "modal_edit_services_category.close",
+		"direction_none": "modal_edit_services_category.direction_none",
+		"in": "modal_edit_services_category.in",
+		"out": "modal_edit_services_category.out"
 	}
 }

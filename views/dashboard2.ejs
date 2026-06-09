@@ -134,20 +134,20 @@
 						<a class="block block-rounded block-link-shadow" href="/capital">
 							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
 								<div class="ribbon-box">
-									<%-  parseFloat(junketCapitalDeposit[0].cash_in - junketCapitalWithdraw[0].cash_out).toLocaleString() %>
+									<%-  parseFloat(junketCapitalDeposit[0].cash_in - junketCapitalWithdraw[0].cash_out).toLocaleString('en-US') %>
 								</div>
 								<div class="row block-content">
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Capital In</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(junketCapitalDeposit[0].cash_in).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(junketCapitalDeposit[0].cash_in).toLocaleString('en-US') %></p>
 									</div>
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Capital Out</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(junketCapitalWithdraw[0].cash_out).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(junketCapitalWithdraw[0].cash_out).toLocaleString('en-US') %></p>
 									</div>
 								</div>
 							</div>
@@ -161,20 +161,20 @@
 						<a class="block block-rounded block-link-shadow" href="/account_ledger">
 							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
 								<div class="ribbon-box">
-									<%-  parseFloat(accountDeposit[0].account_deposit - accountWithdraw[0].account_withdraw).toLocaleString() %>
+									<%-  parseFloat(accountDeposit[0].account_deposit - accountWithdraw[0].account_withdraw).toLocaleString('en-US') %>
 								</div>
 								<div class="row block-content">
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Total Deposit</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(accountDeposit[0].account_deposit).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(accountDeposit[0].account_deposit).toLocaleString('en-US') %></p>
 									</div>
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Total Withdraw</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(accountWithdraw[0].account_withdraw).toLocaleString() %>
+										<p class="text-muted mb-0"><%- parseFloat(accountWithdraw[0].account_withdraw).toLocaleString('en-US') %>
 										</p>
 									</div>
 								</div>
@@ -214,19 +214,19 @@
 						<a class="block block-rounded block-link-shadow" href="/concierge">
 							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
 								<div class="ribbon-box">
-									<%-  parseFloat(conciergeIn[0].concierge_in - conciergeOut[0].concierge_out).toLocaleString() %></div>
+									<%-  parseFloat(conciergeIn[0].concierge_in - conciergeOut[0].concierge_out).toLocaleString('en-US') %></div>
 								<div class="row block-content">
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Buy In</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(conciergeIn[0].concierge_in).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(conciergeIn[0].concierge_in).toLocaleString('en-US') %></p>
 									</div>
 									<div class="col-lg-6 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Buy Out</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(conciergeOut[0].concierge_out).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(conciergeOut[0].concierge_out).toLocaleString('en-US') %></p>
 									</div>
 									<!-- <div class="col-lg-4 text-center">
 												<p class="fs-sm fw-semibold mb-0">
@@ -275,13 +275,13 @@
 						<!-- Bank Account #2 -->
 						<a class="block block-rounded block-link-shadow" href="/house_expense">
 							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
-								<div class="ribbon-box"><%- parseFloat(houseExpense[0].total_expense).toLocaleString() %></div>
+								<div class="ribbon-box"><%- parseFloat(houseExpense[0].total_expense).toLocaleString('en-US') %></div>
 								<div class="row block-content">
 									<div class="col-lg-12 text-center">
 										<p class="fs-sm fw-semibold mb-0">
 											<span class="text-default">Total House Expense</span>
 										</p>
-										<p class="text-muted mb-0"><%- parseFloat(houseExpense[0].total_expense).toLocaleString() %></p>
+										<p class="text-muted mb-0"><%- parseFloat(houseExpense[0].total_expense).toLocaleString('en-US') %></p>
 									</div>
 								</div>
 							</div>
@@ -301,15 +301,15 @@
 									<% cashDeno.forEach(row => { %>
 									<div class="col-lg-3 text-center">
 										<p class="fs-sm fw-semibold mb-0">
-											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString('en-US') %></span>
 										</p>
 										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
-										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString('en-US') %></p>
 										<% totalCash = totalCash + (row.DENOMINATION * row.QTY) %>
 									</div>
 									<% }); %>
 								</div>
-								<div class="ribbon-box"><%- parseFloat(totalCash).toLocaleString() %></div>
+								<div class="ribbon-box"><%- parseFloat(totalCash).toLocaleString('en-US') %></div>
 							</div>
 							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
 								<span class="text-default">Cash Denominations</span>
@@ -327,15 +327,15 @@
 									<% cashChips.forEach(row => { %>
 									<div class="col-lg-3 text-center">
 										<p class="fs-sm fw-semibold mb-0">
-											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString('en-US') %></span>
 										</p>
 										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
-										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString('en-US') %></p>
 										<% totalChips = totalChips + (row.DENOMINATION * row.QTY) %>
 									</div>
 									<% }); %>
 								</div>
-								<div class="ribbon-box"><%- parseFloat(totalChips).toLocaleString() %></div>
+								<div class="ribbon-box"><%- parseFloat(totalChips).toLocaleString('en-US') %></div>
 							</div>
 							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
 								<span class="text-default">Cash Chip</span>
@@ -353,15 +353,15 @@
 									<% nonNego.forEach(row => { %>
 									<div class="col-lg-3 text-center">
 										<p class="fs-sm fw-semibold mb-0">
-											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString('en-US') %></span>
 										</p>
 										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
-										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString('en-US') %></p>
 										<% totalNego = totalNego + (row.DENOMINATION * row.QTY) %>
 									</div>
 									<% }); %>
 								</div>
-								<div class="ribbon-box"><%- parseFloat(totalNego).toLocaleString() %></div>
+								<div class="ribbon-box"><%- parseFloat(totalNego).toLocaleString('en-US') %></div>
 
 							</div>
 							<div class="block-content block-content-full block-content-sm text-center bg-body-light">

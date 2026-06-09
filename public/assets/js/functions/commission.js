@@ -108,6 +108,17 @@ $(document).ready(function() {
         return Number(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
+    function formatAddChgAmount(num) {
+        return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function fmtCommissionAmount(value, mode) {
+        if (mode === 'out' && window.fmtOut) return window.fmtOut(value);
+        if (mode === 'signed' && window.fmtSigned) return window.fmtSigned(value);
+        if (mode === 'in' && window.fmtIn) return window.fmtIn(value);
+        return formatAddChgAmount(value);
+    }
+
     function computeCompareRowAmounts(row, ratePercent) {
         var rate = parseFloat(ratePercent) || 0;
         var net;
@@ -227,7 +238,7 @@ $(document).ready(function() {
             '<td class="commission-compare-rate-cell">' + rateCell + '</td>' +
             '<td class="commission-compare-settlement-cell">' +
             escapeHtml(fmtCompareAmount(row.settlementNum)) + '</td>' +
-            '<td>' + escapeHtml(row.fnb) + '</td>' +
+            '<td>' + escapeHtml(formatAddChgAmount(row.fnbNum)) + '</td>' +
             '<td class="commission-compare-payment-cell">' +
             escapeHtml(fmtCompareAmount(row.paymentNum)) + '</td>' +
             '<td>' + escapeHtml(row.dateTime) + '</td>' +
@@ -261,7 +272,7 @@ $(document).ready(function() {
         applyWinLossColor($compareWinLossTotal, totals.winLoss);
         $('#commission-compare-total-rolling').text(fmtCompareAmount(totals.rolling));
         $('#commission-compare-total-settlement').text(fmtCompareAmount(totals.settlement));
-        $('#commission-compare-total-fnb').text(fmtCompareAmount(totals.fnb));
+        $('#commission-compare-total-fnb').text(formatAddChgAmount(totals.fnb));
         $('#commission-compare-total-payment').text(fmtCompareAmount(totals.payment));
     }
 
@@ -546,7 +557,7 @@ $(document).ready(function() {
         applyWinLossColor($grandWinLoss, totalWinLoss);
         $('#GRAND_TOTAL_ROLLING').text(formatNumber(totalRolling));
         $('#GRAND_ROLLING_SETTLEMENT').text(formatNumber(totalRollingSettlement));
-        $('#GRAND_FNB').text(formatNumber(totalFnb));
+        $('#GRAND_FNB').text(formatAddChgAmount(totalFnb));
         $('#GRAND_PAYMENT').text(formatNumber(totalPayment));
     }
 
@@ -836,9 +847,9 @@ $(document).ready(function() {
 
                                     // Calculate the net commission
                                    // var netValue = total_rolling_chips * (RollingRate / 100); // Calculate the net value
-                                  //  var net = netValue.toLocaleString(); // Format net value
-                                    var winlossValue = total_amount - total_cash_out_chips; // Calculate win/loss
-                                    var winloss = winlossValue.toLocaleString(); // Format win/loss
+                                  //  var net = netValue.toLocaleString('en-US'); // Format net value
+                                    var winlossValue = total_amount - total_cash_out_chips;
+                                    var winloss = fmtCommissionAmount(winlossValue, 'signed');
 
                                   //  var WinLoss = total_amount - total_cash_out_chips;
 							
@@ -875,14 +886,14 @@ $(document).ready(function() {
                                         '',
                                         row.game_list_id,
                                         `${row.agent_code} - ${row.agent_name}`,
-                                        total_amount.toLocaleString(),
-                                        total_cash_out_chips.toLocaleString(),
-                                        winloss.toLocaleString(),
-                                        parseFloat(total_rolling_chips).toLocaleString(),
+                                        formatAddChgAmount(total_amount),
+                                        fmtCommissionAmount(total_cash_out_chips, 'out'),
+                                        winloss,
+                                        formatAddChgAmount(total_rolling_chips),
                                         formatRollingRatePercent(row.COMMISSION_PERCENTAGE),
-                                        net.toLocaleString(),
-                                        fb.toLocaleString(),
-                                        paymentValue.toLocaleString(),
+                                        formatAddChgAmount(net),
+                                        formatAddChgAmount(fb),
+                                        fmtCommissionAmount(paymentValue, 'out'),
                                         formattedDate
                                     ]);
                                 },

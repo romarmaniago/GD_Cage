@@ -857,7 +857,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				return '' +
 					'<tr>' +
 						'<td>' + escapeHtml(accountDisplay) + '</td>' +
-						'<td class="text-center">' + amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '</td>' +
+						'<td class="text-center">' + (window.fmtAmt ? window.fmtAmt(amountNum) : amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })) + '</td>' +
 						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO, row)) + '</td>' +
 						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
 						'<td>' + escapeHtml(remarks) + '</td>' +
@@ -902,8 +902,8 @@ $(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return',
 		$('#credit-return-account-id').val(accountId);
 		$('#credit-return-junket-balance').val(junketBal);
 		$('#credit-return-game-balance').val(gameBal);
-		$('#credit-return-junket-balance-display').text(junketBal.toLocaleString());
-		$('#credit-return-game-balance-display').text(gameBal.toLocaleString());
+		$('#credit-return-junket-balance-display').text(junketBal.toLocaleString('en-US'));
+		$('#credit-return-game-balance-display').text(gameBal.toLocaleString('en-US'));
 		$('input[name="creditReturnSource"]').prop('checked', false);
 		$('input[name="creditReturnTransType"]').prop('checked', false);
 		$('#credit-return-amount').val('');
@@ -950,7 +950,7 @@ $(document).off('change', 'input[name="creditReturnSource"]').on('change', 'inpu
 	var junketBal = parseFloat($('#credit-return-junket-balance').val()) || 0;
 	var gameBal = parseFloat($('#credit-return-game-balance').val()) || 0;
 	var selectedBalance = source === 'credit' ? junketBal : gameBal;
-	$('#credit-return-balance').val(selectedBalance.toLocaleString());
+	$('#credit-return-balance').val(selectedBalance.toLocaleString('en-US'));
 });
 
 $(document).off('click', '#btn-save-credit-return').on('click', '#btn-save-credit-return', function () {
@@ -1327,7 +1327,17 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 	return desc ? `${trans} - <strong>${desc}</strong>` : trans;
 }
 
-function reloadDataDetails() {
+	function formatAccountLedgerAmount(amount, transaction) {
+		const n = parseFloat(String(amount).replace(/,/g, '')) || 0;
+		const isOut = transaction === 'WITHDRAW' || transaction === 'MARKER REDEEM' || transaction === 'IOU RETURN DEPOSIT';
+		if (window.AmountFormat) {
+			if (isOut) return '₱' + window.AmountFormat.formatAmountNegativeHtml(n);
+			return '₱' + window.AmountFormat.formatCommas(n);
+		}
+		return '₱' + n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+	}
+
+	function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
 	const accountId = currentAccountDetailsId;
@@ -1372,7 +1382,7 @@ function reloadDataDetails() {
 								rowsToAdd.push([
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
-									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+									formatAccountLedgerAmount(amount, row.TRANSACTION),
 									row.REMARKS
 								]);
 								resolve();
@@ -1385,7 +1395,7 @@ function reloadDataDetails() {
 								rowsToAdd.push([
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
-									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+									formatAccountLedgerAmount(amount, row.TRANSACTION),
 									row.REMARKS
 								]);
 								resolve();
@@ -1397,7 +1407,7 @@ function reloadDataDetails() {
 						rowsToAdd.push([
 							dateFormat,
 							transactionCell,
-							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+							formatAccountLedgerAmount(amount, row.TRANSACTION),
 							row.REMARKS
 						]);
 						resolve();
@@ -1412,7 +1422,9 @@ function reloadDataDetails() {
 				const totalAmount = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return_deposit;
 
 				$('.total_deposit').text(`₱${deposit_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
-				$('.total_withdraw').text(`₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+				$('.total_withdraw').html(window.AmountFormat
+					? '₱' + window.AmountFormat.formatAmountNegativeHtml(withdraw_amount)
+					: `₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
 				$('.total_balance').text(`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
 				$('#total_balanceGuest').val(totalAmount);
 				currentAccountBalance = totalAmount;
@@ -1514,7 +1526,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 			const rowApi = dt.row.add([
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
 			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
-			  `₱${amt.toLocaleString()}`,
+			  `₱${amt.toLocaleString('en-US')}`,
 			  r.REMARKS||''
 			]).draw(false);
   

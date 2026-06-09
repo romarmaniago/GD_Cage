@@ -62,9 +62,9 @@
                 (+sqlJunketLoss[0].JUNKET_LOSS || 0)
               ) +
               (+sqlMxCashNet[0].MX_CASH_NET || 0);
-            const refCcBalStr = refCcBal.toLocaleString();
-            const refNnBalStr = refNnBal.toLocaleString();
-            const refCashBalStr = refCashBal.toLocaleString();
+            const refCcBalStr = refCcBal.toLocaleString('en-US');
+            const refNnBalStr = refNnBal.toLocaleString('en-US');
+            const refCashBalStr = refCashBal.toLocaleString('en-US');
           %>
 
           <div class="row mb-3 g-2 total-chips-ref-balances">
@@ -556,7 +556,7 @@ $(document).ready(function() {
     const nnChips = parseFloat((($('#nnChips').val() || '') + '').replace(/,/g, '')) || 0;
     const ccChips = parseFloat((($('#ccChips').val() || '') + '').replace(/,/g, '')) || 0;
     const totalChips = nnChips + ccChips;
-    $('#totalChips').val(totalChips.toLocaleString());
+    $('#totalChips').val(totalChips.toLocaleString('en-US'));
   }
 
   // Disable Chips Buy-in when CC Chips has value
@@ -645,7 +645,7 @@ $(document).ready(function() {
 
     const nnChips = parseFloat($('#nnChips').val().replace(/,/g, '')) || 0;
     const ccChips = parseFloat($('#ccChips').val().replace(/,/g, '')) || 0;
-    const totalAmount = (nnChips + ccChips).toLocaleString();
+    const totalAmount = (nnChips + ccChips).toLocaleString('en-US');
     const labelMap = {
       '1': {text: '<span class="badge-cashin">Chips Buy-in</span>', type: 'Buy-in'},
       '2': {text: '<span class="badge-cashout">Chips Cashout</span>', type: 'Cashout'},
@@ -725,7 +725,7 @@ $(document).ready(function() {
         const isChipsCashout = row.TRANSACTION_ID == 2;
         const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const nnChips = parseFloat(row.NN_CHIPS) || 0;
-        const amount = nnChips.toLocaleString();
+        const amount = nnChips.toLocaleString('en-US');
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">NN Chips Buy-in</span>'
             : (isChipsCashout
@@ -754,7 +754,7 @@ $(document).ready(function() {
         const isChipsCashout = row.TRANSACTION_ID == 2;
         const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const ccChips = parseFloat(row.CC_CHIPS) || 0;
-        const amount = ccChips.toLocaleString();
+        const amount = ccChips.toLocaleString('en-US');
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">CC Chips Buy-in</span>'
             : (isChipsCashout
@@ -840,7 +840,7 @@ $(document).ready(function() {
           const isPeriodEnded = endNorm && window.isDateSameOrBefore(endNorm);
           const nnSettle = parseFloat(periodSettle && periodSettle.nn_cashout) || 0;
           const netTotal = isPeriodEnded ? Math.max(0, total - nnSettle) : total;
-          $('#total-chips-amount-sum').text(netTotal.toLocaleString());
+          $('#total-chips-amount-sum').text(netTotal.toLocaleString('en-US'));
         }
       });
     }).catch(function(error) {

@@ -172,7 +172,9 @@ $(document).ready(function() {
 						: amt.toLocaleString('en-US');
 					const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
 					const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
-					const displayAmt = (isJunketSource ? '-' : '') + formattedAmt;
+					const displayAmt = isJunketSource
+						? (window.fmtOut ? window.fmtOut(amt) : '(' + formattedAmt + ')')
+						: formattedAmt;
 					const hasGameId = !!service.GAME_ID;
 					const isGameSettled = hasGameId && service.game_settled === 1;
 					const canEdit = !hasGameId;

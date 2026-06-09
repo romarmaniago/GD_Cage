@@ -513,9 +513,13 @@ $(document).ready(function () {
 				render: function (data, type, row) {
 					const n = Number(data) || 0;
 					const cls = jflTypeColorClass(row.TRANS_TYPE);
-					const prefix = isCreditType(row.TRANS_TYPE) ? '+' : '-';
 					if (type === 'sort') return n;
-					return '<span class="' + cls + '">' + prefix + formatMoney(n) + '</span>';
+					if (isCreditType(row.TRANS_TYPE)) {
+						if (window.fmtIn) return '<span class="' + cls + '">' + window.fmtIn(n) + '</span>';
+						return '<span class="' + cls + '">+' + formatMoney(n) + '</span>';
+					}
+					if (window.fmtOut) return '<span class="' + cls + '">' + window.fmtOut(n) + '</span>';
+					return '<span class="' + cls + '">(' + formatMoney(n) + ')</span>';
 				}
 			},
 			{ data: 'IN_CHARGE', defaultContent: '' },
