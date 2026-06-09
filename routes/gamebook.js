@@ -118,7 +118,7 @@ function telegramSettlementGameTypeLines(rawGameType) {
 	};
 }
 
-const SETTLEMENT_GAME_RECORD_TOTALS_SQL = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
+const SETTLEMENT_GAME_RECORD_TOTALS_SQL = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
 
 /** Mirror of public computeRollerChipsBalanceFromRecords (game_list.js). */
 function computeRollerChipsBalanceFromRecordsNode(rows) {
@@ -727,6 +727,85 @@ function computeSettlementTotalsFromRecords(gameRecords) {
 	const total_rolling = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
 	return { total_buy_in, total_cash_out, winloss, total_rolling };
+}
+
+/** Match game list ROLLING and ROLLER CHIPS columns for one game's records. */
+function computeGameRollingAndRollerTotalsFromRecords(gameRecords) {
+	let total_rolling_nn = 0;
+	let total_rolling_amount = 0;
+	let total_rolling_real = 0;
+	let total_rolling_nn_real = 0;
+	let total_rolling_cc_real = 0;
+	let total_cash_out_nn = 0;
+	let total_roller_nn = 0;
+	let total_roller_cc = 0;
+	let total_roller_return_cc = 0;
+
+	for (const record of gameRecords || []) {
+		const cageType = Number(record.CAGE_TYPE);
+
+		if (cageType === 2) {
+			total_cash_out_nn += Number(record.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 3) {
+			total_rolling_amount += Number(record.AMOUNT) || 0;
+			total_rolling_nn += Number(record.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 4) {
+			total_rolling_real += Number(record.AMOUNT) || 0;
+			total_rolling_nn_real += Number(record.NN_CHIPS) || 0;
+			total_rolling_cc_real += Number(record.CC_CHIPS) || 0;
+		}
+
+		if (cageType === 5) {
+			const rollerTransaction = parseInt(record.ROLLER_TRANSACTION, 10) || 1;
+			if (rollerTransaction === 1) {
+				total_roller_nn += Number(record.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc += Number(record.ROLLER_CC_CHIPS) || 0;
+			} else if (rollerTransaction === 2) {
+				total_roller_nn -= Number(record.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc -= Number(record.ROLLER_CC_CHIPS) || 0;
+				total_roller_return_cc += Number(record.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	}
+
+	const totalRollingCCWithReturns = total_roller_return_cc;
+	const total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+	const total_roller_chips = total_roller_nn + total_roller_cc;
+
+	return { total_rolling_chips, total_roller_chips };
+}
+
+function getProjectedRollingChipsFromRecords(gameRecords, ccAmount, { recordIdToReplace } = {}) {
+	const totals = computeGameRollingAndRollerTotalsFromRecords(gameRecords);
+	let projectedRolling = totals.total_rolling_chips + ccAmount;
+
+	if (recordIdToReplace) {
+		const oldRecord = (gameRecords || []).find((row) => Number(row.IDNo) === Number(recordIdToReplace));
+		if (oldRecord && Number(oldRecord.CAGE_TYPE) === 4) {
+			projectedRolling = totals.total_rolling_chips - (Number(oldRecord.CC_CHIPS) || 0) + ccAmount;
+		}
+	}
+
+	return {
+		projectedRolling,
+		total_roller_chips: totals.total_roller_chips,
+		current_rolling: totals.total_rolling_chips
+	};
+}
+
+function validateRollingAgainstRollerChips(gameRecords, ccAmount, options = {}) {
+	const projection = getProjectedRollingChipsFromRecords(gameRecords, ccAmount, options);
+	if (projection.projectedRolling > projection.total_roller_chips) {
+		return {
+			ok: false,
+			error: `Rolling cannot exceed Roller Chips (${projection.total_roller_chips.toLocaleString()}).`
+		};
+	}
+	return { ok: true };
 }
 
 async function fetchSettlementTotalsForGameId(gameId) {
@@ -3082,7 +3161,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
+    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 
@@ -5179,14 +5258,25 @@ router.post('/game_list/add/rolling', async (req, res) => {
 	// Remove commas from NN and CC (default to 0 if not provided)
 	let txtNNamount = (txtNN || '0').split(',').join("");
 	let txtCCamount = (txtCC || '0').split(',').join("");
+	const ccAmount = parseFloat(txtCCamount) || 0;
 
-	const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+	if (ccAmount <= 0) {
+		return res.status(400).json({ error: 'Please enter CC Chips.' });
+	}
+
 	try {
+		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [game_id]);
+		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount);
+		if (!rollingValidation.ok) {
+			return res.status(400).json({ error: rollingValidation.error });
+		}
+
+		const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 		await pool.execute(query, [game_id, date_now, 4, txtNNamount, txtCCamount, req.session.user_id, date_now]);
-		res.redirect('/game_list');
+		return res.json({ success: true });
 	} catch (err) {
 		console.error('Error inserting details', err);
-		res.status(500).send('Error inserting details');
+		return res.status(500).json({ error: 'Error inserting details' });
 	}
 });
 
@@ -5229,7 +5319,26 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 	const nnAmount = parseFloat((txtNN || '0').toString().replace(/,/g, '')) || 0;
 	const ccAmount = parseFloat((txtCC || '0').toString().replace(/,/g, '')) || 0;
 
+	if (ccAmount <= 0) {
+		return res.status(400).json({ error: 'Please enter CC Chips.' });
+	}
+
 	try {
+		const [existingRows] = await pool.execute(
+			'SELECT GAME_ID FROM game_record WHERE IDNo = ? AND CAGE_TYPE = 4 AND ACTIVE != 0',
+			[recordId]
+		);
+		if (existingRows.length === 0) {
+			return res.status(404).json({ error: 'Rolling record not found' });
+		}
+
+		const gameId = existingRows[0].GAME_ID;
+		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
+		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount, { recordIdToReplace: recordId });
+		if (!rollingValidation.ok) {
+			return res.status(400).json({ error: rollingValidation.error });
+		}
+
 		const query = `
 			UPDATE game_record
 			SET NN_CHIPS = ?, CC_CHIPS = ?
@@ -5359,11 +5468,12 @@ router.get("/game_record/:id", checkSession, async (req, res) => {
 // GET GAME RECORD
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 
 					JOIN agency ON agency.IDNo = agent.AGENCY 
+					LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
 					JOIN game_record ON game_record.GAME_ID = game_list.IDNo 
 					WHERE game_record.ACTIVE != 0 AND game_list.ACTIVE != 0 AND  game_record.GAME_ID = ?
 					ORDER BY game_list.IDNo ASC`;
