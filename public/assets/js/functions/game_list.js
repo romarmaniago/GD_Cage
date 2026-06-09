@@ -1222,21 +1222,51 @@ function buildGameTypeCell(row, userPermissions) {
 	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
 	var canEdit = (userPermissions !== 2) && isEditableActive;
 
+	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
+	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
+
 	if (!canEdit) {
-		var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
-		var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
 		return '<span class="' + cls + '">' + escapeHtmlText(displayLabel) + '</span>';
 	}
 
 	return (
-		'<select class="form-select form-select-sm game-type-select" ' +
+		'<button type="button" class="btn btn-link p-0 js-game-type-btn ' + cls + '" ' +
+		'style="font-size:inherit;text-decoration:none;cursor:pointer;" ' +
 		'data-game-id="' + row.game_list_id + '" ' +
-		'data-prev="' + gameType + '" ' +
-		'style="min-width:5.5rem;font-size:11px;padding:2px 4px;height:auto;">' +
-		'<option value="LIVE"' + (gameType === 'LIVE' ? ' selected' : '') + '>' + liveLabel + '</option>' +
-		'<option value="TELEBET"' + (gameType === 'TELEBET' ? ' selected' : '') + '>' + telebetLabel + '</option>' +
-		'</select>'
+		'data-game-type="' + gameType + '" ' +
+		'data-agent-code="' + escapeHtmlText(row.agent_code || '') + '" ' +
+		'data-guest-name="' + escapeHtmlText(row.guest_name || '') + '" ' +
+		'title="Change game type">' +
+		escapeHtmlText(displayLabel) +
+		'</button>'
 	);
+}
+
+function openGameTypeModal(gameId, currentType, agentCode, guestName) {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	if (userPermissions === 2) return;
+	var gameType = normalizeCutoffGameType(currentType);
+	setGameListModalAccountLabel('#edit-game-type-agent-code', agentCode, guestName);
+	$('#edit-game-type-game-id').val(gameId);
+	$('#edit-game-type-prev').val(gameType);
+	$('input[name="editGameType"][value="' + gameType + '"]').prop('checked', true);
+	$('#edit-game-type-save-btn').prop('disabled', false).text('Update');
+	$('#modal-edit-game-type').modal('show');
+}
+
+function updateGameTypeCellDisplay(gameId, newType) {
+	var translations = window.gamelistTranslations || {};
+	var liveLabel = translations.live || 'LIVE';
+	var telebetLabel = translations.telebet || 'TELEBET';
+	var gameType = normalizeCutoffGameType(newType);
+	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
+	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
+	$('.js-game-type-btn[data-game-id="' + gameId + '"]').each(function () {
+		var $btn = $(this);
+		$btn.removeClass('css-red css-blue').addClass(cls);
+		$btn.attr('data-game-type', gameType);
+		$btn.text(displayLabel);
+	});
 }
 
 function buildGameRemarksButton(row) {
@@ -1571,12 +1601,26 @@ $(document).on('submit', '#form-game-remarks', function (e) {
 	});
 });
 
-$(document).on('change', '.game-type-select', function () {
-	var $sel = $(this);
-	var gameId = parseInt($sel.data('game-id'), 10);
-	var newType = $sel.val();
-	var prevType = $sel.data('prev') || 'LIVE';
-	if (!gameId || newType === prevType) return;
+$(document).on('click', '.js-game-type-btn', function () {
+	var $btn = $(this);
+	openGameTypeModal(
+		parseInt($btn.data('game-id'), 10),
+		$btn.data('game-type') || 'LIVE',
+		$btn.data('agent-code') || '',
+		$btn.data('guest-name') || ''
+	);
+});
+
+$(document).on('submit', '#form-edit-game-type', function (e) {
+	e.preventDefault();
+	var gameId = parseInt($('#edit-game-type-game-id').val(), 10);
+	var newType = $('input[name="editGameType"]:checked').val();
+	var prevType = $('#edit-game-type-prev').val() || 'LIVE';
+	if (!gameId || !newType) return;
+	if (newType === prevType) {
+		$('#modal-edit-game-type').modal('hide');
+		return;
+	}
 
 	Swal.fire({
 		icon: 'question',
@@ -1586,27 +1630,25 @@ $(document).on('change', '.game-type-select', function () {
 		confirmButtonText: 'Yes, update',
 		cancelButtonText: 'Cancel'
 	}).then(function (result) {
-		if (!result.isConfirmed) {
-			$sel.val(prevType);
-			return;
-		}
-		$sel.prop('disabled', true);
+		if (!result.isConfirmed) return;
+		var $btn = $('#edit-game-type-save-btn');
+		$btn.prop('disabled', true).text('Saving...');
 		$.ajax({
 			url: '/game_list/' + gameId + '/game_type',
 			method: 'PUT',
 			contentType: 'application/json',
 			data: JSON.stringify({ game_type: newType }),
 			success: function () {
-				$sel.data('prev', newType);
+				$('#modal-edit-game-type').modal('hide');
+				updateGameTypeCellDisplay(gameId, newType);
 				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
 			},
 			error: function (xhr) {
-				$sel.val(prevType);
 				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
 				Swal.fire({ icon: 'error', title: 'Error', text: msg });
 			},
 			complete: function () {
-				$sel.prop('disabled', false);
+				$btn.prop('disabled', false).text('Update');
 			}
 		});
 	});
@@ -2115,6 +2157,7 @@ $(document).ready(function () {
 		],
 	
 		columnDefs: [
+			{ targets: 1, className: 'col-type text-center', width: '68px' },
 			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
 			{ targets: 3, className: 'col-acct-no', width: '120px' },
 			{ targets: 4, className: 'col-guest', width: '120px' },
@@ -2267,7 +2310,7 @@ $(document).ready(function () {
 			'table{width:100%;border-collapse:collapse;font-size:8px;}',
 			'th,td{border:1px solid #777;padding:4px 5px;vertical-align:middle;text-align:center;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(2),th:nth-child(4),th:nth-child(5),td:nth-child(2),td:nth-child(4),td:nth-child(5){text-align:left;padding-left:10px;}',
+			'th:nth-child(4),th:nth-child(5),td:nth-child(4),td:nth-child(5){text-align:left;padding-left:10px;}',
 			'th:nth-child(6),th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),td:nth-child(6),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14){text-align:right;padding-right:10px;}',
 			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
 		].join('');

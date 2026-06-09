@@ -93,7 +93,7 @@
 													</span>
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-type">
 													<%= __('gamelist.type') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
@@ -592,6 +592,37 @@ th.col-winloss {
     font-weight: 600;
 }
 
+/* TYPE — compact column */
+#game_list-tbl th.col-type,
+#game_list-tbl td.col-type {
+	width: 68px !important;
+	min-width: 68px !important;
+	max-width: 68px !important;
+	box-sizing: border-box;
+	text-align: center !important;
+	padding-left: 6px !important;
+	padding-right: 6px !important;
+	white-space: nowrap;
+}
+
+#game_list-tbl td.col-type .css-blue,
+#game_list-tbl td.col-type .css-red,
+#game_list-tbl td.col-type .js-game-type-btn {
+	min-width: 0 !important;
+	background-color: transparent !important;
+	padding: 0 !important;
+	height: auto !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+#game_list-tbl td.col-type .js-game-type-btn:hover,
+#game_list-tbl td.col-type .js-game-type-btn:focus,
+#game_list-tbl td.col-type .js-game-type-btn:active {
+	background-color: transparent !important;
+	box-shadow: none !important;
+}
+
 /* ACCT No, Guest — equal column width + truncate long text */
 #game_list-tbl th.col-acct-no,
 #game_list-tbl td.col-acct-no,
@@ -699,10 +730,8 @@ th.col-winloss {
     color: #495057;
 }
 
-#game_list-tbl thead th:nth-child(2),
 #game_list-tbl thead th:nth-child(4),
 #game_list-tbl thead th:nth-child(5),
-#game_list-tbl tbody td:nth-child(2),
 #game_list-tbl tbody td:nth-child(4),
 #game_list-tbl tbody td:nth-child(5) {
 	text-align: left !important;
@@ -1413,6 +1442,7 @@ table.dataTable tbody tr.highlight-row {
 					<%- include ('../modals/game_book/new_game_list') %>
 						<%- include ('../modals/game_book/new_game_cutoff') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
+						<%- include ('../modals/game_book/edit_game_type') %>
 						<%- include ('../modals/game_book/game_remarks') %>
 						<%- include ('../modals/game_book/change_status') %>
 							<%- include ('../modals/game_book/pending_guest_buyin') %>
