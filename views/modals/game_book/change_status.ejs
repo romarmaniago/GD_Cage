@@ -84,6 +84,7 @@
 						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" 
 							class="form-control text-center txtReturnRollerNN" 
 							placeholder="NN Chips" name="txtReturnRollerNN" id="txtReturnRollerNN">
+						<small id="return-roller-remaining-hint" class="d-block mt-1 text-danger fw-semibold" style="display: none;"></small>
 					</div>
 					<div class="col-sm-6">
 						<label class="form-label">Return CC Chips <span class="text-danger">*</span></label>
@@ -156,6 +157,17 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 
 	nnInput.addEventListener('input', validateReturnNNInline);
+
+	var ccInput = document.querySelector('#modal-change_status .txtReturnRollerCC');
+	function onReturnInputChange() {
+		if (typeof updateReturnRollerRemainingHint === 'function') {
+			updateReturnRollerRemainingHint();
+		}
+	}
+	nnInput.addEventListener('input', onReturnInputChange);
+	if (ccInput) {
+		ccInput.addEventListener('input', onReturnInputChange);
+	}
 });
 </script>
 
