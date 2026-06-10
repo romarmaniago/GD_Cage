@@ -259,6 +259,7 @@
 	"gamelist": {
 		"game_book": "Game Book",
 		"new_game": "New Game",
+		"program_date": "PROGRAM DATE",
 		"game_start": "GAME START",
 		"type": "TYPE",
 		"game#": "GAME #",

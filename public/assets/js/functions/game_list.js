@@ -1512,6 +1512,201 @@ function updateGameTypeCellDisplay(gameId, newType) {
 	});
 }
 
+function getProgramDateYmd(row) {
+	var raw = row.PROGRAM_DATE;
+	if (!raw && row.GAME_DATE_START) raw = row.GAME_DATE_START;
+	if (!raw) return '';
+	var m = moment.utc(raw);
+	if (!m.isValid()) return '';
+	return m.utcOffset(8).format('YYYY-MM-DD');
+}
+
+function formatProgramDateLabel(ymdOrDate) {
+	if (ymdOrDate == null || ymdOrDate === '') return '-';
+	if (ymdOrDate instanceof Date) {
+		return moment(ymdOrDate).format('MMM DD, YYYY');
+	}
+	var s = String(ymdOrDate).trim();
+	if (!s) return '-';
+	var m = moment(s, ['YYYY-MM-DD', 'Y-MM-DD'], true);
+	if (!m.isValid()) m = moment(s, 'MMM DD, YYYY', true);
+	if (!m.isValid()) m = moment(s);
+	return m.isValid() ? m.format('MMM DD, YYYY') : s;
+}
+
+function parseProgramDateToYmd(raw) {
+	if (raw == null || raw === '') return '';
+	if (raw instanceof Date) {
+		return moment(raw).format('YYYY-MM-DD');
+	}
+	var s = String(raw).trim();
+	if (!s) return '';
+	var m = moment(s, ['YYYY-MM-DD', 'Y-MM-DD', 'MMM DD, YYYY', 'MMM D, YYYY', 'M D, YYYY', 'M DD, YYYY'], true);
+	if (!m.isValid()) m = moment(s);
+	return m.isValid() ? m.format('YYYY-MM-DD') : '';
+}
+
+function resolveProgramDateYmdFromFlatpickr(instance, dateStr, selectedDates) {
+	var altVal = instance && instance.altInput ? instance.altInput.value.trim() : '';
+	if (altVal) {
+		var fromAlt = parseProgramDateToYmd(altVal);
+		if (fromAlt) return fromAlt;
+	}
+	if (selectedDates && selectedDates.length > 0 && instance) {
+		return instance.formatDate(selectedDates[0], 'Y-m-d');
+	}
+	var inputVal = instance && instance.input ? instance.input.value.trim() : '';
+	if (inputVal) {
+		var fromInput = parseProgramDateToYmd(inputVal);
+		if (fromInput) return fromInput;
+	}
+	return parseProgramDateToYmd(dateStr);
+}
+
+function confirmProgramDateChange($cell, gameId, currentYmd, newYmd, prevHtml) {
+	if (!newYmd || newYmd === currentYmd) {
+		restoreProgramDateCell($cell, prevHtml);
+		return;
+	}
+	$cell.html(prevHtml);
+	var prevLabel = formatProgramDateLabel(currentYmd);
+	var newLabel = formatProgramDateLabel(newYmd);
+	Swal.fire({
+		icon: 'question',
+		title: 'Update program date?',
+		html: 'Change program date from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong> for Game # <strong>' + escapeHtmlText(String(gameId)) + '</strong>.',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (result.isConfirmed) {
+			saveProgramDateEdit($cell, gameId, currentYmd, newYmd);
+		}
+	});
+}
+
+function formatProgramDateDisplay(row) {
+	var ymd = getProgramDateYmd(row);
+	if (!ymd) return '-';
+	return formatProgramDateLabel(ymd);
+}
+
+function buildProgramDateCell(row, userPermissions, isSettled) {
+	var display = formatProgramDateDisplay(row);
+	var ymd = getProgramDateYmd(row);
+	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
+	var canEdit = (userPermissions !== 2) && isEditableActive && !!ymd;
+	if (isSettled && userPermissions !== 0) canEdit = false;
+
+	if (!canEdit) {
+		return display === '-' ? '-' : escapeHtmlText(display);
+	}
+
+	return (
+		'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
+		'style="font-size:inherit;color:inherit;" ' +
+		'data-game-id="' + row.game_list_id + '" ' +
+		'data-program-date="' + ymd + '" ' +
+		'title="Edit program date">' +
+		escapeHtmlText(display) +
+		'</button>'
+	);
+}
+
+function updateProgramDateCellDisplay(gameId, ymd, display) {
+	var label = display || formatProgramDateLabel(ymd);
+	$('.js-program-date-btn[data-game-id="' + gameId + '"]').each(function () {
+		var $btn = $(this);
+		$btn.attr('data-program-date', ymd);
+		$btn.text(label);
+	});
+}
+
+function restoreProgramDateCell($cell, html) {
+	if (html) $cell.html(html);
+	$cell.removeData('prev-html');
+}
+
+function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
+	$.ajax({
+		url: '/game_list/' + gameId + '/program_date',
+		method: 'PUT',
+		contentType: 'application/json',
+		data: JSON.stringify({ program_date: newYmd }),
+		success: function () {
+			var display = formatProgramDateLabel(newYmd);
+			restoreProgramDateCell($cell,
+				'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
+				'style="font-size:inherit;color:inherit;" ' +
+				'data-game-id="' + gameId + '" ' +
+				'data-program-date="' + newYmd + '" ' +
+				'title="Edit program date">' + escapeHtmlText(display) + '</button>'
+			);
+			updateProgramDateCellDisplay(gameId, newYmd, display);
+			if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+				$('#game_list-tbl').DataTable().rows().invalidate('dom');
+			}
+			Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+		},
+		error: function (xhr) {
+			restoreProgramDateCell($cell, $cell.data('prev-html'));
+			var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+			Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		}
+	});
+}
+
+function openProgramDateEditor($btn, gameId, currentYmd) {
+	var $cell = $btn.closest('td');
+	if ($cell.find('.program-date-inline-edit').length) return;
+	if (typeof flatpickr === 'undefined') {
+		Swal.fire({ icon: 'error', title: 'Error', text: 'Date picker is not available.' });
+		return;
+	}
+
+	var prevHtml = $cell.html();
+	$cell.data('prev-html', prevHtml);
+	var $input = $('<input type="text" class="form-control form-control-sm program-date-inline-edit" autocomplete="off" />');
+	$cell.empty().append($input);
+
+	var fp = flatpickr($input[0], {
+		enableTime: false,
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'M d, Y',
+		defaultDate: currentYmd || new Date(),
+		allowInput: true,
+		disableMobile: true,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.altInput) {
+				instance.altInput.classList.add('form-control', 'form-control-sm', 'program-date-inline-edit');
+				$(instance.input).addClass('d-none');
+				instance.altInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						instance.close();
+					}
+				});
+			}
+		},
+		onClose: function (selectedDates, dateStr, instance) {
+			var newYmd = resolveProgramDateYmdFromFlatpickr(instance, dateStr, selectedDates);
+			if (instance) instance.destroy();
+			if (!newYmd) {
+				restoreProgramDateCell($cell, prevHtml);
+				Swal.fire({
+					icon: 'error',
+					title: 'Invalid date',
+					text: 'Please enter a valid date (e.g. Jun 13, 2026).'
+				});
+				return;
+			}
+			confirmProgramDateChange($cell, gameId, currentYmd, newYmd, prevHtml);
+		}
+	});
+	fp.open();
+}
+
 function buildGameRemarksButton(row) {
 	var remarks = String(row.REMARKS || '').trim();
 	var hasRemark = remarks !== '';
@@ -1885,6 +2080,17 @@ $(document).on('click', '.js-game-type-btn', function () {
 	);
 });
 
+$(document).on('click', '.js-program-date-btn', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var $btn = $(this);
+	openProgramDateEditor(
+		$btn,
+		parseInt($btn.attr('data-game-id'), 10),
+		$btn.attr('data-program-date') || ''
+	);
+});
+
 $(document).on('submit', '#form-edit-commission-type', function (e) {
 	e.preventDefault();
 	var gameId = parseInt($('#edit-commission-game-id').val(), 10);
@@ -2200,7 +2406,7 @@ $(document).ready(function () {
 		var selectedRates = [];
 		$('.merge-settle-checkbox:checked').each(function () {
 			var $row = $(this).closest('tr');
-			var accText = $.trim($row.find('td').eq(3).text());
+			var accText = $.trim($row.find('td').eq(4).text());
 			var normalizedAccText = accText.replace(/\s+/g, ' ').trim();
 			var parsed = normalizedAccText.match(/^(.+?)\s*\((.+)\)$/);
 			if (parsed) {
@@ -2212,13 +2418,13 @@ $(document).ready(function () {
 				selectedAccountDisplays.push(normalizedAccText);
 			}
 
-			totalBuyIn += parseMergeNumeric($row.find('td').eq(5).text());
-			totalChipsReturn += parseMergeNumeric($row.find('td').eq(6).text());
-			totalRolling += parseMergeNumeric($row.find('td').eq(8).text());
-			totalSettlement += parseMergeNumeric($row.find('td').eq(12).text());
-			totalWinLoss += parseMergeNumeric($row.find('td').eq(7).text());
+			totalBuyIn += parseMergeNumeric($row.find('td').eq(6).text());
+			totalChipsReturn += parseMergeNumeric($row.find('td').eq(7).text());
+			totalRolling += parseMergeNumeric($row.find('td').eq(9).text());
+			totalSettlement += parseMergeNumeric($row.find('td').eq(13).text());
+			totalWinLoss += parseMergeNumeric($row.find('td').eq(8).text());
 
-			var rateText = $.trim($row.find('td').eq(9).text())
+			var rateText = $.trim($row.find('td').eq(10).text())
 				.replace(/\bR\b/g, '')
 				.replace(/%/g, '')
 				.replace(/\s+/g, ' ')
@@ -2364,6 +2570,16 @@ $(document).ready(function () {
 		return m ? parseInt(m[1], 10) : 0;
 	};
 
+	// Custom sort for PROGRAM DATE / GAME START (display text, not alphabetical)
+	$.fn.dataTable.ext.type.order['game-list-date-pre'] = function (d) {
+		if (d == null || d === '') return 0;
+		var text = (typeof d === 'string' ? d : String(d)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+		if (!text || text === '-') return 0;
+		var m = moment(text, ['MMM DD, YYYY', 'MMM DD, HH:mm', 'MMMM DD, YYYY', 'MMMM DD, HH:mm'], true);
+		if (!m.isValid()) m = moment(text);
+		return m.isValid() ? m.valueOf() : 0;
+	};
+
 	const highlightId = getQueryParam('id');
 	window.gameListUnreturnedRollerOnly = isTruthyQueryFlag(getQueryParam('unreturned_roller'));
 
@@ -2379,7 +2595,7 @@ $(document).ready(function () {
 		ordering: true,
 		info: true,
 		autoWidth: false,
-		order: [[2, 'desc']],  // GAME # column: latest game ID first
+		order: [[3, 'desc']],  // GAME # column: latest game ID first
 		// Default and minimum page length set to 100 (no 10/25/etc. options)
 		pageLength: 100,
 		lengthMenu: [
@@ -2388,19 +2604,21 @@ $(document).ready(function () {
 		],
 	
 		columnDefs: [
-			{ targets: 1, className: 'col-type text-center', width: '68px' },
-			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
-			{ targets: 3, className: 'col-acct-no', width: '120px' },
-			{ targets: 4, className: 'col-guest', width: '120px' },
-			{ targets: 5, className: 'col-buyin', width: '130px' },
-			{ targets: 6, className: 'col-cashout', width: '130px' },
-			{ targets: 7, className: 'col-winloss', width: '130px' },
-			{ targets: 8, className: 'col-total-rolling', width: '130px' },
-			{ targets: 9, className: 'text-center col-game-rate' },
-			{ targets: 10, className: 'text-center col-commission' },
-			{ targets: 13, className: 'text-center col-game-end' },
-			{ targets: 14, className: 'col-roller-chips' },
-			{ targets: 15, className: 'text-center col-action' },
+			{ targets: 0, type: 'game-list-date', className: 'col-program-date text-start' },
+			{ targets: 1, type: 'game-list-date', className: 'col-game-start text-start' },
+			{ targets: 2, className: 'col-type text-center', width: '68px' },
+			{ targets: 3, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
+			{ targets: 4, className: 'col-acct-no', width: '120px' },
+			{ targets: 5, className: 'col-guest', width: '120px' },
+			{ targets: 6, className: 'col-buyin', width: '130px' },
+			{ targets: 7, className: 'col-cashout', width: '130px' },
+			{ targets: 8, className: 'col-winloss', width: '130px' },
+			{ targets: 9, className: 'col-total-rolling', width: '130px' },
+			{ targets: 10, className: 'text-center col-game-rate' },
+			{ targets: 11, className: 'text-center col-commission' },
+			{ targets: 14, className: 'text-center col-game-end' },
+			{ targets: 15, className: 'col-roller-chips' },
+			{ targets: 16, className: 'text-center col-action' },
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		
@@ -2417,13 +2635,13 @@ $(document).ready(function () {
 		},
 	
 		createdRow: function (row, data, index) {
-			if (parseListAmount(data[7]) < 0) {
-				$('td:eq(7)', row).addClass('text-danger');
+			if (parseListAmount(data[8]) < 0) {
+				$('td:eq(8)', row).addClass('text-danger');
 			}
 
 			// ✅ HIGHLIGHTING logic
 			// Step 1: Remove HTML from Game # column to extract pure ID
-			const gameListIdText = $('<div>').html(data[2]).text(); // assuming column 2 is GAME #
+			const gameListIdText = $('<div>').html(data[3]).text(); // assuming column 3 is GAME #
 			const gameListId = parseInt(gameListIdText);
 
 			// Step 2: Compare with highlightId from URL
@@ -2517,6 +2735,7 @@ $(document).ready(function () {
 				'',
 				'',
 				'',
+				'',
 				$('#GRAND_TOTAL_AMOUNT').text().trim(),
 				$('#GRAND_CHIPS_RETURN').text().trim(),
 				$('#GRAND_WIN_LOSS').text().trim(),
@@ -2541,8 +2760,8 @@ $(document).ready(function () {
 			'table{width:100%;border-collapse:collapse;font-size:8px;}',
 			'th,td{border:1px solid #777;padding:4px 5px;vertical-align:middle;text-align:center;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(4),th:nth-child(5),td:nth-child(4),td:nth-child(5){text-align:left;padding-left:10px;}',
-			'th:nth-child(6),th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),td:nth-child(6),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14){text-align:right;padding-right:10px;}',
+			'th:nth-child(5),th:nth-child(6),td:nth-child(5),td:nth-child(6){text-align:left;padding-left:10px;}',
+			'th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),th:nth-child(15),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14),td:nth-child(15){text-align:right;padding-right:10px;}',
 			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
 		].join('');
 	}
@@ -2705,6 +2924,7 @@ $(document).ready(function () {
 			dt.row.add([
 				'-',
 				'-',
+				'-',
 				gamesLabel,
 				acct_no_link,
 				'-',
@@ -2729,7 +2949,7 @@ $(document).ready(function () {
 			grandTotalSettle += parseFloat(acc.total_settle || 0);
 			grandWinLoss += parseFloat(acc.total_winloss || 0);
 		});
-		dt.order([[3, 'asc']]); // Account view: sort by ACCT No (column 3)
+		dt.order([[4, 'asc']]); // Account view: sort by ACCT No (column 4)
 		dt.draw();
 		$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -2845,7 +3065,7 @@ $(document).ready(function () {
                 window._gameListAccountTotals = {}; // reset each load so we have fresh totals for current dataset
                 // When in account mode we don't add game rows; we add account rows when all record APIs are done
                 var pendingAccountMode = hasAccountSearch ? data.length : 0;
-                if (!hasAccountSearch) dataTable.order([[2, 'desc']]); // Game view: sort by GAME # (column 2)
+                if (!hasAccountSearch) dataTable.order([[3, 'desc']]); // Game view: sort by GAME # (column 3)
 
                 function addAccountRows() {
                     var parts = accountSearchVal.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
@@ -2865,6 +3085,7 @@ $(document).ready(function () {
 						var acct_no_link = buildGameAccountCell(acc.accountId, acc.agent_code, acc.agent_name);
 						var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
 						dataTable.row.add([
+							'-',
 							'-',
 							'-',
 							gamesLabel,
@@ -2891,7 +3112,7 @@ $(document).ready(function () {
                         grandTotalSettle += parseFloat(acc.total_settle || 0);
                         grandWinLoss += parseFloat(acc.total_winloss || 0);
                     });
-                    dataTable.order([[3, 'asc']]); // Account view: sort by ACCT No (column 3)
+                    dataTable.order([[4, 'asc']]); // Account view: sort by ACCT No (column 4)
                     dataTable.draw();
                     $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -2965,13 +3186,6 @@ $(document).ready(function () {
                             data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
                             style="font-size:8px !important; margin-right: 5px;">
                             <i class="fa fa-history"></i>
-                        </button>
-                    </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
                         </button>
                     </div>`;
                     var btn_remarks = buildGameRemarksButton(row);
@@ -3194,7 +3408,7 @@ $(document).ready(function () {
 								
 									// Format net value as an integer
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
 								var gameStartCellOg = buildGameStartCell(
 									game_start,
 									row.game_list_id,
@@ -3214,7 +3428,7 @@ $(document).ready(function () {
 								// 	gameIdDisplay = `⭐ ${row.game_list_id}`;
 								// }
 
-                                var actionButtons = btn_services + btn_remarks;
+                                var actionButtons = btn_remarks;
                                 if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
                                     actionButtons += btn_his;
                                 }
@@ -3226,6 +3440,7 @@ $(document).ready(function () {
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 let rowNode = dataTable.row.add([
+                                    buildProgramDateCell(row, userPermissions, isSettled),
                                     gameStartCellOg,
                                     buildGameTypeCell(row, userPermissions),
                                     buildCutoffGameIdCell(row),
@@ -3244,7 +3459,7 @@ $(document).ready(function () {
                                     actionButtons
                                 ]).draw().node();
                                 if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                                    $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
                                 }
 								
 								
@@ -3333,7 +3548,7 @@ $(document).ready(function () {
 								
 								// Format net value as an integer
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
 								var isSettlementMode = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
 								var canDailySettle = isSettlementMode && window.isDailySettleSelectionMode;
 								var gameStartCell = buildGameStartCell(
@@ -3345,7 +3560,7 @@ $(document).ready(function () {
 									canOpenPoolSelect
 								);
 								
-								var actionButtons = btn_services + btn_remarks + btn_settle;
+								var actionButtons = btn_remarks + btn_settle;
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
@@ -3353,6 +3568,7 @@ $(document).ready(function () {
 								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
 								let rowNode = dataTable.row.add([
+									buildProgramDateCell(row, userPermissions, isSettled),
 									gameStartCell,
 									buildGameTypeCell(row, userPermissions),
 									buildCutoffGameIdCell(row),
@@ -3371,7 +3587,7 @@ $(document).ready(function () {
 									actionButtons
 								]).draw().node();
                                 if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                                    $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
                                 }
 								
 								
@@ -3456,7 +3672,7 @@ $(document).ready(function () {
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
-						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
+						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
 						   var isSettlementModeEnd = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
 						   var canDailySettleEnd = isSettlementModeEnd && window.isDailySettleSelectionMode;
 						   var gameStartCellEnd = buildGameStartCell(
@@ -3467,15 +3683,15 @@ $(document).ready(function () {
 							   canDailySettleEnd,
 							   canOpenPoolSelect
 						   );
-						   var actionButtons = btn_services + btn_remarks + btn_settle;
+						   var actionButtons = btn_remarks + btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
-						   let rowNode = dataTable.row.add([gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
                            if (row.DAILY_SETTLEMENT != 2) {
-                               $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
+                               $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
                            }
 						   
 						   
@@ -9408,13 +9624,6 @@ $(document).ready(function () {
                             <i class="fa fa-history"></i>
                     </button>
                </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
-                        </button>
-                    </div>`;
                     var btn_remarks = buildGameRemarksButton(row);
 
 
@@ -9558,7 +9767,7 @@ $(document).ready(function () {
 								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
-                                var actionButtons = btn_services + btn_remarks + btn_his;
+                                var actionButtons = btn_remarks + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
@@ -9568,7 +9777,7 @@ $(document).ready(function () {
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
 								cashout_td = formatListAmount(total_cash_out_chips, 'out');
-                                var actionButtons = btn_services + btn_remarks + btn_his;
+                                var actionButtons = btn_remarks + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
@@ -9598,7 +9807,7 @@ $(document).ready(function () {
 										<i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
-						   var actionButtons = btn_services + btn_remarks + btn_settle;
+						   var actionButtons = btn_remarks + btn_settle;
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 

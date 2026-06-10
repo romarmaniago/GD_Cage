@@ -87,7 +87,10 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-center game-start-th">
+												<th class="d-none d-sm-table-cell text-start col-program-date">
+													<%= __('gamelist.program_date') %>
+												</th>
+												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
 													<span class="game-list-select-all-slot">
 														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
 													</span>
@@ -145,7 +148,7 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="5">
+											<th colspan="6">
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
@@ -366,6 +369,49 @@ body.daily-settle-select-mode .daily-settle-checkbox-wrap {
 
 body.merge-settle-mode .merge-settle-checkbox-wrap {
 	display: inline-flex;
+}
+
+#game_list-tbl th.col-program-date,
+#game_list-tbl td.col-program-date,
+#game_list-tbl th.col-game-start,
+#game_list-tbl td.col-game-start {
+	text-align: left !important;
+	width: 1%;
+	white-space: nowrap;
+	padding-left: 10px !important;
+}
+
+/* Data cells: tight right padding */
+#game_list-tbl td.col-program-date,
+#game_list-tbl td.col-game-start {
+	padding-right: 6px !important;
+}
+
+/* Header: reserve space for DataTables sort arrows (default needs 26px) */
+#game_list-tbl th.col-program-date,
+#game_list-tbl th.col-game-start {
+	padding-right: 26px !important;
+}
+
+#game_list-tbl .program-date-link {
+	cursor: pointer;
+	text-decoration: none !important;
+}
+
+#game_list-tbl .program-date-link:hover,
+#game_list-tbl .program-date-link:focus {
+	text-decoration: none !important;
+}
+
+#game_list-tbl td.col-program-date input.program-date-inline-edit {
+	width: 7.5rem;
+	min-width: 7.5rem;
+	padding: 2px 6px;
+	font-size: inherit;
+}
+
+#game_list-tbl td.col-program-date input.program-date-inline-edit.d-none {
+	display: none !important;
 }
 
 .game-start-th {
@@ -730,16 +776,15 @@ th.col-winloss {
     color: #495057;
 }
 
-#game_list-tbl thead th:nth-child(4),
 #game_list-tbl thead th:nth-child(5),
-#game_list-tbl tbody td:nth-child(4),
-#game_list-tbl tbody td:nth-child(5) {
+#game_list-tbl thead th:nth-child(6),
+#game_list-tbl tbody td:nth-child(5),
+#game_list-tbl tbody td:nth-child(6) {
 	text-align: left !important;
 	padding-left: 20px;
 }
 
-/* Numeric columns (buy-in through total settle): right-aligned — 16-column layout */
-#game_list-tbl thead th:nth-child(6),
+/* Numeric columns (buy-in through total settle): right-aligned — 17-column layout */
 #game_list-tbl thead th:nth-child(7),
 #game_list-tbl thead th:nth-child(8),
 #game_list-tbl thead th:nth-child(9),
@@ -747,7 +792,7 @@ th.col-winloss {
 #game_list-tbl thead th:nth-child(11),
 #game_list-tbl thead th:nth-child(12),
 #game_list-tbl thead th:nth-child(13),
-#game_list-tbl tbody td:nth-child(6),
+#game_list-tbl thead th:nth-child(14),
 #game_list-tbl tbody td:nth-child(7),
 #game_list-tbl tbody td:nth-child(8),
 #game_list-tbl tbody td:nth-child(9),
@@ -755,16 +800,17 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11),
 #game_list-tbl tbody td:nth-child(12),
 #game_list-tbl tbody td:nth-child(13),
-#game_list-tbl thead th:nth-child(15),
-#game_list-tbl tbody td:nth-child(15),
-#game_list-tbl tfoot th:nth-child(2),
+#game_list-tbl tbody td:nth-child(14),
+#game_list-tbl thead th:nth-child(16),
+#game_list-tbl tbody td:nth-child(16),
 #game_list-tbl tfoot th:nth-child(3),
 #game_list-tbl tfoot th:nth-child(4),
 #game_list-tbl tfoot th:nth-child(5),
-#game_list-tbl tfoot th:nth-child(7),
+#game_list-tbl tfoot th:nth-child(6),
 #game_list-tbl tfoot th:nth-child(8),
 #game_list-tbl tfoot th:nth-child(9),
-#game_list-tbl tfoot th:nth-child(11) {
+#game_list-tbl tfoot th:nth-child(10),
+#game_list-tbl tfoot th:nth-child(12) {
 	text-align: right !important;
 	padding-right: 20px;
 }
@@ -792,7 +838,6 @@ th.col-winloss {
 	padding-right: 20px;
 }
 
-#game_list-tbl tbody td:nth-child(6) .btn,
 #game_list-tbl tbody td:nth-child(7) .btn,
 #game_list-tbl tbody td:nth-child(8) .btn,
 #game_list-tbl tbody td:nth-child(9) .btn,
@@ -800,7 +845,7 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) .btn,
 #game_list-tbl tbody td:nth-child(12) .btn,
 #game_list-tbl tbody td:nth-child(13) .btn,
-#game_list-tbl tbody td:nth-child(6) a,
+#game_list-tbl tbody td:nth-child(14) .btn,
 #game_list-tbl tbody td:nth-child(7) a,
 #game_list-tbl tbody td:nth-child(8) a,
 #game_list-tbl tbody td:nth-child(9) a,
@@ -808,8 +853,9 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) a,
 #game_list-tbl tbody td:nth-child(12) a,
 #game_list-tbl tbody td:nth-child(13) a,
-#game_list-tbl tbody td:nth-child(15) .btn,
-#game_list-tbl tbody td:nth-child(15) a {
+#game_list-tbl tbody td:nth-child(14) a,
+#game_list-tbl tbody td:nth-child(16) .btn,
+#game_list-tbl tbody td:nth-child(16) a {
 	display: inline-block;
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -1216,6 +1262,7 @@ table.dataTable tbody tr.highlight-row {
 										}
 									},
 									"columns": [
+										{ "data": "program_date", "defaultContent": "-" },
 										{ "data": "game_start_date" },
 										{ "data": "game_type" },
 										{ "data": "game_no" },
@@ -1277,10 +1324,10 @@ table.dataTable tbody tr.highlight-row {
 								var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
 
 								// Get the game start date from the table data (Column index for "GAME START")
-								var gameStartDate = new Date(data[0]); // Assuming GAME START is the first column (index 0)
+								var gameStartDate = new Date(data[1]);
 
 								// Get the game end date from the table data (Column index for "GAME END DATE & TIME")
-								var gameEndDate = new Date(data[0]); // Assuming GAME END DATE & TIME is column 13
+								var gameEndDate = new Date(data[14]);
 
 								// Strip the time portion of the date by setting time to midnight (for date-only comparison)
 								if (minDate !== null) {
@@ -1337,14 +1384,14 @@ table.dataTable tbody tr.highlight-row {
 								table.rows({ page: 'current' }).every(function () {
 									var data = this.data();
 
-									var amountIndex = 5; // BUY-IN
-									var rollingIndex = 8; // TOTAL ROLLING
-									var rollerChipsIndex = 14; // ROLLER CHIPS
-									var chipsReturnIndex = 6; // CASH-OUT
-									var winLossIndex = 7; // WIN/LOSS
-									var commissionIndex = 10; // COMMISSION
-									var addChgIndex = 11; // ADD CHG
-									var totalSettleIndex = 12; // TOTAL SETTLE
+									var amountIndex = 6; // BUY-IN
+									var rollingIndex = 9; // TOTAL ROLLING
+									var rollerChipsIndex = 15; // ROLLER CHIPS
+									var chipsReturnIndex = 7; // CASH-OUT
+									var winLossIndex = 8; // WIN/LOSS
+									var commissionIndex = 11; // COMMISSION
+									var addChgIndex = 12; // ADD CHG
+									var totalSettleIndex = 13; // TOTAL SETTLE
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';

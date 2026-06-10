@@ -1419,7 +1419,7 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			}
 			let minWidth = 11;
 			let maxWidth = 60;
-			if (upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) minWidth = 14;
+			if (upperHeader.includes('PROGRAM DATE') || upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) minWidth = 14;
 			if (upperHeader.includes('ACCT')) minWidth = 18;
 			if (upperHeader === 'GUEST') minWidth = 14;
 			if (upperHeader.includes('GAME RATE')) minWidth = 13;
@@ -4361,6 +4361,69 @@ router.put('/game_list/:id/remarks', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating game remarks:', err);
 		res.status(500).json({ error: 'Failed to update remarks' });
+	}
+});
+
+// Update PROGRAM_DATE (date only) for ACTIVE 1/2/3
+router.put('/game_list/:id/program_date', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const program_date = normalizeSettlementDateYmd(req.body?.program_date);
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ error: 'Not authorized to edit program date.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (!program_date) {
+		return res.status(400).json({ error: 'Invalid program date.' });
+	}
+	let connection;
+	try {
+		const [rows] = await pool.execute(
+			'SELECT ACTIVE, SETTLED, PROGRAM_DATE FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			[id]
+		);
+		if (rows.length === 0) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		const active = Number(rows[0].ACTIVE);
+		if (![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found or not editable.' });
+		}
+		if (Number(rows[0].SETTLED) === 1 && permissions !== 0) {
+			return res.status(403).json({ error: 'Cannot edit program date on a settled game.' });
+		}
+		const currentRaw = rows[0].PROGRAM_DATE;
+		const currentYmd = currentRaw
+			? formatLocalDateYmd(currentRaw instanceof Date ? currentRaw : new Date(currentRaw))
+			: null;
+		if (currentYmd === program_date) {
+			return res.json({ success: true, program_date });
+		}
+		const trading_date = parseProgramDateAsDateTime(program_date);
+		const editedBy = req.session.user_id;
+		const editedDt = new Date();
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+		await connection.execute(
+			'UPDATE game_list SET PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[program_date, editedBy, editedDt, id]
+		);
+		await connection.execute(
+			'UPDATE game_record SET TRADING_DATE = ? WHERE GAME_ID = ?',
+			[trading_date, id]
+		);
+		await connection.commit();
+		res.json({ success: true, program_date });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) { /* ignore */ }
+		}
+		console.error('Error updating program date:', err);
+		res.status(500).json({ error: 'Failed to update program date' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

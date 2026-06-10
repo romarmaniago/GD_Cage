@@ -279,6 +279,7 @@
 	"gamelist": {
 		"game_book": "游戏书",
 		"new_game": "新游戏",
+		"program_date": "节目日期",
 		"game_start": "比赛开始",
 		"type": "类型",
 		"game#": "游戏#",
