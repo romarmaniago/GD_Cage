@@ -1,4 +1,13 @@
 <style>
+  body.modal-open #modal-services.show {
+    z-index: 1055;
+  }
+  body.modal-open #modal-services-edit.show {
+    z-index: 1065;
+  }
+  body.modal-open .swal2-container {
+    z-index: 1080 !important;
+  }
   #modal-services .modal-dialog {
     max-width: min(1400px, 96vw);
     width: 96vw;
@@ -14,10 +23,15 @@
   #modal-services #services-list-tbl td {
     white-space: nowrap;
   }
-  #modal-services #services-list-tbl td:nth-child(4) {
+  #modal-services #services-list-tbl td:nth-child(6) {
     white-space: normal;
     min-width: 120px;
     max-width: 220px;
+  }
+  #modal-services #services-list-tbl .services-total-row td,
+  #modal-show-history #history-services-list-tbl .services-total-row td {
+    border-top: 2px solid #dee2e6;
+    font-weight: 700;
   }
 </style>
 <div class="modal fade" id="modal-services" tabindex="-1" aria-labelledby="modal-services-label" aria-hidden="true" data-bs-backdrop="static">
@@ -90,13 +104,13 @@
               <table id="services-list-tbl" class="table table-bordered table-vcenter" style="font-size: 11px !important;">
                 <thead>
                   <tr>
-                    <th scope="col">Service</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Service Type</th>
                     <th scope="col" class="text-end">Amount</th>
                     <th scope="col" class="text-end">Delivery Fee</th>
-                    <th scope="col">Remarks</th>
                     <th scope="col">Transaction</th>
+                    <th scope="col">Remarks</th>
                     <th scope="col">Processed By</th>
-                    <th scope="col">Date</th>
                     <th scope="col" class="text-center">Action</th>
                   </tr>
                 </thead>
@@ -121,7 +135,7 @@
 </div>
 
 <!-- Edit Service Modal -->
-<div class="modal fade" id="modal-services-edit" tabindex="-1" aria-labelledby="modal-services-edit-label" aria-hidden="true">
+<div class="modal fade" id="modal-services-edit" tabindex="-1" aria-labelledby="modal-services-edit-label" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary">

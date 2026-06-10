@@ -1117,7 +1117,140 @@ function syncSelectedGuestIdFromGuestDropdown() {
 	$('#txtGuestId').val(guestId);
 }
 
-function loadGuestsForSelectedAccount() {
+function setNewGameListOpeningBalance(balance) {
+	var n = parseFloat(balance);
+	if (isNaN(n)) n = 0;
+	$('#total_balanceGuest1').val(n);
+	$('#total_balanceGuestGameList').val(n.toLocaleString('en-US'));
+}
+
+function fetchAndApplyAvailableChipsForNewGameModal() {
+	$.ajax({
+		url: '/game_list_available_chips',
+		method: 'GET',
+		success: function (payload) {
+			var nn = Number(payload && payload.availableNN) || 0;
+			var cc = Number(payload && payload.availableCC) || 0;
+			var $nn = $('#availableNN');
+			var $cc = $('#availableCC');
+			if ($nn.length) $nn.text(nn.toLocaleString('en-US'));
+			if ($cc.length) $cc.text(cc.toLocaleString('en-US'));
+		},
+		error: function () {
+			if ($('#availableNN').length) $('#availableNN').text('0');
+			if ($('#availableCC').length) $('#availableCC').text('0');
+		}
+	});
+}
+window.fetchAndApplyAvailableChipsForNewGameModal = fetchAndApplyAvailableChipsForNewGameModal;
+
+function lockNewGameListAccountSelect(locked) {
+	var $select = $('#txtTrans');
+	if (!$select.length) return;
+	if (locked) {
+		var val = $select.val() || '';
+		if (!val) return;
+		$select.attr('data-readonly', '1').attr('data-locked-value', val);
+	} else {
+		$select.removeAttr('data-readonly data-locked-value');
+	}
+}
+
+function ensureNewGameListAccountOption(accountId, meta) {
+	meta = meta || {};
+	var idStr = String(accountId || '').trim();
+	if (!idStr) return false;
+
+	var $select = $('#txtTrans');
+	if (!$select.length) return false;
+
+	if ($select.find('option').filter(function () {
+		return String($(this).val()) === idStr;
+	}).length) {
+		return true;
+	}
+
+	var agentName = meta.agentName || meta.accountName || '';
+	var agentCode = meta.agentCode || '';
+	var label = meta.label || '';
+	if (!label) {
+		label = agentName
+			? agentName + (agentCode ? ' (' + agentCode + ')' : '')
+			: ('Account #' + idStr);
+	}
+
+	var $opt = $('<option>', { value: idStr, text: label });
+	if (meta.agentId) $opt.attr('data-agent-id', meta.agentId);
+	if (meta.guestId) $opt.attr('data-guest-id', meta.guestId);
+	$select.append($opt);
+	return true;
+}
+
+function applyNewGameListAccountPrefill(accountId, opts) {
+	opts = opts || {};
+	var idStr = String(accountId || '').trim();
+	if (!idStr) return false;
+
+	var $select = $('#txtTrans');
+	if (!$select.length) return false;
+
+	var $option = $select.find('option').filter(function () {
+		return String($(this).val()) === idStr;
+	}).first();
+
+	if (!$option.length && Array.isArray(_accountOptionsCache)) {
+		var cached = _accountOptionsCache.find(function (row) {
+			return String(row.account_id) === idStr;
+		});
+		if (cached) {
+			ensureNewGameListAccountOption(idStr, {
+				agentCode: cached.agent_code,
+				agentName: cached.agent_name,
+				agentId: cached.agent_id,
+				guestId: cached.guest_id || cached.GUESTNo || ''
+			});
+			$option = $select.find('option').filter(function () {
+				return String($(this).val()) === idStr;
+			}).first();
+		}
+	}
+
+	if (!$option.length && opts.accountMeta) {
+		ensureNewGameListAccountOption(idStr, opts.accountMeta);
+		$option = $select.find('option').filter(function () {
+			return String($(this).val()) === idStr;
+		}).first();
+	}
+
+	if (!$option.length) return false;
+
+	$select.val($option.val()).trigger('change.select2');
+
+	if (opts.openingBalance != null && !isNaN(parseFloat(opts.openingBalance))) {
+		setNewGameListOpeningBalance(opts.openingBalance);
+	} else {
+		$select.trigger('change');
+	}
+
+	if (opts.lockAccount) {
+		lockNewGameListAccountSelect(true);
+	}
+
+	var guestId = $option.attr('data-guest-id') || (opts.accountMeta && opts.accountMeta.guestId) || opts.preselectGuestId || '';
+	loadGuestsForSelectedAccount(guestId || null);
+	return true;
+}
+
+function scheduleNewGameListAccountPrefill(accountId, opts, attempt) {
+	var tryNo = attempt || 0;
+	if (applyNewGameListAccountPrefill(accountId, opts)) return;
+	if (tryNo >= 25) return;
+	setTimeout(function () {
+		scheduleNewGameListAccountPrefill(accountId, opts, tryNo + 1);
+	}, 120);
+}
+
+function loadGuestsForSelectedAccount(preselectGuestId) {
 	var $accountSelect = $('#txtTrans');
 	var $guestSelect = $('#txtGuestGame');
 	if (!$accountSelect.length || !$guestSelect.length) return;
@@ -1153,8 +1286,13 @@ function loadGuestsForSelectedAccount() {
 					text: (guest.guest_name || '').toUpperCase()
 				}));
 			});
-			$guestSelect.trigger('change.select2');
+			if (preselectGuestId && $guestSelect.find('option[value="' + String(preselectGuestId) + '"]').length) {
+				$guestSelect.val(String(preselectGuestId)).trigger('change.select2').trigger('change');
+			} else {
+				$guestSelect.trigger('change.select2');
+			}
 			$guestSelect.prop('disabled', false);
+			syncSelectedGuestIdFromGuestDropdown();
 		},
 		error: function () {
 			$guestSelect.prop('disabled', true);
@@ -1164,7 +1302,9 @@ function loadGuestsForSelectedAccount() {
 }
 
 
-function addGameList(id) {
+function addGameList(accountId, opts) {
+	opts = opts && typeof opts === 'object' ? opts : {};
+	var preselectAccountId = accountId ? String(accountId).trim() : '';
 	var $select = $('#txtTrans');
 	var $guest = $('#txtGuestGame');
 	resetNewGameInputs();
@@ -1207,8 +1347,12 @@ function addGameList(id) {
 			placeholder: 'Select an option',
 			dropdownParent: '#modal-new-game-list',
 		});
-		syncSelectedGuestIdFromAccount();
-		loadGuestsForSelectedAccount();
+		if (preselectAccountId) {
+			scheduleNewGameListAccountPrefill(preselectAccountId, opts, 0);
+		} else {
+			syncSelectedGuestIdFromAccount();
+			loadGuestsForSelectedAccount();
+		}
 	}
 	
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
@@ -1240,8 +1384,10 @@ function addGameList(id) {
 			populateOptions();
 		});
 	}
+	fetchAndApplyAvailableChipsForNewGameModal();
 	ensureNewGameProgramDatePicker();
 }
+window.addGameList = addGameList;
 
 function getQueryParam(param) {
 	const urlParams = new URLSearchParams(window.location.search);
@@ -6727,6 +6873,76 @@ function getServiceLineTotal(amount, deliveryFee, serviceType) {
 	return base + fee;
 }
 
+function accumulateSettlementServiceTotals(totalsMap, list) {
+	if (!Array.isArray(list)) {
+		return;
+	}
+	list.forEach(function (item) {
+		var transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
+		if (transactionId !== 3) {
+			return;
+		}
+		var serviceType = item.SERVICE_TYPE || item.service_type || '';
+		var label = formatServiceDisplayLabel(serviceType) || String(serviceType).trim();
+		if (!label) {
+			return;
+		}
+		var key = label.trim().toLowerCase();
+		var lineTotal = getServiceLineTotal(
+			item.AMOUNT || item.amount,
+			item.DELIVERY_FEE || item.delivery_fee,
+			serviceType
+		);
+		if (!totalsMap[key]) {
+			totalsMap[key] = { label: label, amount: 0 };
+		}
+		totalsMap[key].amount += lineTotal;
+	});
+}
+
+function buildSettlementServiceEntries(totalsMap) {
+	return Object.keys(totalsMap || {})
+		.filter(function (key) {
+			return totalsMap[key] && totalsMap[key].amount > 0;
+		})
+		.map(function (key) {
+			return {
+				label: totalsMap[key].label,
+				amount: totalsMap[key].amount
+			};
+		})
+		.sort(function (a, b) {
+			return a.label.localeCompare(b.label);
+		});
+}
+
+function renderSettlementServiceRows(entries) {
+	var $container = $('#settlement-service-rows');
+	if (!$container.length) {
+		return;
+	}
+	$container.empty();
+	(entries || []).forEach(function (entry) {
+		if (!entry || !(entry.amount > 0)) {
+			return;
+		}
+		var formatted = Number(entry.amount).toLocaleString('en-US', {
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 2
+		});
+		$container.append(
+			'<div class="col-sm-12 settlement-service-row">' +
+				'<div class="form-group d-flex align-items-center small-input-group">' +
+					'<label class="form-label settlement-service-label">' + escapeHtmlText(entry.label) + '</label>' +
+					'<input class="form-input text-danger ms-2 settlement-service-amount" type="text" readonly value="' + formatted + '">' +
+				'</div>' +
+			'</div>'
+		);
+	});
+}
+
+window.renderSettlementServiceRowsFromEntries = renderSettlementServiceRows;
+
 function toggleServicesDeliveryFeeField(selectSelector, wrapSelector, feeInputSelector) {
 	if (isDeliveryServiceType($(selectSelector).val())) {
 		$(wrapSelector).removeClass('d-none');
@@ -7178,9 +7394,8 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 
 
 function showHistory(record_id) {
+	$('#modal-show-history').data('historyGameId', record_id);
 	$('#modal-show-history').modal('show');
-
-	
 
 	if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
 		$('#game_record-tbl').DataTable().destroy();
@@ -7533,20 +7748,16 @@ function reloadDataRecord() {
             // Prepare all rows data
             const allRows = [];
             
-            // Add total row first
+            // Add total row first (8 columns: DATE, BUY-IN, CASH OUT, TOTAL ROLLING, NN, CC, R/C, ACTION)
             allRows.push([
                 '<strong>TOTAL</strong>',
-                '<strong>' + totalBuyIn.toLocaleString('en-US') + '</strong>',
-                '<strong>' + totalAdditionalBuyIn.toLocaleString('en-US') + '</strong>',
+                '<strong>' + (totalBuyIn + totalAdditionalBuyIn).toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalCashOut.toLocaleString('en-US') + '</strong>',
-                '<strong>' + totalRealRolling.toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalRolling.toLocaleString('en-US') + '</strong>',
-                // '<strong>' + totalNN.toLocaleString('en-US') + '</strong>',
-                // '<strong>' + totalCC.toLocaleString('en-US') + '</strong>',
-				'',
-				'',
+                '<strong>' + totalNN.toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalCC.toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalRollerChips.toLocaleString('en-US') + '</strong>',
-                ''  // Empty for action column
+                ''
             ]);
 
             // Add individual records (color buy-in / additional_buyin / cash_out only when value > 0 and deposit/marker/credit)
@@ -7588,12 +7799,14 @@ function reloadDataRecord() {
                 var buyInType = parseInt(rowData.buy_in_type, 10) || 1;
                 var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
                 var cashOutType = parseInt(rowData.cash_out_type, 10) || 1;
+                var buyInAmount = (rowData.buy_in || 0) + (rowData.additional_buyin || 0);
+                var buyInDisplayType = (rowData.additional_buyin || 0) > 0 && !(rowData.buy_in || 0)
+                    ? addBuyinType
+                    : buyInType;
                 allRows.push([
                     rowData.displayDate || date,
-                    formatBuyinCell(rowData.buy_in, buyInType),
-                    formatBuyinCell(rowData.additional_buyin, addBuyinType),
+                    formatBuyinCell(buyInAmount, buyInDisplayType),
                     formatBuyinCell(rowData.cash_out, cashOutType),
-                    rowData.real_rolling.toLocaleString('en-US'),
                     (rowData.total_rolling_actual || 0).toLocaleString('en-US'),
                     rowData.nn.toLocaleString('en-US'),
                     rowData.cc.toLocaleString('en-US'),
@@ -7611,8 +7824,15 @@ function reloadDataRecord() {
     });
 }
 
-	reloadDataRecord()
+	reloadDataRecord();
+	loadHistoryServicesList(record_id);
 }
+
+$(document).on('hidden.bs.modal', '#modal-show-history', function () {
+	destroyServicesListTable('#history-services-list-tbl');
+	$('#history-services-list-body').html('<tr class="text-muted"><td colspan="7" class="text-center small">No services availed.</td></tr>');
+	$('#history-services-total').text('0');
+});
 
 function checkPermissionToDeleteHistory(id) {
     // Check if the user has the necessary permission before proceeding
@@ -7918,8 +8138,8 @@ function formatServiceTransactionLabel(id) {
 	return labels[id] || '';
 }
 
-function destroyServicesListTable() {
-	var $table = $('#services-list-tbl');
+function destroyServicesListTable(tableSelector) {
+	var $table = $(tableSelector || '#services-list-tbl');
 	if (!$table.length) return;
 	if (!$.fn.DataTable.isDataTable($table)) return;
 	try {
@@ -7933,28 +8153,89 @@ function destroyServicesListTable() {
 	}
 }
 
-function renderServicesList(list) {
-	const $tbody = $('#services-list-body');
-	const $table = $('#services-list-tbl');
-	const $total = $('#services-total');
+function ensureServicesTotalFirstSort() {
+	if ($.fn.dataTable.ext.order['services-total-first']) {
+		return;
+	}
+	$.fn.dataTable.ext.order['services-total-first'] = function (settings, col) {
+		return this.api().column(col, { order: 'index' }).nodes().map(function (td) {
+			var text = $(td).text().trim();
+			return text.toUpperCase() === 'TOTAL' ? '' : text;
+		});
+	};
+}
+
+function initServicesListDataTable($table, readOnly) {
+	ensureServicesTotalFirstSort();
+	$table.DataTable({
+		paging: true,
+		pageLength: 5,
+		lengthChange: false,
+		searching: false,
+		ordering: false,
+		order: [[0, 'asc']],
+		info: true,
+		autoWidth: false,
+		columnDefs: [
+			{
+				type: 'services-total-first',
+				targets: 0,
+				createdCell: function (cell) {
+					$(cell).addClass('text-center');
+				}
+			},
+			{
+				createdCell: function (cell) {
+					$(cell).addClass('text-center');
+				}
+			}
+		]
+	});
+}
+
+function buildServicesTotalRowHtml(totalAmountOnly, totalDeliveryFeeOnly, readOnly) {
+	var actionCell = readOnly ? '' : '<td></td>';
+	return '<tr class="fw-bold bg-body-secondary services-total-row">'
+		+ '<td>TOTAL</td>'
+		+ '<td></td>'
+		+ '<td class="text-end">' + totalAmountOnly.toLocaleString('en-US') + '</td>'
+		+ '<td class="text-end">' + totalDeliveryFeeOnly.toLocaleString('en-US') + '</td>'
+		+ '<td></td>'
+		+ '<td></td>'
+		+ '<td></td>'
+		+ actionCell
+		+ '</tr>';
+}
+
+function renderServicesList(list, opts) {
+	opts = opts || {};
+	const readOnly = !!opts.readOnly;
+	const $tbody = $(opts.tbody || '#services-list-body');
+	const $table = $(opts.table || '#services-list-tbl');
+	const $total = $(opts.total || '#services-total');
 	if (!$tbody.length) return;
 
 	const data = Array.isArray(list) ? list : [];
 	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	const isSettled = parseInt(_servicesSettled || 0, 10) === 1 && userPermissions !== 0; // Super admin can edit even when settled
+	const emptyColspan = readOnly ? 7 : 8;
 
-	destroyServicesListTable();
+	destroyServicesListTable(opts.table || '#services-list-tbl');
 
 	if (data.length === 0) {
 		if ($total.length) $total.text('0');
-		$tbody.html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
+		$tbody.html('<tr class="text-muted"><td colspan="' + emptyColspan + '" class="text-center small">No services availed.</td></tr>');
 		return;
 	}
+
+	let totalAmountOnly = 0;
+	let totalDeliveryFeeOnly = 0;
 
 	const rows = data.map(item => {
 		const id = item.IDNo || item.id || '';
 		const service = item.SERVICE_TYPE || item.service_type || '';
 		const amount = item.AMOUNT || item.amount || 0;
+		const safeAmount = parseFloat(amount || 0);
 		const deliveryFee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
 		const deliveryFeeDisplay = deliveryFee > 0 ? deliveryFee.toLocaleString('en-US') : '';
 		const remarks = item.REMARKS || item.remarks || '';
@@ -7963,15 +8244,12 @@ function renderServicesList(list) {
 		const formattedDt = dtRaw ? moment(dtRaw).format('MMM DD, HH:mm') : '';
 		const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id || 1, 10);
 		const transactionLabel = formatServiceTransactionLabel(transactionId);
-		return `<tr>
-			<td>${service}</td>
-			<td class="text-end">${parseFloat(amount).toLocaleString('en-US')}</td>
-			<td class="text-end">${deliveryFeeDisplay}</td>
-			<td>${remarks || ''}</td>
-			<td>${transactionLabel || '-'}</td>
-			<td>${processed || ''}</td>
-			<td>${formattedDt}</td>
-			<td class="text-center">
+		const serviceLabel = formatServiceDisplayLabel(service) || service;
+
+		totalAmountOnly += isNaN(safeAmount) ? 0 : safeAmount;
+		totalDeliveryFeeOnly += deliveryFee;
+
+		const actionCell = readOnly ? '' : `<td class="text-center">
 				<button type="button"
 					class="btn btn-sm btn-info-subtle action-btn-square me-1 service-edit-btn"
 					title="Edit"
@@ -7979,6 +8257,7 @@ function renderServicesList(list) {
 					data-id="${id}"
 					data-service="${service}"
 					data-amount="${amount}"
+					data-delivery-fee="${deliveryFee}"
 					data-remarks="${encodeURIComponent(remarks || '')}"
 					data-transaction="${transactionId}">
 					<i class="fa fa-edit"></i>
@@ -7990,40 +8269,125 @@ function renderServicesList(list) {
 					data-id="${id}">
 					<i class="fa fa-trash-alt"></i>
 				</button>
-			</td>
+			</td>`;
+
+		return `<tr>
+			<td>${formattedDt}</td>
+			<td>${serviceLabel}</td>
+			<td class="text-end">${(isNaN(safeAmount) ? 0 : safeAmount).toLocaleString('en-US')}</td>
+			<td class="text-end">${deliveryFeeDisplay}</td>
+			<td>${transactionLabel || '-'}</td>
+			<td>${remarks || ''}</td>
+			<td>${processed || ''}</td>
+			${actionCell}
 		</tr>`;
 	});
 
-	// Total amount of all services (amount + delivery fee)
-	const totalAmt = data.reduce((sum, item) => {
-		const amt = parseFloat(item.AMOUNT || item.amount || 0);
-		const fee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
-		return sum + (isNaN(amt) ? 0 : amt) + fee;
-	}, 0);
+	const totalAmt = totalAmountOnly + totalDeliveryFeeOnly;
 	if ($total.length) $total.text(totalAmt.toLocaleString('en-US'));
 
-	$tbody.html(rows.join(''));
-	$table.DataTable({
-		paging: true,
-		pageLength: 5,
-		lengthChange: false,
-		searching: false,
-		ordering: false,
-		info: true,
-		autoWidth: false
-	});
+	const totalRow = buildServicesTotalRowHtml(totalAmountOnly, totalDeliveryFeeOnly, readOnly);
+	$tbody.html(rows.join('') + totalRow);
+	initServicesListDataTable($table, readOnly);
 
 	// View-only: disable delete/edit in Services modal after list is rendered (buttons are dynamic)
-	if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+	if (!readOnly && window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
 		var modalEl = document.getElementById('modal-services');
 		if (modalEl) window.PermissionViewOnly.disableModalSubmitAndDelete(null, modalEl);
 	}
+}
+
+function loadHistoryServicesList(gameId) {
+	var historyOpts = {
+		readOnly: true,
+		table: '#history-services-list-tbl',
+		tbody: '#history-services-list-body',
+		total: '#history-services-total'
+	};
+	if (!gameId) {
+		renderServicesList([], historyOpts);
+		return;
+	}
+	$.ajax({
+		url: '/game_services/' + gameId,
+		method: 'GET'
+	}).done(function (list) {
+		renderServicesList(list || [], historyOpts);
+	}).fail(function () {
+		renderServicesList([], historyOpts);
+	});
 }
 
 $(document).on('hidden.bs.modal', '#modal-services', function () {
 	destroyServicesListTable();
 	$('#services-list-body').html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
 	$('#services-total').text('0');
+});
+
+function bumpServicesEditModalStack() {
+	var $editModal = $('#modal-services-edit');
+	var $parentModal = $('#modal-services');
+	if (!$editModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$editModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+$('#modal-services-edit')
+	.on('shown.bs.modal', bumpServicesEditModalStack)
+	.on('hidden.bs.modal', function () {
+		$('#modal-services').css('z-index', '');
+	});
+
+function fireServicesSwal(options) {
+	if (!window.Swal) {
+		return Promise.resolve({ isConfirmed: false, isDismissed: true });
+	}
+	var focusTrapHandler = function (e) {
+		if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+			e.stopImmediatePropagation();
+		}
+	};
+	var userDidOpen = options && options.didOpen;
+	var userWillClose = options && options.willClose;
+	var merged = Object.assign({}, options || {}, {
+		heightAuto: false,
+		didOpen: function () {
+			window.addEventListener('focusin', focusTrapHandler, true);
+			document.querySelectorAll('.swal2-container').forEach(function (el) {
+				el.style.zIndex = '1080';
+			});
+			if (typeof userDidOpen === 'function') {
+				userDidOpen.apply(this, arguments);
+			}
+		},
+		willClose: function () {
+			window.removeEventListener('focusin', focusTrapHandler, true);
+			if (typeof userWillClose === 'function') {
+				userWillClose.apply(this, arguments);
+			}
+		}
+	});
+	return window.Swal.fire(merged);
+}
+
+$(document).on('change', '#services-type', function () {
+	toggleServicesDeliveryFeeField('#services-type', '#services-delivery-fee-wrap', '#services-delivery-fee');
+});
+
+$(document).on('change', '#services-edit-type', function () {
+	toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
 });
 
 // Save service
@@ -8033,16 +8397,19 @@ $(document).on('click', '#services-save-btn', function (e) {
 	const type = $('#services-type').val();
 	const amountRaw = $('#services-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = isDeliveryServiceType(type)
+		? parseServiceDeliveryFeeInput($('#services-delivery-fee').val())
+		: 0;
 	const remarks = $('#services-remarks').val().trim();
 	const editId = $('#services-edit-id-input').val();
 	const transactionId = $('input[name="services-transaction"]:checked').val();
 
 	if (!gameId || !type) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
 		return;
 	}
 	if (!transactionId) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -8057,12 +8424,15 @@ $(document).on('click', '#services-save-btn', function (e) {
 	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
+	if (deliveryFee > 0) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
 	
-	Swal.fire({
+	fireServicesSwal({
 		icon: 'question',
 		title: `Confirm ${isEdit ? 'Update' : 'Add'} Service`,
 		html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -8084,10 +8454,18 @@ $(document).on('click', '#services-save-btn', function (e) {
 			$.ajax({
 				url,
 				method,
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId, agent_id: agentId },
+				data: {
+					game_id: gameId,
+					service_type: type,
+					amount,
+					delivery_fee: deliveryFee,
+					remarks,
+					transaction_id: transactionId,
+					agent_id: agentId
+				},
 				success: function (list) {
 					// Show success message
-					Swal.fire({
+					fireServicesSwal({
 						icon: 'success',
 						title: 'Success!',
 						text: `Service ${isEdit ? 'updated' : 'added'} successfully.`,
@@ -8102,13 +8480,14 @@ $(document).on('click', '#services-save-btn', function (e) {
 						$('#services-amount').val('');
 						$('#services-remarks').val('');
 						$('#services-type').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-edit-id-input').val('');
 						$('#services-save-btn').text('Save');
 					});
 				},
 				error: function (xhr) {
 					const msg = xhr.responseJSON?.error || 'Failed to save service.';
-					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+					fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 				},
 				complete: function () {
 					$btn.prop('disabled', false).text('Save');
@@ -8130,7 +8509,7 @@ $(document).on('click', '.service-edit-btn', function () {
 	const amount = $btn.data('amount');
 	const remarks = decodeURIComponent($btn.attr('data-remarks') || '');
 	const transaction = $btn.data('transaction');
-	editService(id, service, amount, remarks, transaction);
+	editService(id, service, amount, remarks, transaction, $btn.data('delivery-fee'));
 });
 
 // Delete button handler (delegated)
@@ -8149,15 +8528,18 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	const type = $('#services-edit-type').val();
 	const amountRaw = $('#services-edit-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = isDeliveryServiceType(type)
+		? parseServiceDeliveryFeeInput($('#services-edit-delivery-fee').val())
+		: 0;
 	const remarks = $('#services-edit-remarks').val().trim();
 	const transactionId = $('input[name="services-edit-transaction"]:checked').val();
 
 	if (!serviceId || !gameId || !type) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
 		return;
 	}
 	if (!transactionId) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -8167,12 +8549,15 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	var confirmationMessage = `Confirm Update Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
+	if (deliveryFee > 0) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
 	
-	Swal.fire({
+	fireServicesSwal({
 		icon: 'question',
 		title: 'Confirm Update Service',
 		html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -8191,10 +8576,17 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 			$.ajax({
 				url: `/game_services/${serviceId}`,
 				method: 'PUT',
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
+				data: {
+					game_id: gameId,
+					service_type: type,
+					amount,
+					delivery_fee: deliveryFee,
+					remarks,
+					transaction_id: transactionId
+				},
 				success: function (list) {
 					// Show success message
-					Swal.fire({
+					fireServicesSwal({
 						icon: 'success',
 						title: 'Success!',
 						text: 'Service updated successfully.',
@@ -8210,12 +8602,13 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 						$('#services-edit-id').val('');
 						$('#services-edit-type').val('');
 						$('#services-edit-amount').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-edit-remarks').val('');
 					});
 				},
 				error: function (xhr) {
 					const msg = xhr.responseJSON?.error || 'Failed to save service.';
-					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+					fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 				},
 				complete: function () {
 					$btn.prop('disabled', false).text('Save');
@@ -8891,10 +9284,10 @@ $(document).ready(function () {
 	});
 })
 
-function editService(id, service, amount, remarks, transaction) {
+function editService(id, service, amount, remarks, transaction, deliveryFee) {
 	const safeAmount = parseFloat(amount || 0);
+	const safeDeliveryFee = parseFloat(deliveryFee || 0) || 0;
 	$('#services-edit-id').val(id || '');
-	$('#services-edit-type').val(service || '');
 	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString('en-US'));
 	$('#services-edit-remarks').val(remarks || '');
 	$('input[name="services-edit-transaction"]').prop('checked', false);
@@ -8903,14 +9296,19 @@ function editService(id, service, amount, remarks, transaction) {
 		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
 	}
 
-	$('#services-edit-agent-code').text($('#services-agent-code').text() || '');
-	$('#modal-services-edit').modal('show');
+	populateServicesCategorySelects(service, function () {
+		toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+		$('#services-edit-delivery-fee').val(
+			safeDeliveryFee > 0 ? safeDeliveryFee.toLocaleString('en-US') : ''
+		);
+		$('#modal-services-edit').modal('show');
+	});
 }
 
 function deleteService(id) {
 	const gameId = $('#services-game-id-input').val();
 	if (!id || !gameId) return;
-	Swal.fire({
+	fireServicesSwal({
 		title: 'Delete this service?',
 		icon: 'warning',
 		showCancelButton: true,
@@ -8933,7 +9331,7 @@ function deleteService(id) {
 				$('#services-type').val('');
 				$('#services-amount').val('');
 				$('#services-remarks').val('');
-				Swal.fire({
+				fireServicesSwal({
 					icon: 'success',
 					title: 'Service deleted',
 					timer: 1200,
@@ -8942,7 +9340,7 @@ function deleteService(id) {
 			},
 			error: function (xhr) {
 				const msg = xhr.responseJSON?.error || 'Failed to delete service.';
-				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+				fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 			}
 		});
 	});
@@ -9789,41 +10187,23 @@ function settlement_history(record_id, acc_id) {
         });
 
         $.when.apply($, requests).done(function () {
-            var fnbTotal = 0;
-            var hotelTotal = 0;
+            var totalsMap = {};
             var argList = ids.length === 1 ? [arguments] : Array.prototype.slice.call(arguments);
 
             argList.forEach(function (response) {
                 var list = ids.length === 1 ? response[0] : response[0];
-                if (!Array.isArray(list)) {
-                    return;
-                }
-                list.forEach(function (item) {
-                    var transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
-                    if (transactionId !== 3) {
-                        return;
-                    }
-                    var serviceType = String(item.SERVICE_TYPE || item.service_type || '').toLowerCase().trim();
-                    var amt = parseFloat(item.AMOUNT || item.amount || 0);
-                    var safeAmount = isNaN(amt) ? 0 : amt;
-                    if (serviceType === 'hotel') {
-                        hotelTotal += safeAmount;
-                        return;
-                    }
-                    if (serviceType === 'fnb' || serviceType === 'delivery') {
-                        fnbTotal += safeAmount;
-                    }
-                });
+                accumulateSettlementServiceTotals(totalsMap, list);
             });
 
-            var combinedServices = fnbTotal + hotelTotal;
-            $('#fbDisplay').val(fnbTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
-            $('#hotelDisplay').val(hotelTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+            var entries = buildSettlementServiceEntries(totalsMap);
+            renderSettlementServiceRows(entries);
+            var combinedServices = entries.reduce(function (sum, entry) {
+                return sum + entry.amount;
+            }, 0);
             $('#fb').val(combinedServices.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
             $('#fb').trigger('input');
         }).fail(function () {
-            $('#fbDisplay').val('0');
-            $('#hotelDisplay').val('0');
+            renderSettlementServiceRows([]);
             $('#fb').val('0');
             $('#fb').trigger('input');
         });
@@ -10098,8 +10478,6 @@ function settlement_history(record_id, acc_id) {
         var rollingRate = $('#rollingRate').val() || '0';
         var rollingSettlement = $('#rollingSettlement').val().replace(/,/g, '') || '0';
         var services = $('#fb').val().replace(/,/g, '') || '0';
-        var fnbDisplay = $('#fbDisplay').val().replace(/,/g, '') || '0';
-        var hotelDisplay = $('#hotelDisplay').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $settlementModal.find('input[name="txtTransType"]:checked').val();
         if (!transType || (transType !== '1' && transType !== '5')) {
@@ -10153,12 +10531,13 @@ function settlement_history(record_id, acc_id) {
         confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString('en-US'));
         confirmationRows += buildRow('Rate:', `${parseFloat(rollingRate).toFixed(2)}%`);
         confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString('en-US'));
-        if (parseFloat(fnbDisplay) > 0) {
-            confirmationRows += buildRow('F&B:', parseFloat(fnbDisplay).toLocaleString('en-US'));
-        }
-        if (parseFloat(hotelDisplay) > 0) {
-            confirmationRows += buildRow('Hotel:', parseFloat(hotelDisplay).toLocaleString('en-US'));
-        }
+        $settlementModal.find('.settlement-service-row').each(function () {
+            var label = $(this).find('.settlement-service-label').text().trim();
+            var amount = parseFloat(($(this).find('.settlement-service-amount').val() || '').replace(/,/g, '')) || 0;
+            if (amount > 0 && label) {
+                confirmationRows += buildRow(label + ':', amount.toLocaleString('en-US'));
+            }
+        });
         confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString('en-US'));
         if (transTypeText) {
             confirmationRows += buildRow('Transaction Type:', transTypeText);

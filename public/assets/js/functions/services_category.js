@@ -21,9 +21,8 @@ function reloadServicesCategoryData() {
 					? '<span class="css-blue">' + activeText + '</span>'
 					: '<span class="css-red">' + inactiveText + '</span>';
 				var escapedCategory = escapeForInline(row.CATEGORY);
-				var directionValue = row.DIRECTION == null || row.DIRECTION === '' ? '' : String(row.DIRECTION);
 				var btn = '<div class="btn-group">' +
-					'<button type="button" onclick="editServicesCategory(' + row.IDNo + ', \'' + escapedCategory + '\', \'' + directionValue + '\')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">' +
+					'<button type="button" onclick="editServicesCategory(' + row.IDNo + ', \'' + escapedCategory + '\')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">' +
 					'<i class="fa fa-pencil-alt"></i></button>' +
 					'<button type="button" onclick="archiveServicesCategory(' + row.IDNo + ')" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">' +
 					'<i class="fa fa-trash-alt"></i></button></div>';
@@ -102,10 +101,9 @@ function addServicesCategory() {
 	$('#modal-new-services-category').modal('show');
 }
 
-function editServicesCategory(id, category, direction) {
+function editServicesCategory(id, category) {
 	$('#modal-edit-services-category').modal('show');
 	$('#txtServicesCategory').val(category || '');
-	$('#txtServicesDirection').val(direction || '');
 	services_category_id = id;
 }
 

@@ -3,12 +3,6 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 
-function parseDirection(raw) {
-	if (raw === undefined || raw === null || raw === '') return null;
-	const n = parseInt(raw, 10);
-	return n === 1 || n === 2 ? n : null;
-}
-
 router.get('/services_category', checkSession, function (req, res) {
 	const permissions = req.session.permissions;
 
@@ -31,10 +25,9 @@ router.get('/services_category_data', checkSession, async (req, res) => {
 });
 
 router.post('/add_services_category', checkSession, async (req, res) => {
-	const { txtCategory, txtDirection } = req.body;
+	const { txtCategory } = req.body;
 	const date_now = new Date();
 	const name = txtCategory != null ? String(txtCategory).trim() : '';
-	const direction = parseDirection(txtDirection);
 
 	if (!name) {
 		return res.status(400).json({ success: false, error: 'Category name is required' });
@@ -50,8 +43,8 @@ router.post('/add_services_category', checkSession, async (req, res) => {
 		}
 
 		const [result] = await pool.execute(
-			'INSERT INTO services_category (CATEGORY, DIRECTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?)',
-			[name, direction, req.session.user_id, date_now]
+			'INSERT INTO services_category (CATEGORY, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?)',
+			[name, req.session.user_id, date_now]
 		);
 		res.json({ success: true, id: result.insertId, category: name });
 	} catch (err) {
@@ -62,10 +55,9 @@ router.post('/add_services_category', checkSession, async (req, res) => {
 
 router.put('/services_category/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id, 10);
-	const { txtCategory, txtDirection } = req.body;
+	const { txtCategory } = req.body;
 	const date_now = new Date();
 	const name = txtCategory != null ? String(txtCategory).trim() : '';
-	const direction = parseDirection(txtDirection);
 
 	if (!id) {
 		return res.status(400).json({ error: 'Invalid category id' });
@@ -84,8 +76,8 @@ router.put('/services_category/:id', checkSession, async (req, res) => {
 		}
 
 		await pool.execute(
-			'UPDATE services_category SET CATEGORY = ?, DIRECTION = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
-			[name, direction, req.session.user_id, date_now, id]
+			'UPDATE services_category SET CATEGORY = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[name, req.session.user_id, date_now, id]
 		);
 		res.send('Services category updated successfully');
 	} catch (err) {

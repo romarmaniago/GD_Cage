@@ -715,8 +715,19 @@ function openGuestPortalGameStart() {
 			var balanceText = ($('#modal-account-details .total_balance').first().text() || '').replace(/[^0-9.-]/g, '');
 			openingBalance = parseFloat(balanceText) || 0;
 		}
+		var agentCode = ($('#agent_code').text() || '').trim();
+		var agentName = ($('#account_name').text() || '').trim();
+		var agentId = ($('#account_agent_id').val() || '').trim();
 		$('#modal-account-details').modal('hide');
-		window.addGameList(accountId, { openingBalance: openingBalance });
+		window.addGameList(accountId, {
+			openingBalance: openingBalance,
+			lockAccount: true,
+			accountMeta: {
+				agentCode: agentCode,
+				agentName: agentName,
+				agentId: agentId
+			}
+		});
 	}).catch(function () {
 		if (typeof Swal !== 'undefined') {
 			Swal.fire({
@@ -1213,6 +1224,8 @@ function account_details(account_id_data, agent_code, account_name) {
             // Check if agent_code is present
             const agentCode = account.agent_code || 'N/A';  // Default to 'N/A' if agent_code is not present
             document.getElementById('agent_code').textContent = agentCode;
+            var agentIdEl = document.getElementById('account_agent_id');
+            if (agentIdEl) agentIdEl.value = account.AGENT_ID || '';
             // console.log(`Agent Code: ${agentCode}`);  // Log the agent code
             
             document.getElementById('account_name').textContent = account.account_name || 'N/A';
@@ -1263,6 +1276,7 @@ function account_details(account_id_data, agent_code, account_name) {
 	$('input[name="txtTrans"]').prop('checked', false);
 	
 	$('#account_id_add').val(account_id_data);
+	$('#account_agent_id').val('');
 
 	account_id = account_id_data;
 

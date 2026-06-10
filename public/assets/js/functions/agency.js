@@ -1579,6 +1579,10 @@ function handleEditAgencyFromRow(id, buttonEl) {
 }
 
 function fetchAndApplyAvailableChipsForNewGameModal() {
+  if (typeof window.fetchAndApplyAvailableChipsForNewGameModal === 'function') {
+    window.fetchAndApplyAvailableChipsForNewGameModal();
+    return;
+  }
   $.ajax({
     url: '/game_list_available_chips',
     method: 'GET',

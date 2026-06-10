@@ -285,6 +285,16 @@ function newGameListSplitBuyinEnabled() {
     return !!(el && el.checked);
 }
 
+function newGameListSplitLegTotal(id) {
+    const el = document.getElementById(id);
+    const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+    return v === '' ? 0 : (parseFloat(v) || 0);
+}
+
+function newGameListSplitHasCreditLeg() {
+    return newGameListSplitLegTotal('splitCreditNN') + newGameListSplitLegTotal('splitCreditCC') > 0;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const txtNN = document.getElementById("txtNN");
     const txtRollerNN = document.getElementById("txtRollerNN");
@@ -400,6 +410,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!inputEl) return;
         inputEl.addEventListener('input', function () {
             validateNnSplitInput(inputEl);
+            newGameListRefreshCommissionRate();
             const id = (inputEl.id || '').toLowerCase();
             const avNN = newGameListAvailableNN();
             const avCC = newGameListAvailableCC();
@@ -519,18 +530,22 @@ function newGameListRefreshCommissionRate() {
     const defaultMarkerRollingRate = 1.50;
 
     if (newGameListSplitBuyinEnabled()) {
-        commissionRate.value = '';
         commissionRate.setAttribute('required', 'required');
         commissionRate.classList.remove('is-invalid');
         if (commissionType.value === '1') {
             commissionRate.setAttribute('step', '0.05');
             commissionRate.setAttribute('min', '0');
+            commissionRate.value = newGameListSplitHasCreditLeg()
+                ? defaultMarkerRollingRate
+                : defaultRollingGameRate;
         } else if (commissionType.value === '2') {
             commissionRate.setAttribute('step', '0.1');
             commissionRate.setAttribute('min', '50');
+            commissionRate.value = defaultSharedGameRate;
         } else {
             commissionRate.setAttribute('step', '0.05');
             commissionRate.removeAttribute('min');
+            commissionRate.value = '';
         }
         return;
     }

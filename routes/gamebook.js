@@ -2057,6 +2057,22 @@ router.post('/add_game_list_split', async (req, res) => {
 
 
 // ======================= GAME SERVICES ==================
+function isDeliveryGameServiceType(serviceType) {
+	const raw = String(serviceType || '').trim().toLowerCase();
+	return raw === 'delivery' || raw.includes('delivery');
+}
+
+function parseGameServiceDeliveryFee(raw, serviceType) {
+	if (!isDeliveryGameServiceType(serviceType)) return 0;
+	const fee = parseFloat(String(raw || '0').replace(/,/g, ''));
+	return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+}
+
+function gameServiceChargeTotal(amount, deliveryFee, serviceType) {
+	const amt = parseFloat(String(amount || '0').replace(/,/g, '')) || 0;
+	return amt + parseGameServiceDeliveryFee(deliveryFee, serviceType);
+}
+
 // Get services for a game
 router.get('/game_services/:gameId', checkSession, async (req, res) => {
 	try {
@@ -2096,11 +2112,13 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
 router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
-		const { game_id, service_type, amount, remarks, transaction_id, agent_id } = req.body;
+		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id, agent_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel', 'delivery'];
+		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
+		const chargeTotal = amt + deliveryFee;
+		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 		let agentId = parseInt(agent_id, 10);
@@ -2118,9 +2136,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
-			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, DELIVERY_FEE, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+			[gameId, svc, amt, deliveryFee, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
 		);
 
 
@@ -2133,7 +2151,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				insertResult.insertId,
 				agentId,
-				amt.toString(),
+				chargeTotal.toString(),
 				svc,
 				type,
 				`Game - ${gameId} ${remarks ? '- ' + remarks : ''}`.trim(),
@@ -2149,7 +2167,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[accountId, gameId, amt, encodedBy, now]
+				[accountId, gameId, chargeTotal, encodedBy, now]
 			);
 
 			try {
@@ -2167,7 +2185,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 					const telegramIdAgent = getAgentTelegramChatId(accountRows[0]);
 
 					if (telegramIdAgent) {
-						const formattedAmount = amt.toLocaleString('en-US');
+						const formattedAmount = chargeTotal.toLocaleString('en-US');
 						const serviceLabel = svc.toUpperCase();
 						const date_nowTG = now.toLocaleDateString();
 						const updated_time = now.toLocaleTimeString();
@@ -2223,16 +2241,18 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 router.put('/game_services/:id', checkSession, async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
-		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
+		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel', 'delivery'];
+		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
+		const chargeTotal = amt + deliveryFee;
+		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 
 		const [[existingService]] = await pool.execute(
-			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
+			`SELECT AMOUNT, COALESCE(DELIVERY_FEE, 0) AS DELIVERY_FEE, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
 			[serviceId]
 		);
 
@@ -2246,10 +2266,12 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 
 		await pool.execute(
 			`UPDATE game_services
-			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET SERVICE_TYPE = ?, AMOUNT = ?, DELIVERY_FEE = ?, REMARKS = ?, TRANSACTION_ID = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
-			[svc, amt, remarks || '', transactionId, updatedBy, now, serviceId]
+			[svc, amt, deliveryFee, remarks || '', transactionId, updatedBy, now, serviceId]
 		);
+
+		const existingChargeTotal = parseFloat(existingService?.AMOUNT || 0) + parseFloat(existingService?.DELIVERY_FEE || 0);
 
 		// delete old ledger entry if previous transaction was deposit (add GAME_ID for precise matching)
 		if (existingService && parseInt(existingService.TRANSACTION_ID, 10) === 2) {
@@ -2261,7 +2283,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			if (accountId) {
 				const [ledgerRows] = await pool.execute(
 					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-					[accountId, gameId, existingService.AMOUNT]
+					[accountId, gameId, existingChargeTotal]
 				);
 				if (ledgerRows.length > 0) {
 					await pool.execute(
@@ -2283,7 +2305,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 				await pool.execute(
 					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-					[accountId, gameId, amt, updatedBy, now]
+					[accountId, gameId, chargeTotal, updatedBy, now]
 				);
 			}
 		}
@@ -2303,7 +2325,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				serviceId,
 				existingService?.AGENT_ID || null,
-				amt.toString(),
+				chargeTotal.toString(),
 				svc,
 				type,
 				remarkText,

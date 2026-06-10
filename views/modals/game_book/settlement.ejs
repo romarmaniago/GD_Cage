@@ -336,19 +336,8 @@
                     <input class="form-input ms-2" type="text" id="rollingSettlement" style="font-weight: bold;" name="txtRollingSettlement" readonly>
                 </div>
             </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="fbDisplay">F&amp;B</label>
-                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="fbDisplay" readonly>
-                    <input type="hidden" id="fb" name="txtFNB" value="0">
-                </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="hotelDisplay">Hotel</label>
-                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="hotelDisplay" readonly>
-                </div>
-            </div>
+            <div id="settlement-service-rows"></div>
+            <input type="hidden" id="fb" name="txtFNB" value="0">
             <div class="col-sm-12 mb-4">
                 <div class="form-group d-flex align-items-center small-input-group">
                     <label class="form-label align-left" for="payment"><%= __('modal_settlement.payment') %></label>
@@ -424,8 +413,7 @@
         <div class="receipt-line"></div>
 
         <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
-        <div class="receipt-row"><span>F&amp;B :</span><span id="printReceiptFnb">0</span></div>
-        <div class="receipt-row"><span>Hotel :</span><span id="printReceiptHotel">0</span></div>
+        <div id="printReceiptServices"></div>
         <div class="receipt-row"><span>Incidental :</span><span id="printReceiptIncidential">0</span></div>
         <div class="receipt-line"></div>
 
@@ -598,8 +586,18 @@
         $modal.find('#printReceiptWinLoss').text(cleanValue($modal.find('#winLoss').val() || $modal.find('#winLoss').text()));
         $modal.find('#printReceiptRolling').text(cleanValue($modal.find('#rolling').val() || $modal.find('#rolling').text()));
         $modal.find('#printReceiptSettlement').text(cleanValue($modal.find('#rollingSettlement').val() || $modal.find('#rollingSettlement').text()));
-        $modal.find('#printReceiptFnb').text(cleanValue($modal.find('#fbDisplay').val() || $modal.find('#fbDisplay').text()));
-        $modal.find('#printReceiptHotel').text(cleanValue($modal.find('#hotelDisplay').val() || $modal.find('#hotelDisplay').text()));
+        var $printServices = $modal.find('#printReceiptServices');
+        $printServices.empty();
+        $modal.find('.settlement-service-row').each(function () {
+            var label = $(this).find('.settlement-service-label').text().trim();
+            var value = cleanValue($(this).find('.settlement-service-amount').val());
+            if (!label || value === '0') {
+                return;
+            }
+            $printServices.append(
+                '<div class="receipt-row"><span>' + label + ' :</span><span>' + value + '</span></div>'
+            );
+        });
         $modal.find('#printReceiptIncidential').text('0');
         $modal.find('#printReceiptTotal').text(cleanValue($modal.find('#payment').val() || $modal.find('#payment').text()));
     }
@@ -637,9 +635,10 @@
     }
 
     function syncServiceTotalAndPayment($modal) {
-        var fnb = parseAmount($modal.find('#fbDisplay').val());
-        var hotel = parseAmount($modal.find('#hotelDisplay').val());
-        var servicesTotal = fnb + hotel;
+        var servicesTotal = 0;
+        $modal.find('.settlement-service-amount').each(function () {
+            servicesTotal += parseAmount($(this).val());
+        });
         var settlement = parseAmount($modal.find('#rollingSettlement').val());
         var payment = settlement - servicesTotal;
 
@@ -676,8 +675,12 @@
             rolling: $modal.find('#rolling').val(),
             rollingRate: $modal.find('#rollingRate').val(),
             rollingSettlement: $modal.find('#rollingSettlement').val(),
-            fbDisplay: $modal.find('#fbDisplay').val(),
-            hotelDisplay: $modal.find('#hotelDisplay').val(),
+            serviceRows: $modal.find('.settlement-service-row').map(function () {
+                return {
+                    label: $(this).find('.settlement-service-label').text().trim(),
+                    amount: parseAmount($(this).find('.settlement-service-amount').val())
+                };
+            }).get(),
             payment: $modal.find('#payment').val(),
             fbHidden: $modal.find('#fb').val(),
             transType: $modal.find('input[name="txtTransType"]:checked').val() || ''
@@ -697,8 +700,9 @@
         $modal.find('#rolling').val(snapshot.rolling);
         $modal.find('#rollingRate').val(snapshot.rollingRate);
         $modal.find('#rollingSettlement').val(snapshot.rollingSettlement);
-        $modal.find('#fbDisplay').val(snapshot.fbDisplay);
-        $modal.find('#hotelDisplay').val(snapshot.hotelDisplay);
+        if (typeof window.renderSettlementServiceRowsFromEntries === 'function') {
+            window.renderSettlementServiceRowsFromEntries(snapshot.serviceRows || []);
+        }
         $modal.find('#payment').val(snapshot.payment);
         $modal.find('#fb').val(snapshot.fbHidden);
         $modal.find('input[name="txtTransType"]').prop('checked', false);
@@ -720,8 +724,9 @@
         $modal.find('#close-settlement-btn').toggle(!enabled);
         $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
 
-        $modal.find('#buyIn, #chipsReturn, #winLoss, #rollingSettlement, #fbDisplay, #hotelDisplay, #payment')
+        $modal.find('#buyIn, #chipsReturn, #winLoss, #rollingSettlement, #payment')
             .prop('readonly', true);
+        $modal.find('.settlement-service-amount').prop('readonly', true);
         $modal.find('#rolling, #rollingRate').prop('readonly', !enabled);
     }
 
@@ -821,7 +826,7 @@
         putFakeSettleThenFinish(false, false);
     });
 
-    $('#fbDisplay, #hotelDisplay, #rollingSettlement').on('input', function() {
+    $('#modal-settlement').on('input', '.settlement-service-amount, #rollingSettlement', function() {
         var $modal = $(this).closest('.modal');
         if ($modal.data('edit-mode')) {
             syncServiceTotalAndPayment($modal);

@@ -27,6 +27,33 @@
 					</table>
 				</div>
 			</div>
+
+			<hr class="my-3">
+
+			<div class="d-flex justify-content-between align-items-center mb-2">
+				<div class="fw-semibold text-muted">Services Availed</div>
+				<div class="fw-semibold text-muted">Total: <span id="history-services-total" class="text-primary">0</span></div>
+			</div>
+			<div class="custom-datatable-entries history-services-list-table-wrap">
+				<table id="history-services-list-tbl" class="table table-bordered table-vcenter" style="font-size: 11px !important;">
+					<thead>
+						<tr>
+							<th scope="col">Date</th>
+							<th scope="col">Service Type</th>
+							<th scope="col" class="text-end">Amount</th>
+							<th scope="col" class="text-end">Delivery Fee</th>
+							<th scope="col">Transaction</th>
+							<th scope="col">Remarks</th>
+							<th scope="col">Processed By</th>
+						</tr>
+					</thead>
+					<tbody id="history-services-list-body">
+						<tr class="text-muted">
+							<td colspan="7" class="text-center small">No services availed.</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 		</div>
 		<div class="modal-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
 			<div class="rolling-legend text-muted small d-flex align-items-center gap-3 flex-wrap ms-4">
@@ -70,10 +97,117 @@
 		border-radius: 2px;
 		border: 1px solid rgba(0,0,0,0.1);
 	}
+	#modal-show-history .history-services-list-table-wrap,
+	#modal-show-history .history-services-list-table-wrap .dataTables_wrapper {
+		overflow-x: visible;
+	}
+	#modal-show-history #history-services-list-tbl {
+		width: 100% !important;
+	}
+	#modal-show-history #history-services-list-tbl th,
+	#modal-show-history #history-services-list-tbl td {
+		white-space: nowrap;
+	}
+	#modal-show-history #history-services-list-tbl td:nth-child(6) {
+		white-space: normal;
+		min-width: 120px;
+		max-width: 220px;
+	}
+	#modal-show-history #history-services-list-tbl .services-total-row td {
+		border-top: 2px solid #dee2e6;
+		font-weight: 700;
+	}
 </style>
 
 <script>
 	(function () {
+		var historyServicesPrintColumns = [
+			{ header: 'Date', sourceIndex: 0, align: 'left', totalKey: null },
+			{ header: 'Service Type', sourceIndex: 1, align: 'left', totalKey: null },
+			{ header: 'Amount', sourceIndex: 2, align: 'right', totalKey: 'amount' },
+			{ header: 'Delivery Fee', sourceIndex: 3, align: 'right', totalKey: 'fee' },
+			{ header: 'Remarks', sourceIndex: 5, align: 'left', totalKey: null }
+		];
+
+		function buildHistoryServicesPrintHtml() {
+			const $servicesTable = $('#history-services-list-tbl');
+			if (!$servicesTable.length) {
+				return '';
+			}
+
+			let servicesRows = [];
+			function readServiceRowCells($row) {
+				return $row.children('td').map(function () {
+					return $(this).text().trim();
+				}).get().slice(0, 7);
+			}
+
+			if ($.fn.DataTable.isDataTable($servicesTable)) {
+				$servicesTable.DataTable().rows({ search: 'applied' }).nodes().each(function () {
+					const cells = readServiceRowCells($(this));
+					if (cells.length === 7 && cells[0].toLowerCase() !== 'no services availed.' && cells[0].toUpperCase() !== 'TOTAL') {
+						servicesRows.push(cells);
+					}
+				});
+			} else {
+				$servicesTable.find('tbody tr').each(function () {
+					const cells = readServiceRowCells($(this));
+					if (cells.length === 7 && cells[0].toLowerCase() !== 'no services availed.' && cells[0].toUpperCase() !== 'TOTAL') {
+						servicesRows.push(cells);
+					}
+				});
+			}
+
+			if (!servicesRows.length) {
+				return '';
+			}
+
+			const totalLabel = ($('#history-services-total').text() || '0').trim();
+			const footerTotals = { amount: 0, fee: 0 };
+			const servicesBody = servicesRows.map(function (row) {
+				const cols = historyServicesPrintColumns.map(function (col) {
+					const value = row[col.sourceIndex] || '';
+					if (col.totalKey === 'amount') {
+						footerTotals.amount += parseFloat(String(value).replace(/,/g, '')) || 0;
+					}
+					if (col.totalKey === 'fee') {
+						footerTotals.fee += parseFloat(String(value).replace(/,/g, '')) || 0;
+					}
+					return '<td style="text-align:' + col.align + ';">' + value + '</td>';
+				}).join('');
+				return '<tr>' + cols + '</tr>';
+			}).join('');
+			const servicesTotalRow = '<tr class="services-total-row">'
+				+ historyServicesPrintColumns.map(function (col, index) {
+					var value = '';
+					if (index === 0) {
+						value = 'TOTAL';
+					} else if (col.totalKey === 'amount') {
+						value = footerTotals.amount.toLocaleString('en-US');
+					} else if (col.totalKey === 'fee') {
+						value = footerTotals.fee.toLocaleString('en-US');
+					}
+					return '<td style="text-align:' + col.align + ';font-weight:700;">' + value + '</td>';
+				}).join('')
+				+ '</tr>';
+
+			return ''
+				+ '<h4 class="services-print-title">Services Availed (Total: ' + totalLabel + ')</h4>'
+				+ '<table class="services-print">'
+				+ '<colgroup>'
+				+ '<col style="width:18%">'
+				+ '<col style="width:18%">'
+				+ '<col style="width:16%">'
+				+ '<col style="width:16%">'
+				+ '<col style="width:32%">'
+				+ '</colgroup>'
+				+ '<thead><tr>'
+				+ historyServicesPrintColumns.map(function (col) { return '<th>' + col.header + '</th>'; }).join('')
+				+ '</tr></thead>'
+				+ '<tbody>' + servicesBody + servicesTotalRow + '</tbody>'
+				+ '</table>';
+		}
+
 		$(document).off('click', '#btn-print-game-history').on('click', '#btn-print-game-history', function () {
 			const table = $('#game_record-tbl').DataTable();
 			if (!table) {
@@ -96,6 +230,7 @@
 				return `<tr>${cols}</tr>`;
 			}).join('');
 
+			const servicesPrintHtml = buildHistoryServicesPrintHtml();
 			const accountLabel = ($('#show-agent-label').text() || '').trim();
 
 			const printFrame = document.createElement('iframe');
@@ -131,8 +266,42 @@
 							html, body { width: 100%; margin: 0; padding: 0; }
 							body { font-family: Arial, sans-serif; color: #111; }
 							h3 { margin: 0 0 8px; font-size: 18px; }
-							table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 12px; border: 1px solid #000; }
-							th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+							h4.services-print-title { margin: 20px 0 8px; font-size: 16px; }
+							table { border-collapse: collapse; font-size: 12px; border: 1px solid #000; }
+							table.game-history-print { width: 100%; table-layout: fixed; }
+							table.services-print {
+								width: 100%;
+								table-layout: fixed;
+								margin-top: 4px;
+								page-break-inside: avoid;
+							}
+							th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+							table.game-history-print th,
+							table.game-history-print td { text-align: center; }
+							table.services-print th,
+							table.services-print td {
+								text-align: left;
+								white-space: normal;
+								word-break: break-word;
+								overflow-wrap: anywhere;
+								line-height: 1.35;
+							}
+							table.services-print th:nth-child(1),
+							table.services-print td:nth-child(1),
+							table.services-print th:nth-child(3),
+							table.services-print td:nth-child(3),
+							table.services-print th:nth-child(4),
+							table.services-print td:nth-child(4) { white-space: nowrap; }
+							table.services-print th:nth-child(3),
+							table.services-print td:nth-child(3),
+							table.services-print th:nth-child(4),
+							table.services-print td:nth-child(4) { text-align: right; }
+							table.services-print .services-total-row td {
+								font-weight: 700;
+								background: #e9ecef;
+								-webkit-print-color-adjust: exact;
+								print-color-adjust: exact;
+							}
 							th {
 								background: #e9ecef;
 								-webkit-print-color-adjust: exact;
@@ -142,7 +311,7 @@
 					</head>
 					<body>
 						<h3>Game Record History - ${accountLabel}</h3>
-						<table>
+						<table class="game-history-print">
 							<thead>
 								<tr>${headers.map(function (h) { return `<th>${h}</th>`; }).join('')}</tr>
 							</thead>
@@ -150,6 +319,7 @@
 								${bodyHtml}
 							</tbody>
 						</table>
+						${servicesPrintHtml}
 					</body>
 				</html>
 			`);
