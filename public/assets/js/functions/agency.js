@@ -797,8 +797,10 @@ function renderAgentPanel(accounts, options) {
       : '';
     const isMatch = searching && matchedAgentIds && matchedAgentIds.has(String(agent.agent_id));
     const isDim = searching && matchedAgentIds && !matchedAgentIds.has(String(agent.agent_id));
+    const isSelected = selectedAgentId && String(agent.agent_id) === String(selectedAgentId);
     const itemClasses = [
       'panel-list-item',
+      isSelected ? 'is-active' : '',
       isMatch ? 'is-search-match' : '',
       isDim ? 'is-search-dim' : ''
     ].filter(Boolean).join(' ');
@@ -1274,7 +1276,7 @@ function renderGuestPanel(guests, options) {
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
-    const displayGuestLabel = membershipNo ? (membershipNo + '-' + safeName) : safeName;
+    const displayMembershipNo = membershipNo || '—';
     const agentCode = String(row.agent_code || '').trim().toUpperCase();
     const agentName = String(row.agent_name || '').trim().toUpperCase();
     const agentLineLabel = agentCode && agentName
@@ -1290,14 +1292,14 @@ function renderGuestPanel(guests, options) {
           type="button"
           class="btn btn-link p-0 agency-guest-remarks-link"
           title="${remarks ? 'View / Edit Remarks' : 'Add Remarks'}"
-          onclick="openGuestRemarks(${row.guest_id || 0})">${displayGuestLabel}</button>`
+          onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
       : (remarks
           ? `<button
               type="button"
               class="btn btn-link p-0 agency-guest-remarks-link"
               title="View Remarks"
-              onclick="openGuestRemarks(${row.guest_id || 0})">${displayGuestLabel}</button>`
-          : displayGuestLabel);
+              onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
+          : safeName);
     const guestCellHtml = searching && lineHint
       ? `<div>${guestNameHtml}</div><div class="agency-guest-line-hint text-muted">${lineHint}</div>`
       : guestNameHtml;
@@ -1320,6 +1322,7 @@ function renderGuestPanel(guests, options) {
     return `
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
+        <td class="agency-guest-membership-col">${displayMembershipNo}</td>
         <td>${games}</td>
         <td>${rolling}</td>
         <td>${winloss}</td>
@@ -1352,6 +1355,7 @@ function renderGuestPanel(guests, options) {
           <tr>
           
             <th class="agency-guest-col">Guest</th>
+            <th class="agency-guest-membership-col">Membership #</th>
             <th>Games</th>
             <th>Rolling</th>
             <th>Winloss</th>

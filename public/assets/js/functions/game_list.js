@@ -24,7 +24,7 @@ function resetNewGameInputs() {
 	$('#txtNN, #txtCC').closest('.row').show();
 	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
 	$('#txtGuestId').val('');
-	ensureNewGameEncodedDatePicker();
+	ensureNewGameProgramDatePicker();
 }
 
 function isEndGameOrCutoffStatus(status) {
@@ -1077,33 +1077,32 @@ function openNewGameAfterCutoff(previousGameId, transferRollerNN, transferRoller
 	});
 }
 
-/** Flatpickr on New Game modal: default now, editable (maps to game_list.ENCODED_DT). */
-function ensureNewGameEncodedDatePicker() {
-	var el = document.getElementById('txtGameEncodedDate');
+/** Flatpickr on New Game modal: date only (maps to game_list.PROGRAM_DATE). */
+function ensureNewGameProgramDatePicker() {
+	var el = document.getElementById('txtProgramDate');
 	if (!el || typeof flatpickr === 'undefined') return;
 	if (el._flatpickr) {
-		el._flatpickr.setDate(new Date(), false);
-	} else {
-		flatpickr(el, {
-			enableTime: true,
-			dateFormat: 'Y-m-d H:i',
-			altInput: true,
-			altFormat: 'M j, Y H:i',
-			defaultDate: new Date(),
-			allowInput: true,
-			disableMobile: true,
-			onReady: function (_selectedDates, _dateStr, instance) {
-				if (instance && instance.calendarContainer) {
-					instance.calendarContainer.classList.add('new-game-date-calendar');
-				}
-			},
-			onOpen: function (_selectedDates, _dateStr, instance) {
-				if (instance && instance.calendarContainer) {
-					instance.calendarContainer.classList.add('new-game-date-calendar');
-				}
-			}
-		});
+		el._flatpickr.destroy();
 	}
+	flatpickr(el, {
+		enableTime: false,
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'M j, Y',
+		defaultDate: new Date(),
+		allowInput: true,
+		disableMobile: true,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('new-game-date-calendar');
+			}
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('new-game-date-calendar');
+			}
+		}
+	});
 }
 
 function syncSelectedGuestIdFromAccount() {
@@ -1241,7 +1240,7 @@ function addGameList(id) {
 			populateOptions();
 		});
 	}
-	ensureNewGameEncodedDatePicker();
+	ensureNewGameProgramDatePicker();
 }
 
 function getQueryParam(param) {
@@ -4368,24 +4367,24 @@ $('#add_game_list').submit(function (event) {
     event.preventDefault(); // Prevent the default form submission
 
     var $btn = $('#submit-game-list-btn'); // Reference to the submit button
-    var gameDateEl = document.getElementById('txtGameEncodedDate');
-    var gameDateVal = ($('#txtGameEncodedDate').val() || '').trim();
-    if (gameDateVal && !/^\d{4}-\d{2}-\d{2}(\s+\d{1,2}:\d{2})?$/.test(gameDateVal)) {
+    var programDateEl = document.getElementById('txtProgramDate');
+    var programDateVal = ($('#txtProgramDate').val() || '').trim();
+    if (programDateVal && !/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
         Swal.fire({
-            title: 'Invalid date/time',
-            text: 'Please use YYYY-MM-DD HH:mm or choose from the calendar.',
+            title: 'Invalid date',
+            text: 'Please use YYYY-MM-DD or choose from the calendar.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
         return;
     }
-    if (!gameDateVal) {
+    if (!programDateVal) {
         var today = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
-        gameDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + ' ' + pad(today.getHours()) + ':' + pad(today.getMinutes());
-        $('#txtGameEncodedDate').val(gameDateVal);
-        if (gameDateEl && gameDateEl._flatpickr) {
-            gameDateEl._flatpickr.setDate(gameDateVal, false);
+        programDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+        $('#txtProgramDate').val(programDateVal);
+        if (programDateEl && programDateEl._flatpickr) {
+            programDateEl._flatpickr.setDate(programDateVal, false);
         }
     }
     $btn.prop('disabled', true).html(`
@@ -4478,7 +4477,7 @@ $('#add_game_list').submit(function (event) {
             return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
         };
         var rows = '';
-        rows += buildRow('Game date:', gameDateVal || '-');
+        rows += buildRow('Program date:', programDateVal || '-');
         rows += buildRow('Game Type:', gameType || '-');
         rows += buildRow('Account:', accountText || '-');
         if (guestIdSelected) {
@@ -4529,7 +4528,7 @@ $('#add_game_list').submit(function (event) {
                 txtCommisionType: $('#commissionType').val(),
                 txtCommisionRate: $('#commissionRate').val(),
                 totalBalanceGuest1: $('#total_balanceGuest1').val(),
-                txtGameEncodedDate: gameDateVal,
+                txtProgramDate: programDateVal,
                 split_cash_nn: splitCashNN,
                 split_cash_cc: splitCashCC,
                 split_dep_nn: splitDepNN,
@@ -4660,7 +4659,7 @@ $('#add_game_list').submit(function (event) {
         };
 
         var confirmationRows = '';
-        confirmationRows += buildRow('Game date:', gameDateVal || '-');
+        confirmationRows += buildRow('Program date:', programDateVal || '-');
         confirmationRows += buildRow('Game Type:', gameType || '-');
         confirmationRows += buildRow('Account:', accountText || '-');
         var guestIdSelected = $('#txtGuestGame').val() || '';

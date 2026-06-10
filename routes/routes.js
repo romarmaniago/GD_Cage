@@ -4105,9 +4105,9 @@ pageRouter.post('/add_game_list', (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtGameEncodedDate
+		txtProgramDate
 	} = req.body;
-	const rawGameDate = txtGameEncodedDate == null ? '' : String(txtGameEncodedDate).trim();
+	const rawGameDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
 	let date_now = new Date();
 	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawGameDate);
 	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawGameDate);

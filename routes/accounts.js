@@ -995,9 +995,9 @@ router.get('/guest_data', async (req, res) => {
 
 // ADD GUEST
 router.post('/add_guest', async (req, res) => {
+	const membershipNo = String(req.body.txtMembershipNo || '').trim();
 	try {
 		const agentId = parseInt(req.body.txtAgentId, 10);
-		const membershipNo = String(req.body.txtMembershipNo || '').trim();
 		const guestName = String(req.body.txtGuestName || '').trim();
 		const remarks = String(req.body.txtRemarks || '').trim();
 		const encodedBy = req.session?.user_id || 1;
@@ -1014,11 +1014,14 @@ router.post('/add_guest', async (req, res) => {
 		}
 
 		const [duplicateRows] = await pool.execute(
-			`SELECT IDNo FROM guest WHERE MEMBERSHIP_NO = ? AND ACTIVE = 1 LIMIT 1`,
+			`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? LIMIT 1`,
 			[membershipNo]
 		);
 		if (duplicateRows.length) {
-			return res.status(400).json({ error: 'Membership No already exists.' });
+			const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
+			return res.status(400).json({
+				error: `Membership No ${membershipNo} is already used by "${existingName}".`
+			});
 		}
 
 		const insertQuery = `
@@ -1029,7 +1032,12 @@ router.post('/add_guest', async (req, res) => {
 		return res.json({ success: true, guest_id: result.insertId });
 	} catch (err) {
 		if (err && err.code === 'ER_DUP_ENTRY') {
-			return res.status(400).json({ error: 'Membership No already exists.' });
+			const sqlMsg = String(err.sqlMessage || '');
+			if (sqlMsg.includes('idx_guest_membership_no') || sqlMsg.includes('MEMBERSHIP_NO')) {
+				return res.status(400).json({
+					error: `Membership No ${membershipNo} is already used.`
+				});
+			}
 		}
 		console.error('Error adding guest:', err);
 		return res.status(500).json({ error: 'Failed to add guest.' });

@@ -57,9 +57,9 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                         <input type="text" class="form-control text-center" id="total_balanceGuestGameList" placeholder="Total Balance" readonly/>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <input type="text" class="form-control" name="txtGameEncodedDate" id="txtGameEncodedDate" autocomplete="off" placeholder="YYYY-MM-DD HH:mm" style="max-width: 13.5rem;" />
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <input type="text" class="form-control" name="txtProgramDate" id="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
                     </div>
                 </div>
 
@@ -197,7 +197,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                       <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
                   </div>
 
-                  <div class="col-sm-5 d-flex align-items-center justify-content-end flex-wrap gap-3 gap-sm-4">
+                  <div class="col-sm-5 d-flex align-items-center new-game-type-radios flex-wrap gap-3 gap-sm-4">
                       <div class="form-check mb-0">
                           <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="live" name="txtGameType" value="LIVE" required>
                           <label class="form-check-label" for="live"><%= __('modal_new_game_list.live') %></label>
@@ -221,6 +221,11 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
 <style>
 #modal-new-game-list .new-game-list-modal-dialog {
     max-width: 580px;
+}
+
+#modal-new-game-list .new-game-type-radios {
+    justify-content: flex-start;
+    padding-left: 2rem;
 }
 
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.selected,

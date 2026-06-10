@@ -960,37 +960,27 @@ async function resolveTelegramGameIdForGuest(db, gameId) {
 	return ctx.telegramGameNo;
 }
 
-/** Client sends YYYY-MM-DD HH:mm (New Game modal) or date-only; used for ENCODED_DT / TRADING_DATE. */
-function parseGameListEncodedDateTime(raw) {
-	const s = raw == null ? '' : String(raw).trim();
-	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
-	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(s);
-	if (!dateOnly && !dateTime) return new Date();
-	const parts = s.slice(0, 10).split('-').map((n) => parseInt(n, 10));
-	const y = parts[0];
-	const mo = parts[1];
-	const d = parts[2];
-	if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return new Date();
-	let hours = 0;
-	let minutes = 0;
-	let seconds = 0;
-	let ms = 0;
-	if (dateTime) {
-		const timePart = s.slice(11).trim();
-		const tp = timePart.split(':').map((n) => parseInt(n, 10));
-		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-			hours = tp[0];
-			minutes = tp[1];
-		}
-	} else {
-		const now = new Date();
-		hours = now.getHours();
-		minutes = now.getMinutes();
-		seconds = now.getSeconds();
-		ms = now.getMilliseconds();
+function formatLocalDateYmd(dt) {
+	const d = dt instanceof Date ? dt : new Date(dt);
+	const pad = (n) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Date-only (YYYY-MM-DD) from New Game modal txtProgramDate; used for game_list.PROGRAM_DATE. */
+function parseGameListProgramDate(raw) {
+	const ymd = normalizeSettlementDateYmd(raw == null ? '' : String(raw).trim().slice(0, 10));
+	return ymd || formatLocalDateYmd(new Date());
+}
+
+/** PROGRAM_DATE (YYYY-MM-DD) as local midnight for game_record.TRADING_DATE. */
+function parseProgramDateAsDateTime(ymd) {
+	const normalized = normalizeSettlementDateYmd(ymd);
+	if (!normalized) return new Date();
+	const parts = normalized.split('-').map((n) => parseInt(n, 10));
+	const dt = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+	if (dt.getFullYear() !== parts[0] || dt.getMonth() !== parts[1] - 1 || dt.getDate() !== parts[2]) {
+		return new Date();
 	}
-	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
-	if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return new Date();
 	return dt;
 }
 
@@ -1556,7 +1546,7 @@ router.post('/add_game_list', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtGameEncodedDate,
+		txtProgramDate,
 		txtCutoffParentGameId,
 		txtCutoffSettlementDate
 	} = req.body;
@@ -1567,8 +1557,12 @@ router.post('/add_game_list', async (req, res) => {
 	if (isCutoffGame && !cutoffSettlementYmd) {
 		cutoffSettlementYmd = await getSettlementDateYmdForGame(pool, cutoffParentId);
 	}
-	// Cut off: ENCODED_DT / GAME START = actual create time; settlement date only links daily_settlement_games.
-	const date_now = isCutoffGame ? new Date() : parseGameListEncodedDateTime(txtGameEncodedDate);
+	// ENCODED_DT = actual save time; PROGRAM_DATE = user-selected game date (date only).
+	const encoded_dt = new Date();
+	const program_date = isCutoffGame
+		? (normalizeSettlementDateYmd(txtCutoffSettlementDate) || formatLocalDateYmd(encoded_dt))
+		: parseGameListProgramDate(txtProgramDate);
+	const trading_date = parseProgramDateAsDateTime(program_date);
 
 	// 🛡 Clean inputs and fallbacks
 	const accountId = parseInt(txtAccountCode) || null;
@@ -1602,9 +1596,9 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 
 		const gameId = result.insertId;
@@ -1640,9 +1634,9 @@ router.post('/add_game_list', async (req, res) => {
 			INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
-		const [record1Result] = await pool.execute(gameRecordSQL, [gameId, date_now, 1, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
+		const [record1Result] = await pool.execute(gameRecordSQL, [gameId, trading_date, 1, 0, nnAmount, ccAmount, transType, encodedBy, encoded_dt]);
 		const gameRecordId = record1Result.insertId; // 👈 Save inserted IDNo
-		await pool.execute(gameRecordSQL, [gameId, date_now, 3, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
+		await pool.execute(gameRecordSQL, [gameId, trading_date, 3, 0, nnAmount, ccAmount, transType, encodedBy, encoded_dt]);
 		
 		// 2b. Insert ROLLER CHIPS into game_record (CAGE_TYPE: 5) if roller chips provided
 		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
@@ -1651,7 +1645,7 @@ router.post('/add_game_list', async (req, res) => {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`;
 			// For new games, roller chips are always treated as an ADD action (ROLLER_TRANSACTION = 1)
-			await pool.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
+			await pool.execute(rollerChipsSQL, [gameId, trading_date, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, encoded_dt]);
 		}
 
 		// 3. Insert into account_ledger (GAME_ID for direct link)
@@ -1659,13 +1653,13 @@ router.post('/add_game_list', async (req, res) => {
 			await pool.execute(`
 				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, date_now]
+				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, encoded_dt]
 			);
 		} else if (transType === 3) {
 			await pool.execute(`
 				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, date_now]
+				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]
 			);
 		}
 
@@ -1855,7 +1849,7 @@ router.post('/add_game_list', async (req, res) => {
 				1,
 				`Game - ${gameId}`,
 				encodedBy,
-				date_now
+				encoded_dt
 			]);
 		}
 
@@ -1877,7 +1871,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtGameEncodedDate,
+		txtProgramDate,
 		split_cash_nn,
 		split_cash_cc,
 		split_dep_nn,
@@ -1914,7 +1908,9 @@ router.post('/add_game_list_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
-	const date_now = parseGameListEncodedDateTime(txtGameEncodedDate);
+	const encoded_dt = new Date();
+	const program_date = parseGameListProgramDate(txtProgramDate);
+	const trading_date = parseProgramDateAsDateTime(program_date);
 
 	if (!accountId || encodedBy === null) {
 		return res.status(400).json({ error: 'Invalid account or session.' });
@@ -1950,25 +1946,25 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 		const gameId = gameResult.insertId;
 
 		let cashRecordId = null;
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 			cashRecordId = cashRecord.insertId;
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, depNn, depCc, 2, encodedBy, date_now]);
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, depNn, depCc, 2, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, creditNn, creditCc, 3, encodedBy, date_now]);
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, creditNn, creditCc, 3, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
 		}
 
 		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
@@ -1976,14 +1972,14 @@ router.post('/add_game_list_split', async (req, res) => {
 				INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`;
-			await connection.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
+			await connection.execute(rollerChipsSQL, [gameId, trading_date, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, encoded_dt]);
 		}
 
 		if (depositTotal > 0) {
-			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, date_now]);
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, date_now]);
+			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]);
 		}
 
 		const [agentRows] = await connection.execute(`
@@ -1997,7 +1993,7 @@ router.post('/add_game_list_split', async (req, res) => {
 			await connection.execute(`
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[cashRecordId, agentRows[0].agent_id, cashTotal.toString(), 'Game buy-in', 1, `Game - ${gameId}`, encodedBy, date_now]
+				[cashRecordId, agentRows[0].agent_id, cashTotal.toString(), 'Game buy-in', 1, `Game - ${gameId}`, encodedBy, encoded_dt]
 			);
 		}
 
@@ -2016,7 +2012,7 @@ router.post('/add_game_list_split', async (req, res) => {
 			if (Array.isArray(agentRows) && agentRows.length > 0) {
 				const { AGENT_CODE: agentCode, NAME: agentName } = agentRows[0];
 				const telegramId = getAgentTelegramChatId(agentRows[0]);
-				const date_nowTG = new Date().toLocaleDateString();
+				const date_nowTG = encoded_dt.toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
 				const splitLinesKo = [];
@@ -3836,11 +3832,12 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		}
 
 		const dateNow = new Date();
+		const programDate = formatLocalDateYmd(dateNow);
 		const initialMOP = 'CASH';
 
 		const [newGameResult] = await pool.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, dateNow]
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, dateNow, programDate]
 		);
 		const newGameId = newGameResult.insertId;
 

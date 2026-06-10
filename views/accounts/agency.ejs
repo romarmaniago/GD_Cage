@@ -26,7 +26,7 @@
 											<strong>LINE:</strong> <span id="selected-line-name">-</span>
 										</span>
 										<span class="selection-summary-chip" id="selected-agent-chip">
-											<strong>LINE:</strong> <span id="selected-agent-name">-</span>
+											<strong>AGENT:</strong> <span id="selected-agent-name">-</span>
 										</span>
 									</div>
 									<div class="row g-3 mb-4 agency-line-stats" id="line-stat-row">
@@ -140,7 +140,7 @@
 										<div class="col-12 col-xl-2-5">
 											<div class="panel-box h-100">
 												<div class="panel-header d-flex align-items-center justify-content-between">
-													<div class="panel-title">LINE</div>
+													<div class="panel-title">AGENT</div>
 													<div class="d-flex align-items-center gap-1">
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-transfer" title="Transfer LINE">
 															<i class="fa fa-exchange-alt"></i>
@@ -433,8 +433,15 @@
 }
 
 .agency-guest-table thead th.agency-guest-col,
-.agency-guest-table tbody td.agency-guest-col {
+.agency-guest-table tbody td.agency-guest-col,
+.agency-guest-table thead th.agency-guest-membership-col,
+.agency-guest-table tbody td.agency-guest-membership-col {
   text-align: left;
+}
+
+.agency-guest-table tbody td.agency-guest-membership-col {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .agency-guest-search-wrap {
