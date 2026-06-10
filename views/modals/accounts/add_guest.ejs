@@ -20,6 +20,10 @@ body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
 						LINE: <strong id="guest_agent_display">-</strong>
 					</div>
 					<div class="mb-0">
+						<label for="guest_membership_input" class="form-label">Membership No</label>
+						<input type="text" class="form-control" id="guest_membership_input" name="txtMembershipNo" required maxlength="10" inputmode="numeric" autocomplete="off" placeholder="8–10 digits">
+					</div>
+					<div class="mt-2 mb-0">
 						<label for="guest_name_input" class="form-label">Guest Name</label>
 						<input type="text" class="form-control" id="guest_name_input" name="txtGuestName" required maxlength="150">
 					</div>
@@ -36,3 +40,25 @@ body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
 		</div>
 	</div>
 </div>
+<script>
+(function () {
+	function normalizeMembershipInput(el) {
+		if (!el) return;
+		el.value = String(el.value || '').replace(/\D/g, '').slice(0, 10);
+	}
+
+	window.validateGuestMembershipNo = function (value) {
+		var v = String(value || '').trim();
+		if (!/^\d{8,10}$/.test(v)) {
+			return 'Membership No must be 8 to 10 digits only.';
+		}
+		return '';
+	};
+
+	document.addEventListener('input', function (e) {
+		if (e.target && e.target.id === 'guest_membership_input') {
+			normalizeMembershipInput(e.target);
+		}
+	});
+})();
+</script>

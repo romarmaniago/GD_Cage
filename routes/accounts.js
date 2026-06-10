@@ -336,22 +336,40 @@ router.get('/agency_line_stats', async (req, res) => {
 		const agencyId = agencyIdParam !== undefined && agencyIdParam !== '' ? Number(agencyIdParam) : null;
 		const hasAgencyFilter = agencyId !== null && !Number.isNaN(agencyId);
 		const agencyFilter = hasAgencyFilter ? ' AND ag.AGENCY = ? ' : '';
+		const agencyOnlyFilter = hasAgencyFilter ? ' AND a.IDNo = ? ' : '';
+
+		const agentIds = String(req.query.agentIds || '')
+			.split(',')
+			.map((value) => parseInt(value, 10))
+			.filter((value) => Number.isFinite(value) && value > 0);
+		const hasAgentFilter = agentIds.length > 0;
+		const agentFilter = hasAgentFilter ? ` AND ag.IDNo IN (${agentIds.map(() => '?').join(',')}) ` : '';
+
 		const filterParams = hasAgencyFilter ? [agencyId] : [];
+		const agentFilterParams = hasAgentFilter ? agentIds : [];
+		const combinedParams = [...filterParams, ...agentFilterParams];
 
 		const [[agentRow]] = await pool.execute(
 			`SELECT COUNT(*) AS total_agent
 			 FROM agent ag
 			 WHERE ag.ACTIVE = 1
-			 ${hasAgencyFilter ? 'AND ag.AGENCY = ?' : ''}`,
-			filterParams
+			 ${hasAgencyFilter ? 'AND ag.AGENCY = ?' : ''}
+			 ${agentFilter}`,
+			combinedParams
 		);
 
 		const [[lineRow]] = await pool.execute(
-			`SELECT COUNT(*) AS total_line
-			 FROM agency a
-			 WHERE a.ACTIVE = 1
-			 ${hasAgencyFilter ? 'AND a.IDNo = ?' : ''}`,
-			filterParams
+			hasAgentFilter
+				? `SELECT COUNT(DISTINCT ag.AGENCY) AS total_line
+				   FROM agent ag
+				   WHERE ag.ACTIVE = 1
+				   ${hasAgencyFilter ? 'AND ag.AGENCY = ?' : ''}
+				   ${agentFilter}`
+				: `SELECT COUNT(*) AS total_line
+				   FROM agency a
+				   WHERE a.ACTIVE = 1
+				   ${agencyOnlyFilter}`,
+			combinedParams
 		);
 
 		const [gameRows] = await pool.execute(
@@ -376,8 +394,9 @@ router.get('/agency_line_stats', async (req, res) => {
 			   AND acc.ACTIVE = 1
 			   AND ag.ACTIVE = 1
 			 ${agencyFilter}
+			 ${agentFilter}
 			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
-			filterParams
+			combinedParams
 		);
 		const [balanceRows] = await pool.execute(
 			`SELECT
@@ -399,8 +418,9 @@ router.get('/agency_line_stats', async (req, res) => {
 			 ) AS led ON led.ACCOUNT_ID = acc.IDNo
 			 WHERE acc.ACTIVE = 1
 			   AND ag.ACTIVE = 1
-			   ${agencyFilter}`,
-			filterParams
+			   ${agencyFilter}
+			   ${agentFilter}`,
+			combinedParams
 		);
 		const [creditRows] = await pool.execute(
 			`SELECT
@@ -419,8 +439,9 @@ router.get('/agency_line_stats', async (req, res) => {
 			 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
 			 WHERE acc.ACTIVE = 1
 			   AND ag.ACTIVE = 1
-			   ${agencyFilter}`,
-			filterParams
+			   ${agencyFilter}
+			   ${agentFilter}`,
+			combinedParams
 		);
 
 		let totalRolling = 0;
@@ -806,108 +827,166 @@ router.get('/agent_data/:id', async (req, res) => {
 	}
 });
 
-// GET GUEST DATA (by agent)
+function aggregateGuestDataRows(guestRows, gameRows) {
+	const resultMap = {};
+	(guestRows || []).forEach((g) => {
+		const key = String(g.guest_id);
+		resultMap[key] = {
+			guest_id: g.guest_id,
+			agent_id: g.agent_id,
+			guest_name: g.guest_name,
+			membership_no: g.membership_no,
+			guest_remarks: g.guest_remarks,
+			agent_code: g.agent_code || null,
+			agent_name: g.agent_name || null,
+			agency_id: g.agency_id || null,
+			agency_name: g.agency_name || null,
+			total_games: 0,
+			total_rolling: 0,
+			total_winloss: 0,
+			total_commission: 0
+		};
+	});
+
+	(gameRows || []).forEach((row) => {
+		const guestKey = String(row.guest_id || '').trim();
+		const bucket = resultMap[guestKey];
+		if (!bucket) return;
+
+		const totalRollingChips =
+			(Number(row.total_rolling_nn) || 0) +
+			(Number(row.total_roller_return_cc) || 0) +
+			(Number(row.total_rolling_amount) || 0) +
+			(Number(row.total_rolling_real) || 0) +
+			(Number(row.total_rolling_nn_real) || 0) +
+			(Number(row.total_rolling_cc_real) || 0) -
+			(Number(row.total_cash_out_nn) || 0);
+
+		const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
+		const commissionRate = Number(row.commission_percentage) || 0;
+		const commissionType = Number(row.commission_type) || 0;
+		let net = 0;
+
+		if (commissionType === 1 || commissionType === 3) {
+			net = Math.round((totalRollingChips * commissionRate) / 100);
+		} else if (commissionType === 2) {
+			net = Math.round((winLoss * commissionRate) / 100);
+		}
+
+		bucket.total_games += 1;
+		bucket.total_rolling += totalRollingChips;
+		bucket.total_winloss += winLoss;
+		bucket.total_commission += net;
+	});
+
+	return Object.values(resultMap);
+}
+
+const GUEST_DATA_GAME_QUERY = `
+	SELECT
+		gl.GUEST_ID AS guest_id,
+		gl.IDNo AS game_id,
+		COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+		COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+	FROM game_list gl
+	INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+	INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+	LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+	WHERE ag.ACTIVE = 1
+	  AND acc.ACTIVE = 1
+	  AND gl.ACTIVE IN (1, 2)
+	  AND {{SCOPE_FILTER}}
+	GROUP BY
+		gl.GUEST_ID,
+		gl.IDNo,
+		gl.COMMISSION_TYPE,
+		gl.COMMISSION_PERCENTAGE
+`;
+
+// GET GUEST DATA (by agent, agency, or all)
 router.get('/guest_data', async (req, res) => {
 	try {
 		const agentId = parseInt(req.query.agentId, 10);
-		if (!agentId) {
+		const agencyId = parseInt(req.query.agencyId, 10);
+		const allGuests = String(req.query.all || '') === '1';
+
+		if (!agentId && !agencyId && !allGuests) {
 			return res.json([]);
 		}
 
-		const guestQuery = `
-			SELECT
-				g.IDNo AS guest_id,
-				g.AGENT_ID AS agent_id,
-				g.NAME AS guest_name,
-				g.REMARKS AS guest_remarks
-			FROM guest g
-			WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
-			ORDER BY g.IDNo DESC
+		const guestSelect = `
+			g.IDNo AS guest_id,
+			g.AGENT_ID AS agent_id,
+			g.NAME AS guest_name,
+			g.MEMBERSHIP_NO AS membership_no,
+			g.REMARKS AS guest_remarks,
+			ag.AGENT_CODE AS agent_code,
+			ag.NAME AS agent_name,
+			ag.AGENCY AS agency_id,
+			ay.AGENCY AS agency_name
 		`;
-		const [guestRows] = await pool.execute(guestQuery, [agentId]);
+
+		let guestQuery;
+		let guestParams;
+		let gameQuery;
+		let gameParams;
+
+		if (allGuests) {
+			guestQuery = `
+				SELECT ${guestSelect}
+				FROM guest g
+				INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+				INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+				WHERE g.ACTIVE = 1
+				ORDER BY g.IDNo DESC
+			`;
+			guestParams = [];
+			gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', '1=1');
+			gameParams = [];
+		} else if (agencyId) {
+			guestQuery = `
+				SELECT ${guestSelect}
+				FROM guest g
+				INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+				INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+				WHERE ag.AGENCY = ? AND g.ACTIVE = 1
+				ORDER BY g.IDNo DESC
+			`;
+			guestParams = [agencyId];
+			gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', 'ag.AGENCY = ?');
+			gameParams = [agencyId];
+		} else {
+			guestQuery = `
+				SELECT ${guestSelect}
+				FROM guest g
+				INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+				INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+				WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
+				ORDER BY g.IDNo DESC
+			`;
+			guestParams = [agentId];
+			gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', 'ag.IDNo = ?');
+			gameParams = [agentId];
+		}
+
+		const [guestRows] = await pool.execute(guestQuery, guestParams);
 
 		if (!Array.isArray(guestRows) || guestRows.length === 0) {
 			return res.json([]);
 		}
 
-		const gameQuery = `
-			SELECT
-				gl.GUEST_ID AS guest_id,
-				gl.IDNo AS game_id,
-				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
-				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
-				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
-			FROM game_list gl
-			INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
-			INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
-			LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
-			WHERE ag.IDNo = ?
-			  AND ag.ACTIVE = 1
-			  AND acc.ACTIVE = 1
-			  AND gl.ACTIVE IN (1, 2)
-			GROUP BY
-				gl.GUEST_ID,
-				gl.IDNo,
-				gl.COMMISSION_TYPE,
-				gl.COMMISSION_PERCENTAGE
-		`;
-		const [gameRows] = await pool.execute(gameQuery, [agentId]);
+		const [gameRows] = await pool.execute(gameQuery, gameParams);
 
-		const resultMap = {};
-		guestRows.forEach((g) => {
-			const key = String(g.guest_id);
-			resultMap[key] = {
-				guest_id: g.guest_id,
-				agent_id: g.agent_id,
-				guest_name: g.guest_name,
-				guest_remarks: g.guest_remarks,
-				total_games: 0,
-				total_rolling: 0,
-				total_winloss: 0,
-				total_commission: 0
-			};
-		});
-
-		(gameRows || []).forEach((row) => {
-			const guestKey = String(row.guest_id || '').trim();
-			const bucket = resultMap[guestKey];
-			if (!bucket) return;
-
-			const totalRollingChips =
-				(Number(row.total_rolling_nn) || 0) +
-				(Number(row.total_roller_return_cc) || 0) +
-				(Number(row.total_rolling_amount) || 0) +
-				(Number(row.total_rolling_real) || 0) +
-				(Number(row.total_rolling_nn_real) || 0) +
-				(Number(row.total_rolling_cc_real) || 0) -
-				(Number(row.total_cash_out_nn) || 0);
-
-			const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
-			const commissionRate = Number(row.commission_percentage) || 0;
-			const commissionType = Number(row.commission_type) || 0;
-			let net = 0;
-
-			if (commissionType === 1 || commissionType === 3) {
-				net = Math.round((totalRollingChips * commissionRate) / 100);
-			} else if (commissionType === 2) {
-				net = Math.round((winLoss * commissionRate) / 100);
-			}
-
-			bucket.total_games += 1;
-			bucket.total_rolling += totalRollingChips;
-			bucket.total_winloss += winLoss;
-			bucket.total_commission += net;
-		});
-
-		return res.json(Object.values(resultMap));
+		return res.json(aggregateGuestDataRows(guestRows, gameRows));
 	} catch (err) {
 		console.error('Error fetching guest_data:', err);
 		return res.status(500).json({ error: 'Failed to load guest data.' });
@@ -918,6 +997,7 @@ router.get('/guest_data', async (req, res) => {
 router.post('/add_guest', async (req, res) => {
 	try {
 		const agentId = parseInt(req.body.txtAgentId, 10);
+		const membershipNo = String(req.body.txtMembershipNo || '').trim();
 		const guestName = String(req.body.txtGuestName || '').trim();
 		const remarks = String(req.body.txtRemarks || '').trim();
 		const encodedBy = req.session?.user_id || 1;
@@ -926,17 +1006,31 @@ router.post('/add_guest', async (req, res) => {
 		if (!agentId) {
 			return res.status(400).json({ error: 'Agent is required.' });
 		}
+		if (!/^\d{8,10}$/.test(membershipNo)) {
+			return res.status(400).json({ error: 'Membership No must be 8 to 10 digits only.' });
+		}
 		if (!guestName) {
 			return res.status(400).json({ error: 'Guest name is required.' });
 		}
 
+		const [duplicateRows] = await pool.execute(
+			`SELECT IDNo FROM guest WHERE MEMBERSHIP_NO = ? AND ACTIVE = 1 LIMIT 1`,
+			[membershipNo]
+		);
+		if (duplicateRows.length) {
+			return res.status(400).json({ error: 'Membership No already exists.' });
+		}
+
 		const insertQuery = `
-			INSERT INTO guest (AGENT_ID, NAME, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, 1, ?, ?)
+			INSERT INTO guest (AGENT_ID, NAME, MEMBERSHIP_NO, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, 1, ?, ?)
 		`;
-		const [result] = await pool.execute(insertQuery, [agentId, guestName, remarks || null, encodedBy, now]);
+		const [result] = await pool.execute(insertQuery, [agentId, guestName, membershipNo, remarks || null, encodedBy, now]);
 		return res.json({ success: true, guest_id: result.insertId });
 	} catch (err) {
+		if (err && err.code === 'ER_DUP_ENTRY') {
+			return res.status(400).json({ error: 'Membership No already exists.' });
+		}
 		console.error('Error adding guest:', err);
 		return res.status(500).json({ error: 'Failed to add guest.' });
 	}
@@ -992,6 +1086,106 @@ router.put('/guest/:id', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating guest:', err);
 		return res.status(500).json({ error: 'Failed to update guest.' });
+	}
+});
+
+// TRANSFER GUEST TO ANOTHER LINE (agency via agent)
+router.put('/guest/:id/transfer', async (req, res) => {
+	try {
+		if (req.session?.permissions === 2) {
+			return res.status(403).json({ error: 'Not authorized to transfer guests.' });
+		}
+
+		const guestId = parseInt(req.params.id, 10);
+		const targetAgentId = parseInt(req.body.targetAgentId, 10);
+		const editedBy = req.session?.user_id || 1;
+		const now = new Date();
+
+		if (!guestId) {
+			return res.status(400).json({ error: 'Guest is required.' });
+		}
+		if (!targetAgentId) {
+			return res.status(400).json({ error: 'Target LINE is required.' });
+		}
+
+		const [guestRows] = await pool.execute(
+			`SELECT
+				g.IDNo AS guest_id,
+				g.AGENT_ID AS agent_id,
+				g.NAME AS guest_name,
+				g.MEMBERSHIP_NO AS membership_no,
+				ag.AGENCY AS agency_id,
+				src_agency.AGENCY AS agency_name,
+				ag.AGENT_CODE AS agent_code,
+				ag.NAME AS agent_name
+			FROM guest g
+			INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+			INNER JOIN agency src_agency ON src_agency.IDNo = ag.AGENCY AND src_agency.ACTIVE = 1
+			WHERE g.IDNo = ? AND g.ACTIVE = 1
+			LIMIT 1`,
+			[guestId]
+		);
+
+		if (!guestRows.length) {
+			return res.status(404).json({ error: 'Guest not found.' });
+		}
+
+		const guest = guestRows[0];
+		if (Number(guest.agent_id) === targetAgentId) {
+			return res.status(400).json({ error: 'Guest is already under this LINE.' });
+		}
+
+		const [targetRows] = await pool.execute(
+			`SELECT
+				ag.IDNo AS agent_id,
+				ag.AGENCY AS agency_id,
+				ag.AGENT_CODE AS agent_code,
+				ag.NAME AS agent_name,
+				ay.AGENCY AS agency_name
+			FROM agent ag
+			INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+			WHERE ag.IDNo = ? AND ag.ACTIVE = 1
+			LIMIT 1`,
+			[targetAgentId]
+		);
+
+		if (!targetRows.length) {
+			return res.status(404).json({ error: 'Target LINE not found.' });
+		}
+
+		const target = targetRows[0];
+		const [updateResult] = await pool.execute(
+			`UPDATE guest
+			 SET AGENT_ID = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[targetAgentId, editedBy, now, guestId]
+		);
+
+		if (!updateResult.affectedRows) {
+			return res.status(404).json({ error: 'Guest not found.' });
+		}
+
+		return res.json({
+			success: true,
+			guest_id: guestId,
+			from: {
+				agency_id: guest.agency_id,
+				agency_name: guest.agency_name,
+				agent_id: guest.agent_id,
+				agent_code: guest.agent_code,
+				agent_name: guest.agent_name
+			},
+			to: {
+				agency_id: target.agency_id,
+				agency_name: target.agency_name,
+				agent_id: target.agent_id,
+				agent_code: target.agent_code,
+				agent_name: target.agent_name
+			}
+		});
+	} catch (err) {
+		console.error('Error transferring guest:', err);
+		return res.status(500).json({ error: 'Failed to transfer guest.' });
 	}
 });
 

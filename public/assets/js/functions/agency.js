@@ -4,6 +4,10 @@ let selectedAgencyId = null;
 let currentAgencyAccounts = [];
 let selectedAgentId = null;
 let currentGuestRows = [];
+let currentAgencyGuestRows = [];
+let currentAllGuestRows = [];
+let guestSearchQuery = '';
+let transferGuestCurrentAgentId = null;
 
 function formatLineStatNumber(value) {
   const numeric = Number(value) || 0;
@@ -131,14 +135,15 @@ function refreshSelectedAgencyPanels() {
     success: function (rows) {
       currentAgencyAccounts = Array.isArray(rows) ? rows : [];
       renderAgentPanel(currentAgencyAccounts);
-      // Keep GUEST panel empty for now (guest add/list flow to be added next).
-      renderGuestPanel([]);
+      refreshGuestPanels();
     },
     error: function () {
       currentAgencyAccounts = [];
       selectedAgentId = null;
       renderAgentPanel([]);
-      renderGuestPanel([]);
+      currentGuestRows = [];
+      currentAgencyGuestRows = [];
+      applyGuestPanelView();
     }
   });
 }
@@ -173,8 +178,14 @@ function syncAgentPanelTransferButton() {
 $(document).ready(function() {
   reloadData();
   loadLineStats();
+  loadAllGuestsForSearch();
 
   syncAgentPanelTransferButton();
+
+  $('#guest-panel-search').on('input', function () {
+    guestSearchQuery = $(this).val();
+    applyGuestPanelView();
+  });
 
   $('#btn-agent-panel-transfer').on('click', function () {
     openTransferForSelectedAgency();
@@ -312,6 +323,7 @@ $(document).ready(function() {
       : '-';
     $('#guest_agent_id').val(selectedAgentId);
     $('#guest_agent_display').text(label);
+    $('#guest_membership_input').val('');
     $('#guest_name_input').val('');
     $('#guest_remarks_input').val('');
     $('#modal-add-guest-table').modal('show');
@@ -326,7 +338,7 @@ $(document).ready(function() {
     }
     if (selectedAgentId) {
       setTimeout(function () {
-        loadGuestsForSelectedAgent();
+        refreshGuestPanels();
         loadAgentStats(selectedAgentId);
       }, 180);
     }
@@ -342,7 +354,7 @@ $(document).ready(function() {
 
     if (selectedAgentId) {
       setTimeout(function () {
-        loadGuestsForSelectedAgent();
+        refreshGuestPanels();
         loadAgentStats(selectedAgentId);
       }, 180);
     }
@@ -352,6 +364,18 @@ $(document).ready(function() {
     e.preventDefault();
     const $form = $(this);
     const $btn = $('#btn-save-guest-table');
+    const membershipError = typeof window.validateGuestMembershipNo === 'function'
+      ? window.validateGuestMembershipNo($('#guest_membership_input').val())
+      : '';
+    if (membershipError) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Membership No',
+        text: membershipError,
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
     const payload = $form.serialize();
 
     $btn.prop('disabled', true).text('Saving...');
@@ -367,7 +391,7 @@ $(document).ready(function() {
           text: 'Guest has been added.',
           confirmButtonText: 'OK'
         });
-        loadGuestsForSelectedAgent();
+        refreshGuestPanels();
       },
       error: function (xhr) {
         Swal.fire({
@@ -379,6 +403,66 @@ $(document).ready(function() {
       },
       complete: function () {
         $btn.prop('disabled', false).text('Save');
+      }
+    });
+  });
+
+  $('#transfer_guest_agency_id').on('change', function () {
+    const agencyId = parseInt($(this).val(), 10);
+    loadTransferGuestAgentOptions(agencyId, transferGuestCurrentAgentId);
+  });
+
+  $('#btn-open-transfer-from-edit-guest').on('click', function () {
+    const guestId = parseInt($('#edit_guest_id').val(), 10);
+    if (!guestId) return;
+    $('#modal-edit-guest-table').modal('hide');
+    openTransferGuestModal(guestId);
+  });
+
+  $('#transfer_guest_form').on('submit', function (e) {
+    e.preventDefault();
+    const guestId = parseInt($('#transfer_guest_id').val(), 10);
+    const targetAgentId = parseInt($('#transfer_guest_agent_id').val(), 10);
+    const $btn = $('#btn-transfer-guest-table');
+
+    if (!guestId || !targetAgentId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Selection required',
+        text: 'Select a target agency and LINE.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    $btn.prop('disabled', true).text('Transferring...');
+    $.ajax({
+      url: '/guest/' + encodeURIComponent(guestId) + '/transfer',
+      type: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify({ targetAgentId: targetAgentId }),
+      success: function (res) {
+        $('#modal-transfer-guest-table').modal('hide');
+        const toAgency = res?.to?.agency_name || '';
+        const toLine = [res?.to?.agent_code, res?.to?.agent_name].filter(Boolean).join(' · ');
+        Swal.fire({
+          icon: 'success',
+          title: 'Transferred',
+          text: 'Guest moved to ' + [toAgency, toLine].filter(Boolean).join(' · ') + '.',
+          confirmButtonText: 'OK'
+        });
+        refreshGuestPanels();
+      },
+      error: function (xhr) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: xhr.responseJSON?.error || 'Failed to transfer guest.',
+          confirmButtonText: 'OK'
+        });
+      },
+      complete: function () {
+        $btn.prop('disabled', false).text('Transfer');
       }
     });
   });
@@ -412,7 +496,7 @@ $(document).ready(function() {
           text: 'Guest has been updated.',
           confirmButtonText: 'OK'
         });
-        loadGuestsForSelectedAgent();
+        refreshGuestPanels();
       },
       error: function (xhr) {
         Swal.fire({
@@ -550,24 +634,24 @@ function renderPage(data, page = 1, perPage = 30) {
     const permissions = parseInt($('#user-role').data('permissions'));
     const actionsHtml = permissions !== 2 ? `
       <button type="button"
-        class="btn btn-outline-primary btn-sm"
+        class="btn btn-sm agency-icon-btn"
         onclick="handleEditAgencyFromRow(${row.IDNo}, this)"
         data-bs-toggle="tooltip"
         title="Edit LINE">
         <i class="fa fa-pen"></i>
       </button>
       <button type="button"
-        class="btn btn-outline-danger btn-sm"
+        class="btn btn-sm agency-icon-btn agency-icon-btn-danger"
         onclick="checkPermissionToDeleteAgency(${row.IDNo})"
         data-bs-toggle="tooltip"
         title="Archive">
         <i class="fa fa-trash"></i>
       </button>
     ` : `
-      <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Edit">
+      <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Edit">
         <i class="fa fa-pen"></i>
       </button>
-      <button type="button" class="btn btn-outline-danger btn-sm" disabled title="Archive">
+      <button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive">
         <i class="fa fa-trash"></i>
       </button>
     `;
@@ -607,6 +691,8 @@ function renderPage(data, page = 1, perPage = 30) {
 
   syncAgentPanelTransferButton();
 
+  applyAgencySearchHighlights(getGuestSearchMatchSets().matchedAgencyIds);
+
   const $pager = $('#pagination-container');
 
   // Pagination para lang sa LINE list kapag mahigit sa isang page (default 30 kada page).
@@ -640,6 +726,7 @@ function selectAgencyLine(agencyId, anchorEl) {
   $('#txtAgencyLine').val(selectedAgencyId);
   setSelectedLineLabel($(anchorEl).text().trim());
   setSelectedAgentLabel('', '');
+  currentGuestRows = [];
 
   syncAgentPanelTransferButton();
 
@@ -648,27 +735,51 @@ function selectAgencyLine(agencyId, anchorEl) {
   loadAgentStats(null);
 }
 
-function renderAgentPanel(accounts) {
+function renderAgentPanel(accounts, options) {
+  const opts = options || {};
+  const searching = !!opts.searching;
+  const matchedAgentIds = opts.matchedAgentIds || null;
+  const showAgencyHint = !!opts.showAgencyHint;
   const $empty = $('#agent-panel-empty');
   const $list = $('#agent-list');
   const byAgent = {};
 
-  (accounts || []).forEach(function (row) {
+  const sourceRows = Array.isArray(opts.overrideAgents) && opts.overrideAgents.length
+    ? opts.overrideAgents
+    : (accounts || []);
+
+  sourceRows.forEach(function (row) {
     const id = String(row.agent_id || '');
     if (!id) return;
     if (!byAgent[id]) {
       byAgent[id] = {
         agent_id: row.agent_id,
         agent_name: row.agent_name || '',
-        agent_code: row.agent_code || ''
+        agent_code: row.agent_code || '',
+        agency_id: row.agency_id || null,
+        agency_name: row.agency_name || ''
       };
     }
   });
 
-  const agents = Object.values(byAgent);
+  let agents = Object.values(byAgent);
+  if (searching && matchedAgentIds && matchedAgentIds.size) {
+    agents = agents.filter(function (agent) {
+      return matchedAgentIds.has(String(agent.agent_id));
+    });
+  }
+
+  if (!selectedAgencyId && !searching) {
+    $list.addClass('d-none').empty();
+    $empty.removeClass('d-none').text('Select LINE to load LINE list.');
+    return;
+  }
+
   if (agents.length === 0) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('No LINE under this agency.');
+    $empty.removeClass('d-none').text(
+      searching ? 'No LINE matched your search.' : 'No LINE under this agency.'
+    );
     return;
   }
 
@@ -681,27 +792,37 @@ function renderAgentPanel(accounts) {
     } else {
       line = '<span class="panel-list-name">' + (code || name || '—') + '</span>';
     }
+    const agencyHint = (showAgencyHint && agent.agency_name)
+      ? '<span class="panel-list-agency-hint">' + String(agent.agency_name).toUpperCase() + '</span>'
+      : '';
+    const isMatch = searching && matchedAgentIds && matchedAgentIds.has(String(agent.agent_id));
+    const isDim = searching && matchedAgentIds && !matchedAgentIds.has(String(agent.agent_id));
+    const itemClasses = [
+      'panel-list-item',
+      isMatch ? 'is-search-match' : '',
+      isDim ? 'is-search-dim' : ''
+    ].filter(Boolean).join(' ');
     return `
-      <div class="panel-list-item" data-agent-id="${agent.agent_id}">
-        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}</a>
+      <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
+        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}${agencyHint}</a>
         <div class="panel-row-actions">
           <button
             type="button"
-            class="btn btn-sm btn-outline-primary"
+            class="btn btn-sm agency-icon-btn"
             title="New Game"
             onclick="openAddGameForAgent(${agent.agent_id}, this)">
             <i class="fa fa-plus"></i>
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline-primary"
+            class="btn btn-sm agency-icon-btn"
             title="Edit LINE"
             onclick="editAgentFromPanel(${agent.agent_id}, this)">
             <i class="fa fa-pen"></i>
           </button>
           <button
             type="button"
-            class="btn btn-sm btn-outline-primary"
+            class="btn btn-sm agency-icon-btn"
             title="View Portal"
             onclick="viewAgentPortal(${agent.agent_id}, '${escapeJsString(agent.agent_code || '')}', '${escapeJsString(agent.agent_name || '')}', this)">
             <i class="fa fa-eye"></i>
@@ -719,11 +840,37 @@ function selectAgentInPanel(agentId, anchorEl) {
   selectedAgentId = parseInt(agentId, 10);
   $('#agent-list .panel-list-item').removeClass('is-active');
   $(anchorEl).closest('.panel-list-item').addClass('is-active');
+
+  if (!selectedAgencyId) {
+    const agentGuest = currentAllGuestRows.find(function (row) {
+      return String(row.agent_id) === String(selectedAgentId);
+    });
+    if (agentGuest && agentGuest.agency_id) {
+      selectedAgencyId = parseInt(agentGuest.agency_id, 10);
+      $('.agency-card').removeClass('is-selected');
+      $('.agency-card[data-id="' + selectedAgencyId + '"]').addClass('is-selected');
+      $('#txtAgencyLine').val(selectedAgencyId);
+      setSelectedLineLabel(agentGuest.agency_name || '');
+      $.ajax({
+        url: '/account_data?agencyId=' + encodeURIComponent(selectedAgencyId),
+        method: 'GET',
+        success: function (rows) {
+          currentAgencyAccounts = Array.isArray(rows) ? rows : [];
+          applyGuestSearchReactions();
+          $('#agent-list .panel-list-item[data-agent-id="' + selectedAgentId + '"]').addClass('is-active');
+        }
+      });
+      loadLineStats(selectedAgencyId);
+    }
+  }
+
   const selected = currentAgencyAccounts.find(function (row) {
     return String(row.agent_id) === String(selectedAgentId);
   });
   setSelectedAgentLabel(selected ? selected.agent_code : '', selected ? selected.agent_name : '');
-  loadGuestsForSelectedAgent();
+  if (!isGuestSearchActive()) {
+    loadGuestsForSelectedAgent();
+  }
   loadAgentStats(selectedAgentId);
   syncAgentPanelTransferButton();
 }
@@ -736,10 +883,262 @@ function openAddGameForAgent(agentId, buttonEl) {
   openAddGameForSelectedAgent();
 }
 
+function normalizeGuestSearchText(value) {
+  return String(value || '').toLowerCase().trim();
+}
+
+function isGuestSearchActive() {
+  return normalizeGuestSearchText(guestSearchQuery).length > 0;
+}
+
+function getGuestSearchableText(row) {
+  const name = row.guest_name || row.NAME || '';
+  const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
+  const agentCode = row.agent_code || '';
+  const agentName = row.agent_name || '';
+  const agencyName = row.agency_name || '';
+  const remarks = row.guest_remarks || row.REMARKS || '';
+  const displayLabel = membershipNo
+    ? (membershipNo + '-' + String(name).toUpperCase())
+    : String(name).toUpperCase();
+  return normalizeGuestSearchText([
+    membershipNo,
+    name,
+    displayLabel,
+    agentCode,
+    agentName,
+    agencyName,
+    remarks
+  ].join(' '));
+}
+
+function filterGuestRows(rows, query) {
+  const normalizedQuery = normalizeGuestSearchText(query);
+  if (!normalizedQuery) return Array.isArray(rows) ? rows : [];
+  return (Array.isArray(rows) ? rows : []).filter(function (row) {
+    return getGuestSearchableText(row).indexOf(normalizedQuery) !== -1;
+  });
+}
+
+function getGuestSearchMatchSets() {
+  if (!isGuestSearchActive()) {
+    return { matchedAgencyIds: null, matchedAgentIds: null, matches: [] };
+  }
+  const matches = filterGuestRows(currentAllGuestRows, guestSearchQuery);
+  const matchedAgencyIds = new Set();
+  const matchedAgentIds = new Set();
+  matches.forEach(function (row) {
+    if (row.agency_id != null) matchedAgencyIds.add(String(row.agency_id));
+    if (row.agent_id != null) matchedAgentIds.add(String(row.agent_id));
+  });
+  return { matchedAgencyIds: matchedAgencyIds, matchedAgentIds: matchedAgentIds, matches: matches };
+}
+
+function buildAgentsFromGuestRows(guestRows, agencyIdFilter) {
+  const map = {};
+  (guestRows || []).forEach(function (row) {
+    const agentId = row.agent_id;
+    if (!agentId) return;
+    if (agencyIdFilter && String(row.agency_id) !== String(agencyIdFilter)) return;
+    const key = String(agentId);
+    if (!map[key]) {
+      map[key] = {
+        agent_id: row.agent_id,
+        agent_code: row.agent_code || '',
+        agent_name: row.agent_name || '',
+        agency_id: row.agency_id || null,
+        agency_name: row.agency_name || ''
+      };
+    }
+  });
+  return Object.values(map);
+}
+
+function applyAgencySearchHighlights(matchedAgencyIds) {
+  const searching = isGuestSearchActive();
+  $('.agency-card').each(function () {
+    const $card = $(this);
+    const id = String($card.data('id'));
+    if (!searching) {
+      $card.removeClass('is-search-match is-search-dim');
+      return;
+    }
+    const isMatch = matchedAgencyIds && matchedAgencyIds.has(id);
+    $card.toggleClass('is-search-match', !!isMatch);
+    $card.toggleClass('is-search-dim', !isMatch);
+  });
+}
+
+function applyGuestSearchReactions() {
+  const searching = isGuestSearchActive();
+  const matchSets = getGuestSearchMatchSets();
+
+  applyAgencySearchHighlights(matchSets.matchedAgencyIds);
+  applyGuestSearchLineStats();
+
+  if (!searching) {
+    if (selectedAgencyId) {
+      renderAgentPanel(currentAgencyAccounts);
+    } else {
+      renderAgentPanel([]);
+    }
+    return;
+  }
+
+  if (selectedAgencyId) {
+    renderAgentPanel(currentAgencyAccounts, {
+      searching: true,
+      matchedAgentIds: matchSets.matchedAgentIds
+    });
+    return;
+  }
+
+  renderAgentPanel([], {
+    searching: true,
+    matchedAgentIds: matchSets.matchedAgentIds,
+    overrideAgents: buildAgentsFromGuestRows(matchSets.matches),
+    showAgencyHint: true
+  });
+}
+
+function sumGuestSearchMetrics(matches) {
+  let totalRolling = 0;
+  let totalWinloss = 0;
+  let totalCommission = 0;
+  (matches || []).forEach(function (row) {
+    totalRolling += Number(row.total_rolling) || 0;
+    totalWinloss += Number(row.total_winloss) || 0;
+    totalCommission += Number(row.total_commission) || 0;
+  });
+  return {
+    total_rolling: totalRolling,
+    total_winloss: totalWinloss,
+    total_commission: totalCommission
+  };
+}
+
+function getSearchScopedAgentIds(matchSets) {
+  const matches = matchSets.matches || [];
+  if (selectedAgencyId) {
+    return buildAgentsFromGuestRows(matches, selectedAgencyId).map(function (agent) {
+      return String(agent.agent_id);
+    });
+  }
+  return Array.from(matchSets.matchedAgentIds || []);
+}
+
+function applyGuestSearchLineStats() {
+  if (!isGuestSearchActive()) {
+    if (selectedAgentId) {
+      loadAgentStats(selectedAgentId);
+      return;
+    }
+    loadLineStats(selectedAgencyId || undefined);
+    return;
+  }
+
+  const matchSets = getGuestSearchMatchSets();
+  const matches = matchSets.matches || [];
+  const metrics = sumGuestSearchMetrics(matches);
+  const agencyIds = Array.from(matchSets.matchedAgencyIds || []);
+  const scopedAgentIds = getSearchScopedAgentIds(matchSets);
+  const isSingleScope = !!selectedAgencyId || agencyIds.length <= 1;
+
+  function renderSearchLineStats(balanceCredit) {
+    renderLineStats({
+      total_line: agencyIds.length,
+      total_agent: scopedAgentIds.length,
+      total_rolling: metrics.total_rolling,
+      total_winloss: metrics.total_winloss,
+      total_commission: metrics.total_commission,
+      total_balance: Number(balanceCredit?.total_balance) || 0,
+      total_credit: Number(balanceCredit?.total_credit) || 0
+    }, isSingleScope);
+    $('#line-stat-row').removeClass('d-none');
+    $('#agent-stat-row').addClass('d-none');
+  }
+
+  if (!scopedAgentIds.length) {
+    renderSearchLineStats({ total_balance: 0, total_credit: 0 });
+    return;
+  }
+
+  const query = { agentIds: scopedAgentIds.join(',') };
+  if (selectedAgencyId) {
+    query.agencyId = selectedAgencyId;
+  }
+
+  $.ajax({
+    url: '/agency_line_stats?' + $.param(query),
+    method: 'GET',
+    success: function (stats) {
+      renderSearchLineStats(stats);
+    },
+    error: function () {
+      renderSearchLineStats({ total_balance: 0, total_credit: 0 });
+    }
+  });
+}
+
+function getGuestRowById(guestId) {
+  const id = String(guestId);
+  return currentAllGuestRows.find(function (row) {
+    return String(row.guest_id) === id;
+  }) || currentAgencyGuestRows.find(function (row) {
+    return String(row.guest_id) === id;
+  }) || currentGuestRows.find(function (row) {
+    return String(row.guest_id) === id;
+  });
+}
+
+function applyGuestPanelView() {
+  const searching = isGuestSearchActive();
+  const rows = searching
+    ? filterGuestRows(currentAllGuestRows, guestSearchQuery)
+    : currentGuestRows;
+  renderGuestPanel(rows, { searching: searching });
+  applyGuestSearchReactions();
+}
+
+function loadAllGuestsForSearch() {
+  $.ajax({
+    url: '/guest_data?all=1',
+    method: 'GET',
+    success: function (rows) {
+      currentAllGuestRows = Array.isArray(rows) ? rows : [];
+      applyGuestPanelView();
+    },
+    error: function () {
+      currentAllGuestRows = [];
+      applyGuestPanelView();
+    }
+  });
+}
+
+function loadGuestsForAgency() {
+  if (!selectedAgencyId) {
+    currentAgencyGuestRows = [];
+    applyGuestPanelView();
+    return;
+  }
+  $.ajax({
+    url: '/guest_data?agencyId=' + encodeURIComponent(selectedAgencyId),
+    method: 'GET',
+    success: function (rows) {
+      currentAgencyGuestRows = Array.isArray(rows) ? rows : [];
+      applyGuestPanelView();
+    },
+    error: function () {
+      currentAgencyGuestRows = [];
+      applyGuestPanelView();
+    }
+  });
+}
+
 function loadGuestsForSelectedAgent() {
   if (!selectedAgentId) {
     currentGuestRows = [];
-    renderGuestPanel([]);
+    applyGuestPanelView();
     return;
   }
   $.ajax({
@@ -747,11 +1146,11 @@ function loadGuestsForSelectedAgent() {
     method: 'GET',
     success: function (rows) {
       currentGuestRows = Array.isArray(rows) ? rows : [];
-      renderGuestPanel(currentGuestRows);
+      applyGuestPanelView();
     },
     error: function () {
       currentGuestRows = [];
-      renderGuestPanel([]);
+      applyGuestPanelView();
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -760,6 +1159,17 @@ function loadGuestsForSelectedAgent() {
       });
     }
   });
+}
+
+function refreshGuestPanels() {
+  loadAllGuestsForSearch();
+  loadGuestsForAgency();
+  if (selectedAgentId) {
+    loadGuestsForSelectedAgent();
+  } else {
+    currentGuestRows = [];
+    applyGuestPanelView();
+  }
 }
 
 function viewAgentPortal(agentId, agentCode, _agentName, buttonEl) {
@@ -827,18 +1237,20 @@ function editAgentFromPanel(agentId, buttonEl) {
   );
 }
 
-function renderGuestPanel(guests) {
+function renderGuestPanel(guests, options) {
+  const opts = options || {};
+  const searching = !!opts.searching;
   const $empty = $('#guest-panel-empty');
   const $list = $('#guest-list');
   const rows = Array.isArray(guests) ? guests : [];
 
-  if (!selectedAgencyId) {
+  if (!selectedAgencyId && !searching) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('Open an agency to view guests.');
+    $empty.removeClass('d-none').text('Search guests or select a LINE to view guests.');
     return;
   }
 
-  if (!selectedAgentId) {
+  if (!searching && !selectedAgentId) {
     $list.addClass('d-none').empty();
     $empty.removeClass('d-none').text('Select LINE to load guest list.');
     return;
@@ -846,32 +1258,49 @@ function renderGuestPanel(guests) {
 
   if (rows.length === 0) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('No guest found under this LINE.');
+    $empty.removeClass('d-none').text(
+      searching ? 'No guest found matching your search.' : 'No guest found under this LINE.'
+    );
     return;
   }
 
   const htmlRows = rows.map(function (row) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
+    const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
     const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
     const games = formatLineStatNumber(row.total_games || row.games || 0);
     const rolling = formatLineStatNumber(row.total_rolling || row.rolling || 0);
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
+    const displayGuestLabel = membershipNo ? (membershipNo + '-' + safeName) : safeName;
+    const agentCode = String(row.agent_code || '').trim().toUpperCase();
+    const agentName = String(row.agent_name || '').trim().toUpperCase();
+    const agentLineLabel = agentCode && agentName
+      ? (agentCode + ' · ' + agentName)
+      : (agentCode || agentName || '');
+    const agencyName = String(row.agency_name || '').trim().toUpperCase();
+    const lineHintParts = searching
+      ? [agencyName, agentLineLabel].filter(Boolean)
+      : (agentLineLabel ? [agentLineLabel] : []);
+    const lineHint = lineHintParts.join(' · ');
     const guestNameHtml = permissions !== 2
       ? `<button
           type="button"
           class="btn btn-link p-0 agency-guest-remarks-link"
           title="${remarks ? 'View / Edit Remarks' : 'Add Remarks'}"
-          onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
+          onclick="openGuestRemarks(${row.guest_id || 0})">${displayGuestLabel}</button>`
       : (remarks
           ? `<button
               type="button"
               class="btn btn-link p-0 agency-guest-remarks-link"
               title="View Remarks"
-              onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
-          : safeName);
+              onclick="openGuestRemarks(${row.guest_id || 0})">${displayGuestLabel}</button>`
+          : displayGuestLabel);
+    const guestCellHtml = searching && lineHint
+      ? `<div>${guestNameHtml}</div><div class="agency-guest-line-hint text-muted">${lineHint}</div>`
+      : guestNameHtml;
     const editButtonHtml = permissions !== 2 ? `
           <button
             type="button"
@@ -880,10 +1309,17 @@ function renderGuestPanel(guests) {
             onclick="openEditGuestModal(${row.guest_id || 0})">
             <i class="fa fa-pen"></i>
           </button>
+          <button
+            type="button"
+            class="btn btn-link p-0 me-2 agency-guest-plus-btn"
+            title="Change LINE"
+            onclick="openTransferGuestModal(${row.guest_id || 0})">
+            <i class="fa fa-exchange-alt"></i>
+          </button>
     ` : '';
     return `
       <tr>
-        <td>${guestNameHtml}</td>
+        <td class="agency-guest-col">${guestCellHtml}</td>
         <td>${games}</td>
         <td>${rolling}</td>
         <td>${winloss}</td>
@@ -915,12 +1351,12 @@ function renderGuestPanel(guests) {
         <thead>
           <tr>
           
-            <th>Guest</th>
+            <th class="agency-guest-col">Guest</th>
             <th>Games</th>
             <th>Rolling</th>
             <th>Winloss</th>
             <th>Commission</th>
-              <th style="width: 72px;"></th>
+              <th style="width: 96px;"></th>
           </tr>
         </thead>
         <tbody>
@@ -936,9 +1372,7 @@ function renderGuestPanel(guests) {
 
 function openGuestRemarks(guestId) {
   const numericGuestId = parseInt(guestId, 10);
-  const target = currentGuestRows.find(function (row) {
-    return String(row.guest_id) === String(numericGuestId);
-  });
+  const target = getGuestRowById(numericGuestId);
   if (!target || !numericGuestId) return;
 
   const remarks = String(target.guest_remarks || target.REMARKS || '').trim();
@@ -984,9 +1418,7 @@ function openEditGuestModal(guestId) {
     return;
   }
 
-  const target = currentGuestRows.find(function (row) {
-    return String(row.guest_id) === String(numericGuestId);
-  });
+  const target = getGuestRowById(numericGuestId);
 
   if (!target) {
     Swal.fire({
@@ -999,9 +1431,140 @@ function openEditGuestModal(guestId) {
   }
 
   $('#edit_guest_id').val(target.guest_id || '');
+  $('#edit_guest_membership_input').val(target.membership_no || target.MEMBERSHIP_NO || '');
   $('#edit_guest_name_input').val(target.guest_name || target.NAME || '');
   $('#edit_guest_remarks_input').val(target.guest_remarks || target.REMARKS || '');
   $('#modal-edit-guest-table').modal('show');
+}
+
+function buildGuestLineLabel(agencyName, agentCode, agentName) {
+  const agency = String(agencyName || '').trim().toUpperCase();
+  const code = String(agentCode || '').trim().toUpperCase();
+  const name = String(agentName || '').trim().toUpperCase();
+  const line = code && name ? (code + ' · ' + name) : (code || name || '');
+  if (agency && line) return agency + ' · ' + line;
+  return agency || line || '-';
+}
+
+function populateTransferGuestAgencies(selectedAgencyId, done) {
+  function fillOptions(rows) {
+    const $agencySelect = $('#transfer_guest_agency_id');
+    $agencySelect.html('<option value="">Select agency</option>');
+    (rows || []).forEach(function (row) {
+      const id = row.IDNo;
+      const name = String(row.AGENCY || '').trim();
+      if (!id || !name) return;
+      $agencySelect.append(
+        $('<option></option>').val(id).text(name.toUpperCase())
+      );
+    });
+    if (selectedAgencyId) {
+      $agencySelect.val(String(selectedAgencyId));
+    }
+    if (typeof done === 'function') done();
+  }
+
+  if (Array.isArray(allAgents) && allAgents.length) {
+    fillOptions(allAgents);
+    return;
+  }
+
+  $.ajax({
+    url: '/agency_data',
+    method: 'GET',
+    success: function (rows) {
+      allAgents = Array.isArray(rows) ? rows : [];
+      fillOptions(allAgents);
+    },
+    error: function () {
+      fillOptions([]);
+      if (typeof done === 'function') done();
+    }
+  });
+}
+
+function loadTransferGuestAgentOptions(agencyId, currentAgentId) {
+  const $agentSelect = $('#transfer_guest_agent_id');
+  $agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
+
+  if (!agencyId) {
+    $agentSelect.html('<option value="">Select LINE</option>').prop('disabled', true);
+    return;
+  }
+
+  $.ajax({
+    url: '/account_data?agencyId=' + encodeURIComponent(agencyId),
+    method: 'GET',
+    success: function (rows) {
+      const byAgent = {};
+      (rows || []).forEach(function (row) {
+        const id = String(row.agent_id || '');
+        if (!id || byAgent[id]) return;
+        byAgent[id] = {
+          agent_id: row.agent_id,
+          agent_code: row.agent_code || '',
+          agent_name: row.agent_name || ''
+        };
+      });
+      const agents = Object.values(byAgent);
+      if (!agents.length) {
+        $agentSelect.html('<option value="">No LINE under this agency</option>').prop('disabled', true);
+        return;
+      }
+      let html = '<option value="">Select LINE</option>';
+      agents.forEach(function (agent) {
+        if (String(agent.agent_id) === String(currentAgentId)) return;
+        const code = String(agent.agent_code || '').toUpperCase();
+        const name = String(agent.agent_name || '').toUpperCase();
+        const label = code && name ? (code + ' · ' + name) : (code || name || ('LINE ' + agent.agent_id));
+        html += '<option value="' + agent.agent_id + '">' + label + '</option>';
+      });
+      $agentSelect.html(html).prop('disabled', false);
+    },
+    error: function () {
+      $agentSelect.html('<option value="">Failed to load LINE list</option>').prop('disabled', true);
+    }
+  });
+}
+
+function openTransferGuestModal(guestId) {
+  const permissions = parseInt($('#user-role').data('permissions'), 10);
+  if (permissions === 2) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Not allowed',
+      text: 'You cannot transfer guests.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  const numericGuestId = parseInt(guestId, 10);
+  const target = getGuestRowById(numericGuestId);
+  if (!target) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Not found',
+      text: 'Guest record is not available.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  const membershipNo = String(target.membership_no || target.MEMBERSHIP_NO || '').trim();
+  const guestName = String(target.guest_name || target.NAME || '').trim().toUpperCase();
+  const displayGuest = membershipNo ? (membershipNo + '-' + guestName) : guestName;
+  transferGuestCurrentAgentId = target.agent_id || null;
+
+  $('#transfer_guest_id').val(target.guest_id || '');
+  $('#transfer_guest_display').val(displayGuest);
+  $('#transfer_guest_current_line').val(
+    buildGuestLineLabel(target.agency_name, target.agent_code, target.agent_name)
+  );
+  populateTransferGuestAgencies(target.agency_id || '', function () {
+    loadTransferGuestAgentOptions(parseInt(target.agency_id, 10) || null, transferGuestCurrentAgentId);
+    $('#modal-transfer-guest-table').modal('show');
+  });
 }
 
 function handleEditAgencyFromRow(id, buttonEl) {
@@ -1028,128 +1591,175 @@ function fetchAndApplyAvailableChipsForNewGameModal() {
   });
 }
 
+function resolveAccountForGuest(guestId, callback) {
+  const numericGuestId = parseInt(guestId, 10);
+  const guest = getGuestRowById(numericGuestId);
+
+  if (!guest || !numericGuestId) {
+    callback(null, 'Guest record is not available.');
+    return;
+  }
+
+  const agentId = guest.agent_id;
+  if (!agentId) {
+    callback(null, 'Guest is not linked to a LINE.');
+    return;
+  }
+
+  function pickAccountRow(rows) {
+    return (rows || []).find(function (row) {
+      return String(row.agent_id) === String(agentId) && row.account_id;
+    });
+  }
+
+  const localMatch = pickAccountRow(currentAgencyAccounts);
+  if (localMatch) {
+    callback(localMatch, null, guest);
+    return;
+  }
+
+  const agencyId = guest.agency_id;
+  if (!agencyId) {
+    callback(null, 'Unable to resolve agency for this guest.');
+    return;
+  }
+
+  $.ajax({
+    url: '/account_data?agencyId=' + encodeURIComponent(agencyId),
+    method: 'GET',
+    success: function (rows) {
+      const match = pickAccountRow(rows);
+      if (!match) {
+        callback(null, 'No account is linked to this LINE yet.');
+        return;
+      }
+      callback(match, null, guest);
+    },
+    error: function () {
+      callback(null, 'Failed to load account for this guest.');
+    }
+  });
+}
+
 function openAddGameForGuest(guestId) {
   var numericGuestId = parseInt(guestId, 10);
-  if (!selectedAgentId || !numericGuestId) {
+  if (!numericGuestId) {
     Swal.fire({
       icon: 'warning',
       title: 'Selection required',
-      text: 'Select LINE and valid GUEST first.',
+      text: 'Select a valid GUEST first.',
       confirmButtonText: 'OK'
     });
     return;
   }
 
-  var accountRow = currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId) && row.account_id;
-  });
-
-  if (!accountRow || !accountRow.account_id) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'No account found',
-      text: 'No account is linked to this agent yet.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  if (typeof window.addGameList !== 'function') {
-    Swal.fire({
-      icon: 'error',
-      title: 'Unavailable',
-      text: 'Add Game modal is not available right now.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  window.addGameList(accountRow.account_id);
-
-  var accountIdText = String(accountRow.account_id);
-  var guestIdText = String(numericGuestId);
-  var openingBalance = Number(accountRow.total_balance || accountRow.total_ledger_amount || 0);
-
-  function applyNewGameAvailableBalance(balance) {
-    var safe = Number(balance) || 0;
-    $('#total_balanceGuest1').val(safe);
-    $('#total_balanceGuestGameList').val(safe.toLocaleString('en-US'));
-  }
-
-  var applyDefaults = function (attempt) {
-    var tryNo = attempt || 0;
-    var $accountSelect = $('#txtTrans');
-    var $guestSelect = $('#txtGuestGame');
-
-    if (!$accountSelect.length || !$guestSelect.length) {
-      if (tryNo < 15) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+  resolveAccountForGuest(numericGuestId, function (accountRow, errorMessage) {
+    if (!accountRow) {
+      Swal.fire({
+        icon: 'warning',
+        title: errorMessage && errorMessage.indexOf('No account') !== -1 ? 'No account found' : 'Unavailable',
+        text: errorMessage || 'Unable to open Add Game.',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
-    if ($accountSelect.find('option[value="' + accountIdText + '"]').length === 0) {
-      if (tryNo < 20) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+    selectedAgentId = parseInt(accountRow.agent_id, 10);
+    syncAgentPanelTransferButton();
+
+    if (typeof window.addGameList !== 'function') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Unavailable',
+        text: 'Add Game modal is not available right now.',
+        confirmButtonText: 'OK'
+      });
       return;
     }
 
-    $accountSelect.val(accountIdText).trigger('change');
-    $accountSelect.attr('data-readonly', '1');
-    $accountSelect.attr('data-locked-value', accountIdText);
-    applyNewGameAvailableBalance(openingBalance);
-    fetchAndApplyAvailableChipsForNewGameModal();
+    window.addGameList(accountRow.account_id);
 
-    setTimeout(function () {
-      if ($guestSelect.find('option[value="' + guestIdText + '"]').length > 0) {
-        $guestSelect.val(guestIdText).trigger('change');
-        $guestSelect.attr('data-readonly', '1');
-        $guestSelect.attr('data-locked-value', guestIdText);
-      } else if (tryNo < 20) {
-        applyDefaults(tryNo + 1);
+    var accountIdText = String(accountRow.account_id);
+    var guestIdText = String(numericGuestId);
+    var openingBalance = Number(accountRow.total_balance || accountRow.total_ledger_amount || 0);
+
+    function applyNewGameAvailableBalance(balance) {
+      var safe = Number(balance) || 0;
+      $('#total_balanceGuest1').val(safe);
+      $('#total_balanceGuestGameList').val(safe.toLocaleString('en-US'));
+    }
+
+    var applyDefaults = function (attempt) {
+      var tryNo = attempt || 0;
+      var $accountSelect = $('#txtTrans');
+      var $guestSelect = $('#txtGuestGame');
+
+      if (!$accountSelect.length || !$guestSelect.length) {
+        if (tryNo < 15) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+        return;
       }
-    }, 140);
-  };
 
-  setTimeout(function () { applyDefaults(0); }, 120);
+      if ($accountSelect.find('option[value="' + accountIdText + '"]').length === 0) {
+        if (tryNo < 20) setTimeout(function () { applyDefaults(tryNo + 1); }, 120);
+        return;
+      }
+
+      $accountSelect.val(accountIdText).trigger('change');
+      $accountSelect.attr('data-readonly', '1');
+      $accountSelect.attr('data-locked-value', accountIdText);
+      applyNewGameAvailableBalance(openingBalance);
+      fetchAndApplyAvailableChipsForNewGameModal();
+
+      setTimeout(function () {
+        if ($guestSelect.find('option[value="' + guestIdText + '"]').length > 0) {
+          $guestSelect.val(guestIdText).trigger('change');
+          $guestSelect.attr('data-readonly', '1');
+          $guestSelect.attr('data-locked-value', guestIdText);
+        } else if (tryNo < 20) {
+          applyDefaults(tryNo + 1);
+        }
+      }, 140);
+    };
+
+    setTimeout(function () { applyDefaults(0); }, 120);
+  });
 }
 
 function openGuestGameHistory(guestId) {
   var numericGuestId = parseInt(guestId, 10);
-  if (!selectedAgentId || !numericGuestId) {
+  if (!numericGuestId) {
     Swal.fire({
       icon: 'warning',
       title: 'Selection required',
-      text: 'Select LINE and valid GUEST first.',
+      text: 'Select a valid GUEST first.',
       confirmButtonText: 'OK'
     });
     return;
   }
 
-  var accountRow = currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId) && String(row.guest_id || '') === String(numericGuestId) && row.account_id;
-  }) || currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId) && row.account_id;
+  resolveAccountForGuest(numericGuestId, function (accountRow, errorMessage) {
+    if (!accountRow) {
+      Swal.fire({
+        icon: 'warning',
+        title: errorMessage && errorMessage.indexOf('No account') !== -1 ? 'No account found' : 'Unavailable',
+        text: errorMessage || 'Unable to open game history.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    if (typeof window.game_history !== 'function') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Unavailable',
+        text: 'Game History modal is not available right now.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    window.game_history(accountRow.account_id, numericGuestId);
   });
-
-  if (!accountRow || !accountRow.account_id) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'No account found',
-      text: 'No account is linked to this agent yet.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  if (typeof window.game_history !== 'function') {
-    Swal.fire({
-      icon: 'error',
-      title: 'Unavailable',
-      text: 'Game History modal is not available right now.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  window.game_history(accountRow.account_id, numericGuestId);
 }
 
 function openAddGameForSelectedAgent() {

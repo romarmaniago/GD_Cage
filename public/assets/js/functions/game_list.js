@@ -1617,6 +1617,7 @@ function openAddGuestFromAssignGameGuest() {
 	var agentName = $assignModal.data('agentName') || '';
 	$('#guest_agent_id').val(agentId);
 	$('#guest_agent_display').text(buildAssignGameGuestLineLabel(agentCode, agentName));
+	$('#guest_membership_input').val('');
 	$('#guest_name_input').val('');
 	$('#guest_remarks_input').val('');
 	$('#modal-add-guest-table').modal('show');
@@ -8405,6 +8406,18 @@ $(document).ready(function () {
 		var $btn = $('#btn-save-guest-table');
 		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
 		var gameId = parseInt($('#assign_guest_game_id').val(), 10);
+		var membershipError = typeof window.validateGuestMembershipNo === 'function'
+			? window.validateGuestMembershipNo($('#guest_membership_input').val())
+			: '';
+		if (membershipError) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Membership No',
+				text: membershipError,
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
 
 		$btn.prop('disabled', true).text('Saving...');
 		$.ajax({

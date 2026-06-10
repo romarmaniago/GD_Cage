@@ -7,6 +7,7 @@ const { ensureTipSchema } = require('../utils/ensureTipSchema');
 const { ensureGameServicesDeliveryFeeSchema } = require('../utils/ensureGameServicesDeliveryFeeSchema');
 const { ensureGameServicesServiceTypeSchema } = require('../utils/ensureGameServicesServiceTypeSchema');
 const { ensureServicesCategorySchema } = require('../utils/ensureServicesCategorySchema');
+const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -32,6 +33,7 @@ const pool = mysql.createPool({
 		await ensureGameServicesDeliveryFeeSchema(pool);
 		await ensureGameServicesServiceTypeSchema(pool);
 		await ensureServicesCategorySchema(pool);
+		await ensureGuestMembershipSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}
