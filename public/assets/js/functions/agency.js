@@ -1449,7 +1449,7 @@ function buildGuestLineLabel(agencyName, agentCode, agentName) {
 function populateTransferGuestAgencies(selectedAgencyId, done) {
   function fillOptions(rows) {
     const $agencySelect = $('#transfer_guest_agency_id');
-    $agencySelect.html('<option value="">Select agency</option>');
+    $agencySelect.html('<option value="">Select LINE</option>');
     (rows || []).forEach(function (row) {
       const id = row.IDNo;
       const name = String(row.AGENCY || '').trim();
@@ -1488,7 +1488,7 @@ function loadTransferGuestAgentOptions(agencyId, currentAgentId) {
   $agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
 
   if (!agencyId) {
-    $agentSelect.html('<option value="">Select LINE</option>').prop('disabled', true);
+    $agentSelect.html('<option value="">Select Agent</option>').prop('disabled', true);
     return;
   }
 
@@ -1508,10 +1508,10 @@ function loadTransferGuestAgentOptions(agencyId, currentAgentId) {
       });
       const agents = Object.values(byAgent);
       if (!agents.length) {
-        $agentSelect.html('<option value="">No LINE under this agency</option>').prop('disabled', true);
+        $agentSelect.html('<option value="">No Agent under this LINE</option>').prop('disabled', true);
         return;
       }
-      let html = '<option value="">Select LINE</option>';
+      let html = '<option value="">Select Agent</option>';
       agents.forEach(function (agent) {
         if (String(agent.agent_id) === String(currentAgentId)) return;
         const code = String(agent.agent_code || '').toUpperCase();
