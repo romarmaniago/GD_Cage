@@ -721,7 +721,22 @@
             initAccountSelect2();
         }
 
+        function updateCreditsGameStartButton() {
+            var $btn = $(gameStartBtnSelector);
+            if (!$btn.length) return;
+            var hasAccount = !!String($accountSelect.val() || '').trim();
+            var hasSource = !!getSelectedReturnSource();
+            $btn.toggleClass('d-none', !(hasAccount && hasSource));
+        }
+
         function openCreditsGameStart() {
+            var accountId = String($accountSelect.val() || '').trim();
+            if (!accountId) {
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'warning', title: 'No account', text: 'Please select an account first.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
             if (!$('#modal-new-game-list').length) {
                 if (window.Swal) {
                     window.Swal.fire({
@@ -734,12 +749,16 @@
                 return;
             }
             loadGameListScriptOnce().then(function () {
+                var openingBalance = parseFloat($(agentBalanceSelector).val()) || 0;
+                if (!openingBalance) {
+                    openingBalance = parseFloat(String($(markerBalanceSelector).val() || '').replace(/,/g, '')) || 0;
+                }
                 var $hideModal = $(hideModalOnGameStartSelector);
                 if ($hideModal.length) {
                     skipMarkerModalReload = true;
                     $hideModal.modal('hide');
                 }
-                window.addGameList();
+                window.addGameList(accountId, { openingBalance: openingBalance, lockAccount: true });
             }).catch(function () {
                 if (window.Swal) {
                     window.Swal.fire({
@@ -757,6 +776,7 @@
             if (!selectedAccountId) {
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedSource = getSelectedReturnSource();
@@ -765,12 +785,14 @@
                 var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
                 $(markerIssueSelector).val(formatWithCommas(sourceAmount));
                 $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
             var totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
             $(markerIssueSelector).val(formatWithCommas(totalIssue));
             $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            updateCreditsGameStartButton();
         }
 
         // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
@@ -811,6 +833,7 @@
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
             }
+            updateCreditsGameStartButton();
         });
 
         $(document).off('click.markerGameStart', gameStartBtnSelector).on('click.markerGameStart', gameStartBtnSelector, function (e) {
