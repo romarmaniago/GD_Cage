@@ -4323,7 +4323,7 @@ pageRouter.post('/add_game_list', (req, res) => {
 // 	});
 // });
 
-// GET /game_list_data — handled by routes/gamebook.js (settlement date + date range + daily_settlement_games).
+// GET /game_list_data — handled by routes/gamebook.js (PROGRAM_DATE + game start date range).
 
 
 

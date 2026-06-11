@@ -281,6 +281,7 @@
 		"game_book": "게임북",
 		"new_game": "새로운 게임",
 		"program_date": "프로그램 날짜",
+		"filter_game_start": "게임 시작",
 		"game_start": "게임 시작",
 		"type": "형",
 		"game#": "게임 #",
@@ -313,18 +314,8 @@
 		"cash": "현금",
 		"deposit": "입금",
 		"marker": "크레딧",
-		"select_day": "gamelist.select_day",
-		"export": "보내기",
-		"settle": "gamelist.settle",
-		"current_unsettled": "gamelist.current_unsettled",
-		"current": "gamelist.current",
-		"day_now_unsettled": "gamelist.day_now_unsettled",
-		"day_now": "gamelist.day_now",
-		"select_date": "gamelist.select_date",
-		"settle_undo": "gamelist.settle_undo",
-		"settle_confirm_title": "gamelist.settle_confirm_title",
-		"settle_confirm_cancel": "gamelist.settle_confirm_cancel",
-		"settle_confirm_yes": "gamelist.settle_confirm_yes"
+		"select_date": "날짜 선택",
+		"export": "보내기"
 	},
 	"house_expense": {
 		"junket": "정켓",

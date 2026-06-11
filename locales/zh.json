@@ -280,6 +280,7 @@
 		"game_book": "游戏书",
 		"new_game": "新游戏",
 		"program_date": "节目日期",
+		"filter_game_start": "比赛开始",
 		"game_start": "比赛开始",
 		"type": "类型",
 		"game#": "游戏#",
@@ -313,18 +314,8 @@
 		"cash": "现金",
 		"deposit": "存款",
 		"marker": "信用",
-		"select_day": "gamelist.select_day",
-		"export": "导出",
-		"settle": "gamelist.settle",
-		"current_unsettled": "gamelist.current_unsettled",
-		"current": "gamelist.current",
-		"day_now_unsettled": "gamelist.day_now_unsettled",
-		"day_now": "gamelist.day_now",
-		"select_date": "gamelist.select_date",
-		"settle_undo": "gamelist.settle_undo",
-		"settle_confirm_title": "gamelist.settle_confirm_title",
-		"settle_confirm_cancel": "gamelist.settle_confirm_cancel",
-		"settle_confirm_yes": "gamelist.settle_confirm_yes"
+		"select_date": "选择日期",
+		"export": "导出"
 	},
 	"house_expense": {
 		"junket": "接待",

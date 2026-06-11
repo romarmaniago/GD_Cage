@@ -3276,9 +3276,7 @@ router.get('/get_winloss', async (req, res) => {
 	const offset = parseInt(req.query.offset) || 0;
 	const isCurrentPeriod = offset === 0;
 
-	// Variables for unsettled condition
 	let targetYearWeek = '';
-	let unsettledCondition = '';
 
 	if (range === 'week') {
 		const targetDate = new Date();
@@ -3286,53 +3284,36 @@ router.get('/get_winloss', async (req, res) => {
 		const isoDate = targetDate.toISOString().slice(0, 10);
 		targetYearWeek = `YEARWEEK('${isoDate}', 1)`;
 		
-		// Previous week
 		const prevDate = new Date(targetDate);
 		prevDate.setDate(prevDate.getDate() - 7);
 		const prevIsoDate = prevDate.toISOString().slice(0, 10);
 		const prevYearWeek = `YEARWEEK('${prevIsoDate}', 1)`;
 
-		totalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
+		totalCondition = `AND YEARWEEK(game_list.PROGRAM_DATE, 1) = ${targetYearWeek}`;
 		groupCondition = totalCondition;
-		prevTotalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
+		prevTotalCondition = `AND YEARWEEK(game_list.PROGRAM_DATE, 1) = ${prevYearWeek}`;
 		prevGroupCondition = prevTotalCondition;
-		groupBy = "DAYOFWEEK(ds.SETTLEMENT_DATE)";
+		groupBy = 'DAYOFWEEK(game_list.PROGRAM_DATE)';
 		labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 		groupKeys = [2, 3, 4, 5, 6, 7, 1];
-		
-		// Unsettled condition for current week
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND dsg.GAME_ID IS NULL)`;
-		}
-	}
- else if (range === 'month') {
-		totalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth + 1} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		prevTotalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupBy = "MONTH(ds.SETTLEMENT_DATE)";
+	} else if (range === 'month') {
+		totalCondition = `AND MONTH(game_list.PROGRAM_DATE) = ${currentMonth + 1} AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		prevTotalCondition = `AND MONTH(game_list.PROGRAM_DATE) = ${currentMonth} AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		prevGroupCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupBy = 'MONTH(game_list.PROGRAM_DATE)';
 		labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		groupKeys = Array.from({ length: 12 }, (_, i) => i + 1);
-		
-		// Unsettled condition for current month
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND MONTH(game_list.ENCODED_DT) = ${currentMonth + 1} AND YEAR(game_list.ENCODED_DT) = ${currentYear})`;
-		}
 	} else if (range === 'year') {
 		const startYear = currentYear - 5;
 		const endYear = currentYear;
-		totalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear} AND ${endYear}`;
-		prevTotalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear - 1}`;
-		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
-		groupBy = "YEAR(ds.SETTLEMENT_DATE)";
+		totalCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(game_list.PROGRAM_DATE) BETWEEN ${startYear} AND ${endYear}`;
+		prevTotalCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear - 1}`;
+		prevGroupCondition = `AND YEAR(game_list.PROGRAM_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
+		groupBy = 'YEAR(game_list.PROGRAM_DATE)';
 		labels = Array.from({ length: 6 }, (_, i) => `${startYear + i}`);
 		groupKeys = labels.map(Number);
-		
-		// Unsettled condition for current year
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND YEAR(game_list.ENCODED_DT) = ${currentYear})`;
-		}
 	} else {
 		return res.status(400).json({ message: 'Invalid range' });
 	}
@@ -3343,13 +3324,9 @@ router.get('/get_winloss', async (req, res) => {
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
-			AND (
-				(dsg.GAME_ID IS NOT NULL ${totalCondition})
-				${unsettledCondition}
-			)
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
+			${totalCondition}
 	`;
 	
 	const prevTotalQuery = `
@@ -3358,40 +3335,23 @@ router.get('/get_winloss', async (req, res) => {
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
 			${prevTotalCondition}
 	`;
 
-	// For chart, use COALESCE to get settlement date or game date for grouping
-	let chartGroupBy = groupBy;
-	if (isCurrentPeriod) {
-		if (range === 'week') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, DAYOFWEEK(ds.SETTLEMENT_DATE), DAYOFWEEK(NOW()))";
-		} else if (range === 'month') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, MONTH(ds.SETTLEMENT_DATE), MONTH(NOW()))";
-		} else if (range === 'year') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, YEAR(ds.SETTLEMENT_DATE), YEAR(NOW()))";
-		}
-	}
-
 	const chartQuery = `
 		SELECT 
-			${chartGroupBy} AS label,
+			${groupBy} AS label,
 			SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
-			AND (
-				(dsg.GAME_ID IS NOT NULL ${groupCondition})
-				${unsettledCondition}
-			)
-		GROUP BY ${chartGroupBy}
-		ORDER BY ${chartGroupBy}
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
+			${groupCondition}
+		GROUP BY ${groupBy}
+		ORDER BY ${groupBy}
 	`;
 
 	try {
@@ -3454,55 +3414,25 @@ router.get('/get_winloss_settlement_details', async (req, res) => {
 	try {
 		const results = [];
 
-		// Get settled settlements
-		if (filter === 'all' || filter === 'settled') {
-			const settledQuery = `
+		if (filter === 'all' || filter === 'settled' || filter === 'unsettled') {
+			const programDateQuery = `
 				SELECT 
-					ds.SETTLEMENT_DATE AS settlement_date,
-					MIN(ds.IDNo) AS settlement_id,
+					game_list.PROGRAM_DATE AS settlement_date,
+					NULL AS settlement_id,
 					SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
 					SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
-					'Settled' AS status
-				FROM daily_settlement_games dsg
-				JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-				JOIN game_list ON dsg.GAME_ID = game_list.IDNo
+					'Program Date' AS status
+				FROM game_list
 				JOIN game_record ON game_list.IDNo = game_record.GAME_ID
 				WHERE game_record.ACTIVE = 1
-					AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
-				GROUP BY ds.SETTLEMENT_DATE
-				ORDER BY ds.SETTLEMENT_DATE DESC
+					AND game_list.ACTIVE != 0
+					AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
+				GROUP BY game_list.PROGRAM_DATE
+				ORDER BY game_list.PROGRAM_DATE DESC
 			`;
 
-			const [settledResults] = await pool.execute(settledQuery, [startDate, endDate]);
-			results.push(...settledResults);
-		}
-
-		// Get unsettled games (current period)
-		if (filter === 'all' || filter === 'unsettled') {
-			const today = new Date().toISOString().slice(0, 10);
-			if (endDate >= today) {
-				const unsettledQuery = `
-					SELECT 
-						'Unsettled' AS settlement_date,
-						NULL AS settlement_id,
-						SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
-						SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
-						'Unsettled' AS status
-					FROM game_list
-					JOIN game_record ON game_list.IDNo = game_record.GAME_ID
-					LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-					WHERE game_record.ACTIVE = 1
-						AND game_list.ACTIVE != 0
-						AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-						AND dsg.GAME_ID IS NULL
-						AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
-				`;
-
-				const [unsettledResults] = await pool.execute(unsettledQuery, [startDate, endDate]);
-				if (unsettledResults.length > 0 && (unsettledResults[0].cashin > 0 || unsettledResults[0].cashout > 0)) {
-					results.push(unsettledResults[0]);
-				}
-			}
+			const [programDateResults] = await pool.execute(programDateQuery, [startDate, endDate]);
+			results.push(...programDateResults);
 		}
 
 		res.json(results);

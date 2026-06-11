@@ -279,6 +279,7 @@
 		"game_book": "ゲームブック",
 		"new_game": "新しいゲーム",
 		"program_date": "プログラム日付",
+		"filter_game_start": "ゲームスタート",
 		"game_start": "ゲームスタート",
 		"type": "タイプ",
 		"game#": "ゲーム＃",
@@ -311,18 +312,8 @@
 		"cash": "キャッシュ",
 		"deposit": "デポジット",
 		"marker": "クレジット",
-		"select_day": "gamelist.select_day",
-		"export": "エクスポート",
-		"settle": "gamelist.settle",
-		"current_unsettled": "gamelist.current_unsettled",
-		"current": "gamelist.current",
-		"day_now_unsettled": "gamelist.day_now_unsettled",
-		"day_now": "gamelist.day_now",
-		"select_date": "gamelist.select_date",
-		"settle_undo": "gamelist.settle_undo",
-		"settle_confirm_title": "gamelist.settle_confirm_title",
-		"settle_confirm_cancel": "gamelist.settle_confirm_cancel",
-		"settle_confirm_yes": "gamelist.settle_confirm_yes"
+		"select_date": "日付を選択",
+		"export": "エクスポート"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",

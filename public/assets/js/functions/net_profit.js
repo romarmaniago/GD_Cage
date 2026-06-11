@@ -156,7 +156,7 @@
 
 	function updatePeriodColumnHeader() {
 		if ($colPeriod) {
-			$colPeriod.textContent = isMonthlyView() ? 'Month' : 'Date';
+			$colPeriod.textContent = isMonthlyView() ? 'Month' : 'Program Date';
 		}
 	}
 
@@ -245,19 +245,19 @@
 
 	function formatPeriodLabel(row, monthly) {
 		if (monthly) {
-			if (row.settlement_label) return escapeHtml(String(row.settlement_label));
-			return escapeHtml(formatDisplayMonthPlain(row.settlement_date));
+			if (row.program_label) return escapeHtml(String(row.program_label));
+			return escapeHtml(formatDisplayMonthPlain(row.program_date));
 		}
-		const raw = row.settlement_label != null ? row.settlement_label : row.settlement_date;
+		const raw = row.program_label != null ? row.program_label : row.program_date;
 		return formatDisplayDate(raw);
 	}
 
 	function formatPeriodPlain(row, monthly) {
 		if (monthly) {
-			if (row.settlement_label) return String(row.settlement_label);
-			return formatDisplayMonthPlain(row.settlement_date);
+			if (row.program_label) return String(row.program_label);
+			return formatDisplayMonthPlain(row.program_date);
 		}
-		const raw = row.settlement_label != null ? row.settlement_label : row.settlement_date;
+		const raw = row.program_label != null ? row.program_label : row.program_date;
 		return formatDisplayDatePlain(raw);
 	}
 
@@ -268,7 +268,7 @@
 				? Number(payload.house_share_pct)
 				: 65;
 		const headers = [
-			monthly ? 'Month' : 'Date',
+			monthly ? 'Month' : 'Program Date',
 			'Games',
 			'Win / loss',
 			'Share Percentage',
@@ -445,10 +445,10 @@
 
 	async function saveSharePercentage(input) {
 		const settlementMonth = input && input.dataset ? input.dataset.settlementMonth : '';
-		const settlementDate = input && input.dataset ? input.dataset.settlementDate : '';
+		const programDate = input && input.dataset ? input.dataset.programDate : '';
 		const sharePercentage = Number(input ? input.value : NaN);
 		const isMonth = /^\d{4}-\d{2}$/.test(settlementMonth);
-		const isDay = /^\d{4}-\d{2}-\d{2}$/.test(settlementDate);
+		const isDay = /^\d{4}-\d{2}-\d{2}$/.test(programDate);
 		if (!isMonth && !isDay) return;
 		if (!Number.isFinite(sharePercentage) || sharePercentage < 0 || sharePercentage > 100) {
 			if (typeof Swal !== 'undefined') {
@@ -468,7 +468,7 @@
 				body: JSON.stringify(
 					isMonth
 						? { month: settlementMonth, share_percentage: sharePercentage }
-						: { settlement_date: settlementDate, share_percentage: sharePercentage }
+						: { program_date: programDate, share_percentage: sharePercentage }
 				)
 			});
 			const payload = await res.json().catch(() => ({}));
@@ -490,14 +490,14 @@
 
 	function buildShareInputCell(r, monthly, pct) {
 		const sharePct = r.share_percentage != null ? r.share_percentage : pct;
-		const monthKey = r.month_key != null ? String(r.month_key) : String(r.settlement_date || '').slice(0, 7);
-		const settlementDate = String(r.settlement_date || '').slice(0, 10);
+		const monthKey = r.month_key != null ? String(r.month_key) : String(r.program_date || '').slice(0, 7);
+		const programDate = String(r.program_date || '').slice(0, 10);
 		const ariaLabel = monthly
 			? `Share percentage for ${formatDisplayMonthPlain(monthKey)}`
-			: `Share percentage for ${formatDisplayDatePlain(settlementDate)}`;
+			: `Share percentage for ${formatDisplayDatePlain(programDate)}`;
 		const dataAttr = monthly
 			? `data-settlement-month="${escapeHtml(monthKey)}"`
-			: `data-settlement-date="${escapeHtml(settlementDate)}"`;
+			: `data-program-date="${escapeHtml(programDate)}"`;
 		return `<div class="d-inline-flex align-items-center justify-content-end gap-1">
 			<input type="number" class="form-control form-control-sm bnpp-share-input" min="0" max="100" step="0.01" value="${escapeHtml(formatPctInput(sharePct))}" ${dataAttr} aria-label="${escapeHtml(ariaLabel)}">
 			<span>%</span>

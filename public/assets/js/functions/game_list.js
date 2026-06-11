@@ -694,7 +694,7 @@ function applyCutoffAutoRollerReturnToForm() {
 }
 
 function closeChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
+	var el = document.getElementById('txtCutoffParentProgramDate');
 	if (el && el._flatpickr) {
 		el._flatpickr.close();
 	}
@@ -703,11 +703,11 @@ function closeChangeStatusParentDatePicker() {
 function resetChangeStatusParentDateField() {
 	closeChangeStatusParentDatePicker();
 	$('#cutoff-parent-date-section').hide();
-	var el = document.getElementById('txtCutoffParentSettlementDate');
+	var el = document.getElementById('txtCutoffParentProgramDate');
 	if (el && el._flatpickr) {
 		el._flatpickr.clear();
 	} else {
-		$('#txtCutoffParentSettlementDate').val('');
+		$('#txtCutoffParentProgramDate').val('');
 	}
 }
 
@@ -723,17 +723,34 @@ function repositionModalFlatpickr(instance) {
 	}
 }
 
-/** Settlement date for parent game when status = CUT OFF. */
+function getDefaultProgramDateYmd() {
+	var el = document.getElementById('program-date-range-picker');
+	var fp = el && el._flatpickr;
+	if (fp && fp.selectedDates && fp.selectedDates.length > 0) {
+		var fromPicker = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+		if (/^\d{4}-\d{2}-\d{2}$/.test(fromPicker)) return fromPicker;
+	}
+	var anchor = String(window.selectedProgramDate || '').slice(0, 10);
+	if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor;
+	var wrapper = document.querySelector('#program-date-wrapper .input-group');
+	if (wrapper) {
+		var initial =
+			wrapper.getAttribute('data-initial-program-date') ||
+			wrapper.getAttribute('data-today') ||
+			'';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(initial)) return initial;
+	}
+	return '';
+}
+
+/** Program date for parent game when status = CUT OFF. */
 function ensureChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
+	var el = document.getElementById('txtCutoffParentProgramDate');
 	if (!el || typeof flatpickr === 'undefined') {
 		return;
 	}
-	var anchorYmd = window.selectedSettlementDate;
-	var defaultDate =
-		anchorYmd && /^\d{4}-\d{2}-\d{2}$/.test(String(anchorYmd).slice(0, 10))
-			? String(anchorYmd).slice(0, 10)
-			: new Date();
+	var anchorYmd = getDefaultProgramDateYmd();
+	var defaultDate = anchorYmd || new Date();
 	if (el._flatpickr) {
 		el._flatpickr.destroy();
 	}
@@ -761,8 +778,8 @@ function ensureChangeStatusParentDatePicker() {
 	});
 }
 
-function getChangeStatusParentSettlementDateValue() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
+function getChangeStatusParentProgramDateValue() {
+	var el = document.getElementById('txtCutoffParentProgramDate');
 	if (!el) {
 		return '';
 	}
@@ -785,7 +802,7 @@ function updateChangeStatusCutoffDateSection() {
 }
 
 function closeCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
+	var el = document.getElementById('cutoff_txtCutoffProgramDate');
 	if (el && el._flatpickr) {
 		el._flatpickr.close();
 	}
@@ -793,25 +810,22 @@ function closeCutoffGameDatePicker() {
 
 function resetCutoffGameDateField() {
 	closeCutoffGameDatePicker();
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
+	var el = document.getElementById('cutoff_txtCutoffProgramDate');
 	if (el && el._flatpickr) {
 		el._flatpickr.clear();
 	} else {
-		$('#cutoff_txtCutoffSettlementDate').val('');
+		$('#cutoff_txtCutoffProgramDate').val('');
 	}
 }
 
-/** Settlement date for cut-off new game (daily_settlement_games link). */
+/** Program date for cut-off new game. */
 function ensureCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
+	var el = document.getElementById('cutoff_txtCutoffProgramDate');
 	if (!el || typeof flatpickr === 'undefined') {
 		return;
 	}
-	var anchorYmd = window.selectedSettlementDate;
-	var defaultDate =
-		anchorYmd && /^\d{4}-\d{2}-\d{2}$/.test(String(anchorYmd).slice(0, 10))
-			? String(anchorYmd).slice(0, 10)
-			: new Date();
+	var anchorYmd = getDefaultProgramDateYmd();
+	var defaultDate = anchorYmd || new Date();
 	if (el._flatpickr) {
 		el._flatpickr.destroy();
 	}
@@ -839,8 +853,8 @@ function ensureCutoffGameDatePicker() {
 	});
 }
 
-function getCutoffGameSettlementDateValue() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
+function getCutoffGameProgramDateValue() {
+	var el = document.getElementById('cutoff_txtCutoffProgramDate');
 	if (!el) {
 		return '';
 	}
@@ -1399,7 +1413,7 @@ function isTruthyQueryFlag(value) {
 }
 
 function syncUnreturnedRollerFilterBanner() {
-	var $filterRow = $('#settlement-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
+	var $filterRow = $('#program-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
 	var $banner = $('#game-list-unreturned-roller-banner');
 	var active = !!window.gameListUnreturnedRollerOnly;
 
@@ -1627,6 +1641,37 @@ function restoreProgramDateCell($cell, html) {
 	$cell.removeData('prev-html');
 }
 
+/** Active Program Date picker range when filter mode is program; null otherwise. */
+function getActiveProgramDateFilterRange() {
+	var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
+	if (filterMode !== 'program') return null;
+	var el = document.getElementById('program-date-range-picker');
+	var fp = el && el._flatpickr;
+	if (!fp || !fp.selectedDates || fp.selectedDates.length !== 2) return null;
+	var pad = function (n) {
+		return String(n).padStart(2, '0');
+	};
+	function fmt(d) {
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+	}
+	var a = fmt(fp.selectedDates[0]);
+	var b = fmt(fp.selectedDates[1]);
+	return a <= b ? { from: a, to: b } : { from: b, to: a };
+}
+
+/** True if ymd still belongs in the current Program Date filter (Game Start filter always true). */
+function programDateMatchesActiveGameListFilter(ymd) {
+	if (!$('#game_list-tbl').length) return true;
+	var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
+	if (filterMode !== 'program') return true;
+	var y = String(ymd || '').slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(y)) return true;
+	var rng = getActiveProgramDateFilterRange();
+	if (!rng) return true;
+	if (rng.from !== rng.to) return y >= rng.from && y <= rng.to;
+	return y === rng.from;
+}
+
 function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
 	$.ajax({
 		url: '/game_list/' + gameId + '/program_date',
@@ -1634,6 +1679,13 @@ function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
 		contentType: 'application/json',
 		data: JSON.stringify({ program_date: newYmd }),
 		success: function () {
+			Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			if (!programDateMatchesActiveGameListFilter(newYmd)) {
+				if (typeof window.reloadData === 'function') {
+					window.reloadData();
+				}
+				return;
+			}
 			var display = formatProgramDateLabel(newYmd);
 			restoreProgramDateCell($cell,
 				'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
@@ -1646,7 +1698,6 @@ function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
 			if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
 				$('#game_list-tbl').DataTable().rows().invalidate('dom');
 			}
-			Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
 		},
 		error: function (xhr) {
 			restoreProgramDateCell($cell, $cell.data('prev-html'));
@@ -2146,13 +2197,7 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 $(document).ready(function () {
 
 	window.isMergeSettleMode = false;
-	window.isDailySettleSelectionMode = false;
-	window.isOpenPoolSelectionMode = false;
-	window.dailySettleTargetDate = null;
-	window.dailySettleArmedDate = null;
-	window.selectedSettlementSubView = 'open';
-	window.selectedSettlementRangeMultiDay = false;
-	window.draftDatesForMonth = [];
+	window.selectedProgramDateRangeMultiDay = false;
 
 	function getClientTodayYmd() {
 		var now = new Date();
@@ -2164,57 +2209,10 @@ $(document).ready(function () {
 			String(now.getDate()).padStart(2, '0')
 		);
 	}
-	function hasSettlementForDate(dateStr) {
-		var dates = window.settledDatesForMonth || [];
-		return !!dateStr && dates.indexOf(dateStr) !== -1;
-	}
-	function hasDraftSettlementForDate(dateStr) {
-		var dates = window.draftDatesForMonth || [];
-		return !!dateStr && dates.indexOf(dateStr) !== -1;
-	}
-	function rememberDraftSettlementDate(dateStr) {
-		var ymd = dateStr ? String(dateStr).slice(0, 10) : '';
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return;
-		window.draftDatesForMonth = window.draftDatesForMonth || [];
-		if (window.draftDatesForMonth.indexOf(ymd) === -1) {
-			window.draftDatesForMonth.push(ymd);
-			window.draftDatesForMonth.sort();
-		}
-		if (window.settledDatesForMonth) {
-			window.settledDatesForMonth = window.settledDatesForMonth.filter(function (d) {
-				return d !== ymd;
-			});
-		}
-	}
-	function navigateToSettlementDateOpen(ymd) {
-		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd).slice(0, 10))) return;
-		var dateStr = String(ymd).slice(0, 10);
-		rememberDraftSettlementDate(dateStr);
-		if (typeof navigateToDate === 'function') {
-			navigateToDate(dateStr, 'open');
-			return;
-		}
-		window.selectedSettlementDate = dateStr;
-		window.selectedSettlementRangeMultiDay = false;
-		window.selectedSettlementSubView = 'open';
-		var pickerEl = document.getElementById('settlement-range-picker');
-		if (pickerEl && pickerEl._flatpickr) {
-			pickerEl._flatpickr.setDate([dateStr, dateStr], false);
-		}
-		if (typeof window.updateSettlementSubviewIndicator === 'function') {
-			window.updateSettlementSubviewIndicator();
-		}
-		if (typeof window.reloadGameListBySettlementDate === 'function') {
-			window.reloadGameListBySettlementDate();
-		}
-	}
-	function isCurrentDate(dateStr) {
-		return !!dateStr && dateStr === getClientTodayYmd();
-	}
 
-	/** Reads #settlement-range-picker flatpickr; returns { from, to } YYYY-MM-DD or null. */
-	function getSettlementRangeYmdFromPicker() {
-		var el = document.getElementById('settlement-range-picker');
+	/** Reads #program-date-range-picker flatpickr; returns { from, to } YYYY-MM-DD or null. */
+	function getProgramDateRangeYmdFromPicker() {
+		var el = document.getElementById('program-date-range-picker');
 		var fp = el && el._flatpickr;
 		if (!fp || !fp.selectedDates || fp.selectedDates.length !== 2) return null;
 		var pad = function (n) {
@@ -2228,44 +2226,32 @@ $(document).ready(function () {
 		return a <= b ? { from: a, to: b } : { from: b, to: a };
 	}
 
-	function syncSettlementMultiDayChrome() {
-		var $w = $('#settlement-date-wrapper');
+	function syncProgramDateMultiDayChrome() {
+		var $w = $('#program-date-wrapper');
 		if (!$w.length) return;
-		var fm = $('input[name="filter-mode"]:checked').val() || 'settlement';
-		if (fm !== 'settlement') {
-			$w.removeClass('settlement-multi-day-search');
+		var fm = $('input[name="filter-mode"]:checked').val() || 'program';
+		if (fm !== 'program') {
+			$w.removeClass('program-date-multi-day-search');
 			return;
 		}
-		var rng = getSettlementRangeYmdFromPicker();
+		var rng = getProgramDateRangeYmdFromPicker();
 		var multi = !!(rng && rng.from && rng.to && rng.from !== rng.to);
-		$w.toggleClass('settlement-multi-day-search', multi);
+		$w.toggleClass('program-date-multi-day-search', multi);
 	}
 
 	function buildMergeSettleCheckbox(gameListId, accountId) {
 		return '<label class="merge-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
 	}
-	function buildDailySettleCheckbox(gameListId) {
-		return '<label class="daily-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="daily-settle-checkbox" value="' + gameListId + '" /></label>';
-	}
-	function buildOpenPoolCheckbox(gameListId) {
-		return '<label class="open-pool-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="open-pool-checkbox" value="' + gameListId + '" /></label>';
-	}
-	function buildGameStartCell(gameStartText, gameListId, accountId, showMergeCheckbox, showDailySettleCheckbox, showOpenPoolCheckbox) {
+	function buildGameStartCell(gameStartText, gameListId, accountId, showMergeCheckbox) {
 		var mergeCheckboxHtml = showMergeCheckbox ? buildMergeSettleCheckbox(gameListId, accountId) : '';
-		var dailySettleCheckboxHtml = showDailySettleCheckbox ? buildDailySettleCheckbox(gameListId) : '';
-		var openPoolCheckboxHtml = showOpenPoolCheckbox ? buildOpenPoolCheckbox(gameListId) : '';
-		return '<div class="d-inline-flex align-items-center gap-1">' + mergeCheckboxHtml + dailySettleCheckboxHtml + openPoolCheckboxHtml + '<span>' + gameStartText + '</span></div>';
+		return '<div class="d-inline-flex align-items-center gap-1">' + mergeCheckboxHtml + '<span>' + gameStartText + '</span></div>';
 	}
 
 	function syncGameListSelectAllCheckboxState() {
 		var $master = $('#game-list-select-all');
 		if (!$master.length) return;
 		var $cbs = $();
-		if ($('body').hasClass('open-pool-select-mode')) {
-			$cbs = $('#game_list-tbl tbody .open-pool-checkbox');
-		} else if ($('body').hasClass('daily-settle-select-mode')) {
-			$cbs = $('#game_list-tbl tbody .daily-settle-checkbox');
-		} else if ($('body').hasClass('merge-settle-mode')) {
+		if ($('body').hasClass('merge-settle-mode')) {
 			$cbs = $('#game_list-tbl tbody .merge-settle-checkbox');
 		}
 		if (!$cbs.length) {
@@ -2290,44 +2276,6 @@ $(document).ready(function () {
 			$('.merge-settle-checkbox').prop('checked', false);
 		}
 		syncGameListSelectAllCheckboxState();
-	}
-
-	function setOpenPoolSelectionMode(enabled) {
-		window.isOpenPoolSelectionMode = !!enabled;
-		var $a = $('#btn-breadcrumb-open-pool');
-		if (window.isOpenPoolSelectionMode) {
-			if (window.isDailySettleSelectionMode) setDailySettleSelectionMode(false);
-			if (window.isMergeSettleMode) {
-				window.isMergeSettleMode = false;
-				updateMergeSettleButtonState();
-			}
-			$('body').addClass('open-pool-select-mode');
-			if ($a.length) $a.addClass('breadcrumb-crumb-armed');
-		} else {
-			$('body').removeClass('open-pool-select-mode');
-			if ($a.length) $a.removeClass('breadcrumb-crumb-armed');
-			$('.open-pool-checkbox').prop('checked', false);
-			var $masterOpen = $('#game-list-select-all');
-			if ($masterOpen.length) $masterOpen.prop('checked', false).prop('indeterminate', false);
-		}
-		syncGameListSelectAllCheckboxState();
-	}
-
-	function setDailySettleSelectionMode(enabled) {
-		if (enabled && window.isOpenPoolSelectionMode) setOpenPoolSelectionMode(false);
-		window.isDailySettleSelectionMode = !!enabled;
-		var $settleCrumb = $('#btn-daily-settle');
-		if (window.isDailySettleSelectionMode) {
-			$('body').addClass('daily-settle-select-mode');
-			if ($settleCrumb.length) $settleCrumb.addClass('breadcrumb-crumb-armed');
-		} else {
-			$('body').removeClass('daily-settle-select-mode');
-			if ($settleCrumb.length) $settleCrumb.removeClass('breadcrumb-crumb-armed');
-			$('.daily-settle-checkbox').prop('checked', false);
-			window.dailySettleArmedDate = null;
-			var $master = $('#game-list-select-all');
-			if ($master.length) $master.prop('checked', false).prop('indeterminate', false);
-		}
 	}
 
 	function getSelectedMergeSettleIds() {
@@ -2470,18 +2418,12 @@ $(document).ready(function () {
 			return;
 		}
 		window.isMergeSettleMode = !window.isMergeSettleMode;
-		if (window.isMergeSettleMode && window.isDailySettleSelectionMode) setDailySettleSelectionMode(false);
-		if (window.isMergeSettleMode && window.isOpenPoolSelectionMode) setOpenPoolSelectionMode(false);
 		updateMergeSettleButtonState();
 	});
 
 	$(document).on('change', '#game-list-select-all', function () {
 		var checked = $(this).prop('checked');
-		if ($('body').hasClass('open-pool-select-mode')) {
-			$('#game_list-tbl tbody .open-pool-checkbox').prop('checked', checked);
-		} else if ($('body').hasClass('daily-settle-select-mode')) {
-			$('#game_list-tbl tbody .daily-settle-checkbox').prop('checked', checked);
-		} else if ($('body').hasClass('merge-settle-mode')) {
+		if ($('body').hasClass('merge-settle-mode')) {
 			$('#game_list-tbl tbody .merge-settle-checkbox').prop('checked', checked);
 		}
 		syncGameListSelectAllCheckboxState();
@@ -2489,7 +2431,7 @@ $(document).ready(function () {
 
 	$(document).on(
 		'change',
-		'#game_list-tbl tbody .open-pool-checkbox, #game_list-tbl tbody .daily-settle-checkbox, #game_list-tbl tbody .merge-settle-checkbox',
+		'#game_list-tbl tbody .merge-settle-checkbox',
 		function () {
 			syncGameListSelectAllCheckboxState();
 		}
@@ -2678,15 +2620,15 @@ $(document).ready(function () {
 	});
 
 	function getGameListExportFilename() {
-		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-		if (mode === 'settlement') {
-			if (window.selectedSettlementRangeMultiDay) {
-				var r = getSettlementRangeYmdFromPicker();
+		var mode = $('input[name="filter-mode"]:checked').val() || 'program';
+		if (mode === 'program') {
+			if (window.selectedProgramDateRangeMultiDay) {
+				var r = getProgramDateRangeYmdFromPicker();
 				if (r) {
 					return 'Gamebook_settlement_' + r.from + '_to_' + r.to + '.xlsx';
 				}
 			}
-			var d = (window.selectedSettlementDate || '').trim() || 'export';
+			var d = (window.selectedProgramDate || '').trim() || 'export';
 			return 'Gamebook-' + String(d).replace(/[^\d\-]/g, '') + '.xlsx';
 		}
 		var dr = document.getElementById('daterange-picker');
@@ -2776,15 +2718,15 @@ $(document).ready(function () {
 			}
 			return;
 		}
-		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		var mode = $('input[name="filter-mode"]:checked').val() || 'program';
 		var subtitle =
-			mode === 'settlement'
+			mode === 'program'
 				? (function () {
-						var r = getSettlementRangeYmdFromPicker();
+						var r = getProgramDateRangeYmdFromPicker();
 						if (r && r.from && r.to) {
 							return r.from === r.to ? r.from : r.from + ' to ' + r.to;
 						}
-						return String(window.selectedSettlementDate || '').trim();
+						return String(window.selectedProgramDate || '').trim();
 				  })()
 				: $('#daterange-picker').val() || '';
 		var headerHtml = payload.headers.map(function (h) {
@@ -2982,25 +2924,26 @@ $(document).ready(function () {
 		} else if (window.gameListUnreturnedRollerOnly) {
 			params.unreturned_roller = 1;
 		} else {
-			// Check filter mode: settlement or date range
-			var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+			// Check filter mode: program date or game start range
+			var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
 			
-			if (filterMode === 'settlement') {
-				var rng = getSettlementRangeYmdFromPicker();
+			if (filterMode === 'program') {
+				var rng = getProgramDateRangeYmdFromPicker();
 				if (!rng) {
 					clearGameListDisplay();
 					return;
 				}
-				window.selectedSettlementRangeMultiDay = rng.from !== rng.to;
-				if (window.selectedSettlementRangeMultiDay) {
-					params.settlementFrom = rng.from;
-					params.settlementTo = rng.to;
-					window.selectedSettlementDate = rng.from;
+				window.selectedProgramDateRangeMultiDay = rng.from !== rng.to;
+				if (window.selectedProgramDateRangeMultiDay) {
+					params.programFrom = rng.from;
+					params.programTo = rng.to;
+					window.selectedProgramDate = rng.from;
+					window.selectedProgramDate = rng.from;
 				} else {
 					var date = rng.from;
 					params.date = date;
-					params.settlement_view = window.selectedSettlementSubView || 'open';
-					window.selectedSettlementDate = date;
+					window.selectedProgramDate = date;
+					window.selectedProgramDate = date;
 				}
 			} else {
 				// Date range mode
@@ -3026,7 +2969,7 @@ $(document).ready(function () {
 				params.toDate = toDate;
 			}
 		}
-        syncSettlementMultiDayChrome();
+        syncProgramDateMultiDayChrome();
         $.ajax({
             url: '/game_list_data', // Endpoint to fetch data
             method: 'GET',
@@ -3047,13 +2990,7 @@ $(document).ready(function () {
                     window.lastSettlementRows = [];
                     dataTable.draw();
                     $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_COMMISSION, #GRAND_ADD_CHG, #GRAND_TOTAL_SETTLE, #GRAND_WIN_LOSS').text('0.00');
-                    if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(0);
                     return;
-                }
-                // Only update settle button state if in settlement mode
-                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-                if (filterMode === 'settlement' && params.date && !window.selectedSettlementRangeMultiDay && typeof window.updateSettleButtonState === 'function') {
-                    window.updateSettleButtonState(data.length);
                 }
 
                 // Assume you have the user's permissions stored in a variable `userPermissions`
@@ -3139,32 +3076,6 @@ $(document).ready(function () {
 
 // 					let isHighlighted = highlightId && parseInt(highlightId) === row.game_list_id;
 // let rowClass = isHighlighted ? 'highlight-row' : '';
-
-                    var isSettlementModeUi = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-                    var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-                    var dataTodayYmd =
-                        (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-                        (function () {
-                            var n = new Date();
-                            return (
-                                n.getFullYear() +
-                                '-' +
-                                String(n.getMonth() + 1).padStart(2, '0') +
-                                '-' +
-                                String(n.getDate()).padStart(2, '0')
-                            );
-                        })();
-                    var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-                    var isTodaySettledView =
-                        !window.selectedSettlementRangeMultiDay &&
-                        /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-                        selectedYmd === String(dataTodayYmd).slice(0, 10);
-                    var canOpenPoolSelect =
-                        isSettlementModeUi &&
-                        !window.selectedSettlementRangeMultiDay &&
-                        window.selectedSettlementSubView === 'settled' &&
-                        isTodaySettledView &&
-                        window.isOpenPoolSelectionMode;
 
                     var btn = `<div class="btn-group">
                         <button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
@@ -3413,9 +3324,7 @@ $(document).ready(function () {
 									game_start,
 									row.game_list_id,
 									row.ACCOUNT_ID,
-									row.SETTLED === 1,
-									false,
-									canOpenPoolSelect
+									row.SETTLED === 1
 								);
 								
 								// const highlightId = getQueryParam('highlight_id');
@@ -3458,9 +3367,6 @@ $(document).ready(function () {
                                     roller_chips_td,
                                     actionButtons
                                 ]).draw().node();
-                                if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
-                                }
 								
 								
 								
@@ -3549,15 +3455,11 @@ $(document).ready(function () {
 								// Format net value as an integer
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
-								var isSettlementMode = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-								var canDailySettle = isSettlementMode && window.isDailySettleSelectionMode;
 								var gameStartCell = buildGameStartCell(
 									game_start,
 									row.game_list_id,
 									row.ACCOUNT_ID,
-									row.SETTLED === 1,
-									canDailySettle,
-									canOpenPoolSelect
+									row.SETTLED === 1
 								);
 								
 								var actionButtons = btn_remarks + btn_settle;
@@ -3586,9 +3488,6 @@ $(document).ready(function () {
 									roller_chips_td,
 									actionButtons
 								]).draw().node();
-                                if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
-                                }
 								
 								
 								
@@ -3673,15 +3572,11 @@ $(document).ready(function () {
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
-						   var isSettlementModeEnd = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-						   var canDailySettleEnd = isSettlementModeEnd && window.isDailySettleSelectionMode;
 						   var gameStartCellEnd = buildGameStartCell(
 							   game_start,
 							   row.game_list_id,
 							   row.ACCOUNT_ID,
-							   row.SETTLED === 1,
-							   canDailySettleEnd,
-							   canOpenPoolSelect
+							   row.SETTLED === 1
 						   );
 						   var actionButtons = btn_remarks + btn_settle;
 						   if (userPermissions === 0) {
@@ -3690,9 +3585,6 @@ $(document).ready(function () {
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
-                           if (row.DAILY_SETTLEMENT != 2) {
-                               $(rowNode).find('td').eq(3).addClass('unsettled-game-cell');
-                           }
 						   
 						   
 							}
@@ -3712,49 +3604,11 @@ $(document).ready(function () {
 
     // Expose reloadData to window so it can be called from date range picker
     window.reloadData = reloadData;
-    window.reloadGameListBySettlementDate = function () { reloadData(); };
-
-    var settledDatesRaw = $('#settlement-date-wrapper .input-group').attr('data-settled-dates');
-    var draftDatesRaw = $('#settlement-date-wrapper .input-group').attr('data-draft-dates');
-    try {
-        window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-    } catch (e) {
-        window.settledDatesForMonth = [];
-    }
-    try {
-        window.draftDatesForMonth = draftDatesRaw ? JSON.parse(draftDatesRaw) : [];
-    } catch (e) {
-        window.draftDatesForMonth = [];
-    }
-    var settleBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle) || 'Settle';
-    window.updateSettleButtonState = function (recordCount) {
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        var $btn = $('#btn-daily-settle');
-
-        if (filterMode !== 'settlement') {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        if (window.selectedSettlementRangeMultiDay) {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        var date = window.selectedSettlementDate;
-
-        if (!date) {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        $btn.removeClass('disabled breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
-    };
+    window.reloadGameListByProgramDate = function () { reloadData(); };
+    window.updateSettleButtonState = function () {};
 
     // Previous/Next Date Navigation Functions
-    function getEarliestSettlementDate() {
-        // Allow navigation back to January 1 of previous year
-        // (no longer restricted by settledDatesForMonth which only contains current month's settled dates)
+    function getEarliestProgramDate() {
         var now = new Date();
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
@@ -3771,11 +3625,9 @@ $(document).ready(function () {
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var previousDateStr = previous.getFullYear() + '-' + pad(previous.getMonth() + 1) + '-' + pad(previous.getDate());
         
-        // Get the earliest settlement date (when settlements started)
-        var earliestSettlementDate = getEarliestSettlementDate();
+        var earliestProgramDate = getEarliestProgramDate();
         
-        // Don't go before the earliest settlement date
-        if (previousDateStr < earliestSettlementDate) {
+        if (previousDateStr < earliestProgramDate) {
             return null;
         }
         
@@ -3790,194 +3642,68 @@ $(document).ready(function () {
         next.setDate(next.getDate() + 1);
         
         var pad = function(n) { return String(n).padStart(2, '0'); };
-        var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
-        
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxAllowedStr = wrapper && wrapper.getAttribute('data-max-settlement-date');
-        if (maxAllowedStr && String(maxAllowedStr).trim() !== '' && nextDateStr > maxAllowedStr) {
-            return null;
-        }
-        
-        return nextDateStr;
-    }
-
-    function getDefaultSettlementSubView(targetDate) {
-        // Current date should stay on Open by default so unsettled pool is visible.
-        if (isCurrentDate(targetDate)) return 'open';
-        if (hasDraftSettlementForDate(targetDate)) return 'open';
-        return hasSettlementForDate(targetDate) ? 'settled' : 'open';
+        return next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
     }
     
     // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
     window.updateNavigationButtons = function() {
-        if (!$('#btn-settlement-prev').length) {
+        if (!$('#btn-program-date-prev').length) {
             return;
         }
-        var rng = getSettlementRangeYmdFromPicker();
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var fallback =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorForPrev = rng && window.selectedSettlementRangeMultiDay ? rng.from : fallback;
-        var anchorForNext = rng && window.selectedSettlementRangeMultiDay ? rng.to : fallback;
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorForPrev = rng && window.selectedProgramDateRangeMultiDay ? rng.from : fallback;
+        var anchorForNext = rng && window.selectedProgramDateRangeMultiDay ? rng.to : fallback;
         var previousDate = getPreviousDate(anchorForPrev);
         var nextDate = getNextDate(anchorForNext);
         
-        // Update previous button state
-        if (previousDate) {
-            $('#btn-settlement-prev').prop('disabled', false);
-        } else {
-            $('#btn-settlement-prev').prop('disabled', true);
-        }
-        
-        // Update next button state
-        if (nextDate) {
-            $('#btn-settlement-next').prop('disabled', false);
-        } else {
-            $('#btn-settlement-next').prop('disabled', true);
-        }
-    };
-    
-    window.updateOpenPoolBreadcrumbVisibility = function () {
-        var $open = $('#btn-breadcrumb-open-pool');
-        if (!$open.length) return;
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        var visible = false;
-        if (filterMode === 'settlement') {
-            var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-            var dataTodayYmd =
-                (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-                getClientTodayYmd();
-            var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-            visible =
-                !window.selectedSettlementRangeMultiDay &&
-                /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-                selectedYmd === String(dataTodayYmd).slice(0, 10) &&
-                window.selectedSettlementSubView === 'settled';
-        }
-        if (visible) {
-            $open.removeClass('d-none');
-        } else {
-            if (window.isOpenPoolSelectionMode) {
-                setOpenPoolSelectionMode(false);
-                if (typeof window.reloadGameListBySettlementDate === 'function') {
-                    window.reloadGameListBySettlementDate();
-                }
-            }
-            $open.addClass('d-none');
-        }
+        $('#btn-program-date-prev').prop('disabled', !previousDate);
+        $('#btn-program-date-next').prop('disabled', !nextDate);
     };
 
-    window.updateSettlementSubviewIndicator = function() {
-        syncSettlementMultiDayChrome();
-        var $indicator = $('#settlement-subview-indicator');
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        if (filterMode !== 'settlement') {
-            if ($indicator.length) {
-                $indicator.text('').removeClass('is-open is-settled is-range').hide();
-            }
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        if (!$indicator.length) {
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        var rngPick = getSettlementRangeYmdFromPicker();
-        if (rngPick && rngPick.from !== rngPick.to) {
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        $indicator.removeClass('is-range');
-        $indicator.show();
-        if (window.selectedSettlementSubView === 'settled') {
-            $indicator.text('Settled').removeClass('is-open').addClass('is-settled');
-        } else {
-            $indicator.text('Open').removeClass('is-settled').addClass('is-open');
-        }
-        if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-            window.updateOpenPoolBreadcrumbVisibility();
-        }
-    };
-
-    $(document).on('click', '#settlement-subview-indicator', function () {
-        if (window.selectedSettlementRangeMultiDay) return;
-        var cur = window.selectedSettlementDate;
-        if (!isCurrentDate(cur) || !hasSettlementForDate(cur)) return;
-        if (window.selectedSettlementSubView === 'settled') {
-            navigateToDate(cur, 'open');
-        } else {
-            navigateToDate(cur, 'settled');
-        }
-    });
-
-    function navigateToDate(targetDate, preferredSubView) {
+    function navigateToDate(targetDate) {
         if (!targetDate) return;
-        setDailySettleSelectionMode(false);
-        setOpenPoolSelectionMode(false);
 
-        window.selectedSettlementDate = targetDate;
-        window.selectedSettlementRangeMultiDay = false;
-        if (preferredSubView === 'settled' || preferredSubView === 'open') {
-            window.selectedSettlementSubView = preferredSubView;
-        } else {
-            window.selectedSettlementSubView = getDefaultSettlementSubView(targetDate);
-        }
+        window.selectedProgramDate = targetDate;
+        window.selectedProgramDate = targetDate;
+        window.selectedProgramDateRangeMultiDay = false;
 
-        var pickerEl = document.getElementById('settlement-range-picker');
+        var pickerEl = document.getElementById('program-date-range-picker');
         if (pickerEl && pickerEl._flatpickr) {
             pickerEl._flatpickr.setDate([targetDate, targetDate], false);
         }
 
         updateNavigationButtons();
-        if (typeof window.updateSettlementSubviewIndicator === 'function') {
-            window.updateSettlementSubviewIndicator();
-        }
-
-        if (typeof window.updateSettleButtonState === 'function') {
-            window.updateSettleButtonState();
-        }
-
-        if (typeof window.reloadGameListBySettlementDate === 'function') {
-            window.reloadGameListBySettlementDate();
+        if (typeof window.reloadGameListByProgramDate === 'function') {
+            window.reloadGameListByProgramDate();
         }
     }
     window.navigateToDate = navigateToDate;
 
     // Previous button click handler
-    $('#btn-settlement-prev').on('click', function() {
-        var rng = getSettlementRangeYmdFromPicker();
+    $('#btn-program-date-prev').on('click', function() {
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var currentDate =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorPrev = rng && window.selectedSettlementRangeMultiDay ? rng.from : currentDate;
-        if (
-            !window.selectedSettlementRangeMultiDay &&
-            isCurrentDate(anchorPrev) &&
-            hasSettlementForDate(anchorPrev) &&
-            window.selectedSettlementSubView !== 'settled'
-        ) {
-            navigateToDate(anchorPrev, 'settled');
-            return;
-        }
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorPrev = rng && window.selectedProgramDateRangeMultiDay ? rng.from : currentDate;
         var previousDate = getPreviousDate(anchorPrev);
 
         if (previousDate) {
-            navigateToDate(previousDate, getDefaultSettlementSubView(previousDate));
+            navigateToDate(previousDate);
         } else {
-            var earliestDate = getEarliestSettlementDate();
-            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest settlement date';
+            var earliestDate = getEarliestProgramDate();
+            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest date';
             Swal.fire({
                 icon: 'info',
                 title: 'No Previous Date',
-                text: 'You are already at the earliest settlement date (' + formattedEarliest + ').',
+                text: 'You are already at the earliest program date (' + formattedEarliest + ').',
                 confirmButtonText: 'OK',
                 timer: 2000,
                 showConfirmButton: false
@@ -3986,30 +3712,18 @@ $(document).ready(function () {
     });
 
     // Next button click handler
-    $('#btn-settlement-next').on('click', function() {
-        var rng = getSettlementRangeYmdFromPicker();
+    $('#btn-program-date-next').on('click', function() {
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var currentDate =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorNext = rng && window.selectedSettlementRangeMultiDay ? rng.to : currentDate;
-        if (
-            !window.selectedSettlementRangeMultiDay &&
-            isCurrentDate(anchorNext) &&
-            hasSettlementForDate(anchorNext) &&
-            window.selectedSettlementSubView === 'settled'
-        ) {
-            navigateToDate(anchorNext, 'open');
-            return;
-        }
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorNext = rng && window.selectedProgramDateRangeMultiDay ? rng.to : currentDate;
         var nextDate = getNextDate(anchorNext);
 
         if (nextDate) {
-            if (isCurrentDate(nextDate) && hasSettlementForDate(nextDate)) {
-                navigateToDate(nextDate, 'settled');
-            } else {
-                navigateToDate(nextDate, getDefaultSettlementSubView(nextDate));
-            }
+            navigateToDate(nextDate);
         } else {
             Swal.fire({
                 icon: 'info',
@@ -4025,19 +3739,16 @@ $(document).ready(function () {
     // Filter mode toggle handler
     $('input[name="filter-mode"]').on('change', function() {
         var mode = $(this).val();
-        if (mode === 'settlement') {
-            $('#settlement-date-wrapper').show();
+        if (mode === 'program') {
+            $('#program-date-wrapper').show();
             $('#daterange-wrapper').hide();
-            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
             }
         } else {
-            $('#settlement-date-wrapper').hide();
+            $('#program-date-wrapper').hide();
             $('#daterange-wrapper').show();
-            syncSettlementMultiDayChrome();
-            setOpenPoolSelectionMode(false);
-            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
+            syncProgramDateMultiDayChrome();
             if (dateRangePicker && typeof dateRangePicker.clear === 'function') {
                 dateRangePicker.clear();
             }
@@ -4045,65 +3756,35 @@ $(document).ready(function () {
         }
     });
     
-    // Initialize settlement date range picker (by settlement / daily_settlement date; same day uses date + settlement_view API)
-    var settlementDatePicker = null;
-    if (document.getElementById('settlement-range-picker')) {
+    // Initialize program date range picker
+    var programDatePicker = null;
+    if (document.getElementById('program-date-range-picker')) {
         var pad = function (n) {
             return String(n).padStart(2, '0');
         };
 
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxSettlementDate = null;
-        var settledDatesList = window.settledDatesForMonth || [];
-        if (wrapper) {
-            maxSettlementDate = wrapper.getAttribute('data-max-settlement-date');
-            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            var draftDatesRaw = wrapper.getAttribute('data-draft-dates');
-            try {
-                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
-                    window.settledDatesForMonth = parsedDates;
-                }
-                settledDatesList = window.settledDatesForMonth || [];
-            } catch (e) {
-                console.error('[Settlement range picker] Error parsing settled dates:', e);
-            }
-            try {
-                var parsedDraftDates = draftDatesRaw ? JSON.parse(draftDatesRaw) : [];
-                if (!window.draftDatesForMonth || window.draftDatesForMonth.length === 0) {
-                    window.draftDatesForMonth = parsedDraftDates;
-                }
-            } catch (e) {
-                console.error('[Settlement range picker] Error parsing draft dates:', e);
-            }
-        }
-
-        var earliestSettlementDate;
-        if (settledDatesList.length > 0) {
-            earliestSettlementDate = settledDatesList.slice().sort()[0];
-        } else {
-            var earliestAllowed = new Date(new Date().getFullYear() - 1, 0, 1);
-            earliestSettlementDate =
-                earliestAllowed.getFullYear() +
-                '-' +
-                pad(earliestAllowed.getMonth() + 1) +
-                '-' +
-                pad(earliestAllowed.getDate());
-        }
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
+        var nowForCal = new Date();
+        var earliestAllowed = new Date(nowForCal.getFullYear() - 1, 0, 1);
+        var earliestProgramDate =
+            earliestAllowed.getFullYear() +
+            '-' +
+            pad(earliestAllowed.getMonth() + 1) +
+            '-' +
+            pad(earliestAllowed.getDate());
 
         var todayStr = getClientTodayYmd();
         var todayFromDom = wrapper && wrapper.getAttribute('data-today');
-        var initialFromDom = wrapper && wrapper.getAttribute('data-initial-settlement-date');
-        var anchor = todayStr || initialFromDom || todayFromDom;
+        var initialFromDom = wrapper && wrapper.getAttribute('data-initial-program-date');
+        var anchor = initialFromDom || todayStr || todayFromDom;
 
-        window.selectedSettlementDate = anchor;
-        window.selectedSettlementRangeMultiDay = false;
-        window.selectedSettlementSubView = getDefaultSettlementSubView(anchor);
+        window.selectedProgramDate = anchor;
+        window.selectedProgramDate = anchor;
+        window.selectedProgramDateRangeMultiDay = false;
 
-        var nowForCal = new Date();
         var settlementCalStart = new Date(nowForCal.getFullYear(), nowForCal.getMonth() - 2, 1);
 
-        var fpSettlementRangeOpts = {
+        programDatePicker = flatpickr('#program-date-range-picker', {
             mode: 'range',
             dateFormat: 'Y-m-d',
             altInput: true,
@@ -4111,7 +3792,7 @@ $(document).ready(function () {
             showMonths: 3,
             defaultMonth: settlementCalStart,
             defaultDate: [anchor, anchor],
-            minDate: earliestSettlementDate,
+            minDate: earliestProgramDate,
             allowInput: false,
             onOpen: function (selectedDates, dateStr, instance) {
                 var n = new Date();
@@ -4134,119 +3815,30 @@ $(document).ready(function () {
                 if (!selectedDates || selectedDates.length !== 2) {
                     return;
                 }
-                setDailySettleSelectionMode(false);
-                setOpenPoolSelectionMode(false);
                 var a = selectedDates[0];
                 var b = selectedDates[1];
                 var d0 = a.getFullYear() + '-' + pad(a.getMonth() + 1) + '-' + pad(a.getDate());
                 var d1 = b.getFullYear() + '-' + pad(b.getMonth() + 1) + '-' + pad(b.getDate());
                 var fromD = d0 <= d1 ? d0 : d1;
                 var toD = d0 <= d1 ? d1 : d0;
-                window.selectedSettlementRangeMultiDay = fromD !== toD;
-                window.selectedSettlementDate = fromD;
-                if (!window.selectedSettlementRangeMultiDay) {
-                    window.selectedSettlementSubView = getDefaultSettlementSubView(fromD);
-                }
+                window.selectedProgramDateRangeMultiDay = fromD !== toD;
+                window.selectedProgramDate = fromD;
+                window.selectedProgramDate = fromD;
                 if (typeof window.updateNavigationButtons === 'function') {
                     window.updateNavigationButtons();
                 }
-                if (typeof window.updateSettleButtonState === 'function') {
-                    window.updateSettleButtonState();
-                }
-                if (typeof window.updateSettlementSubviewIndicator === 'function') {
-                    window.updateSettlementSubviewIndicator();
-                }
-                if (typeof window.reloadGameListBySettlementDate === 'function') {
-                    window.reloadGameListBySettlementDate();
-                }
-            },
-            onDayCreate: function (dayElem) {
-                if (!dayElem || !dayElem.dateObj) return;
-                var d = dayElem.dateObj;
-                var dStr =
-                    d.getFullYear() +
-                    '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') +
-                    '-' +
-                    String(d.getDate()).padStart(2, '0');
-                var settledDates = window.settledDatesForMonth || [];
-                if (dStr && settledDates.indexOf(dStr) !== -1) {
-                    dayElem.classList.add('settled-day');
+                syncProgramDateMultiDayChrome();
+                if (typeof window.reloadGameListByProgramDate === 'function') {
+                    window.reloadGameListByProgramDate();
                 }
             }
-        };
-        if (maxSettlementDate && String(maxSettlementDate).trim() !== '') {
-            fpSettlementRangeOpts.maxDate = maxSettlementDate;
-        }
-        settlementDatePicker = flatpickr('#settlement-range-picker', fpSettlementRangeOpts);
+        });
     }
 
     // Initialize date range picker (single input with range mode)
     var dateRangePicker = null;
     if (document.getElementById('daterange-picker')) {
         var now = new Date();
-        var pad = function(n) { return String(n).padStart(2, '0'); };
-        
-        // Get default settlement date (next settlement date) from wrapper
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var defaultSettlementDate = null;
-        if (wrapper) {
-            defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
-            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            try {
-                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                // Make sure window.settledDatesForMonth is set if not already set
-                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
-                    window.settledDatesForMonth = parsedDates;
-                }
-            } catch (e) {
-                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
-            }
-        }
-        
-        // Default date range: All settlements for the current month.
-        // If walang settlement this month, fallback to previous behavior.
-        var settledDates = window.settledDatesForMonth || [];
-        var defaultFromDate;
-        var defaultToDate;
-        
-        if (settledDates.length > 0) {
-            var currentYear = now.getFullYear();
-            var currentMonth = now.getMonth() + 1; // 1-12
-            
-            // Filter settled dates to current month/year
-            var settledDatesThisMonth = settledDates.filter(function (d) {
-                if (typeof d !== 'string' || d.length < 7) return false;
-                var parts = d.split('-');
-                if (parts.length < 2) return false;
-                var y = parseInt(parts[0], 10);
-                var m = parseInt(parts[1], 10);
-                if (isNaN(y) || isNaN(m)) return false;
-                return y === currentYear && m === currentMonth;
-            });
-            
-            var datesToUse = settledDatesThisMonth.length > 0 ? settledDatesThisMonth : settledDates;
-            var sortedDates = datesToUse.slice().sort();
-            
-            // From Date: First settlement date in the chosen set
-            defaultFromDate = sortedDates[0];
-            
-            // To Date: Next settlement date (defaultSettlementDate) if available,
-            // otherwise next day after last settlement in the chosen set.
-            var lastSettlementDate = sortedDates[sortedDates.length - 1];
-            var lastDate = new Date(lastSettlementDate + 'T12:00:00');
-            var nextDayAfterLast = new Date(lastDate);
-            nextDayAfterLast.setDate(nextDayAfterLast.getDate() + 1);
-            var nextDayAfterLastStr = nextDayAfterLast.getFullYear() + '-' + pad(nextDayAfterLast.getMonth() + 1) + '-' + pad(nextDayAfterLast.getDate());
-            
-            defaultToDate = defaultSettlementDate || nextDayAfterLastStr;
-        } else {
-            // Fallback: First of current month to today (or default settlement date)
-            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            defaultFromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
-            var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-            defaultToDate = defaultSettlementDate || todayStr;
-        }
 
         var dateRangeElInit = document.getElementById('daterange-picker');
         if (dateRangeElInit && dateRangeElInit._flatpickr) {
@@ -4255,6 +3847,8 @@ $(document).ready(function () {
 
         var dateRangeVisibleStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
 
+        var gameStartPickerPlaceholder =
+            (dateRangeElInit && dateRangeElInit.getAttribute('placeholder')) || 'Select Date';
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
             dateFormat: 'Y-m-d',
@@ -4264,10 +3858,13 @@ $(document).ready(function () {
             defaultMonth: dateRangeVisibleStart,
             defaultDate: [],
             onReady: function (selectedDates, dateStr, instance) {
+                if (instance.altInput) {
+                    instance.altInput.setAttribute('placeholder', gameStartPickerPlaceholder);
+                }
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
-                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
                 if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
                     setTimeout(function() {
                         window.reloadData();
@@ -4294,432 +3891,21 @@ $(document).ready(function () {
         });
     }
 
-    var didRestoreDailySettleSession = false;
-    try {
-        var restoredDailySettleView = window.sessionStorage ? window.sessionStorage.getItem('dailySettleViewState') : null;
-        if (restoredDailySettleView) {
-            var parsedDailySettleView = JSON.parse(restoredDailySettleView);
-            if (parsedDailySettleView && /^\d{4}-\d{2}-\d{2}$/.test(String(parsedDailySettleView.date || ''))) {
-                window.selectedSettlementDate = parsedDailySettleView.date;
-                window.selectedSettlementSubView = parsedDailySettleView.subView === 'open' ? 'open' : 'settled';
-                didRestoreDailySettleSession = true;
-                window.selectedSettlementRangeMultiDay = false;
-                var restoredPickerEl = document.getElementById('settlement-range-picker');
-                if (restoredPickerEl && restoredPickerEl._flatpickr) {
-                    restoredPickerEl._flatpickr.setDate(
-                        [parsedDailySettleView.date, parsedDailySettleView.date],
-                        false
-                    );
-                }
-                syncSettlementMultiDayChrome();
-            }
-            window.sessionStorage.removeItem('dailySettleViewState');
-        }
-    } catch (e) {
-        // Ignore invalid session restore data.
+    var wrapperForInit = document.querySelector('#program-date-wrapper .input-group');
+    var initialProgramDate =
+        (wrapperForInit && wrapperForInit.getAttribute('data-initial-program-date')) ||
+        getClientTodayYmd();
+    window.selectedProgramDate = initialProgramDate;
+    window.selectedProgramDate = initialProgramDate;
+    window.selectedProgramDateRangeMultiDay = false;
+    var programDateRangeEl = document.getElementById('program-date-range-picker');
+    if (programDateRangeEl && programDateRangeEl._flatpickr) {
+        programDateRangeEl._flatpickr.setDate([initialProgramDate, initialProgramDate], false);
     }
-    if (!didRestoreDailySettleSession) {
-        window.selectedSettlementDate = getClientTodayYmd();
-        window.selectedSettlementRangeMultiDay = false;
-        var settlementRangeEl = document.getElementById('settlement-range-picker');
-        if (settlementRangeEl && settlementRangeEl._flatpickr) {
-            var pin = getClientTodayYmd();
-            settlementRangeEl._flatpickr.setDate([pin, pin], false);
-        }
-    }
-    syncSettlementMultiDayChrome();
-    if (!didRestoreDailySettleSession && typeof getDefaultSettlementSubView === 'function' && window.selectedSettlementDate) {
-        window.selectedSettlementSubView = getDefaultSettlementSubView(window.selectedSettlementDate);
-    }
+    syncProgramDateMultiDayChrome();
 
     reloadData();
-    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
-    if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
-
-    function getSelectedGamesForDailySettle() {
-        var ids = [];
-        $('.daily-settle-checkbox:checked').each(function () {
-            var v = parseInt($(this).val(), 10);
-            if (!isNaN(v) && ids.indexOf(v) === -1) ids.push(v);
-        });
-        return ids;
-    }
-
-    function runSettlementTransferRequest(payload, selectedGameIds, $btn) {
-        $.ajax({
-            url: '/game_list/daily_settlement/transfer',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(payload),
-            success: function (res) {
-                var d = (res && res.settlement_date) || payload.settlement_date || '';
-                var formatted = d
-                    ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric'
-                      })
-                    : d;
-                var successText =
-                    (res.game_count || selectedGameIds.length) +
-                    ' game(s) assigned to settlement date ' +
-                    formatted +
-                    '.';
-                Swal.fire({
-                    title: 'Done',
-                    text: successText,
-                    icon: 'success',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                }).then(function () {
-                    try {
-                        var targetDate = (res && res.settlement_date) || payload.settlement_date || '';
-                        if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(String(targetDate).slice(0, 10)) && window.sessionStorage) {
-                            window.sessionStorage.setItem(
-                                'dailySettleViewState',
-                                JSON.stringify({ date: String(targetDate).slice(0, 10), subView: 'settled' })
-                            );
-                        }
-                    } catch (e) {}
-                    window.location.reload();
-                });
-            },
-            error: function (xhr) {
-                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Transfer failed';
-                console.error('[Settlement transfer] error:', err, xhr);
-                Swal.fire({
-                    title: 'Error',
-                    text: err,
-                    icon: 'error',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-            },
-            complete: function () {
-                $btn.prop('disabled', false);
-                if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-            }
-        });
-    }
-
-    $('#btn-daily-settle').on('click', function () {
-        if ($(this).prop('disabled')) return;
-        var fallbackDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
-        var settlementDate = window.dailySettleTargetDate || fallbackDate;
-        var formattedDate = settlementDate
-            ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-            : settlementDate;
-        var selectedGameIds = getSelectedGamesForDailySettle();
-        var $btn = $(this);
-        var baseMessage = 'Assign ' + selectedGameIds.length + ' selected game(s) to ' + formattedDate + '?';
-
-        if (!window.isDailySettleSelectionMode) {
-            var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-            if (filterMode !== 'settlement') {
-                Swal.fire({
-                    title: 'Settlement Date mode required',
-                    text: 'Switch to Settlement Date mode first.',
-                    icon: 'warning',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-                return;
-            }
-            if (window.selectedSettlementRangeMultiDay) {
-                Swal.fire({
-                    title: 'Single day required',
-                    text: 'Set the settlement range to one day (same start and end) to use Daily Settle.',
-                    icon: 'info',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-                return;
-            }
-            if (Array.isArray(window.lastSettlementRows)) {
-                var eligibleRows = window.lastSettlementRows.filter(function (row) {
-                    var active = parseInt(row.ACTIVE, 10);
-                    return active === 1 || active === 2 || active === 3;
-                });
-                if (eligibleRows.length === 0) {
-                    Swal.fire({
-                        title: 'No games',
-                        text: 'No active games in the current list to assign.',
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                    return;
-                }
-            }
-            if (window.isMergeSettleMode) {
-                window.isMergeSettleMode = false;
-                updateMergeSettleButtonState();
-            }
-            setDailySettleSelectionMode(true);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            setTimeout(function () {
-                var hasCheckboxes = $('.daily-settle-checkbox').length > 0;
-                if (!hasCheckboxes && window.isDailySettleSelectionMode) {
-                    setDailySettleSelectionMode(false);
-                    Swal.fire({
-                        title: 'No End Games',
-                        text: 'No end games to settle yet. Games still ON GAME cannot be daily settled.',
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                }
-            }, 350);
-            return;
-        }
-
-        if (selectedGameIds.length === 0) {
-            setDailySettleSelectionMode(false);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            return;
-        }
-
-        var swalWrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var todayStr = (swalWrapper && swalWrapper.getAttribute('data-today')) || new Date().toISOString().slice(0, 10);
-        var nowForMin = new Date();
-        var minDateObj = new Date(nowForMin.getFullYear() - 1, 0, 1);
-        var minAllowedDate =
-            minDateObj.getFullYear() +
-            '-' +
-            String(minDateObj.getMonth() + 1).padStart(2, '0') +
-            '-' +
-            String(minDateObj.getDate()).padStart(2, '0');
-        var initialDate = window.dailySettleTargetDate || fallbackDate || todayStr;
-        window._swalSettlementTransferFp = null;
-
-        Swal.fire({
-            title: 'Assign settlement date',
-            html:
-                '<div class="text-start">' +
-                '<div class="d-flex align-items-center gap-2">' +
-                '<label for="swal-settlement-date" class="form-label mb-0" style="white-space: nowrap;">Date:</label>' +
-                '<input id="swal-settlement-date" class="form-control text-center" readonly />' +
-                '</div>' +
-                '</div>',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Continue',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#0d6efd',
-            cancelButtonColor: '#6c757d',
-            didOpen: function () {
-                var inputEl = document.getElementById('swal-settlement-date');
-                if (!inputEl) return;
-                if (window.flatpickr) {
-                    window._swalSettlementTransferFp = flatpickr(inputEl, {
-                        dateFormat: 'Y-m-d',
-                        altInput: true,
-                        altFormat: 'F d, Y',
-                        defaultDate: initialDate,
-                        minDate: minAllowedDate,
-                        allowInput: false
-                    });
-                }
-            },
-            preConfirm: function () {
-                var fp = window._swalSettlementTransferFp;
-                var chosenDate = '';
-                if (fp && fp.selectedDates && fp.selectedDates[0]) {
-                    var d = fp.selectedDates[0];
-                    chosenDate =
-                        d.getFullYear() +
-                        '-' +
-                        String(d.getMonth() + 1).padStart(2, '0') +
-                        '-' +
-                        String(d.getDate()).padStart(2, '0');
-                }
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)) {
-                    Swal.showValidationMessage('Please select a valid settlement date.');
-                    return false;
-                }
-                return { settlement_date: chosenDate };
-            }
-        }).then(function (dateResult) {
-            if (!dateResult.isConfirmed) return;
-            var choice = dateResult.value;
-            if (!choice || typeof choice !== 'object') return;
-
-            settlementDate = choice.settlement_date;
-            formattedDate = settlementDate
-                ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                  })
-                : settlementDate;
-            baseMessage = 'Assign ' + selectedGameIds.length + ' game(s) to settlement date ' + formattedDate + '?';
-
-            Swal.fire({
-                title: 'Confirm',
-                text: baseMessage,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#0d6efd',
-                cancelButtonColor: '#6c757d'
-            }).then(function (confirmResult) {
-                if (!confirmResult.isConfirmed) return;
-                $btn.prop('disabled', true);
-                var payload = { game_ids: selectedGameIds };
-                payload.settlement_date = choice.settlement_date;
-                runSettlementTransferRequest(payload, selectedGameIds, $btn);
-            });
-        });
-    });
-
-    $('#btn-breadcrumb-open-pool').on('click', function (e) {
-        e.preventDefault();
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        if (filterMode !== 'settlement') {
-            Swal.fire({
-                title: 'Settlement Date mode required',
-                text: 'Switch to Settlement Date mode first.',
-                icon: 'warning',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-        if (window.selectedSettlementRangeMultiDay) {
-            Swal.fire({
-                title: 'Single day required',
-                text: 'Set the settlement range to one day to use Open pool actions.',
-                icon: 'info',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-        var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-        var dataTodayYmd =
-            (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-            getClientTodayYmd();
-        var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-        var isTodaySettledView =
-            !window.selectedSettlementRangeMultiDay &&
-            /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-            selectedYmd === String(dataTodayYmd).slice(0, 10) &&
-            window.selectedSettlementSubView === 'settled';
-
-        if (!isTodaySettledView) {
-            Swal.fire({
-                title: 'Today settled only',
-                html: 'Set the picker to <strong>today</strong>, open the <strong>Settled</strong> list, then click <strong>OPEN</strong>.',
-                icon: 'info',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-
-        if (!window.isOpenPoolSelectionMode) {
-            setOpenPoolSelectionMode(true);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            setTimeout(function () {
-                var hasCb = $('.open-pool-checkbox').length > 0;
-                if (!hasCb && window.isOpenPoolSelectionMode) {
-                    setOpenPoolSelectionMode(false);
-                    Swal.fire({
-                        title: 'No games',
-                        text: "No rows in today's settled list.",
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                    if (typeof window.reloadGameListBySettlementDate === 'function') {
-                        window.reloadGameListBySettlementDate();
-                    }
-                }
-            }, 400);
-            return;
-        }
-
-        var selectedIds = [];
-        $('.open-pool-checkbox:checked').each(function () {
-            var v = parseInt($(this).val(), 10);
-            if (!isNaN(v) && selectedIds.indexOf(v) === -1) {
-                selectedIds.push(v);
-            }
-        });
-
-        if (selectedIds.length === 0) {
-            setOpenPoolSelectionMode(false);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            return;
-        }
-
-        Swal.fire({
-            title: 'Return to open pool?',
-            text:
-                'Move ' +
-                selectedIds.length +
-                ' game(s) to Open?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#0d6efd',
-            cancelButtonColor: '#6c757d'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            var $lnk = $('#btn-breadcrumb-open-pool');
-            $lnk.css('pointer-events', 'none').css('opacity', '0.65');
-            $.ajax({
-                url: '/game_list/daily_settlement/release',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ game_ids: selectedIds }),
-                success: function (res) {
-                    var n = (res && res.game_count) || selectedIds.length;
-                    Swal.fire({
-                        title: 'Done',
-                        text: n + ' game(s) returned to the open pool.',
-                        icon: 'success',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    }).then(function () {
-                        try {
-                            var wrapperEl = document.querySelector('#settlement-date-wrapper .input-group');
-                            var dateStr = String(
-                                window.selectedSettlementDate ||
-                                    (wrapperEl && wrapperEl.getAttribute('data-today')) ||
-                                    ''
-                            ).slice(0, 10);
-                            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr) && window.sessionStorage) {
-                                window.sessionStorage.setItem(
-                                    'dailySettleViewState',
-                                    JSON.stringify({ date: dateStr, subView: 'open' })
-                                );
-                            }
-                        } catch (e) {}
-                        window.location.reload();
-                    });
-                },
-                error: function (xhr) {
-                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Request failed';
-                    Swal.fire({ title: 'Error', text: err, icon: 'error', confirmButtonColor: '#0d6efd' });
-                },
-                complete: function () {
-                    $lnk.css('pointer-events', '').css('opacity', '');
-                }
-            });
-        });
-    });
 
 // Function to format numbers with commas
 function formatNumberWithCommas(number) {
@@ -5244,13 +4430,13 @@ $('#add_game_cutoff').submit(function (event) {
 		confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
 	}
 
-	var cutoffDateVal = getCutoffGameSettlementDateValue();
+	var cutoffDateVal = getCutoffGameProgramDateValue();
 	if (!cutoffDateVal) {
 		ensureCutoffGameDatePicker();
-		cutoffDateVal = getCutoffGameSettlementDateValue();
+		cutoffDateVal = getCutoffGameProgramDateValue();
 	}
-	if (!cutoffDateVal && window.selectedSettlementDate) {
-		cutoffDateVal = String(window.selectedSettlementDate).slice(0, 10);
+	if (!cutoffDateVal) {
+		cutoffDateVal = getDefaultProgramDateYmd();
 	}
 	if (cutoffDateVal) {
 		confirmationRows += buildRow('Date:', formatCutoffGameDateDisplay(cutoffDateVal));
@@ -5295,9 +4481,9 @@ $('#add_game_cutoff').submit(function (event) {
 			type: 'POST',
 			data: formData,
 			success: function (response) {
-				var cutoffYmd = getCutoffGameSettlementDateValue();
-				if (!cutoffYmd && window.selectedSettlementDate) {
-					cutoffYmd = String(window.selectedSettlementDate).slice(0, 10);
+				var cutoffYmd = getCutoffGameProgramDateValue();
+				if (!cutoffYmd) {
+					cutoffYmd = getDefaultProgramDateYmd();
 				}
 				Swal.fire({
 					icon: 'success',
@@ -5309,9 +4495,7 @@ $('#add_game_cutoff').submit(function (event) {
 				}).then(function (swalResult) {
 					if (swalResult.isConfirmed) {
 						$('#modal-new-game-cutoff').modal('hide');
-						if (cutoffYmd && /^\d{4}-\d{2}-\d{2}$/.test(cutoffYmd)) {
-							navigateToSettlementDateOpen(cutoffYmd);
-						} else if (typeof window.reloadData === 'function') {
+						if (typeof window.reloadData === 'function') {
 							window.reloadData();
 						}
 					}
@@ -6739,13 +5923,13 @@ $('#edit_status').submit(function (event) {
 	confirmationRows += buildRow('New Status:', statusText);
 
 	if (status == '4') {
-		var parentDateVal = getChangeStatusParentSettlementDateValue();
+		var parentDateVal = getChangeStatusParentProgramDateValue();
 		if (!parentDateVal) {
 			ensureChangeStatusParentDatePicker();
-			parentDateVal = getChangeStatusParentSettlementDateValue();
+			parentDateVal = getChangeStatusParentProgramDateValue();
 		}
-		if (!parentDateVal && window.selectedSettlementDate) {
-			parentDateVal = String(window.selectedSettlementDate).slice(0, 10);
+		if (!parentDateVal) {
+			parentDateVal = getDefaultProgramDateYmd();
 		}
 		if (parentDateVal) {
 			confirmationRows += buildRow('Parent Game Date:', formatCutoffGameDateDisplay(parentDateVal));
@@ -9298,7 +8482,7 @@ function archive_game_list(id) {
 	})
 }
 
-// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement_games
+// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services
 function delete_game_list(id, gameNoLabel) {
 	var label = (gameNoLabel != null && String(gameNoLabel).trim() !== '') ? String(gameNoLabel).trim() : String(id);
 	Swal.fire({

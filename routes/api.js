@@ -137,31 +137,13 @@ function computeRollingAndWinlossByAgent(recs) {
   return { byGame, byAgent };
 }
 
-// --- Helpers: resolve game IDs for a date (for daily settlement) ---
-// When allowLiveFallback is true and dateStr is today, returns all active games if no settlement (for live today).
-// For past dates or future dates with no settlement, returns [] so chart shows zeros.
-async function getGameIdsForDate(dateStr, todayStr, allowLiveFallback = true) {
-  const [hasSettlement] = await pool.execute(
-    'SELECT 1 AS ok FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
-    [dateStr]
-  );
-  if (hasSettlement.length > 0) {
-    const [rows] = await pool.execute(
-      `SELECT dsg.GAME_ID FROM daily_settlement_games dsg
-       JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-       WHERE ds.SETTLEMENT_DATE = ? ORDER BY dsg.GAME_ID`,
-      [dateStr]
-    );
-    return rows.map((r) => r.GAME_ID);
-  }
-  // Future date: never return games (chart must show zeros).
-  if (dateStr > todayStr) return [];
-  // Past date with no settlement: no games for that day.
-  if (dateStr < todayStr) return [];
-  // Today with no settlement: use all active games for live data.
-  if (!allowLiveFallback) return [];
+// --- Helpers: resolve game IDs for a date (by PROGRAM_DATE) ---
+async function getGameIdsForDate(dateStr) {
   const [rows] = await pool.execute(
-    `SELECT IDNo FROM game_list WHERE ACTIVE != 0 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL) ORDER BY IDNo ASC`
+    `SELECT IDNo FROM game_list
+     WHERE ACTIVE != 0 AND DATE(PROGRAM_DATE) = ?
+     ORDER BY IDNo ASC`,
+    [dateStr]
   );
   return rows.map((r) => r.IDNo);
 }
@@ -803,7 +785,7 @@ router.get('/daily-settlement', async (req, res) => {
           junketExpenses.push(0);
           continue;
         }
-        const gameIds = await getGameIdsForDate(dateStr, todayStr, true);
+        const gameIds = await getGameIdsForDate(dateStr);
 
         if (gameIds.length === 0) {
           gameCounts.push(0);
@@ -883,7 +865,7 @@ router.get('/daily-settlement', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid date. Use YYYY-MM-DD.' });
     }
 
-    const gameIds = await getGameIdsForDate(dateParam, todayStr);
+    const gameIds = await getGameIdsForDate(dateParam);
     let number_of_games = gameIds.length;
     let buy_in = 0, game_rolling = 0, win_loss = 0, commission = 0;
 
