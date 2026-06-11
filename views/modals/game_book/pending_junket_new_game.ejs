@@ -24,12 +24,11 @@
 					<input type="hidden" name="totalBalanceGuest1" id="pending_junket_total_balance">
 					<input type="hidden" name="required_balance" id="pending_junket_required_balance">
 
+					<input type="hidden" name="txtAccountCode" id="pending_junket_account_id" value="-1">
 					<div class="row mb-3">
 						<div class="col-sm-12">
-							<label class="form-label mb-1">Account <span class="text-danger">*</span></label>
-							<select class="form-select" id="pending_junket_txtAccount" name="txtAccountCode" style="width: 100%;" data-placeholder="Choose account...">
-								<option value="">--SELECT ACCOUNT--</option>
-							</select>
+							<label class="form-label mb-1">Account</label>
+							<input type="text" class="form-control" id="pending_junket_account_display" readonly placeholder="Loading account...">
 						</div>
 					</div>
 

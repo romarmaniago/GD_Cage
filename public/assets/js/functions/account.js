@@ -1,6 +1,85 @@
 var account_id;
 var creditDetailsRequestSeq = 0;
 
+function ensureModalAppendedToBody($modal) {
+	if ($modal && $modal.length && $modal.parent().length && !$modal.parent().is('body')) {
+		$modal.appendTo('body');
+	}
+}
+
+function isGuestPortalOpen() {
+	var $modal = $('#modal-account-details');
+	return $modal.length && $modal.hasClass('show');
+}
+
+function setGuestPortalChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('guest-portal-child-open');
+		$('#modal-account-details').addClass('guest-portal-parent-hidden');
+	} else {
+		$('body').removeClass('guest-portal-child-open');
+		$('#modal-account-details').removeClass('guest-portal-parent-hidden');
+	}
+}
+
+function bumpGuestPortalChildModalStack($childModal) {
+	var $parentModal = $('#modal-account-details');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function bumpGuestPortalCreditReturnStack() {
+	var $creditModal = $('#modal-credit-details');
+	var $returnModal = $('#modal-credit-return');
+	if (!$returnModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$creditModal.css('z-index', 1055);
+		$returnModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetGuestPortalChildModalStack($childModal) {
+	$('#modal-account-details').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.style.zIndex = '';
+	});
+}
+
+function prepareGuestPortalChildModal($modal) {
+	ensureModalAppendedToBody($modal);
+	if (isGuestPortalOpen()) {
+		setGuestPortalChildModalOpen(true);
+	}
+}
+
+window.prepareGuestPortalChildModal = prepareGuestPortalChildModal;
+
 // Escape string for safe use inside JavaScript single-quoted string (prevents syntax error when name/remarks have apostrophes, newlines, etc.)
 function escapeJsString(str) {
 	if (str == null || str === undefined) return '';
@@ -777,6 +856,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	$('#credit-game-balance').text('0');
 	resetCreditTableRows();
 
+	prepareGuestPortalChildModal($('#modal-credit-details'));
 	$('#modal-credit-details').modal('show');
 	$('#btn-credit-return').data('account-id', accountId);
 
@@ -905,6 +985,39 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			$('#credit-details-body').html('<tr><td colspan="5" class="text-center text-muted py-4">No credit records for this account.</td></tr>');
 		}
 	});
+});
+
+var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details';
+
+$(guestPortalChildModalSelectors).on('shown.bs.modal', function () {
+	if ($('body').hasClass('guest-portal-child-open')) {
+		bumpGuestPortalChildModalStack($(this));
+	}
+});
+
+$(guestPortalChildModalSelectors).on('hidden.bs.modal', function () {
+	if (isGuestPortalOpen()) {
+		setGuestPortalChildModalOpen(false);
+		resetGuestPortalChildModalStack($(this));
+	}
+});
+
+$('#modal-credit-return').on('shown.bs.modal', function () {
+	if ($('#modal-credit-details').hasClass('show')) {
+		bumpGuestPortalCreditReturnStack();
+	}
+});
+
+$('#modal-credit-return').on('hidden.bs.modal', function () {
+	$('#modal-credit-details').css('z-index', '');
+	$('#modal-credit-return').css('z-index', '');
+});
+
+$('#modal-account-details').on('hidden.bs.modal', function () {
+	setGuestPortalChildModalOpen(false);
+	resetGuestPortalChildModalStack($('#modal-game-history'));
+	resetGuestPortalChildModalStack($('#modal-credit-details'));
+	resetGuestPortalChildModalStack($('#modal-passport-details'));
 });
 
 $(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return', function () {

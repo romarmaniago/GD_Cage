@@ -11,13 +11,27 @@
 #modal-assign-game-guest .assign-game-guest-history-tbl tbody td {
 	font-size: 0.75rem;
 }
-#modal-assign-game-guest .assign-game-guest-add-btn {
-	width: 32px;
-	height: 32px;
-	padding: 0;
+#modal-assign-game-guest .assign-game-guest-action-btn {
+	width: 26px;
+	height: 26px;
+	padding: 0 !important;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	border-radius: 6px !important;
+	font-size: 11px;
+}
+body.assign-guest-child-open #modal-assign-game-guest.assign-guest-parent-hidden {
+	visibility: hidden !important;
+	pointer-events: none !important;
+}
+body.assign-guest-child-open #modal-game-history.show,
+body.assign-guest-child-open #modal-add-guest-table.show,
+body.assign-guest-child-open #modal-edit-guest-table.show {
+	z-index: 1065 !important;
+}
+body.assign-guest-child-open .modal-backdrop.show {
+	z-index: 1050 !important;
 }
 </style>
 <div class="modal fade" id="modal-assign-game-guest" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="assignGameGuestLabel" aria-hidden="true">
@@ -36,12 +50,15 @@
 						<div class="col-sm-12">
 							<div class="d-flex align-items-center mb-3">
 								<label class="form-label mb-0" for="assign_game_guest_select">Guest <span class="text-danger">*</span></label>
-								<div class="ms-auto d-flex align-items-center gap-2">
-									<button type="button" id="btn-assign-game-guest-add" class="btn btn-sm btn-primary assign-game-guest-add-btn" title="Add guest to this line">
+								<div class="ms-auto d-flex align-items-center gap-1">
+									<button type="button" id="btn-assign-game-guest-add" class="btn btn-sm btn-success-subtle assign-game-guest-action-btn" title="Add" aria-label="Add">
 										<i class="fa fa-plus" aria-hidden="true"></i>
 									</button>
-									<button type="button" id="btn-assign-guest-game-history" class="btn btn-sm btn-primary" disabled title="View game history for selected guest">
-										<i class="fa fa-history me-1" aria-hidden="true"></i>Game History
+									<button type="button" id="btn-assign-game-guest-edit" class="btn btn-sm btn-danger-subtle assign-game-guest-action-btn" disabled title="Edit" aria-label="Edit">
+										<i class="fa fa-pencil" aria-hidden="true"></i>
+									</button>
+									<button type="button" id="btn-assign-guest-game-history" class="btn btn-sm btn-info-subtle assign-game-guest-action-btn" disabled title="Game History" aria-label="Game History">
+										<i class="fa fa-history" aria-hidden="true"></i>
 									</button>
 								</div>
 							</div>
@@ -50,7 +67,8 @@
 							</select>
 						</div>
 					</div>
-					<div id="assign-game-guest-history-wrap" class="mt-3 d-none">
+					<!-- Hidden for now; enable via ASSIGN_GAME_GUEST_HISTORY_ENABLED in game_list.js -->
+					<div id="assign-game-guest-history-wrap" class="mt-3 d-none" hidden>
 						<div class="table-responsive assign-game-guest-history-scroll">
 							<table class="table table-bordered table-hover align-middle nowrap small-text mb-0 assign-game-guest-history-tbl" style="width:100%">
 								<thead>

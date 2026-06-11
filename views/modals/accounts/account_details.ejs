@@ -415,6 +415,21 @@
 </div>
 
 <style>
+body.guest-portal-child-open #modal-account-details.guest-portal-parent-hidden {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+body.guest-portal-child-open #modal-game-history.show,
+body.guest-portal-child-open #modal-credit-details.show,
+body.guest-portal-child-open #modal-passport-details.show {
+    z-index: 1065 !important;
+}
+body.guest-portal-child-open #modal-credit-return.show {
+    z-index: 1070 !important;
+}
+body.guest-portal-child-open .modal-backdrop.show {
+    z-index: 1050 !important;
+}
 
     /* Zoomed image styles – show whole image on hover (no crop) */
 #zoomed-image {
@@ -936,6 +951,9 @@
     if (btnPassportDetails && modalPassportDetails) {
         btnPassportDetails.addEventListener('click', function () {
             var accountId = document.getElementById('account_id_add') && document.getElementById('account_id_add').value;
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($(modalPassportDetails));
+            }
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
             if (Modal) Modal.getOrCreateInstance(modalPassportDetails).show();
             else $(modalPassportDetails).modal('show');

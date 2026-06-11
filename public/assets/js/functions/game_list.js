@@ -5,6 +5,8 @@ var _servicesSettled = 0;
 // Cache accounts so Select2 doesn't flash "No results found" while AJAX is still loading
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
+/** Junket/house account for pending resolve New Game (account.IDNo). */
+var PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
 	
 function resetNewGameSubmitButton() {
 	var $btn = $('#submit-game-list-btn');
@@ -427,6 +429,7 @@ function updateChangeStatusCutoffSection() {
 function updateChangeStatusRollerReturnSection() {
 	var selectedStatus = $('#status').val();
 	var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+	var isPendingResolve = !!$('#modal-change_status').data('isPendingResolve');
 
 	if (isCutoffStatus(selectedStatus)) {
 		$('#txtReturnRollerNN').val('');
@@ -442,18 +445,22 @@ function updateChangeStatusRollerReturnSection() {
 
 	resetChangeStatusCutoffFields();
 
-	if (selectedStatus == '1' && currentRequiredTotal > 0) {
-		if (isPendingFaultSettled()) {
-			applyPendingFaultSettledUi();
+	if (isPendingFaultSettled()) {
+		applyPendingFaultSettledUi();
+		return;
+	}
+
+	if (selectedStatus == '1' && (currentRequiredTotal > 0 || isPendingResolve)) {
+		$('#roller-chips-return-section').show();
+		$('#roller-chips-return-summary').toggle(currentRequiredTotal > 0);
+		$('#roller-chips-return-inputs').toggle(currentRequiredTotal > 0);
+		if (isPendingResolve) {
+			$('#pending-resolution-section').show();
+			$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
 		} else {
-			$('#roller-chips-return-section').show();
-			$('#roller-chips-return-summary').show();
-			$('#roller-chips-return-inputs').show();
-			if ($('#modal-change_status').data('isPendingResolve')) {
-				$('#pending-resolution-section').show();
-			}
-			$('#pending-resolve-status-banner').hide();
+			$('#pending-resolution-section').hide();
 		}
+		$('#pending-resolve-status-banner').hide();
 	} else {
 		$('#txtReturnRollerNN').val('');
 		$('#txtReturnRollerCC').val('');
@@ -606,10 +613,7 @@ function applyPendingFaultSettledUi() {
 	}
 	$('#pending-resolve-status-banner').hide();
 	if ($('#modal-change_status').data('isPendingResolve')) {
-		$('#roller-chips-return-summary').show();
-		$('#roller-chips-return-inputs').show();
-		$('#pending-resolution-section').show();
-		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+		updateChangeStatusRollerReturnSection();
 	}
 }
 
@@ -624,6 +628,7 @@ function refreshPendingResolveModalTotals(gameId, gameRow) {
 		$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString('en-US'));
 		$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
 		updatePendingResolveBanner(gameRow);
+		updateChangeStatusRollerReturnSection();
 	});
 }
 
@@ -643,12 +648,12 @@ function updatePendingResolveBanner(gameRow) {
 	applyPendingFaultSettledUi();
 
 	if (resolve === 1) {
-		$text.html('<strong>Guest:</strong> Additional buy-in recorded.  Click <strong>Save</strong> to end game.');
+		$text.html('<strong>Guest:</strong> Additional buy-in recorded. Game has ended.');
 		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
 		$('#btn-pending-guest-buyin').prop('disabled', true);
 	} else if (resolve === 2) {
 		var linkId = parseInt(gameRow.PENDING_ROLLER_LINK_GAME_ID, 10) || 0;
-		$text.html('<strong>Junket:</strong> New game #' + linkId + ' created. Click <strong>Save</strong> to end game.');
+		$text.html('<strong>Junket:</strong> New game #' + linkId + ' created. Pending game has ended.');
 		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
 		$('#btn-pending-junket-new-game').prop('disabled', true);
 	}
@@ -684,6 +689,7 @@ function applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName)
 		setChangeStatusPendingMode(true);
 		$('#status').val('1');
 		$('#staticBackdropLiveLabel').html(buildChangeStatusModalTitle('Resolve Pending', code, name));
+		updateChangeStatusRollerReturnSection();
 		refreshPendingResolveModalTotals(game.game_list_id || game.IDNo, game);
 		return;
 	}
@@ -775,8 +781,10 @@ function openPendingGuestBuyinModal() {
 	$('#pending_guest_txtRemarks').val('');
 	$('#pending_guest_cash').prop('checked', true);
 
+	var $childModal = $('#modal-pending-guest-buyin');
+	ensureModalAppendedToBody($childModal);
 	setPendingResolveChildModalOpen(true);
-	$('#modal-pending-guest-buyin').modal('show');
+	$childModal.modal('show');
 
 	$.ajax({
 		url: '/account_details_data_deposit/' + ctx.accountId,
@@ -811,52 +819,63 @@ function openPendingGuestBuyinModal() {
 	});
 }
 
-function populatePendingJunketAccountSelect(defaultAccountId) {
-	var $select = $('#pending_junket_txtAccount');
-	if (!$select.length) return Promise.resolve();
+function formatPendingJunketAccountLabel(row) {
+	if (!row) return 'Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
+	var code = String(row.agent_code || '').trim();
+	var name = String(row.agent_name || '').trim();
+	if (code && name) return code + '(' + name + ')';
+	return code || name || ('Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID);
+}
 
-	function applyOptions(options) {
-		if ($select.data('select2')) {
-			$select.select2('destroy');
-		}
-		$select.empty();
-		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
-		(options || []).forEach(function (option) {
-			var code = option.agent_code || '';
-			var name = option.agent_name || '';
-			var $opt = $('<option>', {
-				value: option.account_id,
-				text: (code ? code + ' - ' : '') + name
-			});
-			$opt.attr('data-guest-id', option.guest_id || option.GUESTNo || '');
-			$opt.attr('data-agent-id', option.agent_id || option.AGENT_ID || '');
-			$select.append($opt);
+function loadPendingJunketLockedAccount() {
+	var accountId = PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
+	$('#pending_junket_account_id').val(String(accountId));
+	$('#pending_junket_account_display').val('Loading account...');
+	return $.getJSON('/game_list/pending_resolve/junket_account')
+		.done(function (row) {
+			$('#pending_junket_account_display').val(formatPendingJunketAccountLabel(row));
+		})
+		.fail(function () {
+			$('#pending_junket_account_display').val('Account #' + accountId);
 		});
-		$select.select2({
-			placeholder: 'Choose account...',
-			dropdownParent: '#modal-pending-junket-new-game',
-			width: '100%'
-		});
-		if (defaultAccountId) {
-			$select.val(String(defaultAccountId)).trigger('change');
-		}
-	}
-
-	if (Array.isArray(_accountOptionsCache)) {
-		applyOptions(_accountOptionsCache);
-		return Promise.resolve();
-	}
-	return preloadAccounts().then(function (opts) {
-		applyOptions(opts);
-	}).catch(function () {
-		applyOptions([]);
-	});
 }
 
 function setPendingJunketNewGameDefaults() {
 	$('#pending_junket_game_type').val('LIVE');
 	$('#pending_junket_commission_type').val('1');
 	$('#pending_junket_commission_rate').val('0');
+}
+
+function ensureModalAppendedToBody($modal) {
+	if ($modal && $modal.length && $modal.parent().length && !$modal.parent().is('body')) {
+		$modal.appendTo('body');
+	}
+}
+
+function bumpPendingResolveChildModalStack($childModal) {
+	var $parentModal = $('#modal-change_status');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetPendingResolveChildModalStack($childModal) {
+	$('#modal-change_status').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
 }
 
 function setPendingResolveChildModalOpen(isOpen) {
@@ -867,6 +886,50 @@ function setPendingResolveChildModalOpen(isOpen) {
 		$('body').removeClass('pending-resolve-child-open');
 		$('#modal-change_status').removeClass('pending-resolve-parent-hidden');
 	}
+}
+
+function isAssignGameGuestModalOpen() {
+	var $modal = $('#modal-assign-game-guest');
+	return $modal.length && $modal.hasClass('show');
+}
+
+function setAssignGameGuestChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('assign-guest-child-open');
+		$('#modal-assign-game-guest').addClass('assign-guest-parent-hidden');
+	} else {
+		$('body').removeClass('assign-guest-child-open');
+		$('#modal-assign-game-guest').removeClass('assign-guest-parent-hidden');
+	}
+}
+
+function bumpAssignGameGuestChildModalStack($childModal) {
+	var $parentModal = $('#modal-assign-game-guest');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetAssignGameGuestChildModalStack($childModal) {
+	$('#modal-assign-game-guest').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.style.zIndex = '';
+	});
 }
 
 function openPendingJunketNewGameModal() {
@@ -893,15 +956,12 @@ function openPendingJunketNewGameModal() {
 	setFormattedChipInputValue($('#pending_junket_txtCC'), preCC);
 	$('#pending_junket_txtRemarks').val('');
 
+	var $childModal = $('#modal-pending-junket-new-game');
+	ensureModalAppendedToBody($childModal);
 	setPendingResolveChildModalOpen(true);
-	$('#modal-pending-junket-new-game').modal('show');
-
-	$.getJSON('/game_list_data?id=' + encodeURIComponent(ctx.gameId), function (rows) {
-		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
-		setPendingJunketNewGameDefaults();
-		var defaultAccountId = game && game.ACCOUNT_ID ? game.ACCOUNT_ID : ctx.accountId;
-		populatePendingJunketAccountSelect(defaultAccountId);
-	});
+	$childModal.modal('show');
+	setPendingJunketNewGameDefaults();
+	loadPendingJunketLockedAccount();
 }
 
 function commissionTypeLabel(type) {
@@ -1718,6 +1778,9 @@ function canAssignGameGuest() {
 	return userPermissions !== 2;
 }
 
+/** Guest assignment audit table in Assign guest modal. Set true when needed again. */
+var ASSIGN_GAME_GUEST_HISTORY_ENABLED = false;
+
 function escapeHtmlText(value) {
 	return String(value || '')
 		.replace(/&/g, '&amp;')
@@ -1768,11 +1831,23 @@ function buildGameGuestCell(row) {
 	);
 }
 
+function appendAssignGameGuestOption($guestSelect, guest) {
+	var $opt = $('<option>', {
+		value: guest.guest_id,
+		text: (guest.guest_name || '').toUpperCase()
+	});
+	$opt.attr('data-guest-name', guest.guest_name || '');
+	$opt.attr('data-membership-no', guest.membership_no || '');
+	$opt.attr('data-guest-remarks', guest.guest_remarks || '');
+	$guestSelect.append($opt);
+}
+
 function updateAssignGameGuestSaveState() {
 	var guestVal = $('#assign_game_guest_select').val();
 	var hasGuest = guestVal !== '' && guestVal != null && (parseInt(guestVal, 10) || 0) > 0;
 	$('#submit-assign-game-guest-btn').prop('disabled', !hasGuest);
 	$('#btn-assign-guest-game-history').prop('disabled', !hasGuest);
+	$('#btn-assign-game-guest-edit').prop('disabled', !hasGuest);
 	$('#assign_game_guest_select').toggleClass('is-invalid', !hasGuest);
 }
 
@@ -1785,6 +1860,7 @@ function resetAssignGameGuestModal() {
 	$guestSelect.removeClass('is-invalid');
 	$('#submit-assign-game-guest-btn').prop('disabled', true);
 	$('#btn-assign-guest-game-history').prop('disabled', true);
+	$('#btn-assign-game-guest-edit').prop('disabled', true);
 	$('#assign-game-guest-history-tbody').empty();
 	$('#assign-game-guest-history-wrap').addClass('d-none');
 	if ($('#assign_game_guest_form')[0]) {
@@ -1793,6 +1869,8 @@ function resetAssignGameGuestModal() {
 }
 
 function loadAssignGameGuestHistory(gameId) {
+	if (!ASSIGN_GAME_GUEST_HISTORY_ENABLED) return;
+
 	var $tbody = $('#assign-game-guest-history-tbody');
 	var $wrap = $('#assign-game-guest-history-wrap');
 	if (!$tbody.length) return;
@@ -1843,10 +1921,7 @@ function loadAssignGameGuestSelect(agentId, currentGuestId, onReady) {
 		success: function (rows) {
 			var guests = Array.isArray(rows) ? rows : [];
 			guests.forEach(function (guest) {
-				$guestSelect.append($('<option>', {
-					value: guest.guest_id,
-					text: (guest.guest_name || '').toUpperCase()
-				}));
+				appendAssignGameGuestOption($guestSelect, guest);
 			});
 			if (currentGuestId) {
 				$guestSelect.val(String(currentGuestId));
@@ -1875,6 +1950,28 @@ function buildAssignGameGuestLineLabel(agentCode, agentName) {
 	return code || name || '-';
 }
 
+function openEditGuestFromAssignGameGuest() {
+	if (!canAssignGameGuest()) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot edit a guest.' });
+		return;
+	}
+	var guestId = parseInt($('#assign_game_guest_select').val(), 10);
+	if (!guestId) {
+		Swal.fire({ icon: 'warning', title: 'Guest required', text: 'Please select a guest first.' });
+		return;
+	}
+	var $option = $('#assign_game_guest_select option:selected');
+	$('#edit_guest_id').val(guestId);
+	$('#edit_guest_membership_input').val($option.attr('data-membership-no') || '');
+	$('#edit_guest_name_input').val($option.attr('data-guest-name') || $option.text() || '');
+	$('#edit_guest_remarks_input').val($option.attr('data-guest-remarks') || '');
+	ensureModalAppendedToBody($('#modal-edit-guest-table'));
+	if (isAssignGameGuestModalOpen()) {
+		setAssignGameGuestChildModalOpen(true);
+	}
+	$('#modal-edit-guest-table').modal('show');
+}
+
 function openAddGuestFromAssignGameGuest() {
 	if (!canAssignGameGuest()) {
 		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot add a guest.' });
@@ -1893,6 +1990,10 @@ function openAddGuestFromAssignGameGuest() {
 	$('#guest_membership_input').val('');
 	$('#guest_name_input').val('');
 	$('#guest_remarks_input').val('');
+	ensureModalAppendedToBody($('#modal-add-guest-table'));
+	if (isAssignGameGuestModalOpen()) {
+		setAssignGameGuestChildModalOpen(true);
+	}
 	$('#modal-add-guest-table').modal('show');
 }
 
@@ -7091,6 +7192,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			$changeStatusModal.data('gameProgramDate', getProgramDateYmd(game));
 		}
 		applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName);
+		updateChangeStatusRollerReturnSection();
 		if (isCutoffStatus($('#status').val())) {
 			ensureChangeStatusCutoffDatePicker();
 		}
@@ -7099,10 +7201,10 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 		applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoffContinuedGameId);
 		setChangeStatusPendingMode(currentStatus == 3);
 		if (currentStatus == 3) {
+			$('#status').val('1');
 			$('#staticBackdropLiveLabel').html(buildChangeStatusModalTitle('Resolve Pending', agentCode, guestName));
 		}
-		$('#status option:first').prop('selected', true);
-		$('#status').trigger('change');
+		updateChangeStatusRollerReturnSection();
 	});
 
 	// Fetch game records to calculate required roller chips return
@@ -7123,12 +7225,6 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			
 			// Show/hide sections based on status and required returns
 			updateChangeStatusRollerReturnSection();
-			var requiredReturnTotal = rollerTotals.requiredReturnTotal;
-			if (requiredReturnTotal <= 0 && currentStatus == 3) {
-				$('#roller-chips-return-section').show();
-				$('#txtReturnRollerNN').val('');
-				$('#txtReturnRollerCC').val('');
-			}
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
@@ -7873,6 +7969,53 @@ $(document).ready(function () {
 		openAddGuestFromAssignGameGuest();
 	});
 
+	$(document).on('click', '#btn-assign-game-guest-edit', function (e) {
+		e.preventDefault();
+		openEditGuestFromAssignGameGuest();
+	});
+
+	$('#edit_guest_form').on('submit', function (e) {
+		e.preventDefault();
+		var guestId = parseInt($('#edit_guest_id').val(), 10);
+		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+		var $btn = $('#btn-update-guest-table');
+		if (!guestId) {
+			Swal.fire({ icon: 'warning', title: 'Invalid guest', text: 'Unable to update this guest.' });
+			return;
+		}
+		$btn.prop('disabled', true).text('Updating...');
+		$.ajax({
+			url: '/guest/' + encodeURIComponent(guestId),
+			type: 'PUT',
+			data: $(this).serialize(),
+			success: function () {
+				$('#modal-edit-guest-table').modal('hide');
+				loadAssignGameGuestSelect(agentId, guestId, function () {
+					if (typeof window.reloadData === 'function') {
+						window.reloadData();
+					}
+				});
+				Swal.fire({
+					icon: 'success',
+					title: 'Success',
+					text: 'Guest has been updated.',
+					timer: 1200,
+					showConfirmButton: false
+				});
+			},
+			error: function (xhr) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to update guest.'
+				});
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Update');
+			}
+		});
+	});
+
 	$('#add_guest_form').on('submit', function (e) {
 		e.preventDefault();
 		var $form = $(this);
@@ -7925,7 +8068,37 @@ $(document).ready(function () {
 	});
 
 	$('#modal-assign-game-guest').on('hidden.bs.modal', function () {
+		setAssignGameGuestChildModalOpen(false);
+		resetAssignGameGuestChildModalStack($('#modal-game-history'));
+		resetAssignGameGuestChildModalStack($('#modal-add-guest-table'));
+		resetAssignGameGuestChildModalStack($('#modal-edit-guest-table'));
 		resetAssignGameGuestModal();
+	});
+
+	$('#modal-game-history').on('shown.bs.modal', function () {
+		if ($('body').hasClass('assign-guest-child-open')) {
+			bumpAssignGameGuestChildModalStack($('#modal-game-history'));
+		}
+	});
+
+	$('#modal-game-history').on('hidden.bs.modal', function () {
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(false);
+			resetAssignGameGuestChildModalStack($('#modal-game-history'));
+		}
+	});
+
+	$('#modal-add-guest-table, #modal-edit-guest-table').on('shown.bs.modal', function () {
+		if ($('body').hasClass('assign-guest-child-open')) {
+			bumpAssignGameGuestChildModalStack($(this));
+		}
+	});
+
+	$('#modal-add-guest-table, #modal-edit-guest-table').on('hidden.bs.modal', function () {
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(false);
+			resetAssignGameGuestChildModalStack($(this));
+		}
 	});
 
 	$(document).on('change', '#assign_game_guest_select', function () {
@@ -7942,6 +8115,11 @@ $(document).ready(function () {
 		if (typeof window.game_history !== 'function') {
 			Swal.fire({ icon: 'error', title: 'Unavailable', text: 'Game History is not available on this page.' });
 			return;
+		}
+		var $gameHistoryModal = $('#modal-game-history');
+		ensureModalAppendedToBody($gameHistoryModal);
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(true);
 		}
 		window.game_history(accountId, guestId).catch(function (err) {
 			console.error('game_history:', err);
@@ -8038,7 +8216,7 @@ $(document).ready(function () {
 				Swal.fire({
 					icon: 'success',
 					title: 'Saved',
-					text: 'Additional buy-in saved. Roller chips returned automatically.',
+					text: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
 					timer: 2000,
 					showConfirmButton: false
 				});
@@ -8056,20 +8234,26 @@ $(document).ready(function () {
 		});
 	});
 
-	$('#modal-pending-guest-buyin').on('hidden.bs.modal', function () {
-		$('#pending_guest_txtRemarks').val('');
-		setPendingResolveChildModalOpen(false);
-	});
+	$('#modal-pending-guest-buyin')
+		.on('shown.bs.modal', function () {
+			bumpPendingResolveChildModalStack($(this));
+		})
+		.on('hidden.bs.modal', function () {
+			$('#pending_guest_txtRemarks').val('');
+			resetPendingResolveChildModalStack($(this));
+			setPendingResolveChildModalOpen(false);
+		});
 
-	$('#modal-pending-junket-new-game').on('hidden.bs.modal', function () {
-		var $select = $('#pending_junket_txtAccount');
-		if ($select.data('select2')) {
-			$select.select2('destroy');
-		}
-		$select.empty().append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
-		$('#pending_junket_txtRemarks').val('');
-		setPendingResolveChildModalOpen(false);
-	});
+	$('#modal-pending-junket-new-game')
+		.on('shown.bs.modal', function () {
+			bumpPendingResolveChildModalStack($(this));
+		})
+		.on('hidden.bs.modal', function () {
+			$('#pending_junket_account_display').val('');
+			$('#pending_junket_txtRemarks').val('');
+			resetPendingResolveChildModalStack($(this));
+			setPendingResolveChildModalOpen(false);
+		});
 
 	$('#pending_junket_new_game_form').on('submit', function (event) {
 		event.preventDefault();
@@ -8078,10 +8262,11 @@ $(document).ready(function () {
 		var nn = parseFloat(String($('#pending_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
 		var cc = parseFloat(String($('#pending_junket_txtCC').val() || '').replace(/,/g, '')) || 0;
 		var total = nn + cc;
-		var accountId = $('#pending_junket_txtAccount').val();
+		var accountId = $('#pending_junket_account_id').val();
+		var accountLabel = $('#pending_junket_account_display').val() || ('Account #' + accountId);
 
 		if (!accountId) {
-			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Please select an account for the new game.' });
+			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Junket account is not loaded. Please close and try again.' });
 			return;
 		}
 
@@ -8098,7 +8283,6 @@ $(document).ready(function () {
 			return;
 		}
 
-		var accountLabel = $('#pending_junket_txtAccount option:selected').text() || accountId;
 		Swal.fire({
 			icon: 'question',
 			title: 'Confirm New Game',

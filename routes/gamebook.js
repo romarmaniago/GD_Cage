@@ -12,6 +12,9 @@ const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, saveCashoutTips, archiveTipsForCashout } = require('../utils/saveCashoutTips');
 
+/** Junket/house account used when resolving pending via New Game (account.IDNo). */
+const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
+
 // Helper function to get agent notification chat IDs from telegram_api table
 // Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
 async function getAgentNotificationChatIds() {
@@ -666,20 +669,20 @@ async function setPendingRollerResolve(db, gameId, resolveType, linkGameId, edit
 			: null;
 	try {
 		await db.execute(
-			`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, PENDING_ROLLER_BUYIN_RECORD_IDS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-			[resolveType, linkGameId || null, dateNow, remarksVal, returnId, buyinIds, editedBy, dateNow, gameId]
+			`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, PENDING_ROLLER_BUYIN_RECORD_IDS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, returnId, buyinIds, editedBy, dateNow, gameId]
 		);
 	} catch (err) {
 		try {
 			await db.execute(
-				`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-				[resolveType, linkGameId || null, dateNow, remarksVal, returnId, editedBy, dateNow, gameId]
+				`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, returnId, editedBy, dateNow, gameId]
 			);
 		} catch (fallbackErr) {
 			try {
 				await db.execute(
-					`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-					[resolveType, linkGameId || null, dateNow, remarksVal, editedBy, dateNow, gameId]
+					`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+					[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, editedBy, dateNow, gameId]
 				);
 			} catch (fallbackErr2) {
 				console.error('PENDING_ROLLER_RESOLVE columns missing? Run database/add_pending_roller_resolve.sql', fallbackErr2);
@@ -926,7 +929,7 @@ async function isArchivedPendingGuestResolveBuyin(db, gameId, recordId) {
 }
 
 /**
- * Record roller chips "missing" in junket_loss once per game, only when fault is resolved (guest buy-in / junket new game).
+ * Record roller chips "missing" in junket_loss once per game when fault is resolved via junket new game.
  */
 async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, resolveLabel, remarks) {
 	const missingAmount = parseFloat(amount) || 0;
@@ -935,18 +938,13 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 	const dateNow = new Date();
 	try {
 		const [gameRows] = await db.execute(
-			`SELECT gl.JUNKET_LOSS_ID, ag.AGENT_CODE
-			 FROM game_list gl
-			 JOIN account ac ON ac.IDNo = gl.ACCOUNT_ID
-			 JOIN agent ag ON ag.IDNo = ac.AGENT_ID
-			 WHERE gl.IDNo = ? LIMIT 1`,
+			`SELECT JUNKET_LOSS_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
 			[gameId]
 		);
 		if (!gameRows.length) return null;
 
-		const agentCode = gameRows[0].AGENT_CODE || '';
 		const label = (resolveLabel || 'Resolved').trim();
-		let description = `Roller chips missing (${label}) - Game #${gameId} (${agentCode})`;
+		let description = `Roller chips missing - Game #${gameId} - (${label})`;
 		const remarksText = normalizePendingRemarks(remarks);
 		if (remarksText) {
 			description += ' — ' + remarksText;
@@ -3448,7 +3446,7 @@ router.get('/game_list/:id/guest_history', async (req, res) => {
 	}
 });
 
-// PENDING resolve — guest fault: additional buy-in only (game stays PENDING)
+// PENDING resolve — guest fault: additional buy-in, then end game (ACTIVE = 1)
 router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
@@ -3524,12 +3522,10 @@ router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 			rollerReturn.inserted ? rollerReturn.recordId : null,
 			buyinResult.buyinRecordIds
 		);
-		const junketLossId = await ensureJunketLossForRollerMissing(pool, gameId, balance, encodedBy, 'Additional Buy-in', remarks);
 
 		res.json({
 			success: true,
-			message: 'Additional buy-in saved. Roller chips returned automatically.',
-			junket_loss_id: junketLossId,
+			message: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
 			pending_roller_resolve: 1,
 			roller_return: rollerReturn
 		});
@@ -3539,14 +3535,34 @@ router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 	}
 });
 
-// PENDING resolve — junket fault: new game buy-in only (pending game stays PENDING)
+router.get('/game_list/pending_resolve/junket_account', async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			`SELECT acc.IDNo AS account_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			 FROM account acc
+			 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.IDNo = ?
+			 LIMIT 1`,
+			[PENDING_JUNKET_RESOLVE_ACCOUNT_ID]
+		);
+		if (!rows.length) {
+			return res.status(404).json({ error: 'Junket account (IDNo -1) is not configured.' });
+		}
+		res.json(rows[0]);
+	} catch (error) {
+		console.error('pending_resolve junket_account:', error);
+		res.status(500).json({ error: error.message || 'Error loading junket account.' });
+	}
+});
+
+// PENDING resolve — junket fault: new game buy-in, then end pending game (ACTIVE = 1)
 router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
 		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
 
 		const pendingGameId = parseInt(req.body.pending_game_id, 10);
-		const accountId = parseInt(req.body.txtAccountCode, 10);
+		const accountId = PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
 		const guestId = null;
 		const gameType = 'LIVE';
 		const commType = 1;
@@ -3557,8 +3573,16 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		const enteredTotal = nnAmount + ccAmount;
 		const transType = 1;
 
-		if (!pendingGameId || !accountId) {
+		if (!pendingGameId) {
 			return res.status(400).json({ error: 'Missing required fields.' });
+		}
+
+		const [junketAccountRows] = await pool.execute(
+			`SELECT acc.IDNo FROM account acc WHERE acc.IDNo = ? LIMIT 1`,
+			[accountId]
+		);
+		if (!junketAccountRows.length) {
+			return res.status(400).json({ error: 'Junket account (IDNo -1) is not configured.' });
 		}
 		if (enteredTotal <= 0) {
 			return res.status(400).json({ error: 'Buy-in amount must be greater than zero.' });
@@ -3614,7 +3638,7 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 
 		res.json({
 			success: true,
-			message: 'New game created. Roller chips returned on pending game automatically.',
+			message: 'New game created. Pending game ended. Roller chips returned automatically.',
 			new_game_id: newGameId,
 			junket_loss_id: junketLossId,
 			pending_roller_resolve: 2,
