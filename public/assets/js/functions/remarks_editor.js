@@ -32,18 +32,18 @@
 		var textHtml = safe || '<span class="text-muted">—</span>';
 
 		if (!editable) {
-			return (safe ? safe : '') + suffixHtml;
+			return (safe ? safe : '<span class="text-muted">-</span>') + suffixHtml;
 		}
 
 		var enc = encodeURIComponent(raw);
 		return (
-			'<div class="remarks-editor-cell">' +
-			'<span class="remarks-editor-text remarks-editor-clickable cursor-pointer text-break js-edit-remarks-btn"' +
+			'<div class="remarks-editor-cell remarks-editor-clickable js-edit-remarks-btn text-break"' +
 			' role="button" tabindex="0"' +
 			' data-remarks-source="' + escapeHtml(source) + '"' +
 			' data-record-id="' + escapeHtml(String(recordId)) + '"' +
 			' data-remarks="' + enc + '"' +
-			' title="Click to edit remarks">' + textHtml + '</span>' +
+			' title="Click to edit remarks">' +
+			'<span class="remarks-editor-text">' + textHtml + '</span>' +
 			'</div>' + suffixHtml
 		);
 	}
@@ -88,8 +88,15 @@
 	}
 
 	function boostSwalZIndex() {
+		var zIndex = 1080;
+		document.querySelectorAll('.modal.show').forEach(function (modal) {
+			var z = parseInt(window.getComputedStyle(modal).zIndex, 10);
+			if (!isNaN(z) && z + 10 > zIndex) {
+				zIndex = z + 10;
+			}
+		});
 		document.querySelectorAll('.swal2-container').forEach(function (el) {
-			el.style.zIndex = '1080';
+			el.style.zIndex = String(zIndex);
 		});
 	}
 
@@ -142,14 +149,25 @@
 			.css('pointer-events', busy ? 'none' : '');
 	}
 
+	function resolveRemarksTrigger($el) {
+		if (!$el || !$el.length) return $el;
+		if ($el.hasClass('remarks-editor-cell')) return $el;
+		return $el.closest('.remarks-editor-cell');
+	}
+
 	function updateCell($trigger, newText) {
-		var $cell = $trigger.closest('.remarks-editor-cell');
+		var $cell = resolveRemarksTrigger($trigger);
+		if (!$cell || !$cell.length) return;
 		var safe = escapeHtml(newText);
-		$cell.find('.remarks-editor-text').html(safe || '<span class="text-muted">—</span>');
-		$trigger.attr('data-remarks', encodeURIComponent(newText || ''));
+		$cell.find('.remarks-editor-text').html(
+			safe || '<span class="text-muted">—</span>'
+		);
+		$cell.attr('data-remarks', encodeURIComponent(newText || ''));
 	}
 
 	function openRemarksFromTrigger($trigger) {
+		$trigger = resolveRemarksTrigger($trigger);
+		if (!$trigger || !$trigger.length) return;
 		if (!canEdit() || $trigger.hasClass('remarks-editor-busy')) return;
 
 		var source = $trigger.data('remarks-source');
@@ -169,9 +187,6 @@
 				onSuccess: function (res) {
 					setTriggerBusy($trigger, false);
 					updateCell($trigger, res.remarks != null ? res.remarks : newVal);
-					if (window.Swal) {
-						window.Swal.fire({ icon: 'success', title: 'Saved', text: res.message || 'Remarks updated.', timer: 1500, showConfirmButton: false });
-					}
 				},
 				onError: function (err) {
 					setTriggerBusy($trigger, false);
@@ -183,10 +198,17 @@
 		});
 	}
 
-	$(document).on('click', '.js-edit-remarks-btn', function (e) {
+	function handleRemarksClick(e) {
 		e.preventDefault();
 		e.stopPropagation();
 		openRemarksFromTrigger($(this));
+	}
+
+	$(document).on('click', '.js-edit-remarks-btn', handleRemarksClick);
+	$(document).on('click', 'td.remarks-editor-td', function (e) {
+		if ($(e.target).closest('.js-edit-remarks-btn').length) return;
+		var $btn = $(this).find('.js-edit-remarks-btn').first();
+		if ($btn.length) handleRemarksClick.call($btn[0], e);
 	});
 
 	$(document).on('keydown', '.js-edit-remarks-btn', function (e) {

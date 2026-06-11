@@ -1379,8 +1379,16 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 							recordId: ledgerId
 						});
 					}
-					if (!raw) return '<span class="text-muted">—</span>';
+					if (!raw) return '<span class="text-muted">-</span>';
 					return raw;
+				},
+				createdCell: function (cell, cellData, rowData) {
+					var ledgerId = rowData && rowData[4];
+					var $cell = $(cell);
+					$cell.addClass('remarks-editor-td text-start');
+					if (ledgerId && window.RemarksEditor && window.RemarksEditor.canEdit()) {
+						$cell.addClass('cursor-pointer');
+					}
 				}
 			},
 			{
