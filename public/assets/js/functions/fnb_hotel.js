@@ -1,3 +1,77 @@
+var FNB_HOTEL_LEGACY_SERVICE_TYPE_LABELS = {
+	fnb: 'F & B',
+	hotel: 'Hotel',
+	delivery: 'Delivery'
+};
+
+function escapeFnbHotelServiceTypeOption(value) {
+	return String(value || '')
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function normalizeFnbHotelServiceTypeLabel(value) {
+	var raw = String(value || '').trim();
+	if (!raw) return '';
+	return FNB_HOTEL_LEGACY_SERVICE_TYPE_LABELS[raw.toLowerCase()] || raw;
+}
+
+function populateFnbHotelServiceTypeSelect($select, selectedValue) {
+	if (!$select || !$select.length) {
+		return Promise.resolve();
+	}
+
+	var placeholder = $select.attr('data-placeholder') || 'Select service';
+	var selected = normalizeFnbHotelServiceTypeLabel(selectedValue || '');
+
+	return fetch('/services_category_data')
+		.then(function (res) {
+			if (!res.ok) throw new Error('Failed to load service categories');
+			return res.json();
+		})
+		.then(function (rows) {
+			var html = '<option value="" disabled' + (selected ? '' : ' selected') + '>' +
+				escapeFnbHotelServiceTypeOption(placeholder) + '</option>';
+			var hasSelected = false;
+
+			(rows || []).forEach(function (row) {
+				var category = String(row.CATEGORY || '').trim();
+				if (!category) return;
+				var isSelected = selected && selected.toLowerCase() === category.toLowerCase();
+				if (isSelected) hasSelected = true;
+				html += '<option value="' + escapeFnbHotelServiceTypeOption(category) + '"' +
+					(isSelected ? ' selected' : '') + '>' +
+					escapeFnbHotelServiceTypeOption(category) + '</option>';
+			});
+
+			if (selected && !hasSelected) {
+				html += '<option value="' + escapeFnbHotelServiceTypeOption(selected) + '" selected>' +
+					escapeFnbHotelServiceTypeOption(selected) + ' (legacy)</option>';
+			}
+
+			$select.html(html);
+		})
+		.catch(function (err) {
+			console.error('Error loading service categories:', err);
+			$select.html(
+				'<option value="" selected disabled>' + escapeFnbHotelServiceTypeOption(placeholder) + '</option>'
+			);
+		});
+}
+
+window.populateFnbHotelServiceTypeSelect = populateFnbHotelServiceTypeSelect;
+
+window.refreshFnbHotelServiceTypeSelects = function () {
+	var newVal = $('#new-services-type').val() || '';
+	var editVal = $('#edit-services-type').val() || '';
+	return Promise.all([
+		populateFnbHotelServiceTypeSelect($('#new-services-type'), newVal),
+		populateFnbHotelServiceTypeSelect($('#edit-services-type'), editVal)
+	]);
+};
+
 $(document).ready(function() {
 	let dataTable;
 	let currentFilter = 'all';
@@ -484,19 +558,19 @@ $(document).ready(function() {
 
 		$('#edit-services-id').val(id);
 		$('#edit-transaction-type').val(sourceType).trigger('change');
-		$('#edit-services-type').val(serviceType);
 		$('#edit-services-amount').val(amount.toLocaleString('en-US'));
 		$('#edit-services-remarks').val(remarks);
 		if (transactionId) {
 			$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
 		}
-		
-		// Store agentId for later use after accounts are loaded
+
 		if (sourceType === 'GUEST' && agentId) {
 			$('#modal-services-edit-record').data('pendingAgentId', agentId);
 		}
-		
-		$('#modal-services-edit-record').modal('show');
+
+		populateFnbHotelServiceTypeSelect($('#edit-services-type'), serviceType).then(function () {
+			$('#modal-services-edit-record').modal('show');
+		});
 	});
 
 	// Delete service button handlers

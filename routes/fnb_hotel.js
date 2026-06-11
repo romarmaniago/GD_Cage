@@ -8,9 +8,34 @@ const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountForma
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 
-const validServiceTypes = ['fnb', 'hotel', 'delivery'];
 const validTransactionIds = [1, 2, 3];
 const validSourceTypes = ['JUNKET', 'GUEST'];
+
+const LEGACY_SERVICE_TYPE_TO_CATEGORY = {
+	fnb: 'F & B',
+	hotel: 'Hotel',
+	delivery: 'Delivery'
+};
+
+async function resolveActiveServiceCategory(serviceType) {
+	const raw = (serviceType || '').trim();
+	if (!raw) return null;
+
+	const [rows] = await pool.execute(
+		'SELECT CATEGORY FROM services_category WHERE ACTIVE = 1 AND LOWER(TRIM(CATEGORY)) = LOWER(TRIM(?)) LIMIT 1',
+		[raw]
+	);
+	if (rows.length) return rows[0].CATEGORY;
+
+	const legacyName = LEGACY_SERVICE_TYPE_TO_CATEGORY[raw.toLowerCase()];
+	if (!legacyName) return null;
+
+	const [legacyRows] = await pool.execute(
+		'SELECT CATEGORY FROM services_category WHERE ACTIVE = 1 AND LOWER(TRIM(CATEGORY)) = LOWER(TRIM(?)) LIMIT 1',
+		[legacyName]
+	);
+	return legacyRows[0]?.CATEGORY || null;
+}
 
 function coerceFnbHotelExportCell(raw) {
 	if (raw == null || raw === '') return '';
@@ -158,10 +183,10 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const parsedGameId = parseInt(game_id, 10);
 		const parsedTransactionId = parseInt(transaction_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
-		const svc = (service_type || '').toLowerCase();
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
+		const resolvedCategory = await resolveActiveServiceCategory(service_type);
 
-		if (!validServiceTypes.includes(svc) || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
+		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
 		}
 		if (sourceType === 'GUEST' && !parsedAccountId) {
@@ -179,7 +204,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const [insertResult] = await pool.execute(
 			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[resolvedGameId || null, svc, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, encodedBy, now]
+			[resolvedGameId || null, resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, encodedBy, now]
 		);
 
 		if (parsedTransactionId === 1 || parsedTransactionId === 2) {
@@ -193,7 +218,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 				insertResult.insertId,
 				resolvedAgentId,
 				amt.toString(),
-				svc,
+				resolvedCategory,
 				cashType,
 				remarks || '',
 				encodedBy,
@@ -225,7 +250,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 					if (TELEGRAM_ID) {
 						const formattedAmount = amt.toLocaleString('en-US');
-						const serviceLabel = svc.toUpperCase();
+						const serviceLabel = resolvedCategory;
 						const date_nowTG = now.toLocaleDateString();
 						const updated_time = now.toLocaleTimeString();
 						const remarksText = (remarks || '').trim();
@@ -250,7 +275,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		if (sourceType === 'JUNKET') {
 			try {
 				const formattedAmount = amt.toLocaleString('en-US');
-				const serviceLabel = svc.toUpperCase();
+				const serviceLabel = resolvedCategory;
 				const date_nowTG = now.toLocaleDateString();
 				const updated_time = now.toLocaleTimeString();
 				const remarksText = (remarks || '').trim();
@@ -322,10 +347,10 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		const parsedAgentId = parseInt(agent_id, 10);
 		const parsedTransactionId = parseInt(transaction_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
-		const svc = (service_type || '').toLowerCase();
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
+		const resolvedCategory = await resolveActiveServiceCategory(service_type);
 
-		if (!validServiceTypes.includes(svc) || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
+		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
 		}
 		if (sourceType === 'GUEST' && !parsedAccountId) {
@@ -367,7 +392,7 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			`UPDATE game_services 
 			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, AGENT_ID = ?, SOURCE_TYPE = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
-			[svc, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, updatedBy, now, serviceId]
+			[resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, updatedBy, now, serviceId]
 		);
 
 		// Create new cash_transaction if needed
@@ -382,7 +407,7 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 				serviceId,
 				resolvedAgentId,
 				amt.toString(),
-				svc,
+				resolvedCategory,
 				cashType,
 				remarks || '',
 				updatedBy,

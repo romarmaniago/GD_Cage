@@ -7,6 +7,12 @@ function escapeForInline(value) {
 
 var servicesCategoryDataTable;
 
+function refreshFnbHotelServiceTypeDropdowns() {
+	if (typeof window.refreshFnbHotelServiceTypeSelects === 'function') {
+		window.refreshFnbHotelServiceTypeSelects();
+	}
+}
+
 function reloadServicesCategoryData() {
 	if (!servicesCategoryDataTable) return;
 	$.ajax({
@@ -28,6 +34,7 @@ function reloadServicesCategoryData() {
 					'<i class="fa fa-trash-alt"></i></button></div>';
 				servicesCategoryDataTable.row.add([row.CATEGORY, status, btn]).draw();
 			});
+			refreshFnbHotelServiceTypeDropdowns();
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching services category data:', error);
@@ -35,7 +42,16 @@ function reloadServicesCategoryData() {
 	});
 }
 
-$(document).ready(function () {
+function openServicesCategoryModal() {
+	var $modal = $('#modal-manage-services-category');
+	if (!$modal.length) return;
+	$modal.appendTo('body');
+	var modal = bootstrap.Modal.getOrCreateInstance($modal[0]);
+	modal.show();
+}
+
+function initServicesCategoryDataTable() {
+	if (!$('#services-category-tbl').length) return;
 	if ($.fn.DataTable.isDataTable('#services-category-tbl')) {
 		$('#services-category-tbl').DataTable().destroy();
 	}
@@ -58,6 +74,19 @@ $(document).ready(function () {
 	});
 
 	reloadServicesCategoryData();
+}
+
+$(document).ready(function () {
+	if (!$('#services-category-tbl').length) return;
+
+	initServicesCategoryDataTable();
+
+	$('#modal-manage-services-category').on('shown.bs.modal', function () {
+		if (servicesCategoryDataTable) {
+			servicesCategoryDataTable.columns.adjust().draw(false);
+		}
+		reloadServicesCategoryData();
+	});
 
 	$('#add_services_category').on('submit', function (event) {
 		event.preventDefault();
@@ -98,13 +127,15 @@ $(document).ready(function () {
 });
 
 function addServicesCategory() {
-	$('#modal-new-services-category').modal('show');
+	var $modal = $('#modal-new-services-category').appendTo('body');
+	$modal.modal('show');
 }
 
 function editServicesCategory(id, category) {
-	$('#modal-edit-services-category').modal('show');
+	var $modal = $('#modal-edit-services-category').appendTo('body');
 	$('#txtServicesCategory').val(category || '');
 	services_category_id = id;
+	$modal.modal('show');
 }
 
 function archiveServicesCategory(id) {

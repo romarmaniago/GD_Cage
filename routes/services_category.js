@@ -3,13 +3,15 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 
-router.get('/services_category', checkSession, function (req, res) {
-	const permissions = req.session.permissions;
+function requireManageServicesCategory(req, res, next) {
+	if (req.session.permissions === 2) {
+		return res.status(403).json({ error: 'You do not have permission to manage service categories' });
+	}
+	next();
+}
 
-	res.render('popups/services_category', {
-		...sessions(req, 'services_category'),
-		permissions: permissions
-	});
+router.get('/services_category', checkSession, function (req, res) {
+	res.redirect('/fnb-hotel');
 });
 
 router.get('/services_category_data', checkSession, async (req, res) => {
@@ -24,7 +26,7 @@ router.get('/services_category_data', checkSession, async (req, res) => {
 	}
 });
 
-router.post('/add_services_category', checkSession, async (req, res) => {
+router.post('/add_services_category', checkSession, requireManageServicesCategory, async (req, res) => {
 	const { txtCategory } = req.body;
 	const date_now = new Date();
 	const name = txtCategory != null ? String(txtCategory).trim() : '';
@@ -53,7 +55,7 @@ router.post('/add_services_category', checkSession, async (req, res) => {
 	}
 });
 
-router.put('/services_category/:id', checkSession, async (req, res) => {
+router.put('/services_category/:id', checkSession, requireManageServicesCategory, async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const { txtCategory } = req.body;
 	const date_now = new Date();
@@ -86,7 +88,7 @@ router.put('/services_category/:id', checkSession, async (req, res) => {
 	}
 });
 
-router.put('/services_category/remove/:id', checkSession, async (req, res) => {
+router.put('/services_category/remove/:id', checkSession, requireManageServicesCategory, async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const date_now = new Date();
 

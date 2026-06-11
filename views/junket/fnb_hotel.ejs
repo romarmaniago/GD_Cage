@@ -43,6 +43,11 @@
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" id="btn-fnb-hotel-service-category" class="btn btn-sm btn-info" onclick="openServicesCategoryModal()">
+							<i class="fa fa-tags" aria-hidden="true"></i> <%= __('fnb_hotel.service_category') %>
+						</button>
+						<% } %>
 						<button type="button" id="btn-fnb-hotel-print" class="btn btn-sm btn-alt-success">
 							<i class="fa fa-print" aria-hidden="true"></i> Print
 						</button>
@@ -232,6 +237,22 @@
 	};
 </script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
+<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+<script>
+	window.servicesCategoryTranslations = {
+		search: "<%= __('services_category.search') %>",
+		showing_entries: "<%= __('services_category.showing_entries') %>",
+		previous: "<%= __('services_category.previous') %>",
+		next: "<%= __('services_category.next') %>",
+		active: "<%= __('services_category.active') %>",
+		inactive: "<%= __('services_category.inactive') %>"
+	};
+</script>
+<script src="/assets/js/functions/services_category.js"></script>
+<%- include('../modals/junket/manage_services_category') %>
+<%- include('../modals/popups/new_services_category') %>
+<%- include('../modals/popups/edit_services_category') %>
+<% } %>
 <%- include('../modals/junket/new_service_record') %>
 <%- include('../modals/junket/edit_service_record') %>
 
