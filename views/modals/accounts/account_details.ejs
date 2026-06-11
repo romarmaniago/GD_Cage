@@ -171,6 +171,7 @@
                                             <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
+                                            <th class="d-none" aria-hidden="true"></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -619,6 +620,10 @@ body.guest-portal-child-open .modal-backdrop.show {
 }
 #modal-account-details #accountDetails tbody td:nth-child(4) {
     text-align: left !important;
+}
+#modal-account-details #accountDetails thead th:nth-child(5),
+#modal-account-details #accountDetails tbody td:nth-child(5) {
+    display: none !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
     position: sticky;

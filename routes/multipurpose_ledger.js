@@ -550,6 +550,8 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
 				mxe.GUEST_NAME AS EXCHANGE_GUEST_NAME,
+				mxe.AMOUNT_IN AS EXCHANGE_AMOUNT_IN,
+				in_cm.CODE AS EXCHANGE_IN_CURRENCY_CODE,
 				ex_ag.AGENT_CODE AS EXCHANGE_AGENT_CODE,
 				ex_ag.NAME AS EXCHANGE_AGENT_NAME,
 				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME
@@ -559,6 +561,7 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			LEFT JOIN multipurpose_ledger_exchange mxe
 				ON mxe.LEDGER_ID = jl.IDNo AND mxe.TRANS_TYPE = 1 AND mxe.ACTIVE = 1
+			LEFT JOIN currency_master in_cm ON in_cm.ID = mxe.IN_CURRENCY_ID
 			LEFT JOIN account ex_acc ON ex_acc.IDNo = mxe.ACCOUNT_ID
 			LEFT JOIN agent ex_ag ON ex_ag.IDNo = ex_acc.AGENT_ID
 			LEFT JOIN user_info ui ON ui.IDNo = jl.ENCODED_BY

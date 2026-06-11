@@ -153,9 +153,75 @@ function isMoneyExchangeTransType(transType) {
 
 function jflTypeColorClass(transType) {
 	if (isCreditType(transType)) return 'jfl-amount-in';
-	if (isTransferTransType(transType)) return 'jfl-amount-transfer';
-	if (isMoneyExchangeTransType(transType)) return 'jfl-amount-exchange';
 	return 'jfl-amount-out';
+}
+
+function isJflParenthesizedOutType(transType) {
+	const t = Number(transType);
+	return t === 2 || t === 3;
+}
+
+function formatJflOutAmount(amt) {
+	return '<span class="jfl-amount-out">(' + formatMoney(amt) + ')</span>';
+}
+
+function renderJflCurrencyCell(data, type, row) {
+	const outCode = String(data || '').trim();
+	if (!isMoneyExchangeTransType(row.TRANS_TYPE)) {
+		return outCode || '-';
+	}
+	const inCode = String(row.EXCHANGE_IN_CURRENCY_CODE || '').trim();
+	if (!inCode || !outCode) return outCode || '-';
+	return inCode + ' → ' + outCode;
+}
+
+function renderJflAmountCell(data, type, row) {
+	const outAmt = Number(data) || 0;
+	if (!isMoneyExchangeTransType(row.TRANS_TYPE)) {
+		if (type !== 'display') return outAmt;
+		if (isJflParenthesizedOutType(row.TRANS_TYPE)) {
+			return formatJflOutAmount(outAmt);
+		}
+		return (
+			'<span class="' +
+			jflTypeColorClass(row.TRANS_TYPE) +
+			'">' +
+			formatMoney(outAmt) +
+			'</span>'
+		);
+	}
+
+	const inAmt = Number(row.EXCHANGE_AMOUNT_IN);
+	const inCode = String(row.EXCHANGE_IN_CURRENCY_CODE || '').trim();
+	const outCode = String(row.CURRENCY_CODE || '').trim();
+	const hasInLeg = Number.isFinite(inAmt) && inAmt > 0 && inCode;
+
+	if (type === 'sort' || type === 'type') return outAmt;
+	if (type === 'filter') {
+		if (!hasInLeg) return String(outAmt);
+		return inAmt + ' ' + inCode + ' ' + outAmt + ' ' + outCode;
+	}
+	if (type !== 'display') return outAmt;
+
+	if (!hasInLeg) {
+		return formatJflOutAmount(outAmt);
+	}
+
+	return (
+		'<div class="jfl-exchange-amounts">' +
+		'<div><span class="text-muted me-1">In</span>' +
+		'<span class="jfl-amount-in">' +
+		formatMoney(inAmt) +
+		'</span> <span class="text-muted">' +
+		inCode +
+		'</span></div>' +
+		'<div><span class="text-muted me-1">Out</span>' +
+		formatJflOutAmount(outAmt) +
+		' <span class="text-muted">' +
+		outCode +
+		'</span></div>' +
+		'</div>'
+	);
 }
 
 function junketDebitAmountForRow(row, currencyId) {
@@ -527,19 +593,14 @@ $(document).ready(function () {
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
 			{ data: 'GUEST_DISPLAY', defaultContent: '-' },
 			{ data: 'TRANS_TYPE_LABEL', defaultContent: '' },
-			{ data: 'CURRENCY_CODE', defaultContent: '-' },
+			{
+				data: 'CURRENCY_CODE',
+				defaultContent: '-',
+				render: renderJflCurrencyCell
+			},
 			{
 				data: 'AMOUNT',
-				render: function (data, type, row) {
-					if (type !== 'display') return data;
-					return (
-						'<span class="' +
-						jflTypeColorClass(row.TRANS_TYPE) +
-						'">' +
-						formatMoney(data) +
-						'</span>'
-					);
-				}
+				render: renderJflAmountCell
 			},
 			{ data: 'APPROVED_BY_DISPLAY', defaultContent: '' },
 			{

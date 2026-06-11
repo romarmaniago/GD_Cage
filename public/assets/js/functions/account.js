@@ -942,6 +942,22 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				}
 			}
 
+			function isCreditOutTransaction(row) {
+				if (!row || row.TRANSACTION_INFO == null) return false;
+				var transactionId = parseInt(String(row.TRANSACTION_INFO).split('-')[0], 10);
+				return transactionId === 3 || transactionId === 10;
+			}
+
+			function formatCreditAmountCell(amountNum, row) {
+				if (isCreditOutTransaction(row)) {
+					if (window.fmtOut) return window.fmtOut(amountNum);
+					var formatted = window.fmtAmt ? window.fmtAmt(Math.abs(amountNum)) : Math.abs(amountNum).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+					if (formatted === '0') return '0';
+					return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+				}
+				return window.fmtAmt ? window.fmtAmt(amountNum) : amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+			}
+
 			var html = creditRows.map(function (row) {
 				var amountNum = parseFloat(row.AMOUNT) || 0;
 				var encoded = row.ENCODED_DT || '';
@@ -958,7 +974,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				return '' +
 					'<tr>' +
 						'<td>' + escapeHtml(accountDisplay) + '</td>' +
-						'<td class="text-center">' + (window.fmtAmt ? window.fmtAmt(amountNum) : amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })) + '</td>' +
+						'<td class="text-center">' + formatCreditAmountCell(amountNum, row) + '</td>' +
 						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO, row)) + '</td>' +
 						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
 						'<td>' + remarksCell + '</td>' +
@@ -1400,44 +1416,9 @@ function account_details(account_id_data, agent_code, account_name) {
 
 	account_id = account_id_data;
 
-	if ($.fn.DataTable.isDataTable('#accountDetails')) {
-		$('#accountDetails').DataTable().destroy();
-	}
-	
-	var dataTableDetails = $('#accountDetails').DataTable({
-		"order": [[0, 'desc']], // Set the first column (index 0) to be sorted in descending order
-		"columnDefs": [
-			{
-				"targets": 0, // Column index for the ENCODED_DT
-				"render": function (data, type, row) {
-					// Define the expected format of your date strings.
-					var inputFormat = "MMMM DD, YYYY HH:mm:ss";
-					
-					// For sorting, return a standardized UTC format
-					if (type === 'sort') {
-						return moment.utc(data, inputFormat, true).format('YYYY-MM-DD HH:mm:ss');
-					}
-	
-					// Parse the date using the explicit input format and strict mode
-					const dateMoment = moment(data, inputFormat, true);
-					
-					if (dateMoment.isValid()) {
-						// Convert to local time for display and format accordingly
-						return dateMoment.local().format('DD MMM, YYYY HH:mm:ss');
-					} else {
-						// Return a placeholder for invalid dates
-						return 'Invalid Date';
-					}
-				},
-				"createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-					$(cell).addClass('text-center');
-				}
-			}
-		].concat(accountDetailsRemarksColumnDefs())
-	});
-	
-
-	accountDetailsDataTable = dataTableDetails;
+	accountDetailsDataTable = getOrInitAccountDetailsDataTable();
+	accountDetailsDataTable.search('');
+	accountDetailsDataTable.columns().search('');
 	currentAccountDetailsId = account_id_data;
 
 	reloadDataDetails();
@@ -1478,7 +1459,58 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 		return row.account_details_id || row.IDNo || '';
 	}
 
-	function accountDetailsRemarksColumnDefs() {
+function getOrInitAccountDetailsAltDataTable() {
+	var $tbl = $('#accountDetailsAlt');
+	if ($.fn.DataTable.isDataTable($tbl[0])) {
+		return $tbl.DataTable();
+	}
+	return $tbl.DataTable({
+		order: [[0, 'desc']],
+		columnDefs: [{
+			targets: 0,
+			render: function (data, type) {
+				const fmt = 'MMMM DD, YYYY HH:mm:ss';
+				if (type === 'sort') {
+					return moment.utc(data, fmt, true).format('YYYY-MM-DD HH:mm:ss');
+				}
+				const m = moment(data, fmt, true);
+				return m.isValid() ? m.local().format('DD MMM, YYYY HH:mm:ss') : 'Invalid Date';
+			},
+			createdCell: function (c) { $(c).addClass('text-center'); }
+		}].concat(accountDetailsRemarksColumnDefs())
+	});
+}
+
+function getOrInitAccountDetailsDataTable() {
+	var $tbl = $('#modal-account-details #accountDetails');
+	if ($.fn.DataTable.isDataTable($tbl[0])) {
+		return $tbl.DataTable();
+	}
+	return $tbl.DataTable({
+		order: [[0, 'desc']],
+		columnDefs: [
+			{
+				targets: 0,
+				render: function (data, type) {
+					var inputFormat = 'MMMM DD, YYYY HH:mm:ss';
+					if (type === 'sort') {
+						return moment.utc(data, inputFormat, true).format('YYYY-MM-DD HH:mm:ss');
+					}
+					const dateMoment = moment(data, inputFormat, true);
+					if (dateMoment.isValid()) {
+						return dateMoment.local().format('DD MMM, YYYY HH:mm:ss');
+					}
+					return 'Invalid Date';
+				},
+				createdCell: function (cell) {
+					$(cell).addClass('text-center');
+				}
+			}
+		].concat(accountDetailsRemarksColumnDefs())
+	});
+}
+
+function accountDetailsRemarksColumnDefs() {
 		return [
 			{
 				targets: 3,
@@ -1672,24 +1704,9 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 	$('input[name="txtTrans"]').prop('checked', false);
   
 	// 3) (Re)initialize DataTable
-	if ($.fn.DataTable.isDataTable('#accountDetailsAlt')) {
-	  $('#accountDetailsAlt').DataTable().destroy();
-	}
-	const dt = $('#accountDetailsAlt').DataTable({
-	  order: [[0,'desc']],
-	  columnDefs: [{
-		targets: 0,
-		render(data,type) {
-		  const fmt="MMMM DD, YYYY HH:mm:ss";
-		  if (type==='sort') {
-			return moment.utc(data,fmt,true).format('YYYY-MM-DD HH:mm:ss');
-		  }
-		  const m = moment(data,fmt,true);
-		  return m.isValid() ? m.local().format('DD MMM, YYYY HH:mm:ss') : 'Invalid Date';
-		},
-		createdCell: c => $(c).addClass('text-center')
-	  }].concat(accountDetailsRemarksColumnDefs())
-	});
+	const dt = getOrInitAccountDetailsAltDataTable();
+	dt.search('');
+	dt.columns().search('');
   
 	// 4) Load buong ledger rows at inline‑highlight
 	function reloadV2(){
