@@ -1993,7 +1993,11 @@ $(document).on('submit', '#form-game-remarks', function (e) {
 		success: function () {
 			$('#modal-game-remarks').modal('hide');
 			updateGameRemarksButtonState(gameId, remarks);
-			Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			if (window.RemarksEditor && window.RemarksEditor.showSuccessToast) {
+				window.RemarksEditor.showSuccessToast();
+			} else {
+				Swal.fire({ icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1200 });
+			}
 		},
 		error: function (xhr) {
 			var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';

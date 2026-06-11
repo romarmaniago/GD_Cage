@@ -48,6 +48,20 @@
 		);
 	}
 
+	function showSuccessToast() {
+		if (!window.Swal) return;
+		window.Swal.fire({
+			icon: 'success',
+			title: 'Saved',
+			showConfirmButton: false,
+			timer: 1200,
+			heightAuto: false,
+			didOpen: function () {
+				boostSwalZIndex();
+			}
+		});
+	}
+
 	function patchRemarks(source, recordId, remarks, callbacks) {
 		callbacks = callbacks || {};
 		$.ajax({
@@ -57,6 +71,9 @@
 			data: JSON.stringify({ remarks: remarks != null ? String(remarks) : '' }),
 			success: function (res) {
 				if (res && res.success) {
+					if (!callbacks.skipToast) {
+						showSuccessToast();
+					}
 					if (typeof callbacks.onSuccess === 'function') {
 						callbacks.onSuccess(res);
 					}
@@ -223,6 +240,7 @@
 		escapeHtml: escapeHtml,
 		renderCell: renderCell,
 		patchRemarks: patchRemarks,
-		openEditor: openEditor
+		openEditor: openEditor,
+		showSuccessToast: showSuccessToast
 	};
 })(window);

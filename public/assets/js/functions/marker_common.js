@@ -267,7 +267,11 @@
                     success: function (res) {
                         if (res.success) {
                             if (table && table.ajax) table.ajax.reload();
-                            if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Success', text: res.message || okMsg });
+                            if (window.RemarksEditor && window.RemarksEditor.showSuccessToast) {
+                                window.RemarksEditor.showSuccessToast();
+                            } else if (window.Swal) {
+                                window.Swal.fire({ icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1200 });
+                            }
                         } else {
                             if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: res.message || errMsg });
                         }
