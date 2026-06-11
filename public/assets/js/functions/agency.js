@@ -1388,7 +1388,7 @@ function openGuestRemarks(guestId) {
         onSuccess: function () {
           target.guest_remarks = newVal;
           target.REMARKS = newVal;
-        }
+        },
         onError: function (err) {
           if (window.Swal) {
             window.Swal.fire({ icon: 'error', title: 'Error', text: (err && err.message) || 'Could not update remarks.' });
