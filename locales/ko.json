@@ -1225,6 +1225,10 @@
 		"select_status_placeholder": "--상태 선택--",
 		"on_game_option": "게임 중",
 		"end_game_option": "게임 종료",
+		"cutoff_option": "CUT OFF",
+		"cutoff_date_label": "프로그램 날짜",
+		"cutoff_buyin_label": "바이인",
+		"cutoff_last_rolling_label": "마지막 롤링",
 		"save": "저장",
 		"close": "닫기"
 	},

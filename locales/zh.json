@@ -1225,6 +1225,10 @@
 		"select_status_placeholder": "--选择状态--",
 		"on_game_option": "游戏中",
 		"end_game_option": "游戏结束",
+		"cutoff_option": "CUT OFF",
+		"cutoff_date_label": "节目日期",
+		"cutoff_buyin_label": "买入",
+		"cutoff_last_rolling_label": "最后滚动",
 		"save": "保存",
 		"close": "关闭"
 	},

@@ -1222,6 +1222,10 @@
 		"select_status_placeholder": "--SELECT STATUS--",
 		"on_game_option": "ON GAME",
 		"end_game_option": "END GAME",
+		"cutoff_option": "CUT OFF",
+		"cutoff_date_label": "Program Date",
+		"cutoff_buyin_label": "Buy-in",
+		"cutoff_last_rolling_label": "Last Rolling",
 		"save": "Save",
 		"close": "Close"
 	},

@@ -1178,6 +1178,7 @@ table.dataTable tbody tr.highlight-row {
 						window.gamelistTranslations = {
 							on_game: "<%= __('gamelist.on_game') %>",
 							end_game: "<%= __('gamelist.end_game') %>",
+							cut_off: "<%= __('modal_change_status.cutoff_option') %>",
 							search: "<%= __('gamelist.search') %>",
 							showing_entries: "<%= __('gamelist.showing_entries') %>",
 							previous: "<%= __('gamelist.previous') %>",
@@ -1433,7 +1434,6 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 
 					<%- include ('../modals/game_book/new_game_list') %>
-						<%- include ('../modals/game_book/new_game_cutoff') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
 						<%- include ('../modals/game_book/game_remarks') %>
 						<%- include ('../modals/game_book/change_status') %>

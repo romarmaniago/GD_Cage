@@ -27,6 +27,14 @@ function resetNewGameInputs() {
 	ensureNewGameProgramDatePicker();
 }
 
+function isEndGameStatus(status) {
+	return status == '1';
+}
+
+function isCutoffStatus(status) {
+	return status == '4';
+}
+
 function isEndGameOrCutoffStatus(status) {
 	return status == '1' || status == '4';
 }
@@ -106,6 +114,11 @@ function computeRollerChipsBalanceFromRecords(rows) {
 	};
 
 	return result;
+}
+
+/** Roller chips on continuation game: same total as parent (all as NN); last rolling CC is returned on parent only. */
+function computeCutoffTransferRollerNN(rollerTotals) {
+	return Math.max(0, rollerTotals.combinedNet || 0);
 }
 
 /** Match game list ROLLING and ROLLER CHIPS columns for one game's records. */
@@ -218,8 +231,6 @@ function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	$modal.data('netRollerNN', rollerTotals.netNNRaw);
 	$modal.data('netRollerCC', rollerTotals.netCCRaw);
 	$modal.data('combinedNet', rollerTotals.combinedNet);
-	$modal.data('cutoffTransferRollerNN', rollerTotals.transferNN);
-	$modal.data('cutoffTransferRollerCC', rollerTotals.transferCC);
 	$modal.data('requiredReturnNN', rollerTotals.requiredReturnNN);
 	$modal.data('requiredReturnCC', rollerTotals.requiredReturnCC);
 	$modal.data('requiredReturnTotal', rollerTotals.requiredReturnTotal);
@@ -227,6 +238,231 @@ function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	$modal.data('totalAddCC', rollerTotals.totalAddCC);
 	$modal.data('totalReturnNN', rollerTotals.totalReturnNN);
 	$modal.data('totalReturnCC', rollerTotals.totalReturnCC);
+}
+
+function getDefaultProgramDateYmd() {
+	var el = document.getElementById('program-date-range-picker');
+	var fp = el && el._flatpickr;
+	if (fp && fp.selectedDates && fp.selectedDates.length > 0) {
+		var fromPicker = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+		if (/^\d{4}-\d{2}-\d{2}$/.test(fromPicker)) return fromPicker;
+	}
+	var anchor = String(window.selectedProgramDate || '').slice(0, 10);
+	if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor;
+	var wrapper = document.querySelector('#program-date-wrapper .input-group');
+	if (wrapper) {
+		var initial =
+			wrapper.getAttribute('data-initial-program-date') ||
+			wrapper.getAttribute('data-today') ||
+			'';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(initial)) return initial;
+	}
+	return '';
+}
+
+function addOneDayToProgramDateYmd(ymd) {
+	var raw = (ymd || '').trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+		return '';
+	}
+	if (typeof moment !== 'undefined' && moment) {
+		var m = moment(raw, 'YYYY-MM-DD', true);
+		if (m.isValid()) {
+			return m.add(1, 'day').format('YYYY-MM-DD');
+		}
+	}
+	var parts = raw.split('-').map(function (n) { return parseInt(n, 10); });
+	var d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+	if (isNaN(d.getTime())) {
+		return '';
+	}
+	var y = d.getFullYear();
+	var mo = String(d.getMonth() + 1).padStart(2, '0');
+	var da = String(d.getDate()).padStart(2, '0');
+	return y + '-' + mo + '-' + da;
+}
+
+/** Default cut off program date = current game's program date + 1 day. */
+function getCutoffDefaultProgramDateYmd() {
+	var gameYmd = $('#modal-change_status').data('gameProgramDate');
+	if (gameYmd) {
+		var nextFromGame = addOneDayToProgramDateYmd(gameYmd);
+		if (nextFromGame) {
+			return nextFromGame;
+		}
+	}
+	var listYmd = getDefaultProgramDateYmd();
+	if (listYmd) {
+		return addOneDayToProgramDateYmd(listYmd) || listYmd;
+	}
+	return '';
+}
+
+function closeChangeStatusCutoffDatePicker() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (el && el._flatpickr) {
+		el._flatpickr.close();
+	}
+}
+
+function resetChangeStatusCutoffFields() {
+	closeChangeStatusCutoffDatePicker();
+	$('#cutoff-details-section').hide();
+	$('#txtCutoffBuyInNN, #txtCutoffBuyInCC').val('').removeClass('is-invalid');
+	$('#txtCutoffLastRolling').val('');
+	var dateEl = document.getElementById('txtCutoffProgramDate');
+	if (dateEl && dateEl._flatpickr) {
+		dateEl._flatpickr.clear();
+	} else {
+		$('#txtCutoffProgramDate').val('');
+	}
+}
+
+function ensureChangeStatusCutoffDatePicker() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (!el || typeof flatpickr === 'undefined') {
+		return;
+	}
+	var defaultYmd = getCutoffDefaultProgramDateYmd();
+	var defaultDate = defaultYmd ? (defaultYmd + 'T12:00:00') : new Date();
+	if (el._flatpickr) {
+		el._flatpickr.destroy();
+	}
+	flatpickr(el, {
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'F j, Y',
+		defaultDate: defaultDate,
+		allowInput: true,
+		disableMobile: true,
+		closeOnSelect: true,
+		appendTo: document.body,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		}
+	});
+}
+
+function getChangeStatusCutoffProgramDateValue() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (!el) {
+		return '';
+	}
+	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
+		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
+	}
+	var raw = (el.value || '').trim();
+	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function formatChangeStatusCutoffDateDisplay(ymd) {
+	var raw = (ymd || '').trim();
+	if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+		return raw || '—';
+	}
+	if (typeof moment !== 'undefined' && moment) {
+		var m = moment(raw, 'YYYY-MM-DD', true);
+		if (m.isValid()) {
+			return m.format('MMMM D, YYYY');
+		}
+	}
+	var d = new Date(raw + 'T12:00:00');
+	if (!isNaN(d.getTime())) {
+		return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+	}
+	return raw;
+}
+
+function loadChangeStatusCutoffLastRolling(gameId) {
+	var $field = $('#txtCutoffLastRolling');
+	if (!$field.length || !gameId) {
+		return;
+	}
+	var currentVal = ($field.val() || '').toString().replace(/,/g, '').trim();
+	if (currentVal && currentVal !== 'Loading...') {
+		return;
+	}
+	$field.val('');
+	$.ajax({
+		url: '/game_list/' + encodeURIComponent(gameId) + '/rolling/last',
+		method: 'GET',
+		dataType: 'json',
+		success: function (response) {
+			if (($field.val() || '').toString().replace(/,/g, '').trim()) {
+				return;
+			}
+			var record = response && response.data;
+			if (!record) {
+				return;
+			}
+			var cc = parseFloat(record.CC_CHIPS) || 0;
+			var nn = parseFloat(record.NN_CHIPS) || 0;
+			if (cc > 0) {
+				$field.val(String(cc));
+			} else if (nn > 0) {
+				$field.val(String(nn));
+			}
+		}
+	});
+}
+
+function updateChangeStatusCutoffSection() {
+	var selectedStatus = $('#status').val();
+	if (isCutoffStatus(selectedStatus)) {
+		$('#cutoff-details-section').show();
+		ensureChangeStatusCutoffDatePicker();
+		loadChangeStatusCutoffLastRolling(game_id);
+	} else {
+		resetChangeStatusCutoffFields();
+	}
+}
+
+function updateChangeStatusRollerReturnSection() {
+	var selectedStatus = $('#status').val();
+	var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+
+	if (isCutoffStatus(selectedStatus)) {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
+		$('#roller-chips-return-section').hide();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+		}
+		updateChangeStatusCutoffSection();
+		return;
+	}
+
+	resetChangeStatusCutoffFields();
+
+	if (selectedStatus == '1' && currentRequiredTotal > 0) {
+		if (isPendingFaultSettled()) {
+			applyPendingFaultSettledUi();
+		} else {
+			$('#roller-chips-return-section').show();
+			$('#roller-chips-return-summary').show();
+			$('#roller-chips-return-inputs').show();
+			if ($('#modal-change_status').data('isPendingResolve')) {
+				$('#pending-resolution-section').show();
+			}
+			$('#pending-resolve-status-banner').hide();
+		}
+	} else {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
+		$('#roller-chips-return-section').hide();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+		}
+	}
 }
 
 function updateReturnRollerRemainingHint() {
@@ -436,12 +672,13 @@ function applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName)
 	var code = agentCode || game.agent_code || '';
 	var name = normalizeGameGuestName(guestName || game.guest_name || '');
 
+	setChangeStatusPendingResolveFlags(game);
+
 	applyChangeStatusCutoffOption(
 		activeStatus,
 		game.CUTOFF_PARENT_GAME_ID || game.cutoff_parent_game_id,
 		game.CUTOFF_CONTINUED_GAME_ID || game.cutoff_continued_game_id
 	);
-	setChangeStatusPendingResolveFlags(game);
 
 	if (activeStatus === 3) {
 		setChangeStatusPendingMode(true);
@@ -478,8 +715,6 @@ function setChangeStatusPendingMode(isPending) {
 		$('#change-status-normal-section').show();
 		$('#status').val('1');
 		$('#submit-status-btn').show();
-		$('#cutoff-parent-date-section').hide();
-		$('#cutoff-roller-auto-section').hide();
 		applyPendingFaultSettledUi();
 	} else {
 		$('#change-status-normal-section').show();
@@ -501,9 +736,9 @@ function getPendingResolveContext() {
 		accountId: $('.txtAccountCode', $modal).val(),
 		agentCode: agentLabel,
 		balance: parseFloat($modal.data('requiredReturnTotal')) || 0,
-		prefillNN: parseFloat($modal.data('requiredReturnNN')) || parseFloat($modal.data('cutoffTransferRollerNN')) || 0,
-		prefillCC: parseFloat($modal.data('requiredReturnCC')) || parseFloat($modal.data('cutoffTransferRollerCC')) || 0,
-		guestId: $modal.data('cutoffGuestId') || null
+		prefillNN: parseFloat($modal.data('requiredReturnNN')) || 0,
+		prefillCC: parseFloat($modal.data('requiredReturnCC')) || 0,
+		guestId: $modal.data('changeStatusGuestId') || null
 	};
 }
 
@@ -669,250 +904,6 @@ function openPendingJunketNewGameModal() {
 	});
 }
 
-function getCutoffAutoRollerReturnAmounts() {
-	var nn = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerNN')) || 0);
-	var cc = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerCC')) || 0);
-	if (!nn && !cc) {
-		nn = Math.max(0, parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0);
-		cc = Math.max(0, parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0);
-	}
-	var amounts = {
-		nn: nn,
-		cc: cc,
-		total: Math.max(0, parseFloat($('#modal-change_status').data('combinedNet')) || 0) || (nn + cc)
-	};
-	return amounts;
-}
-
-function applyCutoffAutoRollerReturnToForm() {
-	var amounts = getCutoffAutoRollerReturnAmounts();
-	$('#txtReturnRollerNN').val(amounts.nn > 0 ? String(amounts.nn) : '');
-	$('#txtReturnRollerCC').val(amounts.cc > 0 ? String(amounts.cc) : '');
-	$('#modal-change_status').data('cutoffTransferRollerNN', amounts.nn);
-	$('#modal-change_status').data('cutoffTransferRollerCC', amounts.cc);
-	return amounts;
-}
-
-function closeChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentProgramDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.close();
-	}
-}
-
-function resetChangeStatusParentDateField() {
-	closeChangeStatusParentDatePicker();
-	$('#cutoff-parent-date-section').hide();
-	var el = document.getElementById('txtCutoffParentProgramDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.clear();
-	} else {
-		$('#txtCutoffParentProgramDate').val('');
-	}
-}
-
-function repositionModalFlatpickr(instance) {
-	if (!instance) {
-		return;
-	}
-	if (instance.altInput) {
-		instance._positionElement = instance.altInput;
-	}
-	if (typeof instance._positionCalendar === 'function') {
-		instance._positionCalendar();
-	}
-}
-
-function getDefaultProgramDateYmd() {
-	var el = document.getElementById('program-date-range-picker');
-	var fp = el && el._flatpickr;
-	if (fp && fp.selectedDates && fp.selectedDates.length > 0) {
-		var fromPicker = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
-		if (/^\d{4}-\d{2}-\d{2}$/.test(fromPicker)) return fromPicker;
-	}
-	var anchor = String(window.selectedProgramDate || '').slice(0, 10);
-	if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor;
-	var wrapper = document.querySelector('#program-date-wrapper .input-group');
-	if (wrapper) {
-		var initial =
-			wrapper.getAttribute('data-initial-program-date') ||
-			wrapper.getAttribute('data-today') ||
-			'';
-		if (/^\d{4}-\d{2}-\d{2}$/.test(initial)) return initial;
-	}
-	return '';
-}
-
-/** Program date for parent game when status = CUT OFF. */
-function ensureChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentProgramDate');
-	if (!el || typeof flatpickr === 'undefined') {
-		return;
-	}
-	var anchorYmd = getDefaultProgramDateYmd();
-	var defaultDate = anchorYmd || new Date();
-	if (el._flatpickr) {
-		el._flatpickr.destroy();
-	}
-	flatpickr(el, {
-		dateFormat: 'Y-m-d',
-		altInput: true,
-		altFormat: 'F j, Y',
-		defaultDate: defaultDate,
-		allowInput: true,
-		disableMobile: true,
-		closeOnSelect: true,
-		appendTo: document.body,
-		onReady: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('change-status-parent-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		},
-		onOpen: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('change-status-parent-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		}
-	});
-}
-
-function getChangeStatusParentProgramDateValue() {
-	var el = document.getElementById('txtCutoffParentProgramDate');
-	if (!el) {
-		return '';
-	}
-	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
-		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
-	}
-	var raw = (el.value || '').trim();
-	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
-}
-
-function updateChangeStatusCutoffDateSection() {
-	var status = $('#status').val();
-	var $section = $('#cutoff-parent-date-section');
-	if (status == '4') {
-		$section.show();
-		ensureChangeStatusParentDatePicker();
-	} else {
-		resetChangeStatusParentDateField();
-	}
-}
-
-function closeCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffProgramDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.close();
-	}
-}
-
-function resetCutoffGameDateField() {
-	closeCutoffGameDatePicker();
-	var el = document.getElementById('cutoff_txtCutoffProgramDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.clear();
-	} else {
-		$('#cutoff_txtCutoffProgramDate').val('');
-	}
-}
-
-/** Program date for cut-off new game. */
-function ensureCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffProgramDate');
-	if (!el || typeof flatpickr === 'undefined') {
-		return;
-	}
-	var anchorYmd = getDefaultProgramDateYmd();
-	var defaultDate = anchorYmd || new Date();
-	if (el._flatpickr) {
-		el._flatpickr.destroy();
-	}
-	flatpickr(el, {
-		dateFormat: 'Y-m-d',
-		altInput: true,
-		altFormat: 'F j, Y',
-		defaultDate: defaultDate,
-		allowInput: true,
-		disableMobile: true,
-		closeOnSelect: true,
-		appendTo: document.body,
-		onReady: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('cutoff-game-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		},
-		onOpen: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('cutoff-game-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		}
-	});
-}
-
-function getCutoffGameProgramDateValue() {
-	var el = document.getElementById('cutoff_txtCutoffProgramDate');
-	if (!el) {
-		return '';
-	}
-	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
-		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
-	}
-	var raw = (el.value || '').trim();
-	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
-}
-
-function formatCutoffGameDateDisplay(ymd) {
-	var raw = (ymd || '').trim();
-	if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-		return raw || '—';
-	}
-	if (typeof moment !== 'undefined' && moment) {
-		var m = moment(raw, 'YYYY-MM-DD', true);
-		if (m.isValid()) {
-			return m.format('MMMM D, YYYY');
-		}
-	}
-	var d = new Date(raw + 'T12:00:00');
-	if (!isNaN(d.getTime())) {
-		return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-	}
-	return raw;
-}
-
-function updateCutoffRollerAutoSection() {
-	var $section = $('#cutoff-roller-auto-section');
-	var $rollerManual = $('#roller-chips-return-section');
-	var status = $('#status').val();
-	var requiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-	var amounts = getCutoffAutoRollerReturnAmounts();
-
-	if (status == '4' && requiredTotal > 0) {
-		applyCutoffAutoRollerReturnToForm();
-		var netNNRaw = parseFloat($('#modal-change_status').data('netRollerNN')) || 0;
-		var netCCRaw = parseFloat($('#modal-change_status').data('netRollerCC')) || 0;
-		$('#cutoff-auto-roller-total').text(amounts.total.toLocaleString('en-US'));
-		$('#cutoff-auto-roller-nn').text(netNNRaw.toLocaleString('en-US'));
-		$('#cutoff-auto-roller-cc').text(netCCRaw.toLocaleString('en-US'));
-		$section.show();
-		$rollerManual.hide();
-	} else {
-		$section.hide();
-		if (status == '4') {
-			$('#txtReturnRollerNN').val('');
-			$('#txtReturnRollerCC').val('');
-			$('#modal-change_status').data('cutoffTransferRollerNN', 0);
-			$('#modal-change_status').data('cutoffTransferRollerCC', 0);
-		}
-	}
-}
-
-var _cutoffAvailableNN = 0;
-var _cutoffAvailableCC = 0;
-
 function commissionTypeLabel(type) {
 	var t = parseInt(type, 10);
 	if (t === 2) return 'Shared Game';
@@ -929,18 +920,6 @@ function normalizeCutoffGameType(raw) {
 
 function displayCutoffGameTypeLabel(normalized) {
 	return normalized === 'TELEBET' ? 'TELEBET' : 'LIVE';
-}
-
-function resetCutoffGameForm() {
-	var form = document.getElementById('add_game_cutoff');
-	if (form) form.reset();
-	$('#cutoff_txtTransType').val('1');
-	$('#cutoff_txtNN, #cutoff_txtCC, #cutoff_txtRollerNN, #cutoff_txtRollerCC').val('').removeClass('is-invalid');
-	$('#cutoff_txtCutoffParentGameId').val('');
-	resetCutoffGameDateField();
-	_cutoffAvailableNN = 0;
-	_cutoffAvailableCC = 0;
-	$('#modal-new-game-cutoff').data('cutoffReady', false);
 }
 
 function buildCutoffGameIdCell(row) {
@@ -977,118 +956,6 @@ function buildCutoffGameIdPlainLabel(row) {
 		return String(gameId) + ' (' + linkedId + ')';
 	}
 	return String(gameId);
-}
-
-function loadCutoffAccountBalance(accountId) {
-	if (!accountId) return;
-	$.ajax({
-		url: '/account_details_data_deposit/' + accountId,
-		method: 'GET',
-		success: function (data) {
-			var deposit_amount = 0;
-			var withdraw_amount = 0;
-			var marker_deposit_amount = 0;
-			var marker_return = 0;
-
-			(data || []).forEach(function (row) {
-				var amount = parseFloat(row.AMOUNT) || 0;
-				if (row.TRANSACTION === 'DEPOSIT') {
-					deposit_amount += amount;
-				} else if (row.TRANSACTION === 'WITHDRAW') {
-					withdraw_amount += amount;
-				} else if (row.TRANSACTION === 'MARKER REDEEM') {
-					marker_deposit_amount += amount;
-				} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-					marker_return += amount;
-				}
-			});
-
-			var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-			$('#cutoff_totalBalanceGuest1').val(totalBalance);
-		}
-	});
-}
-
-function populateCutoffGameModal(game, chips, transferRollerNN, transferRollerCC) {
-	if (!game) return;
-
-	var accountId = game.ACCOUNT_ID || game.account_no;
-	var guestId = game.GUEST_ID || '';
-	var gameType = normalizeCutoffGameType(game.GAME_TYPE);
-	var commissionType = parseInt(game.COMMISSION_TYPE, 10) || 1;
-	var commissionRate = game.COMMISSION_PERCENTAGE != null ? game.COMMISSION_PERCENTAGE : 0;
-	$('#cutoff_txtAccountCode').val(accountId || '');
-	$('#cutoff_txtGuestId').val(guestId || '');
-	$('#cutoff_txtGameType').val(gameType);
-	$('#cutoff_txtTransType').val('1');
-	$('#cutoff_txtCommisionType').val(String(commissionType));
-	$('#cutoff_txtCommisionRate').val(String(commissionRate));
-
-	_cutoffAvailableNN = parseFloat(chips && chips.availableNN) || 0;
-	_cutoffAvailableCC = parseFloat(chips && chips.availableCC) || 0;
-
-	var rNN = parseFloat(transferRollerNN) || 0;
-	var rCC = parseFloat(transferRollerCC) || 0;
-	if (rNN > 0) {
-		$('#cutoff_txtRollerNN').val(rNN);
-	}
-	if (rCC > 0) {
-		$('#cutoff_txtRollerCC').val(rCC);
-	}
-
-	loadCutoffAccountBalance(accountId);
-	setGameListModalAccountLabel('#cutoff-agent-label', game.agent_code, game.guest_name);
-	$('#modal-new-game-cutoff').data('cutoffReady', true);
-}
-
-function openNewGameAfterCutoff(previousGameId, transferRollerNN, transferRollerCC) {
-	if (!previousGameId) return;
-
-	var rollerNN = transferRollerNN != null ? transferRollerNN : ($('#modal-change_status').data('cutoffTransferRollerNN') || 0);
-	var rollerCC = transferRollerCC != null ? transferRollerCC : ($('#modal-change_status').data('cutoffTransferRollerCC') || 0);
-
-	resetCutoffGameForm();
-	$('#cutoff_txtCutoffParentGameId').val(String(previousGameId));
-	$('#modal-new-game-cutoff').data('prefillRollerNN', rollerNN);
-	$('#modal-new-game-cutoff').data('prefillRollerCC', rollerCC);
-	$('#modal-new-game-cutoff').modal('show');
-	ensureCutoffGameDatePicker();
-
-	$.when(
-		$.getJSON('/game_list_data?id=' + encodeURIComponent(previousGameId)),
-		$.getJSON('/game_list_available_chips'),
-		$.getJSON('/game_list/' + encodeURIComponent(previousGameId) + '/record')
-	).done(function (gameRes, chipsRes, recordRes) {
-		var rows = Array.isArray(gameRes[0]) ? gameRes[0] : [];
-		var game = rows[0];
-		var chips = chipsRes[0] || {};
-		var records = Array.isArray(recordRes[0]) ? recordRes[0] : [];
-		var rollerTotals = computeRollerChipsBalanceFromRecords(records);
-
-		if (!game) {
-			Swal.fire({
-				icon: 'error',
-				title: 'Game not found',
-				text: 'Could not load the previous game details for cut off.',
-				confirmButtonText: 'OK'
-			});
-			$('#modal-new-game-cutoff').modal('hide');
-			return;
-		}
-
-		var preNN = rollerTotals.transferNN || $('#modal-new-game-cutoff').data('prefillRollerNN') || 0;
-		var preCC = rollerTotals.transferCC || $('#modal-new-game-cutoff').data('prefillRollerCC') || 0;
-
-		populateCutoffGameModal(game, chips, preNN, preCC);
-	}).fail(function () {
-		Swal.fire({
-			icon: 'error',
-			title: 'Error',
-			text: 'Failed to load cut off game details.',
-			confirmButtonText: 'OK'
-		});
-		$('#modal-new-game-cutoff').modal('hide');
-	});
 }
 
 /** Flatpickr on New Game modal: date only (maps to game_list.PROGRAM_DATE). */
@@ -4317,201 +4184,6 @@ $('#add_game_list').submit(function (event) {
     }
 });
 
-$('#add_game_cutoff').submit(function (event) {
-	event.preventDefault();
-
-	var $btn = $('#submit-cutoff-game-btn');
-	var saveLabel = $btn.data('label') || 'Save';
-
-	if (document.activeElement && document.activeElement.blur) {
-		document.activeElement.blur();
-	}
-
-	if (!$('#modal-new-game-cutoff').data('cutoffReady')) {
-		Swal.fire({
-			icon: 'info',
-			title: 'Please wait',
-			text: 'Game details are still loading.',
-			confirmButtonText: 'OK'
-		});
-		return;
-	}
-
-	$btn.prop('disabled', true).html(
-		'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-	);
-
-	var nnChips = $('#cutoff_txtNN').val().trim();
-	var ccChips = $('#cutoff_txtCC').val().trim();
-	var txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0;
-	var txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0;
-	var rollerNN = $('#cutoff_txtRollerNN').val().trim();
-	var rollerCC = $('#cutoff_txtRollerCC').val().trim();
-	var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
-	var rollerCCAmount = parseFloat(rollerCC.replace(/,/g, '')) || 0;
-
-	var nnTrimmed = nnChips.replace(/,/g, '').trim();
-	if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
-		Swal.fire({
-			title: 'Invalid NN Chips amount',
-			text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-			icon: 'error',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var rollerNNTrimmed = rollerNN.replace(/,/g, '').trim();
-	if (rollerNNTrimmed !== '' && (rollerNNAmount <= 0 || rollerNNAmount % 1000 !== 0)) {
-		Swal.fire({
-			title: 'Invalid Roller NN Chips amount',
-			text: 'Roller NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-			icon: 'error',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	if (nnChips === '' && ccChips === '') {
-		Swal.fire({
-			title: 'Warning',
-			text: 'Please enter NN Chips or CC Chips.',
-			icon: 'warning',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var totalNN = txtNNamount + rollerNNAmount;
-	var totalCC = txtCCamount + rollerCCAmount;
-	if (totalNN > _cutoffAvailableNN) {
-		Swal.fire({
-			icon: 'warning',
-			title: 'Exceeds Available NN Chips',
-			text: 'You only have ' + _cutoffAvailableNN.toLocaleString('en-US') + ' Chips available (NN buy-in + Roller NN).',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-	if (totalCC > _cutoffAvailableCC) {
-		Swal.fire({
-			icon: 'warning',
-			title: 'Exceeds Available CC Chips',
-			text: 'You only have ' + _cutoffAvailableCC.toLocaleString('en-US') + ' CC Chips available.',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-	var buildRow = function (label, value) {
-		return '<tr><td style="' + labelStyle + '">' + label + '</td><td style="' + valueStyle + '">' + value + '</td></tr>';
-	};
-
-	var confirmationRows = '';
-	if (txtNNamount > 0) confirmationRows += buildRow('NN Chips:', txtNNamount.toLocaleString('en-US'));
-	if (txtCCamount > 0) confirmationRows += buildRow('CC Chips:', txtCCamount.toLocaleString('en-US'));
-	if (txtNNamount > 0 || txtCCamount > 0) {
-		confirmationRows += buildRow('Total Amount:', (txtNNamount + txtCCamount).toLocaleString('en-US'));
-	}
-	if (rollerNNAmount > 0 || rollerCCAmount > 0) {
-		var rollerParts = [];
-		if (rollerNNAmount > 0) rollerParts.push('NN: ' + rollerNNAmount.toLocaleString('en-US'));
-		if (rollerCCAmount > 0) rollerParts.push('CC: ' + rollerCCAmount.toLocaleString('en-US'));
-		confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
-	}
-
-	var cutoffDateVal = getCutoffGameProgramDateValue();
-	if (!cutoffDateVal) {
-		ensureCutoffGameDatePicker();
-		cutoffDateVal = getCutoffGameProgramDateValue();
-	}
-	if (!cutoffDateVal) {
-		cutoffDateVal = getDefaultProgramDateYmd();
-	}
-	if (cutoffDateVal) {
-		confirmationRows += buildRow('Date:', formatCutoffGameDateDisplay(cutoffDateVal));
-	}
-
-	var confirmationMessage =
-		'<div style="max-width:420px;margin:0 auto;text-align:center;">' +
-		'<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">' +
-		confirmationRows +
-		'</table></div>';
-
-	var $form = $(this);
-
-	Swal.fire({
-		icon: 'question',
-		title: 'Confirm New Game (Cut Off)',
-		html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, Confirm',
-		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
-		allowOutsideClick: false,
-		allowEscapeKey: false,
-		width: '500px'
-	}).then(function (result) {
-		if (!result.isConfirmed) {
-			$btn.prop('disabled', false).text(saveLabel);
-			return;
-		}
-
-		closeCutoffGameDatePicker();
-
-		$btn.prop('disabled', true).html(
-			'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-		);
-
-		var formData = $form.serialize();
-
-		$.ajax({
-			url: '/add_game_list',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				var cutoffYmd = getCutoffGameProgramDateValue();
-				if (!cutoffYmd) {
-					cutoffYmd = getDefaultProgramDateYmd();
-				}
-				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Cut off game successfully created.',
-					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
-				}).then(function (swalResult) {
-					if (swalResult.isConfirmed) {
-						$('#modal-new-game-cutoff').modal('hide');
-						if (typeof window.reloadData === 'function') {
-							window.reloadData();
-						}
-					}
-				});
-			},
-			error: function (xhr) {
-				var errorMessage = xhr.responseJSON?.error || xhr.responseText || 'An error occurred.';
-				Swal.fire({
-					icon: 'error',
-					title: 'Error',
-					text: errorMessage,
-					confirmButtonText: 'OK'
-				});
-				$btn.prop('disabled', false).text(saveLabel);
-			}
-		});
-	});
-});
-
 	
 $('#add_buyin').submit(function (event) {
 	event.preventDefault(); // Prevent the default form submission
@@ -5703,7 +5375,7 @@ $('#edit_status').submit(function (event) {
 
 	// Get the value of the status select
 	var status = $('#status').val();
-	var isCutoff = status == '4';
+	var isCutoff = isCutoffStatus(status);
 
 	// Validate that the user has selected a status
 	if (status === null) {
@@ -5769,12 +5441,15 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
-	// Validation for roller chips return when END GAME / CUT OFF (still runs after "Proceed anyway" on service-exceeds)
-	if (isEndGameOrCutoffStatus(status)) {
+	// Validation for roller chips return when END GAME only (CUT OFF does not auto-return roller)
+	if (isCutoff) {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+	} else if (isEndGameStatus(status)) {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-		var faultAlreadySettled = isPendingFaultSettled() && !isCutoff;
+		var faultAlreadySettled = isPendingFaultSettled();
 
 		if (faultAlreadySettled) {
 			$('#txtReturnRollerNN').val('');
@@ -5786,10 +5461,6 @@ $('#edit_status').submit(function (event) {
 
 		// Skip return validation when fault already settled via Guest Buy-in / New Game
 		if (!faultAlreadySettled && requiredReturnTotal > 0) {
-			if (isCutoff) {
-				applyCutoffAutoRollerReturnToForm();
-			}
-
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			
@@ -5826,8 +5497,8 @@ $('#edit_status').submit(function (event) {
 				errorMessages.push('Return amounts cannot be negative.');
 			}
 
-			// If amounts don't match, show error with "Proceed Anyway" option (not for CUT OFF — auto-filled)
-			if (!totalsMatch && !isCutoff) {
+			// If amounts don't match, show error with "Proceed Anyway" option
+			if (!totalsMatch) {
 				var errorHtml = '<strong>Invalid Roller Chips Return!</strong><br><br>';
 				errorHtml += errorMessages.join('<br>');
 				errorHtml += '<br><br><small class="text-muted">You can return any mix of NN/CC as long as the combined total matches the required amount. This will be marked as PENDING for review.</small>';
@@ -5903,10 +5574,62 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
+	if (isCutoff) {
+		var cutoffDateVal = getChangeStatusCutoffProgramDateValue();
+		if (!cutoffDateVal) {
+			ensureChangeStatusCutoffDatePicker();
+			cutoffDateVal = getChangeStatusCutoffProgramDateValue();
+		}
+		if (!cutoffDateVal) {
+			cutoffDateVal = getCutoffDefaultProgramDateYmd();
+		}
+		if (!cutoffDateVal) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Program Date Required',
+				text: 'Please select a program date for the cut off game.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var buyInNNRaw = ($('#txtCutoffBuyInNN').val() || '').toString().replace(/,/g, '').trim();
+		var buyInCCRaw = ($('#txtCutoffBuyInCC').val() || '').toString().replace(/,/g, '').trim();
+		var buyInNNAmount = parseFloat(buyInNNRaw) || 0;
+		var buyInCCAmount = parseFloat(buyInCCRaw) || 0;
+		$('#txtCutoffBuyInNN').removeClass('is-invalid');
+		if (buyInNNRaw !== '' && (buyInNNAmount <= 0 || buyInNNAmount % 1000 !== 0)) {
+			$('#txtCutoffBuyInNN').addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid NN Chips amount',
+				text: 'Buy-in NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var lastRollingRaw = ($('#txtCutoffLastRolling').val() || '').toString().replace(/,/g, '').trim();
+		var lastRollingAmount = parseFloat(lastRollingRaw) || 0;
+		var totalRollerBalance = Math.max(0, parseFloat($('#modal-change_status').data('combinedNet')) || 0);
+		$('#txtCutoffLastRolling').removeClass('is-invalid');
+		if (lastRollingRaw !== '' && lastRollingAmount > 0 && lastRollingAmount > totalRollerBalance + 0.001) {
+			$('#txtCutoffLastRolling').addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Last Rolling',
+				text: 'Last Rolling cannot exceed available roller chips balance (' + totalRollerBalance.toLocaleString('en-US') + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+	}
+
 	// All validations passed, show confirmation dialog
 	var translations = window.gamelistTranslations || {};
 	var statusText = (status == '1') ? (translations.end_game || 'END GAME')
-		: (status == '4') ? 'CUT OFF'
+		: (status == '4') ? (translations.cut_off || 'CUT OFF')
 		: (status == '2') ? (translations.on_game || 'ON GAME')
 		: (status == '3') ? 'PENDING' : status;
 
@@ -5919,30 +5642,40 @@ $('#edit_status').submit(function (event) {
 	var confirmationRows = '';
 	confirmationRows += buildRow('New Status:', statusText);
 
-	if (status == '4') {
-		var parentDateVal = getChangeStatusParentProgramDateValue();
-		if (!parentDateVal) {
-			ensureChangeStatusParentDatePicker();
-			parentDateVal = getChangeStatusParentProgramDateValue();
+	if (isCutoff) {
+		var cutoffDateDisplay = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
+		if (cutoffDateDisplay) {
+			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(cutoffDateDisplay));
 		}
-		if (!parentDateVal) {
-			parentDateVal = getDefaultProgramDateYmd();
+		var confirmBuyInNN = parseFloat(($('#txtCutoffBuyInNN').val() || '').replace(/,/g, '').trim()) || 0;
+		var confirmBuyInCC = parseFloat(($('#txtCutoffBuyInCC').val() || '').replace(/,/g, '').trim()) || 0;
+		if (confirmBuyInNN > 0) {
+			confirmationRows += buildRow('Buy-in NN:', confirmBuyInNN.toLocaleString('en-US'));
 		}
-		if (parentDateVal) {
-			confirmationRows += buildRow('Parent Game Date:', formatCutoffGameDateDisplay(parentDateVal));
+		if (confirmBuyInCC > 0) {
+			confirmationRows += buildRow('Buy-in CC:', confirmBuyInCC.toLocaleString('en-US'));
+		}
+		var lastRollingDisplay = ($('#txtCutoffLastRolling').val() || '').trim();
+		var lastRollingAmount = parseFloat(lastRollingDisplay.replace(/,/g, '')) || 0;
+		if (lastRollingDisplay) {
+			confirmationRows += buildRow('Last Rolling:', lastRollingDisplay);
+		}
+		var cutoffRollerTotals = {
+			combinedNet: parseFloat($('#modal-change_status').data('combinedNet')) || 0
+		};
+		var transferRollerNN = computeCutoffTransferRollerNN(cutoffRollerTotals);
+		if (transferRollerNN > 0) {
+			confirmationRows += buildRow('Roller Chips:', transferRollerNN.toLocaleString('en-US'));
 		}
 	}
 
-	// Add roller chips return info if END GAME / CUT OFF and has required returns
-	if (isEndGameOrCutoffStatus(status)) {
+	// Add roller chips return info if END GAME and has required returns
+	if (isEndGameStatus(status)) {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 
-		if (requiredReturnTotal > 0 && !(isPendingFaultSettled() && status != '4')) {
-			if (status == '4') {
-				applyCutoffAutoRollerReturnToForm();
-			}
+		if (requiredReturnTotal > 0 && !isPendingFaultSettled()) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			var returnNNAmount = parseFloat(returnNN) || 0;
@@ -5958,8 +5691,7 @@ $('#edit_status').submit(function (event) {
 			}
 
 			if (rollerText) {
-				var rollerLabel = status == '4' ? 'Roller Chips (auto transfer):' : 'Roller Chips Return:';
-				confirmationRows += buildRow(rollerLabel, rollerText);
+				confirmationRows += buildRow('Roller Chips Return:', rollerText);
 			}
 		}
 	}
@@ -5973,8 +5705,8 @@ $('#edit_status').submit(function (event) {
 		</div>
 	`;
 
-	if (status == '4') {
-		closeChangeStatusParentDatePicker();
+	if (isCutoff) {
+		closeChangeStatusCutoffDatePicker();
 	}
 
 	Swal.fire({
@@ -6003,10 +5735,14 @@ $('#edit_status').submit(function (event) {
 				var submitParams = new URLSearchParams(formData);
 				submitParams.set('txtStatus', '1');
 				submitParams.set('txtWasCutoff', '1');
+				submitParams.set('txtReturnRollerNN', '');
+				submitParams.set('txtReturnRollerCC', '');
+				var cutoffYmd = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
+				if (cutoffYmd) {
+					submitParams.set('txtCutoffProgramDate', cutoffYmd);
+				}
 				formData = submitParams.toString();
 			}
-
-			var cutoffPreviousGameId = game_id;
 
 			// Submit the form via AJAX
 			$.ajax({
@@ -6024,22 +5760,23 @@ $('#edit_status').submit(function (event) {
 					reloadData();
 					refreshSettlementModalLockIfOpen();
 					$('#modal-change_status').modal('hide');
-
-					if (isCutoff) {
-						var transferNN = $('#modal-change_status').data('cutoffTransferRollerNN') || 0;
-						var transferCC = $('#modal-change_status').data('cutoffTransferRollerCC') || 0;
-						setTimeout(function () {
-							openNewGameAfterCutoff(cutoffPreviousGameId, transferNN, transferCC);
-						}, 400);
-					}
 				},
-				error: function (error) {
+				error: function (xhr) {
+					var errMsg = 'Failed to update status. Please try again.';
+					try {
+						var parsed = JSON.parse(xhr.responseText || '');
+						if (parsed && parsed.error) errMsg = parsed.error;
+					} catch (parseErr) {
+						if (xhr.responseText && typeof xhr.responseText === 'string' && xhr.responseText.trim()) {
+							errMsg = xhr.responseText.trim();
+						}
+					}
 					Swal.fire({
 						icon: 'error',
 						title: 'Error!',
-						text: 'Failed to update status. Please try again.',
+						text: errMsg,
 					});
-					console.error('Error updating status:', error);
+					console.error('Error updating status:', xhr);
 				},
 				complete: function () {
 					$btn.prop('disabled', false).html('Save');
@@ -7320,7 +7057,8 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	const $changeStatusModal = $('#modal-change_status');
 	$changeStatusModal.data('settlementValue', net);
 	$changeStatusModal.data('servicesValue', null); // reset while loading
-	$changeStatusModal.data('cutoffGuestId', guestId || null);
+	$changeStatusModal.data('changeStatusGuestId', guestId || null);
+	$changeStatusModal.data('gameProgramDate', '');
 	loadServiceTotalForStatusModal(id);
 
 	$('.txtGameId').val(id);
@@ -7335,16 +7073,23 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('.txtReturnRollerCC').val('');
 	updateReturnRollerRemainingHint();
 	$('#roller-chips-return-section').hide();
-	$('#cutoff-roller-auto-section').hide();
-	resetChangeStatusParentDateField();
-	$('#modal-change_status').data('cutoffTransferRollerNN', 0);
-	$('#modal-change_status').data('cutoffTransferRollerCC', 0);
+	resetChangeStatusCutoffFields();
 
 	game_id = id;
 
+	$('#status').off('change.cutoffdetails').on('change.cutoffdetails', function () {
+		updateChangeStatusRollerReturnSection();
+	});
+
 	$.getJSON('/game_list_data?id=' + encodeURIComponent(id), function (rows) {
 		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
+		if (game) {
+			$changeStatusModal.data('gameProgramDate', getProgramDateYmd(game));
+		}
 		applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName);
+		if (isCutoffStatus($('#status').val())) {
+			ensureChangeStatusCutoffDatePicker();
+		}
 	}).fail(function () {
 		$changeStatusModal.data('pendingRollerResolve', null);
 		applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoffContinuedGameId);
@@ -7372,74 +7117,13 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
 			$('#required-total-display').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
 			
-			// Show/hide roller chips return section based on whether there are required returns
-			// Always remove previous event handlers first
-			$('#status').off('change.rollerchips');
-			
-			// Create a unified event handler that checks requiredReturnTotal before showing
-			$('#status').on('change.rollerchips', function() {
-				var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-				var selectedStatus = $(this).val();
-
-				updateChangeStatusCutoffDateSection();
-
-				if (selectedStatus == '4') {
-					updateCutoffRollerAutoSection();
-					return;
-				}
-
-				$('#cutoff-roller-auto-section').hide();
-
-				if (selectedStatus == '1' && currentRequiredTotal > 0) {
-					if (isPendingFaultSettled()) {
-						applyPendingFaultSettledUi();
-					} else {
-						$('#roller-chips-return-section').show();
-						$('#roller-chips-return-summary').show();
-						$('#roller-chips-return-inputs').show();
-						if ($('#modal-change_status').data('isPendingResolve')) {
-							$('#pending-resolution-section').show();
-						}
-						$('#pending-resolve-status-banner').hide();
-					}
-				} else {
-					$('#txtReturnRollerNN').val('');
-					$('#txtReturnRollerCC').val('');
-					updateReturnRollerRemainingHint();
-					$('#roller-chips-return-section').hide();
-					if (!isPendingFaultSettled()) {
-						$('#pending-resolve-status-banner').hide();
-					}
-				}
-			});
-			
+			// Show/hide sections based on status and required returns
+			updateChangeStatusRollerReturnSection();
 			var requiredReturnTotal = rollerTotals.requiredReturnTotal;
-
-			if (requiredReturnTotal > 0) {
-				if (currentStatus == 3 || $('#status').val() == '1') {
-					if (isPendingFaultSettled()) {
-						applyPendingFaultSettledUi();
-					} else {
-						$('#roller-chips-return-section').show();
-						$('#roller-chips-return-summary').show();
-						$('#roller-chips-return-inputs').show();
-						if ($('#modal-change_status').data('isPendingResolve')) {
-							$('#pending-resolution-section').show();
-						}
-					}
-				} else if ($('#status').val() == '4') {
-					updateChangeStatusCutoffDateSection();
-					updateCutoffRollerAutoSection();
-				}
-			} else if (currentStatus == 3) {
+			if (requiredReturnTotal <= 0 && currentStatus == 3) {
 				$('#roller-chips-return-section').show();
 				$('#txtReturnRollerNN').val('');
 				$('#txtReturnRollerCC').val('');
-			} else {
-				$('#txtReturnRollerNN').val('');
-				$('#txtReturnRollerCC').val('');
-				$('#roller-chips-return-section').hide();
-				$('#cutoff-roller-auto-section').hide();
 			}
 		},
 		error: function (xhr, status, error) {
@@ -8161,19 +7845,8 @@ $(document).ready(function () {
 		$('#txtGuestGame').prop('disabled', true).removeAttr('data-readonly data-locked-value');
 	});
 
-	$('#modal-new-game-cutoff').on('hidden.bs.modal', function () {
-		resetCutoffGameForm();
-		var $btn = $('#submit-cutoff-game-btn');
-		var saveLabel = $btn.data('label') || 'Save';
-		$btn.prop('disabled', false).text(saveLabel);
-	});
-
-	$('#modal-new-game-cutoff').on('shown.bs.modal', function () {
-		ensureCutoffGameDatePicker();
-	});
-
 	$('#modal-change_status').on('hidden.bs.modal', function () {
-		resetChangeStatusParentDateField();
+		resetChangeStatusCutoffFields();
 		setChangeStatusPendingMode(false);
 		$('#modal-change_status').data('pendingRollerResolve', null);
 	});

@@ -22,7 +22,7 @@
 						<option value="2"><%= __('modal_change_status.on_game_option') %></option>
 						<!-- <option value="3">FINISH</option> -->
 						<option value="1"><%= __('modal_change_status.end_game_option') %></option>
-						<option value="4">CUT OFF</option>
+						<option value="4"><%= __('modal_change_status.cutoff_option') %></option>
 					</select>
 				</div>
 			</div>
@@ -32,21 +32,36 @@
 				<small id="pending-resolve-status-text"></small>
 			</div>
 
-			<div id="cutoff-parent-date-section" class="row mb-2" style="display: none;">
-				<div class="col-sm-12">
-					<label class="form-label mb-1" for="txtCutoffParentProgramDate"><strong>Date</strong></label>
-					<input type="text" class="form-control" name="txtCutoffParentProgramDate" id="txtCutoffParentProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
-					
-				</div>
-			</div>
-
-			<div id="cutoff-roller-auto-section" style="display: none; margin-top: 15px;" class="alert alert-info mb-0" role="alert">
-				<small>
-					<strong>Cut Off:</strong> Remaining roller chips will be returned on this game and automatically added to the new cut off game.
-					<div class="mt-2">
-						<div>Remaining: <strong id="cutoff-auto-roller-total">0</strong></div>
+			<div id="cutoff-details-section" style="display: none;" class="mt-3 pt-3 border-top">
+				<div class="row mb-2">
+					<div class="col-sm-12">
+						<label class="form-label mb-1" for="txtCutoffProgramDate"><strong><%= __('modal_change_status.cutoff_date_label') %></strong></label>
+						<input type="text" class="form-control" name="txtCutoffProgramDate" id="txtCutoffProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
 					</div>
-				</small>
+				</div>
+				<div class="row mb-2">
+					<div class="col-sm-12">
+						<label class="form-label mb-1"><strong><%= __('modal_change_status.cutoff_buyin_label') %></strong></label>
+					</div>
+					<div class="col-sm-6">
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center" name="txtCutoffBuyInNN" id="txtCutoffBuyInNN"
+							placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" />
+					</div>
+					<div class="col-sm-6">
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center" name="txtCutoffBuyInCC" id="txtCutoffBuyInCC"
+							placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" />
+					</div>
+				</div>
+				<div class="row mb-2">
+					<div class="col-sm-12">
+						<label class="form-label mb-1" for="txtCutoffLastRolling"><strong><%= __('modal_change_status.cutoff_last_rolling_label') %></strong></label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center" name="txtCutoffLastRolling" id="txtCutoffLastRolling"
+							placeholder="CC Chips" />
+					</div>
+				</div>
 			</div>
 			
 			<!-- Roller Chips Return Section (END GAME only) -->
@@ -172,18 +187,18 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <style>
-body.swal2-shown .flatpickr-calendar.change-status-parent-date-calendar {
+body.swal2-shown .flatpickr-calendar.change-status-cutoff-date-calendar {
 	display: none !important;
 }
-body > .flatpickr-calendar.change-status-parent-date-calendar {
+body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	z-index: 2000 !important;
 }
 #modal-change_status .modal-body {
 	position: relative;
 }
-.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.selected,
-.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.startRange,
-.flatpickr-calendar.change-status-parent-date-calendar .flatpickr-day.endRange {
+.flatpickr-calendar.change-status-cutoff-date-calendar .flatpickr-day.selected,
+.flatpickr-calendar.change-status-cutoff-date-calendar .flatpickr-day.startRange,
+.flatpickr-calendar.change-status-cutoff-date-calendar .flatpickr-day.endRange {
 	background-color: #0d6efd !important;
 	border-color: #0d6efd !important;
 	color: #ffffff !important;

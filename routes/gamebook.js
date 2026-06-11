@@ -179,9 +179,379 @@ function computeRollerChipsBalanceFromRecordsNode(rows) {
 	};
 }
 
+/** Roller chips on continuation game: same total as parent (all as NN); last rolling CC is returned on parent only. */
+function computeCutoffTransferRollerNN(rollerTotals) {
+	return Math.max(0, rollerTotals.combinedNet || 0);
+}
+
 async function getRollerTotalsForGame(db, gameId) {
 	const [rows] = await db.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
 	return computeRollerChipsBalanceFromRecordsNode(rows);
+}
+
+function parseChipAmount(raw) {
+	return parseFloat(String(raw || '0').replace(/,/g, '')) || 0;
+}
+
+function initialMopToTransType(initialMop) {
+	const m = String(initialMop || '').trim().toUpperCase();
+	if (m === 'CASH') return 1;
+	if (m === 'DEPOSIT') return 2;
+	if (m === 'IOU') return 3;
+	return null;
+}
+
+async function resolveParentTransType(db, parentGameId, initialMop) {
+	const transType = initialMopToTransType(initialMop);
+	if (transType) return transType;
+	const [rows] = await db.execute(
+		`SELECT TRANSACTION FROM game_record
+		 WHERE GAME_ID = ? AND ACTIVE != 0 AND CAGE_TYPE IN (1, 3) AND TRANSACTION IS NOT NULL
+		 ORDER BY IDNo ASC LIMIT 1`,
+		[parentGameId]
+	);
+	return parseInt(rows[0]?.TRANSACTION, 10) || 1;
+}
+
+/**
+ * CUT OFF: end parent game, cashout buy-in on parent, last rolling on parent (ROLLING + roller return),
+ * create continuation game with same buy-in and roller chips.
+ */
+async function performGameCutoff(db, params) {
+	const {
+		parentGameId,
+		encodedBy,
+		dateNow,
+		programDate,
+		buyInNN,
+		buyInCC,
+		lastRollingCC
+	} = params;
+
+	const [parentRows] = await db.execute(
+		`SELECT ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[parentGameId]
+	);
+	if (!parentRows.length) {
+		const err = new Error('Parent game not found.');
+		err.statusCode = 404;
+		throw err;
+	}
+	const parent = parentRows[0];
+	const parentActive = parseInt(parent.ACTIVE, 10);
+	if (parentActive !== 2) {
+		const err = new Error('Only ON GAME games can be cut off.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const parentAccountId = parseInt(parent.ACCOUNT_ID, 10);
+	const transType = await resolveParentTransType(db, parentGameId, parent.INITIAL_MOP);
+	const rollerTotals = await getRollerTotalsForGame(db, parentGameId);
+	const totalRollerBalance = Math.max(0, rollerTotals.combinedNet || 0);
+	const parentNetNN = Math.max(0, rollerTotals.netNNRaw || 0);
+	const parentNetCC = Math.max(0, rollerTotals.netCCRaw || 0);
+	const transferRollerNN = computeCutoffTransferRollerNN(rollerTotals);
+	const lastRolling = Math.max(0, lastRollingCC);
+	const lastRollingNnReturn = Math.min(lastRolling, parentNetNN);
+	const lastRollingCcReturn = Math.max(0, lastRolling - lastRollingNnReturn);
+	const remainingNnReturnOnParent = Math.max(0, parentNetNN - lastRollingNnReturn);
+	const remainingCcReturnOnParent = Math.max(0, parentNetCC - lastRollingCcReturn);
+	const buyInTotal = buyInNN + buyInCC;
+
+	if (buyInNN > 0 && buyInNN % 1000 !== 0) {
+		const err = new Error('Buy-in NN Chips must be in thousands.');
+		err.statusCode = 400;
+		throw err;
+	}
+	if (lastRollingCC > 0 && lastRollingCC > totalRollerBalance + 0.001) {
+		const err = new Error(
+			`Last Rolling (${lastRollingCC}) exceeds available roller chips balance (${totalRollerBalance}).`
+		);
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const tradingDateNew = parseProgramDateAsDateTime(programDate);
+	const initialMOP = { 1: 'CASH', 2: 'DEPOSIT', 3: 'IOU' }[transType] || parent.INITIAL_MOP;
+
+	const gameRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const rollerChipsSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+	`;
+
+	// 1. End parent game
+	await db.execute(
+		`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+		[dateNow, encodedBy, dateNow, parentGameId]
+	);
+
+	// 2. Cashout on parent (cutoff buy-in → chips returned)
+	let cashoutRecordId = null;
+	if (buyInTotal > 0) {
+		const [cashoutResult] = await db.execute(gameRecordSQL, [
+			parentGameId,
+			dateNow,
+			2,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+		cashoutRecordId = cashoutResult.insertId;
+
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, parentGameId, 1, transType, 'Chips Returned', buyInTotal, encodedBy, dateNow]
+		);
+
+		if (transType === 1) {
+			const [agentRows] = await db.execute(agentQuery, [parentAccountId]);
+			if (agentRows.length > 0 && agentRows[0].agent_id) {
+				await db.execute(
+					`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[
+						cashoutRecordId,
+						agentRows[0].agent_id,
+						buyInTotal.toString(),
+						'Game Cash-out',
+						2,
+						`Game - ${parentGameId}`,
+						encodedBy,
+						dateNow
+					]
+				);
+			}
+		}
+	}
+
+	const rollingRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`;
+
+	// 3. Last rolling → ROLLING column (CAGE_TYPE 4) + roller return on parent
+	// NN portion: CAGE_TYPE 4 adds to rolling; CC-only excess uses CC roller return (also adds to rolling)
+	if (lastRollingNnReturn > 0) {
+		await db.execute(rollingRecordSQL, [
+			parentGameId,
+			dateNow,
+			4,
+			0,
+			lastRollingNnReturn,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (lastRollingNnReturn > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			lastRollingNnReturn,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (lastRollingCcReturn > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			lastRollingCcReturn,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+
+	// 4. Create continuation game (ON GAME)
+	let newGameId;
+	try {
+		const [newGameResult] = await db.execute(
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			[
+				parentAccountId,
+				parent.GUEST_ID,
+				parent.GAME_TYPE,
+				initialMOP,
+				parent.COMMISSION_TYPE,
+				parent.COMMISSION_PERCENTAGE,
+				encodedBy,
+				dateNow,
+				programDate,
+				parentGameId
+			]
+		);
+		newGameId = newGameResult.insertId;
+	} catch (insertErr) {
+		const [newGameResult] = await db.execute(
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			[
+				parentAccountId,
+				parent.GUEST_ID,
+				parent.GAME_TYPE,
+				initialMOP,
+				parent.COMMISSION_TYPE,
+				parent.COMMISSION_PERCENTAGE,
+				encodedBy,
+				dateNow,
+				programDate
+			]
+		);
+		newGameId = newGameResult.insertId;
+	}
+
+	try {
+		await db.execute(
+			`UPDATE game_list SET CUTOFF_CONTINUED_GAME_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[newGameId, encodedBy, dateNow, parentGameId]
+		);
+	} catch (linkErr) {
+		// CUTOFF_CONTINUED_GAME_ID column may be missing
+	}
+
+	// 5. Buy-in on new game (same amounts as cutoff cashout)
+	if (buyInTotal > 0) {
+		const [record1] = await db.execute(gameRecordSQL, [
+			newGameId,
+			tradingDateNew,
+			1,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+		await db.execute(gameRecordSQL, [
+			newGameId,
+			tradingDateNew,
+			3,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+
+		if (transType === 2) {
+			await db.execute(
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[parentAccountId, newGameId, 2, transType, 'INITIAL BUY-IN', buyInTotal, encodedBy, dateNow]
+			);
+		} else if (transType === 3) {
+			await db.execute(
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[parentAccountId, newGameId, 10, transType, buyInTotal, `Buy-in Game: ${newGameId}`, encodedBy, dateNow]
+			);
+		}
+
+		if (transType === 1) {
+			const [agentRows] = await db.execute(agentQuery, [parentAccountId]);
+			if (agentRows.length > 0 && agentRows[0].agent_id) {
+				await db.execute(
+					`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[
+						newGameId,
+						agentRows[0].agent_id,
+						buyInTotal.toString(),
+						'Game buy-in',
+						1,
+						`Game - ${newGameId}`,
+						encodedBy,
+						dateNow
+					]
+				);
+			}
+		}
+	}
+
+	// 6. Clear remaining parent roller; new game gets full balance as NN
+	if (remainingNnReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			remainingNnReturnOnParent,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (remainingCcReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			remainingCcReturnOnParent,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (transferRollerNN > 0) {
+		await db.execute(rollerChipsSQL, [
+			newGameId,
+			tradingDateNew,
+			5,
+			0,
+			0,
+			0,
+			transferRollerNN,
+			0,
+			1,
+			encodedBy,
+			dateNow
+		]);
+	}
+
+	return {
+		newGameId,
+		parentGameId,
+		transferRollerNN,
+		lastRollingCC,
+		buyInNN,
+		buyInCC
+	};
 }
 
 /** Auto roller RETURN on pending game when fault is resolved (guest buy-in / junket new game). */
@@ -1367,19 +1737,12 @@ router.post('/add_game_list', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtProgramDate,
-		txtCutoffParentGameId,
-		txtCutoffProgramDate
+		txtProgramDate
 	} = req.body;
 
-	const cutoffParentId = parseInt(txtCutoffParentGameId, 10) || null;
-	const isCutoffGame = !!(cutoffParentId && cutoffParentId > 0);
-	const cutoffProgramDateRaw = txtCutoffProgramDate;
 	// ENCODED_DT = actual save time; PROGRAM_DATE = user-selected game date (date only).
 	const encoded_dt = new Date();
-	const program_date = isCutoffGame
-		? (parseGameListProgramDate(cutoffProgramDateRaw) || parseGameListProgramDate(txtProgramDate) || formatLocalDateYmd(encoded_dt))
-		: parseGameListProgramDate(txtProgramDate);
+	const program_date = parseGameListProgramDate(txtProgramDate);
 	const trading_date = parseProgramDateAsDateTime(program_date);
 
 	// 🛡 Clean inputs and fallbacks
@@ -1421,21 +1784,7 @@ router.post('/add_game_list', async (req, res) => {
 
 		const gameId = result.insertId;
 
-		const cutoffStartTitle = buildGameStartTelegramCutoffTitleLines(isCutoffGame);
-		if (cutoffParentId) {
-			try {
-				await pool.execute(
-					`UPDATE game_list SET CUTOFF_PARENT_GAME_ID = ? WHERE IDNo = ?`,
-					[cutoffParentId, gameId]
-				);
-				await pool.execute(
-					`UPDATE game_list SET CUTOFF_CONTINUED_GAME_ID = ? WHERE IDNo = ?`,
-					[gameId, cutoffParentId]
-				);
-			} catch (linkErr) {
-				console.error('Cut off link columns missing? Run database/add_game_cutoff_link.sql', linkErr);
-			}
-		}
+		const cutoffStartTitle = buildGameStartTelegramCutoffTitleLines(false);
 
 		// 2. Insert into game_record (CAGE_TYPE: 1 and 3)
 		const gameRecordSQL = `
@@ -1547,35 +1896,18 @@ router.post('/add_game_list', async (req, res) => {
 	const commissionMgmtLine = commissionMgmtLabel ? `\n${commissionMgmtLabel}` : '';
 
 	let effectiveGuestId = guestId;
-	if (!effectiveGuestId && cutoffParentId) {
-		try {
-			const [parentGuestRows] = await pool.execute(
-				`SELECT GUEST_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
-				[cutoffParentId]
-			);
-			if (parentGuestRows.length > 0 && parentGuestRows[0].GUEST_ID) {
-				effectiveGuestId = parseInt(parentGuestRows[0].GUEST_ID, 10) || null;
-			}
-		} catch (e) {
-			// ignore
-		}
-	}
 	const guestDisplayName = await fetchGuestDisplayNameById(pool, effectiveGuestId);
 	const guestTelegramLines = buildGameStartTelegramGuestLines(guestDisplayName, useKorean);
 	const telegramLogGuestName = guestDisplayName || agentName;
 	const gameNoForTelegram = buildGameStartTelegramGameNoDisplay(
 		transType === 2 ? result.insertId : gameId,
-		isCutoffGame ? cutoffParentId : null
+		null
 	);
-	const managementGameNoForStart =
-		isCutoffGame && cutoffParentId
-			? [cutoffParentId, gameId].sort((a, b) => a - b).join(' & ')
-			: gameNoForTelegram;
+	const managementGameNoForStart = gameNoForTelegram;
 
 	let managementText = ''; // Message for management (without account balance)
-	const agentBuyInPaymentSuffix = isCutoffGame
-		? ''
-		: transType === 1
+	const agentBuyInPaymentSuffix =
+		transType === 1
 			? ` - ${labels.cash}`
 			: transType === 2
 				? ` - ${labels.deposit}`
@@ -1602,7 +1934,7 @@ router.post('/add_game_list', async (req, res) => {
 			const telegramId =
 				telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 			const gameStartGameId = transType === 2 ? result.insertId : gameId;
-			const gameStartLogLabel = isCutoffGame ? 'Game Start (Cut Off)' : 'Game Start';
+			const gameStartLogLabel = 'Game Start';
 			const gameStartOpts = gamebookTelegramOpts(
 				gameStartLogLabel,
 				agentCode,
@@ -1610,36 +1942,27 @@ router.post('/add_game_list', async (req, res) => {
 				totalAmount,
 				gameStartGameId
 			);
-			// Cut-off continuation: management only (no agent / guest additional chats).
-			if (isCutoffGame) {
+			if (telegramId) {
 				try {
-					await sendTelegramToManagement(managementText, gameStartOpts);
+					await sendTelegramMessage(text, telegramId, gameStartOpts);
 				} catch (telegramError) {
-					console.error('Failed to send Telegram message to management:', telegramError.message);
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
 				}
-			} else {
-				if (telegramId) {
-					try {
-						await sendTelegramMessage(text, telegramId, gameStartOpts);
-					} catch (telegramError) {
-						console.error('Failed to send Telegram message to agent:', telegramError.message);
-					}
-				}
-				try {
-					await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
-				}
-				try {
-					await sendTelegramToAdditionalChats(text, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-				}
-				try {
-					await sendTelegramToManagement(managementText, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to management:', telegramError.message);
-				}
+			}
+			try {
+				await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send to agent notifications:', telegramError.message);
+			}
+			try {
+				await sendTelegramToAdditionalChats(text, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+			}
+			try {
+				await sendTelegramToManagement(managementText, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to management:', telegramError.message);
 			}
 		}
 
@@ -2855,7 +3178,10 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			txtReturnRollerNN,
 			txtReturnRollerCC,
 			txtWasCutoff,
-			txtCutoffParentProgramDate
+			txtCutoffProgramDate,
+			txtCutoffBuyInNN,
+			txtCutoffBuyInCC,
+			txtCutoffLastRolling
 		} = req.body;
 
 		const formattedWinloss = parseFloat(txtWinloss) || 0;
@@ -2888,6 +3214,47 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				) {
 					return res.status(400).json({ error: 'This game cannot be cut off again.' });
 				}
+			}
+
+			const programDate = parseGameListProgramDate(txtCutoffProgramDate);
+			if (!normalizeSettlementDateYmd(programDate)) {
+				return res.status(400).json({ error: 'Program date is required for cut off.' });
+			}
+
+			const buyInNN = parseChipAmount(txtCutoffBuyInNN);
+			const buyInCC = parseChipAmount(txtCutoffBuyInCC);
+			const lastRollingCC = parseChipAmount(txtCutoffLastRolling);
+
+			const connection = await pool.getConnection();
+			try {
+				await connection.beginTransaction();
+				const cutoffResult = await performGameCutoff(connection, {
+					parentGameId: id,
+					encodedBy: editedBy,
+					dateNow: date_now,
+					programDate,
+					buyInNN,
+					buyInCC,
+					lastRollingCC
+				});
+				await connection.commit();
+				return res.json({
+					success: true,
+					message: 'Game ended (Cut Off).',
+					new_game_id: cutoffResult.newGameId
+				});
+			} catch (cutoffErr) {
+				try {
+					await connection.rollback();
+				} catch (rbErr) {
+					console.error('cutoff rollback:', rbErr);
+				}
+				console.error('Error in cutoff change_status:', cutoffErr);
+				const statusCode = cutoffErr.statusCode || 500;
+				const msg = cutoffErr.message || 'Error processing cut off.';
+				return res.status(statusCode).json({ error: msg });
+			} finally {
+				connection.release();
 			}
 		}
 
@@ -2934,9 +3301,8 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			);
 		}
 
-		// ✅ If game is being closed (status = 1 or 3), insert roller chips return
-		// Status 1 = END GAME (fully settled), Status 3 = PENDING (discrepancy, needs review)
-		if (txtStatus === "1" || txtStatus === "3") {
+		// ✅ If game is being closed (status = 1 or 3), insert roller chips return (skip on CUT OFF)
+		if ((txtStatus === "1" || txtStatus === "3") && !isCutoffRequest) {
 			// Insert roller chips return if provided
 			const returnNNAmount = parseFloat((txtReturnRollerNN || '0').replace(/,/g, '')) || 0;
 			const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;

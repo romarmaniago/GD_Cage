@@ -510,11 +510,11 @@ function removeJfl(id) {
 
 $(document).ready(function () {
 	const t = window.jflTranslations || {};
-	const actionColIndex = 6;
+	const actionColIndex = 9;
 
 	jflTable = $('#jfl-tbl').DataTable({
 		pageLength: 25,
-		order: [[5, 'desc']],
+		order: [[8, 'desc']],
 		columns: [
 			{
 				data: 'ENCODED_DT',
@@ -526,6 +526,21 @@ $(document).ready(function () {
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
 			{ data: 'GUEST_DISPLAY', defaultContent: '-' },
+			{ data: 'TRANS_TYPE_LABEL', defaultContent: '' },
+			{ data: 'CURRENCY_CODE', defaultContent: '-' },
+			{
+				data: 'AMOUNT',
+				render: function (data, type, row) {
+					if (type !== 'display') return data;
+					return (
+						'<span class="' +
+						jflTypeColorClass(row.TRANS_TYPE) +
+						'">' +
+						formatMoney(data) +
+						'</span>'
+					);
+				}
+			},
 			{ data: 'APPROVED_BY_DISPLAY', defaultContent: '' },
 			{
 				data: 'REMARKS',
