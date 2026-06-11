@@ -43,6 +43,11 @@
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" id="btn-fnb-hotel-service-category" class="btn btn-sm btn-info" onclick="openServicesCategoryModal()">
+							<i class="fa fa-tags" aria-hidden="true"></i> <%= __('fnb_hotel.service_category') %>
+						</button>
+						<% } %>
 						<button type="button" id="btn-fnb-hotel-print" class="btn btn-sm btn-alt-success">
 							<i class="fa fa-print" aria-hidden="true"></i> Print
 						</button>
@@ -78,69 +83,6 @@
 											</tr>
 									</thead>
 									<tbody>
-										<% if (gameServices && gameServices.length) { %>
-											<% gameServices.forEach(service => { %>
-												<%
-												const amt = Number(service.AMOUNT) || 0;
-												const hasDecimals = amt % 1 !== 0;
-												const formattedAmt = hasDecimals
-													? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-													: amt.toLocaleString('en-US');
-												const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
-												const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
-												const displayAmt = `${isJunketSource ? '-' : ''}${formattedAmt}`;
-												const hasGameId = service.GAME_ID && service.GAME_ID !== null;
-												const isGameSettled = hasGameId && service.game_settled === 1;
-												const canEdit = !hasGameId; // Can only edit if no game_id
-												const canDelete = !hasGameId; // Can only delete if no game_id
-												%>
-												<tr data-service-type="<%= service.SERVICE_TYPE %>" data-service-id="<%= service.IDNo %>" data-has-game-id="<%= hasGameId ? '1' : '0' %>" data-game-settled="<%= isGameSettled ? '1' : '0' %>">
-													<td class="<%= isSettle ? 'text-primary' : '' %>"><%= service.SOURCE_TYPE || '-' %></td>
-													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
-													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
-													<td><%= service.SERVICE_TYPE %></td>
-													<td class="<%= isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '') %>"><%= displayAmt %></td>
-													<td><%= paymentLabel(service.TRANSACTION_ID) %></td>
-													<td><%= service.REMARKS || '-' %></td>
-													<td><%= service.encoded_by_name || '-' %></td>
-													<td data-order="<%= service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0 %>"><%= formatDate(service.ENCODED_DT) %></td>
-													<td class="text-center">
-														<% if (canEdit && canDelete) { %>
-															<div class="btn-group">
-																<button type="button"
-																	class="btn btn-sm bg-info-subtle edit-service-btn"
-																	data-id="<%= service.IDNo %>"
-																	data-source="<%= service.SOURCE_TYPE %>"
-																	data-agent="<%= service.AGENT_ID || '' %>"
-																	data-service="<%= service.SERVICE_TYPE %>"
-																	data-amount="<%= service.AMOUNT %>"
-																	data-remarks="<%= (service.REMARKS || '').replace(/"/g, '&quot;') %>"
-																	data-transaction="<%= service.TRANSACTION_ID %>"
-																	title="Edit">
-																	<i class="fa fa-pencil-alt"></i>
-																</button>
-																<button type="button"
-																	class="btn btn-sm bg-danger-subtle delete-service-btn"
-																	data-id="<%= service.IDNo %>"
-																	title="Delete">
-																	<i class="fa fa-trash"></i>
-																</button>
-															</div>
-														<% } else if (hasGameId && isGameSettled) { %>
-															<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">
-																<%= __('fnb_hotel.settled') %>
-															</span>
-														<% } else if (hasGameId && !isGameSettled) { %>
-															<button type="button"
-																class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
-																title="<%= __('fnb_hotel.edit_in_gamebook') %>">
-																<i class="fa fa-info-circle"></i>
-															</button>
-														<% } %>
-													</td>
-												</tr>
-											<% }) %>
-										<% } %>
 									</tbody>
 								</table>
 							</div>
@@ -273,6 +215,8 @@
 
 </style>
 <%- include ('../partials/permission_view_only_script') %>
+<%- include('../modals/junket/new_service_record') %>
+<%- include('../modals/junket/edit_service_record') %>
 <%- include('../partials/footer') %>
 <script>
 	// Pass translations to JavaScript
@@ -294,7 +238,23 @@
 		export_label: "<%= __('fnb_hotel.export') || 'Export' %>"
 	};
 </script>
+<script src="/assets/js/functions/service_category_select.js"></script>
+<script src="/assets/js/functions/new_service_record.js"></script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
-<%- include('../modals/junket/new_service_record') %>
-<%- include('../modals/junket/edit_service_record') %>
+<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+<script>
+	window.servicesCategoryTranslations = {
+		search: "<%= __('services_category.search') %>",
+		showing_entries: "<%= __('services_category.showing_entries') %>",
+		previous: "<%= __('services_category.previous') %>",
+		next: "<%= __('services_category.next') %>",
+		active: "<%= __('services_category.active') %>",
+		inactive: "<%= __('services_category.inactive') %>"
+	};
+</script>
+<script src="/assets/js/functions/services_category.js"></script>
+<%- include('../modals/junket/manage_services_category') %>
+<%- include('../modals/popups/new_services_category') %>
+<%- include('../modals/popups/edit_services_category') %>
+<% } %>
 

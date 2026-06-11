@@ -682,20 +682,23 @@ $(document).ready(function () {
 		],
 		columns: [
 			{
-				data: 'agent_name',
+				data: 'agent_code',
 				render: function (data, type, row) {
 					if (type !== 'display') {
 						return data;
 					}
+					if (permissions === 2) {
+						return row.agent_code;
+					}
 					return `
 						<a href="#"
 							onclick="account_details(${row.account_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}')">
-							${row.agent_name}
+							${row.agent_code}
 						</a>
 					`;
 				}
 			},
-			{ data: 'agent_code' },
+			{ data: 'agent_name' },
 			{ data: 'agency_name' },
 			{ data: 'agent_contact' },
 			{
@@ -714,7 +717,18 @@ $(document).ready(function () {
 					return '<span id="' + cellId + '" class="' + rowClass + '"><code>' + escapeHtml(String(data)) + '</code></span>';
 				}
 			},
-			{ data: 'agent_remarks' },
+			{
+				data: 'agent_remarks',
+				render: function (data, type, row) {
+					var raw = data != null ? String(data) : '';
+					if (type !== 'display') return raw;
+					if (!window.RemarksEditor || !row.agent_id) return raw;
+					return window.RemarksEditor.renderCell(raw, {
+						source: 'agent',
+						recordId: row.agent_id
+					});
+				}
+			},
 			{
 				data: 'LATEST_GAME_DATE',
 				render: function (data, type) {

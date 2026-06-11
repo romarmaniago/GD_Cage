@@ -145,7 +145,7 @@ console.log('Constructed URL = ', '/game_statistics/' + row.game_list_id + '/rec
 						
 						var expense = parseFloat(row.EXPENSE);
 
-						var houseshare = row.HOUSE_SHARE != null ? row.HOUSE_SHARE.toLocaleString() : '';
+						var houseshare = row.HOUSE_SHARE != null ? row.HOUSE_SHARE.toLocaleString('en-US') : '';
 
 						var ngr = (WinLoss * (houseshare / 100)) - net;
 
@@ -203,16 +203,16 @@ console.log('Constructed URL = ', '/game_statistics/' + row.game_list_id + '/rec
 						
 						dataTable.row.add([
 							`<a href="/guest_statistic?agency=${encodeURIComponent(agency)}&start_date=${start_date}&end_date=${end_date}">${agency}</a>`, // Make agency name clickable
-							aggregated.totalAmount.toLocaleString(),
-							aggregated.totalWinLoss.toLocaleString(),
-							aggregated.totalRolling.toLocaleString(),
-							aggregated.totalNet.toLocaleString(),
+							aggregated.totalAmount.toLocaleString('en-US'),
+							aggregated.totalWinLoss.toLocaleString('en-US'),
+							aggregated.totalRolling.toLocaleString('en-US'),
+							aggregated.totalNet.toLocaleString('en-US'),
 							averageHouseshare,
-							Math.round(aggregated.totalNgr).toLocaleString(),
+							Math.round(aggregated.totalNgr).toLocaleString('en-US'),
 							`${(aggregated.totalWinLoss / aggregated.totalRolling).toFixed(2)}%`,
 							(aggregated.totalRolling / aggregated.totalAmount).toFixed(2),
-							aggregated.totalExpense.toLocaleString(),
-							Math.round(aggregated.totalProfit).toLocaleString()
+							aggregated.totalExpense.toLocaleString('en-US'),
+							Math.round(aggregated.totalProfit).toLocaleString('en-US')
 						]).draw();
 					}
 				});
@@ -251,7 +251,7 @@ console.log('Constructed URL = ', '/game_statistics/' + row.game_list_id + '/rec
 		var ngr = (winLoss * houseSharePercentageLive) - net; // Recalculate NGR
 
 		// Update the NGR column in the DataTable
-		dataTable.cell(rowIndex, 6).data(parseFloat(ngr).toLocaleString()).draw(); // Assuming NGR is in the 6th column
+		dataTable.cell(rowIndex, 6).data(parseFloat(ngr).toLocaleString('en-US')).draw(); // Assuming NGR is in the 6th column
 
 	//	calculateTotalNGR();
 		

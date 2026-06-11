@@ -20,7 +20,7 @@
 										<a href="/agency"class="active">Line</a>
 									</div></h3>
 								</div>
-								<div class="card-body">
+								<div class="card-body agency-page">
 									<div class="d-none mb-3" id="selection-summary-row">
 										<span class="selection-summary-chip me-2" id="selected-line-chip">
 											<strong>LINE:</strong> <span id="selected-line-name">-</span>
@@ -38,7 +38,7 @@
 										</div>
 										<div class="col-6 col-lg" id="line-stat-card-agent">
 											<div class="agency-stat-card h-100">
-												<div class="agency-stat-label">Total Agent</div>
+												<div class="agency-stat-label">Total LINE</div>
 												<div class="agency-stat-value" id="line-stat-total-agent">—</div>
 											</div>
 										</div>
@@ -123,10 +123,10 @@
 												<div class="panel-header d-flex align-items-center justify-content-between">
 													<div class="panel-title">LINE</div>
 													<div class="d-flex align-items-center gap-1">
-														<button type="button" class="btn btn-sm btn-success" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel">
 															<i class="fa fa-download" aria-hidden="true"></i>
 														</button>
-														<button type="button" class="btn btn-sm btn-primary" id="btn-line-panel-add" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-line-panel-add" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
 															<i class="fa fa-plus"></i>
 														</button>
 													</div>
@@ -142,20 +142,20 @@
 												<div class="panel-header d-flex align-items-center justify-content-between">
 													<div class="panel-title">AGENT</div>
 													<div class="d-flex align-items-center gap-1">
-														<button type="button" class="btn btn-sm btn-outline-primary" id="btn-agent-panel-transfer" title="Transfer Agent">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-transfer" title="Transfer LINE">
 															<i class="fa fa-exchange-alt"></i>
 														</button>
-														<button type="button" class="btn btn-sm btn-success" id="btn-agent-panel-export" title="Download Excel" aria-label="Download Excel">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-export" title="Download Excel" aria-label="Download Excel">
 															<i class="fa fa-download" aria-hidden="true"></i>
 														</button>
-														<button type="button" class="btn btn-sm btn-primary" id="btn-agent-panel-add-guest" data-bs-toggle="modal" data-bs-target="#modal-new-agent" title="New Guest">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-agent-panel-add-guest" data-bs-toggle="modal" data-bs-target="#modal-new-agent" title="Add Agent">
 															<i class="fa fa-plus"></i>
 														</button>
 													</div>
 												</div>
 												<div class="panel-body" id="agent-panel-body">
 													<div class="panel-empty-state" id="agent-panel-empty">
-														Select LINE to load agent list.
+														Select LINE to load LINE list.
 													</div>
 													<div id="agent-list" class="panel-list d-none"></div>
 												</div>
@@ -164,11 +164,22 @@
 
 										<div class="col-12 col-xl-7">
 											<div class="panel-box h-100">
-												<div class="panel-header d-flex align-items-center justify-content-between">
+												<div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
 													<div class="panel-title">GUEST</div>
-													<button type="button" class="btn btn-sm btn-primary" id="btn-guest-panel-add">
-														<i class="fa fa-plus"></i>
-													</button>
+													<div class="d-flex align-items-center gap-2 ms-auto">
+														<div class="agency-guest-search-wrap">
+															<i class="fa fa-search agency-guest-search-icon" aria-hidden="true"></i>
+															<input
+																type="search"
+																class="form-control form-control-sm agency-guest-search-input"
+																id="guest-panel-search"
+																placeholder="Search all guests..."
+																autocomplete="off">
+														</div>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-guest-panel-add">
+															<i class="fa fa-plus"></i>
+														</button>
+													</div>
 												</div>
 												<div class="panel-body" id="guest-panel-body">
 													<div class="panel-empty-state" id="guest-panel-empty">
@@ -196,37 +207,7 @@
 				<%- include ('../modals/accounts/transfer_account'); %>
 				<%- include ('../modals/accounts/new_agent') %>
 				<%- include ('../modals/accounts/edit_agent') %>
-				<%- include ('../modals/game_book/new_game_list') %>
-				<div class="modal fade" id="modal-add-guest-table" tabindex="-1" aria-labelledby="modal-add-guest-table-label" aria-hidden="true">
-					<div class="modal-dialog modal-dialog-centered">
-						<div class="modal-content">
-							<div class="modal-header bg-primary">
-								<h5 class="modal-title text-white" id="modal-add-guest-table-label">Add Guest</h5>
-								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-							</div>
-							<form id="add_guest_form">
-								<div class="modal-body">
-									<input type="hidden" id="guest_agent_id" name="txtAgentId">
-									<div class="mb-2 text-muted small">
-										Agent: <strong id="guest_agent_display">-</strong>
-									</div>
-									<div class="mb-0">
-										<label for="guest_name_input" class="form-label">Guest Name</label>
-										<input type="text" class="form-control" id="guest_name_input" name="txtGuestName" required maxlength="150">
-									</div>
-									<div class="mt-2 mb-0">
-										<label for="guest_remarks_input" class="form-label">Remarks</label>
-										<textarea class="form-control" id="guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
-									</div>
-								</div>
-								<div class="modal-footer">
-									<button type="submit" class="btn btn-primary btn-sm" id="btn-save-guest-table">Save</button>
-									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-								</div>
-							</form>
-						</div>
-					</div>
-				</div>
+				<%- include ('../modals/accounts/add_guest') %>
 				<div class="modal fade" id="modal-edit-guest-table" tabindex="-1" aria-labelledby="modal-edit-guest-table-label" aria-hidden="true">
 					<div class="modal-dialog modal-dialog-centered">
 						<div class="modal-content">
@@ -238,6 +219,10 @@
 								<div class="modal-body">
 									<input type="hidden" id="edit_guest_id" name="txtGuestId">
 									<div class="mb-0">
+										<label for="edit_guest_membership_input" class="form-label">Membership No</label>
+										<input type="text" class="form-control" id="edit_guest_membership_input" readonly disabled>
+									</div>
+									<div class="mt-2 mb-0">
 										<label for="edit_guest_name_input" class="form-label">Guest Name</label>
 										<input type="text" class="form-control" id="edit_guest_name_input" name="txtGuestName" required maxlength="150">
 									</div>
@@ -247,7 +232,47 @@
 									</div>
 								</div>
 								<div class="modal-footer">
+									<button type="button" class="btn btn-outline-primary btn-sm me-auto" id="btn-open-transfer-from-edit-guest">Change LINE</button>
 									<button type="submit" class="btn btn-primary btn-sm" id="btn-update-guest-table">Update</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="modal-transfer-guest-table" tabindex="-1" aria-labelledby="modal-transfer-guest-table-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Change Guest LINE</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="transfer_guest_form">
+								<div class="modal-body">
+									<input type="hidden" id="transfer_guest_id" name="txtGuestId">
+									<div class="mb-2">
+										<label class="form-label">Guest</label>
+										<input type="text" class="form-control" id="transfer_guest_display" readonly disabled>
+									</div>
+									<div class="mb-2">
+										<label class="form-label">Current LINE</label>
+										<input type="text" class="form-control" id="transfer_guest_current_line" readonly disabled>
+									</div>
+									<div class="mt-2 mb-2">
+										<label for="transfer_guest_agency_id" class="form-label">Transfer To LINE</label>
+										<select class="form-select" id="transfer_guest_agency_id" required>
+											<option value="">Select LINE</option>
+										</select>
+									</div>
+									<div class="mb-0">
+										<label for="transfer_guest_agent_id" class="form-label">Transfer To Agent</label>
+										<select class="form-select" id="transfer_guest_agent_id" name="targetAgentId" required disabled>
+											<option value="">Select Agent</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-guest-table">Transfer</button>
 									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
 								</div>
 							</form>
@@ -282,6 +307,30 @@
 
 .agency-card.is-selected {
   background: #f3f7ff;
+}
+
+.agency-card.is-search-match {
+  background: #eef3ff;
+}
+
+.agency-card.is-search-dim {
+  opacity: 0.35;
+}
+
+.panel-list-item.is-search-match {
+  background: #eef3ff;
+}
+
+.panel-list-item.is-search-dim {
+  opacity: 0.35;
+}
+
+.panel-list-agency-hint {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 1px;
+  letter-spacing: 0.2px;
 }
 
 .agency-list-item {
@@ -381,6 +430,45 @@
 
 .agency-guest-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.agency-guest-table thead th.agency-guest-col,
+.agency-guest-table tbody td.agency-guest-col,
+.agency-guest-table thead th.agency-guest-membership-col,
+.agency-guest-table tbody td.agency-guest-membership-col {
+  text-align: left;
+}
+
+.agency-guest-table tbody td.agency-guest-membership-col {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agency-guest-search-wrap {
+  position: relative;
+  min-width: 160px;
+  width: 200px;
+  max-width: 42vw;
+}
+
+.agency-guest-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.agency-guest-search-input {
+  padding-left: 30px;
+}
+
+.agency-guest-line-hint {
+  font-size: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.2px;
 }
 
 .agency-guest-plus-btn {
@@ -607,12 +695,125 @@
 }
 
 .swal2-timer-progress-bar {
-  background: #2f5bea !important;
+  background: #46627f !important;
 }
 
+/* Theme alignment — navy/slate palette matching sidebar */
+.agency-page {
+  --agency-accent: #46627f;
+  --agency-accent-dark: #3f597c;
+  --agency-accent-soft: #eef2f6;
+  --agency-text: #334155;
+  --agency-text-strong: #1f2937;
+  --agency-muted: #64748b;
+  --agency-border: #e2e8f0;
+  --agency-danger: #b42318;
+}
 
+.agency-page .agency-card.is-selected,
+.agency-page .agency-card.is-search-match,
+.agency-page .panel-list-item.is-active,
+.agency-page .panel-list-item.is-search-match {
+  background: var(--agency-accent-soft) !important;
+}
 
+.agency-page .agency-card:hover {
+  background: #fafbfd;
+}
 
+.agency-page .agency-panels .panel-box {
+  border-color: var(--agency-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.agency-page .panel-header {
+  background: #fafbfd;
+  border-bottom-color: var(--agency-border);
+}
+
+.agency-page .panel-title {
+  color: var(--agency-accent-dark);
+  text-transform: uppercase;
+}
+
+.agency-page .agency-guest-table thead th {
+  background: #fafbfd;
+  color: var(--agency-muted);
+  border-bottom-color: var(--agency-border);
+}
+
+.agency-page .agency-guest-table tbody tr:hover td {
+  background: #fafbfd;
+}
+
+.agency-page .agency-guest-plus-btn,
+.agency-page .agency-guest-remarks-link,
+.agency-page .panel-list-agent-link:hover,
+.agency-page .agency-name:hover {
+  color: var(--agency-accent) !important;
+}
+
+.agency-page .agency-guest-plus-btn:hover,
+.agency-page .agency-guest-plus-btn:focus,
+.agency-page .agency-guest-remarks-link:hover,
+.agency-page .agency-guest-remarks-link:focus {
+  color: var(--agency-accent-dark) !important;
+}
+
+.agency-page .agency-icon-btn {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--agency-muted) !important;
+}
+
+.agency-page .agency-icon-btn:hover,
+.agency-page .agency-icon-btn:focus {
+  background: var(--agency-accent-soft) !important;
+  color: var(--agency-accent) !important;
+  box-shadow: none !important;
+}
+
+.agency-page .agency-icon-btn-danger {
+  color: #94a3b8 !important;
+}
+
+.agency-page .agency-icon-btn-danger:hover,
+.agency-page .agency-icon-btn-danger:focus {
+  background: #fef3f2 !important;
+  color: var(--agency-danger) !important;
+}
+
+.agency-page .agency-toolbar-btn-muted {
+  background: #fff !important;
+  border: 1px solid var(--agency-border) !important;
+  color: var(--agency-accent) !important;
+}
+
+.agency-page .agency-toolbar-btn-muted:hover,
+.agency-page .agency-toolbar-btn-muted:focus {
+  background: var(--agency-accent-soft) !important;
+  border-color: #d5dee8 !important;
+  color: var(--agency-accent-dark) !important;
+}
+
+.agency-page .agency-toolbar-btn-primary {
+  border: 0 !important;
+  color: #fff !important;
+}
+
+.agency-page .agency-guest-search-input:focus {
+  border-color: var(--agency-accent);
+  box-shadow: 0 0 0 0.15rem rgba(70, 98, 127, 0.15);
+}
+
+.agency-page .selection-summary-chip {
+  background: var(--agency-accent-soft);
+  border-color: var(--agency-border);
+}
+
+.agency-page .agency-line-stats .agency-stat-card {
+  border-color: var(--agency-border);
+}
 
 </style>
 

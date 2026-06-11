@@ -28,7 +28,18 @@ function addBooking() {
       pageLength: 10,
       // Itago ang booking ID column (na nasa index 0)
       columnDefs: [
-        { targets: 0, visible: false, searchable: false }
+        { targets: 0, visible: false, searchable: false },
+        {
+          targets: 11,
+          render: function (data, type, row) {
+            if (type !== 'display') return data;
+            if (!window.RemarksEditor || !row[0]) return data || '';
+            return window.RemarksEditor.renderCell(data || '', {
+              source: 'booking',
+              recordId: row[0]
+            });
+          }
+        }
       ],
       // Order ayon sa Booking Date na nasa index 1 (dahil nadagdag na ang booking ID sa index 0)
       order: [[1, 'desc']],
@@ -97,9 +108,9 @@ function addBooking() {
           
   
             // Format fees at total amounts
-            var hotelFee = row.HOTEL_FEE ? parseFloat(row.HOTEL_FEE).toLocaleString() : '0';
-            var addFee = row.ADDT_FEE ? parseFloat(row.ADDT_FEE).toLocaleString() : '0';
-            var totalAmount = row.TOTAL_AMOUNT ? parseFloat(row.TOTAL_AMOUNT).toLocaleString() : '0';
+            var hotelFee = row.HOTEL_FEE ? parseFloat(row.HOTEL_FEE).toLocaleString('en-US') : '0';
+            var addFee = row.ADDT_FEE ? parseFloat(row.ADDT_FEE).toLocaleString('en-US') : '0';
+            var totalAmount = row.TOTAL_AMOUNT ? parseFloat(row.TOTAL_AMOUNT).toLocaleString('en-US') : '0';
   
             // Payment Status badge
             const paidText = window.bookingTranslations?.paid || 'Paid';

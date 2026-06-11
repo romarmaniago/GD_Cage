@@ -42,7 +42,7 @@ async function sendNewHouseExpenseTelegram(pool, payload) {
 		`Receipt No: ${receiptNo || 'N/A'}\n` +
 		`In-Charge: ${description || 'N/A'}\n` +
 		`Receiver: ${receiver || 'N/A'}\n` +
-		`Amount: ₱${Number(amount).toLocaleString()}\n\n` +
+		`Amount: ₱${Number(amount).toLocaleString('en-US')}\n\n` +
 		`Encoded By: ${encodedByName}\n` +
 		`Date: ${dateFormatted}\n` +
 		`Time: ${timeFormatted}`;
@@ -1140,8 +1140,9 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		);
 		const old = oldRows[0];
 		if (!old) return res.status(404).send('Expense not found');
-		if (Number(old.APPROVAL_STATUS) !== 1) {
-			return res.status(400).send('Only approved expenses can be edited');
+		const approvalStatus = Number(old.APPROVAL_STATUS);
+		if (approvalStatus !== 0 && approvalStatus !== 1) {
+			return res.status(400).send('Only pending or approved expenses can be edited');
 		}
 		const oldAmount = old ? Number(old.AMOUNT) : null;
 		let changesText = null;
@@ -1290,7 +1291,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
 			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString()}\n` : '';
+			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString('en-US')}\n` : '';
 			const editMsg =
 				'Demo Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
 				`Name: ${expenseCategoryName}\n` +
@@ -1298,7 +1299,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
 				`Description: ${txtDescription || 'N/A'}\n` +
 				beforeAmountLabel +
-				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n` +
+				`New Amount: ₱${Number(editXAmount).toLocaleString('en-US')}\n` +
 				`Edited By: ${editedByName}\n` +
 				`Date & Time: ${dateFormatted} ${timeFormatted}`;
 			await sendTelegramToEmployees(editMsg, {
@@ -1372,7 +1373,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 				`Type: ${typeLabel}\n` +
 				`Receipt #: ${receiptNo}\n` +
 				`Description: ${desc}\n` +
-				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
 				`Encoded By: ${encodedByName}\n` +
 				`Date & Time: ${deleteDateTimeStr}\n` +
 				`Deleted By: ${editedByName}`;
@@ -1460,7 +1461,7 @@ router.post('/add_return_money', async (req, res) => {
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const addReturnMsg =
 				'Demo Cage\n\n💸 * Return Money (ADDED) *\n\n' +
-				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
 				`Description: ${description || 'N/A'}\n` +
 				`Encoded By: ${encodedByName}\n` +
 				`Date & Time: ${dateFormatted} ${timeFormatted}`;
@@ -1516,11 +1517,11 @@ router.put('/edit_return_money/:id', async (req, res) => {
 			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
 			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString()}\n` : '';
+			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString('en-US')}\n` : '';
 			const editReturnMsg =
 				'Demo Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
 				beforeAmountLabel +
-				`New Amount: ₱${amount.toLocaleString()}\n` +
+				`New Amount: ₱${amount.toLocaleString('en-US')}\n` +
 				`Description: ${description || 'N/A'}\n` +
 				`Edited By: ${editedByName}\n` +
 				`Date & Time: ${dateFormatted} ${timeFormatted}`;
@@ -1575,7 +1576,7 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		try {
 			const deleteReturnMsg =
 				'Demo Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
-				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
 				`Description: ${desc}\n` +
 				`Encoded By: ${encodedByName}\n` +
 				`Date & Time: ${dateTimeStr}\n` +

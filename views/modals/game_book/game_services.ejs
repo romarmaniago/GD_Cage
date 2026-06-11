@@ -1,8 +1,44 @@
+<style>
+  body.modal-open #modal-services.show {
+    z-index: 1055;
+  }
+  body.modal-open #modal-services-edit.show {
+    z-index: 1065;
+  }
+  body.modal-open .swal2-container {
+    z-index: 1080 !important;
+  }
+  #modal-services .modal-dialog {
+    max-width: min(1400px, 96vw);
+    width: 96vw;
+  }
+  #modal-services .services-list-table-wrap,
+  #modal-services .dataTables_wrapper {
+    overflow-x: visible;
+  }
+  #modal-services #services-list-tbl {
+    width: 100% !important;
+  }
+  #modal-services #services-list-tbl th,
+  #modal-services #services-list-tbl td {
+    white-space: nowrap;
+  }
+  #modal-services #services-list-tbl td:nth-child(6) {
+    white-space: normal;
+    min-width: 120px;
+    max-width: 220px;
+  }
+  #modal-services #services-list-tbl .services-total-row td,
+  #modal-show-history #history-services-list-tbl .services-total-row td {
+    border-top: 2px solid #dee2e6;
+    font-weight: 700;
+  }
+</style>
 <div class="modal fade" id="modal-services" tabindex="-1" aria-labelledby="modal-services-label" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="modal-services-label">Services - <span id="services-agent-code"></span></h5>
+        <h5 class="modal-title text-white" id="modal-services-label">Services - <span id="services-agent-label"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -16,14 +52,15 @@
             <div class="fw-semibold text-muted">Service Type</div>
             <select id="services-type" class="form-select">
               <option value="" selected disabled>Select service</option>
-              <option value="fnb">F &amp; B</option>
-              <option value="hotel">Hotel</option>
-              <option value="delivery">Delivery</option>
             </select>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-6" id="services-amount-wrap">
             <div class="fw-semibold text-muted">Amount</div>
             <input type="text" id="services-amount" class="form-control" data-type="number" placeholder="Enter amount" />
+          </div>
+          <div class="col-md-6 d-none" id="services-delivery-fee-wrap">
+            <div class="fw-semibold text-muted">Delivery Fee</div>
+            <input type="text" id="services-delivery-fee" class="form-control" data-type="number" placeholder="Enter delivery fee" />
           </div>
         </div>
         <div class="mt-3 mb-1 fw-semibold text-muted">Remarks</div>
@@ -63,27 +100,26 @@
             <div class="fw-semibold text-muted">Services Availed</div>
             <div class="fw-semibold text-muted">Total: <span id="services-total" class="text-primary">0</span></div>
           </div>
-          <div class="custom-datatable-entries">
-            <div class="table-responsive">
-              <table id="services-list-tbl" class="table table-bordered table-vcenter js-dataTable-responsive" style="font-size: 11px !important;">
+          <div class="custom-datatable-entries services-list-table-wrap">
+              <table id="services-list-tbl" class="table table-bordered table-vcenter" style="font-size: 11px !important;">
                 <thead>
                   <tr>
-                    <th scope="col">Service</th>
-                    <th scope="col" class="text-end">Amount</th>
-                    <th scope="col">Remarks</th>
-                    <th scope="col">Transaction</th>
-                    <th scope="col">Processed By</th>
                     <th scope="col">Date</th>
+                    <th scope="col">Service Type</th>
+                    <th scope="col" class="text-end">Amount</th>
+                    <th scope="col" class="text-end">Delivery Fee</th>
+                    <th scope="col">Transaction</th>
+                    <th scope="col">Remarks</th>
+                    <th scope="col">Processed By</th>
                     <th scope="col" class="text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody id="services-list-body">
                   <tr class="text-muted">
-                    <td colspan="7" class="text-center small">No services availed.</td>
+                    <td colspan="8" class="text-center small">No services availed.</td>
                   </tr>
                 </tbody>
               </table>
-            </div>
           </div>
       </div>
       <div class="modal-footer">
@@ -99,11 +135,11 @@
 </div>
 
 <!-- Edit Service Modal -->
-<div class="modal fade" id="modal-services-edit" tabindex="-1" aria-labelledby="modal-services-edit-label" aria-hidden="true">
+<div class="modal fade" id="modal-services-edit" tabindex="-1" aria-labelledby="modal-services-edit-label" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="modal-services-edit-label">Edit Service - <span id="services-edit-agent-code"></span></h5>
+        <h5 class="modal-title text-white" id="modal-services-edit-label">Edit Service - <span id="services-edit-agent-label"></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -113,14 +149,15 @@
             <div class="fw-semibold text-muted">Service Type</div>
             <select id="services-edit-type" class="form-select">
               <option value="" selected disabled>Select service</option>
-              <option value="fnb">F &amp; B</option>
-              <option value="hotel">Hotel</option>
-              <option value="delivery">Delivery</option>
             </select>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-6" id="services-edit-amount-wrap">
             <div class="fw-semibold text-muted">Amount</div>
             <input type="text" id="services-edit-amount" class="form-control" data-type="number" placeholder="Enter amount" />
+          </div>
+          <div class="col-md-6 d-none" id="services-edit-delivery-fee-wrap">
+            <div class="fw-semibold text-muted">Delivery Fee</div>
+            <input type="text" id="services-edit-delivery-fee" class="form-control" data-type="number" placeholder="Enter delivery fee" />
           </div>
         </div>
         <div class="mt-3 mb-1 fw-semibold text-muted">Remarks</div>

@@ -10,6 +10,10 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
+const { isTipEnabled, saveCashoutTips, archiveTipsForCashout } = require('../utils/saveCashoutTips');
+
+/** Junket/house account used when resolving pending via New Game (account.IDNo). */
+const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
 
 // Helper function to get agent notification chat IDs from telegram_api table
 // Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
@@ -117,7 +121,7 @@ function telegramSettlementGameTypeLines(rawGameType) {
 	};
 }
 
-const SETTLEMENT_GAME_RECORD_TOTALS_SQL = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
+const SETTLEMENT_GAME_RECORD_TOTALS_SQL = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
 
 /** Mirror of public computeRollerChipsBalanceFromRecords (game_list.js). */
 function computeRollerChipsBalanceFromRecordsNode(rows) {
@@ -178,9 +182,379 @@ function computeRollerChipsBalanceFromRecordsNode(rows) {
 	};
 }
 
+/** Roller chips on continuation game: same total as parent (all as NN); last rolling CC is returned on parent only. */
+function computeCutoffTransferRollerNN(rollerTotals) {
+	return Math.max(0, rollerTotals.combinedNet || 0);
+}
+
 async function getRollerTotalsForGame(db, gameId) {
 	const [rows] = await db.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
 	return computeRollerChipsBalanceFromRecordsNode(rows);
+}
+
+function parseChipAmount(raw) {
+	return parseFloat(String(raw || '0').replace(/,/g, '')) || 0;
+}
+
+function initialMopToTransType(initialMop) {
+	const m = String(initialMop || '').trim().toUpperCase();
+	if (m === 'CASH') return 1;
+	if (m === 'DEPOSIT') return 2;
+	if (m === 'IOU') return 3;
+	return null;
+}
+
+async function resolveParentTransType(db, parentGameId, initialMop) {
+	const transType = initialMopToTransType(initialMop);
+	if (transType) return transType;
+	const [rows] = await db.execute(
+		`SELECT TRANSACTION FROM game_record
+		 WHERE GAME_ID = ? AND ACTIVE != 0 AND CAGE_TYPE IN (1, 3) AND TRANSACTION IS NOT NULL
+		 ORDER BY IDNo ASC LIMIT 1`,
+		[parentGameId]
+	);
+	return parseInt(rows[0]?.TRANSACTION, 10) || 1;
+}
+
+/**
+ * CUT OFF: end parent game, cashout buy-in on parent, last rolling on parent (ROLLING + roller return),
+ * create continuation game with same buy-in and roller chips.
+ */
+async function performGameCutoff(db, params) {
+	const {
+		parentGameId,
+		encodedBy,
+		dateNow,
+		programDate,
+		buyInNN,
+		buyInCC,
+		lastRollingCC
+	} = params;
+
+	const [parentRows] = await db.execute(
+		`SELECT ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[parentGameId]
+	);
+	if (!parentRows.length) {
+		const err = new Error('Parent game not found.');
+		err.statusCode = 404;
+		throw err;
+	}
+	const parent = parentRows[0];
+	const parentActive = parseInt(parent.ACTIVE, 10);
+	if (parentActive !== 2) {
+		const err = new Error('Only ON GAME games can be cut off.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const parentAccountId = parseInt(parent.ACCOUNT_ID, 10);
+	const transType = await resolveParentTransType(db, parentGameId, parent.INITIAL_MOP);
+	const rollerTotals = await getRollerTotalsForGame(db, parentGameId);
+	const totalRollerBalance = Math.max(0, rollerTotals.combinedNet || 0);
+	const parentNetNN = Math.max(0, rollerTotals.netNNRaw || 0);
+	const parentNetCC = Math.max(0, rollerTotals.netCCRaw || 0);
+	const transferRollerNN = computeCutoffTransferRollerNN(rollerTotals);
+	const lastRolling = Math.max(0, lastRollingCC);
+	const lastRollingNnReturn = Math.min(lastRolling, parentNetNN);
+	const lastRollingCcReturn = Math.max(0, lastRolling - lastRollingNnReturn);
+	const remainingNnReturnOnParent = Math.max(0, parentNetNN - lastRollingNnReturn);
+	const remainingCcReturnOnParent = Math.max(0, parentNetCC - lastRollingCcReturn);
+	const buyInTotal = buyInNN + buyInCC;
+
+	if (buyInNN > 0 && buyInNN % 1000 !== 0) {
+		const err = new Error('Buy-in NN Chips must be in thousands.');
+		err.statusCode = 400;
+		throw err;
+	}
+	if (lastRollingCC > 0 && lastRollingCC > totalRollerBalance + 0.001) {
+		const err = new Error(
+			`Last Rolling (${lastRollingCC}) exceeds available roller chips balance (${totalRollerBalance}).`
+		);
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const tradingDateNew = parseProgramDateAsDateTime(programDate);
+	const initialMOP = { 1: 'CASH', 2: 'DEPOSIT', 3: 'IOU' }[transType] || parent.INITIAL_MOP;
+
+	const gameRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const rollerChipsSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+	`;
+
+	// 1. End parent game
+	await db.execute(
+		`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+		[dateNow, encodedBy, dateNow, parentGameId]
+	);
+
+	// 2. Cashout on parent (cutoff buy-in → chips returned)
+	let cashoutRecordId = null;
+	if (buyInTotal > 0) {
+		const [cashoutResult] = await db.execute(gameRecordSQL, [
+			parentGameId,
+			dateNow,
+			2,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+		cashoutRecordId = cashoutResult.insertId;
+
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, parentGameId, 1, transType, 'Chips Returned', buyInTotal, encodedBy, dateNow]
+		);
+
+		if (transType === 1) {
+			const [agentRows] = await db.execute(agentQuery, [parentAccountId]);
+			if (agentRows.length > 0 && agentRows[0].agent_id) {
+				await db.execute(
+					`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[
+						cashoutRecordId,
+						agentRows[0].agent_id,
+						buyInTotal.toString(),
+						'Game Cash-out',
+						2,
+						`Game - ${parentGameId}`,
+						encodedBy,
+						dateNow
+					]
+				);
+			}
+		}
+	}
+
+	const rollingRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`;
+
+	// 3. Last rolling → ROLLING column (CAGE_TYPE 4) + roller return on parent
+	// NN portion: CAGE_TYPE 4 adds to rolling; CC-only excess uses CC roller return (also adds to rolling)
+	if (lastRollingNnReturn > 0) {
+		await db.execute(rollingRecordSQL, [
+			parentGameId,
+			dateNow,
+			4,
+			0,
+			lastRollingNnReturn,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (lastRollingNnReturn > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			lastRollingNnReturn,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (lastRollingCcReturn > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			lastRollingCcReturn,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+
+	// 4. Create continuation game (ON GAME)
+	let newGameId;
+	try {
+		const [newGameResult] = await db.execute(
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			[
+				parentAccountId,
+				parent.GUEST_ID,
+				parent.GAME_TYPE,
+				initialMOP,
+				parent.COMMISSION_TYPE,
+				parent.COMMISSION_PERCENTAGE,
+				encodedBy,
+				dateNow,
+				programDate,
+				parentGameId
+			]
+		);
+		newGameId = newGameResult.insertId;
+	} catch (insertErr) {
+		const [newGameResult] = await db.execute(
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			[
+				parentAccountId,
+				parent.GUEST_ID,
+				parent.GAME_TYPE,
+				initialMOP,
+				parent.COMMISSION_TYPE,
+				parent.COMMISSION_PERCENTAGE,
+				encodedBy,
+				dateNow,
+				programDate
+			]
+		);
+		newGameId = newGameResult.insertId;
+	}
+
+	try {
+		await db.execute(
+			`UPDATE game_list SET CUTOFF_CONTINUED_GAME_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[newGameId, encodedBy, dateNow, parentGameId]
+		);
+	} catch (linkErr) {
+		// CUTOFF_CONTINUED_GAME_ID column may be missing
+	}
+
+	// 5. Buy-in on new game (same amounts as cutoff cashout)
+	if (buyInTotal > 0) {
+		const [record1] = await db.execute(gameRecordSQL, [
+			newGameId,
+			tradingDateNew,
+			1,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+		await db.execute(gameRecordSQL, [
+			newGameId,
+			tradingDateNew,
+			3,
+			0,
+			buyInNN,
+			buyInCC,
+			transType,
+			encodedBy,
+			dateNow
+		]);
+
+		if (transType === 2) {
+			await db.execute(
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[parentAccountId, newGameId, 2, transType, 'INITIAL BUY-IN', buyInTotal, encodedBy, dateNow]
+			);
+		} else if (transType === 3) {
+			await db.execute(
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[parentAccountId, newGameId, 10, transType, buyInTotal, `Buy-in Game: ${newGameId}`, encodedBy, dateNow]
+			);
+		}
+
+		if (transType === 1) {
+			const [agentRows] = await db.execute(agentQuery, [parentAccountId]);
+			if (agentRows.length > 0 && agentRows[0].agent_id) {
+				await db.execute(
+					`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[
+						newGameId,
+						agentRows[0].agent_id,
+						buyInTotal.toString(),
+						'Game buy-in',
+						1,
+						`Game - ${newGameId}`,
+						encodedBy,
+						dateNow
+					]
+				);
+			}
+		}
+	}
+
+	// 6. Clear remaining parent roller; new game gets full balance as NN
+	if (remainingNnReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			remainingNnReturnOnParent,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (remainingCcReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			remainingCcReturnOnParent,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (transferRollerNN > 0) {
+		await db.execute(rollerChipsSQL, [
+			newGameId,
+			tradingDateNew,
+			5,
+			0,
+			0,
+			0,
+			transferRollerNN,
+			0,
+			1,
+			encodedBy,
+			dateNow
+		]);
+	}
+
+	return {
+		newGameId,
+		parentGameId,
+		transferRollerNN,
+		lastRollingCC,
+		buyInNN,
+		buyInCC
+	};
 }
 
 /** Auto roller RETURN on pending game when fault is resolved (guest buy-in / junket new game). */
@@ -295,20 +669,20 @@ async function setPendingRollerResolve(db, gameId, resolveType, linkGameId, edit
 			: null;
 	try {
 		await db.execute(
-			`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, PENDING_ROLLER_BUYIN_RECORD_IDS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-			[resolveType, linkGameId || null, dateNow, remarksVal, returnId, buyinIds, editedBy, dateNow, gameId]
+			`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, PENDING_ROLLER_BUYIN_RECORD_IDS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, returnId, buyinIds, editedBy, dateNow, gameId]
 		);
 	} catch (err) {
 		try {
 			await db.execute(
-				`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-				[resolveType, linkGameId || null, dateNow, remarksVal, returnId, editedBy, dateNow, gameId]
+				`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, PENDING_ROLLER_RETURN_RECORD_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, returnId, editedBy, dateNow, gameId]
 			);
 		} catch (fallbackErr) {
 			try {
 				await db.execute(
-					`UPDATE game_list SET PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-					[resolveType, linkGameId || null, dateNow, remarksVal, editedBy, dateNow, gameId]
+					`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, PENDING_ROLLER_RESOLVE = ?, PENDING_ROLLER_LINK_GAME_ID = ?, PENDING_ROLLER_RESOLVED_DT = ?, PENDING_ROLLER_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+					[dateNow, resolveType, linkGameId || null, dateNow, remarksVal, editedBy, dateNow, gameId]
 				);
 			} catch (fallbackErr2) {
 				console.error('PENDING_ROLLER_RESOLVE columns missing? Run database/add_pending_roller_resolve.sql', fallbackErr2);
@@ -555,7 +929,7 @@ async function isArchivedPendingGuestResolveBuyin(db, gameId, recordId) {
 }
 
 /**
- * Record roller chips "missing" in junket_loss once per game, only when fault is resolved (guest buy-in / junket new game).
+ * Record roller chips "missing" in junket_loss once per game when fault is resolved via junket new game.
  */
 async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, resolveLabel, remarks) {
 	const missingAmount = parseFloat(amount) || 0;
@@ -564,18 +938,13 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 	const dateNow = new Date();
 	try {
 		const [gameRows] = await db.execute(
-			`SELECT gl.JUNKET_LOSS_ID, ag.AGENT_CODE
-			 FROM game_list gl
-			 JOIN account ac ON ac.IDNo = gl.ACCOUNT_ID
-			 JOIN agent ag ON ag.IDNo = ac.AGENT_ID
-			 WHERE gl.IDNo = ? LIMIT 1`,
+			`SELECT JUNKET_LOSS_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
 			[gameId]
 		);
 		if (!gameRows.length) return null;
 
-		const agentCode = gameRows[0].AGENT_CODE || '';
 		const label = (resolveLabel || 'Resolved').trim();
-		let description = `Roller chips missing (${label}) - Game #${gameId} (${agentCode})`;
+		let description = `Roller chips missing - Game #${gameId} - (${label})`;
 		const remarksText = normalizePendingRemarks(remarks);
 		if (remarksText) {
 			description += ' — ' + remarksText;
@@ -726,6 +1095,85 @@ function computeSettlementTotalsFromRecords(gameRecords) {
 	const total_rolling = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
 	return { total_buy_in, total_cash_out, winloss, total_rolling };
+}
+
+/** Match game list ROLLING and ROLLER CHIPS columns for one game's records. */
+function computeGameRollingAndRollerTotalsFromRecords(gameRecords) {
+	let total_rolling_nn = 0;
+	let total_rolling_amount = 0;
+	let total_rolling_real = 0;
+	let total_rolling_nn_real = 0;
+	let total_rolling_cc_real = 0;
+	let total_cash_out_nn = 0;
+	let total_roller_nn = 0;
+	let total_roller_cc = 0;
+	let total_roller_return_cc = 0;
+
+	for (const record of gameRecords || []) {
+		const cageType = Number(record.CAGE_TYPE);
+
+		if (cageType === 2) {
+			total_cash_out_nn += Number(record.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 3) {
+			total_rolling_amount += Number(record.AMOUNT) || 0;
+			total_rolling_nn += Number(record.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 4) {
+			total_rolling_real += Number(record.AMOUNT) || 0;
+			total_rolling_nn_real += Number(record.NN_CHIPS) || 0;
+			total_rolling_cc_real += Number(record.CC_CHIPS) || 0;
+		}
+
+		if (cageType === 5) {
+			const rollerTransaction = parseInt(record.ROLLER_TRANSACTION, 10) || 1;
+			if (rollerTransaction === 1) {
+				total_roller_nn += Number(record.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc += Number(record.ROLLER_CC_CHIPS) || 0;
+			} else if (rollerTransaction === 2) {
+				total_roller_nn -= Number(record.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc -= Number(record.ROLLER_CC_CHIPS) || 0;
+				total_roller_return_cc += Number(record.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	}
+
+	const totalRollingCCWithReturns = total_roller_return_cc;
+	const total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+	const total_roller_chips = total_roller_nn + total_roller_cc;
+
+	return { total_rolling_chips, total_roller_chips };
+}
+
+function getProjectedRollingChipsFromRecords(gameRecords, ccAmount, { recordIdToReplace } = {}) {
+	const totals = computeGameRollingAndRollerTotalsFromRecords(gameRecords);
+	let projectedRolling = totals.total_rolling_chips + ccAmount;
+
+	if (recordIdToReplace) {
+		const oldRecord = (gameRecords || []).find((row) => Number(row.IDNo) === Number(recordIdToReplace));
+		if (oldRecord && Number(oldRecord.CAGE_TYPE) === 4) {
+			projectedRolling = totals.total_rolling_chips - (Number(oldRecord.CC_CHIPS) || 0) + ccAmount;
+		}
+	}
+
+	return {
+		projectedRolling,
+		total_roller_chips: totals.total_roller_chips,
+		current_rolling: totals.total_rolling_chips
+	};
+}
+
+function validateRollingAgainstRollerChips(gameRecords, ccAmount, options = {}) {
+	const projection = getProjectedRollingChipsFromRecords(gameRecords, ccAmount, options);
+	if (projection.projectedRolling > projection.total_roller_chips) {
+		return {
+			ok: false,
+			error: `Rolling cannot exceed Roller Chips (${projection.total_roller_chips.toLocaleString()}).`
+		};
+	}
+	return { ok: true };
 }
 
 async function fetchSettlementTotalsForGameId(gameId) {
@@ -880,158 +1328,33 @@ async function resolveTelegramGameIdForGuest(db, gameId) {
 	return ctx.telegramGameNo;
 }
 
-/** Client sends YYYY-MM-DD HH:mm (New Game modal) or date-only; used for ENCODED_DT / TRADING_DATE. */
-function parseGameListEncodedDateTime(raw) {
-	const s = raw == null ? '' : String(raw).trim();
-	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
-	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(s);
-	if (!dateOnly && !dateTime) return new Date();
-	const parts = s.slice(0, 10).split('-').map((n) => parseInt(n, 10));
-	const y = parts[0];
-	const mo = parts[1];
-	const d = parts[2];
-	if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return new Date();
-	let hours = 0;
-	let minutes = 0;
-	let seconds = 0;
-	let ms = 0;
-	if (dateTime) {
-		const timePart = s.slice(11).trim();
-		const tp = timePart.split(':').map((n) => parseInt(n, 10));
-		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-			hours = tp[0];
-			minutes = tp[1];
-		}
-	} else {
-		const now = new Date();
-		hours = now.getHours();
-		minutes = now.getMinutes();
-		seconds = now.getSeconds();
-		ms = now.getMilliseconds();
+function formatLocalDateYmd(dt) {
+	const d = dt instanceof Date ? dt : new Date(dt);
+	const pad = (n) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Date-only (YYYY-MM-DD) from New Game modal txtProgramDate; used for game_list.PROGRAM_DATE. */
+function parseGameListProgramDate(raw) {
+	const ymd = normalizeSettlementDateYmd(raw == null ? '' : String(raw).trim().slice(0, 10));
+	return ymd || formatLocalDateYmd(new Date());
+}
+
+/** PROGRAM_DATE (YYYY-MM-DD) as local midnight for game_record.TRADING_DATE. */
+function parseProgramDateAsDateTime(ymd) {
+	const normalized = normalizeSettlementDateYmd(ymd);
+	if (!normalized) return new Date();
+	const parts = normalized.split('-').map((n) => parseInt(n, 10));
+	const dt = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+	if (dt.getFullYear() !== parts[0] || dt.getMonth() !== parts[1] - 1 || dt.getDate() !== parts[2]) {
+		return new Date();
 	}
-	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
-	if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return new Date();
 	return dt;
 }
 
 function normalizeSettlementDateYmd(raw) {
 	const s = raw == null ? '' : String(raw).trim().slice(0, 10);
 	return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-}
-
-/** Link a game to daily_settlement / daily_settlement_games for a settlement date (cut-off flow). */
-async function assignGameToDailySettlement(db, gameId, settlementDateYmd, encodedBy, options = {}) {
-	const gid = parseInt(gameId, 10);
-	const ymd = normalizeSettlementDateYmd(settlementDateYmd);
-	const editorId = encodedBy != null ? parseInt(encodedBy, 10) : null;
-	const finalizeDailySettlement = options.finalizeDailySettlement === true;
-
-	if (!gid || !ymd || !editorId) {
-		return null;
-	}
-
-	await db.execute(
-		`DELETE dsg
-		 FROM daily_settlement_games dsg
-		 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-		 WHERE dsg.GAME_ID = ?
-		   AND ds.ACTIVE = 1`,
-		[gid]
-	);
-
-	const [existing] = await db.execute(
-		`SELECT IDNo
-		 FROM daily_settlement
-		 WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1
-		 ORDER BY RUN_AT DESC, IDNo DESC
-		 LIMIT 1`,
-		[ymd]
-	);
-
-	const settlementStatus = finalizeDailySettlement ? 'finalized' : 'draft';
-
-	let settlementId;
-	if (existing.length > 0) {
-		settlementId = existing[0].IDNo;
-	} else {
-		const [insertSettlement] = await db.execute(
-			`INSERT INTO daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
-			 VALUES (?, NOW(), ?, ?, 1)`,
-			[ymd, editorId, settlementStatus]
-		);
-		settlementId = insertSettlement.insertId;
-	}
-
-	if (!finalizeDailySettlement) {
-		await db.execute(
-			`UPDATE daily_settlement
-			 SET STATUS = 'draft', ENCODED_BY = ?
-			 WHERE IDNo = ?
-			   AND NOT EXISTS (
-			     SELECT 1
-			     FROM daily_settlement_games dsg
-			     INNER JOIN game_list gl ON gl.IDNo = dsg.GAME_ID
-			     WHERE dsg.DAILY_SETTLEMENT_ID = daily_settlement.IDNo
-			       AND gl.DAILY_SETTLEMENT = 2
-			   )`,
-			[editorId, settlementId]
-		);
-	} else {
-		await db.execute(
-			`UPDATE daily_settlement SET STATUS = 'finalized', ENCODED_BY = ? WHERE IDNo = ?`,
-			[editorId, settlementId]
-		);
-	}
-
-	await db.execute(
-		`INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT)
-		 SELECT ?, ?, NOW()
-		 FROM DUAL
-		 WHERE NOT EXISTS (
-		   SELECT 1
-		   FROM daily_settlement_games
-		   WHERE DAILY_SETTLEMENT_ID = ? AND GAME_ID = ?
-		 )`,
-		[settlementId, gid, settlementId, gid]
-	);
-
-	const dailyFlag = finalizeDailySettlement ? 2 : 1;
-	await db.execute(
-		`UPDATE game_list SET DAILY_SETTLEMENT = ?, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo = ?`,
-		[dailyFlag, editorId, gid]
-	);
-
-	await db.execute(`UPDATE daily_settlement SET ENCODED_BY = ? WHERE IDNo = ?`, [editorId, settlementId]);
-
-	return settlementId;
-}
-
-/** Parent game's settlement date from daily_settlement_games (if any). */
-async function getSettlementDateYmdForGame(db, gameId) {
-	const gid = parseInt(gameId, 10);
-	if (!gid) {
-		return null;
-	}
-	const [rows] = await db.execute(
-		`SELECT ds.SETTLEMENT_DATE
-		 FROM daily_settlement_games dsg
-		 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID AND ds.ACTIVE = 1
-		 WHERE dsg.GAME_ID = ?
-		 ORDER BY ds.RUN_AT DESC, ds.IDNo DESC
-		 LIMIT 1`,
-		[gid]
-	);
-	if (!rows.length) {
-		return null;
-	}
-	const raw = rows[0].SETTLEMENT_DATE;
-	if (raw instanceof Date) {
-		const y = raw.getFullYear();
-		const m = String(raw.getMonth() + 1).padStart(2, '0');
-		const d = String(raw.getDate()).padStart(2, '0');
-		return `${y}-${m}-${d}`;
-	}
-	return normalizeSettlementDateYmd(String(raw).slice(0, 10));
 }
 
 /** On delete: clear cut-off link columns on partner game(s) and the row being deleted. */
@@ -1111,78 +1434,18 @@ router.get("/game_list", checkSession, async function (req, res) {
 		dashboardQueries.getCCReturn()
 	  ]);
   
-	  // Next due settlement day (queue): day after latest active settlement date (InfinityCageX model).
 	  const now = new Date();
 	  const pad = (n) => String(n).padStart(2, '0');
 	  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-	  let defaultSettlementDate = todayStr;
-	  let lastSettlementDateStr = null;
-	  try {
-	    const [rows] = await pool.execute(
-	      "SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1"
-	    );
-	    const lastSettlement = rows[0] && rows[0].last_settlement;
-	    if (lastSettlement) {
-	      const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
-	      lastSettlementDateStr = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
-	      const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-	      defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
-	    }
-	  } catch (e) {
-	    // keep defaultSettlementDate = todayStr
-	  }
 
-	  // Picker default: today's calendar date (Open/Settled UX); queue stays in defaultSettlementDate.
-	  let initialSettlementDate = todayStr;
+	  let initialProgramDate = todayStr;
 	  const urlDate = req.query.date;
 	  if (urlDate) {
-	    if (urlDate === "current") {
-	      initialSettlementDate = todayStr;
+	    if (urlDate === 'current') {
+	      initialProgramDate = todayStr;
 	    } else if (/^\d{4}-\d{2}-\d{2}$/.test(urlDate)) {
-	      initialSettlementDate = urlDate;
+	      initialProgramDate = urlDate;
 	    }
-	  }
-	  const maxSettlementDate = null;
-
-	  let settledDatesForMonth = [];
-	  let draftDatesForMonth = [];
-	  try {
-	    const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-	    const earliestStr = `${earliestAllowed.getFullYear()}-${pad(earliestAllowed.getMonth() + 1)}-${pad(earliestAllowed.getDate())}`;
-	    const upperBoundStr = lastSettlementDateStr && lastSettlementDateStr > todayStr ? lastSettlementDateStr : todayStr;
-	    const mapSettlementDates = (rows) =>
-	      (rows || [])
-	        .map((r) => {
-	          const d = r.SETTLEMENT_DATE;
-	          if (!d) return null;
-	          const x = d instanceof Date ? d : new Date(String(d).slice(0, 10) + 'T12:00:00Z');
-	          return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
-	        })
-	        .filter(Boolean);
-
-	    const [settledRows] = await pool.execute(
-	      `SELECT DISTINCT SETTLEMENT_DATE
-	       FROM daily_settlement
-	       WHERE ACTIVE = 1
-	         AND COALESCE(STATUS, 'finalized') = 'finalized'
-	         AND SETTLEMENT_DATE BETWEEN ? AND ?
-	       ORDER BY SETTLEMENT_DATE`,
-	      [earliestStr, upperBoundStr]
-	    );
-	    settledDatesForMonth = mapSettlementDates(settledRows);
-
-	    const [draftRows] = await pool.execute(
-	      `SELECT DISTINCT SETTLEMENT_DATE
-	       FROM daily_settlement
-	       WHERE ACTIVE = 1
-	         AND STATUS = 'draft'
-	         AND SETTLEMENT_DATE BETWEEN ? AND ?
-	       ORDER BY SETTLEMENT_DATE`,
-	      [earliestStr, upperBoundStr]
-	    );
-	    draftDatesForMonth = mapSettlementDates(draftRows);
-	  } catch (e) {
-	    // keep settledDatesForMonth / draftDatesForMonth = []
 	  }
 
 	  // Attach values to `data`
@@ -1207,11 +1470,7 @@ router.get("/game_list", checkSession, async function (req, res) {
 		sqlCCChipsBuyinGame,
 		sqlCCBuyin,
 		sqlCCReturn,
-		defaultSettlementDate,
-		initialSettlementDate,
-		maxSettlementDate,
-		settledDatesForMonth,
-		draftDatesForMonth
+		initialProgramDate
 	  });
   
 	  res.render("gamebook/game_list", data);
@@ -1349,7 +1608,7 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			}
 			let minWidth = 11;
 			let maxWidth = 60;
-			if (upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) minWidth = 14;
+			if (upperHeader.includes('PROGRAM DATE') || upperHeader.includes('GAME START') || upperHeader.includes('GAME END')) minWidth = 14;
 			if (upperHeader.includes('ACCT')) minWidth = 18;
 			if (upperHeader === 'GUEST') minWidth = 14;
 			if (upperHeader.includes('GAME RATE')) minWidth = 13;
@@ -1476,19 +1735,13 @@ router.post('/add_game_list', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtGameEncodedDate,
-		txtCutoffParentGameId,
-		txtCutoffSettlementDate
+		txtProgramDate
 	} = req.body;
 
-	const cutoffParentId = parseInt(txtCutoffParentGameId, 10) || null;
-	const isCutoffGame = !!(cutoffParentId && cutoffParentId > 0);
-	let cutoffSettlementYmd = normalizeSettlementDateYmd(txtCutoffSettlementDate);
-	if (isCutoffGame && !cutoffSettlementYmd) {
-		cutoffSettlementYmd = await getSettlementDateYmdForGame(pool, cutoffParentId);
-	}
-	// Cut off: ENCODED_DT / GAME START = actual create time; settlement date only links daily_settlement_games.
-	const date_now = isCutoffGame ? new Date() : parseGameListEncodedDateTime(txtGameEncodedDate);
+	// ENCODED_DT = actual save time; PROGRAM_DATE = user-selected game date (date only).
+	const encoded_dt = new Date();
+	const program_date = parseGameListProgramDate(txtProgramDate);
+	const trading_date = parseProgramDateAsDateTime(program_date);
 
 	// 🛡 Clean inputs and fallbacks
 	const accountId = parseInt(txtAccountCode) || null;
@@ -1522,47 +1775,23 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 
 		const gameId = result.insertId;
 
-		const cutoffStartTitle = buildGameStartTelegramCutoffTitleLines(isCutoffGame);
-		if (cutoffParentId) {
-			try {
-				await pool.execute(
-					`UPDATE game_list SET CUTOFF_PARENT_GAME_ID = ? WHERE IDNo = ?`,
-					[cutoffParentId, gameId]
-				);
-				await pool.execute(
-					`UPDATE game_list SET CUTOFF_CONTINUED_GAME_ID = ? WHERE IDNo = ?`,
-					[gameId, cutoffParentId]
-				);
-			} catch (linkErr) {
-				console.error('Cut off link columns missing? Run database/add_game_cutoff_link.sql', linkErr);
-			}
-		}
-
-		if (isCutoffGame && cutoffSettlementYmd) {
-			try {
-				await assignGameToDailySettlement(pool, gameId, cutoffSettlementYmd, encodedBy, {
-					finalizeDailySettlement: false
-				});
-			} catch (assignErr) {
-				console.error('Cut off daily_settlement assign failed:', assignErr);
-			}
-		}
+		const cutoffStartTitle = buildGameStartTelegramCutoffTitleLines(false);
 
 		// 2. Insert into game_record (CAGE_TYPE: 1 and 3)
 		const gameRecordSQL = `
 			INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
-		const [record1Result] = await pool.execute(gameRecordSQL, [gameId, date_now, 1, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
+		const [record1Result] = await pool.execute(gameRecordSQL, [gameId, trading_date, 1, 0, nnAmount, ccAmount, transType, encodedBy, encoded_dt]);
 		const gameRecordId = record1Result.insertId; // 👈 Save inserted IDNo
-		await pool.execute(gameRecordSQL, [gameId, date_now, 3, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
+		await pool.execute(gameRecordSQL, [gameId, trading_date, 3, 0, nnAmount, ccAmount, transType, encodedBy, encoded_dt]);
 		
 		// 2b. Insert ROLLER CHIPS into game_record (CAGE_TYPE: 5) if roller chips provided
 		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
@@ -1571,7 +1800,7 @@ router.post('/add_game_list', async (req, res) => {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`;
 			// For new games, roller chips are always treated as an ADD action (ROLLER_TRANSACTION = 1)
-			await pool.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
+			await pool.execute(rollerChipsSQL, [gameId, trading_date, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, encoded_dt]);
 		}
 
 		// 3. Insert into account_ledger (GAME_ID for direct link)
@@ -1579,13 +1808,13 @@ router.post('/add_game_list', async (req, res) => {
 			await pool.execute(`
 				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, date_now]
+				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, encoded_dt]
 			);
 		} else if (transType === 3) {
 			await pool.execute(`
 				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, date_now]
+				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]
 			);
 		}
 
@@ -1665,35 +1894,18 @@ router.post('/add_game_list', async (req, res) => {
 	const commissionMgmtLine = commissionMgmtLabel ? `\n${commissionMgmtLabel}` : '';
 
 	let effectiveGuestId = guestId;
-	if (!effectiveGuestId && cutoffParentId) {
-		try {
-			const [parentGuestRows] = await pool.execute(
-				`SELECT GUEST_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
-				[cutoffParentId]
-			);
-			if (parentGuestRows.length > 0 && parentGuestRows[0].GUEST_ID) {
-				effectiveGuestId = parseInt(parentGuestRows[0].GUEST_ID, 10) || null;
-			}
-		} catch (e) {
-			// ignore
-		}
-	}
 	const guestDisplayName = await fetchGuestDisplayNameById(pool, effectiveGuestId);
 	const guestTelegramLines = buildGameStartTelegramGuestLines(guestDisplayName, useKorean);
 	const telegramLogGuestName = guestDisplayName || agentName;
 	const gameNoForTelegram = buildGameStartTelegramGameNoDisplay(
 		transType === 2 ? result.insertId : gameId,
-		isCutoffGame ? cutoffParentId : null
+		null
 	);
-	const managementGameNoForStart =
-		isCutoffGame && cutoffParentId
-			? [cutoffParentId, gameId].sort((a, b) => a - b).join(' & ')
-			: gameNoForTelegram;
+	const managementGameNoForStart = gameNoForTelegram;
 
 	let managementText = ''; // Message for management (without account balance)
-	const agentBuyInPaymentSuffix = isCutoffGame
-		? ''
-		: transType === 1
+	const agentBuyInPaymentSuffix =
+		transType === 1
 			? ` - ${labels.cash}`
 			: transType === 2
 				? ` - ${labels.deposit}`
@@ -1703,24 +1915,24 @@ router.post('/add_game_list', async (req, res) => {
 
 	if (transType === 2) {
 		const newTotalBalance = totalBalanceGuest - totalAmount;
-		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedTxtGameType}${commissionTextLine}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString()}${agentBuyInPaymentSuffix}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString()}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedTxtGameType}${commissionTextLine}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString('en-US')}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtDeposit.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${parseFloat(totalAmount).toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtDeposit.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${parseFloat(totalAmount).toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	} else if (transType === 1) {
-		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	} else if (transType === 3) {
-		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	}
 
 		if (text && agentId) {
 			const telegramId =
 				telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 			const gameStartGameId = transType === 2 ? result.insertId : gameId;
-			const gameStartLogLabel = isCutoffGame ? 'Game Start (Cut Off)' : 'Game Start';
+			const gameStartLogLabel = 'Game Start';
 			const gameStartOpts = gamebookTelegramOpts(
 				gameStartLogLabel,
 				agentCode,
@@ -1728,36 +1940,27 @@ router.post('/add_game_list', async (req, res) => {
 				totalAmount,
 				gameStartGameId
 			);
-			// Cut-off continuation: management only (no agent / guest additional chats).
-			if (isCutoffGame) {
+			if (telegramId) {
 				try {
-					await sendTelegramToManagement(managementText, gameStartOpts);
+					await sendTelegramMessage(text, telegramId, gameStartOpts);
 				} catch (telegramError) {
-					console.error('Failed to send Telegram message to management:', telegramError.message);
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
 				}
-			} else {
-				if (telegramId) {
-					try {
-						await sendTelegramMessage(text, telegramId, gameStartOpts);
-					} catch (telegramError) {
-						console.error('Failed to send Telegram message to agent:', telegramError.message);
-					}
-				}
-				try {
-					await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
-				}
-				try {
-					await sendTelegramToAdditionalChats(text, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-				}
-				try {
-					await sendTelegramToManagement(managementText, gameStartOpts);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to management:', telegramError.message);
-				}
+			}
+			try {
+				await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send to agent notifications:', telegramError.message);
+			}
+			try {
+				await sendTelegramToAdditionalChats(text, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+			}
+			try {
+				await sendTelegramToManagement(managementText, gameStartOpts);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to management:', telegramError.message);
 			}
 		}
 
@@ -1775,7 +1978,7 @@ router.post('/add_game_list', async (req, res) => {
 				1,
 				`Game - ${gameId}`,
 				encodedBy,
-				date_now
+				encoded_dt
 			]);
 		}
 
@@ -1797,7 +2000,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
-		txtGameEncodedDate,
+		txtProgramDate,
 		split_cash_nn,
 		split_cash_cc,
 		split_dep_nn,
@@ -1834,7 +2037,9 @@ router.post('/add_game_list_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
-	const date_now = parseGameListEncodedDateTime(txtGameEncodedDate);
+	const encoded_dt = new Date();
+	const program_date = parseGameListProgramDate(txtProgramDate);
+	const trading_date = parseProgramDateAsDateTime(program_date);
 
 	if (!accountId || encodedBy === null) {
 		return res.status(400).json({ error: 'Invalid account or session.' });
@@ -1870,25 +2075,25 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, date_now]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 		const gameId = gameResult.insertId;
 
 		let cashRecordId = null;
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 			cashRecordId = cashRecord.insertId;
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, depNn, depCc, 2, encodedBy, date_now]);
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, depNn, depCc, 2, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, creditNn, creditCc, 3, encodedBy, date_now]);
-			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, creditNn, creditCc, 3, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
+			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
 		}
 
 		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
@@ -1896,14 +2101,14 @@ router.post('/add_game_list_split', async (req, res) => {
 				INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			`;
-			await connection.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
+			await connection.execute(rollerChipsSQL, [gameId, trading_date, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, encoded_dt]);
 		}
 
 		if (depositTotal > 0) {
-			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, date_now]);
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, date_now]);
+			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]);
 		}
 
 		const [agentRows] = await connection.execute(`
@@ -1917,7 +2122,7 @@ router.post('/add_game_list_split', async (req, res) => {
 			await connection.execute(`
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[cashRecordId, agentRows[0].agent_id, cashTotal.toString(), 'Game buy-in', 1, `Game - ${gameId}`, encodedBy, date_now]
+				[cashRecordId, agentRows[0].agent_id, cashTotal.toString(), 'Game buy-in', 1, `Game - ${gameId}`, encodedBy, encoded_dt]
 			);
 		}
 
@@ -1936,22 +2141,22 @@ router.post('/add_game_list_split', async (req, res) => {
 			if (Array.isArray(agentRows) && agentRows.length > 0) {
 				const { AGENT_CODE: agentCode, NAME: agentName } = agentRows[0];
 				const telegramId = getAgentTelegramChatId(agentRows[0]);
-				const date_nowTG = new Date().toLocaleDateString();
+				const date_nowTG = encoded_dt.toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
 				const splitLinesKo = [];
-				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
+				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
 				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
+				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const splitGt = telegramGameTypeLabels(gameType);
-				const text = `Demo Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Demo Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const text = `Demo Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString('en-US')}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString('en-US')}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Demo Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 				if (telegramId) {
@@ -1981,6 +2186,22 @@ router.post('/add_game_list_split', async (req, res) => {
 
 
 // ======================= GAME SERVICES ==================
+function isDeliveryGameServiceType(serviceType) {
+	const raw = String(serviceType || '').trim().toLowerCase();
+	return raw === 'delivery' || raw.includes('delivery');
+}
+
+function parseGameServiceDeliveryFee(raw, serviceType) {
+	if (!isDeliveryGameServiceType(serviceType)) return 0;
+	const fee = parseFloat(String(raw || '0').replace(/,/g, ''));
+	return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+}
+
+function gameServiceChargeTotal(amount, deliveryFee, serviceType) {
+	const amt = parseFloat(String(amount || '0').replace(/,/g, '')) || 0;
+	return amt + parseGameServiceDeliveryFee(deliveryFee, serviceType);
+}
+
 // Get services for a game
 router.get('/game_services/:gameId', checkSession, async (req, res) => {
 	try {
@@ -1995,6 +2216,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 				gs.GAME_ID,
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
+				COALESCE(gs.DELIVERY_FEE, 0) AS DELIVERY_FEE,
 				gs.REMARKS,
 				gs.TRANSACTION_ID,
 				gs.AGENT_ID,
@@ -2019,11 +2241,13 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
 router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
-		const { game_id, service_type, amount, remarks, transaction_id, agent_id } = req.body;
+		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id, agent_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel', 'delivery'];
+		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
+		const chargeTotal = amt + deliveryFee;
+		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 		let agentId = parseInt(agent_id, 10);
@@ -2041,9 +2265,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
-			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, DELIVERY_FEE, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+			[gameId, svc, amt, deliveryFee, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
 		);
 
 
@@ -2056,7 +2280,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				insertResult.insertId,
 				agentId,
-				amt.toString(),
+				chargeTotal.toString(),
 				svc,
 				type,
 				`Game - ${gameId} ${remarks ? '- ' + remarks : ''}`.trim(),
@@ -2072,7 +2296,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[accountId, gameId, amt, encodedBy, now]
+				[accountId, gameId, chargeTotal, encodedBy, now]
 			);
 
 			try {
@@ -2090,7 +2314,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 					const telegramIdAgent = getAgentTelegramChatId(accountRows[0]);
 
 					if (telegramIdAgent) {
-						const formattedAmount = amt.toLocaleString('en-US');
+						const formattedAmount = chargeTotal.toLocaleString('en-US');
 						const serviceLabel = svc.toUpperCase();
 						const date_nowTG = now.toLocaleDateString();
 						const updated_time = now.toLocaleTimeString();
@@ -2120,6 +2344,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 				gs.GAME_ID,
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
+				COALESCE(gs.DELIVERY_FEE, 0) AS DELIVERY_FEE,
 				gs.REMARKS,
 				gs.TRANSACTION_ID,
 				gs.AGENT_ID,
@@ -2145,16 +2370,18 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 router.put('/game_services/:id', checkSession, async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
-		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
+		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel', 'delivery'];
+		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
+		const chargeTotal = amt + deliveryFee;
+		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 
 		const [[existingService]] = await pool.execute(
-			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
+			`SELECT AMOUNT, COALESCE(DELIVERY_FEE, 0) AS DELIVERY_FEE, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
 			[serviceId]
 		);
 
@@ -2168,10 +2395,12 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 
 		await pool.execute(
 			`UPDATE game_services
-			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET SERVICE_TYPE = ?, AMOUNT = ?, DELIVERY_FEE = ?, REMARKS = ?, TRANSACTION_ID = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
-			[svc, amt, remarks || '', transactionId, updatedBy, now, serviceId]
+			[svc, amt, deliveryFee, remarks || '', transactionId, updatedBy, now, serviceId]
 		);
+
+		const existingChargeTotal = parseFloat(existingService?.AMOUNT || 0) + parseFloat(existingService?.DELIVERY_FEE || 0);
 
 		// delete old ledger entry if previous transaction was deposit (add GAME_ID for precise matching)
 		if (existingService && parseInt(existingService.TRANSACTION_ID, 10) === 2) {
@@ -2183,7 +2412,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			if (accountId) {
 				const [ledgerRows] = await pool.execute(
 					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
-					[accountId, gameId, existingService.AMOUNT]
+					[accountId, gameId, existingChargeTotal]
 				);
 				if (ledgerRows.length > 0) {
 					await pool.execute(
@@ -2205,7 +2434,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 				await pool.execute(
 					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-					[accountId, gameId, amt, updatedBy, now]
+					[accountId, gameId, chargeTotal, updatedBy, now]
 				);
 			}
 		}
@@ -2225,7 +2454,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				serviceId,
 				existingService?.AGENT_ID || null,
-				amt.toString(),
+				chargeTotal.toString(),
 				svc,
 				type,
 				remarkText,
@@ -2243,6 +2472,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 				gs.GAME_ID,
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
+				COALESCE(gs.DELIVERY_FEE, 0) AS DELIVERY_FEE,
 				gs.REMARKS,
 				gs.TRANSACTION_ID,
 				gs.AGENT_ID,
@@ -2318,6 +2548,7 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 				gs.GAME_ID,
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
+				COALESCE(gs.DELIVERY_FEE, 0) AS DELIVERY_FEE,
 				gs.REMARKS,
 				gs.TRANSACTION_ID,
 				gs.AGENT_ID,
@@ -2344,14 +2575,13 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 	}
 });
 
-// GET GAME LIST
+// GET GAME LIST — filtered by PROGRAM_DATE (daily_settlement tables no longer used)
 router.get('/game_list_data', async (req, res) => {
     let { start, end, id, date, fromDate, toDate } = req.query;
-    const settlementView = String(req.query.settlement_view || 'open').toLowerCase();
+    const isValidYmd = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));
 
     const gameId = id ? parseInt(id, 10) : null;
 
-    // Define baseSelect first (needed for date range and settlement queries)
     const baseSelect = `
         SELECT 
             game_list.*,
@@ -2409,29 +2639,9 @@ router.get('/game_list_data', async (req, res) => {
 
         try {
             const [rows] = await pool.execute(queryById, [gameId]);
-            
-            // Add pending flag
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-            const [latestSettlement] = await pool.execute(
-                `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-                [firstOfMonth, todayStr]
-            );
-
-            if (latestSettlement.length > 0) {
-                const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date
-                    ? latestSettlement[0].RUN_AT
-                    : new Date(latestSettlement[0].RUN_AT);
-                rows.forEach((row) => {
-                    const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
-                    row.is_pending = gameCreatedAt < settlementRunTime && row.ACTIVE != 1 ? 1 : 0;
-                });
-            } else {
-                rows.forEach((row) => {
-                    row.is_pending = 0;
-                });
-            }
-            
+            rows.forEach((row) => {
+                row.is_pending = 0;
+            });
             return res.json(rows);
         } catch (error) {
             console.error('Error fetching data by ID:', error);
@@ -2439,187 +2649,107 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
-    // Settlement date range: games linked to daily_settlement with SETTLEMENT_DATE in range
-    const settlementFrom = req.query.settlementFrom;
-    const settlementTo = req.query.settlementTo;
-    if (settlementFrom && settlementTo) {
-        const isValidSettlementRangeDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));
-        const fromS = String(settlementFrom).slice(0, 10);
-        const toS = String(settlementTo).slice(0, 10);
-        if (!isValidSettlementRangeDate(fromS) || !isValidSettlementRangeDate(toS)) {
-            console.error('[Game List Backend] Invalid settlement range:', settlementFrom, settlementTo);
-            return res.status(400).json({ error: 'Invalid settlement date range. Use YYYY-MM-DD.' });
-        }
-        if (fromS > toS) {
-            return res.status(400).json({ error: 'settlementFrom must be on or before settlementTo.' });
-        }
+    const unreturnedRollerOnly = ['1', 'true', 'yes'].includes(String(req.query.unreturned_roller || '').toLowerCase());
+    if (unreturnedRollerOnly) {
         const query = baseSelect + `
-            JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-            JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
             WHERE game_list.ACTIVE != 0
-              AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
-            ORDER BY game_list.IDNo ASC
+              AND game_list.IDNo IN (
+                SELECT gr.GAME_ID
+                FROM game_record gr
+                WHERE gr.CAGE_TYPE = 5
+                  AND gr.ACTIVE = 1
+                GROUP BY gr.GAME_ID
+                HAVING SUM(
+                  CASE
+                    WHEN COALESCE(gr.ROLLER_TRANSACTION, 1) = 1
+                      THEN COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0)
+                    WHEN gr.ROLLER_TRANSACTION = 2
+                      THEN -(COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0))
+                    ELSE 0
+                  END
+                ) > 0
+              )
+            ORDER BY game_list.IDNo DESC
         `;
         try {
-            const [rows] = await pool.execute(query, [fromS, toS]);
+            const [rows] = await pool.execute(query);
             rows.forEach((row) => {
                 row.is_pending = 0;
             });
             return res.json(rows);
         } catch (error) {
-            console.error('[Game List Backend] Error fetching data by settlement date range:', error);
+            console.error('Error fetching games with unreturned roller chips:', error);
             return res.status(500).json({ error: 'Error fetching data' });
         }
     }
 
-    // Date range mode: Filter by game start date range
+    const programFrom = req.query.programFrom;
+    const programTo = req.query.programTo;
+    if (programFrom && programTo) {
+        const fromS = String(programFrom).slice(0, 10);
+        const toS = String(programTo).slice(0, 10);
+        if (!isValidYmd(fromS) || !isValidYmd(toS)) {
+            return res.status(400).json({ error: 'Invalid program date range. Use YYYY-MM-DD.' });
+        }
+        if (fromS > toS) {
+            return res.status(400).json({ error: 'programFrom must be on or before programTo.' });
+        }
+        const query = baseSelect + `
+            WHERE game_list.ACTIVE != 0
+              AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
+            ORDER BY game_list.IDNo ASC
+        `;
+        try {
+            const [rows] = await pool.execute(query, [fromS, toS]);
+            rows.forEach((row) => { row.is_pending = 0; });
+            return res.json(rows);
+        } catch (error) {
+            console.error('[Game List Backend] Error fetching data by program date range:', error);
+            return res.status(500).json({ error: 'Error fetching data' });
+        }
+    }
+
+    // Game Start filter: date range on ENCODED_DT (actual game start timestamp)
     if (fromDate && toDate) {
-        const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-        if (!isValidDate(fromDate) || !isValidDate(toDate)) {
-            console.error('[Game List Backend] Invalid date format - fromDate:', fromDate, 'toDate:', toDate);
+        if (!isValidYmd(fromDate) || !isValidYmd(toDate)) {
             return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
         }
-
         const query = baseSelect + `
-            WHERE game_list.ACTIVE != 0 
+            WHERE game_list.ACTIVE != 0
               AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
             ORDER BY game_list.IDNo ASC
         `;
-
         try {
             const [rows] = await pool.execute(query, [fromDate, toDate]);
-
-            // Date range mode doesn't use pending settlement state
-            rows.forEach(row => { row.is_pending = 0; });
-            
+            rows.forEach((row) => { row.is_pending = 0; });
             return res.json(rows);
         } catch (error) {
-            console.error('[Game List Backend] Error fetching data by date range:', error);
+            console.error('[Game List Backend] Error fetching data by game start date range:', error);
             return res.status(500).json({ error: 'Error fetching data' });
         }
     }
 
-    // Daily settlement filter (InfinityCageX): YYYY-MM-DD + settlement_view=open|settled
     if (date !== undefined && date !== null && date !== '') {
+        const dateS = String(date).slice(0, 10);
+        if (!isValidYmd(dateS)) {
+            return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD.' });
+        }
+        const query = baseSelect + `
+            WHERE game_list.ACTIVE != 0
+              AND DATE(game_list.PROGRAM_DATE) = ?
+            ORDER BY game_list.IDNo ASC
+        `;
         try {
-            const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-            if (!isValidDate(date)) {
-                return res.status(400).json({ error: 'Invalid date. Use YYYY-MM-DD.' });
-            }
-            const nowForToday = new Date();
-            const padLocal = (n) => String(n).padStart(2, '0');
-            const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
-            const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-
-            const attachOpenPoolPendingFlags = async (rows) => {
-                const [latestSettlement] = await pool.execute(
-                    `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-                    [firstOfMonth, todayServer]
-                );
-                if (latestSettlement.length > 0) {
-                    const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date
-                        ? latestSettlement[0].RUN_AT
-                        : new Date(latestSettlement[0].RUN_AT);
-                    rows.forEach((row) => {
-                        const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
-                        row.is_pending = gameCreatedAt < settlementRunTime && row.ACTIVE != 1 ? 1 : 0;
-                    });
-                } else {
-                    rows.forEach((row) => {
-                        row.is_pending = 0;
-                    });
-                }
-            };
-
-            const openPoolSql =
-                baseSelect +
-                `
-                    WHERE game_list.ACTIVE != 0
-                      AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-                      AND NOT EXISTS (
-                          SELECT 1
-                          FROM daily_settlement_games dsg
-                          JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-                          WHERE dsg.GAME_ID = game_list.IDNo
-                            AND ds.ACTIVE = 1
-                      )
-                    ORDER BY game_list.IDNo ASC
-                `;
-
-            if (settlementView === 'settled') {
-                const [hasAnySettlement] = await pool.execute(
-                    `SELECT IDNo
-                     FROM daily_settlement
-                     WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 AND COALESCE(STATUS, 'finalized') = 'finalized'
-                     LIMIT 1`,
-                    [date]
-                );
-                if (hasAnySettlement.length > 0) {
-                    const query = baseSelect + `
-                        JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-                        JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-                        WHERE game_list.ACTIVE != 0
-                          AND ds.SETTLEMENT_DATE = ?
-                          AND COALESCE(ds.STATUS, 'finalized') = 'finalized'
-                        ORDER BY game_list.IDNo ASC
-                    `;
-                    const [rows] = await pool.execute(query, [date]);
-                    rows.forEach((row) => {
-                        row.is_pending = 0;
-                    });
-                    return res.json(rows);
-                }
-                return res.json([]);
-            }
-
-            // Open view for a settlement date: draft batch (cut-off) + global open pool (unassigned games).
-            const draftOpenSql =
-                baseSelect +
-                `
-                    JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-                    JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-                    WHERE game_list.ACTIVE != 0
-                      AND ds.SETTLEMENT_DATE = ?
-                      AND COALESCE(ds.STATUS, 'finalized') = 'draft'
-                      AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-                    ORDER BY game_list.IDNo ASC
-                `;
-
-            const mergeOpenRowsByGameId = (poolRows, draftRows) => {
-                const byId = new Map();
-                (poolRows || []).forEach((row) => {
-                    const gid = row.game_list_id != null ? row.game_list_id : row.IDNo;
-                    if (gid != null) byId.set(Number(gid), row);
-                });
-                (draftRows || []).forEach((row) => {
-                    const gid = row.game_list_id != null ? row.game_list_id : row.IDNo;
-                    if (gid != null) byId.set(Number(gid), row);
-                });
-                return Array.from(byId.values()).sort((a, b) => {
-                    const idA = Number(a.game_list_id != null ? a.game_list_id : a.IDNo);
-                    const idB = Number(b.game_list_id != null ? b.game_list_id : b.IDNo);
-                    return idA - idB;
-                });
-            };
-
-            if (date === todayServer) {
-                const [poolRows] = await pool.execute(openPoolSql);
-                const [draftRows] = await pool.execute(draftOpenSql, [date]);
-                const merged = mergeOpenRowsByGameId(poolRows, draftRows);
-                await attachOpenPoolPendingFlags(merged);
-                return res.json(merged);
-            }
-
-            const [pastOpenRows] = await pool.execute(draftOpenSql, [date]);
-            await attachOpenPoolPendingFlags(pastOpenRows);
-            return res.json(pastOpenRows);
-        } catch (err) {
-            console.error('[Daily Settlement] Error fetching game list by settlement date:', err);
+            const [rows] = await pool.execute(query, [dateS]);
+            rows.forEach((row) => { row.is_pending = 0; });
+            return res.json(rows);
+        } catch (error) {
+            console.error('[Game List Backend] Error fetching data by program date:', error);
             return res.status(500).json({ error: 'Error fetching data' });
         }
     }
 
-    // Legacy: use start/end date range (ENCODED_DT)
+    // Legacy: use start/end date range (PROGRAM_DATE)
     if (!start || !end) {
         const currentDate = new Date();
         const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -2633,302 +2763,18 @@ router.get('/game_list_data', async (req, res) => {
     }
 
     const query = baseSelect + `
-        WHERE game_list.ACTIVE != 0 
-          AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+        WHERE game_list.ACTIVE != 0
+          AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
         ORDER BY game_list.IDNo ASC
     `;
 
     try {
         const [rows] = await pool.execute(query, [start, end]);
-        
-        // Add pending flag for games that were created before latest settlement run but are still ON GAME
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-        
-        const [latestSettlement] = await pool.execute(
-            `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-            [firstOfMonth, todayStr]
-        );
-
-        if (latestSettlement.length > 0) {
-            const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date
-                ? latestSettlement[0].RUN_AT
-                : new Date(latestSettlement[0].RUN_AT);
-            rows.forEach((row) => {
-                const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
-                row.is_pending = gameCreatedAt < settlementRunTime && row.ACTIVE != 1 ? 1 : 0;
-            });
-        } else {
-            rows.forEach((row) => {
-                row.is_pending = 0;
-            });
-        }
-        
+        rows.forEach((row) => { row.is_pending = 0; });
         res.json(rows);
     } catch (error) {
         console.error('Error fetching data:', error);
         return res.status(500).json({ error: 'Error fetching data' });
-    }
-});
-
-// POST assign games to settlement date (InfinityCageX-style)
-router.post('/game_list/daily_settlement/transfer', checkSession, async (req, res) => {
-    const encodedBy = req.session?.user_id;
-    if (!encodedBy) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-    const requestedGameIds = Array.isArray(req.body?.game_ids)
-        ? req.body.game_ids.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0)
-        : [];
-    const uniqueGameIds = Array.from(new Set(requestedGameIds));
-    if (uniqueGameIds.length === 0) {
-        return res.status(400).json({ error: 'At least one game is required.' });
-    }
-
-    const settlementDate = req.body && req.body.settlement_date ? String(req.body.settlement_date).slice(0, 10) : null;
-
-    if (!settlementDate || !isValidDate(settlementDate)) {
-        return res.status(400).json({ error: 'settlement_date (YYYY-MM-DD) is required.' });
-    }
-
-    let connection;
-    try {
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
-
-        const placeholders = uniqueGameIds.map(() => '?').join(',');
-        const [gameRows] = await connection.execute(
-            `SELECT IDNo, ACTIVE FROM game_list WHERE IDNo IN (${placeholders}) AND ACTIVE IN (1, 2, 3)`,
-            uniqueGameIds
-        );
-        const games = gameRows || [];
-        if (games.length === 0) {
-            await connection.rollback();
-            connection.release();
-            return res.status(400).json({ error: 'No eligible games found (need active END GAME, ON GAME, or PENDING).' });
-        }
-        const okIds = games.filter((r) => Number(r.ACTIVE) !== 2).map((r) => r.IDNo);
-        if (okIds.length === 0) {
-            await connection.rollback();
-            connection.release();
-            return res.status(400).json({ error: 'Selected games are not eligible (ON GAME cannot be transferred).' });
-        }
-
-        const okPlaceholders = okIds.map(() => '?').join(',');
-        const [oldSettlementRows] = await connection.execute(
-            `SELECT DISTINCT ds.IDNo
-             FROM daily_settlement_games dsg
-             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-             WHERE ds.ACTIVE = 1
-               AND dsg.GAME_ID IN (${okPlaceholders})`,
-            okIds
-        );
-        const affectedSettlementIds = (oldSettlementRows || []).map((r) => r.IDNo);
-
-        for (const gid of okIds) {
-            await connection.execute(
-                `DELETE dsg
-                 FROM daily_settlement_games dsg
-                 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-                 WHERE dsg.GAME_ID = ?
-                   AND ds.ACTIVE = 1`,
-                [gid]
-            );
-        }
-
-        const [existing] = await connection.execute(
-            `SELECT IDNo
-             FROM daily_settlement
-             WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1
-             ORDER BY RUN_AT DESC, IDNo DESC
-             LIMIT 1
-             FOR UPDATE`,
-            [settlementDate]
-        );
-
-        let settlementId;
-        if (existing.length > 0) {
-            settlementId = existing[0].IDNo;
-        } else {
-            const [insertSettlement] = await connection.execute(
-                `INSERT INTO daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
-                 VALUES (?, NOW(), ?, 'finalized', 1)`,
-                [settlementDate, encodedBy]
-            );
-            settlementId = insertSettlement.insertId;
-        }
-
-        for (const gid of okIds) {
-            await connection.execute(
-                `INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT)
-                 SELECT ?, ?, NOW()
-                 FROM DUAL
-                 WHERE NOT EXISTS (
-                   SELECT 1
-                   FROM daily_settlement_games
-                   WHERE DAILY_SETTLEMENT_ID = ? AND GAME_ID = ?
-                 )`,
-                [settlementId, gid, settlementId, gid]
-            );
-        }
-
-        const idsToSettleAtGameList = games.filter((r) => Number(r.ACTIVE) !== 2).map((r) => r.IDNo);
-        if (idsToSettleAtGameList.length > 0) {
-            const ph2 = idsToSettleAtGameList.map(() => '?').join(',');
-            await connection.execute(`UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE IDNo IN (${ph2})`, idsToSettleAtGameList);
-        }
-
-        await connection.execute(
-            `UPDATE daily_settlement SET ENCODED_BY = ?, STATUS = 'finalized' WHERE IDNo = ?`,
-            [encodedBy, settlementId]
-        );
-
-        const uniqueAffectedSettlementIds = Array.from(new Set(affectedSettlementIds)).filter(
-            (sid) => Number.isInteger(Number(sid)) && Number(sid) > 0
-        );
-        for (const sid of uniqueAffectedSettlementIds) {
-            const [countRows] = await connection.execute(
-                `SELECT COUNT(*) AS cnt FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ?`,
-                [sid]
-            );
-            const childCount = countRows && countRows[0] ? Number(countRows[0].cnt) : 0;
-            if (childCount === 0) {
-                await connection.execute(`DELETE FROM daily_settlement WHERE IDNo = ?`, [sid]);
-            }
-        }
-
-        await connection.commit();
-        connection.release();
-        return res.json({
-            success: true,
-            settlement_date: settlementDate,
-            settlement_id: settlementId,
-            game_count: okIds.length
-        });
-    } catch (err) {
-        if (connection) {
-            try {
-                await connection.rollback();
-            } catch (_) {}
-            connection.release();
-        }
-        console.error('Error transferring settlement assignment:', err);
-        res.status(500).json({ error: 'Error transferring games to settlement date' });
-    }
-});
-
-router.post('/game_list/daily_settlement/release', checkSession, async (req, res) => {
-    const encodedBy = req.session?.user_id;
-    if (!encodedBy) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const requestedGameIds = Array.isArray(req.body?.game_ids)
-        ? req.body.game_ids.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0)
-        : [];
-    const uniqueGameIds = Array.from(new Set(requestedGameIds));
-    if (uniqueGameIds.length === 0) {
-        return res.status(400).json({ error: 'At least one game is required.' });
-    }
-
-    const nowForToday = new Date();
-    const padLocal = (n) => String(n).padStart(2, '0');
-    const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
-
-    let connection;
-    try {
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
-
-        const placeholders = uniqueGameIds.map(() => '?').join(',');
-        const [gameRows] = await connection.execute(
-            `SELECT IDNo FROM game_list WHERE IDNo IN (${placeholders}) AND ACTIVE != 0`,
-            uniqueGameIds
-        );
-        const okIds = (gameRows || []).map((r) => r.IDNo);
-        if (okIds.length === 0) {
-            await connection.rollback();
-            connection.release();
-            return res.status(400).json({ error: 'No matching active games found.' });
-        }
-
-        const okPlaceholders = okIds.map(() => '?').join(',');
-        const [todayLinkedRows] = await connection.execute(
-            `SELECT dsg.GAME_ID
-             FROM daily_settlement_games dsg
-             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-             WHERE ds.ACTIVE = 1
-               AND ds.SETTLEMENT_DATE = ?
-               AND dsg.GAME_ID IN (${okPlaceholders})`,
-            [todayServer, ...okIds]
-        );
-        const linkedToday = new Set((todayLinkedRows || []).map((r) => Number(r.GAME_ID)));
-        if (!okIds.every((id) => linkedToday.has(Number(id)))) {
-            await connection.rollback();
-            connection.release();
-            return res.status(400).json({
-                error: "Games can only be returned to open from today's settled list."
-            });
-        }
-
-        const [oldSettlementRows] = await connection.execute(
-            `SELECT DISTINCT ds.IDNo
-             FROM daily_settlement_games dsg
-             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-             WHERE ds.ACTIVE = 1
-               AND dsg.GAME_ID IN (${okPlaceholders})`,
-            okIds
-        );
-        const affectedSettlementIds = (oldSettlementRows || []).map((r) => r.IDNo);
-
-        for (const gid of okIds) {
-            await connection.execute(
-                `DELETE dsg
-                 FROM daily_settlement_games dsg
-                 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
-                 WHERE dsg.GAME_ID = ?
-                   AND ds.ACTIVE = 1`,
-                [gid]
-            );
-        }
-
-        const ph2 = okIds.map(() => '?').join(',');
-        await connection.execute(
-            `UPDATE game_list SET DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo IN (${ph2})`,
-            [encodedBy, ...okIds]
-        );
-
-        const uniqueAffectedSettlementIds = Array.from(new Set(affectedSettlementIds)).filter(
-            (sid) => Number.isInteger(Number(sid)) && Number(sid) > 0
-        );
-        for (const sid of uniqueAffectedSettlementIds) {
-            const [countRows] = await connection.execute(
-                `SELECT COUNT(*) AS cnt FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ?`,
-                [sid]
-            );
-            const childCount = countRows && countRows[0] ? Number(countRows[0].cnt) : 0;
-            if (childCount === 0) {
-                await connection.execute(`DELETE FROM daily_settlement WHERE IDNo = ?`, [sid]);
-            }
-        }
-
-        await connection.commit();
-        connection.release();
-        return res.json({
-            success: true,
-            game_count: okIds.length
-        });
-    } catch (err) {
-        if (connection) {
-            try {
-                await connection.rollback();
-            } catch (_) {}
-            connection.release();
-        }
-        console.error('Error releasing games from daily settlement:', err);
-        res.status(500).json({ error: 'Error releasing games from daily settlement' });
     }
 });
 
@@ -3047,7 +2893,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
+    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 
@@ -3096,7 +2942,7 @@ router.put('/game_list/remove/:id', async (req, res) => {
 	}
 });
 
-// DELETE GAME LIST (Super Admin only - SOFT DELETE, excludes game_services & daily_settlement_games)
+// DELETE GAME LIST (Super Admin only - SOFT DELETE, excludes game_services)
 router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 	const permissions = req.session?.permissions;
 	if (permissions !== 0) {
@@ -3261,7 +3107,7 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 		}
 		// EXCLUDED: account_ledger for game_services (SERVICES)
 
-		// 5. EXCLUDED: daily_settlement_games
+		// game_services: not soft-deleted here
 
 		// 6. Soft delete game_record
 		await connection.execute(
@@ -3330,7 +3176,10 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			txtReturnRollerNN,
 			txtReturnRollerCC,
 			txtWasCutoff,
-			txtCutoffParentSettlementDate
+			txtCutoffProgramDate,
+			txtCutoffBuyInNN,
+			txtCutoffBuyInCC,
+			txtCutoffLastRolling
 		} = req.body;
 
 		const formattedWinloss = parseFloat(txtWinloss) || 0;
@@ -3363,6 +3212,47 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				) {
 					return res.status(400).json({ error: 'This game cannot be cut off again.' });
 				}
+			}
+
+			const programDate = parseGameListProgramDate(txtCutoffProgramDate);
+			if (!normalizeSettlementDateYmd(programDate)) {
+				return res.status(400).json({ error: 'Program date is required for cut off.' });
+			}
+
+			const buyInNN = parseChipAmount(txtCutoffBuyInNN);
+			const buyInCC = parseChipAmount(txtCutoffBuyInCC);
+			const lastRollingCC = parseChipAmount(txtCutoffLastRolling);
+
+			const connection = await pool.getConnection();
+			try {
+				await connection.beginTransaction();
+				const cutoffResult = await performGameCutoff(connection, {
+					parentGameId: id,
+					encodedBy: editedBy,
+					dateNow: date_now,
+					programDate,
+					buyInNN,
+					buyInCC,
+					lastRollingCC
+				});
+				await connection.commit();
+				return res.json({
+					success: true,
+					message: 'Game ended (Cut Off).',
+					new_game_id: cutoffResult.newGameId
+				});
+			} catch (cutoffErr) {
+				try {
+					await connection.rollback();
+				} catch (rbErr) {
+					console.error('cutoff rollback:', rbErr);
+				}
+				console.error('Error in cutoff change_status:', cutoffErr);
+				const statusCode = cutoffErr.statusCode || 500;
+				const msg = cutoffErr.message || 'Error processing cut off.';
+				return res.status(statusCode).json({ error: msg });
+			} finally {
+				connection.release();
 			}
 		}
 
@@ -3409,34 +3299,8 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			);
 		}
 
-		// END GAME should not auto-settle; keep game eligible for manual settlement flow.
-		if (txtStatus === "1") {
-			await pool.execute(
-				`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
-				[id]
-			);
-		}
-
-		// Cut off parent: link ended game to chosen settlement date (draft batch).
-		if (isCutoffRequest && txtStatus === '1') {
-			let parentSettlementYmd = normalizeSettlementDateYmd(txtCutoffParentSettlementDate);
-			if (!parentSettlementYmd) {
-				parentSettlementYmd = await getSettlementDateYmdForGame(pool, id);
-			}
-			if (parentSettlementYmd) {
-				try {
-					await assignGameToDailySettlement(pool, id, parentSettlementYmd, editedBy, {
-						finalizeDailySettlement: false
-					});
-				} catch (assignErr) {
-					console.error('Cut off parent daily_settlement assign failed:', assignErr);
-				}
-			}
-		}
-
-		// ✅ If game is being closed (status = 1 or 3), insert roller chips return
-		// Status 1 = END GAME (fully settled), Status 3 = PENDING (discrepancy, needs review)
-		if (txtStatus === "1" || txtStatus === "3") {
+		// ✅ If game is being closed (status = 1 or 3), insert roller chips return (skip on CUT OFF)
+		if ((txtStatus === "1" || txtStatus === "3") && !isCutoffRequest) {
 			// Insert roller chips return if provided
 			const returnNNAmount = parseFloat((txtReturnRollerNN || '0').replace(/,/g, '')) || 0;
 			const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
@@ -3582,7 +3446,7 @@ router.get('/game_list/:id/guest_history', async (req, res) => {
 	}
 });
 
-// PENDING resolve — guest fault: additional buy-in only (game stays PENDING)
+// PENDING resolve — guest fault: additional buy-in, then end game (ACTIVE = 1)
 router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
@@ -3658,12 +3522,10 @@ router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 			rollerReturn.inserted ? rollerReturn.recordId : null,
 			buyinResult.buyinRecordIds
 		);
-		const junketLossId = await ensureJunketLossForRollerMissing(pool, gameId, balance, encodedBy, 'Additional Buy-in', remarks);
 
 		res.json({
 			success: true,
-			message: 'Additional buy-in saved. Roller chips returned automatically.',
-			junket_loss_id: junketLossId,
+			message: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
 			pending_roller_resolve: 1,
 			roller_return: rollerReturn
 		});
@@ -3673,14 +3535,34 @@ router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 	}
 });
 
-// PENDING resolve — junket fault: new game buy-in only (pending game stays PENDING)
+router.get('/game_list/pending_resolve/junket_account', async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			`SELECT acc.IDNo AS account_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			 FROM account acc
+			 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.IDNo = ?
+			 LIMIT 1`,
+			[PENDING_JUNKET_RESOLVE_ACCOUNT_ID]
+		);
+		if (!rows.length) {
+			return res.status(404).json({ error: 'Junket account (IDNo -1) is not configured.' });
+		}
+		res.json(rows[0]);
+	} catch (error) {
+		console.error('pending_resolve junket_account:', error);
+		res.status(500).json({ error: error.message || 'Error loading junket account.' });
+	}
+});
+
+// PENDING resolve — junket fault: new game buy-in, then end pending game (ACTIVE = 1)
 router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
 		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
 
 		const pendingGameId = parseInt(req.body.pending_game_id, 10);
-		const accountId = parseInt(req.body.txtAccountCode, 10);
+		const accountId = PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
 		const guestId = null;
 		const gameType = 'LIVE';
 		const commType = 1;
@@ -3691,8 +3573,16 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		const enteredTotal = nnAmount + ccAmount;
 		const transType = 1;
 
-		if (!pendingGameId || !accountId) {
+		if (!pendingGameId) {
 			return res.status(400).json({ error: 'Missing required fields.' });
+		}
+
+		const [junketAccountRows] = await pool.execute(
+			`SELECT acc.IDNo FROM account acc WHERE acc.IDNo = ? LIMIT 1`,
+			[accountId]
+		);
+		if (!junketAccountRows.length) {
+			return res.status(400).json({ error: 'Junket account (IDNo -1) is not configured.' });
 		}
 		if (enteredTotal <= 0) {
 			return res.status(400).json({ error: 'Buy-in amount must be greater than zero.' });
@@ -3718,11 +3608,12 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		}
 
 		const dateNow = new Date();
+		const programDate = formatLocalDateYmd(dateNow);
 		const initialMOP = 'CASH';
 
 		const [newGameResult] = await pool.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, dateNow]
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, dateNow, programDate]
 		);
 		const newGameId = newGameResult.insertId;
 
@@ -3747,7 +3638,7 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 
 		res.json({
 			success: true,
-			message: 'New game created. Roller chips returned on pending game automatically.',
+			message: 'New game created. Pending game ended. Roller chips returned automatically.',
 			new_game_id: newGameId,
 			junket_loss_id: junketLossId,
 			pending_roller_resolve: 2,
@@ -3890,13 +3781,13 @@ router.post('/add_settlement', async (req, res) => {
 			if (txtTransType == 1) {
 				const balRaw = txtSettlementBalance != null && txtSettlementBalance !== '' ? String(txtSettlementBalance) : '0';
 				const currentBalance = parseFloat(balRaw.replace(/,/g, '') || '0') + parseFloat(paymentValue);
-				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString('en-US')} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
-				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else {
-				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString('en-US')} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
-				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
 			const sendAgentPaths = fakeSettleBefore !== 1 || sendTelegramAgent;
@@ -4072,11 +3963,11 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		if (tt === '1') {
 			const balRaw = txtSettlementBalance != null && txtSettlementBalance !== '' ? String(txtSettlementBalance) : '0';
 			const currentBalance = stripMoney(balRaw) + paymentValue;
-			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString()} - 계좌입금\n잔고: ${currentBalance.toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString('en-US')} - 계좌입금\n잔고: ${currentBalance.toLocaleString('en-US')}\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 		} else {
-			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString('en-US')} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 		}
 
 		const editLogLabel = cutoffCtx.isCutoff ? 'End Game / Settlement (Cut Off, Edited)' : 'End Game / Settlement (Edited)';
@@ -4190,6 +4081,142 @@ router.put('/game_list/:id/commission_percentage', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating commission percentage:', err);
 		res.status(500).json({ error: 'Failed to update game rate' });
+	}
+});
+
+// Update game remarks for active games
+router.put('/game_list/:id/remarks', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const raw = req.body && (req.body.remarks != null ? req.body.remarks : req.body.txtRemarks);
+	const remarks = raw != null ? String(raw).trim() : '';
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ error: 'Not authorized to edit remarks.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (remarks.length > 500) {
+		return res.status(400).json({ error: 'Remarks must be 500 characters or less.' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			'SELECT ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			[id]
+		);
+		if (rows.length === 0) {
+			return res.status(404).json({ error: 'Game not found.' });
+		}
+		await pool.execute(
+			'UPDATE game_list SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[remarks || null, req.session.user_id, new Date(), id]
+		);
+		res.json({ success: true, remarks });
+	} catch (err) {
+		console.error('Error updating game remarks:', err);
+		res.status(500).json({ error: 'Failed to update remarks' });
+	}
+});
+
+// Update PROGRAM_DATE (date only) for ACTIVE 1/2/3
+router.put('/game_list/:id/program_date', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const program_date = normalizeSettlementDateYmd(req.body?.program_date);
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ error: 'Not authorized to edit program date.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (!program_date) {
+		return res.status(400).json({ error: 'Invalid program date.' });
+	}
+	let connection;
+	try {
+		const [rows] = await pool.execute(
+			'SELECT ACTIVE, SETTLED, PROGRAM_DATE FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			[id]
+		);
+		if (rows.length === 0) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		const active = Number(rows[0].ACTIVE);
+		if (![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found or not editable.' });
+		}
+		if (Number(rows[0].SETTLED) === 1 && permissions !== 0) {
+			return res.status(403).json({ error: 'Cannot edit program date on a settled game.' });
+		}
+		const currentRaw = rows[0].PROGRAM_DATE;
+		const currentYmd = currentRaw
+			? formatLocalDateYmd(currentRaw instanceof Date ? currentRaw : new Date(currentRaw))
+			: null;
+		if (currentYmd === program_date) {
+			return res.json({ success: true, program_date });
+		}
+		const trading_date = parseProgramDateAsDateTime(program_date);
+		const editedBy = req.session.user_id;
+		const editedDt = new Date();
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+		await connection.execute(
+			'UPDATE game_list SET PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[program_date, editedBy, editedDt, id]
+		);
+		await connection.execute(
+			'UPDATE game_record SET TRADING_DATE = ? WHERE GAME_ID = ?',
+			[trading_date, id]
+		);
+		await connection.commit();
+		res.json({ success: true, program_date });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) { /* ignore */ }
+		}
+		console.error('Error updating program date:', err);
+		res.status(500).json({ error: 'Failed to update program date' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+// Update game type (LIVE / TELEBET) for ACTIVE 1/2/3
+router.put('/game_list/:id/game_type', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const raw = req.body && (req.body.game_type != null ? req.body.game_type : req.body.GAME_TYPE);
+	const gameType = normalizeTelegramGameTypeKey(raw);
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ error: 'Not authorized to edit game type.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (!gameType) {
+		return res.status(400).json({ error: 'Game type must be LIVE or TELEBET.' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			'SELECT GAME_TYPE, ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			[id]
+		);
+		const active = Number(rows?.[0]?.ACTIVE);
+		if (rows.length === 0 || ![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found or not editable.' });
+		}
+		const current = normalizeTelegramGameTypeKey(rows[0].GAME_TYPE) || 'LIVE';
+		if (current === gameType) {
+			return res.json({ success: true, game_type: gameType });
+		}
+		await pool.execute(
+			'UPDATE game_list SET GAME_TYPE = ? WHERE IDNo = ?',
+			[gameType, id]
+		);
+		res.json({ success: true, game_type: gameType });
+	} catch (err) {
+		console.error('Error updating game type:', err);
+		res.status(500).json({ error: 'Failed to update game type' });
 	}
 });
 
@@ -4364,14 +4391,14 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			let text = '';
 			let managementText = ''; // Message for management (without account balance)
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n잔고: ${parseFloat(newTotalBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n잔고: ${parseFloat(newTotalBalance).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 현금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 현금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else if (txtTransType == 3) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 크레딧\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 크레딧\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
 			// Send Telegram messages (when we have agent data)
@@ -4551,22 +4578,22 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				const date_nowTG = new Date().toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const splitLinesKo = [];
-				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
+				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
 				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
+				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const priorBuyinTotal = parseFloat((txtTotalAmountBuyin || '0').toString().replace(/,/g, '')) || 0;
 				const totalBuyin = priorBuyinTotal + grandTotal;
 				const newTotalBalance = totalBalance - depositTotal;
 				const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 				const telegramGameNo = cutoffTelegram.telegramGameNo;
-				const text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinSplitGameLineAgent}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinSplitGameLineMgmt}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinSplitGameLineAgent}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString('en-US')}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString('en-US')}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinSplitGameLineMgmt}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const addBuyinSplitLogLabel = cutoffTelegram.isCutoffContinuation ? 'Add Buy-in (Cut Off)' : 'Add Buy-in';
 				const addBuyinSplitOpts = gamebookTelegramOpts(addBuyinSplitLogLabel, agentCode, agentName, grandTotal, telegramGameNo);
@@ -4666,25 +4693,75 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 	let CashOutDESC = 'Chips Returned'; // TRANSACTION DETAILS
 
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+	`;
+
+	const connection = await pool.getConnection();
+	let gameRecordId;
+	let agentResults = [];
+
 	try {
-		// First insert into game_record table (CAGE_TYPE = 2)
+		await connection.beginTransaction();
+
 		const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		const [result1] = await pool.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		const [result1] = await connection.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		gameRecordId = result1.insertId;
 
-		const gameRecordId = result1.insertId;
-
-		// Second insert into account_ledger table (GAME_ID for direct link)
 		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
+		await connection.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
 
-		// Fetch agent info (also used for cash_transaction)
-		const agentQuery = `
-			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
-			FROM agent
-			JOIN account ON account.AGENT_ID = agent.IDNo
-			WHERE account.ACTIVE = 1 AND account.IDNo = ?
-		`;
-		const [agentResults] = await pool.execute(agentQuery, [txtAccountCode]);
+		if (isTipEnabled(req.body)) {
+			await saveCashoutTips(connection, {
+				gameId: game_id,
+				accountId: txtAccountCode,
+				cashoutId: gameRecordId,
+				rollerAmount: req.body.txtTipRoller,
+				dealerAmount: req.body.txtTipDealer,
+				expectedTotal: chipsReturn,
+				userId: req.session.user_id,
+				dateNow: date_now
+			});
+		}
+
+		const [agentRows] = await connection.execute(agentQuery, [txtAccountCode]);
+		agentResults = agentRows || [];
+
+		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await connection.execute(cashTransactionQuery, [
+				gameRecordId,
+				agentResults[0].agent_id,
+				chipsReturn.toString(),
+				'Game Cash-out',
+				2,
+				`Game - ${game_id}`,
+				req.session.user_id,
+				date_now
+			]);
+		}
+
+		await connection.commit();
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('cashout rollback:', rbErr);
+		}
+		console.error('Error in /game_list/add/cashout:', err);
+		const msg = err && err.message ? err.message : 'Internal Server Error';
+		return res.status(500).send(msg);
+	} finally {
+		connection.release();
+	}
+
+	try {
 
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
@@ -4714,14 +4791,14 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			let text = '';
 			let managementText = '';
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString()} - 계좌입금\n잔고: ${currentBalanceCashout.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 계좌입금\n잔고: ${currentBalanceCashout.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else if (txtTransType == 4) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString()} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
 			if (text !== '' && agentResults.length > 0) {
@@ -4756,38 +4833,21 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			}
 		}
 
-		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
-			const cashTransactionQuery = `
-				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-			`;
-
-			await pool.execute(cashTransactionQuery, [
-				gameRecordId,
-				agentResults[0].agent_id,
-				chipsReturn.toString(),
-				'Game Cash-out',
-				2,
-				`Game - ${game_id}`,
-				req.session.user_id,
-				date_now
-			]);
-		}
-
 		res.redirect('/game_list');
 	} catch (err) {
-		console.error('Error in /game_list/add/cashout:', err);
+		console.error('Error in /game_list/add/cashout (post-commit):', err);
 		res.status(500).send('Internal Server Error');
 	}
 });
 
-// Split cash-out (Cash + Deposit legs) in a single DB transaction — all-or-nothing
+// Split cash-out (Cash + Deposit + Credit legs) in a single DB transaction — all-or-nothing
 router.post('/game_list/add/cashout_split', async (req, res) => {
 	const {
 		game_id,
 		txtAccountCode,
 		txttotal_balance_cashout,
-		txtTotalRolling
+		txtTotalRolling,
+		txtMarkerChipsReturn
 	} = req.body;
 
 	const parseAmt = (v) => {
@@ -4801,8 +4861,11 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	let cashCc = parseAmt(req.body.split_cash_cc);
 	let depNn = parseAmt(req.body.split_dep_nn);
 	let depCc = parseAmt(req.body.split_dep_cc);
+	let creditNn = parseAmt(req.body.split_credit_nn);
+	let creditCc = parseAmt(req.body.split_credit_cc);
 
 	const rollingLimit = parseFloat((txtTotalRolling || '0').replace(/,/g, '')) || 0;
+	const markerBalance = parseFloat((txtMarkerChipsReturn || '0').replace(/,/g, '')) || 0;
 	const sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
 
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
@@ -4810,7 +4873,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
 	}
 
-	if ([cashNn, cashCc, depNn, depCc].some((n) => !Number.isFinite(n) || n < 0)) {
+	if ([cashNn, cashCc, depNn, depCc, creditNn, creditCc].some((n) => !Number.isFinite(n) || n < 0)) {
 		return res.status(400).json({ error: 'Invalid amounts.' });
 	}
 	if (cashNn > 0 && cashNn % 1000 !== 0) {
@@ -4819,18 +4882,25 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	if (depNn > 0 && depNn % 1000 !== 0) {
 		return res.status(400).json({ error: 'NN Deposit must be in thousands.' });
 	}
+	if (creditNn > 0 && creditNn % 1000 !== 0) {
+		return res.status(400).json({ error: 'NN Credit must be in thousands.' });
+	}
 
-	const totalNN = cashNn + depNn;
+	const totalNN = cashNn + depNn + creditNn;
 	const cashLeg = cashNn + cashCc;
 	const depLeg = depNn + depCc;
-	if (cashLeg <= 0 || depLeg <= 0) {
-		return res.status(400).json({ error: 'Both Cash and Deposit must be greater than zero.' });
+	const creditLeg = creditNn + creditCc;
+	const splitGrandTotal = cashLeg + depLeg + creditLeg;
+	if (splitGrandTotal <= 0) {
+		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
 	}
 	if (totalNN > rollingLimit) {
 		return res.status(400).json({ error: 'Total NN exceeds Total Rolling.' });
 	}
+	if (creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
+		return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });
+	}
 
-	const splitGrandTotal = cashLeg + depLeg;
 	const depositLegTotal = depNn + depCc;
 	const currentBalanceAfterSplit =
 		(parseFloat(sanitizedBalanceCashout) || 0) + depositLegTotal;
@@ -4843,53 +4913,88 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	const connection = await pool.getConnection();
+	let gameRecordIdCash = null;
 	try {
 		await connection.beginTransaction();
 
-		const [r1] = await connection.execute(query1, [
-			game_id,
-			date_now,
-			2,
-			0,
-			cashNn,
-			cashCc,
-			1,
-			userId,
-			date_now
-		]);
-		const gameRecordIdCash = r1.insertId;
-		await connection.execute(query2, [
-			txtAccountCode,
-			game_id,
-			1,
-			1,
-			CashOutDESC,
-			cashNn + cashCc,
-			userId,
-			date_now
-		]);
+		if (cashLeg > 0) {
+			const [r1] = await connection.execute(query1, [
+				game_id,
+				date_now,
+				2,
+				0,
+				cashNn,
+				cashCc,
+				1,
+				userId,
+				date_now
+			]);
+			gameRecordIdCash = r1.insertId;
+			await connection.execute(query2, [
+				txtAccountCode,
+				game_id,
+				1,
+				1,
+				CashOutDESC,
+				cashLeg,
+				userId,
+				date_now
+			]);
+		}
 
-		const [r2] = await connection.execute(query1, [
-			game_id,
-			date_now,
-			2,
-			0,
-			depNn,
-			depCc,
-			2,
-			userId,
-			date_now
-		]);
-		await connection.execute(query2, [
-			txtAccountCode,
-			game_id,
-			1,
-			2,
-			CashOutDESC,
-			depNn + depCc,
-			userId,
-			date_now
-		]);
+		if (depLeg > 0) {
+			const [r2] = await connection.execute(query1, [
+				game_id,
+				date_now,
+				2,
+				0,
+				depNn,
+				depCc,
+				2,
+				userId,
+				date_now
+			]);
+			if (!gameRecordIdCash) {
+				gameRecordIdCash = r2.insertId;
+			}
+			await connection.execute(query2, [
+				txtAccountCode,
+				game_id,
+				1,
+				2,
+				CashOutDESC,
+				depLeg,
+				userId,
+				date_now
+			]);
+		}
+
+		if (creditLeg > 0) {
+			const [r3] = await connection.execute(query1, [
+				game_id,
+				date_now,
+				2,
+				0,
+				creditNn,
+				creditCc,
+				4,
+				userId,
+				date_now
+			]);
+			if (!gameRecordIdCash) {
+				gameRecordIdCash = r3.insertId;
+			}
+			await connection.execute(query2, [
+				txtAccountCode,
+				game_id,
+				1,
+				4,
+				CashOutDESC,
+				creditLeg,
+				userId,
+				date_now
+			]);
+		}
 
 		const agentQuery = `
 			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
@@ -4899,8 +5004,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		`;
 		const [agentResults] = await connection.execute(agentQuery, [txtAccountCode]);
 
-		if (agentResults.length > 0 && agentResults[0].agent_id) {
-			const cashChipsReturn = cashNn + cashCc;
+		if (cashLeg > 0 && agentResults.length > 0 && agentResults[0].agent_id) {
 			const cashTransactionQuery = `
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -4908,13 +5012,26 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			await connection.execute(cashTransactionQuery, [
 				gameRecordIdCash,
 				agentResults[0].agent_id,
-				String(cashChipsReturn),
+				String(cashLeg),
 				'Game Cash-out',
 				2,
 				`Game - ${game_id}`,
 				userId,
 				date_now
 			]);
+		}
+
+		if (isTipEnabled(req.body) && gameRecordIdCash) {
+			await saveCashoutTips(connection, {
+				gameId: game_id,
+				accountId: txtAccountCode,
+				cashoutId: gameRecordIdCash,
+				rollerAmount: req.body.txtTipRoller,
+				dealerAmount: req.body.txtTipDealer,
+				expectedTotal: splitGrandTotal,
+				userId,
+				dateNow: date_now
+			});
 		}
 
 		await connection.commit();
@@ -4963,10 +5080,13 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 
 			const cashTotal = cashNn + cashCc;
 			const depTotal = depNn + depCc;
+			const creditTotal = creditNn + creditCc;
 			const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 			const telegramGameNo = cutoffTelegram.telegramGameNo;
-			const text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+			const creditLineKo = creditTotal > 0 ? `\n크레딧: ${creditTotal.toLocaleString('en-US')}` : '';
+			const creditLineMgmt = creditTotal > 0 ? `\n크레딧 Credit: ${creditTotal.toLocaleString('en-US')}` : '';
+			const text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\n현금: ${cashTotal.toLocaleString('en-US')}\n계좌입금: ${depTotal.toLocaleString('en-US')}${creditLineKo}\n총 캐시아웃: ${splitGrandTotal.toLocaleString('en-US')}\n잔고: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString('en-US')}\n계좌입금 Deposit: ${depTotal.toLocaleString('en-US')}${creditLineMgmt}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString('en-US')}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
 
 			const telegramId =
 				telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
@@ -5026,14 +5146,25 @@ router.post('/game_list/add/rolling', async (req, res) => {
 	// Remove commas from NN and CC (default to 0 if not provided)
 	let txtNNamount = (txtNN || '0').split(',').join("");
 	let txtCCamount = (txtCC || '0').split(',').join("");
+	const ccAmount = parseFloat(txtCCamount) || 0;
 
-	const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+	if (ccAmount <= 0) {
+		return res.status(400).json({ error: 'Please enter CC Chips.' });
+	}
+
 	try {
+		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [game_id]);
+		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount);
+		if (!rollingValidation.ok) {
+			return res.status(400).json({ error: rollingValidation.error });
+		}
+
+		const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 		await pool.execute(query, [game_id, date_now, 4, txtNNamount, txtCCamount, req.session.user_id, date_now]);
-		res.redirect('/game_list');
+		return res.json({ success: true });
 	} catch (err) {
 		console.error('Error inserting details', err);
-		res.status(500).send('Error inserting details');
+		return res.status(500).json({ error: 'Error inserting details' });
 	}
 });
 
@@ -5076,7 +5207,26 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 	const nnAmount = parseFloat((txtNN || '0').toString().replace(/,/g, '')) || 0;
 	const ccAmount = parseFloat((txtCC || '0').toString().replace(/,/g, '')) || 0;
 
+	if (ccAmount <= 0) {
+		return res.status(400).json({ error: 'Please enter CC Chips.' });
+	}
+
 	try {
+		const [existingRows] = await pool.execute(
+			'SELECT GAME_ID FROM game_record WHERE IDNo = ? AND CAGE_TYPE = 4 AND ACTIVE != 0',
+			[recordId]
+		);
+		if (existingRows.length === 0) {
+			return res.status(404).json({ error: 'Rolling record not found' });
+		}
+
+		const gameId = existingRows[0].GAME_ID;
+		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
+		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount, { recordIdToReplace: recordId });
+		if (!rollingValidation.ok) {
+			return res.status(400).json({ error: rollingValidation.error });
+		}
+
 		const query = `
 			UPDATE game_record
 			SET NN_CHIPS = ?, CC_CHIPS = ?
@@ -5206,11 +5356,12 @@ router.get("/game_record/:id", checkSession, async (req, res) => {
 // GET GAME RECORD
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 
 					JOIN agency ON agency.IDNo = agent.AGENCY 
+					LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
 					JOIN game_record ON game_record.GAME_ID = game_list.IDNo 
 					WHERE game_record.ACTIVE != 0 AND game_list.ACTIVE != 0 AND  game_record.GAME_ID = ?
 					ORDER BY game_list.IDNo ASC`;
@@ -5457,6 +5608,9 @@ router.put('/game_record/remove/:id', checkSession, async (req, res) => {
 				'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
 				[req.session.user_id, new Date(), id]
 			);
+
+			await archiveTipsForCashout(pool, id, req.session.user_id, date_now);
+
 			return res.send('Cash out record deleted successfully');
 		}
 

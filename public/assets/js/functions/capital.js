@@ -1,3 +1,42 @@
+function fmtCapitalAmount(value, direction) {
+    if (window.AmountFormat) {
+        return window.AmountFormat.formatDirectionalAmount(value, direction, { html: true, showPositiveSign: direction === 'in' });
+    }
+    const n = Math.abs(parseFloat(value) || 0);
+    if (direction === 'out') return '<span class="text-danger">(' + n.toLocaleString('en-US') + ')</span>';
+    if (direction === 'in') return '<span class="text-success">+' + n.toLocaleString('en-US') + '</span>';
+    return n.toLocaleString('en-US');
+}
+
+function fmtCapitalSigned(value) {
+    if (window.fmtSigned) return window.fmtSigned(value);
+    const n = parseFloat(value) || 0;
+    return n.toLocaleString('en-US');
+}
+
+function inferCapitalRemarksSource(row) {
+    if (row.REMARKS_SOURCE) return row.REMARKS_SOURCE;
+    if (row.CATEGORY_ID > 0 && row.expense_description != null) return 'junket_house_expense';
+    if (row.CAGE_TYPE != null || (row.GAME_ID != null && row.GAME_ID !== '')) return 'game_record';
+    if (row.ledger_amount != null || row.comms_description) return 'account_ledger';
+    if (row.NN_CHIPS != null || row.TOTAL_CHIPS != null) return 'junket_total_chips';
+    return 'junket_capital';
+}
+
+function renderCapitalRemarksCell(row, displayText, suffixHtml) {
+    if (!window.RemarksEditor || !row.IDNo) {
+        return (displayText || '') + (suffixHtml || '');
+    }
+    const source = inferCapitalRemarksSource(row);
+    const editText = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : (displayText || '');
+    return window.RemarksEditor.renderCell(editText, {
+        source: source,
+        recordId: row.IDNo,
+        displayText: displayText || '',
+        suffixHtml: suffixHtml || ''
+    });
+}
+
 function reloadData() {
     // Kunin ang value ng date range mula sa Flatpickr
     const dateRange = $('#main-daterange').val();
@@ -121,11 +160,13 @@ function reloadData() {
                 var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
 
                  // Prepare REMARKS with GAME_ID if applicable
-                 var remarks = row.REMARKS || '';
+                 var remarksText = row.REMARKS || '';
+                 var remarksSuffix = '';
                  if ((row.TRANSACTION_ID == 1 || row.TRANSACTION_ID == 2) && row.GAME_ID) {
                      const gameId = row.GAME_ID;
-                     remarks += ` <a href="/game_list?id=${gameId}"  title="Go to Game" target="_blank">Game-${gameId}</a>`;
+                     remarksSuffix = ` <a href="/game_list?id=${gameId}"  title="Go to Game" target="_blank">Game-${gameId}</a>`;
                  }
+                 var remarks = renderCapitalRemarksCell(row, remarksText, remarksSuffix);
 
                 // Check NN_CHIPS, PAYMENT, IOU, or AMOUNT with labels for combinedChipsText
                 var nnChips = row.NN_CHIPS !== null ? row.NN_CHIPS : 0;
@@ -133,24 +174,23 @@ function reloadData() {
                 var IOU = row.TRANSACTION_ID === 11 ? (row.ledger_amount !== null ? row.ledger_amount : 0) : 0;  // Cash IOU for TRANSACTION_ID 11
 
                 // Determine which value to display in combinedChipsText with labels
-                if (nnChips > 0 && row.capital_description == '<span class="css-red">Chips Buy-in</span>') { // Show NN-Chips if it's greater than 0
-                    combinedChipsText = `NN-Chips : <span style="color: red;">-${parseFloat(nnChips).toLocaleString()}</span>`; // Red font for NN-Chips
-                } 
-                else if (nnChips > 0 && row.capital_description == '<span class="css-red">Chips Return</span>') { // Show NN-Chips if it's greater than 0
-                    combinedChipsText = `NN-Chips : <span style="color: green;">+${parseFloat(nnChips).toLocaleString()}</span>`; // Red font for NN-Chips
-                }else if (nnChips > 0) { // Show NN-Chips if it's greater than 0
-                    combinedChipsText = `NN-Chips : <span style="color: red;">-${parseFloat(nnChips).toLocaleString()}</span>`; // Red font for NN-Chips
-                } else if (comms > 0) { // Show PAYMENT if it's greater than 0
-                    combinedChipsText = `Cash Out :<span style="color: red;">-${parseFloat(comms).toLocaleString()}</span>`;
-                } else if (IOU > 0) { // Show IOU only if it's greater than 0
-                    combinedChipsText = `Credit Cash :\n${IOU.toLocaleString()}`;
-                } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) { // Junket expense: AMOUNT column shows "Junket Expense"; TYPE column shows category (Supplies, Others, Car, etc.)
-                    const absAmount = Math.abs(parseFloat(row.capital_amount));
-                    combinedChipsText = `Junket Expense :<span style="color: red;">-${absAmount.toLocaleString()}</span>`;
+                if (nnChips > 0 && row.capital_description == '<span class="css-red">Chips Buy-in</span>') {
+                    combinedChipsText = `NN-Chips : ${fmtCapitalAmount(nnChips, 'out')}`;
+                }
+                else if (nnChips > 0 && row.capital_description == '<span class="css-red">Chips Return</span>') {
+                    combinedChipsText = `NN-Chips : ${fmtCapitalAmount(nnChips, 'in')}`;
+                } else if (nnChips > 0) {
+                    combinedChipsText = `NN-Chips : ${fmtCapitalAmount(nnChips, 'out')}`;
+                } else if (comms > 0) {
+                    combinedChipsText = `Cash Out : ${fmtCapitalAmount(comms, 'out')}`;
+                } else if (IOU > 0) {
+                    combinedChipsText = `Credit Cash :\n${window.fmtAmt ? window.fmtAmt(IOU) : IOU.toLocaleString('en-US')}`;
+                } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) {
+                    combinedChipsText = `Junket Expense : ${fmtCapitalAmount(row.capital_amount, 'out')}`;
                 } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-in</span>') {
-                    combinedChipsText = `Cash Balance :\n<span style="color: green;">+${parseFloat(cbal).toLocaleString()}</span>`;
+                    combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'in')}`;
                 } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-out</span>') {
-                    combinedChipsText = `Cash Balance :\n<span style="color: red;">-${parseFloat(cbal).toLocaleString()}</span>`;
+                    combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'out')}`;
                 } else {
                     combinedChipsText = ''; // Empty string if no valid data to display
                 }
@@ -168,7 +208,7 @@ function reloadData() {
                 }
             });
 
-            $('.total_balance').text('P' + (total_in - total_out).toLocaleString());
+            $('.total_balance').text('P' + (total_in - total_out).toLocaleString('en-US'));
         },
         error: function (xhr, status, error) {
             console.error('Error fetching data:', error);
@@ -368,7 +408,7 @@ function computeTotalCashIn() {
                 }
             });
             
-            $('#cash-in-total').text(`₱${totalCashIn.toLocaleString()}`);
+            $('#cash-in-total').text(`₱${totalCashIn.toLocaleString('en-US')}`);
             // console.log('Updated total cash-in:', totalCashIn);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
@@ -410,7 +450,7 @@ function computeTotalCashOut() {
                 }
             });
             
-            $('#cash-out-total').text(`₱${totalCashOut.toLocaleString()}`);
+            $('#cash-out-total').text(`₱${totalCashOut.toLocaleString('en-US')}`);
             // console.log('Updated total cash-out:', totalCashOut);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
@@ -511,8 +551,9 @@ function loadCashInData() {
                     .map(row => {
                         const typeText = row.CATEGORY || 'Capital In';
                         const accountName = row.AGENT_NAME || '-';
-                        const amount = parseFloat(row.AMOUNT || 0).toLocaleString();
-                        const remarks = row.REMARKS || '';
+                        const amount = window.fmtAmt ? window.fmtAmt(row.AMOUNT) : parseFloat(row.AMOUNT || 0).toLocaleString('en-US');
+                        const remarksDisplay = row.REMARKS || '';
+                        const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
                         const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
                         const serviceTransactionId = row.SERVICE_TRANSACTION_ID != null
@@ -523,10 +564,13 @@ function loadCashInData() {
                             typeText,
                             accountName,
                             amount,
-                            remarks,
+                            remarksDisplay,
                             encodedBy,
                             formattedDate,
-                            serviceTransactionId
+                            serviceTransactionId,
+                            row.IDNo,
+                            row.REMARKS_SOURCE || '',
+                            remarksEdit
                         ];
                     });
             }
@@ -537,8 +581,23 @@ function loadCashInData() {
             { "className": "text-end" },
             { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" }
+            { "className": "text-center" },
+            { "visible": false },
+            { "visible": false },
+            { "visible": false }
         ],
+        "columnDefs": [{
+            targets: 3,
+            render: function (data, type, row) {
+                if (type !== 'display') return data;
+                if (!window.RemarksEditor || !row[8]) return data || '';
+                return window.RemarksEditor.renderCell(row[9] != null ? row[9] : (data || ''), {
+                    source: row[8],
+                    recordId: row[7],
+                    displayText: data || ''
+                });
+            }
+        }],
         "createdRow": function (row, data) {
             const serviceTransactionId = data && data.length > 6 ? parseInt(data[6], 10) : null;
             if (serviceTransactionId === 3) {
@@ -620,8 +679,9 @@ function loadCashOutData() {
                     .map(row => {
                         const typeText = row.CATEGORY || 'Capital Out';
                         const accountName = row.AGENT_NAME || '-';
-                        const amount = parseFloat(row.AMOUNT || 0).toLocaleString();
-                        const remarks = row.REMARKS || '';
+                        const amount = window.fmtOut ? window.fmtOut(row.AMOUNT) : parseFloat(row.AMOUNT || 0).toLocaleString('en-US');
+                        const remarksDisplay = row.REMARKS || '';
+                        const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
                         const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
 
@@ -629,9 +689,12 @@ function loadCashOutData() {
                             typeText,
                             accountName,
                             amount,
-                            remarks,
+                            remarksDisplay,
                             encodedBy,
-                            formattedDate
+                            formattedDate,
+                            row.IDNo,
+                            row.REMARKS_SOURCE || '',
+                            remarksEdit
                         ];
                     });
             }
@@ -642,8 +705,23 @@ function loadCashOutData() {
             { "className": "text-end" },
             { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" }
+            { "className": "text-center" },
+            { "visible": false },
+            { "visible": false },
+            { "visible": false }
         ],
+        "columnDefs": [{
+            targets: 3,
+            render: function (data, type, row) {
+                if (type !== 'display') return data;
+                if (!window.RemarksEditor || !row[7]) return data || '';
+                return window.RemarksEditor.renderCell(row[8] != null ? row[8] : (data || ''), {
+                    source: row[7],
+                    recordId: row[6],
+                    displayText: data || ''
+                });
+            }
+        }],
         "responsive": true,
         "language": {
             "emptyTable": "No cash-out transactions found",
@@ -706,7 +784,7 @@ function chipsTransactionComputation() {
             
             // Net chips = Buy-in + Rolling - Return
             const netChips = totalChipsBuyIn + totalChipsRolling - totalChipsReturn;
-            $('#chips-transaction-total').text(`₱${netChips.toLocaleString()}`);
+            $('#chips-transaction-total').text(`₱${netChips.toLocaleString('en-US')}`);
             // console.log('Updated net chips (Buy-in minus Return):', netChips);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
@@ -775,7 +853,7 @@ function updateProgressBars() {
     
     // console.log('Progress bars updated:', {
     //     cashIn: cashInPercent.toFixed(2) + '%',
-    //     cashOut: cashOutPercent.toFixed(2) + '% (based on Cash-In: ' + cashInMax.toLocaleString() + ')',
+    //     cashOut: cashOutPercent.toFixed(2) + '% (based on Cash-In: ' + cashInMax.toLocaleString('en-US') + ')',
     //     chips: chipsPercent.toFixed(2) + '%',
     //     maxValueForCashInChips: maxValueForCashInChips,
     //     cashInMax: cashInMax
@@ -854,7 +932,11 @@ function loadChipsTransaction() {
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
                     const totalChips = parseFloat(row.TOTAL_CHIPS) || 0;
                     const amountValue = isChipsRolling ? (totalChips || nnChips) : nnChips;
-                    const amount = amountValue.toLocaleString();
+                    const amount = isChipsBuyIn
+                        ? (window.fmtOut ? window.fmtOut(amountValue) : amountValue.toLocaleString('en-US'))
+                        : (isChipsReturn
+                            ? (window.fmtIn ? window.fmtIn(amountValue) : amountValue.toLocaleString('en-US'))
+                            : (window.fmtAmt ? window.fmtAmt(amountValue) : amountValue.toLocaleString('en-US')));
                     const type = isChipsBuyIn
                         ? '<span class="css-red">Chips Buy-in</span>'
                         : (isChipsRolling
@@ -867,7 +949,7 @@ function loadChipsTransaction() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                        renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1032,7 +1114,11 @@ function loadNNChipsHistory() {
 
                     // Use NN_CHIPS exclusively
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
-                    const amount = nnChips.toLocaleString();
+                    const amount = isChipsBuyIn
+                        ? (window.fmtOut ? window.fmtOut(nnChips) : nnChips.toLocaleString('en-US'))
+                        : (isChipsCashout
+                            ? (window.fmtIn ? window.fmtIn(nnChips) : nnChips.toLocaleString('en-US'))
+                            : (window.fmtAmt ? window.fmtAmt(nnChips) : nnChips.toLocaleString('en-US')));
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">NN Chips Buy-in</span>'
             : (isChipsCashout
@@ -1043,7 +1129,7 @@ function loadNNChipsHistory() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                        renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1143,7 +1229,11 @@ function loadCCChipsHistory() {
 
                     // Use CC_CHIPS exclusively
                     const ccChips = parseFloat(row.CC_CHIPS) || 0;
-                    const amount = ccChips.toLocaleString();
+                    const amount = isChipsBuyIn
+                        ? (window.fmtOut ? window.fmtOut(ccChips) : ccChips.toLocaleString('en-US'))
+                        : (row.TRANSACTION_ID == 2
+                            ? (window.fmtIn ? window.fmtIn(ccChips) : ccChips.toLocaleString('en-US'))
+                            : (window.fmtAmt ? window.fmtAmt(ccChips) : ccChips.toLocaleString('en-US')));
             const type = isChipsBuyIn
                 ? '<span class="badge-cashin">CC Chips Buy-in</span>'
                 : (row.TRANSACTION_ID == 2
@@ -1154,7 +1244,11 @@ function loadCCChipsHistory() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        '', // Empty remarks since junket_total_chips doesn't have REMARKS field
+                        renderCapitalRemarksCell(
+                            Object.assign({}, row, { REMARKS_SOURCE: 'junket_total_chips' }),
+                            row.REMARKS || '',
+                            row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''
+                        ),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1288,16 +1382,14 @@ function loadJunketExpenseData() {
                     // Filter only junket expense rows (CATEGORY_ID > 0) with non-zero amount (stored as positive or negative)
                     return row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0;
                 }).map(function(row) {
-                    let amount = Math.abs(parseFloat(row.capital_amount || 0)).toLocaleString();
-                    // Use dynamic category name from expense_category (row.CATEGORY from API)
                     const categoryName = (row.CATEGORY && String(row.CATEGORY).trim()) ? row.CATEGORY : 'N/A';
                     const description = `<span class="css-blue1">${categoryName}</span>`;
                     
                     return [
                         row.ENCODED_BY_NAME || 'N/A',
-                        `<span style="color: red;">-${amount}</span>`,
+                        fmtCapitalAmount(row.capital_amount, 'out'),
                         description,
-                        row.REMARKS || '',
+                        renderCapitalRemarksCell(row, row.REMARKS || ''),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];
@@ -1556,7 +1648,7 @@ function fetchTotalJunketExpense() {
                 }
             });
 
-            $('#junket-expense-total').text(`₱${totalJunketExpense.toLocaleString()}`);
+            $('#junket-expense-total').text(`₱${totalJunketExpense.toLocaleString('en-US')}`);
             // console.log('Updated total junket expense:', totalJunketExpense);
         },
         error: function(xhr, status, error) {

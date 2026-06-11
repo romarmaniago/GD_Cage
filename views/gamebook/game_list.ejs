@@ -16,8 +16,6 @@
 										<a href="/dashboard"><span class="fa fa-home"></span></a>
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
-										<a href="#" id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
-										<a href="#" id="btn-breadcrumb-open-pool" class="d-none">Open</a>
 									  </div>								 
 									</div>
 									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
@@ -36,46 +34,41 @@
 											<div class="filter-mode-container">
 												<div class="d-flex align-items-center gap-3">
 													<label class="mb-0">
-														<input type="radio" name="filter-mode" value="settlement" checked id="filter-settlement">
-														<span class="ms-1">Settlement Date</span>
+														<input type="radio" name="filter-mode" value="program" checked id="filter-program">
+														<span class="ms-1"><%= __('gamelist.program_date') %></span>
 													</label>
 													<label class="mb-0">
 														<input type="radio" name="filter-mode" value="daterange" id="filter-daterange">
-														<span class="ms-1">Date Range</span>
+														<span class="ms-1"><%= __('gamelist.filter_game_start') %></span>
 													</label>
 												</div>
 											</div>
 											
-											<!-- Settlement Date Picker -->
-											<div id="settlement-date-wrapper" class="day-selector-wrapper mb-3">
+											<!-- Program Date Picker -->
+											<div id="program-date-wrapper" class="day-selector-wrapper mb-3">
 											<%
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
 												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : todayStr;
-												const queueDueDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
-												const maxPickerDate = (typeof maxSettlementDate !== 'undefined' && maxSettlementDate != null && String(maxSettlementDate).trim() !== '')
-													? maxSettlementDate
-													: '';
+												const initialDate = typeof initialProgramDate !== 'undefined' ? initialProgramDate : todayStr;
 											%>
-												<div class="settlement-picker-row">
-													<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= queueDueDate %>" data-initial-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>' data-draft-dates='<%= typeof draftDatesForMonth !== "undefined" ? JSON.stringify(draftDatesForMonth) : "[]" %>'>
-														<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+												<div class="program-date-picker-row">
+													<div class="input-group" data-today="<%= todayStr %>" data-initial-program-date="<%= initialDate %>">
+														<button type="button" id="btn-program-date-prev" class="btn btn-outline-secondary" title="Previous Date">
 															<i class="fa fa-chevron-left"></i>
 														</button>
-														<input type="text" id="settlement-range-picker" class="form-control text-center" placeholder="Settlement date range" autocomplete="off" />
-														<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+														<input type="text" id="program-date-range-picker" class="form-control text-center" placeholder="Program date range" autocomplete="off" />
+														<button type="button" id="btn-program-date-next" class="btn btn-outline-secondary" title="Next Date">
 															<i class="fa fa-chevron-right"></i>
 														</button>
 													</div>
-													<span id="settlement-subview-indicator" class="settlement-subview-badge" role="button" tabindex="0" title="Click to switch Open / Settled when viewing today"></span>
 												</div>
 											</div>
 											
-											<!-- Date Range Picker -->
+											<!-- Game Start Picker -->
 											<div id="daterange-wrapper" class="day-selector-wrapper mb-3" style="display: none;">
 												<div class="input-group">
-													<input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+													<input type="text" id="daterange-picker" class="form-control text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
 												</div>
 											</div>
 										</div>
@@ -87,13 +80,16 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-center game-start-th">
+												<th class="d-none d-sm-table-cell text-start col-program-date program-date-th">
 													<span class="game-list-select-all-slot">
 														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
 													</span>
+													<span class="program-date-th-label"><%= __('gamelist.program_date_col') %></span>
+												</th>
+												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-center col-type">
 													<%= __('gamelist.type') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
@@ -103,7 +99,7 @@
 												<%= __('gamelist.acct_no') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-guest">
-												Guest
+												<%= __('gamelist.guest') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin">
 												<%= __('gamelist.buyin') %>
@@ -145,7 +141,7 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="5">
+											<th colspan="6">
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
@@ -175,24 +171,12 @@
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 				<script>
 					document.addEventListener('DOMContentLoaded', () => {
-						const wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+						const wrapper = document.querySelector('#program-date-wrapper .input-group');
 						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
 						const initialPickerDate = wrapper
-							? (wrapper.getAttribute('data-initial-settlement-date') || wrapper.getAttribute('data-today') || '')
+							? (wrapper.getAttribute('data-initial-program-date') || wrapper.getAttribute('data-today') || '')
 							: '';
-						window.selectedSettlementDate = initialPickerDate || todayStr || '';
-						var settledDates = [];
-						var draftDates = [];
-						try {
-							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
-							settledDates = (raw ? JSON.parse(raw) : []).map(function (d) { return String(d).slice(0, 10); });
-							window.settledDatesForMonth = settledDates;
-						} catch (e) {}
-						try {
-							var draftRaw = wrapper ? wrapper.getAttribute('data-draft-dates') : '';
-							draftDates = (draftRaw ? JSON.parse(draftRaw) : []).map(function (d) { return String(d).slice(0, 10); });
-							window.draftDatesForMonth = draftDates;
-						} catch (e) {}
+						window.selectedProgramDate = initialPickerDate || todayStr || '';
 					});
 				</script>
 
@@ -216,6 +200,7 @@
 
 .filter-mode-container label span {
 	font-size: 14px;
+	text-transform: none;
 }
 
 /* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
@@ -228,7 +213,7 @@
 	width: 320px;     /* Increased width to accommodate buttons */
 }
 
-#settlement-date-wrapper .settlement-picker-row {
+#program-date-wrapper .program-date-picker-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -237,89 +222,63 @@
 	max-width: 100%;
 }
 
-/* Settlement block: fixed 430px (wag palakihin ng mahaba ang range text / flex) */
-#settlement-date-wrapper.day-selector-wrapper {
-	width: 430px;
-	max-width: 430px;
+/* Program Date block: same width as Game Start picker */
+#program-date-wrapper.day-selector-wrapper {
+	width: 320px;
+	max-width: 320px;
 	min-width: 0;
 	box-sizing: border-box;
 }
 
-#settlement-date-wrapper .input-group {
+#program-date-wrapper .input-group {
 	flex: 1 1 0;
 	min-width: 0;
 	max-width: 100%;
 }
 
-#settlement-date-wrapper #settlement-range-picker,
-#settlement-date-wrapper .input-group input.flatpickr-input.form-control,
-#settlement-date-wrapper .input-group input.flatpickr-alt-input {
+#program-date-wrapper #program-date-range-picker,
+#program-date-wrapper .input-group input.flatpickr-input.form-control,
+#program-date-wrapper .input-group input.flatpickr-alt-input {
 	min-width: 0;
 	max-width: 100%;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-/* Kapag multi-day ang settlement range: itago prev/next at Open/Settled badge */
-#settlement-date-wrapper.settlement-multi-day-search #btn-settlement-prev,
-#settlement-date-wrapper.settlement-multi-day-search #btn-settlement-next,
-#settlement-date-wrapper.settlement-multi-day-search #settlement-subview-indicator {
+/* Multi-day program date range: same outer width (320px); arrows hidden, input fills full bar */
+#program-date-wrapper.program-date-multi-day-search #btn-program-date-prev,
+#program-date-wrapper.program-date-multi-day-search #btn-program-date-next {
 	display: none !important;
 }
 
-#settlement-date-wrapper.settlement-multi-day-search .settlement-picker-row {
-	justify-content: flex-start;
-}
-#settlement-date-wrapper.settlement-multi-day-search .input-group {
-	flex: 0 0 auto;
-	width: calc(430px - 10px - 106px);
+#program-date-wrapper.program-date-multi-day-search .input-group {
+	flex: 1 1 auto;
+	width: 100%;
 	max-width: 100%;
-	box-sizing: border-box;
 }
 
-#settlement-subview-indicator.settlement-subview-badge {
-	cursor: pointer;
+#program-date-wrapper.program-date-multi-day-search #program-date-range-picker,
+#program-date-wrapper.program-date-multi-day-search .input-group input.flatpickr-alt-input {
+	font-size: 0.82rem;
+	padding-left: 0.35rem;
+	padding-right: 0.35rem;
 }
 
-.settlement-subview-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 86px;
-	padding: 6px 10px;
-	border-radius: 999px;
-	border: 1px solid #d0d7e2;
-	background: #f8f9fb;
-	color: #4a5568;
-	font-size: 12px;
-	font-weight: 600;
-	line-height: 1;
-	letter-spacing: 0.2px;
+.game-list-roller-chips-banner {
+	background: #e0f2fe;
+	border: 1px solid #7dd3fc;
+	color: #0369a1;
 }
 
-.settlement-subview-badge.is-open {
-	background: #fff7ed;
-	border-color: #fed7aa;
-	color: #c2410c;
+.game-list-roller-chips-banner .btn-outline-secondary {
+	border-color: #38bdf8;
+	color: #0369a1;
 }
 
-.settlement-subview-badge.is-settled {
-	background: #ecfdf3;
-	border-color: #bbf7d0;
-	color: #166534;
-}
-
-.settlement-subview-badge.is-range {
-	min-width: 0;
-	max-width: 280px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	background: #eff6ff;
-	border-color: #bfdbfe;
-	color: #1e40af;
-	font-size: 11px;
-	font-weight: 600;
+.game-list-roller-chips-banner .btn-outline-secondary:hover {
+	background: #bae6fd;
+	border-color: #0ea5e9;
+	color: #0c4a6e;
 }
 
 .breadcrumb1.flat a.breadcrumb-crumb-armed,
@@ -351,8 +310,57 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 	display: inline-flex;
 }
 
+#game_list-tbl th.col-program-date,
+#game_list-tbl td.col-program-date,
+#game_list-tbl th.col-game-start,
+#game_list-tbl td.col-game-start {
+	text-align: left !important;
+	width: 1%;
+	white-space: nowrap;
+	padding-left: 10px !important;
+}
+
+/* Data cells: tight right padding */
+#game_list-tbl td.col-program-date,
+#game_list-tbl td.col-game-start {
+	padding-right: 6px !important;
+}
+
+/* Header: reserve space for DataTables sort arrows (default needs 26px) */
+#game_list-tbl th.col-program-date,
+#game_list-tbl th.col-game-start {
+	padding-right: 26px !important;
+}
+
+#game_list-tbl .program-date-link {
+	cursor: pointer;
+	text-decoration: none !important;
+}
+
+#game_list-tbl .program-date-link:hover,
+#game_list-tbl .program-date-link:focus {
+	text-decoration: none !important;
+}
+
+#game_list-tbl td.col-program-date input.program-date-inline-edit {
+	width: 7.5rem;
+	min-width: 7.5rem;
+	padding: 2px 6px;
+	font-size: inherit;
+}
+
+#game_list-tbl td.col-program-date input.program-date-inline-edit.d-none {
+	display: none !important;
+}
+
+.program-date-th,
 .game-start-th {
 	white-space: nowrap;
+}
+
+.program-date-th-label,
+.game-start-th-label {
+	vertical-align: middle;
 }
 
 .game-list-select-all-slot {
@@ -373,10 +381,6 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	width: 15px;
 	height: 15px;
 	cursor: pointer;
-	vertical-align: middle;
-}
-
-.game-start-th-label {
 	vertical-align: middle;
 }
 
@@ -411,8 +415,8 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.day-selector-wrapper #btn-settlement-prev,
-.day-selector-wrapper #btn-settlement-next {
+.day-selector-wrapper #btn-program-date-prev,
+.day-selector-wrapper #btn-program-date-next {
 	min-width: 42px;
 	padding: 0.5rem 0.75rem;
 	border: none;
@@ -427,34 +431,34 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.day-selector-wrapper #btn-settlement-next {
+.day-selector-wrapper #btn-program-date-next {
 	border-right: none;
 	border-left: 1px solid #e9ecef;
 }
 
-.day-selector-wrapper #btn-settlement-prev:hover:not(:disabled),
-.day-selector-wrapper #btn-settlement-next:hover:not(:disabled) {
+.day-selector-wrapper #btn-program-date-prev:hover:not(:disabled),
+.day-selector-wrapper #btn-program-date-next:hover:not(:disabled) {
 	background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
 	color: #ffffff;
 	transform: translateY(-1px);
 	box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
 }
 
-.day-selector-wrapper #btn-settlement-prev:active:not(:disabled),
-.day-selector-wrapper #btn-settlement-next:active:not(:disabled) {
+.day-selector-wrapper #btn-program-date-prev:active:not(:disabled),
+.day-selector-wrapper #btn-program-date-next:active:not(:disabled) {
 	background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
 	transform: translateY(0);
 	box-shadow: 0 2px 4px rgba(13, 110, 253, 0.4);
 }
 
-.day-selector-wrapper #btn-settlement-prev:focus,
-.day-selector-wrapper #btn-settlement-next:focus {
+.day-selector-wrapper #btn-program-date-prev:focus,
+.day-selector-wrapper #btn-program-date-next:focus {
 	outline: none;
 	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 
-.day-selector-wrapper #btn-settlement-prev:disabled,
-.day-selector-wrapper #btn-settlement-next:disabled {
+.day-selector-wrapper #btn-program-date-prev:disabled,
+.day-selector-wrapper #btn-program-date-next:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
 	pointer-events: none;
@@ -463,7 +467,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	box-shadow: none;
 }
 
-.day-selector-wrapper #settlement-range-picker {
+.day-selector-wrapper #program-date-range-picker {
 	border: none;
 	text-align: center;
 	font-weight: 600;
@@ -483,16 +487,16 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	text-decoration: underline;
 }
 
-.day-selector-wrapper #settlement-range-picker:focus {
+.day-selector-wrapper #program-date-range-picker:focus {
 	outline: none;
 	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 
-.day-selector-wrapper #settlement-range-picker.flatpickr-input {
+.day-selector-wrapper #program-date-range-picker.flatpickr-input {
 	cursor: pointer;
 }
 
-/* Date range picker styling - same as settlement date picker */
+/* Date range picker styling - same as program date picker */
 .day-selector-wrapper #daterange-picker {
 	border: none;
 	text-align: center;
@@ -575,7 +579,38 @@ th.col-winloss {
     font-weight: 600;
 }
 
-/* ACCT No, Guest — equal column width */
+/* TYPE — compact column */
+#game_list-tbl th.col-type,
+#game_list-tbl td.col-type {
+	width: 68px !important;
+	min-width: 68px !important;
+	max-width: 68px !important;
+	box-sizing: border-box;
+	text-align: center !important;
+	padding-left: 6px !important;
+	padding-right: 6px !important;
+	white-space: nowrap;
+}
+
+#game_list-tbl td.col-type .css-blue,
+#game_list-tbl td.col-type .css-red,
+#game_list-tbl td.col-type .js-game-type-btn {
+	min-width: 0 !important;
+	background-color: transparent !important;
+	padding: 0 !important;
+	height: auto !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+}
+
+#game_list-tbl td.col-type .js-game-type-btn:hover,
+#game_list-tbl td.col-type .js-game-type-btn:focus,
+#game_list-tbl td.col-type .js-game-type-btn:active {
+	background-color: transparent !important;
+	box-shadow: none !important;
+}
+
+/* ACCT No, Guest — equal column width + truncate long text */
 #game_list-tbl th.col-acct-no,
 #game_list-tbl td.col-acct-no,
 #game_list-tbl th.col-guest,
@@ -584,6 +619,29 @@ th.col-winloss {
 	min-width: 115px !important;
 	max-width: 115px !important;
 	box-sizing: border-box;
+}
+
+#game_list-tbl td.col-acct-no,
+#game_list-tbl td.col-guest {
+	overflow: hidden;
+}
+
+#game_list-tbl td.col-acct-no .game-list-cell-truncate,
+#game_list-tbl td.col-guest .game-list-cell-truncate {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#game_list-tbl td.col-acct-no .game-list-acct-link,
+#game_list-tbl td.col-guest .game-list-guest-link {
+	display: block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 #game_list-tbl td.col-guest .js-assign-game-guest {
@@ -614,6 +672,17 @@ th.col-winloss {
 #game_list-tbl td.col-commission {
 	white-space: nowrap;
 	vertical-align: middle;
+}
+
+#game_list-tbl td.col-cashout .btn-link,
+#game_list-tbl td.col-cashout .btn-link:hover,
+#game_list-tbl td.col-cashout .btn-link:focus {
+	color: inherit;
+}
+
+#game_list-tbl td.col-cashout span[style*="dc3545"],
+#game_list-tbl td.col-winloss span[style*="dc3545"] {
+	color: #dc3545 !important;
 }
 
 /* Base table styles */
@@ -647,30 +716,21 @@ th.col-winloss {
     background-color: #f8f9fa !important;
 }
 
-/* GAME # column: not yet daily settled (DAILY_SETTLEMENT != 2); same on hover (no hover change) */
-#game_list-tbl tbody td.unsettled-game-cell,
-#game_list-tbl tbody tr:hover td.unsettled-game-cell {
-    background-color: #fff1d6 !important;
-}
-
 /* Cell styles */
 #game_list-tbl td {
     padding: 12px 15px;
     color: #495057;
 }
 
-#game_list-tbl thead th:nth-child(2),
-#game_list-tbl thead th:nth-child(4),
 #game_list-tbl thead th:nth-child(5),
-#game_list-tbl tbody td:nth-child(2),
-#game_list-tbl tbody td:nth-child(4),
-#game_list-tbl tbody td:nth-child(5) {
+#game_list-tbl thead th:nth-child(6),
+#game_list-tbl tbody td:nth-child(5),
+#game_list-tbl tbody td:nth-child(6) {
 	text-align: left !important;
 	padding-left: 20px;
 }
 
-/* Numeric columns (buy-in through total settle): right-aligned — 16-column layout */
-#game_list-tbl thead th:nth-child(6),
+/* Numeric columns (buy-in through total settle): right-aligned — 17-column layout */
 #game_list-tbl thead th:nth-child(7),
 #game_list-tbl thead th:nth-child(8),
 #game_list-tbl thead th:nth-child(9),
@@ -678,7 +738,7 @@ th.col-winloss {
 #game_list-tbl thead th:nth-child(11),
 #game_list-tbl thead th:nth-child(12),
 #game_list-tbl thead th:nth-child(13),
-#game_list-tbl tbody td:nth-child(6),
+#game_list-tbl thead th:nth-child(14),
 #game_list-tbl tbody td:nth-child(7),
 #game_list-tbl tbody td:nth-child(8),
 #game_list-tbl tbody td:nth-child(9),
@@ -686,16 +746,17 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11),
 #game_list-tbl tbody td:nth-child(12),
 #game_list-tbl tbody td:nth-child(13),
-#game_list-tbl thead th:nth-child(15),
-#game_list-tbl tbody td:nth-child(15),
-#game_list-tbl tfoot th:nth-child(2),
+#game_list-tbl tbody td:nth-child(14),
+#game_list-tbl thead th:nth-child(16),
+#game_list-tbl tbody td:nth-child(16),
 #game_list-tbl tfoot th:nth-child(3),
 #game_list-tbl tfoot th:nth-child(4),
 #game_list-tbl tfoot th:nth-child(5),
-#game_list-tbl tfoot th:nth-child(7),
+#game_list-tbl tfoot th:nth-child(6),
 #game_list-tbl tfoot th:nth-child(8),
 #game_list-tbl tfoot th:nth-child(9),
-#game_list-tbl tfoot th:nth-child(11) {
+#game_list-tbl tfoot th:nth-child(10),
+#game_list-tbl tfoot th:nth-child(12) {
 	text-align: right !important;
 	padding-right: 20px;
 }
@@ -723,7 +784,6 @@ th.col-winloss {
 	padding-right: 20px;
 }
 
-#game_list-tbl tbody td:nth-child(6) .btn,
 #game_list-tbl tbody td:nth-child(7) .btn,
 #game_list-tbl tbody td:nth-child(8) .btn,
 #game_list-tbl tbody td:nth-child(9) .btn,
@@ -731,7 +791,7 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) .btn,
 #game_list-tbl tbody td:nth-child(12) .btn,
 #game_list-tbl tbody td:nth-child(13) .btn,
-#game_list-tbl tbody td:nth-child(6) a,
+#game_list-tbl tbody td:nth-child(14) .btn,
 #game_list-tbl tbody td:nth-child(7) a,
 #game_list-tbl tbody td:nth-child(8) a,
 #game_list-tbl tbody td:nth-child(9) a,
@@ -739,8 +799,9 @@ th.col-winloss {
 #game_list-tbl tbody td:nth-child(11) a,
 #game_list-tbl tbody td:nth-child(12) a,
 #game_list-tbl tbody td:nth-child(13) a,
-#game_list-tbl tbody td:nth-child(15) .btn,
-#game_list-tbl tbody td:nth-child(15) a {
+#game_list-tbl tbody td:nth-child(14) a,
+#game_list-tbl tbody td:nth-child(16) .btn,
+#game_list-tbl tbody td:nth-child(16) a {
 	display: inline-block;
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -1117,13 +1178,18 @@ table.dataTable tbody tr.highlight-row {
 						window.gamelistTranslations = {
 							on_game: "<%= __('gamelist.on_game') %>",
 							end_game: "<%= __('gamelist.end_game') %>",
+							cut_off: "<%= __('modal_change_status.cutoff_option') %>",
 							search: "<%= __('gamelist.search') %>",
 							showing_entries: "<%= __('gamelist.showing_entries') %>",
 							previous: "<%= __('gamelist.previous') %>",
 							next: "<%= __('gamelist.next') %>",
 							cash: "<%= __('gamelist.cash') %>",
 							deposit: "<%= __('gamelist.deposit') %>",
-							marker: "<%= __('gamelist.marker') %>"
+							marker: "<%= __('gamelist.marker') %>",
+							live: "<%= __('gamelist.live') %>",
+							telebet: "<%= __('gamelist.telebet') %>",
+							unreturned_roller_filter: "<%= __('gamelist.unreturned_roller_filter') %>",
+							clear_filter: "<%= __('gamelist.clear_filter') %>"
 						};
 					</script>
 					<script>
@@ -1143,6 +1209,7 @@ table.dataTable tbody tr.highlight-row {
 										}
 									},
 									"columns": [
+										{ "data": "program_date", "defaultContent": "-" },
 										{ "data": "game_start_date" },
 										{ "data": "game_type" },
 										{ "data": "game_no" },
@@ -1204,10 +1271,10 @@ table.dataTable tbody tr.highlight-row {
 								var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
 
 								// Get the game start date from the table data (Column index for "GAME START")
-								var gameStartDate = new Date(data[0]); // Assuming GAME START is the first column (index 0)
+								var gameStartDate = new Date(data[1]);
 
 								// Get the game end date from the table data (Column index for "GAME END DATE & TIME")
-								var gameEndDate = new Date(data[0]); // Assuming GAME END DATE & TIME is column 13
+								var gameEndDate = new Date(data[14]);
 
 								// Strip the time portion of the date by setting time to midnight (for date-only comparison)
 								if (minDate !== null) {
@@ -1264,14 +1331,14 @@ table.dataTable tbody tr.highlight-row {
 								table.rows({ page: 'current' }).every(function () {
 									var data = this.data();
 
-									var amountIndex = 5; // BUY-IN
-									var rollingIndex = 8; // TOTAL ROLLING
-									var rollerChipsIndex = 14; // ROLLER CHIPS
-									var chipsReturnIndex = 6; // CASH-OUT
-									var winLossIndex = 7; // WIN/LOSS
-									var commissionIndex = 10; // COMMISSION
-									var addChgIndex = 11; // ADD CHG
-									var totalSettleIndex = 12; // TOTAL SETTLE
+									var amountIndex = 6; // BUY-IN
+									var rollingIndex = 9; // TOTAL ROLLING
+									var rollerChipsIndex = 15; // ROLLER CHIPS
+									var chipsReturnIndex = 7; // CASH-OUT
+									var winLossIndex = 8; // WIN/LOSS
+									var commissionIndex = 11; // COMMISSION
+									var addChgIndex = 12; // ADD CHG
+									var totalSettleIndex = 13; // TOTAL SETTLE
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';
@@ -1350,7 +1417,7 @@ table.dataTable tbody tr.highlight-row {
 						function applyNegativeStyle(selector, value) {
 							var element = $('#game_list-tbl tfoot ' + selector);
 							if (value < 0) {
-								element.css('color', 'red');
+								element.css('color', '#dc3545');
 							} else {
 								element.css('color', ''); // Reset to default color
 							}
@@ -1367,13 +1434,15 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 
 					<%- include ('../modals/game_book/new_game_list') %>
-						<%- include ('../modals/game_book/new_game_cutoff') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
+						<%- include ('../modals/game_book/game_remarks') %>
 						<%- include ('../modals/game_book/change_status') %>
 							<%- include ('../modals/game_book/pending_guest_buyin') %>
 							<%- include ('../modals/game_book/pending_junket_new_game') %>
 							<%- include ('../modals/game_book/add_buyin') %>
 							<%- include ('../modals/game_book/assign_game_guest') %>
+							<%- include ('../modals/accounts/add_guest') %>
+							<%- include ('../modals/accounts/edit_guest') %>
 								<%- include ('../modals/game_book/add_rolling') %>
 									<%- include ('../modals/game_book/add_cashout') %>
 										<%- include ('../modals/game_book/add_roller_chips') %>

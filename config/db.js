@@ -3,6 +3,14 @@ require('dotenv').config(); // Load .env variables
 const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategorySchema');
 const { ensureHouseExpenseApprovalSchema } = require('../utils/ensureHouseExpenseApprovalSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
+const { ensureTipSchema } = require('../utils/ensureTipSchema');
+const { ensureGameServicesDeliveryFeeSchema } = require('../utils/ensureGameServicesDeliveryFeeSchema');
+const { ensureGameServicesServiceTypeSchema } = require('../utils/ensureGameServicesServiceTypeSchema');
+const { ensureServicesCategorySchema } = require('../utils/ensureServicesCategorySchema');
+const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
+const { ensureGameListProgramDateSchema } = require('../utils/ensureGameListProgramDateSchema');
+const { ensureNetProfitShareProgramDateSchema } = require('../utils/ensureNetProfitShareProgramDateSchema');
+const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettlementCleanup');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -24,6 +32,14 @@ const pool = mysql.createPool({
 		await ensureExpenseCategorySchema(pool);
 		await ensureHouseExpenseApprovalSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
+		await ensureTipSchema(pool);
+		await ensureGameServicesDeliveryFeeSchema(pool);
+		await ensureGameServicesServiceTypeSchema(pool);
+		await ensureServicesCategorySchema(pool);
+		await ensureGuestMembershipSchema(pool);
+		await ensureGameListProgramDateSchema(pool);
+		await ensureNetProfitShareProgramDateSchema(pool);
+		await dropGameDailySettlementSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}

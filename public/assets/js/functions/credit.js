@@ -45,9 +45,13 @@ $(document).ready(function() {
             </button>
           </div>`;
              var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-            dataTable.row.add([`${row.AGENT_CODE}`, `${row.account_name}`, `${row.AMOUNT.toLocaleString()}`, `${row.STATUS}`, `${row.REMARKS}`, `${row.FIRSTNAME}`, formattedDate, btn]).draw();
+            var amountCell = window.fmtAmt ? window.fmtAmt(row.AMOUNT) : Number(row.AMOUNT || 0).toLocaleString('en-US');
+            var remarksCell = window.RemarksEditor && row.credit_id
+              ? window.RemarksEditor.renderCell(row.REMARKS || '', { source: 'junket_credit', recordId: row.credit_id })
+              : `${row.REMARKS || ''}`;
+            dataTable.row.add([`${row.AGENT_CODE}`, `${row.account_name}`, amountCell, `${row.STATUS}`, remarksCell, `${row.FIRSTNAME}`, formattedDate, btn]).draw();
           });
-          $('.total_credit').text(`P${total_credit.toLocaleString()}`);
+          $('.total_credit').text(`P${total_credit.toLocaleString('en-US')}`);
         },
         error: function(xhr, status, error) {
           console.error('Error fetching data:', error);

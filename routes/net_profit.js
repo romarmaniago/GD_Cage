@@ -1,16 +1,16 @@
 /**
 
- * Business net profit — **per settlement date** (one table row per day).
-
- * - Games: daily_settlement.SETTLEMENT_DATE (via daily_settlement_games.DAILY_SETTLEMENT_ID)
-
+ * Business net profit — **per program date** (one table row per day).
+ *
+ * - Games: game_list.PROGRAM_DATE
+ *
  * - Expenses: expense_daily_settlement.SETTLEMENT_DATE (items → junket_house_expense).
-
+ *
  * - House expenses not yet in expense_daily_settlement_items are rolled into **server today** when today falls in the selected range.
-
+ *
  * Chip / commission formulas match public/assets/js/functions/game_list.js.
-
- * Share uses a saved percentage per settlement date, defaulting to DEFAULT_NET_PROFIT_SHARE_PCT.
+ *
+ * Share uses a saved percentage per program date, defaulting to DEFAULT_NET_PROFIT_SHARE_PCT.
 
  */
 
@@ -44,7 +44,7 @@ const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountForma
 
 const MAX_RANGE_DAYS = 400;
 
-/** Default % for net profit share rows when no settlement-date override exists. */
+/** Default % for net profit share rows when no program-date override exists. */
 const DEFAULT_NET_PROFIT_SHARE_PCT = 65;
 const NET_PROFIT_SHARE_TABLE = 'net_profit_share_percentages';
 
@@ -126,17 +126,17 @@ function calendarDatesInMonth(monthKey) {
 
 
 
-async function upsertSharePercentage(settlementDate, sharePercentage, userId) {
+async function upsertSharePercentage(programDate, sharePercentage, userId) {
 	await pool.execute(
 		`INSERT INTO \`${NET_PROFIT_SHARE_TABLE}\`
-			(SETTLEMENT_DATE, SHARE_PERCENTAGE, ACTIVE, ENCODED_BY, ENCODED_DT)
+			(PROGRAM_DATE, SHARE_PERCENTAGE, ACTIVE, ENCODED_BY, ENCODED_DT)
 		 VALUES (?, ?, 1, ?, NOW())
 		 ON DUPLICATE KEY UPDATE
 			SHARE_PERCENTAGE = VALUES(SHARE_PERCENTAGE),
 			ACTIVE = 1,
 			EDITED_BY = VALUES(ENCODED_BY),
 			EDITED_DT = VALUES(ENCODED_DT)`,
-		[settlementDate, sharePercentage, userId]
+		[programDate, sharePercentage, userId]
 	);
 }
 
@@ -189,7 +189,7 @@ function aggregateRowsByMonth(rowsAsc) {
 
 	for (const r of rowsAsc || []) {
 
-		const mk = monthKeyFromYmd(r.settlement_date);
+		const mk = monthKeyFromYmd(r.program_date);
 
 		if (!/^\d{4}-\d{2}$/.test(mk)) continue;
 
@@ -275,9 +275,9 @@ function aggregateRowsByMonth(rowsAsc) {
 
 			return {
 
-				settlement_date: `${mk}-01`,
+				program_date: `${mk}-01`,
 
-				settlement_label: formatMonthLabel(mk),
+				program_label: formatMonthLabel(mk),
 
 				month_key: mk,
 
@@ -487,16 +487,16 @@ function computeGameMetrics(records, gl) {
 
 async function loadSharePercentagesByDay(startStr, endStr) {
 	const [rows] = await pool.execute(
-		`SELECT CAST(SETTLEMENT_DATE AS CHAR) AS settlement_day, SHARE_PERCENTAGE
+		`SELECT CAST(PROGRAM_DATE AS CHAR) AS program_day, SHARE_PERCENTAGE
 		 FROM \`${NET_PROFIT_SHARE_TABLE}\`
 		 WHERE ACTIVE = 1
-		   AND CAST(SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
-		   AND CAST(SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)`,
+		   AND CAST(PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
+		   AND CAST(PROGRAM_DATE AS DATE) <= CAST(? AS DATE)`,
 		[startStr, endStr]
 	);
 	const map = new Map();
 	for (const r of rows || []) {
-		const d = String(r.settlement_day || '').slice(0, 10);
+		const d = String(r.program_day || '').slice(0, 10);
 		const pct = Number(r.SHARE_PERCENTAGE);
 		if (isValidYmd(d) && Number.isFinite(pct)) map.set(d, pct);
 	}
@@ -557,7 +557,7 @@ async function loadGamesInDateRange(startStr, endStr) {
 
 		`SELECT
 
-			CAST(ds.SETTLEMENT_DATE AS CHAR) AS settlement_day,
+			CAST(gl.PROGRAM_DATE AS CHAR) AS program_day,
 
 			gl.IDNo AS game_id,
 
@@ -567,17 +567,15 @@ async function loadGamesInDateRange(startStr, endStr) {
 
 			gl.HOUSE_SHARE
 
-		FROM daily_settlement_games dsg
+		FROM game_list gl
 
-		JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+		WHERE gl.ACTIVE != 0
 
-		JOIN game_list gl ON gl.IDNo = dsg.GAME_ID AND gl.ACTIVE != 0
+		  AND CAST(gl.PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
 
-		WHERE CAST(ds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+		  AND CAST(gl.PROGRAM_DATE AS DATE) <= CAST(? AS DATE)
 
-		  AND CAST(ds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
-
-		ORDER BY ds.SETTLEMENT_DATE ASC, gl.IDNo ASC`,
+		ORDER BY gl.PROGRAM_DATE ASC, gl.IDNo ASC`,
 
 		[startStr, endStr]
 
@@ -589,21 +587,21 @@ async function loadGamesInDateRange(startStr, endStr) {
 
 
 
-async function loadDistinctSettlementDatesInRange(startStr, endStr) {
+async function loadDistinctProgramDatesInRange(startStr, endStr) {
 
 	const [rows] = await pool.execute(
 
 		`SELECT DISTINCT d FROM (
 
-		   SELECT CAST(ds.SETTLEMENT_DATE AS DATE) AS d
+		   SELECT CAST(gl.PROGRAM_DATE AS DATE) AS d
 
-		   FROM daily_settlement_games dsg
+		   FROM game_list gl
 
-		   JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+		   WHERE gl.ACTIVE != 0
 
-		   WHERE CAST(ds.SETTLEMENT_DATE AS DATE) >= CAST(? AS DATE)
+		     AND CAST(gl.PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
 
-		     AND CAST(ds.SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)
+		     AND CAST(gl.PROGRAM_DATE AS DATE) <= CAST(? AS DATE)
 
 		   UNION
 
@@ -665,7 +663,7 @@ async function loadExpenseTotalsByDay(startStr, endStr) {
 
 			`SELECT
 
-				CAST(eds.SETTLEMENT_DATE AS CHAR) AS settlement_day,
+				CAST(eds.SETTLEMENT_DATE AS CHAR) AS expense_day,
 
 				COALESCE(SUM(jhe.AMOUNT), 0) AS total_amt
 
@@ -685,7 +683,7 @@ async function loadExpenseTotalsByDay(startStr, endStr) {
 
 			 GROUP BY CAST(eds.SETTLEMENT_DATE AS DATE)
 
-			 ORDER BY settlement_day ASC`,
+			 ORDER BY expense_day ASC`,
 
 			[startStr, endStr]
 
@@ -693,7 +691,7 @@ async function loadExpenseTotalsByDay(startStr, endStr) {
 
 		for (const r of rows || []) {
 
-			const raw = r.settlement_day;
+			const raw = r.expense_day;
 
 			let d = '';
 
@@ -764,31 +762,7 @@ async function loadUnsettledHouseExpenseTotal() {
 
 async function loadUnsettledGamesForLive() {
 
-	const [rows] = await pool.execute(
-
-		`SELECT
-
-			gl.IDNo AS game_id,
-
-			gl.COMMISSION_TYPE,
-
-			gl.COMMISSION_PERCENTAGE,
-
-			gl.HOUSE_SHARE
-
-		FROM game_list gl
-
-		WHERE gl.ACTIVE != 0
-
-		  AND (gl.DAILY_SETTLEMENT = 1 OR gl.DAILY_SETTLEMENT IS NULL)
-
-		  AND NOT EXISTS (SELECT 1 FROM daily_settlement_games dsg WHERE dsg.GAME_ID = gl.IDNo)
-
-		ORDER BY gl.IDNo ASC`
-
-	);
-
-	return rows || [];
+	return [];
 
 }
 
@@ -888,7 +862,7 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 		for (const row of gameRows) {
 
-			const d = String(row.settlement_day || '').slice(0, 10);
+			const d = String(row.program_day || '').slice(0, 10);
 
 			if (!isValidYmd(d)) continue;
 
@@ -912,7 +886,7 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 
 
-		let distinctDates = await loadDistinctSettlementDatesInRange(start, end);
+		let distinctDates = await loadDistinctProgramDatesInRange(start, end);
 
 		const todayInRange = todayStr >= start && todayStr <= end;
 
@@ -924,7 +898,7 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 
 
-		function gamesForSettlementDate(d) {
+		function gamesForProgramDate(d) {
 
 			const fromDsg = byDayGames.get(d) || [];
 
@@ -996,7 +970,7 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 		const rowsAsc = distinctDates.map((d) => {
 
-			const games = gamesForSettlementDate(d);
+			const games = gamesForProgramDate(d);
 
 			let win_loss = 0;
 
@@ -1024,9 +998,9 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 			return {
 
-				settlement_date: d,
+				program_date: d,
 
-				settlement_label: d,
+				program_label: d,
 
 				game_count: games.length,
 
@@ -1146,20 +1120,20 @@ router.get('/net_profit_data', superAdminOnly, async (req, res) => {
 
 router.post('/net_profit/share_percentage', superAdminOnly, async (req, res) => {
 	try {
-		const settlementDate = String(req.body?.settlement_date || '').trim();
+		const programDate = String(req.body?.program_date || '').trim();
 		const sharePercentage = normalizeSharePercentage(req.body?.share_percentage);
 
-		if (!isValidYmd(settlementDate)) {
-			return res.status(400).json({ success: false, error: 'Invalid settlement date' });
+		if (!isValidYmd(programDate)) {
+			return res.status(400).json({ success: false, error: 'Invalid program date' });
 		}
 		if (sharePercentage == null) {
 			return res.status(400).json({ success: false, error: 'Share percentage must be between 0 and 100' });
 		}
 
 		const userId = req.session.user_id || null;
-		await upsertSharePercentage(settlementDate, sharePercentage, userId);
+		await upsertSharePercentage(programDate, sharePercentage, userId);
 
-		res.json({ success: true, settlement_date: settlementDate, share_percentage: sharePercentage });
+		res.json({ success: true, program_date: programDate, share_percentage: sharePercentage });
 	} catch (err) {
 		console.error('net_profit/share_percentage:', err);
 		res.status(500).json({ success: false, error: 'Error saving share percentage' });
@@ -1182,8 +1156,8 @@ router.post('/net_profit/share_percentage/month', superAdminOnly, async (req, re
 
 		const userId = req.session.user_id || null;
 		const dates = calendarDatesInMonth(monthKey);
-		for (const settlementDate of dates) {
-			await upsertSharePercentage(settlementDate, sharePercentage, userId);
+		for (const programDate of dates) {
+			await upsertSharePercentage(programDate, sharePercentage, userId);
 		}
 
 		res.json({

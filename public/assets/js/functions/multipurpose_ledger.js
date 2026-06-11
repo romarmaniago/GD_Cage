@@ -153,9 +153,75 @@ function isMoneyExchangeTransType(transType) {
 
 function jflTypeColorClass(transType) {
 	if (isCreditType(transType)) return 'jfl-amount-in';
-	if (isTransferTransType(transType)) return 'jfl-amount-transfer';
-	if (isMoneyExchangeTransType(transType)) return 'jfl-amount-exchange';
 	return 'jfl-amount-out';
+}
+
+function isJflParenthesizedOutType(transType) {
+	const t = Number(transType);
+	return t === 2 || t === 3;
+}
+
+function formatJflOutAmount(amt) {
+	return '<span class="jfl-amount-out">(' + formatMoney(amt) + ')</span>';
+}
+
+function renderJflCurrencyCell(data, type, row) {
+	const outCode = String(data || '').trim();
+	if (!isMoneyExchangeTransType(row.TRANS_TYPE)) {
+		return outCode || '-';
+	}
+	const inCode = String(row.EXCHANGE_IN_CURRENCY_CODE || '').trim();
+	if (!inCode || !outCode) return outCode || '-';
+	return inCode + ' → ' + outCode;
+}
+
+function renderJflAmountCell(data, type, row) {
+	const outAmt = Number(data) || 0;
+	if (!isMoneyExchangeTransType(row.TRANS_TYPE)) {
+		if (type !== 'display') return outAmt;
+		if (isJflParenthesizedOutType(row.TRANS_TYPE)) {
+			return formatJflOutAmount(outAmt);
+		}
+		return (
+			'<span class="' +
+			jflTypeColorClass(row.TRANS_TYPE) +
+			'">' +
+			formatMoney(outAmt) +
+			'</span>'
+		);
+	}
+
+	const inAmt = Number(row.EXCHANGE_AMOUNT_IN);
+	const inCode = String(row.EXCHANGE_IN_CURRENCY_CODE || '').trim();
+	const outCode = String(row.CURRENCY_CODE || '').trim();
+	const hasInLeg = Number.isFinite(inAmt) && inAmt > 0 && inCode;
+
+	if (type === 'sort' || type === 'type') return outAmt;
+	if (type === 'filter') {
+		if (!hasInLeg) return String(outAmt);
+		return inAmt + ' ' + inCode + ' ' + outAmt + ' ' + outCode;
+	}
+	if (type !== 'display') return outAmt;
+
+	if (!hasInLeg) {
+		return formatJflOutAmount(outAmt);
+	}
+
+	return (
+		'<div class="jfl-exchange-amounts">' +
+		'<div><span class="text-muted me-1">In</span>' +
+		'<span class="jfl-amount-in">' +
+		formatMoney(inAmt) +
+		'</span> <span class="text-muted">' +
+		inCode +
+		'</span></div>' +
+		'<div><span class="text-muted me-1">Out</span>' +
+		formatJflOutAmount(outAmt) +
+		' <span class="text-muted">' +
+		outCode +
+		'</span></div>' +
+		'</div>'
+	);
 }
 
 function junketDebitAmountForRow(row, currencyId) {
@@ -273,6 +339,27 @@ function initJflAccountSelect2() {
 	});
 }
 
+function jflAccountOptionLabel(a) {
+	const id = a.account_id;
+	const parts = [a.agent_code, a.agent_name].filter(Boolean);
+	return parts.length ? parts.join(' — ') : 'Account #' + id;
+}
+
+function compareJflAccountsAz(a, b) {
+	const nameA = String(a.agent_name || '').trim();
+	const nameB = String(b.agent_name || '').trim();
+	const byName = nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+	if (byName !== 0) return byName;
+	const codeA = String(a.agent_code || '').trim();
+	const codeB = String(b.agent_code || '').trim();
+	const byCode = codeA.localeCompare(codeB, undefined, { sensitivity: 'base', numeric: true });
+	if (byCode !== 0) return byCode;
+	return String(a.account_id || '').localeCompare(String(b.account_id || ''), undefined, {
+		sensitivity: 'base',
+		numeric: true
+	});
+}
+
 function loadJflAccounts() {
 	return $.getJSON('/account_data')
 		.done(function (rows) {
@@ -284,11 +371,15 @@ function loadJflAccounts() {
 				} catch (e) {}
 			}
 			$sel.empty().append($('<option/>', { value: '', text: 'Select account' }));
-			(rows || []).forEach(function (a) {
+			const accounts = (rows || [])
+				.filter(function (a) {
+					return a.account_id != null;
+				})
+				.slice()
+				.sort(compareJflAccountsAz);
+			accounts.forEach(function (a) {
 				const id = a.account_id;
-				if (id == null) return;
-				const parts = [a.agent_code, a.agent_name].filter(Boolean);
-				const label = parts.length ? parts.join(' — ') : 'Account #' + id;
+				const label = jflAccountOptionLabel(a);
 				$sel.append($('<option/>', { value: String(id), text: label }));
 			});
 			if (prev && $sel.find('option[value="' + prev + '"]').length) {
@@ -485,42 +576,46 @@ function removeJfl(id) {
 
 $(document).ready(function () {
 	const t = window.jflTranslations || {};
-	const actionColIndex = 8;
+	const actionColIndex = 9;
 
 	jflTable = $('#jfl-tbl').DataTable({
 		pageLength: 25,
-		order: [[7, 'desc']],
+		order: [[8, 'desc']],
 		columns: [
 			{
-				data: 'TRANS_TYPE',
-				render: function (data, type, row) {
-					const label = row.TRANS_TYPE_LABEL || transTypeLabel(data);
-					if (type === 'sort') return label;
-					const cls = jflTypeColorClass(data);
-					return '<span class="' + cls + '">' + label + '</span>';
-				}
-			},
-			{
-				data: 'CURRENCY_CODE',
-				defaultContent: '-',
-				render: function (data) {
-					return data ? String(data) : '-';
+				data: 'ENCODED_DT',
+				render: function (data, type) {
+					if (!data) return '';
+					if (type === 'sort') return data;
+					return moment(data).format('DD/MM/YYYY');
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
+			{ data: 'GUEST_DISPLAY', defaultContent: '-' },
+			{ data: 'TRANS_TYPE_LABEL', defaultContent: '' },
+			{
+				data: 'CURRENCY_CODE',
+				defaultContent: '-',
+				render: renderJflCurrencyCell
+			},
 			{
 				data: 'AMOUNT',
+				render: renderJflAmountCell
+			},
+			{ data: 'APPROVED_BY_DISPLAY', defaultContent: '' },
+			{
+				data: 'REMARKS',
+				defaultContent: '',
 				render: function (data, type, row) {
-					const n = Number(data) || 0;
-					const cls = jflTypeColorClass(row.TRANS_TYPE);
-					const prefix = isCreditType(row.TRANS_TYPE) ? '+' : '-';
-					if (type === 'sort') return n;
-					return '<span class="' + cls + '">' + prefix + formatMoney(n) + '</span>';
+					var raw = data != null ? String(data) : '';
+					if (type !== 'display') return raw;
+					if (!window.RemarksEditor) return raw;
+					return window.RemarksEditor.renderCell(raw, {
+						source: 'junket_funds_ledger',
+						recordId: row.IDNo
+					});
 				}
 			},
-			{ data: 'IN_CHARGE', defaultContent: '' },
-			{ data: 'REMARKS', defaultContent: '' },
-			{ data: 'ENCODED_BY_NAME', defaultContent: '' },
 			{
 				data: 'ENCODED_DT',
 				render: function (data, type) {
@@ -627,7 +722,7 @@ $(document).ready(function () {
 			return;
 		}
 		if (!String(payload.txtInCharge || '').trim()) {
-			showJflValidationSwal('Person in charge is required.');
+			showJflValidationSwal('Approved by is required.');
 			return;
 		}
 		if (isTransferModeSelected() && !payload.txtAccountId) {

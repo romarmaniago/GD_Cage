@@ -54,12 +54,15 @@ $(document).ready(function() {
             </button>
           </div>`;
 
-            dataTable.row.add([`${moment(row.DATE_TIME).format('MMMM DD, YYYY')}`, `${row.CATEGORY}`, `${row.DESCRIPTION}`, `${row.TRANSACTION}`, `${row.AMOUNT}`,status, btn]).draw();
+            var amountCell = parseInt(row.TRANSACTION_ID, 10) === 2
+              ? (window.fmtOut ? window.fmtOut(row.AMOUNT) : row.AMOUNT)
+              : (window.fmtAmt ? window.fmtAmt(row.AMOUNT) : Number(row.AMOUNT || 0).toLocaleString('en-US'));
+            dataTable.row.add([`${moment(row.DATE_TIME).format('MMMM DD, YYYY')}`, `${row.CATEGORY}`, `${row.DESCRIPTION}`, `${row.TRANSACTION}`, amountCell, status, btn]).draw();
           });
 
-          $('.total_deposit').text(`P${total_in.toLocaleString()}`);
-          $('.total_withdraw').text(`P${total_out.toLocaleString()}`);
-          $('.total_balance').text('P'+(total_in - total_out).toLocaleString());
+          $('.total_deposit').text(`P${total_in.toLocaleString('en-US')}`);
+          $('.total_withdraw').text(`P${total_out.toLocaleString('en-US')}`);
+          $('.total_balance').text('P'+(total_in - total_out).toLocaleString('en-US'));
         },
         error: function(xhr, status, error) {
           console.error('Error fetching data:', error);

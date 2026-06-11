@@ -55,7 +55,7 @@
 																- sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD -
 																sqlTotalCashOut[0].TOTAL_CASHOUT +
 																sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT +
-																sqlAccountTransfer[0].ACCOUNT_TRANSFER).toLocaleString()
+																sqlAccountTransfer[0].ACCOUNT_TRANSFER).toLocaleString('en-US')
 																%>
 														</span>
 													</h4>
@@ -94,7 +94,7 @@
 																sqlNNChipsRolling[0].NNChipsRolling +
 																sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN -
 																sqlCCChipsBuyinGame[0].TOTAL_CC + sqlCCBuyin[0].CCBuyin
-																- sqlCCReturn[0].CCReturn).toLocaleString() %>
+																- sqlCCReturn[0].CCReturn).toLocaleString('en-US') %>
 														</span>
 													</h4>
 												</div>
@@ -136,7 +136,7 @@
 																sqlNNChipsRolling[0].NNChipsRolling -
 																sqlCCChipsRolling[0].CCChipsRolling +
 																sqlNNBuyin[0].NNBuyin -
-																sqlNNReturn[0].NNReturn).toLocaleString() %>
+																sqlNNReturn[0].NNReturn).toLocaleString('en-US') %>
 														</span>
 													</h4>
 												</div>
@@ -178,7 +178,7 @@
 																	sqlCCChipsBuyinGame[0].TOTAL_CC +
 																	sqlCCBuyin[0].CCBuyin - sqlCCReturn[0].CCReturn +
 																	sqlNNBuyin[0].NNBuyin -
-																	sqlNNReturn[0].NNReturn).toLocaleString() %>
+																	sqlNNReturn[0].NNReturn).toLocaleString('en-US') %>
 															</span>
 														</h4>
 												</div>
@@ -210,7 +210,7 @@
 
 													<h4 id="expense" class="mb-0"><%-
 															parseFloat(sqlJunketExpenseReset[0].RESET_EXPENSE ||
-															0).toLocaleString() %></h4>
+															0).toLocaleString('en-US') %></h4>
 													<input type="hidden" name="EXPENSE_HISTORY"
 														value="<%- sqlJunketExpenseReset[0].RESET_EXPENSE || 0 %>">
 
@@ -236,7 +236,7 @@
 															sqlAccountWithdraw[0].ACCOUNT_WITHDRAW
 															-sqlAccountDeduct[0].ACCOUNT_DEDUCT +
 															sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD -
-															sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT)).toLocaleString()
+															sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT)).toLocaleString('en-US')
 															%>
 													</h4>
 												</div>
@@ -263,7 +263,7 @@
 																sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER -
 																sqlMArkerReturnCash[0].MARKER_RETURN_CASH -
 																sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT -
-																sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER).toLocaleString()
+																sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER).toLocaleString('en-US')
 																%>
 														</span>
 													</h4>
@@ -296,7 +296,7 @@
 
 													<h4 id="comms" class="mb-0"><%-
 															Math.round(parseFloat(sqlCommissionReset +
-															sqlSharedReset)).toLocaleString() %></h4>
+															sqlSharedReset)).toLocaleString('en-US') %></h4>
 													<input type="hidden" name="COMMISSION_HISTORY"
 														value="<%- Math.round(parseFloat(sqlCommissionReset + sqlSharedReset)) %>">
 
@@ -321,7 +321,7 @@
 													<h4 id="totalrolling" class="mb-0">
 														<%- parseFloat(sqlTotalRollingReset[0].RESET_ROLLING -
 															sqlTotalCashOutRollingReset[0].RESET_CASHOUT +
-															sqlTotalRollingManual[0].TOTAL_ROLLING).toLocaleString() %>
+															sqlTotalRollingManual[0].TOTAL_ROLLING).toLocaleString('en-US') %>
 													</h4>
 													<input type="hidden" name="TOTAL_ROLLING_HISTORY"
 														value="<%- parseFloat(sqlTotalRollingReset[0].RESET_ROLLING - sqlTotalCashOutRollingReset[0].RESET_CASHOUT + sqlTotalRollingManual[0].TOTAL_ROLLING) %>">
@@ -347,7 +347,7 @@
 													<!-- <a href="#modal-new-rolling" data-bs-toggle="modal">  -->
 													<h4 id="totalhouserolling" class="mb-0">
 														<%- parseFloat(sqlHouseRollingReset[0].HouseRollingChips ||
-															0).toLocaleString() %>
+															0).toLocaleString('en-US') %>
 													</h4>
 
 													<input type="hidden" name="HOUSE_ROLLING_HISTORY"
@@ -375,7 +375,7 @@
 													<h4 id="winloss" class="mb-0"><%-
 															parseFloat(sqlWinLossReset[0].RESET_CASHIN -
 															sqlTotalCashOutReset[0].CASHOUT_RESET +
-															sqlWinlossManual[0].WINLOSS).toLocaleString() %></h4>
+															sqlWinlossManual[0].WINLOSS).toLocaleString('en-US') %></h4>
 													<input type="hidden" name="WINLOSS_HISTORY"
 														value="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>">
 
@@ -398,7 +398,7 @@
 														class="fa fa-bar-chart fa-3x text-muted push"></i>
 													<h4 id="ngr" class="mb-0">
 														<%- parseFloat(sqlWinLossLive + sqlWinLossTelebet -
-															sqlCommissionReset - sqlSharedReset).toLocaleString() %>
+															sqlCommissionReset - sqlSharedReset).toLocaleString('en-US') %>
 															<input type="hidden" name="NGR_HISTORY"
 																value="<%-  parseFloat(sqlWinLossLive + sqlWinLossTelebet - sqlCommissionReset - sqlSharedReset) %>">
 													</h4>
@@ -421,6 +421,7 @@
 								<%- include ('modals/dashboard/ccchips') %>
 									<%- include ('modals/dashboard/nnchips') %>
 										<%- include ('modals/dashboard/marker') %>
+										<%- include ('modals/game_book/new_game_list') %>
 
 
 
@@ -463,7 +464,7 @@
 													console.log("Retrieved Total NGR from localStorage:", totalNGR); // Check what is retrieved
 
 													// Display it in an element
-													$('#total-ngr-value-in-other-ejs').text(Math.round(totalNGR).toLocaleString());
+													$('#total-ngr-value-in-other-ejs').text(Math.round(totalNGR).toLocaleString('en-US'));
 
 													if (totalNGR > 0) {
 														console.log("Current Global Total NGR:", totalNGR);

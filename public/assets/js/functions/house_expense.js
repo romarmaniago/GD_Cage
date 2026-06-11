@@ -305,30 +305,28 @@ function buildHouseExpenseActionButtons(row, amount) {
     var approvalStatus = houseExpenseGetApprovalStatus(row);
     var t = window.houseExpenseTranslations || {};
 
-    if (row.record_type !== 'return_money' && approvalStatus === 0) {
-        if (permissions === 2) {
-            return (
-                '<div class="house-expense-actions house-expense-approval-actions">' +
-                '<span class="house-expense-status-pill house-expense-status-pill--pending">' +
-                '<i class="fa fa-clock-o" aria-hidden="true"></i>' +
-                houseExpenseHtmlEscape(t.pending_approval || 'Pending') +
-                '</span></div>'
-            );
-        }
+    var isPendingExpense = row.record_type !== 'return_money' && approvalStatus === 0;
+    if (isPendingExpense && permissions === 2) {
         return (
             '<div class="house-expense-actions house-expense-approval-actions">' +
-            '<button type="button" class="btn btn-sm house-expense-btn-approve" onclick="approveHouseExpense(' +
-            row.expense_id +
-            ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-            houseExpenseHtmlEscape(t.approve || 'Approve') +
-            '"><i class="fa fa-check" aria-hidden="true"></i></button>' +
-            '<button type="button" class="btn btn-sm house-expense-btn-reject" onclick="rejectHouseExpense(' +
-            row.expense_id +
-            ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-            houseExpenseHtmlEscape(t.reject || 'Reject') +
-            '"><i class="fa fa-times" aria-hidden="true"></i></button></div>'
+            '<span class="house-expense-status-pill house-expense-status-pill--pending">' +
+            '<i class="fa fa-clock-o" aria-hidden="true"></i>' +
+            houseExpenseHtmlEscape(t.pending_approval || 'Pending') +
+            '</span></div>'
         );
     }
+    var pendingApprovalBtnsHtml = isPendingExpense
+        ? '<button type="button" class="btn btn-sm house-expense-btn-approve" onclick="approveHouseExpense(' +
+          row.expense_id +
+          ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+          houseExpenseHtmlEscape(t.approve || 'Approve') +
+          '"><i class="fa fa-check" aria-hidden="true"></i></button>' +
+          '<button type="button" class="btn btn-sm house-expense-btn-reject" onclick="rejectHouseExpense(' +
+          row.expense_id +
+          ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+          houseExpenseHtmlEscape(t.reject || 'Reject') +
+          '"><i class="fa fa-times" aria-hidden="true"></i></button>'
+        : '';
 
     if (row.record_type !== 'return_money' && approvalStatus === 2) {
         return (
@@ -358,6 +356,7 @@ function buildHouseExpenseActionButtons(row, amount) {
     if (permissions !== 2) {
         return (
             '<div class="house-expense-actions">' +
+            pendingApprovalBtnsHtml +
             '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="viewReceipt(\'' +
             houseExpenseJsQuote(row.photoUrl || '') +
             '\')" ' +
@@ -459,6 +458,33 @@ function houseExpenseRowMatchesSearch(row, query) {
     });
 }
 
+/** Clickable remarks for return-money rows (DESCRIPTION column). */
+function houseExpenseRemarksCellHtml(row, displayText) {
+    if (!row || !row.expense_id || !window.RemarksEditor) {
+        return houseExpenseHtmlEscape(displayText || '-');
+    }
+    if (row.record_type !== 'return_money') {
+        return houseExpenseHtmlEscape(displayText || '-');
+    }
+    var raw = row.DESCRIPTION || '';
+    return window.RemarksEditor.renderCell(raw, {
+        source: 'junket_return_money',
+        recordId: row.expense_id,
+        displayText: displayText != null ? String(displayText) : raw
+    });
+}
+
+function houseExpenseFormatKmDisplay(kmL) {
+    var n = Number(kmL);
+    if (Number.isNaN(n)) return '';
+    return (
+        n.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }) + 'km'
+    );
+}
+
 /** Item table DESCRIPTION column: description text + optional KM/L. */
 function houseExpenseItemDescriptionColumnText(row) {
     if (!row) return '-';
@@ -471,7 +497,7 @@ function houseExpenseItemDescriptionColumnText(row) {
             : '';
     var kmL = row.KM_L;
     if (kmL != null && kmL !== '' && !Number.isNaN(Number(kmL))) {
-        var kmPart = String(Number(kmL)) + 'km';
+        var kmPart = houseExpenseFormatKmDisplay(kmL);
         text = text ? text + ' - ' + kmPart : kmPart;
     }
     return text || '-';
@@ -593,20 +619,25 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 });
                 var amountDisplay =
                     row.record_type === 'return_money'
-                        ? '<span style="color: green;">' + formattedAmount + '</span>'
-                        : formattedAmount;
+                        ? (window.fmtIn ? window.fmtIn(amount) : '<span style="color: green;">' + formattedAmount + '</span>')
+                        : (window.fmtOut ? window.fmtOut(amount) : formattedAmount);
                 var nameLabel = houseExpenseGetExpenseNameLabel(row);
                 /* Headers: description key = IN-CHARGE, receipt_no key = DESCRIPTION (see locales) */
                 var inChargeCol =
                     row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-';
                 var receiverCol =
                     row.record_type === 'return_money' ? '-' : row.RECEIVER || '-';
-                var descriptionCol = houseExpenseItemDescriptionColumnText(row);
+                var descriptionColHtml = row.record_type === 'return_money'
+                    ? houseExpenseRemarksCellHtml(row, row.DESCRIPTION || '')
+                    : houseExpenseHtmlEscape(houseExpenseItemDescriptionColumnText(row));
 
                 return (
                     '<tr class="js-expense-entry-row" data-expense-id="' +
                     attrEncode(row.expense_id) +
                     '">' +
+                    '<td class="expense-item-date-cell">' +
+                    houseExpenseHtmlEscape(formattedDate) +
+                    '</td>' +
                     '<td>' +
                     buildExpenseNameCell(row, nameLabel) +
                     '</td>' +
@@ -617,13 +648,10 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     houseExpenseHtmlEscape(receiverCol) +
                     '</td>' +
                     '<td>' +
-                    houseExpenseHtmlEscape(descriptionCol) +
+                    descriptionColHtml +
                     '</td>' +
                     '<td class="text-end">' +
                     amountDisplay +
-                    '</td>' +
-                    '<td class="text-end expense-item-date-cell">' +
-                    houseExpenseHtmlEscape(formattedDate) +
                     '</td>' +
                     '<td class="text-end expense-item-action-cell">' +
                     buildHouseExpenseActionButtons(row, amount) +
@@ -1690,7 +1718,9 @@ function renderExpenseBreakdownModalRows() {
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
                 vehicleCells +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
-                '<td class="fw-semibold text-end">' + formatHouseExpenseNumber(amount) + '</td>' +
+                '<td class="fw-semibold text-end">' + (isReturnMoney
+                    ? (window.fmtIn ? window.fmtIn(amount) : formatHouseExpenseNumber(amount))
+                    : (window.fmtOut ? window.fmtOut(amount) : formatHouseExpenseNumber(amount))) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
             '</tr>'
@@ -1917,7 +1947,7 @@ $(document).ready(function () {
     });
 
     function getHouseExpensePrintRows() {
-        var actionColIndex = 5;
+        var actionColIndex = 6;
         var headers = [];
         $('#expense-item-cat-tbl thead tr:first th').each(function (i) {
             if (i === actionColIndex) return;
@@ -1940,9 +1970,9 @@ $(document).ready(function () {
                     $(this).find('.expense-item-footer-label').text().trim(),
                     '',
                     '',
-                    $(this).find('.expense-item-footer-value').text().trim(),
                     '',
-                    ''
+                    '',
+                    $(this).find('.expense-item-footer-value').text().trim()
                 ]);
             });
         }
@@ -1959,7 +1989,7 @@ $(document).ready(function () {
             'table{width:100%;border-collapse:collapse;font-size:10px;}',
             'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
             'th{background:#d9e1f2;font-weight:700;}',
-            'th:nth-child(4),td:nth-child(4){text-align:right;padding-right:14px;}',
+            'th:nth-child(5),td:nth-child(5),th:nth-child(6),td:nth-child(6){text-align:right;padding-right:14px;}',
             'tbody tr:nth-last-child(-n+3) td{font-weight:700;background:#f4f6fa;}'
         ].join('');
     }

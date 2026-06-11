@@ -35,6 +35,30 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlReturnRollerCCChips = 'SELECT SUM(ROLLER_CC_CHIPS) AS RETURN_ROLLER_CC FROM game_record WHERE ACTIVE = 1 AND ROLLER_TRANSACTION = 2 AND RESET=1';
 
+	let sqlUnreturnedRollerChips = `
+		SELECT COALESCE(SUM(GREATEST(0, balances.net_balance)), 0) AS TOTAL_UNRETURNED
+		FROM (
+			SELECT
+				gr.GAME_ID,
+				SUM(
+					CASE
+						WHEN COALESCE(gr.ROLLER_TRANSACTION, 1) = 1
+							THEN COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0)
+						WHEN gr.ROLLER_TRANSACTION = 2
+							THEN -(COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0))
+						ELSE 0
+					END
+				) AS net_balance
+			FROM game_record gr
+			INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			WHERE gr.CAGE_TYPE = 5
+				AND gr.ACTIVE = 1
+				AND gl.ACTIVE != 0
+			GROUP BY gr.GAME_ID
+		) balances
+		WHERE balances.net_balance > 0
+	`;
+
 	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
@@ -802,6 +826,7 @@ let sqlServiceSettle = `
 		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
 		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
 		const [ReturnRollerCCChipsResult] = await pool.execute(sqlReturnRollerCCChips);
+		const [UnreturnedRollerChipsResult] = await pool.execute(sqlUnreturnedRollerChips);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
@@ -900,6 +925,7 @@ let sqlServiceSettle = `
 			sqlRollerCCSubtract: RollerCCSubtractResult,
 			sqlRollerCCAdd: RollerCCAddResult,
 			sqlReturnRollerCCChips: ReturnRollerCCChipsResult,
+			sqlUnreturnedRollerChips: UnreturnedRollerChipsResult,
 			sqlAgentCount: AgentCountResult,
 			sqlServiceCashGuest: serviceCashGuestResults,
 			sqlServiceDepositGuest: serviceDepositGuestResults,
@@ -1093,7 +1119,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 NULL AS REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                NULL AS REMARKS_SOURCE
             FROM junket_total_chips j
             LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo 
             WHERE j.ACTIVE = 1 AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
@@ -1118,7 +1145,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 k.REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'junket_capital' AS REMARKS_SOURCE
             FROM junket_capital k
             LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo 
             WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
@@ -1141,9 +1169,10 @@ router.get('/junket_capital_data', async (req, res) => {
                 al.TRANSACTION_DESC COLLATE utf8mb4_general_ci AS comms_description,   
                 NULL AS capital_amount, 
                 al.AMOUNT AS ledger_amount, 
-                NULL AS REMARKS, 
+                al.REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'account_ledger' AS REMARKS_SOURCE
             FROM account_ledger al
             LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo 
             WHERE al.ACTIVE = 1 AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
@@ -1168,7 +1197,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 je.DESCRIPTION AS REMARKS, 
                 NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID
+                NULL AS GAME_ID,
+                'junket_house_expense' AS REMARKS_SOURCE
             FROM junket_house_expense je
             LEFT JOIN expense_category CE ON CE.IDNo = je.CATEGORY_ID
             LEFT JOIN user_info u ON je.ENCODED_BY = u.IDNo 
@@ -1194,7 +1224,8 @@ router.get('/junket_capital_data', async (req, res) => {
                 NULL AS ledger_amount, 
                 gr.REMARKS, 
                 gr.CAGE_TYPE,  
-                gr.GAME_ID
+                gr.GAME_ID,
+                'game_record' AS REMARKS_SOURCE
             FROM game_record gr
             LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo 
             WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 1 AND gr.TRANSACTION IN (1, 2) AND DATE(gr.ENCODED_DT) BETWEEN ? AND ?
@@ -1317,7 +1348,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_capital'
 		}));
 
 		// 2. Account deposits (ACCOUNT_DEPOSIT)
@@ -1360,7 +1392,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 3. Settlement deposits (SETTLEMENT_DEPOSIT -> Commission Deposit)
@@ -1430,7 +1463,9 @@ router.get('/cash_in_details', async (req, res) => {
 				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 				AGENT_NAME: row.AGENT_NAME || '-',
 				SERVICE_TRANSACTION_ID: null,
-				SERVICE_SOURCE_TYPE: null
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'account_ledger',
+				REMARKS_EDIT: ledgerRem || fromCash || ''
 			};
 		});
 
@@ -1465,7 +1500,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_total_chips'
 		}));
 
 		// 5. Game cash buy-ins (NN/CC cash-only)
@@ -1474,6 +1510,7 @@ router.get('/cash_in_details', async (req, res) => {
 			SELECT
 				gr.IDNo,
 				gr.GAME_ID,
+				gr.REMARKS,
 				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
 				gr.ENCODED_BY,
 				gr.ENCODED_DT,
@@ -1492,20 +1529,26 @@ router.get('/cash_in_details', async (req, res) => {
 			dateParams
 		);
 
-		const gameBuyinRows = gameBuyinRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.GAME_ID,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Game buy-in',
-			TYPE: 1,
-			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: row.AGENT_NAME || '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
-		}));
+		const gameBuyinRows = gameBuyinRaw.map((row) => {
+			const gameRemarks = row.REMARKS && String(row.REMARKS).trim();
+			const displayRemarks = gameRemarks || (row.GAME_ID ? `Game - ${row.GAME_ID}` : '');
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.GAME_ID,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Game buy-in',
+				TYPE: 1,
+				REMARKS: displayRemarks,
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: row.AGENT_NAME || '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'game_record',
+				REMARKS_EDIT: gameRemarks || ''
+			};
+		});
 
 		// 6. Guest services (ServiceCashGuest + ServiceDepositGuest)
 		const [guestServicesRaw] = await pool.execute(
@@ -1544,7 +1587,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
-			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE,
+			REMARKS_SOURCE: 'game_services'
 		}));
 
 		// 7. Marker return cash (MARKER_RETURN_CASH)
@@ -1584,7 +1628,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 8. Return money (RETURN_MONEY)
@@ -1617,7 +1662,8 @@ router.get('/cash_in_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_return_money'
 		}));
 
 		const allRows = [
@@ -1687,7 +1733,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_capital'
 		}));
 
 		// 2. Chips Buy-in (junket_total_chips, TRANSACTION_ID = 1)
@@ -1721,7 +1768,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_total_chips'
 		}));
 
 		// 3. Game Cash-out (game_record, CAGE_TYPE = 2)
@@ -1730,6 +1778,7 @@ router.get('/cash_out_details', async (req, res) => {
 			SELECT
 				gr.IDNo,
 				gr.GAME_ID,
+				gr.REMARKS,
 				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
 				gr.ENCODED_BY,
 				gr.ENCODED_DT,
@@ -1748,20 +1797,26 @@ router.get('/cash_out_details', async (req, res) => {
 			dateParams
 		);
 
-		const gameCashoutRows = gameCashoutRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.GAME_ID,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Game Cash-out',
-			TYPE: 2,
-			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: row.AGENT_NAME || '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
-		}));
+		const gameCashoutRows = gameCashoutRaw.map((row) => {
+			const gameRemarks = row.REMARKS && String(row.REMARKS).trim();
+			const displayRemarks = gameRemarks || (row.GAME_ID ? `Game - ${row.GAME_ID}` : '');
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.GAME_ID,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Game Cash-out',
+				TYPE: 2,
+				REMARKS: displayRemarks,
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: row.AGENT_NAME || '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'game_record',
+				REMARKS_EDIT: gameRemarks || ''
+			};
+		});
 
 		// 4. Account Withdraw (ACCOUNT_WITHDRAW)
 		const [accountWithdrawRaw] = await pool.execute(
@@ -1800,7 +1855,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 5. Account Credit (ACCOUNT_CREDIT from account_ledger)
@@ -1840,7 +1896,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 6. Commission Cash-out (ACCOUNT_SETTLEMENT, TRANSACTION_TYPE = 5, TRANSACTION_ID = 5)
@@ -1880,7 +1937,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'account_ledger'
 		}));
 
 		// 7. Junket services (ServiceCashJunket + ServiceDepositJunket)
@@ -1920,7 +1978,8 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: row.AGENT_NAME || '-',
 			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
-			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE,
+			REMARKS_SOURCE: 'game_services'
 		}));
 
 		// 8. Expenses (junket_house_expense)
@@ -1957,7 +2016,9 @@ router.get('/cash_out_details', async (req, res) => {
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
 			AGENT_NAME: '-',
 			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null
+			SERVICE_SOURCE_TYPE: null,
+			REMARKS_SOURCE: 'junket_house_expense',
+			REMARKS_EDIT: row.REMARKS || ''
 		}));
 
 		const allRows = [
@@ -2469,9 +2530,9 @@ router.post('/add_marker_settlement', async (req, res) => {
 			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
 
 			if (optTransType === '12') {
-				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString('en-US')} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else {
-				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Demo Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString('en-US')} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
 			const markerLogPreview = markerReturnTelegramLogPreview(optTransType, optReturnSource);
@@ -2618,8 +2679,8 @@ router.delete('/marker_record/:id', async (req, res) => {
 // PATCH MARKER REMARKS (account_ledger) — Super Admin only
 router.patch('/marker_record/:id/remarks', async (req, res) => {
 	const permissions = req.session?.permissions;
-	if (permissions !== 0) {
-		return res.status(403).json({ success: false, message: 'Only Super Admin can edit remarks.' });
+	if (permissions === 2) {
+		return res.status(403).json({ success: false, message: 'Not authorized to edit remarks.' });
 	}
 
 	const id = parseInt(req.params.id, 10);
@@ -2648,7 +2709,7 @@ router.patch('/marker_record/:id/remarks', async (req, res) => {
 			[remarks, req.session.user_id, date_now, id]
 		);
 
-		res.json({ success: true, message: 'Remarks updated.' });
+		res.json({ success: true, message: 'Remarks updated.', remarks });
 	} catch (err) {
 		console.error('Error updating marker remarks:', err);
 		res.status(500).json({ success: false, message: 'Error updating remarks.' });
@@ -3215,9 +3276,7 @@ router.get('/get_winloss', async (req, res) => {
 	const offset = parseInt(req.query.offset) || 0;
 	const isCurrentPeriod = offset === 0;
 
-	// Variables for unsettled condition
 	let targetYearWeek = '';
-	let unsettledCondition = '';
 
 	if (range === 'week') {
 		const targetDate = new Date();
@@ -3225,53 +3284,36 @@ router.get('/get_winloss', async (req, res) => {
 		const isoDate = targetDate.toISOString().slice(0, 10);
 		targetYearWeek = `YEARWEEK('${isoDate}', 1)`;
 		
-		// Previous week
 		const prevDate = new Date(targetDate);
 		prevDate.setDate(prevDate.getDate() - 7);
 		const prevIsoDate = prevDate.toISOString().slice(0, 10);
 		const prevYearWeek = `YEARWEEK('${prevIsoDate}', 1)`;
 
-		totalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
+		totalCondition = `AND YEARWEEK(game_list.PROGRAM_DATE, 1) = ${targetYearWeek}`;
 		groupCondition = totalCondition;
-		prevTotalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
+		prevTotalCondition = `AND YEARWEEK(game_list.PROGRAM_DATE, 1) = ${prevYearWeek}`;
 		prevGroupCondition = prevTotalCondition;
-		groupBy = "DAYOFWEEK(ds.SETTLEMENT_DATE)";
+		groupBy = 'DAYOFWEEK(game_list.PROGRAM_DATE)';
 		labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 		groupKeys = [2, 3, 4, 5, 6, 7, 1];
-		
-		// Unsettled condition for current week
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND dsg.GAME_ID IS NULL)`;
-		}
-	}
- else if (range === 'month') {
-		totalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth + 1} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		prevTotalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupBy = "MONTH(ds.SETTLEMENT_DATE)";
+	} else if (range === 'month') {
+		totalCondition = `AND MONTH(game_list.PROGRAM_DATE) = ${currentMonth + 1} AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		prevTotalCondition = `AND MONTH(game_list.PROGRAM_DATE) = ${currentMonth} AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		prevGroupCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupBy = 'MONTH(game_list.PROGRAM_DATE)';
 		labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		groupKeys = Array.from({ length: 12 }, (_, i) => i + 1);
-		
-		// Unsettled condition for current month
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND MONTH(game_list.ENCODED_DT) = ${currentMonth + 1} AND YEAR(game_list.ENCODED_DT) = ${currentYear})`;
-		}
 	} else if (range === 'year') {
 		const startYear = currentYear - 5;
 		const endYear = currentYear;
-		totalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
-		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear} AND ${endYear}`;
-		prevTotalCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear - 1}`;
-		prevGroupCondition = `AND YEAR(ds.SETTLEMENT_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
-		groupBy = "YEAR(ds.SETTLEMENT_DATE)";
+		totalCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear}`;
+		groupCondition = `AND YEAR(game_list.PROGRAM_DATE) BETWEEN ${startYear} AND ${endYear}`;
+		prevTotalCondition = `AND YEAR(game_list.PROGRAM_DATE) = ${currentYear - 1}`;
+		prevGroupCondition = `AND YEAR(game_list.PROGRAM_DATE) BETWEEN ${startYear - 1} AND ${endYear - 1}`;
+		groupBy = 'YEAR(game_list.PROGRAM_DATE)';
 		labels = Array.from({ length: 6 }, (_, i) => `${startYear + i}`);
 		groupKeys = labels.map(Number);
-		
-		// Unsettled condition for current year
-		if (isCurrentPeriod) {
-			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND YEAR(game_list.ENCODED_DT) = ${currentYear})`;
-		}
 	} else {
 		return res.status(400).json({ message: 'Invalid range' });
 	}
@@ -3282,13 +3324,9 @@ router.get('/get_winloss', async (req, res) => {
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
-			AND (
-				(dsg.GAME_ID IS NOT NULL ${totalCondition})
-				${unsettledCondition}
-			)
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
+			${totalCondition}
 	`;
 	
 	const prevTotalQuery = `
@@ -3297,40 +3335,23 @@ router.get('/get_winloss', async (req, res) => {
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
 			${prevTotalCondition}
 	`;
 
-	// For chart, use COALESCE to get settlement date or game date for grouping
-	let chartGroupBy = groupBy;
-	if (isCurrentPeriod) {
-		if (range === 'week') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, DAYOFWEEK(ds.SETTLEMENT_DATE), DAYOFWEEK(NOW()))";
-		} else if (range === 'month') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, MONTH(ds.SETTLEMENT_DATE), MONTH(NOW()))";
-		} else if (range === 'year') {
-			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, YEAR(ds.SETTLEMENT_DATE), YEAR(NOW()))";
-		}
-	}
-
 	const chartQuery = `
 		SELECT 
-			${chartGroupBy} AS label,
+			${groupBy} AS label,
 			SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
 			SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
 		FROM game_record
 		JOIN game_list ON game_record.GAME_ID = game_list.IDNo
-		LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-		LEFT JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-		WHERE game_record.ACTIVE = 1 
-			AND (
-				(dsg.GAME_ID IS NOT NULL ${groupCondition})
-				${unsettledCondition}
-			)
-		GROUP BY ${chartGroupBy}
-		ORDER BY ${chartGroupBy}
+		WHERE game_record.ACTIVE = 1
+			AND game_list.ACTIVE != 0
+			${groupCondition}
+		GROUP BY ${groupBy}
+		ORDER BY ${groupBy}
 	`;
 
 	try {
@@ -3380,70 +3401,31 @@ router.get('/get_winloss', async (req, res) => {
 });
 
 
-// GET WIN/LOSS SETTLEMENT DETAILS
+// GET WIN/LOSS DETAILS BY PROGRAM DATE
 router.get('/get_winloss_settlement_details', async (req, res) => {
 	const startDate = req.query.start_date;
 	const endDate = req.query.end_date;
-	const filter = req.query.filter || 'all'; // all, settled, unsettled
 
 	if (!startDate || !endDate) {
 		return res.status(400).json({ error: 'Start date and end date are required' });
 	}
 
 	try {
-		const results = [];
+		const programDateQuery = `
+			SELECT 
+				game_list.PROGRAM_DATE AS program_date,
+				SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
+				SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
+			FROM game_list
+			JOIN game_record ON game_list.IDNo = game_record.GAME_ID
+			WHERE game_record.ACTIVE = 1
+				AND game_list.ACTIVE != 0
+				AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
+			GROUP BY game_list.PROGRAM_DATE
+			ORDER BY game_list.PROGRAM_DATE DESC
+		`;
 
-		// Get settled settlements
-		if (filter === 'all' || filter === 'settled') {
-			const settledQuery = `
-				SELECT 
-					ds.SETTLEMENT_DATE AS settlement_date,
-					MIN(ds.IDNo) AS settlement_id,
-					SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
-					SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
-					'Settled' AS status
-				FROM daily_settlement_games dsg
-				JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-				JOIN game_list ON dsg.GAME_ID = game_list.IDNo
-				JOIN game_record ON game_list.IDNo = game_record.GAME_ID
-				WHERE game_record.ACTIVE = 1
-					AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
-				GROUP BY ds.SETTLEMENT_DATE
-				ORDER BY ds.SETTLEMENT_DATE DESC
-			`;
-
-			const [settledResults] = await pool.execute(settledQuery, [startDate, endDate]);
-			results.push(...settledResults);
-		}
-
-		// Get unsettled games (current period)
-		if (filter === 'all' || filter === 'unsettled') {
-			const today = new Date().toISOString().slice(0, 10);
-			if (endDate >= today) {
-				const unsettledQuery = `
-					SELECT 
-						'Unsettled' AS settlement_date,
-						NULL AS settlement_id,
-						SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
-						SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
-						'Unsettled' AS status
-					FROM game_list
-					JOIN game_record ON game_list.IDNo = game_record.GAME_ID
-					LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-					WHERE game_record.ACTIVE = 1
-						AND game_list.ACTIVE != 0
-						AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-						AND dsg.GAME_ID IS NULL
-						AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
-				`;
-
-				const [unsettledResults] = await pool.execute(unsettledQuery, [startDate, endDate]);
-				if (unsettledResults.length > 0 && (unsettledResults[0].cashin > 0 || unsettledResults[0].cashout > 0)) {
-					results.push(unsettledResults[0]);
-				}
-			}
-		}
-
+		const [results] = await pool.execute(programDateQuery, [startDate, endDate]);
 		res.json(results);
 	} catch (err) {
 		console.error("Error in get_winloss_settlement_details route:", err);

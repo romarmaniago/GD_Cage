@@ -18,7 +18,7 @@
                         (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
                         (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
                         (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                        (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %>" readonly/>    
+                        (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString('en-US') %>" readonly/>    
                     </div>
                 </div>
                 <div class="row mb-1">
@@ -103,13 +103,16 @@
                 </div>
 
                 <!-- Save / Close buttons positioned near the form -->
-                <div class="row d-flex justify-content-end mt-3 mb-2">
+                <div class="row d-flex justify-content-between align-items-center mt-3 mb-2">
                     <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-success d-none" id="btn-credits-game-start">
+                            <%= __('dashboard_marker.game_start') %>
+                        </button>
+                    </div>
+                    <div class="col-auto d-flex gap-2">
                         <button id="submit_marker_settlement" type="submit" class="btn btn-sm btn-primary">
                             <%= __('dashboard_marker.save') %>
                         </button>
-                    </div>
-                    <div class="col-auto">
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
                             <%= __('dashboard_marker.close') %>
                         </button>

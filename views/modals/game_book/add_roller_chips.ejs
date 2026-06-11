@@ -43,6 +43,7 @@
 			<div class="row mb-2">
 				<div class="col-sm-6">
 					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerNN" placeholder="NN Chips" name="txtRollerNN">
+					<small id="roller-chips-remaining-hint" class="d-block mt-1 text-danger fw-semibold" style="display: none;"></small>
 				</div>
 				<div class="col-sm-6">
 					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerCC" placeholder="CC Chips" name="txtRollerCC">
@@ -122,8 +123,8 @@ document.addEventListener('DOMContentLoaded', function () {
 				const ccEl = document.getElementById('roller-availableCC');
 				const nn = Number(data && data.availableNN) || 0;
 				const cc = Number(data && data.availableCC) || 0;
-				if (nnEl) nnEl.textContent = nn.toLocaleString();
-				if (ccEl) ccEl.textContent = cc.toLocaleString();
+				if (nnEl) nnEl.textContent = nn.toLocaleString('en-US');
+				if (ccEl) ccEl.textContent = cc.toLocaleString('en-US');
 			})
 			.catch(function () {
 				const nnEl = document.getElementById('roller-availableNN');
@@ -163,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (value > avail) {
 			rollerSwalWarn(
 				'Exceeds Available NN Chips',
-				'ADD cannot exceed ' + avail.toLocaleString() + ' NN Chips available.'
+				'ADD cannot exceed ' + avail.toLocaleString('en-US') + ' NN Chips available.'
 			);
 			nnInput.value = '';
 			nnInput.classList.remove('is-invalid');
@@ -186,20 +187,33 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (value > avail) {
 			rollerSwalWarn(
 				'Exceeds Available CC Chips',
-				'ADD cannot exceed ' + avail.toLocaleString() + ' CC Chips available.'
+				'ADD cannot exceed ' + avail.toLocaleString('en-US') + ' CC Chips available.'
 			);
 			ccInput.value = '';
 			ccInput.focus();
 		}
 	}
 
-	if (nnInput) nnInput.addEventListener('input', validateRollerNNInline);
-	if (ccInput) ccInput.addEventListener('input', validateRollerCCInline);
+	function onRollerInputChange() {
+		if (typeof updateRollerChipsRemainingHint === 'function') {
+			updateRollerChipsRemainingHint();
+		}
+	}
+
+	if (nnInput) {
+		nnInput.addEventListener('input', validateRollerNNInline);
+		nnInput.addEventListener('input', onRollerInputChange);
+	}
+	if (ccInput) {
+		ccInput.addEventListener('input', validateRollerCCInline);
+		ccInput.addEventListener('input', onRollerInputChange);
+	}
 
 	transRadios.forEach(function (r) {
 		r.addEventListener('change', function () {
 			validateRollerNNInline();
 			validateRollerCCInline();
+			onRollerInputChange();
 		});
 	});
 });

@@ -1,0 +1,67 @@
+<style>
+body.modal-open #modal-add-guest-table.show {
+	z-index: 1065;
+}
+body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
+	z-index: 1060;
+}
+.swal2-container {
+	z-index: 1080 !important;
+}
+</style>
+<div class="modal fade" id="modal-add-guest-table" tabindex="-1" aria-labelledby="modal-add-guest-table-label" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-add-guest-table-label">Add Guest</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="add_guest_form">
+				<div class="modal-body">
+					<input type="hidden" id="guest_agent_id" name="txtAgentId">
+					<div class="mb-2 text-muted small">
+						LINE: <strong id="guest_agent_display">-</strong>
+					</div>
+					<div class="mb-0">
+						<label for="guest_membership_input" class="form-label">Membership No</label>
+						<input type="text" class="form-control" id="guest_membership_input" name="txtMembershipNo" required maxlength="10" inputmode="numeric" autocomplete="off" placeholder="8–10 digits">
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="guest_name_input" class="form-label">Guest Name</label>
+						<input type="text" class="form-control" id="guest_name_input" name="txtGuestName" required maxlength="150">
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="guest_remarks_input" class="form-label">Remarks</label>
+						<textarea class="form-control" id="guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary btn-sm" id="btn-save-guest-table">Save</button>
+					<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+(function () {
+	function normalizeMembershipInput(el) {
+		if (!el) return;
+		el.value = String(el.value || '').replace(/\D/g, '').slice(0, 10);
+	}
+
+	window.validateGuestMembershipNo = function (value) {
+		var v = String(value || '').trim();
+		if (!/^\d{8,10}$/.test(v)) {
+			return 'Membership No must be 8 to 10 digits only.';
+		}
+		return '';
+	};
+
+	document.addEventListener('input', function (e) {
+		if (e.target && e.target.id === 'guest_membership_input') {
+			normalizeMembershipInput(e.target);
+		}
+	});
+})();
+</script>

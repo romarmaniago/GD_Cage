@@ -8,6 +8,8 @@
     var $ = window.jQuery;
     if (!$) return;
 
+    var skipMarkerModalReload = false;
+
     function formatWithCommas(value) {
         if (value === '' || value === null || value === undefined) return value;
         var num = Number(value);
@@ -24,6 +26,27 @@
             return Math.round(rounded).toLocaleString('en-US');
         }
         return rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    /** Junket Credit + Buy-in thru Credit display as (x,xxx) red — same as buy-in/cash-out */
+    function isMarkerCreditOutTransaction(row) {
+        if (!row || row.TRANSACTION_INFO == null) return false;
+        var transactionId = parseInt(String(row.TRANSACTION_INFO).split('-')[0], 10);
+        return transactionId === 3 || transactionId === 10;
+    }
+
+    function formatMarkerHistoryAmountCell(value, row, type) {
+        if (type === 'sort' || type === 'type') {
+            var n = value != null ? Number(value) : 0;
+            return isNaN(n) ? 0 : n;
+        }
+        if (isMarkerCreditOutTransaction(row)) {
+            if (window.fmtOut) return window.fmtOut(value);
+            var formatted = formatMarkerHistoryAmount(Math.abs(Number(value) || 0));
+            if (formatted === '0') return '0';
+            return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+        }
+        return formatMarkerHistoryAmount(value);
     }
 
     var MARKER_HISTORY_DATE_PARSE_FORMATS = [
@@ -154,8 +177,8 @@
                 {
                     data: 'AMOUNT',
                     className: 'text-center marker-history-col-amount',
-                    render: function (data) {
-                        return formatMarkerHistoryAmount(data);
+                    render: function (data, type, row) {
+                        return formatMarkerHistoryAmountCell(data, row, type);
                     }
                 },
                 { data: 'TRANSACTION_INFO', render: renderTransactionType },
@@ -190,7 +213,7 @@
                         }
                         var safe = escapeHtml(raw);
                         var textHtml = safe ? safe : '<span class="text-muted">—</span>';
-                        if (!isSuperAdmin) {
+                        if (!(window.RemarksEditor ? window.RemarksEditor.canEdit() : isSuperAdmin)) {
                             return textHtml;
                         }
                         var id = row.IDNo != null ? String(row.IDNo) : '';
@@ -200,9 +223,9 @@
                         var delTitle = (t.delete || 'Delete').replace(/"/g, '&quot;');
                         return (
                             '<div class="marker-history-remarks-cell d-flex align-items-start gap-2 justify-content-between">' +
-                            '<span class="marker-history-remarks-text flex-grow-1 text-break">' + textHtml + '</span>' +
+                            '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer flex-grow-1 text-break btn-edit-marker-remarks"' +
+                            ' role="button" tabindex="0" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>' +
                             '<span class="marker-history-remarks-actions flex-shrink-0 d-flex gap-1">' +
-                            '<button type="button" class="btn btn-sm btn-light border btn-edit-marker-remarks" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '"><i class="fa fa-pen"></i></button>' +
                             '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
                             '</span></div>'
                         );
@@ -216,10 +239,10 @@
             e.preventDefault();
             e.stopPropagation();
             var btn = $(this);
+            if (btn.hasClass('marker-history-remarks-busy')) return;
             var id = btn.data('id');
             if (!id) return;
-            var perms = parseInt($('#user-role').data('permissions'), 10);
-            if ($('#user-role').length && perms !== 0) return;
+            if (window.RemarksEditor && !window.RemarksEditor.canEdit()) return;
 
             var rawRemarks = '';
             try {
@@ -235,7 +258,7 @@
             var errMsg = t.error_update_remarks || 'Could not update remarks.';
 
             function doPatch(newVal) {
-                btn.prop('disabled', true);
+                btn.addClass('marker-history-remarks-busy').attr('aria-disabled', 'true').css('pointer-events', 'none');
                 $.ajax({
                     url: '/marker_record/' + id + '/remarks',
                     method: 'PATCH',
@@ -244,7 +267,11 @@
                     success: function (res) {
                         if (res.success) {
                             if (table && table.ajax) table.ajax.reload();
-                            if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Success', text: res.message || okMsg });
+                            if (window.RemarksEditor && window.RemarksEditor.showSuccessToast) {
+                                window.RemarksEditor.showSuccessToast();
+                            } else if (window.Swal) {
+                                window.Swal.fire({ icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1200 });
+                            }
                         } else {
                             if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: res.message || errMsg });
                         }
@@ -253,7 +280,9 @@
                         var msg = (xhr.responseJSON && xhr.responseJSON.message) || errMsg;
                         if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
                     },
-                    complete: function () { btn.prop('disabled', false); }
+                    complete: function () {
+                        btn.removeClass('marker-history-remarks-busy').removeAttr('aria-disabled').css('pointer-events', '');
+                    }
                 });
             }
 
@@ -300,6 +329,13 @@
             }
         });
 
+        $table.off('keydown.markerEditRemarks').on('keydown.markerEditRemarks', '.btn-edit-marker-remarks', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).trigger('click');
+        });
+
         // Delete button click (delegated)
         $table.off('click.markerDelete').on('click.markerDelete', '.btn-delete-marker', function (e) {
             e.preventDefault();
@@ -333,7 +369,7 @@
                                     if (table && table.ajax) table.ajax.reload();
                                     $.getJSON('/marker_total_credits_issue', function (data) {
                                         var total = (data && data.total != null) ? data.total : 0;
-                                        var numStr = Number(total).toLocaleString();
+                                        var numStr = Number(total).toLocaleString('en-US');
                                         $('#txtTotalMarkerIssue').val(numStr);
                                         $('#dashboard-credit-value').html('₱ ' + numStr);
                                     });
@@ -362,7 +398,7 @@
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
-                                    var numStr = Number(total).toLocaleString();
+                                    var numStr = Number(total).toLocaleString('en-US');
                                     $('#txtTotalMarkerIssue').val(numStr);
                                     $('#dashboard-credit-value').html('₱ ' + numStr);
                                 });
@@ -605,6 +641,38 @@
         });
     }
 
+    function loadGameListScriptOnce() {
+        return new Promise(function (resolve, reject) {
+            if (typeof window.addGameList === 'function') {
+                resolve();
+                return;
+            }
+            var src = '/assets/js/functions/game_list.js';
+            var existing = document.querySelector('script[src="' + src + '"]');
+            var waitForAddGameList = function (attempt) {
+                var tryNo = attempt || 0;
+                if (typeof window.addGameList === 'function') {
+                    resolve();
+                    return;
+                }
+                if (tryNo >= 100) {
+                    reject(new Error('addGameList not available'));
+                    return;
+                }
+                setTimeout(function () { waitForAddGameList(tryNo + 1); }, 50);
+            };
+            if (existing) {
+                waitForAddGameList(0);
+                return;
+            }
+            var script = document.createElement('script');
+            script.src = src;
+            script.onload = function () { waitForAddGameList(0); };
+            script.onerror = function () { reject(new Error('Failed to load game_list.js')); };
+            document.body.appendChild(script);
+        });
+    }
+
     function initForm(table, opts) {
         opts = opts || {};
         var formSelector = opts.formSelector || '#add_marker_settlement';
@@ -615,6 +683,8 @@
         var remarksSelector = opts.remarksSelector || '#txtRemarks';
         var submitBtnSelector = opts.submitBtnSelector || '#submit_marker_settlement';
         var agentBalanceSelector = opts.agentBalanceSelector || '#AgentBalance';
+        var gameStartBtnSelector = opts.gameStartBtnSelector || '#btn-credits-game-start';
+        var hideModalOnGameStartSelector = opts.hideModalOnGameStartSelector || '#modal-new-marker';
         var optTransTypeName = opts.optTransTypeName || 'optTransType';
         var optReturnSourceName = opts.optReturnSourceName || 'optReturnSource';
         var selectPlaceholder = opts.selectPlaceholder || 'Select account';
@@ -686,11 +756,62 @@
             initAccountSelect2();
         }
 
+        function updateCreditsGameStartButton() {
+            var $btn = $(gameStartBtnSelector);
+            if (!$btn.length) return;
+            var hasAccount = !!String($accountSelect.val() || '').trim();
+            var hasSource = !!getSelectedReturnSource();
+            $btn.toggleClass('d-none', !(hasAccount && hasSource));
+        }
+
+        function openCreditsGameStart() {
+            var accountId = String($accountSelect.val() || '').trim();
+            if (!accountId) {
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'warning', title: 'No account', text: 'Please select an account first.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
+            if (!$('#modal-new-game-list').length) {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Unavailable',
+                        text: 'New Game modal is not available on this page.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+                return;
+            }
+            loadGameListScriptOnce().then(function () {
+                var openingBalance = parseFloat($(agentBalanceSelector).val()) || 0;
+                if (!openingBalance) {
+                    openingBalance = parseFloat(String($(markerBalanceSelector).val() || '').replace(/,/g, '')) || 0;
+                }
+                var $hideModal = $(hideModalOnGameStartSelector);
+                if ($hideModal.length) {
+                    skipMarkerModalReload = true;
+                    $hideModal.modal('hide');
+                }
+                window.addGameList(accountId, { openingBalance: openingBalance, lockAccount: true });
+            }).catch(function () {
+                if (window.Swal) {
+                    window.Swal.fire({
+                        icon: 'error',
+                        title: 'Unavailable',
+                        text: 'Unable to open New Game modal right now.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
+        }
+
         function updateIssueAndBalanceBySelectedAccount() {
             var selectedAccountId = $accountSelect.val();
             if (!selectedAccountId) {
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedSource = getSelectedReturnSource();
@@ -699,12 +820,14 @@
                 var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
                 $(markerIssueSelector).val(formatWithCommas(sourceAmount));
                 $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
+                updateCreditsGameStartButton();
                 return;
             }
             var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
             var totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
             $(markerIssueSelector).val(formatWithCommas(totalIssue));
             $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            updateCreditsGameStartButton();
         }
 
         // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
@@ -745,6 +868,13 @@
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
             }
+            updateCreditsGameStartButton();
+        });
+
+        $(document).off('click.markerGameStart', gameStartBtnSelector).on('click.markerGameStart', gameStartBtnSelector, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openCreditsGameStart();
         });
 
         // Agent balance for deposit check (account_details_data_deposit)
@@ -839,7 +969,7 @@
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
-                                    var numStr = Number(total).toLocaleString();
+                                    var numStr = Number(total).toLocaleString('en-US');
                                     $('#txtTotalMarkerIssue').val(numStr);
                                     $('#dashboard-credit-value').html('₱ ' + numStr);
                                 });
@@ -1236,6 +1366,10 @@
 
         if (options.modalSelector && options.reloadOnModalHidden) {
             $(options.modalSelector).off('hidden.bs.modal.markerCommon').on('hidden.bs.modal.markerCommon', function () {
+                if (skipMarkerModalReload) {
+                    skipMarkerModalReload = false;
+                    return;
+                }
                 if (typeof window.reloadData === 'function') window.reloadData();
                 window.location.reload();
             });

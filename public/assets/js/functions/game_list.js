@@ -5,6 +5,8 @@ var _servicesSettled = 0;
 // Cache accounts so Select2 doesn't flash "No results found" while AJAX is still loading
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
+/** Junket/house account for pending resolve New Game (account.IDNo). */
+var PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
 	
 function resetNewGameSubmitButton() {
 	var $btn = $('#submit-game-list-btn');
@@ -24,7 +26,15 @@ function resetNewGameInputs() {
 	$('#txtNN, #txtCC').closest('.row').show();
 	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
 	$('#txtGuestId').val('');
-	ensureNewGameEncodedDatePicker();
+	ensureNewGameProgramDatePicker();
+}
+
+function isEndGameStatus(status) {
+	return status == '1';
+}
+
+function isCutoffStatus(status) {
+	return status == '4';
 }
 
 function isEndGameOrCutoffStatus(status) {
@@ -108,13 +118,121 @@ function computeRollerChipsBalanceFromRecords(rows) {
 	return result;
 }
 
+/** Roller chips on continuation game: same total as parent (all as NN); last rolling CC is returned on parent only. */
+function computeCutoffTransferRollerNN(rollerTotals) {
+	return Math.max(0, rollerTotals.combinedNet || 0);
+}
+
+/** Match game list ROLLING and ROLLER CHIPS columns for one game's records. */
+function computeGameRollingAndRollerTotalsFromRecords(rows) {
+	var total_rolling_nn = 0;
+	var total_rolling = 0;
+	var total_rolling_real = 0;
+	var total_rolling_nn_real = 0;
+	var total_rolling_cc_real = 0;
+	var total_cash_out_nn = 0;
+	var total_roller_nn = 0;
+	var total_roller_cc = 0;
+	var total_roller_return_cc = 0;
+
+	(rows || []).forEach(function (res) {
+		var cageType = parseInt(res.CAGE_TYPE, 10);
+
+		if (cageType === 2) {
+			total_cash_out_nn += Number(res.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 3) {
+			total_rolling += Number(res.AMOUNT) || 0;
+			total_rolling_nn += Number(res.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 4) {
+			total_rolling_real += Number(res.AMOUNT) || 0;
+			total_rolling_nn_real += Number(res.NN_CHIPS) || 0;
+			total_rolling_cc_real += Number(res.CC_CHIPS) || 0;
+		}
+
+		if (cageType === 5) {
+			var rollerTransaction = parseInt(res.ROLLER_TRANSACTION, 10);
+			if (Number.isNaN(rollerTransaction) || rollerTransaction === 0) {
+				rollerTransaction = 1;
+			}
+			if (rollerTransaction === 1) {
+				total_roller_nn += Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			} else if (rollerTransaction === 2) {
+				total_roller_nn -= Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc -= Number(res.ROLLER_CC_CHIPS) || 0;
+				total_roller_return_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	});
+
+	var totalRollingCCWithReturns = total_roller_return_cc;
+	var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+	var total_roller_chips = total_roller_nn + total_roller_cc;
+
+	return {
+		total_rolling_chips: total_rolling_chips,
+		total_roller_chips: total_roller_chips
+	};
+}
+
+function getProjectedRollingChips(rows, ccAmount, options) {
+	options = options || {};
+	var totals = computeGameRollingAndRollerTotalsFromRecords(rows);
+	var projected = totals.total_rolling_chips + ccAmount;
+
+	if (options.isUpdate && options.recordId) {
+		var oldRecord = (rows || []).find(function (row) {
+			return String(row.IDNo) === String(options.recordId);
+		});
+		if (oldRecord && parseInt(oldRecord.CAGE_TYPE, 10) === 4) {
+			projected = totals.total_rolling_chips - (Number(oldRecord.CC_CHIPS) || 0) + ccAmount;
+		}
+	}
+
+	return {
+		projectedRolling: projected,
+		total_roller_chips: totals.total_roller_chips,
+		current_rolling: totals.total_rolling_chips
+	};
+}
+
+function validateRollingAgainstRollerChips(rows, ccAmount, options) {
+	var projection = getProjectedRollingChips(rows, ccAmount, options);
+	if (projection.projectedRolling > projection.total_roller_chips) {
+		return {
+			ok: false,
+			message: 'Rolling cannot exceed Roller Chips (' + projection.total_roller_chips.toLocaleString() + ').',
+			projection: projection
+		};
+	}
+	return { ok: true, projection: projection };
+}
+
+function formatMergeNumeric(value) {
+	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatListAmount(value, mode) {
+	if (mode === 'out' && window.fmtOut) return window.fmtOut(value);
+	if (mode === 'signed' && window.fmtSigned) return window.fmtSigned(value);
+	if (mode === 'in' && window.fmtIn) return window.fmtIn(value);
+	return formatMergeNumeric(value);
+}
+
+function parseListAmount(value) {
+	if (window.AmountFormat) return window.AmountFormat.toNumber(value);
+	return parseInt(String(value || '').split(',').join(''), 10) || 0;
+}
+
 function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	var $modal = $('#modal-change_status');
 	$modal.data('netRollerNN', rollerTotals.netNNRaw);
 	$modal.data('netRollerCC', rollerTotals.netCCRaw);
 	$modal.data('combinedNet', rollerTotals.combinedNet);
-	$modal.data('cutoffTransferRollerNN', rollerTotals.transferNN);
-	$modal.data('cutoffTransferRollerCC', rollerTotals.transferCC);
 	$modal.data('requiredReturnNN', rollerTotals.requiredReturnNN);
 	$modal.data('requiredReturnCC', rollerTotals.requiredReturnCC);
 	$modal.data('requiredReturnTotal', rollerTotals.requiredReturnTotal);
@@ -122,6 +240,312 @@ function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	$modal.data('totalAddCC', rollerTotals.totalAddCC);
 	$modal.data('totalReturnNN', rollerTotals.totalReturnNN);
 	$modal.data('totalReturnCC', rollerTotals.totalReturnCC);
+}
+
+function getDefaultProgramDateYmd() {
+	var el = document.getElementById('program-date-range-picker');
+	var fp = el && el._flatpickr;
+	if (fp && fp.selectedDates && fp.selectedDates.length > 0) {
+		var fromPicker = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+		if (/^\d{4}-\d{2}-\d{2}$/.test(fromPicker)) return fromPicker;
+	}
+	var anchor = String(window.selectedProgramDate || '').slice(0, 10);
+	if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return anchor;
+	var wrapper = document.querySelector('#program-date-wrapper .input-group');
+	if (wrapper) {
+		var initial =
+			wrapper.getAttribute('data-initial-program-date') ||
+			wrapper.getAttribute('data-today') ||
+			'';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(initial)) return initial;
+	}
+	return '';
+}
+
+function addOneDayToProgramDateYmd(ymd) {
+	var raw = (ymd || '').trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+		return '';
+	}
+	if (typeof moment !== 'undefined' && moment) {
+		var m = moment(raw, 'YYYY-MM-DD', true);
+		if (m.isValid()) {
+			return m.add(1, 'day').format('YYYY-MM-DD');
+		}
+	}
+	var parts = raw.split('-').map(function (n) { return parseInt(n, 10); });
+	var d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+	if (isNaN(d.getTime())) {
+		return '';
+	}
+	var y = d.getFullYear();
+	var mo = String(d.getMonth() + 1).padStart(2, '0');
+	var da = String(d.getDate()).padStart(2, '0');
+	return y + '-' + mo + '-' + da;
+}
+
+/** Default cut off program date = current game's program date + 1 day. */
+function getCutoffDefaultProgramDateYmd() {
+	var gameYmd = $('#modal-change_status').data('gameProgramDate');
+	if (gameYmd) {
+		var nextFromGame = addOneDayToProgramDateYmd(gameYmd);
+		if (nextFromGame) {
+			return nextFromGame;
+		}
+	}
+	var listYmd = getDefaultProgramDateYmd();
+	if (listYmd) {
+		return addOneDayToProgramDateYmd(listYmd) || listYmd;
+	}
+	return '';
+}
+
+function closeChangeStatusCutoffDatePicker() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (el && el._flatpickr) {
+		el._flatpickr.close();
+	}
+}
+
+function resetChangeStatusCutoffFields() {
+	closeChangeStatusCutoffDatePicker();
+	$('#cutoff-details-section').hide();
+	$('#txtCutoffBuyInNN, #txtCutoffBuyInCC').val('').removeClass('is-invalid');
+	$('#txtCutoffLastRolling').val('');
+	var dateEl = document.getElementById('txtCutoffProgramDate');
+	if (dateEl && dateEl._flatpickr) {
+		dateEl._flatpickr.clear();
+	} else {
+		$('#txtCutoffProgramDate').val('');
+	}
+}
+
+function ensureChangeStatusCutoffDatePicker() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (!el || typeof flatpickr === 'undefined') {
+		return;
+	}
+	var defaultYmd = getCutoffDefaultProgramDateYmd();
+	var defaultDate = defaultYmd ? (defaultYmd + 'T12:00:00') : new Date();
+	if (el._flatpickr) {
+		el._flatpickr.destroy();
+	}
+	flatpickr(el, {
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'F j, Y',
+		defaultDate: defaultDate,
+		allowInput: true,
+		disableMobile: true,
+		closeOnSelect: true,
+		appendTo: document.body,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		}
+	});
+}
+
+function getChangeStatusCutoffProgramDateValue() {
+	var el = document.getElementById('txtCutoffProgramDate');
+	if (!el) {
+		return '';
+	}
+	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
+		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
+	}
+	var raw = (el.value || '').trim();
+	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function formatChangeStatusCutoffDateDisplay(ymd) {
+	var raw = (ymd || '').trim();
+	if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+		return raw || '—';
+	}
+	if (typeof moment !== 'undefined' && moment) {
+		var m = moment(raw, 'YYYY-MM-DD', true);
+		if (m.isValid()) {
+			return m.format('MMMM D, YYYY');
+		}
+	}
+	var d = new Date(raw + 'T12:00:00');
+	if (!isNaN(d.getTime())) {
+		return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+	}
+	return raw;
+}
+
+function loadChangeStatusCutoffLastRolling(gameId) {
+	var $field = $('#txtCutoffLastRolling');
+	if (!$field.length || !gameId) {
+		return;
+	}
+	var currentVal = ($field.val() || '').toString().replace(/,/g, '').trim();
+	if (currentVal && currentVal !== 'Loading...') {
+		return;
+	}
+	$field.val('');
+	$.ajax({
+		url: '/game_list/' + encodeURIComponent(gameId) + '/rolling/last',
+		method: 'GET',
+		dataType: 'json',
+		success: function (response) {
+			if (($field.val() || '').toString().replace(/,/g, '').trim()) {
+				return;
+			}
+			var record = response && response.data;
+			if (!record) {
+				return;
+			}
+			var cc = parseFloat(record.CC_CHIPS) || 0;
+			var nn = parseFloat(record.NN_CHIPS) || 0;
+			if (cc > 0) {
+				$field.val(String(cc));
+			} else if (nn > 0) {
+				$field.val(String(nn));
+			}
+		}
+	});
+}
+
+function updateChangeStatusCutoffSection() {
+	var selectedStatus = $('#status').val();
+	if (isCutoffStatus(selectedStatus)) {
+		$('#cutoff-details-section').show();
+		ensureChangeStatusCutoffDatePicker();
+		loadChangeStatusCutoffLastRolling(game_id);
+	} else {
+		resetChangeStatusCutoffFields();
+	}
+}
+
+function updateChangeStatusRollerReturnSection() {
+	var selectedStatus = $('#status').val();
+	var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+	var isPendingResolve = !!$('#modal-change_status').data('isPendingResolve');
+
+	if (isCutoffStatus(selectedStatus)) {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
+		$('#roller-chips-return-section').hide();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+		}
+		updateChangeStatusCutoffSection();
+		return;
+	}
+
+	resetChangeStatusCutoffFields();
+
+	if (isPendingFaultSettled()) {
+		applyPendingFaultSettledUi();
+		return;
+	}
+
+	if (selectedStatus == '1' && (currentRequiredTotal > 0 || isPendingResolve)) {
+		$('#roller-chips-return-section').show();
+		$('#roller-chips-return-summary').toggle(currentRequiredTotal > 0);
+		$('#roller-chips-return-inputs').toggle(currentRequiredTotal > 0);
+		if (isPendingResolve) {
+			$('#pending-resolution-section').show();
+			$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+		} else {
+			$('#pending-resolution-section').hide();
+		}
+		$('#pending-resolve-status-banner').hide();
+	} else {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
+		$('#roller-chips-return-section').hide();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+		}
+	}
+}
+
+function updateReturnRollerRemainingHint() {
+	var $hint = $('#return-roller-remaining-hint');
+	if (!$hint.length) return;
+
+	var requiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+	if (requiredTotal <= 0 || !$('#roller-chips-return-inputs').is(':visible')) {
+		$hint.hide().text('');
+		return;
+	}
+
+	var returnNN = parseFloat(($('#txtReturnRollerNN').val() || '').replace(/,/g, '').trim()) || 0;
+	var returnCC = parseFloat(($('#txtReturnRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
+	var enteredTotal = returnNN + returnCC;
+	var remaining = requiredTotal - enteredTotal;
+
+	if (enteredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	if (remaining > 0) {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
+			.show();
+	} else if (remaining === 0) {
+		$hint.removeClass('text-danger').addClass('text-success')
+			.text('Complete')
+			.show();
+	} else {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Exceeds required by: ' + Math.abs(remaining).toLocaleString('en-US'))
+			.show();
+	}
+}
+
+function updateRollerChipsRemainingHint() {
+	var $hint = $('#roller-chips-remaining-hint');
+	if (!$hint.length) return;
+
+	var transType = $('#modal-add-roller-chips input[name="txtTransType"]:checked').val();
+	if (transType !== '2') {
+		$hint.hide().text('');
+		return;
+	}
+
+	var requiredTotal = parseFloat($('#modal-add-roller-chips').data('requiredReturnTotal')) || 0;
+	if (requiredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	var returnNN = parseFloat(($('#modal-add-roller-chips .txtRollerNN').val() || '').replace(/,/g, '').trim()) || 0;
+	var returnCC = parseFloat(($('#modal-add-roller-chips .txtRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
+	var enteredTotal = returnNN + returnCC;
+	var remaining = requiredTotal - enteredTotal;
+
+	if (enteredTotal <= 0) {
+		$hint.hide().text('');
+		return;
+	}
+
+	if (remaining > 0) {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
+			.show();
+	} else if (remaining === 0) {
+		$hint.removeClass('text-danger').addClass('text-success')
+			.text('Complete')
+			.show();
+	} else {
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Exceeds required by: ' + Math.abs(remaining).toLocaleString('en-US'))
+			.show();
+	}
 }
 
 /** Orange GAME END: ACTIVE=3 (pending) or any game with PENDING_ROLLER_RESOLVE set. */
@@ -182,16 +606,14 @@ function applyPendingFaultSettledUi() {
 		$('#roller-chips-return-inputs').hide();
 		$('#pending-resolution-section').hide();
 		$('#txtReturnRollerNN, #txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
 		$('#pending-resolve-status-banner').show();
 		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', true);
 		return;
 	}
 	$('#pending-resolve-status-banner').hide();
 	if ($('#modal-change_status').data('isPendingResolve')) {
-		$('#roller-chips-return-summary').show();
-		$('#roller-chips-return-inputs').show();
-		$('#pending-resolution-section').show();
-		$('#btn-pending-guest-buyin, #btn-pending-junket-new-game').prop('disabled', false);
+		updateChangeStatusRollerReturnSection();
 	}
 }
 
@@ -200,12 +622,13 @@ function refreshPendingResolveModalTotals(gameId, gameRow) {
 	$.getJSON('/game_list/' + gameId + '/record', function (response) {
 		var rollerTotals = computeRollerChipsBalanceFromRecords(response);
 		storeChangeStatusRollerTotals(rollerTotals, gameId);
-		$('#required-return-total-add-nn').text(parseFloat(rollerTotals.totalAddNN).toLocaleString());
-		$('#required-return-total-add-cc').text(parseFloat(rollerTotals.totalAddCC).toLocaleString());
-		$('#required-return-total-return-nn').text(parseFloat(rollerTotals.totalReturnNN).toLocaleString());
-		$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString());
-		$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString());
+		$('#required-return-total-add-nn').text(parseFloat(rollerTotals.totalAddNN).toLocaleString('en-US'));
+		$('#required-return-total-add-cc').text(parseFloat(rollerTotals.totalAddCC).toLocaleString('en-US'));
+		$('#required-return-total-return-nn').text(parseFloat(rollerTotals.totalReturnNN).toLocaleString('en-US'));
+		$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString('en-US'));
+		$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
 		updatePendingResolveBanner(gameRow);
+		updateChangeStatusRollerReturnSection();
 	});
 }
 
@@ -225,12 +648,12 @@ function updatePendingResolveBanner(gameRow) {
 	applyPendingFaultSettledUi();
 
 	if (resolve === 1) {
-		$text.html('<strong>Guest:</strong> Additional buy-in recorded.  Click <strong>Save</strong> to end game.');
+		$text.html('<strong>Guest:</strong> Additional buy-in recorded. Game has ended.');
 		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
 		$('#btn-pending-guest-buyin').prop('disabled', true);
 	} else if (resolve === 2) {
 		var linkId = parseInt(gameRow.PENDING_ROLLER_LINK_GAME_ID, 10) || 0;
-		$text.html('<strong>Junket:</strong> New game #' + linkId + ' created. Click <strong>Save</strong> to end game.');
+		$text.html('<strong>Junket:</strong> New game #' + linkId + ' created. Pending game has ended.');
 		$banner.removeClass('alert-warning alert-info').addClass('alert-success').show();
 		$('#btn-pending-junket-new-game').prop('disabled', true);
 	}
@@ -245,34 +668,41 @@ function setChangeStatusPendingResolveFlags(gameRow) {
 	}
 }
 
-function applyChangeStatusFromGameRow(game, currentStatus, agentCode) {
+function applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName) {
 	if (!game) return;
 	var $modal = $('#modal-change_status');
 	var activeStatus = currentStatus != null && currentStatus !== undefined && currentStatus !== ''
 		? parseInt(currentStatus, 10)
 		: parseInt(game.game_status, 10);
 	var code = agentCode || game.agent_code || '';
+	var name = normalizeGameGuestName(guestName || game.guest_name || '');
+
+	setChangeStatusPendingResolveFlags(game);
 
 	applyChangeStatusCutoffOption(
 		activeStatus,
 		game.CUTOFF_PARENT_GAME_ID || game.cutoff_parent_game_id,
 		game.CUTOFF_CONTINUED_GAME_ID || game.cutoff_continued_game_id
 	);
-	setChangeStatusPendingResolveFlags(game);
 
 	if (activeStatus === 3) {
 		setChangeStatusPendingMode(true);
 		$('#status').val('1');
-		$('#staticBackdropLiveLabel').html('Resolve Pending - <span id="change-status-agent-code">' + code + '</span>');
+		$('#staticBackdropLiveLabel').html(buildChangeStatusModalTitle('Resolve Pending', code, name));
+		updateChangeStatusRollerReturnSection();
 		refreshPendingResolveModalTotals(game.game_list_id || game.IDNo, game);
 		return;
 	}
 
 	setChangeStatusPendingMode(false);
 	$('#staticBackdropLiveLabel').html(
-		(window.gamelistTranslations && window.gamelistTranslations.change_status
-			? window.gamelistTranslations.change_status
-			: 'Change Status') + ' - <span id="change-status-agent-code">' + code + '</span>'
+		buildChangeStatusModalTitle(
+			window.gamelistTranslations && window.gamelistTranslations.change_status
+				? window.gamelistTranslations.change_status
+				: 'Change Status',
+			code,
+			name
+		)
 	);
 	if (activeStatus === 2) {
 		$('#status').val('2');
@@ -291,8 +721,6 @@ function setChangeStatusPendingMode(isPending) {
 		$('#change-status-normal-section').show();
 		$('#status').val('1');
 		$('#submit-status-btn').show();
-		$('#cutoff-parent-date-section').hide();
-		$('#cutoff-roller-auto-section').hide();
 		applyPendingFaultSettledUi();
 	} else {
 		$('#change-status-normal-section').show();
@@ -308,14 +736,15 @@ function setChangeStatusPendingMode(isPending) {
 
 function getPendingResolveContext() {
 	var $modal = $('#modal-change_status');
+	var agentLabel = $('#change-status-agent-code').text() || '';
 	return {
 		gameId: $('.txtGameId', $modal).val() || game_id,
 		accountId: $('.txtAccountCode', $modal).val(),
-		agentCode: $('#change-status-agent-code').text() || '',
+		agentCode: agentLabel,
 		balance: parseFloat($modal.data('requiredReturnTotal')) || 0,
-		prefillNN: parseFloat($modal.data('requiredReturnNN')) || parseFloat($modal.data('cutoffTransferRollerNN')) || 0,
-		prefillCC: parseFloat($modal.data('requiredReturnCC')) || parseFloat($modal.data('cutoffTransferRollerCC')) || 0,
-		guestId: $modal.data('cutoffGuestId') || null
+		prefillNN: parseFloat($modal.data('requiredReturnNN')) || 0,
+		prefillCC: parseFloat($modal.data('requiredReturnCC')) || 0,
+		guestId: $modal.data('changeStatusGuestId') || null
 	};
 }
 
@@ -346,14 +775,16 @@ function openPendingGuestBuyinModal() {
 	$('#pending_guest_game_id').val(ctx.gameId);
 	$('#pending_guest_account_id').val(ctx.accountId);
 	$('#pending_guest_required_balance').val(ctx.balance);
-	$('#pending-guest-balance-display').text(parseFloat(ctx.balance).toLocaleString());
+	$('#pending-guest-balance-display').text(parseFloat(ctx.balance).toLocaleString('en-US'));
 	setFormattedChipInputValue($('#pending_guest_txtNN'), preNN);
 	setFormattedChipInputValue($('#pending_guest_txtCC'), preCC);
 	$('#pending_guest_txtRemarks').val('');
 	$('#pending_guest_cash').prop('checked', true);
 
+	var $childModal = $('#modal-pending-guest-buyin');
+	ensureModalAppendedToBody($childModal);
 	setPendingResolveChildModalOpen(true);
-	$('#modal-pending-guest-buyin').modal('show');
+	$childModal.modal('show');
 
 	$.ajax({
 		url: '/account_details_data_deposit/' + ctx.accountId,
@@ -388,52 +819,63 @@ function openPendingGuestBuyinModal() {
 	});
 }
 
-function populatePendingJunketAccountSelect(defaultAccountId) {
-	var $select = $('#pending_junket_txtAccount');
-	if (!$select.length) return Promise.resolve();
+function formatPendingJunketAccountLabel(row) {
+	if (!row) return 'Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
+	var code = String(row.agent_code || '').trim();
+	var name = String(row.agent_name || '').trim();
+	if (code && name) return code + '(' + name + ')';
+	return code || name || ('Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID);
+}
 
-	function applyOptions(options) {
-		if ($select.data('select2')) {
-			$select.select2('destroy');
-		}
-		$select.empty();
-		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
-		(options || []).forEach(function (option) {
-			var code = option.agent_code || '';
-			var name = option.agent_name || '';
-			var $opt = $('<option>', {
-				value: option.account_id,
-				text: (code ? code + ' - ' : '') + name
-			});
-			$opt.attr('data-guest-id', option.guest_id || option.GUESTNo || '');
-			$opt.attr('data-agent-id', option.agent_id || option.AGENT_ID || '');
-			$select.append($opt);
+function loadPendingJunketLockedAccount() {
+	var accountId = PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
+	$('#pending_junket_account_id').val(String(accountId));
+	$('#pending_junket_account_display').val('Loading account...');
+	return $.getJSON('/game_list/pending_resolve/junket_account')
+		.done(function (row) {
+			$('#pending_junket_account_display').val(formatPendingJunketAccountLabel(row));
+		})
+		.fail(function () {
+			$('#pending_junket_account_display').val('Account #' + accountId);
 		});
-		$select.select2({
-			placeholder: 'Choose account...',
-			dropdownParent: '#modal-pending-junket-new-game',
-			width: '100%'
-		});
-		if (defaultAccountId) {
-			$select.val(String(defaultAccountId)).trigger('change');
-		}
-	}
-
-	if (Array.isArray(_accountOptionsCache)) {
-		applyOptions(_accountOptionsCache);
-		return Promise.resolve();
-	}
-	return preloadAccounts().then(function (opts) {
-		applyOptions(opts);
-	}).catch(function () {
-		applyOptions([]);
-	});
 }
 
 function setPendingJunketNewGameDefaults() {
 	$('#pending_junket_game_type').val('LIVE');
 	$('#pending_junket_commission_type').val('1');
 	$('#pending_junket_commission_rate').val('0');
+}
+
+function ensureModalAppendedToBody($modal) {
+	if ($modal && $modal.length && $modal.parent().length && !$modal.parent().is('body')) {
+		$modal.appendTo('body');
+	}
+}
+
+function bumpPendingResolveChildModalStack($childModal) {
+	var $parentModal = $('#modal-change_status');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetPendingResolveChildModalStack($childModal) {
+	$('#modal-change_status').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
 }
 
 function setPendingResolveChildModalOpen(isOpen) {
@@ -444,6 +886,50 @@ function setPendingResolveChildModalOpen(isOpen) {
 		$('body').removeClass('pending-resolve-child-open');
 		$('#modal-change_status').removeClass('pending-resolve-parent-hidden');
 	}
+}
+
+function isAssignGameGuestModalOpen() {
+	var $modal = $('#modal-assign-game-guest');
+	return $modal.length && $modal.hasClass('show');
+}
+
+function setAssignGameGuestChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('assign-guest-child-open');
+		$('#modal-assign-game-guest').addClass('assign-guest-parent-hidden');
+	} else {
+		$('body').removeClass('assign-guest-child-open');
+		$('#modal-assign-game-guest').removeClass('assign-guest-parent-hidden');
+	}
+}
+
+function bumpAssignGameGuestChildModalStack($childModal) {
+	var $parentModal = $('#modal-assign-game-guest');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetAssignGameGuestChildModalStack($childModal) {
+	$('#modal-assign-game-guest').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.style.zIndex = '';
+	});
 }
 
 function openPendingJunketNewGameModal() {
@@ -464,251 +950,19 @@ function openPendingJunketNewGameModal() {
 
 	$('#pending_junket_pending_game_id').val(ctx.gameId);
 	$('#pending_junket_required_balance').val(ctx.balance);
-	$('#pending-junket-balance-display').text(parseFloat(ctx.balance).toLocaleString());
+	$('#pending-junket-agent-code').text(ctx.agentCode);
+	$('#pending-junket-balance-display').text(parseFloat(ctx.balance).toLocaleString('en-US'));
 	setFormattedChipInputValue($('#pending_junket_txtNN'), preNN);
 	setFormattedChipInputValue($('#pending_junket_txtCC'), preCC);
 	$('#pending_junket_txtRemarks').val('');
 
+	var $childModal = $('#modal-pending-junket-new-game');
+	ensureModalAppendedToBody($childModal);
 	setPendingResolveChildModalOpen(true);
-	$('#modal-pending-junket-new-game').modal('show');
-
-	$.getJSON('/game_list_data?id=' + encodeURIComponent(ctx.gameId), function (rows) {
-		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
-		setPendingJunketNewGameDefaults();
-		var defaultAccountId = game && game.ACCOUNT_ID ? game.ACCOUNT_ID : ctx.accountId;
-		populatePendingJunketAccountSelect(defaultAccountId);
-	});
+	$childModal.modal('show');
+	setPendingJunketNewGameDefaults();
+	loadPendingJunketLockedAccount();
 }
-
-function getCutoffAutoRollerReturnAmounts() {
-	var nn = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerNN')) || 0);
-	var cc = Math.max(0, parseFloat($('#modal-change_status').data('cutoffTransferRollerCC')) || 0);
-	if (!nn && !cc) {
-		nn = Math.max(0, parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0);
-		cc = Math.max(0, parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0);
-	}
-	var amounts = {
-		nn: nn,
-		cc: cc,
-		total: Math.max(0, parseFloat($('#modal-change_status').data('combinedNet')) || 0) || (nn + cc)
-	};
-	return amounts;
-}
-
-function applyCutoffAutoRollerReturnToForm() {
-	var amounts = getCutoffAutoRollerReturnAmounts();
-	$('#txtReturnRollerNN').val(amounts.nn > 0 ? String(amounts.nn) : '');
-	$('#txtReturnRollerCC').val(amounts.cc > 0 ? String(amounts.cc) : '');
-	$('#modal-change_status').data('cutoffTransferRollerNN', amounts.nn);
-	$('#modal-change_status').data('cutoffTransferRollerCC', amounts.cc);
-	return amounts;
-}
-
-function closeChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.close();
-	}
-}
-
-function resetChangeStatusParentDateField() {
-	closeChangeStatusParentDatePicker();
-	$('#cutoff-parent-date-section').hide();
-	var el = document.getElementById('txtCutoffParentSettlementDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.clear();
-	} else {
-		$('#txtCutoffParentSettlementDate').val('');
-	}
-}
-
-function repositionModalFlatpickr(instance) {
-	if (!instance) {
-		return;
-	}
-	if (instance.altInput) {
-		instance._positionElement = instance.altInput;
-	}
-	if (typeof instance._positionCalendar === 'function') {
-		instance._positionCalendar();
-	}
-}
-
-/** Settlement date for parent game when status = CUT OFF. */
-function ensureChangeStatusParentDatePicker() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
-	if (!el || typeof flatpickr === 'undefined') {
-		return;
-	}
-	var anchorYmd = window.selectedSettlementDate;
-	var defaultDate =
-		anchorYmd && /^\d{4}-\d{2}-\d{2}$/.test(String(anchorYmd).slice(0, 10))
-			? String(anchorYmd).slice(0, 10)
-			: new Date();
-	if (el._flatpickr) {
-		el._flatpickr.destroy();
-	}
-	flatpickr(el, {
-		dateFormat: 'Y-m-d',
-		altInput: true,
-		altFormat: 'F j, Y',
-		defaultDate: defaultDate,
-		allowInput: true,
-		disableMobile: true,
-		closeOnSelect: true,
-		appendTo: document.body,
-		onReady: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('change-status-parent-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		},
-		onOpen: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('change-status-parent-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		}
-	});
-}
-
-function getChangeStatusParentSettlementDateValue() {
-	var el = document.getElementById('txtCutoffParentSettlementDate');
-	if (!el) {
-		return '';
-	}
-	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
-		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
-	}
-	var raw = (el.value || '').trim();
-	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
-}
-
-function updateChangeStatusCutoffDateSection() {
-	var status = $('#status').val();
-	var $section = $('#cutoff-parent-date-section');
-	if (status == '4') {
-		$section.show();
-		ensureChangeStatusParentDatePicker();
-	} else {
-		resetChangeStatusParentDateField();
-	}
-}
-
-function closeCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.close();
-	}
-}
-
-function resetCutoffGameDateField() {
-	closeCutoffGameDatePicker();
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
-	if (el && el._flatpickr) {
-		el._flatpickr.clear();
-	} else {
-		$('#cutoff_txtCutoffSettlementDate').val('');
-	}
-}
-
-/** Settlement date for cut-off new game (daily_settlement_games link). */
-function ensureCutoffGameDatePicker() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
-	if (!el || typeof flatpickr === 'undefined') {
-		return;
-	}
-	var anchorYmd = window.selectedSettlementDate;
-	var defaultDate =
-		anchorYmd && /^\d{4}-\d{2}-\d{2}$/.test(String(anchorYmd).slice(0, 10))
-			? String(anchorYmd).slice(0, 10)
-			: new Date();
-	if (el._flatpickr) {
-		el._flatpickr.destroy();
-	}
-	flatpickr(el, {
-		dateFormat: 'Y-m-d',
-		altInput: true,
-		altFormat: 'F j, Y',
-		defaultDate: defaultDate,
-		allowInput: true,
-		disableMobile: true,
-		closeOnSelect: true,
-		appendTo: document.body,
-		onReady: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('cutoff-game-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		},
-		onOpen: function (_selectedDates, _dateStr, instance) {
-			if (instance && instance.calendarContainer) {
-				instance.calendarContainer.classList.add('cutoff-game-date-calendar');
-			}
-			repositionModalFlatpickr(instance);
-		}
-	});
-}
-
-function getCutoffGameSettlementDateValue() {
-	var el = document.getElementById('cutoff_txtCutoffSettlementDate');
-	if (!el) {
-		return '';
-	}
-	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
-		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
-	}
-	var raw = (el.value || '').trim();
-	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
-}
-
-function formatCutoffGameDateDisplay(ymd) {
-	var raw = (ymd || '').trim();
-	if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-		return raw || '—';
-	}
-	if (typeof moment !== 'undefined' && moment) {
-		var m = moment(raw, 'YYYY-MM-DD', true);
-		if (m.isValid()) {
-			return m.format('MMMM D, YYYY');
-		}
-	}
-	var d = new Date(raw + 'T12:00:00');
-	if (!isNaN(d.getTime())) {
-		return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-	}
-	return raw;
-}
-
-function updateCutoffRollerAutoSection() {
-	var $section = $('#cutoff-roller-auto-section');
-	var $rollerManual = $('#roller-chips-return-section');
-	var status = $('#status').val();
-	var requiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-	var amounts = getCutoffAutoRollerReturnAmounts();
-
-	if (status == '4' && requiredTotal > 0) {
-		applyCutoffAutoRollerReturnToForm();
-		var netNNRaw = parseFloat($('#modal-change_status').data('netRollerNN')) || 0;
-		var netCCRaw = parseFloat($('#modal-change_status').data('netRollerCC')) || 0;
-		$('#cutoff-auto-roller-total').text(amounts.total.toLocaleString());
-		$('#cutoff-auto-roller-nn').text(netNNRaw.toLocaleString());
-		$('#cutoff-auto-roller-cc').text(netCCRaw.toLocaleString());
-		$section.show();
-		$rollerManual.hide();
-	} else {
-		$section.hide();
-		if (status == '4') {
-			$('#txtReturnRollerNN').val('');
-			$('#txtReturnRollerCC').val('');
-			$('#modal-change_status').data('cutoffTransferRollerNN', 0);
-			$('#modal-change_status').data('cutoffTransferRollerCC', 0);
-		}
-	}
-}
-
-var _cutoffAvailableNN = 0;
-var _cutoffAvailableCC = 0;
 
 function commissionTypeLabel(type) {
 	var t = parseInt(type, 10);
@@ -726,18 +980,6 @@ function normalizeCutoffGameType(raw) {
 
 function displayCutoffGameTypeLabel(normalized) {
 	return normalized === 'TELEBET' ? 'TELEBET' : 'LIVE';
-}
-
-function resetCutoffGameForm() {
-	var form = document.getElementById('add_game_cutoff');
-	if (form) form.reset();
-	$('#cutoff_txtTransType').val('1');
-	$('#cutoff_txtNN, #cutoff_txtCC, #cutoff_txtRollerNN, #cutoff_txtRollerCC').val('').removeClass('is-invalid');
-	$('#cutoff_txtCutoffParentGameId').val('');
-	resetCutoffGameDateField();
-	_cutoffAvailableNN = 0;
-	_cutoffAvailableCC = 0;
-	$('#modal-new-game-cutoff').data('cutoffReady', false);
 }
 
 function buildCutoffGameIdCell(row) {
@@ -776,144 +1018,32 @@ function buildCutoffGameIdPlainLabel(row) {
 	return String(gameId);
 }
 
-function loadCutoffAccountBalance(accountId) {
-	if (!accountId) return;
-	$.ajax({
-		url: '/account_details_data_deposit/' + accountId,
-		method: 'GET',
-		success: function (data) {
-			var deposit_amount = 0;
-			var withdraw_amount = 0;
-			var marker_deposit_amount = 0;
-			var marker_return = 0;
-
-			(data || []).forEach(function (row) {
-				var amount = parseFloat(row.AMOUNT) || 0;
-				if (row.TRANSACTION === 'DEPOSIT') {
-					deposit_amount += amount;
-				} else if (row.TRANSACTION === 'WITHDRAW') {
-					withdraw_amount += amount;
-				} else if (row.TRANSACTION === 'MARKER REDEEM') {
-					marker_deposit_amount += amount;
-				} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-					marker_return += amount;
-				}
-			});
-
-			var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-			$('#cutoff_totalBalanceGuest1').val(totalBalance);
-		}
-	});
-}
-
-function populateCutoffGameModal(game, chips, transferRollerNN, transferRollerCC) {
-	if (!game) return;
-
-	var accountId = game.ACCOUNT_ID || game.account_no;
-	var guestId = game.GUEST_ID || '';
-	var gameType = normalizeCutoffGameType(game.GAME_TYPE);
-	var commissionType = parseInt(game.COMMISSION_TYPE, 10) || 1;
-	var commissionRate = game.COMMISSION_PERCENTAGE != null ? game.COMMISSION_PERCENTAGE : 0;
-	$('#cutoff_txtAccountCode').val(accountId || '');
-	$('#cutoff_txtGuestId').val(guestId || '');
-	$('#cutoff_txtGameType').val(gameType);
-	$('#cutoff_txtTransType').val('1');
-	$('#cutoff_txtCommisionType').val(String(commissionType));
-	$('#cutoff_txtCommisionRate').val(String(commissionRate));
-
-	_cutoffAvailableNN = parseFloat(chips && chips.availableNN) || 0;
-	_cutoffAvailableCC = parseFloat(chips && chips.availableCC) || 0;
-
-	var rNN = parseFloat(transferRollerNN) || 0;
-	var rCC = parseFloat(transferRollerCC) || 0;
-	if (rNN > 0) {
-		$('#cutoff_txtRollerNN').val(rNN);
-	}
-	if (rCC > 0) {
-		$('#cutoff_txtRollerCC').val(rCC);
-	}
-
-	loadCutoffAccountBalance(accountId);
-	$('#modal-new-game-cutoff').data('cutoffReady', true);
-}
-
-function openNewGameAfterCutoff(previousGameId, transferRollerNN, transferRollerCC) {
-	if (!previousGameId) return;
-
-	var rollerNN = transferRollerNN != null ? transferRollerNN : ($('#modal-change_status').data('cutoffTransferRollerNN') || 0);
-	var rollerCC = transferRollerCC != null ? transferRollerCC : ($('#modal-change_status').data('cutoffTransferRollerCC') || 0);
-
-	resetCutoffGameForm();
-	$('#cutoff_txtCutoffParentGameId').val(String(previousGameId));
-	$('#modal-new-game-cutoff').data('prefillRollerNN', rollerNN);
-	$('#modal-new-game-cutoff').data('prefillRollerCC', rollerCC);
-	$('#modal-new-game-cutoff').modal('show');
-	ensureCutoffGameDatePicker();
-
-	$.when(
-		$.getJSON('/game_list_data?id=' + encodeURIComponent(previousGameId)),
-		$.getJSON('/game_list_available_chips'),
-		$.getJSON('/game_list/' + encodeURIComponent(previousGameId) + '/record')
-	).done(function (gameRes, chipsRes, recordRes) {
-		var rows = Array.isArray(gameRes[0]) ? gameRes[0] : [];
-		var game = rows[0];
-		var chips = chipsRes[0] || {};
-		var records = Array.isArray(recordRes[0]) ? recordRes[0] : [];
-		var rollerTotals = computeRollerChipsBalanceFromRecords(records);
-
-		if (!game) {
-			Swal.fire({
-				icon: 'error',
-				title: 'Game not found',
-				text: 'Could not load the previous game details for cut off.',
-				confirmButtonText: 'OK'
-			});
-			$('#modal-new-game-cutoff').modal('hide');
-			return;
-		}
-
-		var preNN = rollerTotals.transferNN || $('#modal-new-game-cutoff').data('prefillRollerNN') || 0;
-		var preCC = rollerTotals.transferCC || $('#modal-new-game-cutoff').data('prefillRollerCC') || 0;
-
-		populateCutoffGameModal(game, chips, preNN, preCC);
-	}).fail(function () {
-		Swal.fire({
-			icon: 'error',
-			title: 'Error',
-			text: 'Failed to load cut off game details.',
-			confirmButtonText: 'OK'
-		});
-		$('#modal-new-game-cutoff').modal('hide');
-	});
-}
-
-/** Flatpickr on New Game modal: default now, editable (maps to game_list.ENCODED_DT). */
-function ensureNewGameEncodedDatePicker() {
-	var el = document.getElementById('txtGameEncodedDate');
+/** Flatpickr on New Game modal: date only (maps to game_list.PROGRAM_DATE). */
+function ensureNewGameProgramDatePicker() {
+	var el = document.getElementById('txtProgramDate');
 	if (!el || typeof flatpickr === 'undefined') return;
 	if (el._flatpickr) {
-		el._flatpickr.setDate(new Date(), false);
-	} else {
-		flatpickr(el, {
-			enableTime: true,
-			dateFormat: 'Y-m-d H:i',
-			altInput: true,
-			altFormat: 'M j, Y H:i',
-			defaultDate: new Date(),
-			allowInput: true,
-			disableMobile: true,
-			onReady: function (_selectedDates, _dateStr, instance) {
-				if (instance && instance.calendarContainer) {
-					instance.calendarContainer.classList.add('new-game-date-calendar');
-				}
-			},
-			onOpen: function (_selectedDates, _dateStr, instance) {
-				if (instance && instance.calendarContainer) {
-					instance.calendarContainer.classList.add('new-game-date-calendar');
-				}
-			}
-		});
+		el._flatpickr.destroy();
 	}
+	flatpickr(el, {
+		enableTime: false,
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'M j, Y',
+		defaultDate: new Date(),
+		allowInput: true,
+		disableMobile: true,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('new-game-date-calendar');
+			}
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('new-game-date-calendar');
+			}
+		}
+	});
 }
 
 function syncSelectedGuestIdFromAccount() {
@@ -928,7 +1058,140 @@ function syncSelectedGuestIdFromGuestDropdown() {
 	$('#txtGuestId').val(guestId);
 }
 
-function loadGuestsForSelectedAccount() {
+function setNewGameListOpeningBalance(balance) {
+	var n = parseFloat(balance);
+	if (isNaN(n)) n = 0;
+	$('#total_balanceGuest1').val(n);
+	$('#total_balanceGuestGameList').val(n.toLocaleString('en-US'));
+}
+
+function fetchAndApplyAvailableChipsForNewGameModal() {
+	$.ajax({
+		url: '/game_list_available_chips',
+		method: 'GET',
+		success: function (payload) {
+			var nn = Number(payload && payload.availableNN) || 0;
+			var cc = Number(payload && payload.availableCC) || 0;
+			var $nn = $('#availableNN');
+			var $cc = $('#availableCC');
+			if ($nn.length) $nn.text(nn.toLocaleString('en-US'));
+			if ($cc.length) $cc.text(cc.toLocaleString('en-US'));
+		},
+		error: function () {
+			if ($('#availableNN').length) $('#availableNN').text('0');
+			if ($('#availableCC').length) $('#availableCC').text('0');
+		}
+	});
+}
+window.fetchAndApplyAvailableChipsForNewGameModal = fetchAndApplyAvailableChipsForNewGameModal;
+
+function lockNewGameListAccountSelect(locked) {
+	var $select = $('#txtTrans');
+	if (!$select.length) return;
+	if (locked) {
+		var val = $select.val() || '';
+		if (!val) return;
+		$select.attr('data-readonly', '1').attr('data-locked-value', val);
+	} else {
+		$select.removeAttr('data-readonly data-locked-value');
+	}
+}
+
+function ensureNewGameListAccountOption(accountId, meta) {
+	meta = meta || {};
+	var idStr = String(accountId || '').trim();
+	if (!idStr) return false;
+
+	var $select = $('#txtTrans');
+	if (!$select.length) return false;
+
+	if ($select.find('option').filter(function () {
+		return String($(this).val()) === idStr;
+	}).length) {
+		return true;
+	}
+
+	var agentName = meta.agentName || meta.accountName || '';
+	var agentCode = meta.agentCode || '';
+	var label = meta.label || '';
+	if (!label) {
+		label = agentName
+			? agentName + (agentCode ? ' (' + agentCode + ')' : '')
+			: ('Account #' + idStr);
+	}
+
+	var $opt = $('<option>', { value: idStr, text: label });
+	if (meta.agentId) $opt.attr('data-agent-id', meta.agentId);
+	if (meta.guestId) $opt.attr('data-guest-id', meta.guestId);
+	$select.append($opt);
+	return true;
+}
+
+function applyNewGameListAccountPrefill(accountId, opts) {
+	opts = opts || {};
+	var idStr = String(accountId || '').trim();
+	if (!idStr) return false;
+
+	var $select = $('#txtTrans');
+	if (!$select.length) return false;
+
+	var $option = $select.find('option').filter(function () {
+		return String($(this).val()) === idStr;
+	}).first();
+
+	if (!$option.length && Array.isArray(_accountOptionsCache)) {
+		var cached = _accountOptionsCache.find(function (row) {
+			return String(row.account_id) === idStr;
+		});
+		if (cached) {
+			ensureNewGameListAccountOption(idStr, {
+				agentCode: cached.agent_code,
+				agentName: cached.agent_name,
+				agentId: cached.agent_id,
+				guestId: cached.guest_id || cached.GUESTNo || ''
+			});
+			$option = $select.find('option').filter(function () {
+				return String($(this).val()) === idStr;
+			}).first();
+		}
+	}
+
+	if (!$option.length && opts.accountMeta) {
+		ensureNewGameListAccountOption(idStr, opts.accountMeta);
+		$option = $select.find('option').filter(function () {
+			return String($(this).val()) === idStr;
+		}).first();
+	}
+
+	if (!$option.length) return false;
+
+	$select.val($option.val()).trigger('change.select2');
+
+	if (opts.openingBalance != null && !isNaN(parseFloat(opts.openingBalance))) {
+		setNewGameListOpeningBalance(opts.openingBalance);
+	} else {
+		$select.trigger('change');
+	}
+
+	if (opts.lockAccount) {
+		lockNewGameListAccountSelect(true);
+	}
+
+	var guestId = $option.attr('data-guest-id') || (opts.accountMeta && opts.accountMeta.guestId) || opts.preselectGuestId || '';
+	loadGuestsForSelectedAccount(guestId || null);
+	return true;
+}
+
+function scheduleNewGameListAccountPrefill(accountId, opts, attempt) {
+	var tryNo = attempt || 0;
+	if (applyNewGameListAccountPrefill(accountId, opts)) return;
+	if (tryNo >= 25) return;
+	setTimeout(function () {
+		scheduleNewGameListAccountPrefill(accountId, opts, tryNo + 1);
+	}, 120);
+}
+
+function loadGuestsForSelectedAccount(preselectGuestId) {
 	var $accountSelect = $('#txtTrans');
 	var $guestSelect = $('#txtGuestGame');
 	if (!$accountSelect.length || !$guestSelect.length) return;
@@ -964,8 +1227,13 @@ function loadGuestsForSelectedAccount() {
 					text: (guest.guest_name || '').toUpperCase()
 				}));
 			});
-			$guestSelect.trigger('change.select2');
+			if (preselectGuestId && $guestSelect.find('option[value="' + String(preselectGuestId) + '"]').length) {
+				$guestSelect.val(String(preselectGuestId)).trigger('change.select2').trigger('change');
+			} else {
+				$guestSelect.trigger('change.select2');
+			}
 			$guestSelect.prop('disabled', false);
+			syncSelectedGuestIdFromGuestDropdown();
 		},
 		error: function () {
 			$guestSelect.prop('disabled', true);
@@ -975,7 +1243,9 @@ function loadGuestsForSelectedAccount() {
 }
 
 
-function addGameList(id) {
+function addGameList(accountId, opts) {
+	opts = opts && typeof opts === 'object' ? opts : {};
+	var preselectAccountId = accountId ? String(accountId).trim() : '';
 	var $select = $('#txtTrans');
 	var $guest = $('#txtGuestGame');
 	resetNewGameInputs();
@@ -1018,8 +1288,12 @@ function addGameList(id) {
 			placeholder: 'Select an option',
 			dropdownParent: '#modal-new-game-list',
 		});
-		syncSelectedGuestIdFromAccount();
-		loadGuestsForSelectedAccount();
+		if (preselectAccountId) {
+			scheduleNewGameListAccountPrefill(preselectAccountId, opts, 0);
+		} else {
+			syncSelectedGuestIdFromAccount();
+			loadGuestsForSelectedAccount();
+		}
 	}
 	
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
@@ -1051,12 +1325,44 @@ function addGameList(id) {
 			populateOptions();
 		});
 	}
-	ensureNewGameEncodedDatePicker();
+	fetchAndApplyAvailableChipsForNewGameModal();
+	ensureNewGameProgramDatePicker();
 }
+window.addGameList = addGameList;
 
 function getQueryParam(param) {
 	const urlParams = new URLSearchParams(window.location.search);
 	return urlParams.get(param);
+}
+
+function isTruthyQueryFlag(value) {
+	return ['1', 'true', 'yes'].includes(String(value || '').toLowerCase());
+}
+
+function syncUnreturnedRollerFilterBanner() {
+	var $filterRow = $('#program-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
+	var $banner = $('#game-list-unreturned-roller-banner');
+	var active = !!window.gameListUnreturnedRollerOnly;
+
+	if (!active) {
+		$filterRow.show();
+		$banner.remove();
+		return;
+	}
+
+	$filterRow.hide();
+	if ($banner.length) return;
+
+	var label = window.gamelistTranslations?.unreturned_roller_filter || 'Showing games with roller chips only';
+	var clearLabel = window.gamelistTranslations?.clear_filter || 'Show all games';
+	$(
+		'<div id="game-list-unreturned-roller-banner" class="row mb-2">' +
+		'<div class="col-12">' +
+		'<div class="alert game-list-roller-chips-banner py-2 mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+		'<span>' + label + '</span>' +
+		'<a href="/game_list" class="btn btn-sm btn-outline-secondary">' + clearLabel + '</a>' +
+		'</div></div></div>'
+	).insertBefore($filterRow);
 }
 
 // Function to translate game source
@@ -1069,6 +1375,376 @@ function translateGameSource(source) {
 	if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
 	if (sourceUpper === 'IOU') return translations.credit || 'Credit';
 	return source;
+}
+
+function buildGameTypeCell(row, userPermissions) {
+	var gameType = normalizeCutoffGameType(row.GAME_TYPE);
+	var translations = window.gamelistTranslations || {};
+	var liveLabel = translations.live || 'LIVE';
+	var telebetLabel = translations.telebet || 'TELEBET';
+	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
+	var canEdit = (userPermissions !== 2) && isEditableActive;
+
+	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
+	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
+
+	if (!canEdit) {
+		return '<span class="' + cls + '">' + escapeHtmlText(displayLabel) + '</span>';
+	}
+
+	return (
+		'<button type="button" class="btn btn-link p-0 js-game-type-btn ' + cls + '" ' +
+		'style="font-size:inherit;text-decoration:none;cursor:pointer;" ' +
+		'data-game-id="' + row.game_list_id + '" ' +
+		'data-game-type="' + gameType + '" ' +
+		'title="Change game type">' +
+		escapeHtmlText(displayLabel) +
+		'</button>'
+	);
+}
+
+function confirmGameTypeChange(gameId, currentType) {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	if (userPermissions === 2 || !gameId) return;
+	var prevType = normalizeCutoffGameType(currentType);
+	var newType = prevType === 'TELEBET' ? 'LIVE' : 'TELEBET';
+	var translations = window.gamelistTranslations || {};
+	var prevLabel = prevType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
+	var newLabel = newType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
+
+	Swal.fire({
+		icon: 'question',
+		title: 'Change game type?',
+		html: 'Change type from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong>?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (!result.isConfirmed) return;
+		$.ajax({
+			url: '/game_list/' + gameId + '/game_type',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ game_type: newType }),
+			success: function () {
+				updateGameTypeCellDisplay(gameId, newType);
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			},
+			error: function (xhr) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			}
+		});
+	});
+}
+
+function updateGameTypeCellDisplay(gameId, newType) {
+	var translations = window.gamelistTranslations || {};
+	var liveLabel = translations.live || 'LIVE';
+	var telebetLabel = translations.telebet || 'TELEBET';
+	var gameType = normalizeCutoffGameType(newType);
+	var cls = gameType === 'TELEBET' ? 'css-red' : 'css-blue';
+	var displayLabel = gameType === 'TELEBET' ? telebetLabel : liveLabel;
+	$('.js-game-type-btn[data-game-id="' + gameId + '"]').each(function () {
+		var $btn = $(this);
+		$btn.removeClass('css-red css-blue').addClass(cls);
+		$btn.attr('data-game-type', gameType);
+		$btn.text(displayLabel);
+	});
+}
+
+function getProgramDateYmd(row) {
+	var raw = row.PROGRAM_DATE;
+	if (!raw && row.GAME_DATE_START) raw = row.GAME_DATE_START;
+	if (!raw) return '';
+	var m = moment.utc(raw);
+	if (!m.isValid()) return '';
+	return m.utcOffset(8).format('YYYY-MM-DD');
+}
+
+function formatProgramDateLabel(ymdOrDate) {
+	if (ymdOrDate == null || ymdOrDate === '') return '-';
+	if (ymdOrDate instanceof Date) {
+		return moment(ymdOrDate).format('MMM DD, YYYY');
+	}
+	var s = String(ymdOrDate).trim();
+	if (!s) return '-';
+	var m = moment(s, ['YYYY-MM-DD', 'Y-MM-DD'], true);
+	if (!m.isValid()) m = moment(s, 'MMM DD, YYYY', true);
+	if (!m.isValid()) m = moment(s);
+	return m.isValid() ? m.format('MMM DD, YYYY') : s;
+}
+
+function parseProgramDateToYmd(raw) {
+	if (raw == null || raw === '') return '';
+	if (raw instanceof Date) {
+		return moment(raw).format('YYYY-MM-DD');
+	}
+	var s = String(raw).trim();
+	if (!s) return '';
+	var m = moment(s, ['YYYY-MM-DD', 'Y-MM-DD', 'MMM DD, YYYY', 'MMM D, YYYY', 'M D, YYYY', 'M DD, YYYY'], true);
+	if (!m.isValid()) m = moment(s);
+	return m.isValid() ? m.format('YYYY-MM-DD') : '';
+}
+
+function resolveProgramDateYmdFromFlatpickr(instance, dateStr, selectedDates) {
+	var altVal = instance && instance.altInput ? instance.altInput.value.trim() : '';
+	if (altVal) {
+		var fromAlt = parseProgramDateToYmd(altVal);
+		if (fromAlt) return fromAlt;
+	}
+	if (selectedDates && selectedDates.length > 0 && instance) {
+		return instance.formatDate(selectedDates[0], 'Y-m-d');
+	}
+	var inputVal = instance && instance.input ? instance.input.value.trim() : '';
+	if (inputVal) {
+		var fromInput = parseProgramDateToYmd(inputVal);
+		if (fromInput) return fromInput;
+	}
+	return parseProgramDateToYmd(dateStr);
+}
+
+function confirmProgramDateChange($cell, gameId, currentYmd, newYmd, prevHtml) {
+	if (!newYmd || newYmd === currentYmd) {
+		restoreProgramDateCell($cell, prevHtml);
+		return;
+	}
+	$cell.html(prevHtml);
+	var prevLabel = formatProgramDateLabel(currentYmd);
+	var newLabel = formatProgramDateLabel(newYmd);
+	Swal.fire({
+		icon: 'question',
+		title: 'Update program date?',
+		html: 'Change program date from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong> for Game # <strong>' + escapeHtmlText(String(gameId)) + '</strong>.',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (result.isConfirmed) {
+			saveProgramDateEdit($cell, gameId, currentYmd, newYmd);
+		}
+	});
+}
+
+function formatProgramDateDisplay(row) {
+	var ymd = getProgramDateYmd(row);
+	if (!ymd) return '-';
+	return formatProgramDateLabel(ymd);
+}
+
+function buildMergeSettleCheckbox(gameListId, accountId) {
+	return '<label class="merge-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
+}
+
+function buildProgramDateCell(row, userPermissions, isSettled) {
+	var display = formatProgramDateDisplay(row);
+	var ymd = getProgramDateYmd(row);
+	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
+	var canEdit = (userPermissions !== 2) && isEditableActive && !!ymd;
+	if (isSettled && userPermissions !== 0) canEdit = false;
+
+	var dateContent;
+	if (!canEdit) {
+		dateContent = display === '-' ? '-' : escapeHtmlText(display);
+	} else {
+		dateContent =
+			'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
+			'style="font-size:inherit;color:inherit;" ' +
+			'data-game-id="' + row.game_list_id + '" ' +
+			'data-program-date="' + ymd + '" ' +
+			'title="Edit program date">' +
+			escapeHtmlText(display) +
+			'</button>';
+	}
+
+	return (
+		'<div class="d-inline-flex align-items-center gap-1 program-date-cell-inner">' +
+		buildMergeSettleCheckbox(row.game_list_id, row.ACCOUNT_ID) +
+		'<span class="program-date-cell-label">' + dateContent + '</span></div>'
+	);
+}
+
+function updateProgramDateCellDisplay(gameId, ymd, display) {
+	var label = display || formatProgramDateLabel(ymd);
+	$('.js-program-date-btn[data-game-id="' + gameId + '"]').each(function () {
+		var $btn = $(this);
+		$btn.attr('data-program-date', ymd);
+		$btn.text(label);
+	});
+}
+
+function restoreProgramDateCell($cell, html) {
+	if (html) $cell.html(html);
+	$cell.removeData('prev-html');
+}
+
+/** Active Program Date picker range when filter mode is program; null otherwise. */
+function getActiveProgramDateFilterRange() {
+	var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
+	if (filterMode !== 'program') return null;
+	var el = document.getElementById('program-date-range-picker');
+	var fp = el && el._flatpickr;
+	if (!fp || !fp.selectedDates || fp.selectedDates.length !== 2) return null;
+	var pad = function (n) {
+		return String(n).padStart(2, '0');
+	};
+	function fmt(d) {
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+	}
+	var a = fmt(fp.selectedDates[0]);
+	var b = fmt(fp.selectedDates[1]);
+	return a <= b ? { from: a, to: b } : { from: b, to: a };
+}
+
+/** True if ymd still belongs in the current Program Date filter (Game Start filter always true). */
+function programDateMatchesActiveGameListFilter(ymd) {
+	if (!$('#game_list-tbl').length) return true;
+	var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
+	if (filterMode !== 'program') return true;
+	var y = String(ymd || '').slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(y)) return true;
+	var rng = getActiveProgramDateFilterRange();
+	if (!rng) return true;
+	if (rng.from !== rng.to) return y >= rng.from && y <= rng.to;
+	return y === rng.from;
+}
+
+function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
+	$.ajax({
+		url: '/game_list/' + gameId + '/program_date',
+		method: 'PUT',
+		contentType: 'application/json',
+		data: JSON.stringify({ program_date: newYmd }),
+		success: function () {
+			Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+			if (!programDateMatchesActiveGameListFilter(newYmd)) {
+				if (typeof window.reloadData === 'function') {
+					window.reloadData();
+				}
+				return;
+			}
+			var display = formatProgramDateLabel(newYmd);
+			var btnHtml =
+				'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
+				'style="font-size:inherit;color:inherit;" ' +
+				'data-game-id="' + gameId + '" ' +
+				'data-program-date="' + newYmd + '" ' +
+				'title="Edit program date">' + escapeHtmlText(display) + '</button>';
+			var $label = $cell.find('.program-date-cell-label');
+			if ($label.length) {
+				$label.html(btnHtml);
+			} else {
+				restoreProgramDateCell($cell, btnHtml);
+			}
+			updateProgramDateCellDisplay(gameId, newYmd, display);
+			if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+				$('#game_list-tbl').DataTable().rows().invalidate('dom');
+			}
+		},
+		error: function (xhr) {
+			restoreProgramDateCell($cell, $cell.data('prev-html'));
+			var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+			Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		}
+	});
+}
+
+function openProgramDateEditor($btn, gameId, currentYmd) {
+	var $cell = $btn.closest('td');
+	if ($cell.find('.program-date-inline-edit').length) return;
+	if (typeof flatpickr === 'undefined') {
+		Swal.fire({ icon: 'error', title: 'Error', text: 'Date picker is not available.' });
+		return;
+	}
+
+	var prevHtml = $cell.html();
+	$cell.data('prev-html', prevHtml);
+	var $input = $('<input type="text" class="form-control form-control-sm program-date-inline-edit" autocomplete="off" />');
+	$cell.empty().append($input);
+
+	var fp = flatpickr($input[0], {
+		enableTime: false,
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'M d, Y',
+		defaultDate: currentYmd || new Date(),
+		allowInput: true,
+		disableMobile: true,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.altInput) {
+				instance.altInput.classList.add('form-control', 'form-control-sm', 'program-date-inline-edit');
+				$(instance.input).addClass('d-none');
+				instance.altInput.addEventListener('keydown', function (e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						instance.close();
+					}
+				});
+			}
+		},
+		onClose: function (selectedDates, dateStr, instance) {
+			var newYmd = resolveProgramDateYmdFromFlatpickr(instance, dateStr, selectedDates);
+			if (instance) instance.destroy();
+			if (!newYmd) {
+				restoreProgramDateCell($cell, prevHtml);
+				Swal.fire({
+					icon: 'error',
+					title: 'Invalid date',
+					text: 'Please enter a valid date (e.g. Jun 13, 2026).'
+				});
+				return;
+			}
+			confirmProgramDateChange($cell, gameId, currentYmd, newYmd, prevHtml);
+		}
+	});
+	fp.open();
+}
+
+function buildGameRemarksButton(row) {
+	var remarks = String(row.REMARKS || '').trim();
+	var hasRemark = remarks !== '';
+	var btnClass = hasRemark ? 'btn-success-subtle' : 'btn-secondary-subtle';
+	var tooltipText = hasRemark ? remarks : 'Remarks';
+	return (
+		'<div class="btn-group" role="group">' +
+		'<button type="button" class="btn btn-sm ' + btnClass + ' action-btn-square js-game-remarks-btn js-bs-tooltip-enabled"' +
+		' data-game-id="' + row.game_list_id + '"' +
+		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
+		' data-guest-name="' + escapeHtmlText(row.guest_name || '') + '"' +
+		' data-remarks="' + encodeURIComponent(remarks) + '"' +
+		' data-bs-toggle="tooltip" aria-label="Remarks" data-bs-original-title="' + escapeHtmlText(tooltipText) + '" title="' + escapeHtmlText(tooltipText) + '"' +
+		' style="font-size:8px !important; margin-right: 5px;">' +
+		'<i class="fa fa-comment-alt"></i></button></div>'
+	);
+}
+
+function openGameRemarks(gameId, agentCode, remarks, guestName) {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	var canEdit = userPermissions !== 2;
+	$('#game-remarks-game-id').val(gameId);
+	setGameListModalAccountLabel('#game-remarks-agent-code', agentCode, guestName);
+	$('#game-remarks-text').val(remarks || '').prop('readonly', !canEdit);
+	$('#game-remarks-save-btn').toggle(canEdit);
+	$('#modal-game-remarks').modal('show');
+}
+window.openGameRemarks = openGameRemarks;
+
+function updateGameRemarksButtonState(gameId, remarks) {
+	var text = String(remarks || '').trim();
+	var hasRemark = text !== '';
+	var btnClass = hasRemark ? 'btn-success-subtle' : 'btn-secondary-subtle';
+	var tooltipText = hasRemark ? text : 'Remarks';
+	$('.js-game-remarks-btn[data-game-id="' + gameId + '"]').each(function () {
+		var $btn = $(this);
+		$btn.removeClass('btn-success-subtle btn-secondary-subtle').addClass(btnClass);
+		$btn.attr('data-remarks', encodeURIComponent(text));
+		$btn.attr('title', tooltipText);
+		$btn.attr('data-bs-original-title', tooltipText);
+		if ($btn.data('bs.tooltip')) {
+			$btn.tooltip('dispose');
+		}
+		$btn.tooltip();
+	});
 }
 
 function buildGameRateCell(row, userPermissions, isSettled) {
@@ -1090,7 +1766,7 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 	}
 	var badgePart;
 	if (canEditType) {
-		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
+		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
 	} else {
 		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
 	}
@@ -1102,6 +1778,9 @@ function canAssignGameGuest() {
 	return userPermissions !== 2;
 }
 
+/** Guest assignment audit table in Assign guest modal. Set true when needed again. */
+var ASSIGN_GAME_GUEST_HISTORY_ENABLED = false;
+
 function escapeHtmlText(value) {
 	return String(value || '')
 		.replace(/&/g, '&amp;')
@@ -1110,28 +1789,57 @@ function escapeHtmlText(value) {
 		.replace(/"/g, '&quot;');
 }
 
+function buildGameAccountCell(accountId, agentCode, agentName) {
+	var code = (agentCode || '').toString();
+	var name = (agentName || '').toString();
+	var label = code + (name ? ' (' + name + ')' : '');
+	var safeCode = code.replace(/'/g, "\\'");
+	var safeName = name.replace(/'/g, "\\'");
+	return (
+		'<span class="game-list-cell-truncate" title="' + escapeHtmlText(label) + '">' +
+		'<a href="#" class="game-list-acct-link" onclick="account_details(' + accountId + ', \'' + safeCode + '\', \'' + safeName + '\')">' +
+		escapeHtmlText(label) +
+		'</a></span>'
+	);
+}
+
 function buildGameGuestCell(row) {
 	var guestId = parseInt(row.GUEST_ID, 10) || '';
 	var guestName = row.guest_name && row.guest_name !== '-' ? String(row.guest_name).trim() : '';
+	var displayName = guestName || '-';
 	if (!canAssignGameGuest()) {
-		return escapeHtmlText(guestName || '-');
+		return '<span class="game-list-cell-truncate" title="' + escapeHtmlText(displayName) + '">' + escapeHtmlText(displayName) + '</span>';
 	}
 	var btnClass = guestName
-		? 'btn btn-link p-0 text-decoration-underline js-assign-game-guest'
-		: 'btn btn-link p-0 js-assign-game-guest';
+		? 'btn btn-link p-0 text-decoration-underline js-assign-game-guest game-list-guest-link'
+		: 'btn btn-link p-0 js-assign-game-guest game-list-guest-link';
 	var inner = guestName
 		? escapeHtmlText(guestName)
 		: '<i class="fa fa-plus" aria-hidden="true"></i>';
 	return (
+		'<span class="game-list-cell-truncate"' + (guestName ? ' title="' + escapeHtmlText(guestName) + '"' : '') + '>' +
 		'<button type="button" class="' + btnClass + '"' +
 		' data-game-id="' + row.game_list_id + '"' +
 		' data-account-id="' + row.ACCOUNT_ID + '"' +
 		' data-agent-id="' + (row.AGENT_ID || '') + '"' +
+		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
+		' data-agent-name="' + escapeHtmlText(row.agent_name || '') + '"' +
 		' data-guest-id="' + guestId + '"' +
-		' data-bs-toggle="tooltip" title="' + (guestName ? 'Change guest' : 'Add guest') + '">' +
+		' data-bs-toggle="tooltip" title="' + (guestName ? escapeHtmlText('Change guest') : 'Add guest') + '">' +
 		inner +
-		'</button>'
+		'</button></span>'
 	);
+}
+
+function appendAssignGameGuestOption($guestSelect, guest) {
+	var $opt = $('<option>', {
+		value: guest.guest_id,
+		text: (guest.guest_name || '').toUpperCase()
+	});
+	$opt.attr('data-guest-name', guest.guest_name || '');
+	$opt.attr('data-membership-no', guest.membership_no || '');
+	$opt.attr('data-guest-remarks', guest.guest_remarks || '');
+	$guestSelect.append($opt);
 }
 
 function updateAssignGameGuestSaveState() {
@@ -1139,6 +1847,7 @@ function updateAssignGameGuestSaveState() {
 	var hasGuest = guestVal !== '' && guestVal != null && (parseInt(guestVal, 10) || 0) > 0;
 	$('#submit-assign-game-guest-btn').prop('disabled', !hasGuest);
 	$('#btn-assign-guest-game-history').prop('disabled', !hasGuest);
+	$('#btn-assign-game-guest-edit').prop('disabled', !hasGuest);
 	$('#assign_game_guest_select').toggleClass('is-invalid', !hasGuest);
 }
 
@@ -1151,6 +1860,7 @@ function resetAssignGameGuestModal() {
 	$guestSelect.removeClass('is-invalid');
 	$('#submit-assign-game-guest-btn').prop('disabled', true);
 	$('#btn-assign-guest-game-history').prop('disabled', true);
+	$('#btn-assign-game-guest-edit').prop('disabled', true);
 	$('#assign-game-guest-history-tbody').empty();
 	$('#assign-game-guest-history-wrap').addClass('d-none');
 	if ($('#assign_game_guest_form')[0]) {
@@ -1159,6 +1869,8 @@ function resetAssignGameGuestModal() {
 }
 
 function loadAssignGameGuestHistory(gameId) {
+	if (!ASSIGN_GAME_GUEST_HISTORY_ENABLED) return;
+
 	var $tbody = $('#assign-game-guest-history-tbody');
 	var $wrap = $('#assign-game-guest-history-wrap');
 	if (!$tbody.length) return;
@@ -1209,10 +1921,7 @@ function loadAssignGameGuestSelect(agentId, currentGuestId, onReady) {
 		success: function (rows) {
 			var guests = Array.isArray(rows) ? rows : [];
 			guests.forEach(function (guest) {
-				$guestSelect.append($('<option>', {
-					value: guest.guest_id,
-					text: (guest.guest_name || '').toUpperCase()
-				}));
+				appendAssignGameGuestOption($guestSelect, guest);
 			});
 			if (currentGuestId) {
 				$guestSelect.val(String(currentGuestId));
@@ -1234,7 +1943,61 @@ function loadAssignGameGuestSelect(agentId, currentGuestId, onReady) {
 	});
 }
 
-function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId) {
+function buildAssignGameGuestLineLabel(agentCode, agentName) {
+	var code = String(agentCode || '').trim().toUpperCase();
+	var name = String(agentName || '').trim().toUpperCase();
+	if (code && name) return code + ' · ' + name;
+	return code || name || '-';
+}
+
+function openEditGuestFromAssignGameGuest() {
+	if (!canAssignGameGuest()) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot edit a guest.' });
+		return;
+	}
+	var guestId = parseInt($('#assign_game_guest_select').val(), 10);
+	if (!guestId) {
+		Swal.fire({ icon: 'warning', title: 'Guest required', text: 'Please select a guest first.' });
+		return;
+	}
+	var $option = $('#assign_game_guest_select option:selected');
+	$('#edit_guest_id').val(guestId);
+	$('#edit_guest_membership_input').val($option.attr('data-membership-no') || '');
+	$('#edit_guest_name_input').val($option.attr('data-guest-name') || $option.text() || '');
+	$('#edit_guest_remarks_input').val($option.attr('data-guest-remarks') || '');
+	ensureModalAppendedToBody($('#modal-edit-guest-table'));
+	if (isAssignGameGuestModalOpen()) {
+		setAssignGameGuestChildModalOpen(true);
+	}
+	$('#modal-edit-guest-table').modal('show');
+}
+
+function openAddGuestFromAssignGameGuest() {
+	if (!canAssignGameGuest()) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot add a guest.' });
+		return;
+	}
+	var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+	if (!agentId) {
+		Swal.fire({ icon: 'warning', title: 'Missing data', text: 'Could not load line for this game.' });
+		return;
+	}
+	var $assignModal = $('#modal-assign-game-guest');
+	var agentCode = $assignModal.data('agentCode') || '';
+	var agentName = $assignModal.data('agentName') || '';
+	$('#guest_agent_id').val(agentId);
+	$('#guest_agent_display').text(buildAssignGameGuestLineLabel(agentCode, agentName));
+	$('#guest_membership_input').val('');
+	$('#guest_name_input').val('');
+	$('#guest_remarks_input').val('');
+	ensureModalAppendedToBody($('#modal-add-guest-table'));
+	if (isAssignGameGuestModalOpen()) {
+		setAssignGameGuestChildModalOpen(true);
+	}
+	$('#modal-add-guest-table').modal('show');
+}
+
+function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId, agentCode, agentName) {
 	if (!canAssignGameGuest()) {
 		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot assign a guest.' });
 		return;
@@ -1248,6 +2011,9 @@ function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId) {
 	$('#assign_guest_game_id').val(gameId);
 	$('#assign_guest_account_id').val(accountId);
 	$('#assign_guest_agent_id').val(agentId);
+	$('#modal-assign-game-guest')
+		.data('agentCode', agentCode || '')
+		.data('agentName', agentName || '');
 
 	loadAssignGameGuestSelect(agentId, currentGuestId, function () {
 		loadAssignGameGuestHistory(gameId);
@@ -1261,14 +2027,14 @@ function getCommissionRateRules(typeVal) {
 	return { min: 0, max: 100, step: 0.05 };
 }
 
-function editGameCommissionType(gameId, currentType, currentPct, settledFlag, agentCode) {
+function editGameCommissionType(gameId, currentType, currentPct, settledFlag, agentCode, guestName) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = (userPermissions === 0);
 	if (!canEdit) {
 		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot edit this commission type.' });
 		return;
 	}
-	$('#edit-commission-agent-code').text(agentCode || '');
+	setGameListModalAccountLabel('#edit-commission-agent-code', agentCode, guestName);
 	var $modal = $('#modal-edit-commission-type');
 	var currentTypeNum = parseInt(currentType, 10);
 	var targetType = currentTypeNum === 1 ? 2 : 1; // Toggle only: Rolling <-> Shared
@@ -1292,6 +2058,76 @@ function editGameCommissionType(gameId, currentType, currentPct, settledFlag, ag
 	$modal.modal('show');
 }
 window.editGameCommissionType = editGameCommissionType;
+
+$(document).on('click', '.js-game-remarks-btn', function () {
+	var $btn = $(this);
+	var remarksRaw = $btn.attr('data-remarks') || '';
+	var remarks = '';
+	try {
+		remarks = decodeURIComponent(remarksRaw);
+	} catch (e) {
+		remarks = remarksRaw;
+	}
+	openGameRemarks(
+		parseInt($btn.data('game-id'), 10),
+		$btn.attr('data-agent-code') || '',
+		remarks,
+		$btn.attr('data-guest-name') || ''
+	);
+});
+
+$(document).on('submit', '#form-game-remarks', function (e) {
+	e.preventDefault();
+	var gameId = parseInt($('#game-remarks-game-id').val(), 10);
+	var remarks = $('#game-remarks-text').val().trim();
+	if (!gameId) {
+		Swal.fire({ icon: 'error', title: 'Error', text: 'Invalid game ID.' });
+		return;
+	}
+	var $btn = $('#game-remarks-save-btn');
+	$btn.prop('disabled', true).text('Saving...');
+	$.ajax({
+		url: '/game_list/' + gameId + '/remarks',
+		method: 'PUT',
+		contentType: 'application/json',
+		data: JSON.stringify({ remarks: remarks }),
+		success: function () {
+			$('#modal-game-remarks').modal('hide');
+			updateGameRemarksButtonState(gameId, remarks);
+			if (window.RemarksEditor && window.RemarksEditor.showSuccessToast) {
+				window.RemarksEditor.showSuccessToast();
+			} else {
+				Swal.fire({ icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1200 });
+			}
+		},
+		error: function (xhr) {
+			var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+			Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		},
+		complete: function () {
+			$btn.prop('disabled', false).text('Save');
+		}
+	});
+});
+
+$(document).on('click', '.js-game-type-btn', function () {
+	var $btn = $(this);
+	confirmGameTypeChange(
+		parseInt($btn.attr('data-game-id'), 10),
+		$btn.attr('data-game-type') || 'LIVE'
+	);
+});
+
+$(document).on('click', '.js-program-date-btn', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var $btn = $(this);
+	openProgramDateEditor(
+		$btn,
+		parseInt($btn.attr('data-game-id'), 10),
+		$btn.attr('data-program-date') || ''
+	);
+});
 
 $(document).on('submit', '#form-edit-commission-type', function (e) {
 	e.preventDefault();
@@ -1348,13 +2184,7 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 $(document).ready(function () {
 
 	window.isMergeSettleMode = false;
-	window.isDailySettleSelectionMode = false;
-	window.isOpenPoolSelectionMode = false;
-	window.dailySettleTargetDate = null;
-	window.dailySettleArmedDate = null;
-	window.selectedSettlementSubView = 'open';
-	window.selectedSettlementRangeMultiDay = false;
-	window.draftDatesForMonth = [];
+	window.selectedProgramDateRangeMultiDay = false;
 
 	function getClientTodayYmd() {
 		var now = new Date();
@@ -1366,57 +2196,10 @@ $(document).ready(function () {
 			String(now.getDate()).padStart(2, '0')
 		);
 	}
-	function hasSettlementForDate(dateStr) {
-		var dates = window.settledDatesForMonth || [];
-		return !!dateStr && dates.indexOf(dateStr) !== -1;
-	}
-	function hasDraftSettlementForDate(dateStr) {
-		var dates = window.draftDatesForMonth || [];
-		return !!dateStr && dates.indexOf(dateStr) !== -1;
-	}
-	function rememberDraftSettlementDate(dateStr) {
-		var ymd = dateStr ? String(dateStr).slice(0, 10) : '';
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return;
-		window.draftDatesForMonth = window.draftDatesForMonth || [];
-		if (window.draftDatesForMonth.indexOf(ymd) === -1) {
-			window.draftDatesForMonth.push(ymd);
-			window.draftDatesForMonth.sort();
-		}
-		if (window.settledDatesForMonth) {
-			window.settledDatesForMonth = window.settledDatesForMonth.filter(function (d) {
-				return d !== ymd;
-			});
-		}
-	}
-	function navigateToSettlementDateOpen(ymd) {
-		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd).slice(0, 10))) return;
-		var dateStr = String(ymd).slice(0, 10);
-		rememberDraftSettlementDate(dateStr);
-		if (typeof navigateToDate === 'function') {
-			navigateToDate(dateStr, 'open');
-			return;
-		}
-		window.selectedSettlementDate = dateStr;
-		window.selectedSettlementRangeMultiDay = false;
-		window.selectedSettlementSubView = 'open';
-		var pickerEl = document.getElementById('settlement-range-picker');
-		if (pickerEl && pickerEl._flatpickr) {
-			pickerEl._flatpickr.setDate([dateStr, dateStr], false);
-		}
-		if (typeof window.updateSettlementSubviewIndicator === 'function') {
-			window.updateSettlementSubviewIndicator();
-		}
-		if (typeof window.reloadGameListBySettlementDate === 'function') {
-			window.reloadGameListBySettlementDate();
-		}
-	}
-	function isCurrentDate(dateStr) {
-		return !!dateStr && dateStr === getClientTodayYmd();
-	}
 
-	/** Reads #settlement-range-picker flatpickr; returns { from, to } YYYY-MM-DD or null. */
-	function getSettlementRangeYmdFromPicker() {
-		var el = document.getElementById('settlement-range-picker');
+	/** Reads #program-date-range-picker flatpickr; returns { from, to } YYYY-MM-DD or null. */
+	function getProgramDateRangeYmdFromPicker() {
+		var el = document.getElementById('program-date-range-picker');
 		var fp = el && el._flatpickr;
 		if (!fp || !fp.selectedDates || fp.selectedDates.length !== 2) return null;
 		var pad = function (n) {
@@ -1430,44 +2213,28 @@ $(document).ready(function () {
 		return a <= b ? { from: a, to: b } : { from: b, to: a };
 	}
 
-	function syncSettlementMultiDayChrome() {
-		var $w = $('#settlement-date-wrapper');
+	function syncProgramDateMultiDayChrome() {
+		var $w = $('#program-date-wrapper');
 		if (!$w.length) return;
-		var fm = $('input[name="filter-mode"]:checked').val() || 'settlement';
-		if (fm !== 'settlement') {
-			$w.removeClass('settlement-multi-day-search');
+		var fm = $('input[name="filter-mode"]:checked').val() || 'program';
+		if (fm !== 'program') {
+			$w.removeClass('program-date-multi-day-search');
 			return;
 		}
-		var rng = getSettlementRangeYmdFromPicker();
+		var rng = getProgramDateRangeYmdFromPicker();
 		var multi = !!(rng && rng.from && rng.to && rng.from !== rng.to);
-		$w.toggleClass('settlement-multi-day-search', multi);
+		$w.toggleClass('program-date-multi-day-search', multi);
 	}
 
-	function buildMergeSettleCheckbox(gameListId, accountId) {
-		return '<label class="merge-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
-	}
-	function buildDailySettleCheckbox(gameListId) {
-		return '<label class="daily-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="daily-settle-checkbox" value="' + gameListId + '" /></label>';
-	}
-	function buildOpenPoolCheckbox(gameListId) {
-		return '<label class="open-pool-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="open-pool-checkbox" value="' + gameListId + '" /></label>';
-	}
-	function buildGameStartCell(gameStartText, gameListId, accountId, showMergeCheckbox, showDailySettleCheckbox, showOpenPoolCheckbox) {
-		var mergeCheckboxHtml = showMergeCheckbox ? buildMergeSettleCheckbox(gameListId, accountId) : '';
-		var dailySettleCheckboxHtml = showDailySettleCheckbox ? buildDailySettleCheckbox(gameListId) : '';
-		var openPoolCheckboxHtml = showOpenPoolCheckbox ? buildOpenPoolCheckbox(gameListId) : '';
-		return '<div class="d-inline-flex align-items-center gap-1">' + mergeCheckboxHtml + dailySettleCheckboxHtml + openPoolCheckboxHtml + '<span>' + gameStartText + '</span></div>';
+	function buildGameStartCell(gameStartText) {
+		return gameStartText;
 	}
 
 	function syncGameListSelectAllCheckboxState() {
 		var $master = $('#game-list-select-all');
 		if (!$master.length) return;
 		var $cbs = $();
-		if ($('body').hasClass('open-pool-select-mode')) {
-			$cbs = $('#game_list-tbl tbody .open-pool-checkbox');
-		} else if ($('body').hasClass('daily-settle-select-mode')) {
-			$cbs = $('#game_list-tbl tbody .daily-settle-checkbox');
-		} else if ($('body').hasClass('merge-settle-mode')) {
+		if ($('body').hasClass('merge-settle-mode')) {
 			$cbs = $('#game_list-tbl tbody .merge-settle-checkbox');
 		}
 		if (!$cbs.length) {
@@ -1492,44 +2259,6 @@ $(document).ready(function () {
 			$('.merge-settle-checkbox').prop('checked', false);
 		}
 		syncGameListSelectAllCheckboxState();
-	}
-
-	function setOpenPoolSelectionMode(enabled) {
-		window.isOpenPoolSelectionMode = !!enabled;
-		var $a = $('#btn-breadcrumb-open-pool');
-		if (window.isOpenPoolSelectionMode) {
-			if (window.isDailySettleSelectionMode) setDailySettleSelectionMode(false);
-			if (window.isMergeSettleMode) {
-				window.isMergeSettleMode = false;
-				updateMergeSettleButtonState();
-			}
-			$('body').addClass('open-pool-select-mode');
-			if ($a.length) $a.addClass('breadcrumb-crumb-armed');
-		} else {
-			$('body').removeClass('open-pool-select-mode');
-			if ($a.length) $a.removeClass('breadcrumb-crumb-armed');
-			$('.open-pool-checkbox').prop('checked', false);
-			var $masterOpen = $('#game-list-select-all');
-			if ($masterOpen.length) $masterOpen.prop('checked', false).prop('indeterminate', false);
-		}
-		syncGameListSelectAllCheckboxState();
-	}
-
-	function setDailySettleSelectionMode(enabled) {
-		if (enabled && window.isOpenPoolSelectionMode) setOpenPoolSelectionMode(false);
-		window.isDailySettleSelectionMode = !!enabled;
-		var $settleCrumb = $('#btn-daily-settle');
-		if (window.isDailySettleSelectionMode) {
-			$('body').addClass('daily-settle-select-mode');
-			if ($settleCrumb.length) $settleCrumb.addClass('breadcrumb-crumb-armed');
-		} else {
-			$('body').removeClass('daily-settle-select-mode');
-			if ($settleCrumb.length) $settleCrumb.removeClass('breadcrumb-crumb-armed');
-			$('.daily-settle-checkbox').prop('checked', false);
-			window.dailySettleArmedDate = null;
-			var $master = $('#game-list-select-all');
-			if ($master.length) $master.prop('checked', false).prop('indeterminate', false);
-		}
 	}
 
 	function getSelectedMergeSettleIds() {
@@ -1560,10 +2289,6 @@ $(document).ready(function () {
 		if (!cleaned || cleaned === '-' || cleaned === '.') return 0;
 		var n = parseFloat(cleaned);
 		return isNaN(n) ? 0 : n;
-	}
-
-	function formatMergeNumeric(value) {
-		return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 	}
 
 	function toTitleCase(text) {
@@ -1612,7 +2337,7 @@ $(document).ready(function () {
 		var selectedRates = [];
 		$('.merge-settle-checkbox:checked').each(function () {
 			var $row = $(this).closest('tr');
-			var accText = $.trim($row.find('td').eq(3).text());
+			var accText = $.trim($row.find('td').eq(4).text());
 			var normalizedAccText = accText.replace(/\s+/g, ' ').trim();
 			var parsed = normalizedAccText.match(/^(.+?)\s*\((.+)\)$/);
 			if (parsed) {
@@ -1624,13 +2349,13 @@ $(document).ready(function () {
 				selectedAccountDisplays.push(normalizedAccText);
 			}
 
-			totalBuyIn += parseMergeNumeric($row.find('td').eq(5).text());
-			totalChipsReturn += parseMergeNumeric($row.find('td').eq(6).text());
-			totalRolling += parseMergeNumeric($row.find('td').eq(8).text());
-			totalSettlement += parseMergeNumeric($row.find('td').eq(12).text());
-			totalWinLoss += parseMergeNumeric($row.find('td').eq(7).text());
+			totalBuyIn += parseMergeNumeric($row.find('td').eq(6).text());
+			totalChipsReturn += parseMergeNumeric($row.find('td').eq(7).text());
+			totalRolling += parseMergeNumeric($row.find('td').eq(9).text());
+			totalSettlement += parseMergeNumeric($row.find('td').eq(13).text());
+			totalWinLoss += parseMergeNumeric($row.find('td').eq(8).text());
 
-			var rateText = $.trim($row.find('td').eq(9).text())
+			var rateText = $.trim($row.find('td').eq(10).text())
 				.replace(/\bR\b/g, '')
 				.replace(/%/g, '')
 				.replace(/\s+/g, ' ')
@@ -1676,18 +2401,12 @@ $(document).ready(function () {
 			return;
 		}
 		window.isMergeSettleMode = !window.isMergeSettleMode;
-		if (window.isMergeSettleMode && window.isDailySettleSelectionMode) setDailySettleSelectionMode(false);
-		if (window.isMergeSettleMode && window.isOpenPoolSelectionMode) setOpenPoolSelectionMode(false);
 		updateMergeSettleButtonState();
 	});
 
 	$(document).on('change', '#game-list-select-all', function () {
 		var checked = $(this).prop('checked');
-		if ($('body').hasClass('open-pool-select-mode')) {
-			$('#game_list-tbl tbody .open-pool-checkbox').prop('checked', checked);
-		} else if ($('body').hasClass('daily-settle-select-mode')) {
-			$('#game_list-tbl tbody .daily-settle-checkbox').prop('checked', checked);
-		} else if ($('body').hasClass('merge-settle-mode')) {
+		if ($('body').hasClass('merge-settle-mode')) {
 			$('#game_list-tbl tbody .merge-settle-checkbox').prop('checked', checked);
 		}
 		syncGameListSelectAllCheckboxState();
@@ -1695,7 +2414,7 @@ $(document).ready(function () {
 
 	$(document).on(
 		'change',
-		'#game_list-tbl tbody .open-pool-checkbox, #game_list-tbl tbody .daily-settle-checkbox, #game_list-tbl tbody .merge-settle-checkbox',
+		'#game_list-tbl tbody .merge-settle-checkbox',
 		function () {
 			syncGameListSelectAllCheckboxState();
 		}
@@ -1776,7 +2495,18 @@ $(document).ready(function () {
 		return m ? parseInt(m[1], 10) : 0;
 	};
 
+	// Custom sort for PROGRAM DATE / GAME START (display text, not alphabetical)
+	$.fn.dataTable.ext.type.order['game-list-date-pre'] = function (d) {
+		if (d == null || d === '') return 0;
+		var text = (typeof d === 'string' ? d : String(d)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+		if (!text || text === '-') return 0;
+		var m = moment(text, ['MMM DD, YYYY', 'MMM DD, HH:mm', 'MMMM DD, YYYY', 'MMMM DD, HH:mm'], true);
+		if (!m.isValid()) m = moment(text);
+		return m.isValid() ? m.valueOf() : 0;
+	};
+
 	const highlightId = getQueryParam('id');
+	window.gameListUnreturnedRollerOnly = isTruthyQueryFlag(getQueryParam('unreturned_roller'));
 
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
         $('#game_list-tbl').DataTable().destroy();
@@ -1790,7 +2520,7 @@ $(document).ready(function () {
 		ordering: true,
 		info: true,
 		autoWidth: false,
-		order: [[2, 'desc']],  // GAME # column: latest game ID first
+		order: [[3, 'desc']],  // GAME # column: latest game ID first
 		// Default and minimum page length set to 100 (no 10/25/etc. options)
 		pageLength: 100,
 		lengthMenu: [
@@ -1799,18 +2529,21 @@ $(document).ready(function () {
 		],
 	
 		columnDefs: [
-			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
-			{ targets: 3, className: 'col-acct-no', width: '120px' },
-			{ targets: 4, className: 'col-guest', width: '120px' },
-			{ targets: 5, className: 'col-buyin', width: '130px' },
-			{ targets: 6, className: 'col-cashout', width: '130px' },
-			{ targets: 7, className: 'col-winloss', width: '130px' },
-			{ targets: 8, className: 'col-total-rolling', width: '130px' },
-			{ targets: 9, className: 'text-center col-game-rate' },
-			{ targets: 10, className: 'text-center col-commission' },
-			{ targets: 13, className: 'text-center col-game-end' },
-			{ targets: 14, className: 'col-roller-chips' },
-			{ targets: 15, className: 'text-center col-action' },
+			{ targets: 0, type: 'game-list-date', className: 'col-program-date text-start' },
+			{ targets: 1, type: 'game-list-date', className: 'col-game-start text-start' },
+			{ targets: 2, className: 'col-type text-center', width: '68px' },
+			{ targets: 3, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
+			{ targets: 4, className: 'col-acct-no', width: '120px' },
+			{ targets: 5, className: 'col-guest', width: '120px' },
+			{ targets: 6, className: 'col-buyin', width: '130px' },
+			{ targets: 7, className: 'col-cashout', width: '130px' },
+			{ targets: 8, className: 'col-winloss', width: '130px' },
+			{ targets: 9, className: 'col-total-rolling', width: '130px' },
+			{ targets: 10, className: 'text-center col-game-rate' },
+			{ targets: 11, className: 'text-center col-commission' },
+			{ targets: 14, className: 'text-center col-game-end' },
+			{ targets: 15, className: 'col-roller-chips' },
+			{ targets: 16, className: 'text-center col-action' },
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		
@@ -1827,17 +2560,13 @@ $(document).ready(function () {
 		},
 	
 		createdRow: function (row, data, index) {
-			// 🔴 Color red if WIN/LOSS is negative
-			if (parseInt(data[7].split(',').join('')) < 0) {
-				$('td:eq(7)', row).css({
-					'background-color': '#fff',
-					'color': 'red'
-				});
+			if (parseListAmount(data[8]) < 0) {
+				$('td:eq(8)', row).addClass('text-danger');
 			}
 
 			// ✅ HIGHLIGHTING logic
 			// Step 1: Remove HTML from Game # column to extract pure ID
-			const gameListIdText = $('<div>').html(data[2]).text(); // assuming column 2 is GAME #
+			const gameListIdText = $('<div>').html(data[3]).text(); // assuming column 3 is GAME #
 			const gameListId = parseInt(gameListIdText);
 
 			// Step 2: Compare with highlightId from URL
@@ -1869,20 +2598,21 @@ $(document).ready(function () {
 		drawCallback: function () {
 			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
 			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
+			updateMergeSettleButtonState();
 			syncGameListSelectAllCheckboxState();
 		}
 	});
 
 	function getGameListExportFilename() {
-		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-		if (mode === 'settlement') {
-			if (window.selectedSettlementRangeMultiDay) {
-				var r = getSettlementRangeYmdFromPicker();
+		var mode = $('input[name="filter-mode"]:checked').val() || 'program';
+		if (mode === 'program') {
+			if (window.selectedProgramDateRangeMultiDay) {
+				var r = getProgramDateRangeYmdFromPicker();
 				if (r) {
 					return 'Gamebook_settlement_' + r.from + '_to_' + r.to + '.xlsx';
 				}
 			}
-			var d = (window.selectedSettlementDate || '').trim() || 'export';
+			var d = (window.selectedProgramDate || '').trim() || 'export';
 			return 'Gamebook-' + String(d).replace(/[^\d\-]/g, '') + '.xlsx';
 		}
 		var dr = document.getElementById('daterange-picker');
@@ -1931,6 +2661,7 @@ $(document).ready(function () {
 				'',
 				'',
 				'',
+				'',
 				$('#GRAND_TOTAL_AMOUNT').text().trim(),
 				$('#GRAND_CHIPS_RETURN').text().trim(),
 				$('#GRAND_WIN_LOSS').text().trim(),
@@ -1955,8 +2686,8 @@ $(document).ready(function () {
 			'table{width:100%;border-collapse:collapse;font-size:8px;}',
 			'th,td{border:1px solid #777;padding:4px 5px;vertical-align:middle;text-align:center;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(2),th:nth-child(4),th:nth-child(5),td:nth-child(2),td:nth-child(4),td:nth-child(5){text-align:left;padding-left:10px;}',
-			'th:nth-child(6),th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),td:nth-child(6),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14){text-align:right;padding-right:10px;}',
+			'th:nth-child(5),th:nth-child(6),td:nth-child(5),td:nth-child(6){text-align:left;padding-left:10px;}',
+			'th:nth-child(7),th:nth-child(8),th:nth-child(9),th:nth-child(10),th:nth-child(11),th:nth-child(12),th:nth-child(13),th:nth-child(14),th:nth-child(15),td:nth-child(7),td:nth-child(8),td:nth-child(9),td:nth-child(10),td:nth-child(11),td:nth-child(12),td:nth-child(13),td:nth-child(14),td:nth-child(15){text-align:right;padding-right:10px;}',
 			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
 		].join('');
 	}
@@ -1971,15 +2702,15 @@ $(document).ready(function () {
 			}
 			return;
 		}
-		var mode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		var mode = $('input[name="filter-mode"]:checked').val() || 'program';
 		var subtitle =
-			mode === 'settlement'
+			mode === 'program'
 				? (function () {
-						var r = getSettlementRangeYmdFromPicker();
+						var r = getProgramDateRangeYmdFromPicker();
 						if (r && r.from && r.to) {
 							return r.from === r.to ? r.from : r.from + ' to ' + r.to;
 						}
-						return String(window.selectedSettlementDate || '').trim();
+						return String(window.selectedProgramDate || '').trim();
 				  })()
 				: $('#daterange-picker').val() || '';
 		var headerHtml = payload.headers.map(function (h) {
@@ -2113,25 +2844,26 @@ $(document).ready(function () {
 			var match = acctStr.match(/\d+/);
 			var acctNum = match ? parseInt(match[0], 10) : null;
 			if (acctNum === null || acctNum < minNum || acctNum > maxNum) return;
-			var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
+			var acct_no_link = buildGameAccountCell(acc.accountId, acc.agent_code, acc.agent_name);
 			var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
 			
 			dt.row.add([
 				'-',
 				'-',
+				'-',
 				gamesLabel,
 				acct_no_link,
 				'-',
-				parseFloat(acc.total_amount || 0).toLocaleString(),
-				parseFloat(acc.total_cash_out || 0).toLocaleString(),
-				parseFloat(acc.total_winloss || 0).toLocaleString(),
-				parseFloat(acc.total_rolling || 0).toLocaleString(),
+				parseFloat(acc.total_amount || 0).toLocaleString('en-US'),
+				parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
+				parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
+				parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
 				'-',
-				parseFloat(acc.total_commission || 0).toLocaleString(),
-				parseFloat(acc.total_add_chg || 0).toLocaleString(),
-				parseFloat(acc.total_settle || 0).toLocaleString(),
+				parseFloat(acc.total_commission || 0).toLocaleString('en-US'),
+				parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
+				parseFloat(acc.total_settle || 0).toLocaleString('en-US'),
 				'-',
-				parseFloat(acc.total_roller_chips || 0).toLocaleString(),
+				parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
 				'-'
 			]);
 			grandAmount += parseFloat(acc.total_amount || 0);
@@ -2143,7 +2875,7 @@ $(document).ready(function () {
 			grandTotalSettle += parseFloat(acc.total_settle || 0);
 			grandWinLoss += parseFloat(acc.total_winloss || 0);
 		});
-		dt.order([[3, 'asc']]); // Account view: sort by ACCT No (column 3)
+		dt.order([[4, 'asc']]); // Account view: sort by ACCT No (column 4)
 		dt.draw();
 		$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -2152,7 +2884,7 @@ $(document).ready(function () {
 		$('#game_list-tbl tfoot #GRAND_COMMISSION').text(grandCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(grandTotalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(grandWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
 	};
 
     function clearGameListDisplay() {
@@ -2168,30 +2900,34 @@ $(document).ready(function () {
         }
 		var reloadGeneration = (window._gameListReloadGeneration || 0) + 1;
 		window._gameListReloadGeneration = reloadGeneration;
-		// Build params; if highlightId exists, pass it to bypass date filtering on backend
+		syncUnreturnedRollerFilterBanner();
+		// Build params; highlight id or unreturned-roller filter bypass date filtering on backend
 		const params = {};
 		if (highlightId) {
 			params.id = highlightId;
+		} else if (window.gameListUnreturnedRollerOnly) {
+			params.unreturned_roller = 1;
 		} else {
-			// Check filter mode: settlement or date range
-			var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+			// Check filter mode: program date or game start range
+			var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
 			
-			if (filterMode === 'settlement') {
-				var rng = getSettlementRangeYmdFromPicker();
+			if (filterMode === 'program') {
+				var rng = getProgramDateRangeYmdFromPicker();
 				if (!rng) {
 					clearGameListDisplay();
 					return;
 				}
-				window.selectedSettlementRangeMultiDay = rng.from !== rng.to;
-				if (window.selectedSettlementRangeMultiDay) {
-					params.settlementFrom = rng.from;
-					params.settlementTo = rng.to;
-					window.selectedSettlementDate = rng.from;
+				window.selectedProgramDateRangeMultiDay = rng.from !== rng.to;
+				if (window.selectedProgramDateRangeMultiDay) {
+					params.programFrom = rng.from;
+					params.programTo = rng.to;
+					window.selectedProgramDate = rng.from;
+					window.selectedProgramDate = rng.from;
 				} else {
 					var date = rng.from;
 					params.date = date;
-					params.settlement_view = window.selectedSettlementSubView || 'open';
-					window.selectedSettlementDate = date;
+					window.selectedProgramDate = date;
+					window.selectedProgramDate = date;
 				}
 			} else {
 				// Date range mode
@@ -2217,7 +2953,7 @@ $(document).ready(function () {
 				params.toDate = toDate;
 			}
 		}
-        syncSettlementMultiDayChrome();
+        syncProgramDateMultiDayChrome();
         $.ajax({
             url: '/game_list_data', // Endpoint to fetch data
             method: 'GET',
@@ -2238,13 +2974,7 @@ $(document).ready(function () {
                     window.lastSettlementRows = [];
                     dataTable.draw();
                     $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_COMMISSION, #GRAND_ADD_CHG, #GRAND_TOTAL_SETTLE, #GRAND_WIN_LOSS').text('0.00');
-                    if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(0);
                     return;
-                }
-                // Only update settle button state if in settlement mode
-                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-                if (filterMode === 'settlement' && params.date && !window.selectedSettlementRangeMultiDay && typeof window.updateSettleButtonState === 'function') {
-                    window.updateSettleButtonState(data.length);
                 }
 
                 // Assume you have the user's permissions stored in a variable `userPermissions`
@@ -2256,7 +2986,7 @@ $(document).ready(function () {
                 window._gameListAccountTotals = {}; // reset each load so we have fresh totals for current dataset
                 // When in account mode we don't add game rows; we add account rows when all record APIs are done
                 var pendingAccountMode = hasAccountSearch ? data.length : 0;
-                if (!hasAccountSearch) dataTable.order([[2, 'desc']]); // Game view: sort by GAME # (column 2)
+                if (!hasAccountSearch) dataTable.order([[3, 'desc']]); // Game view: sort by GAME # (column 3)
 
                 function addAccountRows() {
                     var parts = accountSearchVal.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
@@ -2273,24 +3003,25 @@ $(document).ready(function () {
                         var match = acctStr.match(/\d+/);
                         var acctNum = match ? parseInt(match[0], 10) : null;
                         if (acctNum === null || acctNum < minNum || acctNum > maxNum) return;
-						var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
+						var acct_no_link = buildGameAccountCell(acc.accountId, acc.agent_code, acc.agent_name);
 						var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
 						dataTable.row.add([
+							'-',
 							'-',
 							'-',
 							gamesLabel,
                             acct_no_link,
 							'-',
-                            parseFloat(acc.total_amount || 0).toLocaleString(),
-                            parseFloat(acc.total_cash_out || 0).toLocaleString(),
-                            parseFloat(acc.total_winloss || 0).toLocaleString(),
-                            parseFloat(acc.total_rolling || 0).toLocaleString(),
+                            parseFloat(acc.total_amount || 0).toLocaleString('en-US'),
+                            parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
+                            parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
+                            parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
                             '-',
-                            parseFloat(acc.total_commission || 0).toLocaleString(),
-                            parseFloat(acc.total_add_chg || 0).toLocaleString(),
-                            parseFloat(acc.total_settle || 0).toLocaleString(),
+                            parseFloat(acc.total_commission || 0).toLocaleString('en-US'),
+                            parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
+                            parseFloat(acc.total_settle || 0).toLocaleString('en-US'),
                             '-',
-                            parseFloat(acc.total_roller_chips || 0).toLocaleString(),
+                            parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
                             '-'
                         ]);
                         grandAmount += parseFloat(acc.total_amount || 0);
@@ -2302,7 +3033,7 @@ $(document).ready(function () {
                         grandTotalSettle += parseFloat(acc.total_settle || 0);
                         grandWinLoss += parseFloat(acc.total_winloss || 0);
                     });
-                    dataTable.order([[3, 'asc']]); // Account view: sort by ACCT No (column 3)
+                    dataTable.order([[4, 'asc']]); // Account view: sort by ACCT No (column 4)
                     dataTable.draw();
                     $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -2311,7 +3042,7 @@ $(document).ready(function () {
                     $('#game_list-tbl tfoot #GRAND_COMMISSION').text(grandCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(grandTotalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(grandWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+                    $('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
                 }
 
                 // Initialize totals
@@ -2330,38 +3061,12 @@ $(document).ready(function () {
 // 					let isHighlighted = highlightId && parseInt(highlightId) === row.game_list_id;
 // let rowClass = isHighlighted ? 'highlight-row' : '';
 
-                    var isSettlementModeUi = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-                    var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-                    var dataTodayYmd =
-                        (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-                        (function () {
-                            var n = new Date();
-                            return (
-                                n.getFullYear() +
-                                '-' +
-                                String(n.getMonth() + 1).padStart(2, '0') +
-                                '-' +
-                                String(n.getDate()).padStart(2, '0')
-                            );
-                        })();
-                    var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-                    var isTodaySettledView =
-                        !window.selectedSettlementRangeMultiDay &&
-                        /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-                        selectedYmd === String(dataTodayYmd).slice(0, 10);
-                    var canOpenPoolSelect =
-                        isSettlementModeUi &&
-                        !window.selectedSettlementRangeMultiDay &&
-                        window.selectedSettlementSubView === 'settled' &&
-                        isTodaySettledView &&
-                        window.isOpenPoolSelectionMode;
-
                     var btn = `<div class="btn-group">
                         <button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
                         <i class="fa fa-file-alt"></i>
                         </button>
-                        <button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, ${gameListAgentOnclickArgs(row.agent_code, row.guest_name)})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
                         <i class="fa fa-exchange-alt"></i>
                         </button>
@@ -2378,13 +3083,7 @@ $(document).ready(function () {
                             <i class="fa fa-history"></i>
                         </button>
                     </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
-                        </button>
-                    </div>`;
+                    var btn_remarks = buildGameRemarksButton(row);
 
                     var ref = '';
                     var acct_code = '';
@@ -2481,7 +3180,7 @@ $(document).ready(function () {
 
 							var buyinBtnStyle = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRow ? 'color:#dc3545 !important;' : '');
 							var formatBuyinPlain = function (amt) {
-								var s = parseFloat(amt).toLocaleString();
+								var s = parseFloat(amt).toLocaleString('en-US');
 								return isMarkerGameRow ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
 							};
 	
@@ -2499,6 +3198,11 @@ $(document).ready(function () {
 	
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
+
+							if (window.gameListUnreturnedRollerOnly && total_roller_chips <= 0) {
+								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); }
+								return;
+							}
 	
 							var gross = total_buy_in - total_cash_out;
 	
@@ -2506,9 +3210,8 @@ $(document).ready(function () {
 	
 					
 	
-							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
-							
 							var WinLoss = total_amount - total_cash_out_chips;
+							var winloss = formatListAmount(WinLoss, 'signed');
 							
 							
 							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.50% -> 62597 not 62596)
@@ -2529,7 +3232,7 @@ $(document).ready(function () {
 							totalAmount += total_amount;
 							totalRolling += total_rolling_chips;
 							totalChipsReturn += total_cash_out_chips;
-							totalWinLoss += parseFloat(winloss.replace(/,/g, ''));
+							totalWinLoss += WinLoss;
 							totalRollerChips += total_roller_chips;
 
 							// Account summary: accumulate per-account totals (used when Account Search is active)
@@ -2573,7 +3276,7 @@ $(document).ready(function () {
 											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
 											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
+										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, ${gameListAgentOnclickArgs(row.agent_code, row.guest_name)})" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
 											data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
 									}
 								} else {
@@ -2593,22 +3296,15 @@ $(document).ready(function () {
 									}
 								}
 
-								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, true);
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
+								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								
 									// Format net value as an integer
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
-								var gameStartCellOg = buildGameStartCell(
-									game_start,
-									row.game_list_id,
-									row.ACCOUNT_ID,
-									row.SETTLED === 1,
-									false,
-									canOpenPoolSelect
-								);
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+								var gameStartCellOg = buildGameStartCell(game_start);
 								
 								// const highlightId = getQueryParam('highlight_id');
 								// const gameListIdText = $('<div>').html(row.game_list_id).text();
@@ -2620,7 +3316,7 @@ $(document).ready(function () {
 								// 	gameIdDisplay = `⭐ ${row.game_list_id}`;
 								// }
 
-                                var actionButtons = btn_services;
+                                var actionButtons = btn_remarks;
                                 if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
                                     actionButtons += btn_his;
                                 }
@@ -2629,10 +3325,12 @@ $(document).ready(function () {
                                     actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
                                 }
 
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
+                                var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 let rowNode = dataTable.row.add([
+                                    buildProgramDateCell(row, userPermissions, isSettled),
                                     gameStartCellOg,
-                                    `${row.GAME_TYPE}`,
+                                    buildGameTypeCell(row, userPermissions),
                                     buildCutoffGameIdCell(row),
                                     acct_no_link,
 									buildGameGuestCell(row),
@@ -2642,15 +3340,12 @@ $(document).ready(function () {
                                     total_rolling_td,
                                     buildGameRateCell(row, userPermissions, isSettled),
                                     formattedNet,
-                                    addChgValue.toLocaleString(),
-                                    totalSettleValue.toLocaleString(),
+                                    add_chg_td,
+                                    totalSettleValue.toLocaleString('en-US'),
                                     status,
                                     roller_chips_td,
                                     actionButtons
                                 ]).draw().node();
-                                if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
-                                }
 								
 								
 								
@@ -2691,7 +3386,7 @@ $(document).ready(function () {
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// PENDING STATUS (discrepancy in roller chips return)
-								var pendingChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ", '" + (row.agent_code || '').replace(/'/g, "\\'") + "')";
+								var pendingChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
 									if (isSettled && userPermissions !== 0) {
 										status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showSettledAlert(); return false;' });
@@ -2705,19 +3400,19 @@ $(document).ready(function () {
 								// No add when settled (all users). When not settled, Super admin can add
 								if (isSettled) {
 									buyin_td = formatBuyinPlain(total_amount);
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, true);
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								}
 								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
@@ -2738,27 +3433,20 @@ $(document).ready(function () {
 								
 								// Format net value as an integer
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
-								var isSettlementMode = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-								var canDailySettle = isSettlementMode && window.isDailySettleSelectionMode;
-								var gameStartCell = buildGameStartCell(
-									game_start,
-									row.game_list_id,
-									row.ACCOUNT_ID,
-									row.SETTLED === 1,
-									canDailySettle,
-									canOpenPoolSelect
-								);
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+								var gameStartCell = buildGameStartCell(game_start);
 								
-								var actionButtons = btn_services + btn_settle;
+								var actionButtons = btn_remarks + btn_settle;
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
-								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
+								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
 								let rowNode = dataTable.row.add([
+									buildProgramDateCell(row, userPermissions, isSettled),
 									gameStartCell,
-									`${row.GAME_TYPE}`,
+									buildGameTypeCell(row, userPermissions),
 									buildCutoffGameIdCell(row),
 									acct_no_link,
 									buildGameGuestCell(row),
@@ -2768,15 +3456,12 @@ $(document).ready(function () {
 									total_rolling_td,
 									buildGameRateCell(row, userPermissions, isSettled),
 									formattedNet,
-									addChgValue.toLocaleString(),
-									totalSettleValue.toLocaleString(),
+									add_chg_td,
+									totalSettleValue.toLocaleString('en-US'),
 									status,
 									roller_chips_td,
 									actionButtons
 								]).draw().node();
-                                if (row.DAILY_SETTLEMENT != 2) {
-                                    $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
-                                }
 								
 								
 								
@@ -2803,7 +3488,7 @@ $(document).ready(function () {
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// END GAME STATUS (status = 1)
-								var endGameChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')';
+								var endGameChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								if (isPendingRollerOrangeRow(row)) {
 									if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
 										if (isSettled && userPermissions !== 0) {
@@ -2827,19 +3512,19 @@ $(document).ready(function () {
 								// No add when settled (all users). When not settled, Super admin can add Buy-in, Cash-out, Rolling
 								if (isSettled) {
 									buyin_td = formatBuyinPlain(total_amount);
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								} else if (userPermissions === 0) {
-									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, true);
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
-									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								}
 	
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
@@ -2860,26 +3545,15 @@ $(document).ready(function () {
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
-						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
-						   var isSettlementModeEnd = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-						   var canDailySettleEnd = isSettlementModeEnd && window.isDailySettleSelectionMode;
-						   var gameStartCellEnd = buildGameStartCell(
-							   game_start,
-							   row.game_list_id,
-							   row.ACCOUNT_ID,
-							   row.SETTLED === 1,
-							   canDailySettleEnd,
-							   canOpenPoolSelect
-						   );
-						   var actionButtons = btn_services + btn_settle;
+						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+						   var gameStartCellEnd = buildGameStartCell(game_start);
+						   var actionButtons = btn_remarks + btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
-						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCellEnd,`${row.GAME_TYPE}`, buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, addChgValue.toLocaleString(), totalSettleValue.toLocaleString(), status, roller_chips_td, actionButtons]).draw().node();
-                           if (row.DAILY_SETTLEMENT != 2) {
-                               $(rowNode).find('td').eq(2).addClass('unsettled-game-cell');
-                           }
+						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
+						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
+						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
 						   
 						   
 							}
@@ -2899,49 +3573,11 @@ $(document).ready(function () {
 
     // Expose reloadData to window so it can be called from date range picker
     window.reloadData = reloadData;
-    window.reloadGameListBySettlementDate = function () { reloadData(); };
-
-    var settledDatesRaw = $('#settlement-date-wrapper .input-group').attr('data-settled-dates');
-    var draftDatesRaw = $('#settlement-date-wrapper .input-group').attr('data-draft-dates');
-    try {
-        window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-    } catch (e) {
-        window.settledDatesForMonth = [];
-    }
-    try {
-        window.draftDatesForMonth = draftDatesRaw ? JSON.parse(draftDatesRaw) : [];
-    } catch (e) {
-        window.draftDatesForMonth = [];
-    }
-    var settleBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle) || 'Settle';
-    window.updateSettleButtonState = function (recordCount) {
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        var $btn = $('#btn-daily-settle');
-
-        if (filterMode !== 'settlement') {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        if (window.selectedSettlementRangeMultiDay) {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        var date = window.selectedSettlementDate;
-
-        if (!date) {
-            $btn.addClass('disabled').removeClass('breadcrumb-settled breadcrumb-crumb-armed').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
-            return;
-        }
-
-        $btn.removeClass('disabled breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
-    };
+    window.reloadGameListByProgramDate = function () { reloadData(); };
+    window.updateSettleButtonState = function () {};
 
     // Previous/Next Date Navigation Functions
-    function getEarliestSettlementDate() {
-        // Allow navigation back to January 1 of previous year
-        // (no longer restricted by settledDatesForMonth which only contains current month's settled dates)
+    function getEarliestProgramDate() {
         var now = new Date();
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
@@ -2958,11 +3594,9 @@ $(document).ready(function () {
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var previousDateStr = previous.getFullYear() + '-' + pad(previous.getMonth() + 1) + '-' + pad(previous.getDate());
         
-        // Get the earliest settlement date (when settlements started)
-        var earliestSettlementDate = getEarliestSettlementDate();
+        var earliestProgramDate = getEarliestProgramDate();
         
-        // Don't go before the earliest settlement date
-        if (previousDateStr < earliestSettlementDate) {
+        if (previousDateStr < earliestProgramDate) {
             return null;
         }
         
@@ -2977,194 +3611,68 @@ $(document).ready(function () {
         next.setDate(next.getDate() + 1);
         
         var pad = function(n) { return String(n).padStart(2, '0'); };
-        var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
-        
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxAllowedStr = wrapper && wrapper.getAttribute('data-max-settlement-date');
-        if (maxAllowedStr && String(maxAllowedStr).trim() !== '' && nextDateStr > maxAllowedStr) {
-            return null;
-        }
-        
-        return nextDateStr;
-    }
-
-    function getDefaultSettlementSubView(targetDate) {
-        // Current date should stay on Open by default so unsettled pool is visible.
-        if (isCurrentDate(targetDate)) return 'open';
-        if (hasDraftSettlementForDate(targetDate)) return 'open';
-        return hasSettlementForDate(targetDate) ? 'settled' : 'open';
+        return next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
     }
     
     // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
     window.updateNavigationButtons = function() {
-        if (!$('#btn-settlement-prev').length) {
+        if (!$('#btn-program-date-prev').length) {
             return;
         }
-        var rng = getSettlementRangeYmdFromPicker();
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var fallback =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorForPrev = rng && window.selectedSettlementRangeMultiDay ? rng.from : fallback;
-        var anchorForNext = rng && window.selectedSettlementRangeMultiDay ? rng.to : fallback;
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorForPrev = rng && window.selectedProgramDateRangeMultiDay ? rng.from : fallback;
+        var anchorForNext = rng && window.selectedProgramDateRangeMultiDay ? rng.to : fallback;
         var previousDate = getPreviousDate(anchorForPrev);
         var nextDate = getNextDate(anchorForNext);
         
-        // Update previous button state
-        if (previousDate) {
-            $('#btn-settlement-prev').prop('disabled', false);
-        } else {
-            $('#btn-settlement-prev').prop('disabled', true);
-        }
-        
-        // Update next button state
-        if (nextDate) {
-            $('#btn-settlement-next').prop('disabled', false);
-        } else {
-            $('#btn-settlement-next').prop('disabled', true);
-        }
-    };
-    
-    window.updateOpenPoolBreadcrumbVisibility = function () {
-        var $open = $('#btn-breadcrumb-open-pool');
-        if (!$open.length) return;
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        var visible = false;
-        if (filterMode === 'settlement') {
-            var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-            var dataTodayYmd =
-                (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-                getClientTodayYmd();
-            var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-            visible =
-                !window.selectedSettlementRangeMultiDay &&
-                /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-                selectedYmd === String(dataTodayYmd).slice(0, 10) &&
-                window.selectedSettlementSubView === 'settled';
-        }
-        if (visible) {
-            $open.removeClass('d-none');
-        } else {
-            if (window.isOpenPoolSelectionMode) {
-                setOpenPoolSelectionMode(false);
-                if (typeof window.reloadGameListBySettlementDate === 'function') {
-                    window.reloadGameListBySettlementDate();
-                }
-            }
-            $open.addClass('d-none');
-        }
+        $('#btn-program-date-prev').prop('disabled', !previousDate);
+        $('#btn-program-date-next').prop('disabled', !nextDate);
     };
 
-    window.updateSettlementSubviewIndicator = function() {
-        syncSettlementMultiDayChrome();
-        var $indicator = $('#settlement-subview-indicator');
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        if (filterMode !== 'settlement') {
-            if ($indicator.length) {
-                $indicator.text('').removeClass('is-open is-settled is-range').hide();
-            }
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        if (!$indicator.length) {
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        var rngPick = getSettlementRangeYmdFromPicker();
-        if (rngPick && rngPick.from !== rngPick.to) {
-            if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-                window.updateOpenPoolBreadcrumbVisibility();
-            }
-            return;
-        }
-        $indicator.removeClass('is-range');
-        $indicator.show();
-        if (window.selectedSettlementSubView === 'settled') {
-            $indicator.text('Settled').removeClass('is-open').addClass('is-settled');
-        } else {
-            $indicator.text('Open').removeClass('is-settled').addClass('is-open');
-        }
-        if (typeof window.updateOpenPoolBreadcrumbVisibility === 'function') {
-            window.updateOpenPoolBreadcrumbVisibility();
-        }
-    };
-
-    $(document).on('click', '#settlement-subview-indicator', function () {
-        if (window.selectedSettlementRangeMultiDay) return;
-        var cur = window.selectedSettlementDate;
-        if (!isCurrentDate(cur) || !hasSettlementForDate(cur)) return;
-        if (window.selectedSettlementSubView === 'settled') {
-            navigateToDate(cur, 'open');
-        } else {
-            navigateToDate(cur, 'settled');
-        }
-    });
-
-    function navigateToDate(targetDate, preferredSubView) {
+    function navigateToDate(targetDate) {
         if (!targetDate) return;
-        setDailySettleSelectionMode(false);
-        setOpenPoolSelectionMode(false);
 
-        window.selectedSettlementDate = targetDate;
-        window.selectedSettlementRangeMultiDay = false;
-        if (preferredSubView === 'settled' || preferredSubView === 'open') {
-            window.selectedSettlementSubView = preferredSubView;
-        } else {
-            window.selectedSettlementSubView = getDefaultSettlementSubView(targetDate);
-        }
+        window.selectedProgramDate = targetDate;
+        window.selectedProgramDate = targetDate;
+        window.selectedProgramDateRangeMultiDay = false;
 
-        var pickerEl = document.getElementById('settlement-range-picker');
+        var pickerEl = document.getElementById('program-date-range-picker');
         if (pickerEl && pickerEl._flatpickr) {
             pickerEl._flatpickr.setDate([targetDate, targetDate], false);
         }
 
         updateNavigationButtons();
-        if (typeof window.updateSettlementSubviewIndicator === 'function') {
-            window.updateSettlementSubviewIndicator();
-        }
-
-        if (typeof window.updateSettleButtonState === 'function') {
-            window.updateSettleButtonState();
-        }
-
-        if (typeof window.reloadGameListBySettlementDate === 'function') {
-            window.reloadGameListBySettlementDate();
+        if (typeof window.reloadGameListByProgramDate === 'function') {
+            window.reloadGameListByProgramDate();
         }
     }
     window.navigateToDate = navigateToDate;
 
     // Previous button click handler
-    $('#btn-settlement-prev').on('click', function() {
-        var rng = getSettlementRangeYmdFromPicker();
+    $('#btn-program-date-prev').on('click', function() {
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var currentDate =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorPrev = rng && window.selectedSettlementRangeMultiDay ? rng.from : currentDate;
-        if (
-            !window.selectedSettlementRangeMultiDay &&
-            isCurrentDate(anchorPrev) &&
-            hasSettlementForDate(anchorPrev) &&
-            window.selectedSettlementSubView !== 'settled'
-        ) {
-            navigateToDate(anchorPrev, 'settled');
-            return;
-        }
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorPrev = rng && window.selectedProgramDateRangeMultiDay ? rng.from : currentDate;
         var previousDate = getPreviousDate(anchorPrev);
 
         if (previousDate) {
-            navigateToDate(previousDate, getDefaultSettlementSubView(previousDate));
+            navigateToDate(previousDate);
         } else {
-            var earliestDate = getEarliestSettlementDate();
-            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest settlement date';
+            var earliestDate = getEarliestProgramDate();
+            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest date';
             Swal.fire({
                 icon: 'info',
                 title: 'No Previous Date',
-                text: 'You are already at the earliest settlement date (' + formattedEarliest + ').',
+                text: 'You are already at the earliest program date (' + formattedEarliest + ').',
                 confirmButtonText: 'OK',
                 timer: 2000,
                 showConfirmButton: false
@@ -3173,30 +3681,18 @@ $(document).ready(function () {
     });
 
     // Next button click handler
-    $('#btn-settlement-next').on('click', function() {
-        var rng = getSettlementRangeYmdFromPicker();
+    $('#btn-program-date-next').on('click', function() {
+        var rng = getProgramDateRangeYmdFromPicker();
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
         var currentDate =
-            window.selectedSettlementDate ||
-            $('#settlement-date-wrapper .input-group').attr('data-initial-settlement-date') ||
-            $('#settlement-date-wrapper .input-group').attr('data-today');
-        var anchorNext = rng && window.selectedSettlementRangeMultiDay ? rng.to : currentDate;
-        if (
-            !window.selectedSettlementRangeMultiDay &&
-            isCurrentDate(anchorNext) &&
-            hasSettlementForDate(anchorNext) &&
-            window.selectedSettlementSubView === 'settled'
-        ) {
-            navigateToDate(anchorNext, 'open');
-            return;
-        }
+            window.selectedProgramDate ||
+            (wrapper && wrapper.getAttribute('data-initial-program-date')) ||
+            (wrapper && wrapper.getAttribute('data-today'));
+        var anchorNext = rng && window.selectedProgramDateRangeMultiDay ? rng.to : currentDate;
         var nextDate = getNextDate(anchorNext);
 
         if (nextDate) {
-            if (isCurrentDate(nextDate) && hasSettlementForDate(nextDate)) {
-                navigateToDate(nextDate, 'settled');
-            } else {
-                navigateToDate(nextDate, getDefaultSettlementSubView(nextDate));
-            }
+            navigateToDate(nextDate);
         } else {
             Swal.fire({
                 icon: 'info',
@@ -3212,19 +3708,16 @@ $(document).ready(function () {
     // Filter mode toggle handler
     $('input[name="filter-mode"]').on('change', function() {
         var mode = $(this).val();
-        if (mode === 'settlement') {
-            $('#settlement-date-wrapper').show();
+        if (mode === 'program') {
+            $('#program-date-wrapper').show();
             $('#daterange-wrapper').hide();
-            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
             }
         } else {
-            $('#settlement-date-wrapper').hide();
+            $('#program-date-wrapper').hide();
             $('#daterange-wrapper').show();
-            syncSettlementMultiDayChrome();
-            setOpenPoolSelectionMode(false);
-            if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
+            syncProgramDateMultiDayChrome();
             if (dateRangePicker && typeof dateRangePicker.clear === 'function') {
                 dateRangePicker.clear();
             }
@@ -3232,65 +3725,35 @@ $(document).ready(function () {
         }
     });
     
-    // Initialize settlement date range picker (by settlement / daily_settlement date; same day uses date + settlement_view API)
-    var settlementDatePicker = null;
-    if (document.getElementById('settlement-range-picker')) {
+    // Initialize program date range picker
+    var programDatePicker = null;
+    if (document.getElementById('program-date-range-picker')) {
         var pad = function (n) {
             return String(n).padStart(2, '0');
         };
 
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var maxSettlementDate = null;
-        var settledDatesList = window.settledDatesForMonth || [];
-        if (wrapper) {
-            maxSettlementDate = wrapper.getAttribute('data-max-settlement-date');
-            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            var draftDatesRaw = wrapper.getAttribute('data-draft-dates');
-            try {
-                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
-                    window.settledDatesForMonth = parsedDates;
-                }
-                settledDatesList = window.settledDatesForMonth || [];
-            } catch (e) {
-                console.error('[Settlement range picker] Error parsing settled dates:', e);
-            }
-            try {
-                var parsedDraftDates = draftDatesRaw ? JSON.parse(draftDatesRaw) : [];
-                if (!window.draftDatesForMonth || window.draftDatesForMonth.length === 0) {
-                    window.draftDatesForMonth = parsedDraftDates;
-                }
-            } catch (e) {
-                console.error('[Settlement range picker] Error parsing draft dates:', e);
-            }
-        }
-
-        var earliestSettlementDate;
-        if (settledDatesList.length > 0) {
-            earliestSettlementDate = settledDatesList.slice().sort()[0];
-        } else {
-            var earliestAllowed = new Date(new Date().getFullYear() - 1, 0, 1);
-            earliestSettlementDate =
-                earliestAllowed.getFullYear() +
-                '-' +
-                pad(earliestAllowed.getMonth() + 1) +
-                '-' +
-                pad(earliestAllowed.getDate());
-        }
+        var wrapper = document.querySelector('#program-date-wrapper .input-group');
+        var nowForCal = new Date();
+        var earliestAllowed = new Date(nowForCal.getFullYear() - 1, 0, 1);
+        var earliestProgramDate =
+            earliestAllowed.getFullYear() +
+            '-' +
+            pad(earliestAllowed.getMonth() + 1) +
+            '-' +
+            pad(earliestAllowed.getDate());
 
         var todayStr = getClientTodayYmd();
         var todayFromDom = wrapper && wrapper.getAttribute('data-today');
-        var initialFromDom = wrapper && wrapper.getAttribute('data-initial-settlement-date');
-        var anchor = todayStr || initialFromDom || todayFromDom;
+        var initialFromDom = wrapper && wrapper.getAttribute('data-initial-program-date');
+        var anchor = initialFromDom || todayStr || todayFromDom;
 
-        window.selectedSettlementDate = anchor;
-        window.selectedSettlementRangeMultiDay = false;
-        window.selectedSettlementSubView = getDefaultSettlementSubView(anchor);
+        window.selectedProgramDate = anchor;
+        window.selectedProgramDate = anchor;
+        window.selectedProgramDateRangeMultiDay = false;
 
-        var nowForCal = new Date();
         var settlementCalStart = new Date(nowForCal.getFullYear(), nowForCal.getMonth() - 2, 1);
 
-        var fpSettlementRangeOpts = {
+        programDatePicker = flatpickr('#program-date-range-picker', {
             mode: 'range',
             dateFormat: 'Y-m-d',
             altInput: true,
@@ -3298,7 +3761,7 @@ $(document).ready(function () {
             showMonths: 3,
             defaultMonth: settlementCalStart,
             defaultDate: [anchor, anchor],
-            minDate: earliestSettlementDate,
+            minDate: earliestProgramDate,
             allowInput: false,
             onOpen: function (selectedDates, dateStr, instance) {
                 var n = new Date();
@@ -3321,119 +3784,30 @@ $(document).ready(function () {
                 if (!selectedDates || selectedDates.length !== 2) {
                     return;
                 }
-                setDailySettleSelectionMode(false);
-                setOpenPoolSelectionMode(false);
                 var a = selectedDates[0];
                 var b = selectedDates[1];
                 var d0 = a.getFullYear() + '-' + pad(a.getMonth() + 1) + '-' + pad(a.getDate());
                 var d1 = b.getFullYear() + '-' + pad(b.getMonth() + 1) + '-' + pad(b.getDate());
                 var fromD = d0 <= d1 ? d0 : d1;
                 var toD = d0 <= d1 ? d1 : d0;
-                window.selectedSettlementRangeMultiDay = fromD !== toD;
-                window.selectedSettlementDate = fromD;
-                if (!window.selectedSettlementRangeMultiDay) {
-                    window.selectedSettlementSubView = getDefaultSettlementSubView(fromD);
-                }
+                window.selectedProgramDateRangeMultiDay = fromD !== toD;
+                window.selectedProgramDate = fromD;
+                window.selectedProgramDate = fromD;
                 if (typeof window.updateNavigationButtons === 'function') {
                     window.updateNavigationButtons();
                 }
-                if (typeof window.updateSettleButtonState === 'function') {
-                    window.updateSettleButtonState();
-                }
-                if (typeof window.updateSettlementSubviewIndicator === 'function') {
-                    window.updateSettlementSubviewIndicator();
-                }
-                if (typeof window.reloadGameListBySettlementDate === 'function') {
-                    window.reloadGameListBySettlementDate();
-                }
-            },
-            onDayCreate: function (dayElem) {
-                if (!dayElem || !dayElem.dateObj) return;
-                var d = dayElem.dateObj;
-                var dStr =
-                    d.getFullYear() +
-                    '-' +
-                    String(d.getMonth() + 1).padStart(2, '0') +
-                    '-' +
-                    String(d.getDate()).padStart(2, '0');
-                var settledDates = window.settledDatesForMonth || [];
-                if (dStr && settledDates.indexOf(dStr) !== -1) {
-                    dayElem.classList.add('settled-day');
+                syncProgramDateMultiDayChrome();
+                if (typeof window.reloadGameListByProgramDate === 'function') {
+                    window.reloadGameListByProgramDate();
                 }
             }
-        };
-        if (maxSettlementDate && String(maxSettlementDate).trim() !== '') {
-            fpSettlementRangeOpts.maxDate = maxSettlementDate;
-        }
-        settlementDatePicker = flatpickr('#settlement-range-picker', fpSettlementRangeOpts);
+        });
     }
 
     // Initialize date range picker (single input with range mode)
     var dateRangePicker = null;
     if (document.getElementById('daterange-picker')) {
         var now = new Date();
-        var pad = function(n) { return String(n).padStart(2, '0'); };
-        
-        // Get default settlement date (next settlement date) from wrapper
-        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var defaultSettlementDate = null;
-        if (wrapper) {
-            defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
-            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            try {
-                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                // Make sure window.settledDatesForMonth is set if not already set
-                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
-                    window.settledDatesForMonth = parsedDates;
-                }
-            } catch (e) {
-                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
-            }
-        }
-        
-        // Default date range: All settlements for the current month.
-        // If walang settlement this month, fallback to previous behavior.
-        var settledDates = window.settledDatesForMonth || [];
-        var defaultFromDate;
-        var defaultToDate;
-        
-        if (settledDates.length > 0) {
-            var currentYear = now.getFullYear();
-            var currentMonth = now.getMonth() + 1; // 1-12
-            
-            // Filter settled dates to current month/year
-            var settledDatesThisMonth = settledDates.filter(function (d) {
-                if (typeof d !== 'string' || d.length < 7) return false;
-                var parts = d.split('-');
-                if (parts.length < 2) return false;
-                var y = parseInt(parts[0], 10);
-                var m = parseInt(parts[1], 10);
-                if (isNaN(y) || isNaN(m)) return false;
-                return y === currentYear && m === currentMonth;
-            });
-            
-            var datesToUse = settledDatesThisMonth.length > 0 ? settledDatesThisMonth : settledDates;
-            var sortedDates = datesToUse.slice().sort();
-            
-            // From Date: First settlement date in the chosen set
-            defaultFromDate = sortedDates[0];
-            
-            // To Date: Next settlement date (defaultSettlementDate) if available,
-            // otherwise next day after last settlement in the chosen set.
-            var lastSettlementDate = sortedDates[sortedDates.length - 1];
-            var lastDate = new Date(lastSettlementDate + 'T12:00:00');
-            var nextDayAfterLast = new Date(lastDate);
-            nextDayAfterLast.setDate(nextDayAfterLast.getDate() + 1);
-            var nextDayAfterLastStr = nextDayAfterLast.getFullYear() + '-' + pad(nextDayAfterLast.getMonth() + 1) + '-' + pad(nextDayAfterLast.getDate());
-            
-            defaultToDate = defaultSettlementDate || nextDayAfterLastStr;
-        } else {
-            // Fallback: First of current month to today (or default settlement date)
-            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            defaultFromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
-            var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
-            defaultToDate = defaultSettlementDate || todayStr;
-        }
 
         var dateRangeElInit = document.getElementById('daterange-picker');
         if (dateRangeElInit && dateRangeElInit._flatpickr) {
@@ -3442,6 +3816,8 @@ $(document).ready(function () {
 
         var dateRangeVisibleStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
 
+        var gameStartPickerPlaceholder =
+            (dateRangeElInit && dateRangeElInit.getAttribute('placeholder')) || 'Select Date';
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
             dateFormat: 'Y-m-d',
@@ -3451,10 +3827,13 @@ $(document).ready(function () {
             defaultMonth: dateRangeVisibleStart,
             defaultDate: [],
             onReady: function (selectedDates, dateStr, instance) {
+                if (instance.altInput) {
+                    instance.altInput.setAttribute('placeholder', gameStartPickerPlaceholder);
+                }
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
-                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
                 if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
                     setTimeout(function() {
                         window.reloadData();
@@ -3481,432 +3860,21 @@ $(document).ready(function () {
         });
     }
 
-    var didRestoreDailySettleSession = false;
-    try {
-        var restoredDailySettleView = window.sessionStorage ? window.sessionStorage.getItem('dailySettleViewState') : null;
-        if (restoredDailySettleView) {
-            var parsedDailySettleView = JSON.parse(restoredDailySettleView);
-            if (parsedDailySettleView && /^\d{4}-\d{2}-\d{2}$/.test(String(parsedDailySettleView.date || ''))) {
-                window.selectedSettlementDate = parsedDailySettleView.date;
-                window.selectedSettlementSubView = parsedDailySettleView.subView === 'open' ? 'open' : 'settled';
-                didRestoreDailySettleSession = true;
-                window.selectedSettlementRangeMultiDay = false;
-                var restoredPickerEl = document.getElementById('settlement-range-picker');
-                if (restoredPickerEl && restoredPickerEl._flatpickr) {
-                    restoredPickerEl._flatpickr.setDate(
-                        [parsedDailySettleView.date, parsedDailySettleView.date],
-                        false
-                    );
-                }
-                syncSettlementMultiDayChrome();
-            }
-            window.sessionStorage.removeItem('dailySettleViewState');
-        }
-    } catch (e) {
-        // Ignore invalid session restore data.
+    var wrapperForInit = document.querySelector('#program-date-wrapper .input-group');
+    var initialProgramDate =
+        (wrapperForInit && wrapperForInit.getAttribute('data-initial-program-date')) ||
+        getClientTodayYmd();
+    window.selectedProgramDate = initialProgramDate;
+    window.selectedProgramDate = initialProgramDate;
+    window.selectedProgramDateRangeMultiDay = false;
+    var programDateRangeEl = document.getElementById('program-date-range-picker');
+    if (programDateRangeEl && programDateRangeEl._flatpickr) {
+        programDateRangeEl._flatpickr.setDate([initialProgramDate, initialProgramDate], false);
     }
-    if (!didRestoreDailySettleSession) {
-        window.selectedSettlementDate = getClientTodayYmd();
-        window.selectedSettlementRangeMultiDay = false;
-        var settlementRangeEl = document.getElementById('settlement-range-picker');
-        if (settlementRangeEl && settlementRangeEl._flatpickr) {
-            var pin = getClientTodayYmd();
-            settlementRangeEl._flatpickr.setDate([pin, pin], false);
-        }
-    }
-    syncSettlementMultiDayChrome();
-    if (!didRestoreDailySettleSession && typeof getDefaultSettlementSubView === 'function' && window.selectedSettlementDate) {
-        window.selectedSettlementSubView = getDefaultSettlementSubView(window.selectedSettlementDate);
-    }
+    syncProgramDateMultiDayChrome();
 
     reloadData();
-    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
-    if (typeof window.updateSettlementSubviewIndicator === 'function') window.updateSettlementSubviewIndicator();
-
-    function getSelectedGamesForDailySettle() {
-        var ids = [];
-        $('.daily-settle-checkbox:checked').each(function () {
-            var v = parseInt($(this).val(), 10);
-            if (!isNaN(v) && ids.indexOf(v) === -1) ids.push(v);
-        });
-        return ids;
-    }
-
-    function runSettlementTransferRequest(payload, selectedGameIds, $btn) {
-        $.ajax({
-            url: '/game_list/daily_settlement/transfer',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(payload),
-            success: function (res) {
-                var d = (res && res.settlement_date) || payload.settlement_date || '';
-                var formatted = d
-                    ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric'
-                      })
-                    : d;
-                var successText =
-                    (res.game_count || selectedGameIds.length) +
-                    ' game(s) assigned to settlement date ' +
-                    formatted +
-                    '.';
-                Swal.fire({
-                    title: 'Done',
-                    text: successText,
-                    icon: 'success',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                }).then(function () {
-                    try {
-                        var targetDate = (res && res.settlement_date) || payload.settlement_date || '';
-                        if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(String(targetDate).slice(0, 10)) && window.sessionStorage) {
-                            window.sessionStorage.setItem(
-                                'dailySettleViewState',
-                                JSON.stringify({ date: String(targetDate).slice(0, 10), subView: 'settled' })
-                            );
-                        }
-                    } catch (e) {}
-                    window.location.reload();
-                });
-            },
-            error: function (xhr) {
-                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Transfer failed';
-                console.error('[Settlement transfer] error:', err, xhr);
-                Swal.fire({
-                    title: 'Error',
-                    text: err,
-                    icon: 'error',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-            },
-            complete: function () {
-                $btn.prop('disabled', false);
-                if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-            }
-        });
-    }
-
-    $('#btn-daily-settle').on('click', function () {
-        if ($(this).prop('disabled')) return;
-        var fallbackDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
-        var settlementDate = window.dailySettleTargetDate || fallbackDate;
-        var formattedDate = settlementDate
-            ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-            : settlementDate;
-        var selectedGameIds = getSelectedGamesForDailySettle();
-        var $btn = $(this);
-        var baseMessage = 'Assign ' + selectedGameIds.length + ' selected game(s) to ' + formattedDate + '?';
-
-        if (!window.isDailySettleSelectionMode) {
-            var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-            if (filterMode !== 'settlement') {
-                Swal.fire({
-                    title: 'Settlement Date mode required',
-                    text: 'Switch to Settlement Date mode first.',
-                    icon: 'warning',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-                return;
-            }
-            if (window.selectedSettlementRangeMultiDay) {
-                Swal.fire({
-                    title: 'Single day required',
-                    text: 'Set the settlement range to one day (same start and end) to use Daily Settle.',
-                    icon: 'info',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#0d6efd'
-                });
-                return;
-            }
-            if (Array.isArray(window.lastSettlementRows)) {
-                var eligibleRows = window.lastSettlementRows.filter(function (row) {
-                    var active = parseInt(row.ACTIVE, 10);
-                    return active === 1 || active === 2 || active === 3;
-                });
-                if (eligibleRows.length === 0) {
-                    Swal.fire({
-                        title: 'No games',
-                        text: 'No active games in the current list to assign.',
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                    return;
-                }
-            }
-            if (window.isMergeSettleMode) {
-                window.isMergeSettleMode = false;
-                updateMergeSettleButtonState();
-            }
-            setDailySettleSelectionMode(true);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            setTimeout(function () {
-                var hasCheckboxes = $('.daily-settle-checkbox').length > 0;
-                if (!hasCheckboxes && window.isDailySettleSelectionMode) {
-                    setDailySettleSelectionMode(false);
-                    Swal.fire({
-                        title: 'No End Games',
-                        text: 'No end games to settle yet. Games still ON GAME cannot be daily settled.',
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                }
-            }, 350);
-            return;
-        }
-
-        if (selectedGameIds.length === 0) {
-            setDailySettleSelectionMode(false);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            return;
-        }
-
-        var swalWrapper = document.querySelector('#settlement-date-wrapper .input-group');
-        var todayStr = (swalWrapper && swalWrapper.getAttribute('data-today')) || new Date().toISOString().slice(0, 10);
-        var nowForMin = new Date();
-        var minDateObj = new Date(nowForMin.getFullYear() - 1, 0, 1);
-        var minAllowedDate =
-            minDateObj.getFullYear() +
-            '-' +
-            String(minDateObj.getMonth() + 1).padStart(2, '0') +
-            '-' +
-            String(minDateObj.getDate()).padStart(2, '0');
-        var initialDate = window.dailySettleTargetDate || fallbackDate || todayStr;
-        window._swalSettlementTransferFp = null;
-
-        Swal.fire({
-            title: 'Assign settlement date',
-            html:
-                '<div class="text-start">' +
-                '<div class="d-flex align-items-center gap-2">' +
-                '<label for="swal-settlement-date" class="form-label mb-0" style="white-space: nowrap;">Date:</label>' +
-                '<input id="swal-settlement-date" class="form-control text-center" readonly />' +
-                '</div>' +
-                '</div>',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Continue',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#0d6efd',
-            cancelButtonColor: '#6c757d',
-            didOpen: function () {
-                var inputEl = document.getElementById('swal-settlement-date');
-                if (!inputEl) return;
-                if (window.flatpickr) {
-                    window._swalSettlementTransferFp = flatpickr(inputEl, {
-                        dateFormat: 'Y-m-d',
-                        altInput: true,
-                        altFormat: 'F d, Y',
-                        defaultDate: initialDate,
-                        minDate: minAllowedDate,
-                        allowInput: false
-                    });
-                }
-            },
-            preConfirm: function () {
-                var fp = window._swalSettlementTransferFp;
-                var chosenDate = '';
-                if (fp && fp.selectedDates && fp.selectedDates[0]) {
-                    var d = fp.selectedDates[0];
-                    chosenDate =
-                        d.getFullYear() +
-                        '-' +
-                        String(d.getMonth() + 1).padStart(2, '0') +
-                        '-' +
-                        String(d.getDate()).padStart(2, '0');
-                }
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)) {
-                    Swal.showValidationMessage('Please select a valid settlement date.');
-                    return false;
-                }
-                return { settlement_date: chosenDate };
-            }
-        }).then(function (dateResult) {
-            if (!dateResult.isConfirmed) return;
-            var choice = dateResult.value;
-            if (!choice || typeof choice !== 'object') return;
-
-            settlementDate = choice.settlement_date;
-            formattedDate = settlementDate
-                ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                  })
-                : settlementDate;
-            baseMessage = 'Assign ' + selectedGameIds.length + ' game(s) to settlement date ' + formattedDate + '?';
-
-            Swal.fire({
-                title: 'Confirm',
-                text: baseMessage,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Yes',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#0d6efd',
-                cancelButtonColor: '#6c757d'
-            }).then(function (confirmResult) {
-                if (!confirmResult.isConfirmed) return;
-                $btn.prop('disabled', true);
-                var payload = { game_ids: selectedGameIds };
-                payload.settlement_date = choice.settlement_date;
-                runSettlementTransferRequest(payload, selectedGameIds, $btn);
-            });
-        });
-    });
-
-    $('#btn-breadcrumb-open-pool').on('click', function (e) {
-        e.preventDefault();
-        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
-        if (filterMode !== 'settlement') {
-            Swal.fire({
-                title: 'Settlement Date mode required',
-                text: 'Switch to Settlement Date mode first.',
-                icon: 'warning',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-        if (window.selectedSettlementRangeMultiDay) {
-            Swal.fire({
-                title: 'Single day required',
-                text: 'Set the settlement range to one day to use Open pool actions.',
-                icon: 'info',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-        var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-        var dataTodayYmd =
-            (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-            getClientTodayYmd();
-        var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-        var isTodaySettledView =
-            !window.selectedSettlementRangeMultiDay &&
-            /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-            selectedYmd === String(dataTodayYmd).slice(0, 10) &&
-            window.selectedSettlementSubView === 'settled';
-
-        if (!isTodaySettledView) {
-            Swal.fire({
-                title: 'Today settled only',
-                html: 'Set the picker to <strong>today</strong>, open the <strong>Settled</strong> list, then click <strong>OPEN</strong>.',
-                icon: 'info',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#0d6efd'
-            });
-            return;
-        }
-
-        if (!window.isOpenPoolSelectionMode) {
-            setOpenPoolSelectionMode(true);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            setTimeout(function () {
-                var hasCb = $('.open-pool-checkbox').length > 0;
-                if (!hasCb && window.isOpenPoolSelectionMode) {
-                    setOpenPoolSelectionMode(false);
-                    Swal.fire({
-                        title: 'No games',
-                        text: "No rows in today's settled list.",
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    });
-                    if (typeof window.reloadGameListBySettlementDate === 'function') {
-                        window.reloadGameListBySettlementDate();
-                    }
-                }
-            }, 400);
-            return;
-        }
-
-        var selectedIds = [];
-        $('.open-pool-checkbox:checked').each(function () {
-            var v = parseInt($(this).val(), 10);
-            if (!isNaN(v) && selectedIds.indexOf(v) === -1) {
-                selectedIds.push(v);
-            }
-        });
-
-        if (selectedIds.length === 0) {
-            setOpenPoolSelectionMode(false);
-            if (typeof window.reloadGameListBySettlementDate === 'function') {
-                window.reloadGameListBySettlementDate();
-            }
-            return;
-        }
-
-        Swal.fire({
-            title: 'Return to open pool?',
-            text:
-                'Move ' +
-                selectedIds.length +
-                ' game(s) to Open?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#0d6efd',
-            cancelButtonColor: '#6c757d'
-        }).then(function (result) {
-            if (!result.isConfirmed) return;
-            var $lnk = $('#btn-breadcrumb-open-pool');
-            $lnk.css('pointer-events', 'none').css('opacity', '0.65');
-            $.ajax({
-                url: '/game_list/daily_settlement/release',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ game_ids: selectedIds }),
-                success: function (res) {
-                    var n = (res && res.game_count) || selectedIds.length;
-                    Swal.fire({
-                        title: 'Done',
-                        text: n + ' game(s) returned to the open pool.',
-                        icon: 'success',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0d6efd'
-                    }).then(function () {
-                        try {
-                            var wrapperEl = document.querySelector('#settlement-date-wrapper .input-group');
-                            var dateStr = String(
-                                window.selectedSettlementDate ||
-                                    (wrapperEl && wrapperEl.getAttribute('data-today')) ||
-                                    ''
-                            ).slice(0, 10);
-                            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr) && window.sessionStorage) {
-                                window.sessionStorage.setItem(
-                                    'dailySettleViewState',
-                                    JSON.stringify({ date: dateStr, subView: 'open' })
-                                );
-                            }
-                        } catch (e) {}
-                        window.location.reload();
-                    });
-                },
-                error: function (xhr) {
-                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Request failed';
-                    Swal.fire({ title: 'Error', text: err, icon: 'error', confirmButtonColor: '#0d6efd' });
-                },
-                complete: function () {
-                    $lnk.css('pointer-events', '').css('opacity', '');
-                }
-            });
-        });
-    });
 
 // Function to format numbers with commas
 function formatNumberWithCommas(number) {
@@ -3916,24 +3884,24 @@ $('#add_game_list').submit(function (event) {
     event.preventDefault(); // Prevent the default form submission
 
     var $btn = $('#submit-game-list-btn'); // Reference to the submit button
-    var gameDateEl = document.getElementById('txtGameEncodedDate');
-    var gameDateVal = ($('#txtGameEncodedDate').val() || '').trim();
-    if (gameDateVal && !/^\d{4}-\d{2}-\d{2}(\s+\d{1,2}:\d{2})?$/.test(gameDateVal)) {
+    var programDateEl = document.getElementById('txtProgramDate');
+    var programDateVal = ($('#txtProgramDate').val() || '').trim();
+    if (programDateVal && !/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
         Swal.fire({
-            title: 'Invalid date/time',
-            text: 'Please use YYYY-MM-DD HH:mm or choose from the calendar.',
+            title: 'Invalid date',
+            text: 'Please use YYYY-MM-DD or choose from the calendar.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
         return;
     }
-    if (!gameDateVal) {
+    if (!programDateVal) {
         var today = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
-        gameDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate()) + ' ' + pad(today.getHours()) + ':' + pad(today.getMinutes());
-        $('#txtGameEncodedDate').val(gameDateVal);
-        if (gameDateEl && gameDateEl._flatpickr) {
-            gameDateEl._flatpickr.setDate(gameDateVal, false);
+        programDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+        $('#txtProgramDate').val(programDateVal);
+        if (programDateEl && programDateEl._flatpickr) {
+            programDateEl._flatpickr.setDate(programDateVal, false);
         }
     }
     $btn.prop('disabled', true).html(`
@@ -4026,19 +3994,19 @@ $('#add_game_list').submit(function (event) {
             return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
         };
         var rows = '';
-        rows += buildRow('Game date:', gameDateVal || '-');
+        rows += buildRow('Program date:', programDateVal || '-');
         rows += buildRow('Game Type:', gameType || '-');
         rows += buildRow('Account:', accountText || '-');
         if (guestIdSelected) {
             rows += buildRow('Guest:', guestText || '-');
         }
-        if (splitCashNN > 0) rows += buildRow('Cash (NN):', splitCashNN.toLocaleString());
-        if (splitCashCC > 0) rows += buildRow('Cash (CC):', splitCashCC.toLocaleString());
-        if (splitDepNN > 0) rows += buildRow('Deposit (NN):', splitDepNN.toLocaleString());
-        if (splitDepCC > 0) rows += buildRow('Deposit (CC):', splitDepCC.toLocaleString());
-        if (splitCreditNN > 0) rows += buildRow('Credit (NN):', splitCreditNN.toLocaleString());
-        if (splitCreditCC > 0) rows += buildRow('Credit (CC):', splitCreditCC.toLocaleString());
-        rows += buildRow('Total Amount:', splitTotal.toLocaleString());
+        if (splitCashNN > 0) rows += buildRow('Cash (NN):', splitCashNN.toLocaleString('en-US'));
+        if (splitCashCC > 0) rows += buildRow('Cash (CC):', splitCashCC.toLocaleString('en-US'));
+        if (splitDepNN > 0) rows += buildRow('Deposit (NN):', splitDepNN.toLocaleString('en-US'));
+        if (splitDepCC > 0) rows += buildRow('Deposit (CC):', splitDepCC.toLocaleString('en-US'));
+        if (splitCreditNN > 0) rows += buildRow('Credit (NN):', splitCreditNN.toLocaleString('en-US'));
+        if (splitCreditCC > 0) rows += buildRow('Credit (CC):', splitCreditCC.toLocaleString('en-US'));
+        rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
         rows += buildRow('Commission Type:', commissionTypeText || '-');
         if (parseFloat(commissionRate) > 0) rows += buildRow('Commission Rate:', `${commissionRate}%`);
 
@@ -4077,7 +4045,7 @@ $('#add_game_list').submit(function (event) {
                 txtCommisionType: $('#commissionType').val(),
                 txtCommisionRate: $('#commissionRate').val(),
                 totalBalanceGuest1: $('#total_balanceGuest1').val(),
-                txtGameEncodedDate: gameDateVal,
+                txtProgramDate: programDateVal,
                 split_cash_nn: splitCashNN,
                 split_cash_cc: splitCashCC,
                 split_dep_nn: splitDepNN,
@@ -4208,7 +4176,7 @@ $('#add_game_list').submit(function (event) {
         };
 
         var confirmationRows = '';
-        confirmationRows += buildRow('Game date:', gameDateVal || '-');
+        confirmationRows += buildRow('Program date:', programDateVal || '-');
         confirmationRows += buildRow('Game Type:', gameType || '-');
         confirmationRows += buildRow('Account:', accountText || '-');
         var guestIdSelected = $('#txtGuestGame').val() || '';
@@ -4218,21 +4186,21 @@ $('#add_game_list').submit(function (event) {
         }
 
         if (txtNNamount > 0) {
-            confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
+            confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString('en-US'));
         }
         if (txtCCamount > 0) {
-            confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString());
+            confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString('en-US'));
         }
         if (txtNNamount > 0 || txtCCamount > 0) {
-            confirmationRows += buildRow('Total Amount:', parseFloat(txtNNamount + txtCCamount).toLocaleString());
+            confirmationRows += buildRow('Total Amount:', parseFloat(txtNNamount + txtCCamount).toLocaleString('en-US'));
         }
 
         confirmationRows += buildRow('Payment Type:', transTypeText || '-');
 
         if (rollerNNAmount > 0 || rollerCCAmount > 0) {
             var rollerParts = [];
-            if (rollerNNAmount > 0) rollerParts.push(`NN: ${parseFloat(rollerNNAmount).toLocaleString()}`);
-            if (rollerCCAmount > 0) rollerParts.push(`CC: ${parseFloat(rollerCCAmount).toLocaleString()}`);
+            if (rollerNNAmount > 0) rollerParts.push(`NN: ${parseFloat(rollerNNAmount).toLocaleString('en-US')}`);
+            if (rollerCCAmount > 0) rollerParts.push(`CC: ${parseFloat(rollerCCAmount).toLocaleString('en-US')}`);
             confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
         }
 
@@ -4321,203 +4289,6 @@ $('#add_game_list').submit(function (event) {
     }
 });
 
-$('#add_game_cutoff').submit(function (event) {
-	event.preventDefault();
-
-	var $btn = $('#submit-cutoff-game-btn');
-	var saveLabel = $btn.data('label') || 'Save';
-
-	if (document.activeElement && document.activeElement.blur) {
-		document.activeElement.blur();
-	}
-
-	if (!$('#modal-new-game-cutoff').data('cutoffReady')) {
-		Swal.fire({
-			icon: 'info',
-			title: 'Please wait',
-			text: 'Game details are still loading.',
-			confirmButtonText: 'OK'
-		});
-		return;
-	}
-
-	$btn.prop('disabled', true).html(
-		'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-	);
-
-	var nnChips = $('#cutoff_txtNN').val().trim();
-	var ccChips = $('#cutoff_txtCC').val().trim();
-	var txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0;
-	var txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0;
-	var rollerNN = $('#cutoff_txtRollerNN').val().trim();
-	var rollerCC = $('#cutoff_txtRollerCC').val().trim();
-	var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
-	var rollerCCAmount = parseFloat(rollerCC.replace(/,/g, '')) || 0;
-
-	var nnTrimmed = nnChips.replace(/,/g, '').trim();
-	if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
-		Swal.fire({
-			title: 'Invalid NN Chips amount',
-			text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-			icon: 'error',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var rollerNNTrimmed = rollerNN.replace(/,/g, '').trim();
-	if (rollerNNTrimmed !== '' && (rollerNNAmount <= 0 || rollerNNAmount % 1000 !== 0)) {
-		Swal.fire({
-			title: 'Invalid Roller NN Chips amount',
-			text: 'Roller NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-			icon: 'error',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	if (nnChips === '' && ccChips === '') {
-		Swal.fire({
-			title: 'Warning',
-			text: 'Please enter NN Chips or CC Chips.',
-			icon: 'warning',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var totalNN = txtNNamount + rollerNNAmount;
-	var totalCC = txtCCamount + rollerCCAmount;
-	if (totalNN > _cutoffAvailableNN) {
-		Swal.fire({
-			icon: 'warning',
-			title: 'Exceeds Available NN Chips',
-			text: 'You only have ' + _cutoffAvailableNN.toLocaleString() + ' Chips available (NN buy-in + Roller NN).',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-	if (totalCC > _cutoffAvailableCC) {
-		Swal.fire({
-			icon: 'warning',
-			title: 'Exceeds Available CC Chips',
-			text: 'You only have ' + _cutoffAvailableCC.toLocaleString() + ' CC Chips available.',
-			confirmButtonText: 'OK'
-		});
-		$btn.prop('disabled', false).text(saveLabel);
-		return;
-	}
-
-	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-	var buildRow = function (label, value) {
-		return '<tr><td style="' + labelStyle + '">' + label + '</td><td style="' + valueStyle + '">' + value + '</td></tr>';
-	};
-
-	var confirmationRows = '';
-	if (txtNNamount > 0) confirmationRows += buildRow('NN Chips:', txtNNamount.toLocaleString());
-	if (txtCCamount > 0) confirmationRows += buildRow('CC Chips:', txtCCamount.toLocaleString());
-	if (txtNNamount > 0 || txtCCamount > 0) {
-		confirmationRows += buildRow('Total Amount:', (txtNNamount + txtCCamount).toLocaleString());
-	}
-	if (rollerNNAmount > 0 || rollerCCAmount > 0) {
-		var rollerParts = [];
-		if (rollerNNAmount > 0) rollerParts.push('NN: ' + rollerNNAmount.toLocaleString());
-		if (rollerCCAmount > 0) rollerParts.push('CC: ' + rollerCCAmount.toLocaleString());
-		confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
-	}
-
-	var cutoffDateVal = getCutoffGameSettlementDateValue();
-	if (!cutoffDateVal) {
-		ensureCutoffGameDatePicker();
-		cutoffDateVal = getCutoffGameSettlementDateValue();
-	}
-	if (!cutoffDateVal && window.selectedSettlementDate) {
-		cutoffDateVal = String(window.selectedSettlementDate).slice(0, 10);
-	}
-	if (cutoffDateVal) {
-		confirmationRows += buildRow('Date:', formatCutoffGameDateDisplay(cutoffDateVal));
-	}
-
-	var confirmationMessage =
-		'<div style="max-width:420px;margin:0 auto;text-align:center;">' +
-		'<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">' +
-		confirmationRows +
-		'</table></div>';
-
-	var $form = $(this);
-
-	Swal.fire({
-		icon: 'question',
-		title: 'Confirm New Game (Cut Off)',
-		html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, Confirm',
-		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
-		allowOutsideClick: false,
-		allowEscapeKey: false,
-		width: '500px'
-	}).then(function (result) {
-		if (!result.isConfirmed) {
-			$btn.prop('disabled', false).text(saveLabel);
-			return;
-		}
-
-		closeCutoffGameDatePicker();
-
-		$btn.prop('disabled', true).html(
-			'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
-		);
-
-		var formData = $form.serialize();
-
-		$.ajax({
-			url: '/add_game_list',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				var cutoffYmd = getCutoffGameSettlementDateValue();
-				if (!cutoffYmd && window.selectedSettlementDate) {
-					cutoffYmd = String(window.selectedSettlementDate).slice(0, 10);
-				}
-				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Cut off game successfully created.',
-					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
-				}).then(function (swalResult) {
-					if (swalResult.isConfirmed) {
-						$('#modal-new-game-cutoff').modal('hide');
-						if (cutoffYmd && /^\d{4}-\d{2}-\d{2}$/.test(cutoffYmd)) {
-							navigateToSettlementDateOpen(cutoffYmd);
-						} else if (typeof window.reloadData === 'function') {
-							window.reloadData();
-						}
-					}
-				});
-			},
-			error: function (xhr) {
-				var errorMessage = xhr.responseJSON?.error || xhr.responseText || 'An error occurred.';
-				Swal.fire({
-					icon: 'error',
-					title: 'Error',
-					text: errorMessage,
-					confirmButtonText: 'OK'
-				});
-				$btn.prop('disabled', false).text(saveLabel);
-			}
-		});
-	});
-});
-
 	
 $('#add_buyin').submit(function (event) {
 	event.preventDefault(); // Prevent the default form submission
@@ -4591,13 +4362,13 @@ $('#add_buyin').submit(function (event) {
 			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
 		};
 		var rows = '';
-		if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString());
-		if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString());
-		if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString());
-		if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString());
-		if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString());
-		if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString());
-		rows += buildRow('Total Amount:', splitTotal.toLocaleString());
+		if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString('en-US'));
+		if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString('en-US'));
+		if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString('en-US'));
+		if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString('en-US'));
+		if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString('en-US'));
+		if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString('en-US'));
+		rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
 
 		Swal.fire({
 			icon: 'question',
@@ -4715,13 +4486,13 @@ $('#add_buyin').submit(function (event) {
 		var confirmationRows = '';
 		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
 		if (txtNNamount > 0) {
-			confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
+			confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString('en-US'));
 		}
 		if (txtCCamount > 0) {
-			confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString());
+			confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString('en-US'));
 		}
 		if (totalEnteredAmount > 0) {
-			confirmationRows += buildRow('Total Amount:', parseFloat(totalEnteredAmount).toLocaleString());
+			confirmationRows += buildRow('Total Amount:', parseFloat(totalEnteredAmount).toLocaleString('en-US'));
 		}
 
 		var confirmationMessage = `
@@ -4799,6 +4570,67 @@ $('#add_buyin').submit(function (event) {
 });
 
 
+	function parseCashoutAmount(raw) {
+		var v = (raw || '').toString().replace(/,/g, '').trim();
+		if (v === '') return 0;
+		var n = parseFloat(v);
+		return Number.isFinite(n) ? n : NaN;
+	}
+
+	function validateCashoutTipAmounts(expectedTotal, $btn) {
+		if (!$('#enableTipCashout').is(':checked')) {
+			return true;
+		}
+
+		var $rollerInput = $('#tipRollerAmount');
+		var $dealerInput = $('#tipDealerAmount');
+		var roller = parseCashoutAmount($rollerInput.val());
+		var dealer = parseCashoutAmount($dealerInput.val());
+
+		$rollerInput.removeClass('is-invalid');
+		$dealerInput.removeClass('is-invalid');
+
+		if (Number.isNaN(roller) || roller < 0 || Number.isNaN(dealer) || dealer < 0) {
+			if (Number.isNaN(roller) || roller < 0) $rollerInput.addClass('is-invalid');
+			if (Number.isNaN(dealer) || dealer < 0) $dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Tip Amount',
+				text: 'Please enter valid Roller and/or Dealer amounts.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		if (roller <= 0 && dealer <= 0) {
+			$rollerInput.addClass('is-invalid');
+			$dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Tip Amount',
+				text: 'Enter a Roller and/or Dealer amount for the tip.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		var tipTotal = roller + dealer;
+		var expected = Number(expectedTotal) || 0;
+		if (Math.abs(tipTotal - expected) > 0.001) {
+			$rollerInput.addClass('is-invalid');
+			$dealerInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'warning',
+				title: 'Tip Amount Mismatch',
+				text: 'Roller + Dealer (' + tipTotal.toLocaleString('en-US') + ') must equal total NN & CC chips (' + expected.toLocaleString('en-US') + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return false;
+		}
+
+		return true;
+	}
+
 	$('#add_cashout').submit(function (event) {
 		event.preventDefault();
 	
@@ -4814,37 +4646,45 @@ $('#add_buyin').submit(function (event) {
 			var txtTotalRollingSplit = parseFloat($('#TotalRollingCashout').val()) || 0;
 			var $nnCashInput = $('#nnCashAmount');
 			var $nnDepInput = $('#nnDepositAmount');
+			var $nnCreditInput = $('#nnCreditAmount');
 			var $ccCashInput = $('#ccCashAmount');
 			var $ccDepInput = $('#ccDepositAmount');
+			var $ccCreditInput = $('#ccCreditAmount');
 			$nnCashInput.removeClass('is-invalid');
 			$nnDepInput.removeClass('is-invalid');
+			$nnCreditInput.removeClass('is-invalid');
 			$ccCashInput.removeClass('is-invalid');
 			$ccDepInput.removeClass('is-invalid');
+			$ccCreditInput.removeClass('is-invalid');
 			var parseSplitNum = function ($el) {
 				var v = ($el.val() || '').toString().replace(/,/g, '').trim();
 				return v === '' ? 0 : parseFloat(v);
 			};
 			var nnCash = parseSplitNum($nnCashInput);
 			var nnDep = parseSplitNum($nnDepInput);
+			var nnCredit = parseSplitNum($nnCreditInput);
 			var ccCash = parseSplitNum($ccCashInput);
 			var ccDep = parseSplitNum($ccDepInput);
+			var ccCredit = parseSplitNum($ccCreditInput);
+			var markerChipsReturnSplit = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')) || 0;
 
-			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(ccCash) || !Number.isFinite(ccDep)) {
+			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(nnCredit) ||
+				!Number.isFinite(ccCash) || !Number.isFinite(ccDep) || !Number.isFinite(ccCredit)) {
 				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Please enter valid numbers for all split fields.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
-			if (nnCash < 0 || nnDep < 0 || ccCash < 0 || ccDep < 0) {
+			if (nnCash < 0 || nnDep < 0 || nnCredit < 0 || ccCash < 0 || ccDep < 0 || ccCredit < 0) {
 				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Amounts cannot be negative.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
 
-			var totalNN = nnCash + nnDep;
-			var totalCC = ccCash + ccDep;
+			var totalNN = nnCash + nnDep + nnCredit;
+			var totalCC = ccCash + ccDep + ccCredit;
 			var totalChips = totalNN + totalCC;
 			if (totalChips <= 0) {
-				Swal.fire({ icon: 'warning', title: 'Invalid Input', text: 'Enter at least one Cash or Deposit amount for NN or CC chips.' });
+				Swal.fire({ icon: 'warning', title: 'Invalid Input', text: 'Enter at least one Cash, Deposit, or Credit amount for NN or CC chips.' });
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
@@ -4863,7 +4703,9 @@ $('#add_buyin').submit(function (event) {
 				}
 				return true;
 			};
-			if (!checkNnThousands('NN Cash', nnCash, $nnCashInput) || !checkNnThousands('NN Deposit', nnDep, $nnDepInput)) {
+			if (!checkNnThousands('NN Cash', nnCash, $nnCashInput) ||
+				!checkNnThousands('NN Deposit', nnDep, $nnDepInput) ||
+				!checkNnThousands('NN Credit', nnCredit, $nnCreditInput)) {
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
@@ -4872,21 +4714,26 @@ $('#add_buyin').submit(function (event) {
 				Swal.fire({
 					icon: 'warning',
 					title: 'Invalid Input',
-					text: 'Total NN (Cash + Deposit) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
+					text: 'Total NN (Cash + Deposit + Credit) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
 				});
 				$btn.prop('disabled', false).html('Save');
 				return;
 			}
 
-			var cashLeg = nnCash + ccCash;
-			var depLeg = nnDep + ccDep;
-			if (cashLeg <= 0 || depLeg <= 0) {
-				Swal.fire({
-					icon: 'warning',
-					title: 'Split requires both',
-					text: 'Enter amounts for both Cash and Deposit.'
-				});
-				$btn.prop('disabled', false).html('Save');
+			var creditLeg = nnCredit + ccCredit;
+			if (creditLeg > 0) {
+				if (nnCredit > markerChipsReturnSplit || ccCredit > markerChipsReturnSplit || creditLeg > markerChipsReturnSplit) {
+					Swal.fire({
+						icon: 'warning',
+						title: 'Invalid Input',
+						text: 'Credit return cannot exceed Credit Balance: ' + formatNumberWithCommas(markerChipsReturnSplit)
+					});
+					$btn.prop('disabled', false).html('Save');
+					return;
+				}
+			}
+
+			if (!validateCashoutTipAmounts(totalChips, $btn)) {
 				return;
 			}
 
@@ -4908,20 +4755,20 @@ $('#add_buyin').submit(function (event) {
 					return '<tr>' +
 						'<td style="' + legTitleCell + '">' + legName + '</td>' +
 						'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
-						'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString() + '<\/td>' +
+						'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString('en-US') + '<\/td>' +
 						'<\/tr>';
 				}
 
 				var rows = '<tr>' +
 					'<td rowspan="' + parts.length + '" style="' + legTitleCell + '">' + legName + '<\/td>' +
 					'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
-					'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString() + '<\/td>' +
+					'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString('en-US') + '<\/td>' +
 					'<\/tr>';
 
 				for (var i = 1; i < parts.length; i++) {
 					rows += '<tr>' +
 						'<td style="' + rowLabelCell + '">' + parts[i].label + ':<\/td>' +
-						'<td style="' + rowValueCell + '">' + parts[i].value.toLocaleString() + '<\/td>' +
+						'<td style="' + rowValueCell + '">' + parts[i].value.toLocaleString('en-US') + '<\/td>' +
 						'<\/tr>';
 				}
 
@@ -4931,11 +4778,31 @@ $('#add_buyin').submit(function (event) {
 			var splitRows = '';
 			splitRows += buildLegRows('Cash', nnCash, ccCash);
 			splitRows += buildLegRows('Deposit', nnDep, ccDep);
+			splitRows += buildLegRows('Credit', nnCredit, ccCredit);
 			splitRows += '<tr>' +
 				'<td style="' + totalTitleCell + '">Total:<\/td>' +
 				'<td style="' + totalMidCell + '"><\/td>' +
-				'<td style="' + totalValueCell + '">' + totalChips.toLocaleString() + '<\/td>' +
+				'<td style="' + totalValueCell + '">' + totalChips.toLocaleString('en-US') + '<\/td>' +
 				'<\/tr>';
+
+			if ($('#enableTipCashout').is(':checked')) {
+				var splitTipRoller = parseCashoutAmount($('#tipRollerAmount').val());
+				var splitTipDealer = parseCashoutAmount($('#tipDealerAmount').val());
+				if (splitTipRoller > 0) {
+					splitRows += '<tr>' +
+						'<td style="' + legTitleCell + '">Tip — Roller<\/td>' +
+						'<td style="' + totalMidCell + '"><\/td>' +
+						'<td style="' + rowValueCell + '">' + splitTipRoller.toLocaleString('en-US') + '<\/td>' +
+						'<\/tr>';
+				}
+				if (splitTipDealer > 0) {
+					splitRows += '<tr>' +
+						'<td style="' + legTitleCell + '">Tip — Dealer<\/td>' +
+						'<td style="' + totalMidCell + '"><\/td>' +
+						'<td style="' + rowValueCell + '">' + splitTipDealer.toLocaleString('en-US') + '<\/td>' +
+						'<\/tr>';
+				}
+			}
 
 			var splitConfirmHtml =
 				'<div style="max-width:420px;margin:0 auto;text-align:left;">' +
@@ -4979,7 +4846,12 @@ $('#add_buyin').submit(function (event) {
 					split_cash_nn: fmt(nnCash),
 					split_cash_cc: fmt(ccCash),
 					split_dep_nn: fmt(nnDep),
-					split_dep_cc: fmt(ccDep)
+					split_dep_cc: fmt(ccDep),
+					split_credit_nn: fmt(nnCredit),
+					split_credit_cc: fmt(ccCredit),
+					optTip: $('#enableTipCashout').is(':checked') ? '1' : '',
+					txtTipRoller: $('#tipRollerAmount').val(),
+					txtTipDealer: $('#tipDealerAmount').val()
 				});
 
 				$.ajax({
@@ -5011,17 +4883,53 @@ $('#add_buyin').submit(function (event) {
 		}
 	
 		// Get the values of txtNN and txtTotalRolling
-		var txtTotalRolling = parseFloat($('#TotalRollingCashout').val()); 
-		var txtNN = parseFloat(($('#txtNNCashout').val() || '0').replace(/,/g, '')); 
-		var txtCC = parseFloat(($('#txtCCCashout').val() || '0').replace(/,/g, '')); 
-		var markerChipsReturn = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')); 
-		var txtTransType = $('input[name="txtTransType"]:checked').val(); 
-
-		// Thousands-only validation for NN Cashout (positive multiples of 1,000)
+		var txtTotalRolling = parseFloat($('#TotalRollingCashout').val());
 		var nnRaw = ($('#txtNNCashout').val() || '').toString().replace(/,/g, '');
 		var nnTrimmed = nnRaw.trim();
+		var ccRaw = ($('#txtCCCashout').val() || '').toString().replace(/,/g, '');
+		var ccTrimmed = ccRaw.trim();
+		var txtNN = parseFloat(nnTrimmed || '0');
+		var txtCC = parseFloat(ccTrimmed || '0');
+		var markerChipsReturn = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, ''));
+		var txtTransType = $('input[name="txtTransType"]:checked').val();
 		var $nnInput = $('#txtNNCashout');
+		var $ccInput = $('#txtCCCashout');
+
 		$nnInput.removeClass('is-invalid');
+		$ccInput.removeClass('is-invalid');
+
+		if (!txtTransType) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Input',
+				text: 'Please select a payment type (Cash, Deposit, or Credit).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if ((nnTrimmed === '' && ccTrimmed === '') || (txtNN <= 0 && txtCC <= 0)) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Input',
+				text: 'Please enter NN Chips and/or CC Chips amount.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (ccTrimmed !== '' && (!Number.isFinite(txtCC) || txtCC <= 0)) {
+			$ccInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid CC Chips amount',
+				text: 'Please enter a valid CC Chips amount.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		// Thousands-only validation for NN Cashout (positive multiples of 1,000)
 		if (nnTrimmed !== '' && (txtNN <= 0 || txtNN % 1000 !== 0)) {
 			$nnInput.addClass('is-invalid');
 			Swal.fire({
@@ -5065,6 +4973,11 @@ $('#add_buyin').submit(function (event) {
 				return;
 			}
 		}
+
+		var cashoutChipTotal = txtNN + txtCC;
+		if (!validateCashoutTipAmounts(cashoutChipTotal, $btn)) {
+			return;
+		}
 	
 		// All validations passed, show confirmation dialog
 		var transTypeText = '';
@@ -5082,13 +4995,23 @@ $('#add_buyin').submit(function (event) {
 		var confirmationRows = '';
 		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
 		if (txtNN > 0) {
-			confirmationRows += buildRow('NN Chips:', parseFloat(txtNN).toLocaleString());
+			confirmationRows += buildRow('NN Chips:', parseFloat(txtNN).toLocaleString('en-US'));
 		}
 		if (txtCC > 0) {
-			confirmationRows += buildRow('CC Chips:', parseFloat(txtCC).toLocaleString());
+			confirmationRows += buildRow('CC Chips:', parseFloat(txtCC).toLocaleString('en-US'));
 		}
 		if ((txtNN + txtCC) > 0) {
-			confirmationRows += buildRow('Total Amount:', parseFloat(txtNN + txtCC).toLocaleString());
+			confirmationRows += buildRow('Total Amount:', parseFloat(txtNN + txtCC).toLocaleString('en-US'));
+		}
+		if ($('#enableTipCashout').is(':checked')) {
+			var tipRollerAmt = parseCashoutAmount($('#tipRollerAmount').val());
+			var tipDealerAmt = parseCashoutAmount($('#tipDealerAmount').val());
+			if (tipRollerAmt > 0) {
+				confirmationRows += buildRow('Tip — Roller:', tipRollerAmt.toLocaleString('en-US'));
+			}
+			if (tipDealerAmt > 0) {
+				confirmationRows += buildRow('Tip — Dealer:', tipDealerAmt.toLocaleString('en-US'));
+			}
 		}
 
 		var confirmationMessage = `
@@ -5187,14 +5110,54 @@ $('#add_buyin').submit(function (event) {
 			$btn.prop('disabled', false).text('Save');
 			return;
 		}
-		
-		// Build confirmation message
-		var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
-		confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString()}<br>`;
-		
+		var gameId = $('.game_list_id').val();
+		if (!gameId) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Warning',
+				text: 'No game selected for rolling.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text(buttonLabel);
+			return;
+		}
+
 		var $form = $(this); // Store form reference
-		
-		Swal.fire({
+
+		$btn.prop('disabled', true).html(`
+			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+			Validating...
+		`);
+
+		$.ajax({
+			url: '/game_list/' + gameId + '/record',
+			method: 'GET',
+			success: function (records) {
+				var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount, {
+					isUpdate: isUpdate,
+					recordId: rollingRecordId
+				});
+
+				if (!rollingValidation.ok) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Validation Error',
+						text: rollingValidation.message,
+						confirmButtonText: 'OK',
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					}).then(() => {
+						$('#modal-add-rolling').modal('show');
+					});
+					$btn.prop('disabled', false).text(buttonLabel);
+					return;
+				}
+
+				// Build confirmation message
+				var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
+				confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString('en-US')}<br>`;
+
+				Swal.fire({
 			icon: 'question',
 			title: isUpdate ? 'Confirm Update' : 'Confirm Transaction',
 			html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -5260,6 +5223,17 @@ $('#add_buyin').submit(function (event) {
 				});
 			} else {
 				// User cancelled, re-enable button
+				$btn.prop('disabled', false).text(buttonLabel);
+			}
+		});
+			},
+			error: function () {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: 'Unable to validate rolling against roller chips.',
+					confirmButtonText: 'OK'
+				});
 				$btn.prop('disabled', false).text(buttonLabel);
 			}
 		});
@@ -5347,11 +5321,11 @@ $('#add_buyin').submit(function (event) {
 				};
 
 				var validationRows = '';
-				var totalAddValue = `NN: ${parseFloat(totalAddNN).toLocaleString()}<br>CC: ${parseFloat(totalAddCC).toLocaleString()}`;
-				var totalReturnValue = `NN: ${parseFloat(totalReturnNN).toLocaleString()}<br>CC: ${parseFloat(totalReturnCC).toLocaleString()}`;
+				var totalAddValue = `NN: ${parseFloat(totalAddNN).toLocaleString('en-US')}<br>CC: ${parseFloat(totalAddCC).toLocaleString('en-US')}`;
+				var totalReturnValue = `NN: ${parseFloat(totalReturnNN).toLocaleString('en-US')}<br>CC: ${parseFloat(totalReturnCC).toLocaleString('en-US')}`;
 				validationRows += buildValidationRow('Total ADD:', totalAddValue);
 				validationRows += buildValidationRow('Total RETURN:', totalReturnValue);
-				validationRows += buildValidationRow('<span style="color:red;">Total Required RETURN (NN+CC):</span>', `<span style="color:red;font-weight:bold;">${parseFloat(requiredReturnTotal).toLocaleString()}</span>`);
+				validationRows += buildValidationRow('<span style="color:red;">Total Required RETURN (NN+CC):</span>', `<span style="color:red;font-weight:bold;">${parseFloat(requiredReturnTotal).toLocaleString('en-US')}</span>`);
 
 				var validationMessage = `
 					<div style="max-width:420px;margin:0 auto;text-align:left;">
@@ -5359,7 +5333,7 @@ $('#add_buyin').submit(function (event) {
 							${validationRows}
 						</table>
 						<div style="margin-top:12px;font-weight:600;text-align:center;">
-							Total RETURN (${parseFloat(totalReturnAll).toLocaleString()}) cannot exceed required return total (${parseFloat(requiredReturnTotal).toLocaleString()})!
+							Total RETURN (${parseFloat(totalReturnAll).toLocaleString('en-US')}) cannot exceed required return total (${parseFloat(requiredReturnTotal).toLocaleString('en-US')})!
 						</div>
 					</div>
 				`;
@@ -5390,10 +5364,10 @@ $('#add_buyin').submit(function (event) {
 		var confirmationRows = '';
 		confirmationRows += buildRow('Transaction Type:', transTypeText || '-');
 		if (nnAmount > 0) {
-			confirmationRows += buildRow('NN Chips:', parseFloat(nnAmount).toLocaleString());
+			confirmationRows += buildRow('NN Chips:', parseFloat(nnAmount).toLocaleString('en-US'));
 		}
 		if (ccAmount > 0) {
-			confirmationRows += buildRow('CC Chips:', parseFloat(ccAmount).toLocaleString());
+			confirmationRows += buildRow('CC Chips:', parseFloat(ccAmount).toLocaleString('en-US'));
 		}
 
 		var confirmationMessage = `
@@ -5506,7 +5480,7 @@ $('#edit_status').submit(function (event) {
 
 	// Get the value of the status select
 	var status = $('#status').val();
-	var isCutoff = status == '4';
+	var isCutoff = isCutoffStatus(status);
 
 	// Validate that the user has selected a status
 	if (status === null) {
@@ -5572,12 +5546,15 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
-	// Validation for roller chips return when END GAME / CUT OFF (still runs after "Proceed anyway" on service-exceeds)
-	if (isEndGameOrCutoffStatus(status)) {
+	// Validation for roller chips return when END GAME only (CUT OFF does not auto-return roller)
+	if (isCutoff) {
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+	} else if (isEndGameStatus(status)) {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-		var faultAlreadySettled = isPendingFaultSettled() && !isCutoff;
+		var faultAlreadySettled = isPendingFaultSettled();
 
 		if (faultAlreadySettled) {
 			$('#txtReturnRollerNN').val('');
@@ -5589,10 +5566,6 @@ $('#edit_status').submit(function (event) {
 
 		// Skip return validation when fault already settled via Guest Buy-in / New Game
 		if (!faultAlreadySettled && requiredReturnTotal > 0) {
-			if (isCutoff) {
-				applyCutoffAutoRollerReturnToForm();
-			}
-
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			
@@ -5620,7 +5593,7 @@ $('#edit_status').submit(function (event) {
 			
 			if (requiredReturnTotal > 0 && parseFloat(returnTotal) !== parseFloat(requiredReturnTotal)) {
 				totalsMatch = false;
-				errorMessages.push(`Total Required (NN+CC): <strong>${parseFloat(requiredReturnTotal).toLocaleString()}</strong>, Current Total: <strong>${parseFloat(returnTotal).toLocaleString()}</strong>`);
+				errorMessages.push(`Total Required (NN+CC): <strong>${parseFloat(requiredReturnTotal).toLocaleString('en-US')}</strong>, Current Total: <strong>${parseFloat(returnTotal).toLocaleString('en-US')}</strong>`);
 			}
 			
 			// Guard against negative input values
@@ -5629,8 +5602,8 @@ $('#edit_status').submit(function (event) {
 				errorMessages.push('Return amounts cannot be negative.');
 			}
 
-			// If amounts don't match, show error with "Proceed Anyway" option (not for CUT OFF — auto-filled)
-			if (!totalsMatch && !isCutoff) {
+			// If amounts don't match, show error with "Proceed Anyway" option
+			if (!totalsMatch) {
 				var errorHtml = '<strong>Invalid Roller Chips Return!</strong><br><br>';
 				errorHtml += errorMessages.join('<br>');
 				errorHtml += '<br><br><small class="text-muted">You can return any mix of NN/CC as long as the combined total matches the required amount. This will be marked as PENDING for review.</small>';
@@ -5706,10 +5679,62 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
+	if (isCutoff) {
+		var cutoffDateVal = getChangeStatusCutoffProgramDateValue();
+		if (!cutoffDateVal) {
+			ensureChangeStatusCutoffDatePicker();
+			cutoffDateVal = getChangeStatusCutoffProgramDateValue();
+		}
+		if (!cutoffDateVal) {
+			cutoffDateVal = getCutoffDefaultProgramDateYmd();
+		}
+		if (!cutoffDateVal) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Program Date Required',
+				text: 'Please select a program date for the cut off game.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var buyInNNRaw = ($('#txtCutoffBuyInNN').val() || '').toString().replace(/,/g, '').trim();
+		var buyInCCRaw = ($('#txtCutoffBuyInCC').val() || '').toString().replace(/,/g, '').trim();
+		var buyInNNAmount = parseFloat(buyInNNRaw) || 0;
+		var buyInCCAmount = parseFloat(buyInCCRaw) || 0;
+		$('#txtCutoffBuyInNN').removeClass('is-invalid');
+		if (buyInNNRaw !== '' && (buyInNNAmount <= 0 || buyInNNAmount % 1000 !== 0)) {
+			$('#txtCutoffBuyInNN').addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid NN Chips amount',
+				text: 'Buy-in NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var lastRollingRaw = ($('#txtCutoffLastRolling').val() || '').toString().replace(/,/g, '').trim();
+		var lastRollingAmount = parseFloat(lastRollingRaw) || 0;
+		var totalRollerBalance = Math.max(0, parseFloat($('#modal-change_status').data('combinedNet')) || 0);
+		$('#txtCutoffLastRolling').removeClass('is-invalid');
+		if (lastRollingRaw !== '' && lastRollingAmount > 0 && lastRollingAmount > totalRollerBalance + 0.001) {
+			$('#txtCutoffLastRolling').addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Last Rolling',
+				text: 'Last Rolling cannot exceed available roller chips balance (' + totalRollerBalance.toLocaleString('en-US') + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+	}
+
 	// All validations passed, show confirmation dialog
 	var translations = window.gamelistTranslations || {};
 	var statusText = (status == '1') ? (translations.end_game || 'END GAME')
-		: (status == '4') ? 'CUT OFF'
+		: (status == '4') ? (translations.cut_off || 'CUT OFF')
 		: (status == '2') ? (translations.on_game || 'ON GAME')
 		: (status == '3') ? 'PENDING' : status;
 
@@ -5722,30 +5747,40 @@ $('#edit_status').submit(function (event) {
 	var confirmationRows = '';
 	confirmationRows += buildRow('New Status:', statusText);
 
-	if (status == '4') {
-		var parentDateVal = getChangeStatusParentSettlementDateValue();
-		if (!parentDateVal) {
-			ensureChangeStatusParentDatePicker();
-			parentDateVal = getChangeStatusParentSettlementDateValue();
+	if (isCutoff) {
+		var cutoffDateDisplay = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
+		if (cutoffDateDisplay) {
+			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(cutoffDateDisplay));
 		}
-		if (!parentDateVal && window.selectedSettlementDate) {
-			parentDateVal = String(window.selectedSettlementDate).slice(0, 10);
+		var confirmBuyInNN = parseFloat(($('#txtCutoffBuyInNN').val() || '').replace(/,/g, '').trim()) || 0;
+		var confirmBuyInCC = parseFloat(($('#txtCutoffBuyInCC').val() || '').replace(/,/g, '').trim()) || 0;
+		if (confirmBuyInNN > 0) {
+			confirmationRows += buildRow('Buy-in NN:', confirmBuyInNN.toLocaleString('en-US'));
 		}
-		if (parentDateVal) {
-			confirmationRows += buildRow('Parent Game Date:', formatCutoffGameDateDisplay(parentDateVal));
+		if (confirmBuyInCC > 0) {
+			confirmationRows += buildRow('Buy-in CC:', confirmBuyInCC.toLocaleString('en-US'));
+		}
+		var lastRollingDisplay = ($('#txtCutoffLastRolling').val() || '').trim();
+		var lastRollingAmount = parseFloat(lastRollingDisplay.replace(/,/g, '')) || 0;
+		if (lastRollingDisplay) {
+			confirmationRows += buildRow('Last Rolling:', lastRollingDisplay);
+		}
+		var cutoffRollerTotals = {
+			combinedNet: parseFloat($('#modal-change_status').data('combinedNet')) || 0
+		};
+		var transferRollerNN = computeCutoffTransferRollerNN(cutoffRollerTotals);
+		if (transferRollerNN > 0) {
+			confirmationRows += buildRow('Roller Chips:', transferRollerNN.toLocaleString('en-US'));
 		}
 	}
 
-	// Add roller chips return info if END GAME / CUT OFF and has required returns
-	if (isEndGameOrCutoffStatus(status)) {
+	// Add roller chips return info if END GAME and has required returns
+	if (isEndGameStatus(status)) {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 
-		if (requiredReturnTotal > 0 && !(isPendingFaultSettled() && status != '4')) {
-			if (status == '4') {
-				applyCutoffAutoRollerReturnToForm();
-			}
+		if (requiredReturnTotal > 0 && !isPendingFaultSettled()) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			var returnNNAmount = parseFloat(returnNN) || 0;
@@ -5753,16 +5788,15 @@ $('#edit_status').submit(function (event) {
 
 			var rollerText = '';
 			if (returnNNAmount > 0) {
-				rollerText += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString()}`;
+				rollerText += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString('en-US')}`;
 			}
 			if (returnCCAmount > 0) {
 				if (rollerText) rollerText += '<br>';
-				rollerText += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString()}`;
+				rollerText += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString('en-US')}`;
 			}
 
 			if (rollerText) {
-				var rollerLabel = status == '4' ? 'Roller Chips (auto transfer):' : 'Roller Chips Return:';
-				confirmationRows += buildRow(rollerLabel, rollerText);
+				confirmationRows += buildRow('Roller Chips Return:', rollerText);
 			}
 		}
 	}
@@ -5776,8 +5810,8 @@ $('#edit_status').submit(function (event) {
 		</div>
 	`;
 
-	if (status == '4') {
-		closeChangeStatusParentDatePicker();
+	if (isCutoff) {
+		closeChangeStatusCutoffDatePicker();
 	}
 
 	Swal.fire({
@@ -5806,10 +5840,14 @@ $('#edit_status').submit(function (event) {
 				var submitParams = new URLSearchParams(formData);
 				submitParams.set('txtStatus', '1');
 				submitParams.set('txtWasCutoff', '1');
+				submitParams.set('txtReturnRollerNN', '');
+				submitParams.set('txtReturnRollerCC', '');
+				var cutoffYmd = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
+				if (cutoffYmd) {
+					submitParams.set('txtCutoffProgramDate', cutoffYmd);
+				}
 				formData = submitParams.toString();
 			}
-
-			var cutoffPreviousGameId = game_id;
 
 			// Submit the form via AJAX
 			$.ajax({
@@ -5827,22 +5865,23 @@ $('#edit_status').submit(function (event) {
 					reloadData();
 					refreshSettlementModalLockIfOpen();
 					$('#modal-change_status').modal('hide');
-
-					if (isCutoff) {
-						var transferNN = $('#modal-change_status').data('cutoffTransferRollerNN') || 0;
-						var transferCC = $('#modal-change_status').data('cutoffTransferRollerCC') || 0;
-						setTimeout(function () {
-							openNewGameAfterCutoff(cutoffPreviousGameId, transferNN, transferCC);
-						}, 400);
-					}
 				},
-				error: function (error) {
+				error: function (xhr) {
+					var errMsg = 'Failed to update status. Please try again.';
+					try {
+						var parsed = JSON.parse(xhr.responseText || '');
+						if (parsed && parsed.error) errMsg = parsed.error;
+					} catch (parseErr) {
+						if (xhr.responseText && typeof xhr.responseText === 'string' && xhr.responseText.trim()) {
+							errMsg = xhr.responseText.trim();
+						}
+					}
 					Swal.fire({
 						icon: 'error',
 						title: 'Error!',
-						text: 'Failed to update status. Please try again.',
+						text: errMsg,
 					});
-					console.error('Error updating status:', error);
+					console.error('Error updating status:', xhr);
 				},
 				complete: function () {
 					$btn.prop('disabled', false).html('Save');
@@ -5857,9 +5896,9 @@ $('#edit_status').submit(function (event) {
 
 });
 
-function addBuyin(id, account, agentCode) {
+function addBuyin(id, account, agentCode, guestName) {
 	$('#modal-add-buyin').modal('show');
-	$('#buyin-agent-code').text(agentCode || '');
+	setGameListModalAccountLabel('#buyin-agent-code', agentCode, guestName);
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -5903,7 +5942,7 @@ function addBuyin(id, account, agentCode) {
 	
 			// Set raw numeric value safely
 			$('#total_balanceGuest2').val(totalBalance);
-			$('#total_balanceGuest2GameList').val(totalBalance.toLocaleString());
+			$('#total_balanceGuest2GameList').val(totalBalance.toLocaleString('en-US'));
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching account details:', error);
@@ -6013,17 +6052,216 @@ function prepareRollingModal(gameId) {
 	$('.game_list_id').val(gameId || '');
 }
 
-function buildTotalRollingTd(gameListId, agentCode, totalRollingChips, canAddRolling) {
-	var display = parseFloat(totalRollingChips || 0).toLocaleString();
+function normalizeGameGuestName(raw) {
+	var name = String(raw || '').trim();
+	if (!name || name === '-') return '';
+	return name;
+}
+
+function formatServicesAccountLabel(agentCode, guestName) {
+	var code = String(agentCode == null ? '' : agentCode).trim();
+	var name = normalizeGameGuestName(guestName);
+	return code + (name ? ' (' + name + ')' : '');
+}
+
+function escapeJsSingleQuotedString(value) {
+	return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function gameListAgentOnclickArgs(agentCode, guestName) {
+	return "'" + escapeJsSingleQuotedString(agentCode) + "', '" + escapeJsSingleQuotedString(normalizeGameGuestName(guestName)) + "'";
+}
+
+function setGameListModalAccountLabel(selector, agentCode, guestName) {
+	var $el = $(selector);
+	if (!$el.length) return;
+	$el.text(formatServicesAccountLabel(agentCode, guestName));
+}
+
+function buildChangeStatusModalTitle(baseTitle, agentCode, guestName) {
+	var label = escapeHtmlText(formatServicesAccountLabel(agentCode, guestName));
+	return baseTitle + ' - <span id="change-status-agent-code">' + label + '</span>';
+}
+
+var LEGACY_SERVICE_TYPE_LABELS = {
+	fnb: 'F & B',
+	hotel: 'Hotel',
+	delivery: 'Delivery'
+};
+
+function formatServiceDisplayLabel(service) {
+	var raw = (service || '').trim();
+	if (!raw) return '';
+	var legacy = LEGACY_SERVICE_TYPE_LABELS[raw.toLowerCase()];
+	return legacy || raw;
+}
+
+function isDeliveryServiceType(serviceType) {
+	return formatServiceDisplayLabel(serviceType).trim().toLowerCase() === 'delivery';
+}
+
+function parseServiceDeliveryFeeInput(raw) {
+	var fee = parseFloat(String(raw || '0').replace(/,/g, '').trim());
+	return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+}
+
+function getServiceLineTotal(amount, deliveryFee, serviceType) {
+	var base = parseFloat(amount || 0);
+	if (isNaN(base)) base = 0;
+	var fee = isDeliveryServiceType(serviceType) ? parseServiceDeliveryFeeInput(deliveryFee) : 0;
+	return base + fee;
+}
+
+function accumulateSettlementServiceTotals(totalsMap, list) {
+	if (!Array.isArray(list)) {
+		return;
+	}
+	list.forEach(function (item) {
+		var transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
+		if (transactionId !== 3) {
+			return;
+		}
+		var serviceType = item.SERVICE_TYPE || item.service_type || '';
+		var label = formatServiceDisplayLabel(serviceType) || String(serviceType).trim();
+		if (!label) {
+			return;
+		}
+		var key = label.trim().toLowerCase();
+		var lineTotal = getServiceLineTotal(
+			item.AMOUNT || item.amount,
+			item.DELIVERY_FEE || item.delivery_fee,
+			serviceType
+		);
+		if (!totalsMap[key]) {
+			totalsMap[key] = { label: label, amount: 0 };
+		}
+		totalsMap[key].amount += lineTotal;
+	});
+}
+
+function buildSettlementServiceEntries(totalsMap) {
+	return Object.keys(totalsMap || {})
+		.filter(function (key) {
+			return totalsMap[key] && totalsMap[key].amount > 0;
+		})
+		.map(function (key) {
+			return {
+				label: totalsMap[key].label,
+				amount: totalsMap[key].amount
+			};
+		})
+		.sort(function (a, b) {
+			return a.label.localeCompare(b.label);
+		});
+}
+
+function renderSettlementServiceRows(entries) {
+	var $container = $('#settlement-service-rows');
+	if (!$container.length) {
+		return;
+	}
+	$container.empty();
+	(entries || []).forEach(function (entry) {
+		if (!entry || !(entry.amount > 0)) {
+			return;
+		}
+		var formatted = Number(entry.amount).toLocaleString('en-US', {
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 2
+		});
+		$container.append(
+			'<div class="col-sm-12 settlement-service-row">' +
+				'<div class="form-group d-flex align-items-center small-input-group">' +
+					'<label class="form-label settlement-service-label">' + escapeHtmlText(entry.label) + '</label>' +
+					'<input class="form-input text-danger ms-2 settlement-service-amount" type="text" readonly value="' + formatted + '">' +
+				'</div>' +
+			'</div>'
+		);
+	});
+}
+
+window.renderSettlementServiceRowsFromEntries = renderSettlementServiceRows;
+
+function toggleServicesDeliveryFeeField(selectSelector, wrapSelector, feeInputSelector) {
+	if (isDeliveryServiceType($(selectSelector).val())) {
+		$(wrapSelector).removeClass('d-none');
+	} else {
+		$(wrapSelector).addClass('d-none');
+		if (feeInputSelector) $(feeInputSelector).val('');
+	}
+}
+
+function resetServicesDeliveryFeeFields() {
+	$('#services-delivery-fee-wrap, #services-edit-delivery-fee-wrap').addClass('d-none');
+	$('#services-delivery-fee, #services-edit-delivery-fee').val('');
+}
+
+function escapeServiceCategoryOption(value) {
+	return String(value || '')
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function populateServicesCategorySelects(selectedValue, callback) {
+	var placeholder = '<option value="" selected disabled>Select service</option>';
+	var selects = ['#services-type', '#services-edit-type'];
+	var selected = formatServiceDisplayLabel(selectedValue || '');
+
+	$.ajax({
+		url: '/services_category_data',
+		method: 'GET',
+		success: function (rows) {
+			var options = placeholder;
+			var hasSelected = false;
+			(rows || []).forEach(function (row) {
+				var category = (row.CATEGORY || '').trim();
+				if (!category) return;
+				var isSelected = selected && selected.toLowerCase() === category.toLowerCase();
+				if (isSelected) hasSelected = true;
+				options += '<option value="' + escapeServiceCategoryOption(category) + '"' + (isSelected ? ' selected' : '') + '>' +
+					escapeServiceCategoryOption(category) + '</option>';
+			});
+			if (selected && !hasSelected) {
+				options += '<option value="' + escapeServiceCategoryOption(selected) + '" selected>' +
+					escapeServiceCategoryOption(selected) + ' (legacy)</option>';
+			}
+			selects.forEach(function (selector) {
+				$(selector).html(options);
+			});
+			toggleServicesDeliveryFeeField('#services-type', '#services-delivery-fee-wrap', '#services-delivery-fee');
+			toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+			if (typeof callback === 'function') callback();
+		},
+		error: function () {
+			selects.forEach(function (selector) {
+				$(selector).html(placeholder);
+			});
+			if (typeof callback === 'function') callback();
+		}
+	});
+}
+
+function buildAddChgTd(gameListId, agentCode, guestName, addChgValue, gameStatus, settled, agentId) {
+	var display = parseFloat(addChgValue || 0).toLocaleString('en-US');
+	var safeCode = encodeURIComponent(agentCode || '');
+	var safeName = encodeURIComponent(normalizeGameGuestName(guestName));
+	return '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="openServices(' +
+		gameListId + ', \'' + safeCode + '\', \'' + safeName + '\', ' +
+		parseInt(gameStatus, 10) + ', ' + parseInt(settled || 0, 10) + ', ' + parseInt(agentId || 0, 10) + ')">' + display + '</button>';
+}
+
+function buildTotalRollingTd(gameListId, agentCode, guestName, totalRollingChips, canAddRolling) {
+	var display = parseFloat(totalRollingChips || 0).toLocaleString('en-US');
 	if (!canAddRolling) {
 		return display;
 	}
-	var safeCode = (agentCode || '').replace(/'/g, "\\'");
-	return '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + gameListId + ', \'' + safeCode + '\')">' + display + '</button>';
+	return '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + gameListId + ', ' + gameListAgentOnclickArgs(agentCode, guestName) + ')">' + display + '</button>';
 }
 
-function addRolling(id, agentCode) {
-	$('#rolling-agent-code').text(agentCode || '');
+function addRolling(id, agentCode, guestName) {
+	setGameListModalAccountLabel('#rolling-agent-code', agentCode, guestName);
 	prepareRollingModal(id);
 	$('#modal-add-rolling').modal('show');
 }
@@ -6061,7 +6299,7 @@ $(document).on('click', '#load-last-rolling-btn', function () {
 			}
 
 			var ccValue = parseFloat(record.CC_CHIPS) || 0;
-			$('.txtCC').val(ccValue ? ccValue.toLocaleString() : '');
+			$('.txtCC').val(ccValue ? ccValue.toLocaleString('en-US') : '');
 			setRollingMode('update', record.IDNo);
 		},
 		error: function (xhr) {
@@ -6088,12 +6326,13 @@ $('#modal-add-rolling').on('hidden.bs.modal', function () {
 	$('#submit-rolling-btn').prop('disabled', false).text('Save');
 });
 
-function addRollerChips(id, returnOnly, agentCode) {
-	$('#roller-chips-agent-code').text(agentCode || '');
+function addRollerChips(id, returnOnly, agentCode, guestName) {
+	setGameListModalAccountLabel('#roller-chips-agent-code', agentCode, guestName);
 	$('#modal-add-roller-chips').modal('show');
 
 	$('#modal-add-roller-chips .txtRollerNN').val('');
 	$('#modal-add-roller-chips .txtRollerCC').val('');
+	updateRollerChipsRemainingHint();
 	$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // No default selection
 
 	// If RETURN only mode (END GAME but not settled), disable ADD option and auto-select RETURN
@@ -6164,22 +6403,24 @@ function addRollerChips(id, returnOnly, agentCode) {
 			
 			var totalAddAll = totalAddNN + totalAddCC;
 			// Display totals in modal (for information)
-			$('#roller-chips-total-add-nn').text(parseFloat(totalAddNN).toLocaleString());
-			$('#roller-chips-total-add-cc').text(parseFloat(totalAddCC).toLocaleString());
-			$('#roller-chips-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString());
-			$('#roller-chips-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString());
+			$('#roller-chips-total-add-nn').text(parseFloat(totalAddNN).toLocaleString('en-US'));
+			$('#roller-chips-total-add-cc').text(parseFloat(totalAddCC).toLocaleString('en-US'));
+			$('#roller-chips-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString('en-US'));
+			$('#roller-chips-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString('en-US'));
 			var totalReturnAll = totalReturnNN + totalReturnCC;
 			var requiredReturnNN = totalAddNN - totalReturnNN;
 			var requiredReturnCC = totalAddCC - totalReturnCC;
 			var requiredReturnTotal = requiredReturnNN + requiredReturnCC;
-			$('#roller-chips-required-return-total').text(parseFloat(requiredReturnTotal).toLocaleString());
+			$('#roller-chips-required-return-total').text(parseFloat(requiredReturnTotal).toLocaleString('en-US'));
 			
 			// Store values for validation
 			$('#modal-add-roller-chips').data('totalAddNN', totalAddNN);
 			$('#modal-add-roller-chips').data('totalAddCC', totalAddCC);
 			$('#modal-add-roller-chips').data('totalReturnNN', totalReturnNN);
 			$('#modal-add-roller-chips').data('totalReturnCC', totalReturnCC);
+			$('#modal-add-roller-chips').data('requiredReturnTotal', requiredReturnTotal);
 			$('#modal-add-roller-chips').data('netAddNN', netAddNN);
+			updateRollerChipsRemainingHint();
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
@@ -6191,10 +6432,11 @@ function addRollerChips(id, returnOnly, agentCode) {
 $('#modal-add-roller-chips').on('hidden.bs.modal', function () {
 	$('#rollerAdd').prop('disabled', false).closest('.form-check').css('opacity', '1');
 	$('#rollerReturn').prop('checked', false);
+	updateRollerChipsRemainingHint();
 });
 
-function addCashout(id, account, total_rolling_chips, agentCode) {
-	$('#cashout-agent-code').text(agentCode || '');
+function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
+	setGameListModalAccountLabel('#cashout-agent-code', agentCode, guestName);
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -6221,7 +6463,13 @@ function addCashout(id, account, total_rolling_chips, agentCode) {
 		nnCcRow.style.display = '';
 	}
 
-	$('#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount').val('');
+	$('#nnCashAmount, #nnDepositAmount, #nnCreditAmount, #ccCashAmount, #ccDepositAmount, #ccCreditAmount').val('');
+	$('#tipRollerAmount, #tipDealerAmount').val('').removeClass('is-invalid');
+
+	var tipRow = document.getElementById('tip-amount-row');
+	if (tipRow) {
+		tipRow.style.display = 'none';
+	}
 
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
@@ -6385,9 +6633,8 @@ function addCashout(id, account, total_rolling_chips, agentCode) {
 
 
 function showHistory(record_id) {
+	$('#modal-show-history').data('historyGameId', record_id);
 	$('#modal-show-history').modal('show');
-
-	
 
 	if ($.fn.DataTable.isDataTable('#game_record-tbl')) {
 		$('#game_record-tbl').DataTable().destroy();
@@ -6481,7 +6728,7 @@ function showHistory(record_id) {
 // 						real_rolling = row.AMOUNT + row.CC_CHIPS + row.NN_CHIPS;
 // 					}
 
-// 					dataTable.row.add([trading, buy_in.toLocaleString(), cash_out.toLocaleString(), real_rolling.toLocaleString(), rolling.toLocaleString(), row.NN_CHIPS.toLocaleString(), row.CC_CHIPS.toLocaleString(), btn]).draw();
+// 					dataTable.row.add([trading, buy_in.toLocaleString('en-US'), cash_out.toLocaleString('en-US'), real_rolling.toLocaleString('en-US'), rolling.toLocaleString('en-US'), row.NN_CHIPS.toLocaleString('en-US'), row.CC_CHIPS.toLocaleString('en-US'), btn]).draw();
 // 				});
 // 			},
 // 			error: function (xhr, status, error) {
@@ -6496,7 +6743,8 @@ function reloadDataRecord() {
         success: function (data) {
             // Set agent code in modal header
             if (data.length > 0) {
-                $('#show-agent-code').text(data[0].agent_code || '');
+                var agentCode = data[0].agent_code || '';
+                setGameListModalAccountLabel('#show-agent-label', agentCode, data[0].guest_name);
             }
             
             // Calculate totals using the SAME formula as game list (line 304)
@@ -6739,26 +6987,22 @@ function reloadDataRecord() {
             // Prepare all rows data
             const allRows = [];
             
-            // Add total row first
+            // Add total row first (8 columns: DATE, BUY-IN, CASH OUT, TOTAL ROLLING, NN, CC, R/C, ACTION)
             allRows.push([
                 '<strong>TOTAL</strong>',
-                '<strong>' + totalBuyIn.toLocaleString() + '</strong>',
-                '<strong>' + totalAdditionalBuyIn.toLocaleString() + '</strong>',
-                '<strong>' + totalCashOut.toLocaleString() + '</strong>',
-                '<strong>' + totalRealRolling.toLocaleString() + '</strong>',
-                '<strong>' + totalRolling.toLocaleString() + '</strong>',
-                // '<strong>' + totalNN.toLocaleString() + '</strong>',
-                // '<strong>' + totalCC.toLocaleString() + '</strong>',
-				'',
-				'',
-                '<strong>' + totalRollerChips.toLocaleString() + '</strong>',
-                ''  // Empty for action column
+                '<strong>' + (totalBuyIn + totalAdditionalBuyIn).toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalCashOut.toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalRolling.toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalNN.toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalCC.toLocaleString('en-US') + '</strong>',
+                '<strong>' + totalRollerChips.toLocaleString('en-US') + '</strong>',
+                ''
             ]);
 
             // Add individual records (color buy-in / additional_buyin / cash_out only when value > 0 and deposit/marker/credit)
             function formatBuyinCell(val, transType) {
                 var num = parseFloat(val) || 0;
-                var str = num.toLocaleString();
+                var str = num.toLocaleString('en-US');
                 if (num === 0) return str;
                 if (transType === 2) return '<span class="rolling-cell rolling-cell-deposit">' + str + '</span>';
                 if (transType === 3) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
@@ -6794,16 +7038,18 @@ function reloadDataRecord() {
                 var buyInType = parseInt(rowData.buy_in_type, 10) || 1;
                 var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
                 var cashOutType = parseInt(rowData.cash_out_type, 10) || 1;
+                var buyInAmount = (rowData.buy_in || 0) + (rowData.additional_buyin || 0);
+                var buyInDisplayType = (rowData.additional_buyin || 0) > 0 && !(rowData.buy_in || 0)
+                    ? addBuyinType
+                    : buyInType;
                 allRows.push([
                     rowData.displayDate || date,
-                    formatBuyinCell(rowData.buy_in, buyInType),
-                    formatBuyinCell(rowData.additional_buyin, addBuyinType),
+                    formatBuyinCell(buyInAmount, buyInDisplayType),
                     formatBuyinCell(rowData.cash_out, cashOutType),
-                    rowData.real_rolling.toLocaleString(),
-                    (rowData.total_rolling_actual || 0).toLocaleString(),
-                    rowData.nn.toLocaleString(),
-                    rowData.cc.toLocaleString(),
-                    rollerChips.toLocaleString(),
+                    (rowData.total_rolling_actual || 0).toLocaleString('en-US'),
+                    rowData.nn.toLocaleString('en-US'),
+                    rowData.cc.toLocaleString('en-US'),
+                    rollerChips.toLocaleString('en-US'),
                     buildActionButtons(rowData)
                 ]);
             }
@@ -6817,8 +7063,15 @@ function reloadDataRecord() {
     });
 }
 
-	reloadDataRecord()
+	reloadDataRecord();
+	loadHistoryServicesList(record_id);
 }
+
+$(document).on('hidden.bs.modal', '#modal-show-history', function () {
+	destroyServicesListTable('#history-services-list-tbl');
+	$('#history-services-list-body').html('<tr class="text-muted"><td colspan="7" class="text-center small">No services availed.</td></tr>');
+	$('#history-services-total').text('0');
+});
 
 function checkPermissionToDeleteHistory(id) {
     // Check if the user has the necessary permission before proceeding
@@ -6901,15 +7154,16 @@ function applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoff
 	}
 }
 
-function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, guestId, cutoffParentGameId, cutoffContinuedGameId, agentCode) {
-	$('#change-status-agent-code').text(agentCode || '');
+function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, guestId, cutoffParentGameId, cutoffContinuedGameId, agentCode, guestName) {
+	setGameListModalAccountLabel('#change-status-agent-code', agentCode, guestName);
 	$('#modal-change_status').modal('show');
 
 	// Store settlement preview data for validation
 	const $changeStatusModal = $('#modal-change_status');
 	$changeStatusModal.data('settlementValue', net);
 	$changeStatusModal.data('servicesValue', null); // reset while loading
-	$changeStatusModal.data('cutoffGuestId', guestId || null);
+	$changeStatusModal.data('changeStatusGuestId', guestId || null);
+	$changeStatusModal.data('gameProgramDate', '');
 	loadServiceTotalForStatusModal(id);
 
 	$('.txtGameId').val(id);
@@ -6922,26 +7176,35 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	// Reset roller chips return fields and hide section immediately
 	$('.txtReturnRollerNN').val('');
 	$('.txtReturnRollerCC').val('');
+	updateReturnRollerRemainingHint();
 	$('#roller-chips-return-section').hide();
-	$('#cutoff-roller-auto-section').hide();
-	resetChangeStatusParentDateField();
-	$('#modal-change_status').data('cutoffTransferRollerNN', 0);
-	$('#modal-change_status').data('cutoffTransferRollerCC', 0);
+	resetChangeStatusCutoffFields();
 
 	game_id = id;
 
+	$('#status').off('change.cutoffdetails').on('change.cutoffdetails', function () {
+		updateChangeStatusRollerReturnSection();
+	});
+
 	$.getJSON('/game_list_data?id=' + encodeURIComponent(id), function (rows) {
 		var game = Array.isArray(rows) && rows[0] ? rows[0] : null;
-		applyChangeStatusFromGameRow(game, currentStatus, agentCode);
+		if (game) {
+			$changeStatusModal.data('gameProgramDate', getProgramDateYmd(game));
+		}
+		applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName);
+		updateChangeStatusRollerReturnSection();
+		if (isCutoffStatus($('#status').val())) {
+			ensureChangeStatusCutoffDatePicker();
+		}
 	}).fail(function () {
 		$changeStatusModal.data('pendingRollerResolve', null);
 		applyChangeStatusCutoffOption(currentStatus, cutoffParentGameId, cutoffContinuedGameId);
 		setChangeStatusPendingMode(currentStatus == 3);
 		if (currentStatus == 3) {
-			$('#staticBackdropLiveLabel').html('Resolve Pending - <span id="change-status-agent-code">' + (agentCode || '') + '</span>');
+			$('#status').val('1');
+			$('#staticBackdropLiveLabel').html(buildChangeStatusModalTitle('Resolve Pending', agentCode, guestName));
 		}
-		$('#status option:first').prop('selected', true);
-		$('#status').trigger('change');
+		updateChangeStatusRollerReturnSection();
 	});
 
 	// Fetch game records to calculate required roller chips return
@@ -6953,81 +7216,15 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			storeChangeStatusRollerTotals(rollerTotals, id);
 
 			// Display totals in modal
-			$('#required-return-total-add-nn').text(parseFloat(rollerTotals.totalAddNN).toLocaleString());
-			$('#required-return-total-add-cc').text(parseFloat(rollerTotals.totalAddCC).toLocaleString());
-			$('#required-return-total-return-nn').text(parseFloat(rollerTotals.totalReturnNN).toLocaleString());
-			$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString());
-			$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString());
-			$('#required-total-display').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString());
+			$('#required-return-total-add-nn').text(parseFloat(rollerTotals.totalAddNN).toLocaleString('en-US'));
+			$('#required-return-total-add-cc').text(parseFloat(rollerTotals.totalAddCC).toLocaleString('en-US'));
+			$('#required-return-total-return-nn').text(parseFloat(rollerTotals.totalReturnNN).toLocaleString('en-US'));
+			$('#required-return-total-return-cc').text(parseFloat(rollerTotals.totalReturnCC).toLocaleString('en-US'));
+			$('#required-return-total').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
+			$('#required-total-display').text(parseFloat(rollerTotals.requiredReturnTotal).toLocaleString('en-US'));
 			
-			// Show/hide roller chips return section based on whether there are required returns
-			// Always remove previous event handlers first
-			$('#status').off('change.rollerchips');
-			
-			// Create a unified event handler that checks requiredReturnTotal before showing
-			$('#status').on('change.rollerchips', function() {
-				var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
-				var selectedStatus = $(this).val();
-
-				updateChangeStatusCutoffDateSection();
-
-				if (selectedStatus == '4') {
-					updateCutoffRollerAutoSection();
-					return;
-				}
-
-				$('#cutoff-roller-auto-section').hide();
-
-				if (selectedStatus == '1' && currentRequiredTotal > 0) {
-					if (isPendingFaultSettled()) {
-						applyPendingFaultSettledUi();
-					} else {
-						$('#roller-chips-return-section').show();
-						$('#roller-chips-return-summary').show();
-						$('#roller-chips-return-inputs').show();
-						if ($('#modal-change_status').data('isPendingResolve')) {
-							$('#pending-resolution-section').show();
-						}
-						$('#pending-resolve-status-banner').hide();
-					}
-				} else {
-					$('#txtReturnRollerNN').val('');
-					$('#txtReturnRollerCC').val('');
-					$('#roller-chips-return-section').hide();
-					if (!isPendingFaultSettled()) {
-						$('#pending-resolve-status-banner').hide();
-					}
-				}
-			});
-			
-			var requiredReturnTotal = rollerTotals.requiredReturnTotal;
-
-			if (requiredReturnTotal > 0) {
-				if (currentStatus == 3 || $('#status').val() == '1') {
-					if (isPendingFaultSettled()) {
-						applyPendingFaultSettledUi();
-					} else {
-						$('#roller-chips-return-section').show();
-						$('#roller-chips-return-summary').show();
-						$('#roller-chips-return-inputs').show();
-						if ($('#modal-change_status').data('isPendingResolve')) {
-							$('#pending-resolution-section').show();
-						}
-					}
-				} else if ($('#status').val() == '4') {
-					updateChangeStatusCutoffDateSection();
-					updateCutoffRollerAutoSection();
-				}
-			} else if (currentStatus == 3) {
-				$('#roller-chips-return-section').show();
-				$('#txtReturnRollerNN').val('');
-				$('#txtReturnRollerCC').val('');
-			} else {
-				$('#txtReturnRollerNN').val('');
-				$('#txtReturnRollerCC').val('');
-				$('#roller-chips-return-section').hide();
-				$('#cutoff-roller-auto-section').hide();
-			}
+			// Show/hide sections based on status and required returns
+			updateChangeStatusRollerReturnSection();
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
@@ -7063,18 +7260,21 @@ function loadServiceTotalForStatusModal(gameId) {
 	});
 }
 
-function openServices(id, agentCode, gameStatus, settled, agentId) {
+function openServices(id, agentCode, guestName, gameStatus, settled, agentId) {
 	// Track settled state
 	_servicesSettled = parseInt(settled || 0, 10);
 
 	const decodedAgentCode = decodeURIComponent(agentCode || '');
-	$('#services-agent-code').text(decodedAgentCode);
-	$('#services-edit-agent-code').text(decodedAgentCode);
+	const decodedGuestName = decodeURIComponent(guestName || '');
+	const accountLabel = formatServicesAccountLabel(decodedAgentCode, decodedGuestName);
+	$('#services-agent-label').text(accountLabel);
+	$('#services-edit-agent-label').text(accountLabel);
+	populateServicesCategorySelects();
 	$('#modal-services').modal('show');
 	const $gameInput = $('#services-game-id-input');
 	if ($gameInput.length) $gameInput.val(id);
 	const $guestInput = $('#services-guest-name-input');
-	if ($guestInput.length) $guestInput.val(decodedAgentCode || '');
+	if ($guestInput.length) $guestInput.val(accountLabel || '');
 	const $agentInput = $('#services-agent-id-input');
 	if ($agentInput.length) $agentInput.val(agentId != null ? agentId : '');
 
@@ -7090,6 +7290,8 @@ function openServices(id, agentCode, gameStatus, settled, agentId) {
 	// Clear inputs
 	$('#services-type').val('');
 	$('#services-amount').val('');
+	$('#services-delivery-fee').val('');
+	resetServicesDeliveryFeeFields();
 	$('#services-remarks').val('');
 	$('input[name="services-transaction"]').prop('checked', false);
 	$('input[name="services-transaction"][value="3"]').prop('checked', true);
@@ -7117,54 +7319,125 @@ function formatServiceTransactionLabel(id) {
 	return labels[id] || '';
 }
 
-function renderServicesList(list) {
-	const $tbody = $('#services-list-body');
-	const $table = $('#services-list-tbl');
-	const $total = $('#services-total');
+function destroyServicesListTable(tableSelector) {
+	var $table = $(tableSelector || '#services-list-tbl');
+	if (!$table.length) return;
+	if (!$.fn.DataTable.isDataTable($table)) return;
+	try {
+		$table.DataTable().destroy();
+	} catch (err) {
+		var $wrapper = $table.closest('.dataTables_wrapper');
+		if ($wrapper.length) {
+			$table.detach();
+			$wrapper.replaceWith($table);
+		}
+	}
+}
+
+function ensureServicesTotalFirstSort() {
+	if ($.fn.dataTable.ext.order['services-total-first']) {
+		return;
+	}
+	$.fn.dataTable.ext.order['services-total-first'] = function (settings, col) {
+		return this.api().column(col, { order: 'index' }).nodes().map(function (td) {
+			var text = $(td).text().trim();
+			return text.toUpperCase() === 'TOTAL' ? '' : text;
+		});
+	};
+}
+
+function initServicesListDataTable($table, readOnly) {
+	ensureServicesTotalFirstSort();
+	$table.DataTable({
+		paging: true,
+		pageLength: 5,
+		lengthChange: false,
+		searching: false,
+		ordering: false,
+		order: [[0, 'asc']],
+		info: true,
+		autoWidth: false,
+		columnDefs: [
+			{
+				type: 'services-total-first',
+				targets: 0,
+				createdCell: function (cell) {
+					$(cell).addClass('text-center');
+				}
+			},
+			{
+				createdCell: function (cell) {
+					$(cell).addClass('text-center');
+				}
+			}
+		]
+	});
+}
+
+function buildServicesTotalRowHtml(totalAmountOnly, totalDeliveryFeeOnly, readOnly) {
+	var actionCell = readOnly ? '' : '<td></td>';
+	return '<tr class="fw-bold bg-body-secondary services-total-row">'
+		+ '<td>TOTAL</td>'
+		+ '<td></td>'
+		+ '<td class="text-end">' + totalAmountOnly.toLocaleString('en-US') + '</td>'
+		+ '<td class="text-end">' + totalDeliveryFeeOnly.toLocaleString('en-US') + '</td>'
+		+ '<td></td>'
+		+ '<td></td>'
+		+ '<td></td>'
+		+ actionCell
+		+ '</tr>';
+}
+
+function renderServicesList(list, opts) {
+	opts = opts || {};
+	const readOnly = !!opts.readOnly;
+	const $tbody = $(opts.tbody || '#services-list-body');
+	const $table = $(opts.table || '#services-list-tbl');
+	const $total = $(opts.total || '#services-total');
 	if (!$tbody.length) return;
 
 	const data = Array.isArray(list) ? list : [];
 	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	const isSettled = parseInt(_servicesSettled || 0, 10) === 1 && userPermissions !== 0; // Super admin can edit even when settled
+	const emptyColspan = readOnly ? 7 : 8;
 
-	if ($.fn.DataTable.isDataTable($table)) {
-		$table.DataTable().clear().destroy();
-	}
+	destroyServicesListTable(opts.table || '#services-list-tbl');
 
 	if (data.length === 0) {
 		if ($total.length) $total.text('0');
-		// Let DataTables render its own empty-table row to avoid column-count warnings
-		$tbody.empty();
-		$table.DataTable({
-			paging: false,
-			lengthChange: false,
-			searching: false,
-			ordering: false,
-			info: false,
-			autoWidth: false,
-			language: { emptyTable: 'No services availed.' }
-		});
+		$tbody.html('<tr class="text-muted"><td colspan="' + emptyColspan + '" class="text-center small">No services availed.</td></tr>');
 		return;
 	}
+
+	let totalAmountOnly = 0;
+	let totalDeliveryFeeOnly = 0;
 
 	const rows = data.map(item => {
 		const id = item.IDNo || item.id || '';
 		const service = item.SERVICE_TYPE || item.service_type || '';
 		const amount = item.AMOUNT || item.amount || 0;
+		const safeAmount = parseFloat(amount || 0);
+		const deliveryFee = parseFloat(item.DELIVERY_FEE || item.delivery_fee || 0) || 0;
+		const deliveryFeeDisplay = deliveryFee > 0 ? deliveryFee.toLocaleString('en-US') : '';
 		const remarks = item.REMARKS || item.remarks || '';
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
 		const formattedDt = dtRaw ? moment(dtRaw).format('MMM DD, HH:mm') : '';
 		const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id || 1, 10);
 		const transactionLabel = formatServiceTransactionLabel(transactionId);
-		return `<tr>
-			<td>${service}</td>
-			<td class="text-end">${parseFloat(amount).toLocaleString()}</td>
-			<td>${remarks || ''}</td>
-			<td>${transactionLabel || '-'}</td>
-			<td>${processed || ''}</td>
-			<td>${formattedDt}</td>
-			<td class="text-center">
+		const serviceLabel = formatServiceDisplayLabel(service) || service;
+
+		totalAmountOnly += isNaN(safeAmount) ? 0 : safeAmount;
+		totalDeliveryFeeOnly += deliveryFee;
+
+		const remarksCell = window.RemarksEditor && id
+			? window.RemarksEditor.renderCell(remarks, {
+				source: 'game_services',
+				recordId: id
+			})
+			: (remarks || '-');
+
+		const actionCell = readOnly ? '' : `<td class="text-center">
 				<button type="button"
 					class="btn btn-sm btn-info-subtle action-btn-square me-1 service-edit-btn"
 					title="Edit"
@@ -7172,6 +7445,7 @@ function renderServicesList(list) {
 					data-id="${id}"
 					data-service="${service}"
 					data-amount="${amount}"
+					data-delivery-fee="${deliveryFee}"
 					data-remarks="${encodeURIComponent(remarks || '')}"
 					data-transaction="${transactionId}">
 					<i class="fa fa-edit"></i>
@@ -7183,34 +7457,126 @@ function renderServicesList(list) {
 					data-id="${id}">
 					<i class="fa fa-trash-alt"></i>
 				</button>
-			</td>
+			</td>`;
+
+		return `<tr>
+			<td>${formattedDt}</td>
+			<td>${serviceLabel}</td>
+			<td class="text-end">${(isNaN(safeAmount) ? 0 : safeAmount).toLocaleString('en-US')}</td>
+			<td class="text-end">${deliveryFeeDisplay}</td>
+			<td>${transactionLabel || '-'}</td>
+			<td>${remarksCell}</td>
+			<td>${processed || ''}</td>
+			${actionCell}
 		</tr>`;
 	});
 
-	// Total amount of all services
-	const totalAmt = data.reduce((sum, item) => {
-		const amt = parseFloat(item.AMOUNT || item.amount || 0);
-		return sum + (isNaN(amt) ? 0 : amt);
-	}, 0);
-	if ($total.length) $total.text(totalAmt.toLocaleString());
+	const totalAmt = totalAmountOnly + totalDeliveryFeeOnly;
+	if ($total.length) $total.text(totalAmt.toLocaleString('en-US'));
 
-	$tbody.html(rows.join(''));
-	$table.DataTable({
-		paging: true,
-		pageLength: 5,
-		lengthChange: false,
-		searching: false,
-		ordering: false,
-		info: true,
-		autoWidth: false
-	});
+	const totalRow = buildServicesTotalRowHtml(totalAmountOnly, totalDeliveryFeeOnly, readOnly);
+	$tbody.html(rows.join('') + totalRow);
+	initServicesListDataTable($table, readOnly);
 
 	// View-only: disable delete/edit in Services modal after list is rendered (buttons are dynamic)
-	if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+	if (!readOnly && window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
 		var modalEl = document.getElementById('modal-services');
 		if (modalEl) window.PermissionViewOnly.disableModalSubmitAndDelete(null, modalEl);
 	}
 }
+
+function loadHistoryServicesList(gameId) {
+	var historyOpts = {
+		readOnly: true,
+		table: '#history-services-list-tbl',
+		tbody: '#history-services-list-body',
+		total: '#history-services-total'
+	};
+	if (!gameId) {
+		renderServicesList([], historyOpts);
+		return;
+	}
+	$.ajax({
+		url: '/game_services/' + gameId,
+		method: 'GET'
+	}).done(function (list) {
+		renderServicesList(list || [], historyOpts);
+	}).fail(function () {
+		renderServicesList([], historyOpts);
+	});
+}
+
+$(document).on('hidden.bs.modal', '#modal-services', function () {
+	destroyServicesListTable();
+	$('#services-list-body').html('<tr class="text-muted"><td colspan="8" class="text-center small">No services availed.</td></tr>');
+	$('#services-total').text('0');
+});
+
+function bumpServicesEditModalStack() {
+	var $editModal = $('#modal-services-edit');
+	var $parentModal = $('#modal-services');
+	if (!$editModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$editModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+$('#modal-services-edit')
+	.on('shown.bs.modal', bumpServicesEditModalStack)
+	.on('hidden.bs.modal', function () {
+		$('#modal-services').css('z-index', '');
+	});
+
+function fireServicesSwal(options) {
+	if (!window.Swal) {
+		return Promise.resolve({ isConfirmed: false, isDismissed: true });
+	}
+	var focusTrapHandler = function (e) {
+		if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+			e.stopImmediatePropagation();
+		}
+	};
+	var userDidOpen = options && options.didOpen;
+	var userWillClose = options && options.willClose;
+	var merged = Object.assign({}, options || {}, {
+		heightAuto: false,
+		didOpen: function () {
+			window.addEventListener('focusin', focusTrapHandler, true);
+			document.querySelectorAll('.swal2-container').forEach(function (el) {
+				el.style.zIndex = '1080';
+			});
+			if (typeof userDidOpen === 'function') {
+				userDidOpen.apply(this, arguments);
+			}
+		},
+		willClose: function () {
+			window.removeEventListener('focusin', focusTrapHandler, true);
+			if (typeof userWillClose === 'function') {
+				userWillClose.apply(this, arguments);
+			}
+		}
+	});
+	return window.Swal.fire(merged);
+}
+
+$(document).on('change', '#services-type', function () {
+	toggleServicesDeliveryFeeField('#services-type', '#services-delivery-fee-wrap', '#services-delivery-fee');
+});
+
+$(document).on('change', '#services-edit-type', function () {
+	toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+});
 
 // Save service
 $(document).on('click', '#services-save-btn', function (e) {
@@ -7219,16 +7585,19 @@ $(document).on('click', '#services-save-btn', function (e) {
 	const type = $('#services-type').val();
 	const amountRaw = $('#services-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = isDeliveryServiceType(type)
+		? parseServiceDeliveryFeeInput($('#services-delivery-fee').val())
+		: 0;
 	const remarks = $('#services-remarks').val().trim();
 	const editId = $('#services-edit-id-input').val();
 	const transactionId = $('input[name="services-transaction"]:checked').val();
 
 	if (!gameId || !type) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
 		return;
 	}
 	if (!transactionId) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -7242,13 +7611,16 @@ $(document).on('click', '#services-save-btn', function (e) {
 	// Build confirmation message
 	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
-	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
+	if (deliveryFee > 0) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
 	
-	Swal.fire({
+	fireServicesSwal({
 		icon: 'question',
 		title: `Confirm ${isEdit ? 'Update' : 'Add'} Service`,
 		html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -7270,10 +7642,18 @@ $(document).on('click', '#services-save-btn', function (e) {
 			$.ajax({
 				url,
 				method,
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId, agent_id: agentId },
+				data: {
+					game_id: gameId,
+					service_type: type,
+					amount,
+					delivery_fee: deliveryFee,
+					remarks,
+					transaction_id: transactionId,
+					agent_id: agentId
+				},
 				success: function (list) {
 					// Show success message
-					Swal.fire({
+					fireServicesSwal({
 						icon: 'success',
 						title: 'Success!',
 						text: `Service ${isEdit ? 'updated' : 'added'} successfully.`,
@@ -7288,13 +7668,14 @@ $(document).on('click', '#services-save-btn', function (e) {
 						$('#services-amount').val('');
 						$('#services-remarks').val('');
 						$('#services-type').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-edit-id-input').val('');
 						$('#services-save-btn').text('Save');
 					});
 				},
 				error: function (xhr) {
 					const msg = xhr.responseJSON?.error || 'Failed to save service.';
-					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+					fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 				},
 				complete: function () {
 					$btn.prop('disabled', false).text('Save');
@@ -7316,7 +7697,7 @@ $(document).on('click', '.service-edit-btn', function () {
 	const amount = $btn.data('amount');
 	const remarks = decodeURIComponent($btn.attr('data-remarks') || '');
 	const transaction = $btn.data('transaction');
-	editService(id, service, amount, remarks, transaction);
+	editService(id, service, amount, remarks, transaction, $btn.data('delivery-fee'));
 });
 
 // Delete button handler (delegated)
@@ -7335,15 +7716,18 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	const type = $('#services-edit-type').val();
 	const amountRaw = $('#services-edit-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
+	const deliveryFee = isDeliveryServiceType(type)
+		? parseServiceDeliveryFeeInput($('#services-edit-delivery-fee').val())
+		: 0;
 	const remarks = $('#services-edit-remarks').val().trim();
 	const transactionId = $('input[name="services-edit-transaction"]:checked').val();
 
 	if (!serviceId || !gameId || !type) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
 		return;
 	}
 	if (!transactionId) {
-		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -7352,13 +7736,16 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	// Build confirmation message
 	var confirmationMessage = `Confirm Update Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
-	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
+	if (deliveryFee > 0) {
+		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
+	}
 	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
 	
-	Swal.fire({
+	fireServicesSwal({
 		icon: 'question',
 		title: 'Confirm Update Service',
 		html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -7377,10 +7764,17 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 			$.ajax({
 				url: `/game_services/${serviceId}`,
 				method: 'PUT',
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
+				data: {
+					game_id: gameId,
+					service_type: type,
+					amount,
+					delivery_fee: deliveryFee,
+					remarks,
+					transaction_id: transactionId
+				},
 				success: function (list) {
 					// Show success message
-					Swal.fire({
+					fireServicesSwal({
 						icon: 'success',
 						title: 'Success!',
 						text: 'Service updated successfully.',
@@ -7396,12 +7790,13 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 						$('#services-edit-id').val('');
 						$('#services-edit-type').val('');
 						$('#services-edit-amount').val('');
+						resetServicesDeliveryFeeFields();
 						$('#services-edit-remarks').val('');
 					});
 				},
 				error: function (xhr) {
 					const msg = xhr.responseJSON?.error || 'Failed to save service.';
-					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+					fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 				},
 				complete: function () {
 					$btn.prop('disabled', false).text('Save');
@@ -7550,19 +7945,8 @@ $(document).ready(function () {
 		$('#txtGuestGame').prop('disabled', true).removeAttr('data-readonly data-locked-value');
 	});
 
-	$('#modal-new-game-cutoff').on('hidden.bs.modal', function () {
-		resetCutoffGameForm();
-		var $btn = $('#submit-cutoff-game-btn');
-		var saveLabel = $btn.data('label') || 'Save';
-		$btn.prop('disabled', false).text(saveLabel);
-	});
-
-	$('#modal-new-game-cutoff').on('shown.bs.modal', function () {
-		ensureCutoffGameDatePicker();
-	});
-
 	$('#modal-change_status').on('hidden.bs.modal', function () {
-		resetChangeStatusParentDateField();
+		resetChangeStatusCutoffFields();
 		setChangeStatusPendingMode(false);
 		$('#modal-change_status').data('pendingRollerResolve', null);
 	});
@@ -7574,12 +7958,147 @@ $(document).ready(function () {
 			parseInt($btn.data('game-id'), 10),
 			parseInt($btn.data('account-id'), 10),
 			parseInt($btn.data('agent-id'), 10),
-			parseInt($btn.data('guest-id'), 10) || null
+			parseInt($btn.data('guest-id'), 10) || null,
+			$btn.attr('data-agent-code') || '',
+			$btn.attr('data-agent-name') || ''
 		);
 	});
 
+	$(document).on('click', '#btn-assign-game-guest-add', function (e) {
+		e.preventDefault();
+		openAddGuestFromAssignGameGuest();
+	});
+
+	$(document).on('click', '#btn-assign-game-guest-edit', function (e) {
+		e.preventDefault();
+		openEditGuestFromAssignGameGuest();
+	});
+
+	$('#edit_guest_form').on('submit', function (e) {
+		e.preventDefault();
+		var guestId = parseInt($('#edit_guest_id').val(), 10);
+		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+		var $btn = $('#btn-update-guest-table');
+		if (!guestId) {
+			Swal.fire({ icon: 'warning', title: 'Invalid guest', text: 'Unable to update this guest.' });
+			return;
+		}
+		$btn.prop('disabled', true).text('Updating...');
+		$.ajax({
+			url: '/guest/' + encodeURIComponent(guestId),
+			type: 'PUT',
+			data: $(this).serialize(),
+			success: function () {
+				$('#modal-edit-guest-table').modal('hide');
+				loadAssignGameGuestSelect(agentId, guestId, function () {
+					if (typeof window.reloadData === 'function') {
+						window.reloadData();
+					}
+				});
+				Swal.fire({
+					icon: 'success',
+					title: 'Success',
+					text: 'Guest has been updated.',
+					timer: 1200,
+					showConfirmButton: false
+				});
+			},
+			error: function (xhr) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to update guest.'
+				});
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Update');
+			}
+		});
+	});
+
+	$('#add_guest_form').on('submit', function (e) {
+		e.preventDefault();
+		var $form = $(this);
+		var $btn = $('#btn-save-guest-table');
+		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+		var gameId = parseInt($('#assign_guest_game_id').val(), 10);
+		var membershipError = typeof window.validateGuestMembershipNo === 'function'
+			? window.validateGuestMembershipNo($('#guest_membership_input').val())
+			: '';
+		if (membershipError) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Invalid Membership No',
+				text: membershipError,
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+
+		$btn.prop('disabled', true).text('Saving...');
+		$.ajax({
+			url: '/add_guest',
+			type: 'POST',
+			data: $form.serialize(),
+			success: function (res) {
+				$('#modal-add-guest-table').modal('hide');
+				var newGuestId = res && res.guest_id ? parseInt(res.guest_id, 10) : null;
+				loadAssignGameGuestSelect(agentId, newGuestId, function () {
+					if (gameId) loadAssignGameGuestHistory(gameId);
+				});
+				Swal.fire({
+					icon: 'success',
+					title: 'Success',
+					text: 'Guest has been added.',
+					timer: 1200,
+					showConfirmButton: false
+				});
+			},
+			error: function (xhr) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to add guest.'
+				});
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Save');
+			}
+		});
+	});
+
 	$('#modal-assign-game-guest').on('hidden.bs.modal', function () {
+		setAssignGameGuestChildModalOpen(false);
+		resetAssignGameGuestChildModalStack($('#modal-game-history'));
+		resetAssignGameGuestChildModalStack($('#modal-add-guest-table'));
+		resetAssignGameGuestChildModalStack($('#modal-edit-guest-table'));
 		resetAssignGameGuestModal();
+	});
+
+	$('#modal-game-history').on('shown.bs.modal', function () {
+		if ($('body').hasClass('assign-guest-child-open')) {
+			bumpAssignGameGuestChildModalStack($('#modal-game-history'));
+		}
+	});
+
+	$('#modal-game-history').on('hidden.bs.modal', function () {
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(false);
+			resetAssignGameGuestChildModalStack($('#modal-game-history'));
+		}
+	});
+
+	$('#modal-add-guest-table, #modal-edit-guest-table').on('shown.bs.modal', function () {
+		if ($('body').hasClass('assign-guest-child-open')) {
+			bumpAssignGameGuestChildModalStack($(this));
+		}
+	});
+
+	$('#modal-add-guest-table, #modal-edit-guest-table').on('hidden.bs.modal', function () {
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(false);
+			resetAssignGameGuestChildModalStack($(this));
+		}
 	});
 
 	$(document).on('change', '#assign_game_guest_select', function () {
@@ -7596,6 +8115,11 @@ $(document).ready(function () {
 		if (typeof window.game_history !== 'function') {
 			Swal.fire({ icon: 'error', title: 'Unavailable', text: 'Game History is not available on this page.' });
 			return;
+		}
+		var $gameHistoryModal = $('#modal-game-history');
+		ensureModalAppendedToBody($gameHistoryModal);
+		if (isAssignGameGuestModalOpen()) {
+			setAssignGameGuestChildModalOpen(true);
 		}
 		window.game_history(accountId, guestId).catch(function (err) {
 			console.error('game_history:', err);
@@ -7674,7 +8198,7 @@ $(document).ready(function () {
 			Swal.fire({
 				icon: 'error',
 				title: 'Amount mismatch',
-				html: 'Total (NN + CC) must equal <strong>' + parseFloat(requiredBal).toLocaleString() + '</strong>.'
+				html: 'Total (NN + CC) must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
 			});
 			return;
 		}
@@ -7692,7 +8216,7 @@ $(document).ready(function () {
 				Swal.fire({
 					icon: 'success',
 					title: 'Saved',
-					text: 'Additional buy-in saved. Roller chips returned automatically.',
+					text: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
 					timer: 2000,
 					showConfirmButton: false
 				});
@@ -7710,20 +8234,26 @@ $(document).ready(function () {
 		});
 	});
 
-	$('#modal-pending-guest-buyin').on('hidden.bs.modal', function () {
-		$('#pending_guest_txtRemarks').val('');
-		setPendingResolveChildModalOpen(false);
-	});
+	$('#modal-pending-guest-buyin')
+		.on('shown.bs.modal', function () {
+			bumpPendingResolveChildModalStack($(this));
+		})
+		.on('hidden.bs.modal', function () {
+			$('#pending_guest_txtRemarks').val('');
+			resetPendingResolveChildModalStack($(this));
+			setPendingResolveChildModalOpen(false);
+		});
 
-	$('#modal-pending-junket-new-game').on('hidden.bs.modal', function () {
-		var $select = $('#pending_junket_txtAccount');
-		if ($select.data('select2')) {
-			$select.select2('destroy');
-		}
-		$select.empty().append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
-		$('#pending_junket_txtRemarks').val('');
-		setPendingResolveChildModalOpen(false);
-	});
+	$('#modal-pending-junket-new-game')
+		.on('shown.bs.modal', function () {
+			bumpPendingResolveChildModalStack($(this));
+		})
+		.on('hidden.bs.modal', function () {
+			$('#pending_junket_account_display').val('');
+			$('#pending_junket_txtRemarks').val('');
+			resetPendingResolveChildModalStack($(this));
+			setPendingResolveChildModalOpen(false);
+		});
 
 	$('#pending_junket_new_game_form').on('submit', function (event) {
 		event.preventDefault();
@@ -7732,10 +8262,11 @@ $(document).ready(function () {
 		var nn = parseFloat(String($('#pending_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
 		var cc = parseFloat(String($('#pending_junket_txtCC').val() || '').replace(/,/g, '')) || 0;
 		var total = nn + cc;
-		var accountId = $('#pending_junket_txtAccount').val();
+		var accountId = $('#pending_junket_account_id').val();
+		var accountLabel = $('#pending_junket_account_display').val() || ('Account #' + accountId);
 
 		if (!accountId) {
-			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Please select an account for the new game.' });
+			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Junket account is not loaded. Please close and try again.' });
 			return;
 		}
 
@@ -7743,7 +8274,7 @@ $(document).ready(function () {
 			Swal.fire({
 				icon: 'error',
 				title: 'Amount mismatch',
-				html: 'Buy-in total must equal <strong>' + parseFloat(requiredBal).toLocaleString() + '</strong>.'
+				html: 'Buy-in total must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
 			});
 			return;
 		}
@@ -7752,11 +8283,10 @@ $(document).ready(function () {
 			return;
 		}
 
-		var accountLabel = $('#pending_junket_txtAccount option:selected').text() || accountId;
 		Swal.fire({
 			icon: 'question',
 			title: 'Confirm New Game',
-			html: 'Create a new game for <strong>' + accountLabel + '</strong> with buy-in <strong>' + parseFloat(total).toLocaleString() + '</strong>?<br>',
+			html: 'Create a new game for <strong>' + accountLabel + '</strong> with buy-in <strong>' + parseFloat(total).toLocaleString('en-US') + '</strong>?<br>',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, Confirm'
 		}).then(function (result) {
@@ -7817,7 +8347,7 @@ function archive_game_list(id) {
 	})
 }
 
-// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement_games
+// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services
 function delete_game_list(id, gameNoLabel) {
 	var label = (gameNoLabel != null && String(gameNoLabel).trim() !== '') ? String(gameNoLabel).trim() : String(id);
 	Swal.fire({
@@ -7913,7 +8443,7 @@ function edit_game_record_row(btnEl) {
 					results.forEach(function (rec) {
 						if (!rec || (rec.CAGE_TYPE === undefined && rec.cage_type === undefined)) return;
 						const cageType = parseInt(rec.CAGE_TYPE || rec.cage_type, 10);
-						function fmtNum(n) { var x = parseFloat(n) || 0; return isNaN(x) ? '0' : x.toLocaleString(); }
+						function fmtNum(n) { var x = parseFloat(n) || 0; return isNaN(x) ? '0' : x.toLocaleString('en-US'); }
 						if (cageType === 1) {
 							$('#edit-buyin-nn').val(fmtNum(rec.NN_CHIPS || rec.nn_chips));
 							$('#edit-buyin-cc').val(fmtNum(rec.CC_CHIPS || rec.cc_chips));
@@ -8019,11 +8549,11 @@ $(document).ready(function () {
 	});
 })
 
-function editService(id, service, amount, remarks, transaction) {
+function editService(id, service, amount, remarks, transaction, deliveryFee) {
 	const safeAmount = parseFloat(amount || 0);
+	const safeDeliveryFee = parseFloat(deliveryFee || 0) || 0;
 	$('#services-edit-id').val(id || '');
-	$('#services-edit-type').val(service || '');
-	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString());
+	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString('en-US'));
 	$('#services-edit-remarks').val(remarks || '');
 	$('input[name="services-edit-transaction"]').prop('checked', false);
 	const txnValue = parseInt(transaction, 10);
@@ -8031,14 +8561,19 @@ function editService(id, service, amount, remarks, transaction) {
 		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
 	}
 
-	$('#services-edit-agent-code').text($('#services-agent-code').text() || '');
-	$('#modal-services-edit').modal('show');
+	populateServicesCategorySelects(service, function () {
+		toggleServicesDeliveryFeeField('#services-edit-type', '#services-edit-delivery-fee-wrap', '#services-edit-delivery-fee');
+		$('#services-edit-delivery-fee').val(
+			safeDeliveryFee > 0 ? safeDeliveryFee.toLocaleString('en-US') : ''
+		);
+		$('#modal-services-edit').modal('show');
+	});
 }
 
 function deleteService(id) {
 	const gameId = $('#services-game-id-input').val();
 	if (!id || !gameId) return;
-	Swal.fire({
+	fireServicesSwal({
 		title: 'Delete this service?',
 		icon: 'warning',
 		showCancelButton: true,
@@ -8061,7 +8596,7 @@ function deleteService(id) {
 				$('#services-type').val('');
 				$('#services-amount').val('');
 				$('#services-remarks').val('');
-				Swal.fire({
+				fireServicesSwal({
 					icon: 'success',
 					title: 'Service deleted',
 					timer: 1200,
@@ -8070,7 +8605,7 @@ function deleteService(id) {
 			},
 			error: function (xhr) {
 				const msg = xhr.responseJSON?.error || 'Failed to delete service.';
-				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+				fireServicesSwal({ icon: 'error', title: 'Error', text: msg });
 			}
 		});
 	});
@@ -8100,11 +8635,8 @@ $(document).ready(function () {
 		}],
 		createdRow: function (row, data, index) {
 
-			if (parseInt(data[10].split(',').join('')) < 0) {
-				$('td:eq(10)', row).css({
-					'background-color': '#fff',
-					'color': 'red'
-				});
+			if (parseListAmount(data[10]) < 0) {
+				$('td:eq(10)', row).addClass('text-danger');
 			}
 		},
 	});
@@ -8124,7 +8656,7 @@ $(document).ready(function () {
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
 						<i class="fa fa-file-alt"></i>
 						</button>
-						<button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+						<button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, null, null, null, ${gameListAgentOnclickArgs(row.agent_code, row.guest_name)})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
 						<i class="fa fa-exchange-alt"></i>
 						</button>
@@ -8141,13 +8673,7 @@ $(document).ready(function () {
                             <i class="fa fa-history"></i>
                     </button>
                </div>`;
-                    var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_code || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
-                            style="font-size:8px !important; margin-right: 5px;">
-                            <i class="fa fa-concierge-bell"></i>
-                        </button>
-                    </div>`;
+                    var btn_remarks = buildGameRemarksButton(row);
 
 
 						
@@ -8245,7 +8771,7 @@ $(document).ready(function () {
 
 							var buyinBtnStyleStats = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRowStats ? 'color:#dc3545 !important;' : '');
 							var formatBuyinPlainStats = function (amt) {
-								var s = parseFloat(amt).toLocaleString();
+								var s = parseFloat(amt).toLocaleString('en-US');
 								return isMarkerGameRowStats ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
 							};
 
@@ -8268,11 +8794,10 @@ $(document).ready(function () {
 
 							var total_amount = total_buy_in_chips + total_initial;
 
-							var net = (total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100)).toLocaleString();
+							var net = (total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100)).toLocaleString('en-US');
 
-							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
-							
-								var WinLoss = total_amount - total_cash_out_chips;
+							var WinLoss = total_amount - total_cash_out_chips;
+							var winloss = formatListAmount(WinLoss, 'signed');
 								
 								
 
@@ -8285,27 +8810,27 @@ $(document).ready(function () {
 							var cashout_td = '';
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
+								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, ${row.GUEST_ID || 'null'}, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'}, ${gameListAgentOnclickArgs(row.agent_code, row.guest_name)})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
 									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:10px !important;">${onGameText}</button>`;
 
-								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
-								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, true);
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-                                var actionButtons = btn_services + btn_his;
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
+								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+                                var actionButtons = btn_remarks + btn_his;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
-								var pendingChangeOnclickStats = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ", '" + (row.agent_code || '').replace(/'/g, "\\'") + "')";
+								var pendingChangeOnclickStats = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								status = buildPendingGameEndStatusHtml(row, pendingChangeOnclickStats);
 								
 								buyin_td = formatBuyinPlainStats(total_amount);
-								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
-                                var actionButtons = btn_services + btn_his;
-                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+								cashout_td = formatListAmount(total_cash_out_chips, 'out');
+                                var actionButtons = btn_remarks + btn_his;
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
-								var statsEndOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')';
+								var statsEndOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								if (isPendingRollerOrangeRow(row)) {
 									status = buildPendingGameEndStatusHtml(row, statsEndOnclick);
 								} else {
@@ -8313,8 +8838,8 @@ $(document).ready(function () {
 								}
 
 								buyin_td = formatBuyinPlainStats(total_amount);
-								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, total_rolling_chips, false);
-								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
+								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
 								
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
 								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
@@ -8331,13 +8856,13 @@ $(document).ready(function () {
 										<i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
-						   var actionButtons = btn_services + btn_settle;
-						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   var actionButtons = btn_remarks + btn_settle;
+						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 
 							}
 
-							// dataTable.row.add([`${row.GAME_NO}`, `${row.game_list_id} (${row.agent_name})`, parseFloat(total_buy_in).toLocaleString(), parseFloat(total_cash_out).toLocaleString(), parseFloat(total_rolling).toLocaleString(), parseFloat(gross).toLocaleString(), parseFloat(net).toLocaleString(), status, btn]).draw();
+							// dataTable.row.add([`${row.GAME_NO}`, `${row.game_list_id} (${row.agent_name})`, parseFloat(total_buy_in).toLocaleString('en-US'), parseFloat(total_cash_out).toLocaleString('en-US'), parseFloat(total_rolling).toLocaleString('en-US'), parseFloat(gross).toLocaleString('en-US'), parseFloat(net).toLocaleString('en-US'), status, btn]).draw();
 							
 						},
 						error: function (xhr, status, error) {
@@ -8920,41 +9445,23 @@ function settlement_history(record_id, acc_id) {
         });
 
         $.when.apply($, requests).done(function () {
-            var fnbTotal = 0;
-            var hotelTotal = 0;
+            var totalsMap = {};
             var argList = ids.length === 1 ? [arguments] : Array.prototype.slice.call(arguments);
 
             argList.forEach(function (response) {
                 var list = ids.length === 1 ? response[0] : response[0];
-                if (!Array.isArray(list)) {
-                    return;
-                }
-                list.forEach(function (item) {
-                    var transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
-                    if (transactionId !== 3) {
-                        return;
-                    }
-                    var serviceType = String(item.SERVICE_TYPE || item.service_type || '').toLowerCase().trim();
-                    var amt = parseFloat(item.AMOUNT || item.amount || 0);
-                    var safeAmount = isNaN(amt) ? 0 : amt;
-                    if (serviceType === 'hotel') {
-                        hotelTotal += safeAmount;
-                        return;
-                    }
-                    if (serviceType === 'fnb' || serviceType === 'delivery') {
-                        fnbTotal += safeAmount;
-                    }
-                });
+                accumulateSettlementServiceTotals(totalsMap, list);
             });
 
-            var combinedServices = fnbTotal + hotelTotal;
-            $('#fbDisplay').val(fnbTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
-            $('#hotelDisplay').val(hotelTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+            var entries = buildSettlementServiceEntries(totalsMap);
+            renderSettlementServiceRows(entries);
+            var combinedServices = entries.reduce(function (sum, entry) {
+                return sum + entry.amount;
+            }, 0);
             $('#fb').val(combinedServices.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
             $('#fb').trigger('input');
         }).fail(function () {
-            $('#fbDisplay').val('0');
-            $('#hotelDisplay').val('0');
+            renderSettlementServiceRows([]);
             $('#fb').val('0');
             $('#fb').trigger('input');
         });
@@ -8964,7 +9471,7 @@ function settlement_history(record_id, acc_id) {
         var fb = parseFloat($('#fb').val().replace(/,/g, '')) || 0;
         var net = parseFloat($('#rollingSettlement').val().replace(/,/g, '')) || 0;
         var payment = net - fb;
-        $('#payment').val(payment.toLocaleString());
+        $('#payment').val(payment.toLocaleString('en-US'));
     }
 
     function applySettlementTab(viewMode) {
@@ -9106,7 +9613,7 @@ function settlement_history(record_id, acc_id) {
                 var account_id = primaryData[0].ACCOUNT_ID;
 
                 $('#accNo').text(accNo || 'N/A');
-                $('#settlement-agent-code').text(primaryData[0].agent_code || '');
+                setGameListModalAccountLabel('#settlement-agent-code', primaryData[0].agent_code, primaryData[0].guest_name);
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
 
@@ -9229,8 +9736,6 @@ function settlement_history(record_id, acc_id) {
         var rollingRate = $('#rollingRate').val() || '0';
         var rollingSettlement = $('#rollingSettlement').val().replace(/,/g, '') || '0';
         var services = $('#fb').val().replace(/,/g, '') || '0';
-        var fnbDisplay = $('#fbDisplay').val().replace(/,/g, '') || '0';
-        var hotelDisplay = $('#hotelDisplay').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $settlementModal.find('input[name="txtTransType"]:checked').val();
         if (!transType || (transType !== '1' && transType !== '5')) {
@@ -9278,19 +9783,20 @@ function settlement_history(record_id, acc_id) {
         };
 
         var confirmationRows = '';
-        confirmationRows += buildRow('Buy-In:', parseFloat(buyIn).toLocaleString());
-        confirmationRows += buildRow('Chips Return:', parseFloat(chipsReturn).toLocaleString());
-        confirmationRows += buildRow('Win/Loss:', parseFloat(winLoss).toLocaleString());
-        confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString());
+        confirmationRows += buildRow('Buy-In:', parseFloat(buyIn).toLocaleString('en-US'));
+        confirmationRows += buildRow('Chips Return:', parseFloat(chipsReturn).toLocaleString('en-US'));
+        confirmationRows += buildRow('Win/Loss:', parseFloat(winLoss).toLocaleString('en-US'));
+        confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString('en-US'));
         confirmationRows += buildRow('Rate:', `${parseFloat(rollingRate).toFixed(2)}%`);
-        confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString());
-        if (parseFloat(fnbDisplay) > 0) {
-            confirmationRows += buildRow('F&B:', parseFloat(fnbDisplay).toLocaleString());
-        }
-        if (parseFloat(hotelDisplay) > 0) {
-            confirmationRows += buildRow('Hotel:', parseFloat(hotelDisplay).toLocaleString());
-        }
-        confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString());
+        confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString('en-US'));
+        $settlementModal.find('.settlement-service-row').each(function () {
+            var label = $(this).find('.settlement-service-label').text().trim();
+            var amount = parseFloat(($(this).find('.settlement-service-amount').val() || '').replace(/,/g, '')) || 0;
+            if (amount > 0 && label) {
+                confirmationRows += buildRow(label + ':', amount.toLocaleString('en-US'));
+            }
+        });
+        confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString('en-US'));
         if (transTypeText) {
             confirmationRows += buildRow('Transaction Type:', transTypeText);
         }
@@ -9426,7 +9932,7 @@ $('#txtTrans').on('change', function () {
 		
 					// Set raw numeric value safely
 					$('#total_balanceGuest1').val(totalBalance);
-					$('#total_balanceGuestGameList').val(totalBalance.toLocaleString());
+					$('#total_balanceGuestGameList').val(totalBalance.toLocaleString('en-US'));
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching account details:', error);

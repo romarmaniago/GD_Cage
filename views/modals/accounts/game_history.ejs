@@ -28,6 +28,8 @@
 
               <tr>
 
+                <th class="text-center col-program-date">PROGRAM DATE</th>
+
                 <th class="text-center">GAME START</th>
 
                 <th class="text-center">TYPE</th>
@@ -68,7 +70,7 @@
 
               <tr id="game-history-totals-row">
 
-                <td class="text-center" colspan="4">TOTAL</td>
+                <td class="text-center" colspan="5">TOTAL</td>
 
                 <td class="col-buyin" id="gh-total-buyin">0</td>
 
@@ -420,6 +422,30 @@
 
 
 
+    const formatProgramDate = (val) => {
+
+        if (!val) return '-';
+
+        if (typeof moment !== 'undefined') {
+
+            const m = moment.utc(val).utcOffset(8);
+
+            if (m.isValid()) return m.format('MMM DD, YYYY');
+
+        }
+
+        const d = new Date(val);
+
+        return isNaN(d.getTime())
+
+            ? '-'
+
+            : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+    };
+
+
+
     const formatDate = (val) => {
 
         if (!val) return '';
@@ -445,11 +471,21 @@
 
 
     const formatAmount = (val) => {
-
         const num = Number(val || 0);
-
+        if (window.fmtAmt) return window.fmtAmt(num);
         return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
 
+    const formatCashoutAmount = (val) => {
+        if (window.fmtOut) return window.fmtOut(val);
+        return formatAmount(val);
+    };
+
+    const formatSignedAmountDisplay = (val) => {
+        const num = Number(val || 0);
+        if (window.fmtSigned) return window.fmtSigned(num);
+        if (num < 0) return '(' + Math.abs(num).toLocaleString('en-US') + ')';
+        return formatAmount(num);
     };
 
 
@@ -516,17 +552,19 @@
 
         });
 
-        const set = (id, val) => {
-
+        const setHtml = (id, html) => {
             const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        };
 
+        const set = (id, val) => {
+            const el = document.getElementById(id);
             if (el) el.textContent = formatAmount(val);
-
         };
 
         set('gh-total-buyin', buyIn);
 
-        set('gh-total-cashout', cashOut);
+        setHtml('gh-total-cashout', formatCashoutAmount(cashOut));
 
         set('gh-total-total-rolling', totalRolling);
 
@@ -538,16 +576,13 @@
 
         set('gh-total-rollerchips', rollerChips);
 
-        set('gh-total-winloss', winLoss);
+        setHtml('gh-total-winloss', formatSignedAmountDisplay(winLoss));
 
         const winlossEl = document.getElementById('gh-total-winloss');
 
         if (winlossEl) {
-
-            if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative');
-
-            else winlossEl.classList.remove('gh-total-winloss-negative');
-
+            if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative', 'text-danger');
+            else winlossEl.classList.remove('gh-total-winloss-negative', 'text-danger');
         }
 
     }
@@ -588,7 +623,7 @@
 
                 data: dataRows,
 
-                order: [[0, 'desc']],
+                order: [[1, 'desc']],
 
                 pageLength: 10,
 
@@ -596,33 +631,35 @@
 
                 columnDefs: [
 
-                    { width: '150px', targets: 0 },
+                    { className: 'col-program-date', width: '120px', targets: 0 },
 
-                    { width: '100px', targets: 1 },
+                    { width: '150px', targets: 1 },
 
-                    { width: '80px', targets: 2 },
+                    { width: '100px', targets: 2 },
 
-                    { className: 'col-guest', width: '120px', targets: 3 },
+                    { width: '80px', targets: 3 },
 
-                    { className: 'col-buyin', width: '130px', targets: 4 },
+                    { className: 'col-guest', width: '120px', targets: 4 },
 
-                    { className: 'col-cashout', width: '130px', targets: 5 },
+                    { className: 'col-buyin', width: '130px', targets: 5 },
 
-                    { className: 'col-winloss', width: '130px', targets: 6 },
+                    { className: 'col-cashout', width: '130px', targets: 6 },
 
-                    { className: 'col-total-rolling', width: '130px', targets: 7 },
+                    { className: 'col-winloss', width: '130px', targets: 7 },
 
-                    { className: 'col-game-rate', width: '120px', targets: 8 },
+                    { className: 'col-total-rolling', width: '130px', targets: 8 },
 
-                    { className: 'col-commission', width: '100px', targets: 9 },
+                    { className: 'col-game-rate', width: '120px', targets: 9 },
 
-                    { className: 'col-add-chg', width: '100px', targets: 10 },
+                    { className: 'col-commission', width: '100px', targets: 10 },
 
-                    { className: 'col-total-settle', width: '110px', targets: 11 },
+                    { className: 'col-add-chg', width: '100px', targets: 11 },
 
-                    { className: 'col-game-end', width: '150px', targets: 12 },
+                    { className: 'col-total-settle', width: '110px', targets: 12 },
 
-                    { className: 'col-roller-chips', width: '100px', targets: 13 }
+                    { className: 'col-game-end', width: '150px', targets: 13 },
+
+                    { className: 'col-roller-chips', width: '100px', targets: 14 }
 
                 ],
 
@@ -645,6 +682,38 @@
                 },
 
                 columns: [
+
+                    {
+
+                        data: 'PROGRAM_DATE',
+
+                        className: 'text-center col-program-date',
+
+                        render: function (data, type, row) {
+
+                            const raw = data || row.PROGRAM_DATE || row.game_date_start;
+
+                            if (type === 'sort' || type === 'type') {
+
+                                if (typeof moment !== 'undefined') {
+
+                                    const m = moment.utc(raw).utcOffset(8);
+
+                                    return m.isValid() ? m.valueOf() : 0;
+
+                                }
+
+                                const t = Date.parse(raw);
+
+                                return isNaN(t) ? 0 : t;
+
+                            }
+
+                            return formatProgramDate(raw);
+
+                        }
+
+                    },
 
                     {
 
@@ -714,7 +783,7 @@
 
                         className: 'col-cashout',
 
-                        render: function (data) { return formatAmount(data); }
+                        render: function (data) { return formatCashoutAmount(data); }
 
                     },
 
@@ -724,7 +793,7 @@
 
                         className: 'col-winloss',
 
-                        render: function (data) { return formatAmount(data); }
+                        render: function (data) { return formatSignedAmountDisplay(data); }
 
                     },
 
@@ -919,6 +988,10 @@
         if (modal) {
 
             await loadGameHistoryRows(accountId, guestId);
+
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($('#modal-game-history'));
+            }
 
             modal.show();
 

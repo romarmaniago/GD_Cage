@@ -187,7 +187,7 @@ function buildJflManagementTelegramText(payload) {
 		transTypeTelegramHeadline(action, transType),
 		'',
 		`유형 : ${transTypeLabel(transType)}`,
-		`금액 Amount : ${(Number(amount) || 0).toLocaleString()}${ccyLabel}`
+		`금액 Amount : ${(Number(amount) || 0).toLocaleString('en-US')}${ccyLabel}`
 	];
 	if (accountLabel) {
 		lines.push(`계정 Account : ${accountLabel}`);
@@ -195,7 +195,7 @@ function buildJflManagementTelegramText(payload) {
 	lines.push(
 		`담당 In charge : ${inCharge || '-'}`,
 		`비고 Remarks : ${remarks || '-'}`,
-		`잔고 Balance${ccyLabel ? ` (${currencyCode})` : ''} : ${(Number(balance) || 0).toLocaleString()}`,
+		`잔고 Balance${ccyLabel ? ` (${currencyCode})` : ''} : ${(Number(balance) || 0).toLocaleString('en-US')}`,
 		`처리 Processed by : ${processedBy || 'Unknown'}`,
 		'',
 		`날짜 Date : ${date}`,
@@ -327,7 +327,7 @@ async function assertSufficientJunketBalance(transType, amount, currencyId, excl
 	if (amount > effectiveBalance) {
 		const code = currency.CODE ? String(currency.CODE) : '';
 		const label = code ? `${code} ` : '';
-		return `Insufficient ${label}balance. Available: ${effectiveBalance.toLocaleString()}`;
+		return `Insufficient ${label}balance. Available: ${effectiveBalance.toLocaleString('en-US')}`;
 	}
 	return null;
 }
@@ -550,6 +550,8 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
 				mxe.GUEST_NAME AS EXCHANGE_GUEST_NAME,
+				mxe.AMOUNT_IN AS EXCHANGE_AMOUNT_IN,
+				in_cm.CODE AS EXCHANGE_IN_CURRENCY_CODE,
 				ex_ag.AGENT_CODE AS EXCHANGE_AGENT_CODE,
 				ex_ag.NAME AS EXCHANGE_AGENT_NAME,
 				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME
@@ -559,6 +561,7 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			LEFT JOIN multipurpose_ledger_exchange mxe
 				ON mxe.LEDGER_ID = jl.IDNo AND mxe.TRANS_TYPE = 1 AND mxe.ACTIVE = 1
+			LEFT JOIN currency_master in_cm ON in_cm.ID = mxe.IN_CURRENCY_ID
 			LEFT JOIN account ex_acc ON ex_acc.IDNo = mxe.ACCOUNT_ID
 			LEFT JOIN agent ex_ag ON ex_ag.IDNo = ex_acc.AGENT_ID
 			LEFT JOIN user_info ui ON ui.IDNo = jl.ENCODED_BY
@@ -569,18 +572,20 @@ router.get('/multipurpose_ledger_data', checkSession, async (req, res) => {
 
 		const data = (rows || []).map((row) => {
 			let accountDisplay = '-';
+			let guestDisplay = '';
 			if (Number(row.TRANS_TYPE) === TRANS_TYPE.MONEY_EXCHANGE) {
 				if (row.EXCHANGE_AGENT_CODE) {
 					accountDisplay = `${row.EXCHANGE_AGENT_CODE}${row.EXCHANGE_AGENT_NAME ? ` — ${row.EXCHANGE_AGENT_NAME}` : ''}`;
-				} else if (row.EXCHANGE_GUEST_NAME) {
-					accountDisplay = String(row.EXCHANGE_GUEST_NAME).trim();
 				}
+				guestDisplay = row.EXCHANGE_GUEST_NAME ? String(row.EXCHANGE_GUEST_NAME).trim() : '';
 			} else if (row.ACCOUNT_ID && row.AGENT_CODE) {
 				accountDisplay = `${row.AGENT_CODE}${row.AGENT_NAME ? ` — ${row.AGENT_NAME}` : ''}`;
 			}
 			return {
 				...row,
 				ACCOUNT_DISPLAY: accountDisplay,
+				GUEST_DISPLAY: guestDisplay || '-',
+				APPROVED_BY_DISPLAY: row.IN_CHARGE ? String(row.IN_CHARGE).trim() : '',
 				TRANS_TYPE_LABEL: transTypeLabel(row.TRANS_TYPE)
 			};
 		});
@@ -614,7 +619,7 @@ router.post('/add_multipurpose_ledger', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Remarks is required' });
 		}
 		if (!inCharge) {
-			return res.status(400).json({ message: 'Person in charge is required' });
+			return res.status(400).json({ message: 'Approved by is required' });
 		}
 
 		await connection.beginTransaction();
@@ -687,7 +692,7 @@ router.put('/multipurpose_ledger/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Remarks is required' });
 		}
 		if (!inCharge) {
-			return res.status(400).json({ message: 'Person in charge is required' });
+			return res.status(400).json({ message: 'Approved by is required' });
 		}
 
 		const [existingRows] = await connection.execute(
@@ -1073,7 +1078,7 @@ router.post('/multipurpose_ledger/exchange/deposit', checkSession, async (req, r
 		const dateNow = new Date();
 
 		if (!inCharge) {
-			return res.status(400).send('Person in charge is required');
+			return res.status(400).send('Approved by is required');
 		}
 		if (!accountId && !guestName) {
 			return res.status(400).send('Guest name is required when no account is selected');
@@ -1168,7 +1173,7 @@ router.post('/multipurpose_ledger/exchange/deposit', checkSession, async (req, r
 			action: 'add',
 			transType: TRANS_TYPE.MONEY_EXCHANGE,
 			amount: exchangeAmt,
-			remarks: `${ledgerRemarks} | +${amountIn.toLocaleString()} ${inCode}`,
+			remarks: `${ledgerRemarks} | +${amountIn.toLocaleString('en-US')} ${inCode}`,
 			inCharge,
 			accountLabel,
 			balance: balanceEx,

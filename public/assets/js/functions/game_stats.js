@@ -100,7 +100,7 @@ $(document).ready(function () {
 	
 							var total_amount = total_buy_in_chips + total_initial;
 	
-							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
+							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString('en-US');
 							
 							var WinLoss = total_amount - total_cash_out_chips;
 	
@@ -181,7 +181,7 @@ $(document).ready(function () {
 							// Create the button for averageHouseShare
 							var averageHouseShareButton = '<button class="btn btn-link" style="font-size:13px;text-decoration: underline;" ' +
 							'onclick="updateHouseShare(\'' + gameType + '\', ' + averageHouseShare + ')">' +
-							averageHouseShare.toLocaleString() + '</button>';
+							averageHouseShare.toLocaleString('en-US') + '</button>';
 
 							// Calculate houseSharePercentage using averageHouseShare
 							var houseSharePercentage = parseFloat(averageHouseShare / 100); // Convert averageHouseShare to number
@@ -195,16 +195,16 @@ $(document).ready(function () {
 			
 							dataTable.row.add([
 								`<a href="/${gameType.toLowerCase()}_statistic">${gameType}</a>`,
-								totalValues.totalAmount.toLocaleString(),
-								totalValues.winloss.toLocaleString(),
-								parseFloat(totalValues.totalRollingChips).toLocaleString(),
-								totalValues.formattedNet.toLocaleString(),
-								averageHouseShareButton.toLocaleString(),
-								Math.round(totalValues.ngr).toLocaleString(),
+								totalValues.totalAmount.toLocaleString('en-US'),
+								totalValues.winloss.toLocaleString('en-US'),
+								parseFloat(totalValues.totalRollingChips).toLocaleString('en-US'),
+								totalValues.formattedNet.toLocaleString('en-US'),
+								averageHouseShareButton.toLocaleString('en-US'),
+								Math.round(totalValues.ngr).toLocaleString('en-US'),
 								`${totalValues.rtp.toFixed(2)}%`,
 								totalValues.rm.toFixed(2),
-								totalValues.expense.toLocaleString(),
-								profit.toLocaleString()
+								totalValues.expense.toLocaleString('en-US'),
+								profit.toLocaleString('en-US')
 							]).draw();
 						}
 					}

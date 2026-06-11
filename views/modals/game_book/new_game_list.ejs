@@ -20,7 +20,7 @@ const _sqlRollerCCSubtract = typeof sqlRollerCCSubtract !== 'undefined' ? sqlRol
 const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd : [{ ROLLER_CC_ADD: 0 }];
 %>
 <div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered new-game-list-modal-dialog">
         <div class="modal-content">
         <div class="modal-header bg-primary">
             <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_new_game_list.new_game') %></h5>
@@ -37,7 +37,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                 (+_sqlCCChipsRolling[0].CCChipsRolling || 0) + (+_sqlNNBuyin[0].NNBuyin
                  || 0) - (+_sqlNNReturn[0].NNReturn || 0) -
                  (+_sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                 (+_sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
+                 (+_sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString('en-US') %></h6>
             <h6 id="availableCC" class="d-none"><%- ( (+_sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
                 (+_sqlCCChipsCashout[0].CCChipsCashout || 0) +
                  (+_sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
@@ -47,7 +47,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                  (+_sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+_sqlCCBuyin[0].CCBuyin ||
                  0) - (+_sqlCCReturn[0].CCReturn || 0) -
                  (+_sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                 (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
+                 (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString('en-US') %></h6>
              
           
                 <!-- Total Balance Display -->
@@ -57,21 +57,9 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                         <input type="text" class="form-control text-center" id="total_balanceGuestGameList" placeholder="Total Balance" readonly/>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-12 d-flex flex-wrap align-items-center gap-3">
-                        <div class="flex-grow-1" style="min-width: 9rem; max-width: 13.5rem;">
-                            <input type="text" class="form-control" name="txtGameEncodedDate" id="txtGameEncodedDate" autocomplete="off" placeholder="YYYY-MM-DD HH:mm" />
-                        </div>
-                        <div class="d-flex align-items-center flex-wrap gap-4 ms-4">
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="live" name="txtGameType" value="LIVE" required>
-                                <label class="form-check-label" for="live"><%= __('modal_new_game_list.live') %></label>
-                            </div>
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="telebet" name="txtGameType" value="TELEBET" required>
-                                <label class="form-check-label" for="telebet"><%= __('modal_new_game_list.telebet') %></label>
-                            </div>
-                        </div>
+                <div class="row mb-2">
+                    <div class="col-6">
+                        <input type="text" class="form-control" name="txtProgramDate" id="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
                     </div>
                 </div>
 
@@ -131,7 +119,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
               <div class="row mb-2">
                   <div class="col-sm-12 d-flex align-items-center justify-content-between">
                       <div class="form-check mb-0">
-                          <input class="form-check-input" type="checkbox" id="enableSplitNewGame">
+                          <input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="enableSplitNewGame">
                           <label class="form-check-label" for="enableSplitNewGame">
                               Split Buy-in
                           </label>
@@ -183,19 +171,27 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                
                 </div>
             </div>
-            <div class="row mb-2">
+            <div class="row mb-2 align-items-center">
                 <div class="col-sm-6">
-                  
                     <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerNN" id="txtRollerNN" placeholder="Roller NN Chips" />
                 </div>
-                <div class="col-sm-6">
-                
+                <div class="col-sm-6 d-flex align-items-center new-game-type-radios flex-wrap gap-3 gap-sm-4">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="live" name="txtGameType" value="LIVE" required>
+                        <label class="form-check-label" for="live"><%= __('modal_new_game_list.live') %></label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="telebet" name="txtGameType" value="TELEBET" required>
+                        <label class="form-check-label" for="telebet"><%= __('modal_new_game_list.telebet') %></label>
+                    </div>
+                </div>
+                <div class="col-sm-6" style="display: none;">
                     <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerCC" id="txtRollerCC" placeholder="Roller CC Chips" />
                 </div>
             </div>
 
               <hr style="border: 1px solid">
-              <div class="row mb-2">
+              <div class="row mb-2 align-items-center g-2">
                   <div class="col-sm-5">
                       <select class="form-select" name="txtCommisionType" id="commissionType" style="width: 100%;" required>
                           <option value="" disabled><%= __('modal_new_game_list.select_game') %></option>
@@ -205,7 +201,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                       </select>
                   </div>
 
-                  <div class="col-sm-3">
+                  <div class="col-sm-2">
                       <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
                   </div>
               </div>
@@ -220,6 +216,15 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
     </div>
 
 <style>
+#modal-new-game-list .new-game-list-modal-dialog {
+    max-width: 580px;
+}
+
+#modal-new-game-list .new-game-type-radios {
+    justify-content: flex-start;
+    padding-left: 2rem;
+}
+
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.selected,
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.startRange,
 .flatpickr-calendar.new-game-date-calendar .flatpickr-day.endRange,
@@ -277,6 +282,16 @@ function newGameListSplitBuyinEnabled() {
     return !!(el && el.checked);
 }
 
+function newGameListSplitLegTotal(id) {
+    const el = document.getElementById(id);
+    const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+    return v === '' ? 0 : (parseFloat(v) || 0);
+}
+
+function newGameListSplitHasCreditLeg() {
+    return newGameListSplitLegTotal('splitCreditNN') + newGameListSplitLegTotal('splitCreditCC') > 0;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const txtNN = document.getElementById("txtNN");
     const txtRollerNN = document.getElementById("txtRollerNN");
@@ -325,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available NN Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (including Roller NN).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (including Roller NN).`,
                     confirmButtonColor: '#3a57e8'
                 });
 
@@ -348,7 +363,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available NN Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (NN buy-in + Roller NN).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (NN buy-in + Roller NN).`,
                     confirmButtonColor: '#3a57e8'
                 });
                 this.value = '';
@@ -392,6 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!inputEl) return;
         inputEl.addEventListener('input', function () {
             validateNnSplitInput(inputEl);
+            newGameListRefreshCommissionRate();
             const id = (inputEl.id || '').toLowerCase();
             const avNN = newGameListAvailableNN();
             const avCC = newGameListAvailableCC();
@@ -402,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Exceeds Available NN Chips',
-                        text: 'Split NN total (plus Roller NN) cannot exceed ' + avNN.toLocaleString() + ' Chips.',
+                        text: 'Split NN total (plus Roller NN) cannot exceed ' + avNN.toLocaleString('en-US') + ' Chips.',
                         confirmButtonColor: '#3a57e8'
                     });
                     inputEl.value = '';
@@ -418,7 +434,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Exceeds Available CC Chips',
-                        text: 'Split CC total (plus Roller CC) cannot exceed ' + avCC.toLocaleString() + ' Chips.',
+                        text: 'Split CC total (plus Roller CC) cannot exceed ' + avCC.toLocaleString('en-US') + ' Chips.',
                         confirmButtonColor: '#3a57e8'
                     });
                     inputEl.value = '';
@@ -446,6 +462,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 inputEl.classList.remove('is-invalid');
             });
         }
+        newGameListRefreshCommissionRate();
     });
 });
 
@@ -469,7 +486,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available CC Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (including Roller CC).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (including Roller CC).`,
                     confirmButtonColor: '#3a57e8'
                 });
 
@@ -490,7 +507,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Exceeds Available CC Chips',
-                    text: `You only have ${available.toLocaleString()} Chips available (CC buy-in + Roller CC).`,
+                    text: `You only have ${available.toLocaleString('en-US')} Chips available (CC buy-in + Roller CC).`,
                     confirmButtonColor: '#3a57e8'
                 });
                 this.value = '';
@@ -500,63 +517,89 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
     
+function newGameListRefreshCommissionRate() {
+    const commissionType = document.getElementById('commissionType');
+    const commissionRate = document.getElementById('commissionRate');
+    if (!commissionType || !commissionRate) return;
+
+    const defaultRollingGameRate = 1.50;
+    const defaultSharedGameRate = 50;
+    const defaultMarkerRollingRate = 1.50;
+
+    if (newGameListSplitBuyinEnabled()) {
+        commissionRate.setAttribute('required', 'required');
+        commissionRate.classList.remove('is-invalid');
+        if (commissionType.value === '1') {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.setAttribute('min', '0');
+            commissionRate.value = newGameListSplitHasCreditLeg()
+                ? defaultMarkerRollingRate
+                : defaultRollingGameRate;
+        } else if (commissionType.value === '2') {
+            commissionRate.setAttribute('step', '0.1');
+            commissionRate.setAttribute('min', '50');
+            commissionRate.value = defaultSharedGameRate;
+        } else {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.removeAttribute('min');
+            commissionRate.value = '';
+        }
+        return;
+    }
+
+    commissionRate.removeAttribute('required');
+    commissionRate.classList.remove('is-invalid');
+
+    const selectedTransactionRadio = document.querySelector('#modal-new-game-list input[name="txtTransType"]:checked');
+    const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
+
+    if (!selectedTransaction) {
+        commissionRate.value = '';
+        if (commissionType.value === '1') {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.setAttribute('min', '0');
+        } else if (commissionType.value === '2') {
+            commissionRate.setAttribute('step', '0.1');
+            commissionRate.setAttribute('min', '50');
+        } else {
+            commissionRate.setAttribute('step', '0.05');
+            commissionRate.removeAttribute('min');
+        }
+        return;
+    }
+
+    if (commissionType.value === '1') {
+        commissionRate.setAttribute('step', '0.05');
+        if (selectedTransaction === '3') {
+            commissionRate.value = defaultMarkerRollingRate;
+            commissionRate.setAttribute('min', '0');
+        } else {
+            commissionRate.value = defaultRollingGameRate;
+            commissionRate.setAttribute('min', '0');
+        }
+    } else if (commissionType.value === '2') {
+        commissionRate.setAttribute('step', '0.1');
+        commissionRate.value = defaultSharedGameRate;
+        commissionRate.setAttribute('min', '50');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const commissionType = document.getElementById('commissionType');
     const commissionRate = document.getElementById('commissionRate');
     const form = document.getElementById('add_game_list');
 
-    // Set default commission rates
-    let defaultRollingGameRate = 1.50;  // Default for Rolling Game (CASH/DEPOSIT)
-    let defaultSharedGameRate = 50;    // Default for Shared Game (CASH/DEPOSIT and Marker)
-    let defaultMarkerRollingRate = 1.50;  // Default for Rolling Game (Marker)
-
-    // Initialize commission rate based on selected commission type
-    const setCommissionRate = () => {
-        // Check if elements exist
-        if (!commissionType || !commissionRate) {
-            return; // Exit early if elements don't exist
-        }
-
-        // Get selected transaction with null check
-        const selectedTransactionRadio = document.querySelector('input[name="txtTransType"]:checked');
-        const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
-
-        // Handle different commission type logic based on transaction
-        if (commissionType.value === "1") { // Rolling Game
-            commissionRate.setAttribute("step", "0.05"); // 0.05 increment for Rolling Game only
-            if (selectedTransaction === "3") { // Marker selected
-                commissionRate.value = defaultMarkerRollingRate; // Set to 0% for Marker
-                commissionRate.setAttribute("min", "0"); // Minimum 0% for Marker
-            } else {
-                commissionRate.value = defaultRollingGameRate; // Default 1.5% for CASH/DEPOSIT
-                commissionRate.setAttribute("min", "0"); // Minimum 1.4% for Rolling Game (CASH/DEPOSIT)
-            }
-        } else if (commissionType.value === "2") { // Shared Game
-            commissionRate.setAttribute("step", "0.1"); // Shared keeps its own increment (keydown 2.5)
-            commissionRate.value = defaultSharedGameRate; // Default 50% for both CASH/DEPOSIT and Marker
-            commissionRate.setAttribute("min", "50"); // Minimum 50% for Shared Game
-        }
-    };
-
-    // Listen to commission type changes (Rolling, Shared, etc.)
     if (commissionType && commissionRate) {
-        commissionType.addEventListener('change', function () {
-            setCommissionRate();
-        });
+        commissionType.addEventListener('change', newGameListRefreshCommissionRate);
     }
 
-    // Listen to transaction type changes (CASH/DEPOSIT or MARKER)
-    const transactionTypeRadios = document.querySelectorAll('input[name="txtTransType"]');
-    transactionTypeRadios.forEach(radio => {
-        radio.addEventListener('change', function () {
-            setCommissionRate();
-        });
+    const transactionTypeRadios = document.querySelectorAll('#modal-new-game-list input[name="txtTransType"]');
+    transactionTypeRadios.forEach(function (radio) {
+        radio.addEventListener('change', newGameListRefreshCommissionRate);
     });
 
-    // Set initial step and rate (Rolling Game selected by default)
-    // Only call if elements exist
     if (commissionType && commissionRate) {
-        setCommissionRate();
+        newGameListRefreshCommissionRate();
     }
 
     // Event listener for keydown (Arrow Up & Arrow Down)

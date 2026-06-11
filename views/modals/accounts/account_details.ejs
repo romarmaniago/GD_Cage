@@ -27,6 +27,7 @@
                             <div class="card-body">
                                 <form id="add_new_account_details_alt">
                                     <input type="hidden" id="account_id_add" name="txtAccountId">
+                                    <input type="hidden" id="account_agent_id" value="">
                                     <input type="hidden" id="total_balanceGuest" name="totalBalanceGuest" />
                                     <img id="zoomed-image" src="" alt="Zoomed Account Photo"> 
                                     <div class="form-group">
@@ -145,19 +146,22 @@
                                 </div>
                             </div>
                                 <div class="card-body">
-                                <div class="text-end mb-4">
-                                    <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
-                                    <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
-                                    <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary" id="btn-reset-account-details-filter" data-bs-toggle="tooltip" data-bs-placement="top" title="Reset filter">
-                                        <i class="fa fa-refresh"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
-                                    <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
-                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
-                                        <i class="fa fa-id-card me-1"></i>Info
-                                    </button>
-                                    <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 guest-portal-action-row">
+                                    <button type="button" class="btn btn-sm btn-success" id="btn-guest-portal-game-start"><%= __('modal_account_details.game_start') %></button>
+                                    <div class="d-flex flex-wrap justify-content-end gap-2 ms-auto">
+                                        <button type="button" class="btn btn-sm btn-success" id="btn-filter-deposit">Deposit</button>
+                                        <button type="button" class="btn btn-sm btn-warning" id="btn-filter-withdraw">Withdraw</button>
+                                        <button type="button" class="btn btn-sm btn-info" id="btn-filter-transfer">Transfer</button>
+                                        <button type="button" class="btn btn-sm btn-alt-secondary" id="btn-reset-account-details-filter" data-bs-toggle="tooltip" data-bs-placement="top" title="Reset filter">
+                                            <i class="fa fa-refresh"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-success" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game</button>
+                                        <button type="button" class="btn btn-sm btn-primary" id="btn-credit">Credit</button>
+                                        <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
+                                            <i class="fa fa-id-card me-1"></i>Info
+                                        </button>
+                                        <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
+                                    </div>
                                 </div>
                                 <input type="hidden" id="account_id">
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
@@ -167,6 +171,7 @@
                                             <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
+                                            <th class="d-none" aria-hidden="true"></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -411,6 +416,21 @@
 </div>
 
 <style>
+body.guest-portal-child-open #modal-account-details.guest-portal-parent-hidden {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+body.guest-portal-child-open #modal-game-history.show,
+body.guest-portal-child-open #modal-credit-details.show,
+body.guest-portal-child-open #modal-passport-details.show {
+    z-index: 1065 !important;
+}
+body.guest-portal-child-open #modal-credit-return.show {
+    z-index: 1070 !important;
+}
+body.guest-portal-child-open .modal-backdrop.show {
+    z-index: 1050 !important;
+}
 
     /* Zoomed image styles – show whole image on hover (no crop) */
 #zoomed-image {
@@ -536,13 +556,7 @@
     border-radius: 8px;
     font-weight: 600;
 }
-#modal-account-details .text-end.mb-4 {
-    margin-bottom: 0.85rem !important;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.35rem;
-}
+#modal-account-details .guest-portal-action-row .btn,
 #modal-account-details .text-end.mb-4 .btn {
     border-radius: 6px;
     font-size: 0.78rem;
@@ -556,6 +570,7 @@
     border-radius: 999px;
 }
 #modal-account-details #btn-game-history,
+#modal-account-details #btn-guest-portal-game-start,
 #modal-account-details .text-end.mb-4 .btn.btn-primary {
     background: #16a34a;
     border-color: #16a34a;
@@ -605,6 +620,10 @@
 }
 #modal-account-details #accountDetails tbody td:nth-child(4) {
     text-align: left !important;
+}
+#modal-account-details #accountDetails thead th:nth-child(5),
+#modal-account-details #accountDetails tbody td:nth-child(5) {
+    display: none !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
     position: sticky;
@@ -937,6 +956,9 @@
     if (btnPassportDetails && modalPassportDetails) {
         btnPassportDetails.addEventListener('click', function () {
             var accountId = document.getElementById('account_id_add') && document.getElementById('account_id_add').value;
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($(modalPassportDetails));
+            }
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
             if (Modal) Modal.getOrCreateInstance(modalPassportDetails).show();
             else $(modalPassportDetails).modal('show');
@@ -1147,3 +1169,4 @@
 
 <!-- Include Game History Modal -->
 <%- include ('game_history') %>
+<%- include ('../game_book/new_game_list') %>

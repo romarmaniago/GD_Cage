@@ -172,16 +172,19 @@ $(document).ready(function() {
 						: amt.toLocaleString('en-US');
 					const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
 					const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
-					const displayAmt = (isJunketSource ? '-' : '') + formattedAmt;
+					const displayAmt = isJunketSource
+						? (window.fmtOut ? window.fmtOut(amt) : '(' + formattedAmt + ')')
+						: formattedAmt;
 					const hasGameId = !!service.GAME_ID;
 					const isGameSettled = hasGameId && service.game_settled === 1;
 					const canEdit = !hasGameId;
 					const canDelete = !hasGameId;
 
-					const sourceClass = isSettle ? 'text-primary' : '';
+					const sourceClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 					const amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 
-					const sourceHtml = `<span class="${sourceClass}">${service.SOURCE_TYPE || '-'}</span>`;
+					const displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
+					const sourceHtml = `<span class="${sourceClass}">${displaySource}</span>`;
 					const agentHtml = service.SOURCE_TYPE === 'JUNKET'
 						? '-'
 						: (service.agent_name || 'Unknown');
@@ -189,7 +192,12 @@ $(document).ready(function() {
 					const serviceTypeHtml = service.SERVICE_TYPE || '';
 					const amountHtml = `<span class="${amountClass}">${displayAmt}</span>`;
 					const paymentHtml = paymentLabel(service.TRANSACTION_ID);
-					const remarksHtml = service.REMARKS || '-';
+					const remarksHtml = window.RemarksEditor
+						? window.RemarksEditor.renderCell(service.REMARKS || '', {
+							source: 'game_services',
+							recordId: service.IDNo
+						})
+						: (service.REMARKS || '-');
 					const encodedByHtml = service.encoded_by_name || '-';
 					const rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
 					const dateDisplay = formatDateForDisplay(service.ENCODED_DT);
@@ -459,8 +467,9 @@ $(document).ready(function() {
 		});
 	}
 
-	// Initialize DataTable (this will also call reloadData)
+	// Initialize DataTable then load rows (clickable remarks via RemarksEditor)
 	initializeDataTable();
+	reloadData();
 
 	// Edit service button handlers
 	$(document).on('click', '.edit-service-btn', function() {
@@ -475,19 +484,19 @@ $(document).ready(function() {
 
 		$('#edit-services-id').val(id);
 		$('#edit-transaction-type').val(sourceType).trigger('change');
-		$('#edit-services-type').val(serviceType);
 		$('#edit-services-amount').val(amount.toLocaleString('en-US'));
 		$('#edit-services-remarks').val(remarks);
 		if (transactionId) {
 			$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
 		}
-		
-		// Store agentId for later use after accounts are loaded
+
 		if (sourceType === 'GUEST' && agentId) {
 			$('#modal-services-edit-record').data('pendingAgentId', agentId);
 		}
-		
-		$('#modal-services-edit-record').modal('show');
+
+		populateServiceCategorySelect($('#edit-services-type'), serviceType).then(function () {
+			$('#modal-services-edit-record').modal('show');
+		});
 	});
 
 	// Delete service button handlers

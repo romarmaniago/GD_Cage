@@ -62,9 +62,9 @@
                 (+sqlJunketLoss[0].JUNKET_LOSS || 0)
               ) +
               (+sqlMxCashNet[0].MX_CASH_NET || 0);
-            const refCcBalStr = refCcBal.toLocaleString();
-            const refNnBalStr = refNnBal.toLocaleString();
-            const refCashBalStr = refCashBal.toLocaleString();
+            const refCcBalStr = refCcBal.toLocaleString('en-US');
+            const refNnBalStr = refNnBal.toLocaleString('en-US');
+            const refCashBalStr = refCashBal.toLocaleString('en-US');
           %>
 
           <div class="row mb-3 g-2 total-chips-ref-balances">
@@ -556,7 +556,7 @@ $(document).ready(function() {
     const nnChips = parseFloat((($('#nnChips').val() || '') + '').replace(/,/g, '')) || 0;
     const ccChips = parseFloat((($('#ccChips').val() || '') + '').replace(/,/g, '')) || 0;
     const totalChips = nnChips + ccChips;
-    $('#totalChips').val(totalChips.toLocaleString());
+    $('#totalChips').val(totalChips.toLocaleString('en-US'));
   }
 
   // Disable Chips Buy-in when CC Chips has value
@@ -645,7 +645,7 @@ $(document).ready(function() {
 
     const nnChips = parseFloat($('#nnChips').val().replace(/,/g, '')) || 0;
     const ccChips = parseFloat($('#ccChips').val().replace(/,/g, '')) || 0;
-    const totalAmount = (nnChips + ccChips).toLocaleString();
+    const totalAmount = (nnChips + ccChips).toLocaleString('en-US');
     const labelMap = {
       '1': {text: '<span class="badge-cashin">Chips Buy-in</span>', type: 'Buy-in'},
       '2': {text: '<span class="badge-cashout">Chips Cashout</span>', type: 'Cashout'},
@@ -725,7 +725,7 @@ $(document).ready(function() {
         const isChipsCashout = row.TRANSACTION_ID == 2;
         const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const nnChips = parseFloat(row.NN_CHIPS) || 0;
-        const amount = nnChips.toLocaleString();
+        const amount = nnChips.toLocaleString('en-US');
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">NN Chips Buy-in</span>'
             : (isChipsCashout
@@ -742,6 +742,8 @@ $(document).ready(function() {
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+          recordId: row.IDNo,
+          remarksRaw: row.REMARKS || '',
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
@@ -754,7 +756,7 @@ $(document).ready(function() {
         const isChipsCashout = row.TRANSACTION_ID == 2;
         const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const ccChips = parseFloat(row.CC_CHIPS) || 0;
-        const amount = ccChips.toLocaleString();
+        const amount = ccChips.toLocaleString('en-US');
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">CC Chips Buy-in</span>'
             : (isChipsCashout
@@ -770,7 +772,9 @@ $(document).ready(function() {
           amount: amount,
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
-          remarks: '',
+          remarks: row.REMARKS || '',
+          recordId: row.IDNo,
+          remarksRaw: row.REMARKS || '',
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
@@ -793,6 +797,9 @@ $(document).ready(function() {
         // Store raw amount as a property on the row array for easy access
         rowArray._rawAmount = row.amountRaw;
         rowArray._sortDate = row.sortDate instanceof Date && !isNaN(row.sortDate.getTime()) ? row.sortDate.getTime() : 0;
+        rowArray._recordId = row.recordId;
+        rowArray._remarksRaw = row.remarksRaw != null ? row.remarksRaw : '';
+        rowArray._remarksDisplay = row.remarks != null ? row.remarks : '';
         return rowArray;
       });
 
@@ -804,6 +811,19 @@ $(document).ready(function() {
         serverSide: false,
         data: tableData,
         order: [[4, 'desc']], // Sort by date descending
+        columnDefs: [{
+          targets: 3,
+          render: function (data, type, row) {
+            var display = row._remarksDisplay != null ? row._remarksDisplay : (data || '');
+            if (type !== 'display') return display;
+            if (!window.RemarksEditor || !row._recordId) return display;
+            return window.RemarksEditor.renderCell(row._remarksRaw || '', {
+              source: 'junket_total_chips',
+              recordId: row._recordId,
+              displayText: display
+            });
+          }
+        }],
         columns: [
           { "className": "text-center" },
           { "className": "text-end" },
@@ -840,7 +860,7 @@ $(document).ready(function() {
           const isPeriodEnded = endNorm && window.isDateSameOrBefore(endNorm);
           const nnSettle = parseFloat(periodSettle && periodSettle.nn_cashout) || 0;
           const netTotal = isPeriodEnded ? Math.max(0, total - nnSettle) : total;
-          $('#total-chips-amount-sum').text(netTotal.toLocaleString());
+          $('#total-chips-amount-sum').text(netTotal.toLocaleString('en-US'));
         }
       });
     }).catch(function(error) {
