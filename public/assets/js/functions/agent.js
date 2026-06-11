@@ -682,20 +682,23 @@ $(document).ready(function () {
 		],
 		columns: [
 			{
-				data: 'agent_name',
+				data: 'agent_code',
 				render: function (data, type, row) {
 					if (type !== 'display') {
 						return data;
 					}
+					if (permissions === 2) {
+						return row.agent_code;
+					}
 					return `
 						<a href="#"
 							onclick="account_details(${row.account_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}')">
-							${row.agent_name}
+							${row.agent_code}
 						</a>
 					`;
 				}
 			},
-			{ data: 'agent_code' },
+			{ data: 'agent_name' },
 			{ data: 'agency_name' },
 			{ data: 'agent_contact' },
 			{
