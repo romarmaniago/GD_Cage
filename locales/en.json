@@ -430,7 +430,7 @@
 		"total_rolling": "ROLLING",
 		"rolling_rate": "ROLLING RATE",
 		"settlement": "SETTLEMENT",
-		"fb": "Add CHG",
+		"fb": "ADD CHG",
 		"payment": "PAYMENT",
 		"date_time": "DATE & TIME",
 		"grand_total": "GRAND TOTAL",
@@ -949,7 +949,7 @@
 		"game_start": "Game Start"
 	},
 	"modal_new_agent": {
-		"new_guest": "New Agent",
+		"new_guest": "Add Agent",
 		"Account_No_placeholder": "Account No.",
 		"Name_placeholder": "Name",
 		"Telegram_placeholder": "Telegram Chat ID",
@@ -967,8 +967,8 @@
 		"close": "Close"
 	},
 	"modal_new_agency": {
-		"new_agency": "New Agent",
-		"agency_name_placeholder": "Agent Name",
+		"new_agency": "Add Line",
+		"agency_name_placeholder": "Line Name",
 		"save": "Save",
 		"close": "Close"
 	},

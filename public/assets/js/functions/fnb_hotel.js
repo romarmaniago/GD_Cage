@@ -467,8 +467,9 @@ $(document).ready(function() {
 		});
 	}
 
-	// Initialize DataTable (this will also call reloadData)
+	// Initialize DataTable then load rows (clickable remarks via RemarksEditor)
 	initializeDataTable();
+	reloadData();
 
 	// Edit service button handlers
 	$(document).on('click', '.edit-service-btn', function() {

@@ -458,6 +458,22 @@ function houseExpenseRowMatchesSearch(row, query) {
     });
 }
 
+/** Clickable remarks for return-money rows (DESCRIPTION column). */
+function houseExpenseRemarksCellHtml(row, displayText) {
+    if (!row || !row.expense_id || !window.RemarksEditor) {
+        return houseExpenseHtmlEscape(displayText || '-');
+    }
+    if (row.record_type !== 'return_money') {
+        return houseExpenseHtmlEscape(displayText || '-');
+    }
+    var raw = row.DESCRIPTION || '';
+    return window.RemarksEditor.renderCell(raw, {
+        source: 'junket_return_money',
+        recordId: row.expense_id,
+        displayText: displayText != null ? String(displayText) : raw
+    });
+}
+
 /** Item table DESCRIPTION column: description text + optional KM/L. */
 function houseExpenseItemDescriptionColumnText(row) {
     if (!row) return '-';
@@ -600,7 +616,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     row.record_type === 'return_money' ? '-' : row.DESCRIPTION || row.OIC || '-';
                 var receiverCol =
                     row.record_type === 'return_money' ? '-' : row.RECEIVER || '-';
-                var descriptionCol = houseExpenseItemDescriptionColumnText(row);
+                var descriptionColHtml = row.record_type === 'return_money'
+                    ? houseExpenseRemarksCellHtml(row, row.DESCRIPTION || '')
+                    : houseExpenseHtmlEscape(houseExpenseItemDescriptionColumnText(row));
 
                 return (
                     '<tr class="js-expense-entry-row" data-expense-id="' +
@@ -619,7 +637,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     houseExpenseHtmlEscape(receiverCol) +
                     '</td>' +
                     '<td>' +
-                    houseExpenseHtmlEscape(descriptionCol) +
+                    descriptionColHtml +
                     '</td>' +
                     '<td class="text-end">' +
                     amountDisplay +

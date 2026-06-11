@@ -223,9 +223,9 @@
                         var delTitle = (t.delete || 'Delete').replace(/"/g, '&quot;');
                         return (
                             '<div class="marker-history-remarks-cell d-flex align-items-start gap-2 justify-content-between">' +
-                            '<span class="marker-history-remarks-text flex-grow-1 text-break">' + textHtml + '</span>' +
+                            '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer flex-grow-1 text-break btn-edit-marker-remarks"' +
+                            ' role="button" tabindex="0" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>' +
                             '<span class="marker-history-remarks-actions flex-shrink-0 d-flex gap-1">' +
-                            '<button type="button" class="btn btn-sm btn-light border btn-edit-marker-remarks" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '"><i class="fa fa-pen"></i></button>' +
                             '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
                             '</span></div>'
                         );
@@ -239,6 +239,7 @@
             e.preventDefault();
             e.stopPropagation();
             var btn = $(this);
+            if (btn.hasClass('marker-history-remarks-busy')) return;
             var id = btn.data('id');
             if (!id) return;
             if (window.RemarksEditor && !window.RemarksEditor.canEdit()) return;
@@ -257,7 +258,7 @@
             var errMsg = t.error_update_remarks || 'Could not update remarks.';
 
             function doPatch(newVal) {
-                btn.prop('disabled', true);
+                btn.addClass('marker-history-remarks-busy').attr('aria-disabled', 'true').css('pointer-events', 'none');
                 $.ajax({
                     url: '/marker_record/' + id + '/remarks',
                     method: 'PATCH',
@@ -275,7 +276,9 @@
                         var msg = (xhr.responseJSON && xhr.responseJSON.message) || errMsg;
                         if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
                     },
-                    complete: function () { btn.prop('disabled', false); }
+                    complete: function () {
+                        btn.removeClass('marker-history-remarks-busy').removeAttr('aria-disabled').css('pointer-events', '');
+                    }
                 });
             }
 
@@ -320,6 +323,13 @@
                 var p = window.prompt(title, rawRemarks);
                 if (p !== null) doPatch(p);
             }
+        });
+
+        $table.off('keydown.markerEditRemarks').on('keydown.markerEditRemarks', '.btn-edit-marker-remarks', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).trigger('click');
         });
 
         // Delete button click (delegated)

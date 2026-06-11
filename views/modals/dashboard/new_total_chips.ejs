@@ -742,6 +742,8 @@ $(document).ready(function() {
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+          recordId: row.IDNo,
+          remarksRaw: row.REMARKS || '',
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
@@ -770,7 +772,9 @@ $(document).ready(function() {
           amount: amount,
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
-          remarks: '',
+          remarks: row.REMARKS || '',
+          recordId: row.IDNo,
+          remarksRaw: row.REMARKS || '',
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
@@ -793,6 +797,9 @@ $(document).ready(function() {
         // Store raw amount as a property on the row array for easy access
         rowArray._rawAmount = row.amountRaw;
         rowArray._sortDate = row.sortDate instanceof Date && !isNaN(row.sortDate.getTime()) ? row.sortDate.getTime() : 0;
+        rowArray._recordId = row.recordId;
+        rowArray._remarksRaw = row.remarksRaw != null ? row.remarksRaw : '';
+        rowArray._remarksDisplay = row.remarks != null ? row.remarks : '';
         return rowArray;
       });
 
@@ -804,6 +811,19 @@ $(document).ready(function() {
         serverSide: false,
         data: tableData,
         order: [[4, 'desc']], // Sort by date descending
+        columnDefs: [{
+          targets: 3,
+          render: function (data, type, row) {
+            var display = row._remarksDisplay != null ? row._remarksDisplay : (data || '');
+            if (type !== 'display') return display;
+            if (!window.RemarksEditor || !row._recordId) return display;
+            return window.RemarksEditor.renderCell(row._remarksRaw || '', {
+              source: 'junket_total_chips',
+              recordId: row._recordId,
+              displayText: display
+            });
+          }
+        }],
         columns: [
           { "className": "text-center" },
           { "className": "text-end" },

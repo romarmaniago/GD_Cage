@@ -7646,6 +7646,13 @@ function renderServicesList(list, opts) {
 		totalAmountOnly += isNaN(safeAmount) ? 0 : safeAmount;
 		totalDeliveryFeeOnly += deliveryFee;
 
+		const remarksCell = window.RemarksEditor && id
+			? window.RemarksEditor.renderCell(remarks, {
+				source: 'game_services',
+				recordId: id
+			})
+			: (remarks || '-');
+
 		const actionCell = readOnly ? '' : `<td class="text-center">
 				<button type="button"
 					class="btn btn-sm btn-info-subtle action-btn-square me-1 service-edit-btn"
@@ -7674,7 +7681,7 @@ function renderServicesList(list, opts) {
 			<td class="text-end">${(isNaN(safeAmount) ? 0 : safeAmount).toLocaleString('en-US')}</td>
 			<td class="text-end">${deliveryFeeDisplay}</td>
 			<td>${transactionLabel || '-'}</td>
-			<td>${remarks || ''}</td>
+			<td>${remarksCell}</td>
 			<td>${processed || ''}</td>
 			${actionCell}
 		</tr>`;

@@ -196,12 +196,19 @@ $(document).ready(function () {
 						? `<span id="${telegramCellId}">${row.agent_telegram}</span>`
 						: '';
 
+					const agentRemarksCell = window.RemarksEditor && row.agent_id
+						? window.RemarksEditor.renderCell(row.agent_remarks || '', {
+							source: 'agent',
+							recordId: row.agent_id
+						})
+						: (row.agent_remarks || '');
+
 					const rowNode = dataTable.row.add([
 						`${row.agent_name}`,
 						account_no,
 						telegramDisplay,
 						`${row.agent_contact}`,
-						`${row.agent_remarks}`,
+						agentRemarksCell,
 						`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
 						btn
 					]).node();
@@ -1556,7 +1563,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
 			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
 			  `₱${amt.toLocaleString('en-US')}`,
-			  r.REMARKS||''
+			  formatAccountLedgerRemarks(r)
 			]).draw(false);
   
 			const node = rowApi.node();

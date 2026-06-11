@@ -37,13 +37,13 @@
 
 		var enc = encodeURIComponent(raw);
 		return (
-			'<div class="remarks-editor-cell d-flex align-items-start gap-2 justify-content-between">' +
-			'<span class="remarks-editor-text flex-grow-1 text-break">' + textHtml + '</span>' +
-			'<button type="button" class="btn btn-sm btn-light border flex-shrink-0 js-edit-remarks-btn"' +
+			'<div class="remarks-editor-cell">' +
+			'<span class="remarks-editor-text remarks-editor-clickable cursor-pointer text-break js-edit-remarks-btn"' +
+			' role="button" tabindex="0"' +
 			' data-remarks-source="' + escapeHtml(source) + '"' +
 			' data-record-id="' + escapeHtml(String(recordId)) + '"' +
 			' data-remarks="' + enc + '"' +
-			' title="Edit remarks"><i class="fa fa-pen"></i></button>' +
+			' title="Click to edit remarks">' + textHtml + '</span>' +
 			'</div>' + suffixHtml
 		);
 	}
@@ -98,48 +98,64 @@
 		});
 	}
 
-	function updateCell($btn, newText) {
-		var $cell = $btn.closest('.remarks-editor-cell');
-		var safe = escapeHtml(newText);
-		$cell.find('.remarks-editor-text').html(safe || '<span class="text-muted">—</span>');
-		$btn.attr('data-remarks', encodeURIComponent(newText || ''));
+	function setTriggerBusy($trigger, busy) {
+		$trigger.toggleClass('remarks-editor-busy', !!busy)
+			.attr('aria-disabled', busy ? 'true' : null)
+			.css('pointer-events', busy ? 'none' : '');
 	}
 
-	$(document).on('click', '.js-edit-remarks-btn', function (e) {
-		e.preventDefault();
-		e.stopPropagation();
-		if (!canEdit()) return;
+	function updateCell($trigger, newText) {
+		var $cell = $trigger.closest('.remarks-editor-cell');
+		var safe = escapeHtml(newText);
+		$cell.find('.remarks-editor-text').html(safe || '<span class="text-muted">—</span>');
+		$trigger.attr('data-remarks', encodeURIComponent(newText || ''));
+	}
 
-		var $btn = $(this);
-		var source = $btn.data('remarks-source');
-		var recordId = $btn.data('record-id');
+	function openRemarksFromTrigger($trigger) {
+		if (!canEdit() || $trigger.hasClass('remarks-editor-busy')) return;
+
+		var source = $trigger.data('remarks-source');
+		var recordId = $trigger.data('record-id');
 		if (!source || !recordId) return;
 
 		var rawRemarks = '';
 		try {
-			rawRemarks = decodeURIComponent(String($btn.attr('data-remarks') || ''));
+			rawRemarks = decodeURIComponent(String($trigger.attr('data-remarks') || ''));
 		} catch (err) {
 			rawRemarks = '';
 		}
 
 		openEditor(rawRemarks, function (newVal) {
-			$btn.prop('disabled', true);
+			setTriggerBusy($trigger, true);
 			patchRemarks(source, recordId, newVal, {
 				onSuccess: function (res) {
-					$btn.prop('disabled', false);
-					updateCell($btn, res.remarks != null ? res.remarks : newVal);
+					setTriggerBusy($trigger, false);
+					updateCell($trigger, res.remarks != null ? res.remarks : newVal);
 					if (window.Swal) {
 						window.Swal.fire({ icon: 'success', title: 'Saved', text: res.message || 'Remarks updated.', timer: 1500, showConfirmButton: false });
 					}
 				},
 				onError: function (err) {
-					$btn.prop('disabled', false);
+					setTriggerBusy($trigger, false);
 					if (window.Swal) {
 						window.Swal.fire({ icon: 'error', title: 'Error', text: (err && err.message) || 'Could not update remarks.' });
 					}
 				}
 			});
 		});
+	}
+
+	$(document).on('click', '.js-edit-remarks-btn', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		openRemarksFromTrigger($(this));
+	});
+
+	$(document).on('keydown', '.js-edit-remarks-btn', function (e) {
+		if (e.key !== 'Enter' && e.key !== ' ') return;
+		e.preventDefault();
+		e.stopPropagation();
+		openRemarksFromTrigger($(this));
 	});
 
 	window.RemarksEditor = {

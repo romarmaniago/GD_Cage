@@ -74,6 +74,12 @@ const REMARKS_TABLES = {
 		column: 'REMARKS',
 		activeCol: 'ACTIVE',
 		activeValue: 1
+	},
+	agent: {
+		table: 'agent',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1
 	}
 };
 

@@ -14,13 +14,23 @@ function fmtCapitalSigned(value) {
     return n.toLocaleString('en-US');
 }
 
+function inferCapitalRemarksSource(row) {
+    if (row.REMARKS_SOURCE) return row.REMARKS_SOURCE;
+    if (row.CATEGORY_ID > 0 && row.expense_description != null) return 'junket_house_expense';
+    if (row.CAGE_TYPE != null || (row.GAME_ID != null && row.GAME_ID !== '')) return 'game_record';
+    if (row.ledger_amount != null || row.comms_description) return 'account_ledger';
+    if (row.NN_CHIPS != null || row.TOTAL_CHIPS != null) return 'junket_total_chips';
+    return 'junket_capital';
+}
+
 function renderCapitalRemarksCell(row, displayText, suffixHtml) {
-    if (!window.RemarksEditor || !row.REMARKS_SOURCE || !row.IDNo) {
+    if (!window.RemarksEditor || !row.IDNo) {
         return (displayText || '') + (suffixHtml || '');
     }
+    const source = inferCapitalRemarksSource(row);
     const editText = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : (displayText || '');
     return window.RemarksEditor.renderCell(editText, {
-        source: row.REMARKS_SOURCE,
+        source: source,
         recordId: row.IDNo,
         displayText: displayText || '',
         suffixHtml: suffixHtml || ''
@@ -1234,7 +1244,11 @@ function loadCCChipsHistory() {
                         row.ENCODED_BY_NAME || 'N/A',
                         amount,
                         type,
-                        '', // Empty remarks since junket_total_chips doesn't have REMARKS field
+                        renderCapitalRemarksCell(
+                            Object.assign({}, row, { REMARKS_SOURCE: 'junket_total_chips' }),
+                            row.REMARKS || '',
+                            row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''
+                        ),
                         moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
                         getActionButton(row.IDNo)
                     ];

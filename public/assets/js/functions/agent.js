@@ -714,7 +714,18 @@ $(document).ready(function () {
 					return '<span id="' + cellId + '" class="' + rowClass + '"><code>' + escapeHtml(String(data)) + '</code></span>';
 				}
 			},
-			{ data: 'agent_remarks' },
+			{
+				data: 'agent_remarks',
+				render: function (data, type, row) {
+					var raw = data != null ? String(data) : '';
+					if (type !== 'display') return raw;
+					if (!window.RemarksEditor || !row.agent_id) return raw;
+					return window.RemarksEditor.renderCell(raw, {
+						source: 'agent',
+						recordId: row.agent_id
+					});
+				}
+			},
 			{
 				data: 'LATEST_GAME_DATE',
 				render: function (data, type) {

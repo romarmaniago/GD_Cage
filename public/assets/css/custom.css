@@ -851,3 +851,36 @@ body.uikit .btn-download {
   visibility: visible !important;
 }
 
+.remarks-editor-cell {
+  width: 100%;
+}
+
+.remarks-editor-clickable,
+.marker-history-remarks-clickable {
+  display: block;
+  width: 100%;
+  min-height: 1.5em;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.remarks-editor-clickable:hover,
+.remarks-editor-clickable:focus,
+.marker-history-remarks-clickable:hover,
+.marker-history-remarks-clickable:focus {
+  text-decoration: underline;
+  color: var(--bs-primary, #0d6efd);
+  outline: none;
+}
+
+.remarks-editor-clickable.remarks-editor-busy,
+.marker-history-remarks-clickable.marker-history-remarks-busy {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.remarks-editor-clickable .text-muted,
+.marker-history-remarks-clickable .text-muted {
+  font-style: italic;
+}
+
