@@ -1382,6 +1382,17 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       let currentWeekOffset = 0;
 
 
+                                                      function formatDashboardWinlossAmount(value) {
+                                                         const n = parseFloat(value || 0);
+                                                         if (n < 0) {
+                                                            const amountHtml = window.fmtSigned
+                                                               ? window.fmtSigned(n)
+                                                               : '<span style="color:#dc3545 !important;">(' + Math.abs(n).toLocaleString('en-US') + ')</span>';
+                                                            return '₱ ' + amountHtml;
+                                                         }
+                                                         return '₱ ' + n.toLocaleString('en-US');
+                                                      }
+
                                                       function getWeekNumber(d) {
                                                          d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
                                                          d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -1437,8 +1448,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          fetch(`/get_winloss?range=${range}&offset=${offset}`)
                                                             .then(res => res.json())
                                                             .then(data => {
-                                                               const formatted = parseFloat(data.winloss).toLocaleString('en-US');
-                                                               document.getElementById('winlossweekly').innerHTML = `₱ ${formatted}`;
+                                                               document.getElementById('winlossweekly').innerHTML = formatDashboardWinlossAmount(data.winloss);
                                                                document.querySelector('input[name="WINLOSS_HISTORY1"]').value = data.winloss;
 
                                                                // Update comparison data
@@ -1510,6 +1520,11 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                       // Init
                                                       window.addEventListener('DOMContentLoaded', () => {
+                                                         const winlossCard = document.getElementById('winloss');
+                                                         if (winlossCard) {
+                                                            const raw = parseFloat(winlossCard.dataset.originalWinloss || 0);
+                                                            winlossCard.innerHTML = formatDashboardWinlossAmount(raw);
+                                                         }
                                                          loadWinloss('week', '', 0);
                                                       });
 

@@ -31,8 +31,8 @@
     function formatAmountNegativeHtml(value, className, options) {
         const formatted = formatCommas(value, options);
         if (formatted === '0') return '0';
-        const cls = className || 'text-danger';
-        return '<span class="' + cls + '">(' + formatted + ')</span>';
+        const cls = className ? ' class="' + className + '"' : '';
+        return '<span' + cls + ' style="color:#dc3545 !important;">(' + formatted + ')</span>';
     }
 
     function formatAmountPositiveHtml(value, className, options) {

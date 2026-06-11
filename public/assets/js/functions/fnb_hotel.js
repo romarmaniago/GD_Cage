@@ -180,10 +180,11 @@ $(document).ready(function() {
 					const canEdit = !hasGameId;
 					const canDelete = !hasGameId;
 
-					const sourceClass = isSettle ? 'text-primary' : '';
+					const sourceClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 					const amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 
-					const sourceHtml = `<span class="${sourceClass}">${service.SOURCE_TYPE || '-'}</span>`;
+					const displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
+					const sourceHtml = `<span class="${sourceClass}">${displaySource}</span>`;
 					const agentHtml = service.SOURCE_TYPE === 'JUNKET'
 						? '-'
 						: (service.agent_name || 'Unknown');

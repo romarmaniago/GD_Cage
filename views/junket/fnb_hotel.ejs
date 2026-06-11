@@ -87,6 +87,7 @@
 													? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 													: amt.toLocaleString('en-US');
 												const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
+												const displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
 												const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
 												const displayAmt = isJunketSource ? `(${formattedAmt})` : formattedAmt;
 												const hasGameId = service.GAME_ID && service.GAME_ID !== null;
@@ -95,7 +96,7 @@
 												const canDelete = !hasGameId; // Can only delete if no game_id
 												%>
 												<tr data-service-type="<%= service.SERVICE_TYPE %>" data-service-id="<%= service.IDNo %>" data-has-game-id="<%= hasGameId ? '1' : '0' %>" data-game-settled="<%= isGameSettled ? '1' : '0' %>">
-													<td class="<%= isSettle ? 'text-primary' : '' %>"><%= service.SOURCE_TYPE || '-' %></td>
+													<td class="<%= isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '') %>"><%= displaySource %></td>
 													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
 													<td><%= service.SERVICE_TYPE %></td>

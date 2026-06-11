@@ -3401,40 +3401,31 @@ router.get('/get_winloss', async (req, res) => {
 });
 
 
-// GET WIN/LOSS SETTLEMENT DETAILS
+// GET WIN/LOSS DETAILS BY PROGRAM DATE
 router.get('/get_winloss_settlement_details', async (req, res) => {
 	const startDate = req.query.start_date;
 	const endDate = req.query.end_date;
-	const filter = req.query.filter || 'all'; // all, settled, unsettled
 
 	if (!startDate || !endDate) {
 		return res.status(400).json({ error: 'Start date and end date are required' });
 	}
 
 	try {
-		const results = [];
+		const programDateQuery = `
+			SELECT 
+				game_list.PROGRAM_DATE AS program_date,
+				SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
+				SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout
+			FROM game_list
+			JOIN game_record ON game_list.IDNo = game_record.GAME_ID
+			WHERE game_record.ACTIVE = 1
+				AND game_list.ACTIVE != 0
+				AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
+			GROUP BY game_list.PROGRAM_DATE
+			ORDER BY game_list.PROGRAM_DATE DESC
+		`;
 
-		if (filter === 'all' || filter === 'settled' || filter === 'unsettled') {
-			const programDateQuery = `
-				SELECT 
-					game_list.PROGRAM_DATE AS settlement_date,
-					NULL AS settlement_id,
-					SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
-					SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
-					'Program Date' AS status
-				FROM game_list
-				JOIN game_record ON game_list.IDNo = game_record.GAME_ID
-				WHERE game_record.ACTIVE = 1
-					AND game_list.ACTIVE != 0
-					AND DATE(game_list.PROGRAM_DATE) BETWEEN ? AND ?
-				GROUP BY game_list.PROGRAM_DATE
-				ORDER BY game_list.PROGRAM_DATE DESC
-			`;
-
-			const [programDateResults] = await pool.execute(programDateQuery, [startDate, endDate]);
-			results.push(...programDateResults);
-		}
-
+		const [results] = await pool.execute(programDateQuery, [startDate, endDate]);
 		res.json(results);
 	} catch (err) {
 		console.error("Error in get_winloss_settlement_details route:", err);

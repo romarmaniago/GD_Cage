@@ -1605,6 +1605,10 @@ function formatProgramDateDisplay(row) {
 	return formatProgramDateLabel(ymd);
 }
 
+function buildMergeSettleCheckbox(gameListId, accountId) {
+	return '<label class="merge-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
+}
+
 function buildProgramDateCell(row, userPermissions, isSettled) {
 	var display = formatProgramDateDisplay(row);
 	var ymd = getProgramDateYmd(row);
@@ -1612,18 +1616,24 @@ function buildProgramDateCell(row, userPermissions, isSettled) {
 	var canEdit = (userPermissions !== 2) && isEditableActive && !!ymd;
 	if (isSettled && userPermissions !== 0) canEdit = false;
 
+	var dateContent;
 	if (!canEdit) {
-		return display === '-' ? '-' : escapeHtmlText(display);
+		dateContent = display === '-' ? '-' : escapeHtmlText(display);
+	} else {
+		dateContent =
+			'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
+			'style="font-size:inherit;color:inherit;" ' +
+			'data-game-id="' + row.game_list_id + '" ' +
+			'data-program-date="' + ymd + '" ' +
+			'title="Edit program date">' +
+			escapeHtmlText(display) +
+			'</button>';
 	}
 
 	return (
-		'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
-		'style="font-size:inherit;color:inherit;" ' +
-		'data-game-id="' + row.game_list_id + '" ' +
-		'data-program-date="' + ymd + '" ' +
-		'title="Edit program date">' +
-		escapeHtmlText(display) +
-		'</button>'
+		'<div class="d-inline-flex align-items-center gap-1 program-date-cell-inner">' +
+		buildMergeSettleCheckbox(row.game_list_id, row.ACCOUNT_ID) +
+		'<span class="program-date-cell-label">' + dateContent + '</span></div>'
 	);
 }
 
@@ -1687,13 +1697,18 @@ function saveProgramDateEdit($cell, gameId, prevYmd, newYmd) {
 				return;
 			}
 			var display = formatProgramDateLabel(newYmd);
-			restoreProgramDateCell($cell,
+			var btnHtml =
 				'<button type="button" class="btn btn-link p-0 text-decoration-none js-program-date-btn program-date-link" ' +
 				'style="font-size:inherit;color:inherit;" ' +
 				'data-game-id="' + gameId + '" ' +
 				'data-program-date="' + newYmd + '" ' +
-				'title="Edit program date">' + escapeHtmlText(display) + '</button>'
-			);
+				'title="Edit program date">' + escapeHtmlText(display) + '</button>';
+			var $label = $cell.find('.program-date-cell-label');
+			if ($label.length) {
+				$label.html(btnHtml);
+			} else {
+				restoreProgramDateCell($cell, btnHtml);
+			}
 			updateProgramDateCellDisplay(gameId, newYmd, display);
 			if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
 				$('#game_list-tbl').DataTable().rows().invalidate('dom');
@@ -2239,12 +2254,8 @@ $(document).ready(function () {
 		$w.toggleClass('program-date-multi-day-search', multi);
 	}
 
-	function buildMergeSettleCheckbox(gameListId, accountId) {
-		return '<label class="merge-settle-checkbox-wrap" title="Select game ' + gameListId + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
-	}
-	function buildGameStartCell(gameStartText, gameListId, accountId, showMergeCheckbox) {
-		var mergeCheckboxHtml = showMergeCheckbox ? buildMergeSettleCheckbox(gameListId, accountId) : '';
-		return '<div class="d-inline-flex align-items-center gap-1">' + mergeCheckboxHtml + '<span>' + gameStartText + '</span></div>';
+	function buildGameStartCell(gameStartText) {
+		return gameStartText;
 	}
 
 	function syncGameListSelectAllCheckboxState() {
@@ -2615,6 +2626,7 @@ $(document).ready(function () {
 		drawCallback: function () {
 			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
 			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
+			updateMergeSettleButtonState();
 			syncGameListSelectAllCheckboxState();
 		}
 	});
@@ -3320,12 +3332,7 @@ $(document).ready(function () {
 									// Format net value as an integer
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
-								var gameStartCellOg = buildGameStartCell(
-									game_start,
-									row.game_list_id,
-									row.ACCOUNT_ID,
-									row.SETTLED === 1
-								);
+								var gameStartCellOg = buildGameStartCell(game_start);
 								
 								// const highlightId = getQueryParam('highlight_id');
 								// const gameListIdText = $('<div>').html(row.game_list_id).text();
@@ -3455,12 +3462,7 @@ $(document).ready(function () {
 								// Format net value as an integer
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
-								var gameStartCell = buildGameStartCell(
-									game_start,
-									row.game_list_id,
-									row.ACCOUNT_ID,
-									row.SETTLED === 1
-								);
+								var gameStartCell = buildGameStartCell(game_start);
 								
 								var actionButtons = btn_remarks + btn_settle;
 								if (userPermissions === 0) {
@@ -3572,12 +3574,7 @@ $(document).ready(function () {
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
-						   var gameStartCellEnd = buildGameStartCell(
-							   game_start,
-							   row.game_list_id,
-							   row.ACCOUNT_ID,
-							   row.SETTLED === 1
-						   );
+						   var gameStartCellEnd = buildGameStartCell(game_start);
 						   var actionButtons = btn_remarks + btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;

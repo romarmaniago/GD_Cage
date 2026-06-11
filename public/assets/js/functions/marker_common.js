@@ -28,6 +28,27 @@
         return rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
+    /** Junket Credit + Buy-in thru Credit display as (x,xxx) red — same as buy-in/cash-out */
+    function isMarkerCreditOutTransaction(row) {
+        if (!row || row.TRANSACTION_INFO == null) return false;
+        var transactionId = parseInt(String(row.TRANSACTION_INFO).split('-')[0], 10);
+        return transactionId === 3 || transactionId === 10;
+    }
+
+    function formatMarkerHistoryAmountCell(value, row, type) {
+        if (type === 'sort' || type === 'type') {
+            var n = value != null ? Number(value) : 0;
+            return isNaN(n) ? 0 : n;
+        }
+        if (isMarkerCreditOutTransaction(row)) {
+            if (window.fmtOut) return window.fmtOut(value);
+            var formatted = formatMarkerHistoryAmount(Math.abs(Number(value) || 0));
+            if (formatted === '0') return '0';
+            return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+        }
+        return formatMarkerHistoryAmount(value);
+    }
+
     var MARKER_HISTORY_DATE_PARSE_FORMATS = [
         'MMMM DD, YYYY HH:mm:ss',
         'MMMM DD, YYYY HH:mm',
@@ -156,8 +177,8 @@
                 {
                     data: 'AMOUNT',
                     className: 'text-center marker-history-col-amount',
-                    render: function (data) {
-                        return formatMarkerHistoryAmount(data);
+                    render: function (data, type, row) {
+                        return formatMarkerHistoryAmountCell(data, row, type);
                     }
                 },
                 { data: 'TRANSACTION_INFO', render: renderTransactionType },

@@ -80,13 +80,13 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-start col-program-date">
-													<%= __('gamelist.program_date') %>
-												</th>
-												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
+												<th class="d-none d-sm-table-cell text-start col-program-date program-date-th">
 													<span class="game-list-select-all-slot">
 														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
 													</span>
+													<span class="program-date-th-label"><%= __('gamelist.program_date_col') %></span>
+												</th>
+												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
 												<th class="d-none d-sm-table-cell text-center col-type">
@@ -99,7 +99,7 @@
 												<%= __('gamelist.acct_no') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-guest">
-												Guest
+												<%= __('gamelist.guest') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin">
 												<%= __('gamelist.buyin') %>
@@ -353,8 +353,14 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 	display: none !important;
 }
 
+.program-date-th,
 .game-start-th {
 	white-space: nowrap;
+}
+
+.program-date-th-label,
+.game-start-th-label {
+	vertical-align: middle;
 }
 
 .game-list-select-all-slot {
@@ -375,10 +381,6 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	width: 15px;
 	height: 15px;
 	cursor: pointer;
-	vertical-align: middle;
-}
-
-.game-start-th-label {
 	vertical-align: middle;
 }
 
@@ -670,6 +672,17 @@ th.col-winloss {
 #game_list-tbl td.col-commission {
 	white-space: nowrap;
 	vertical-align: middle;
+}
+
+#game_list-tbl td.col-cashout .btn-link,
+#game_list-tbl td.col-cashout .btn-link:hover,
+#game_list-tbl td.col-cashout .btn-link:focus {
+	color: inherit;
+}
+
+#game_list-tbl td.col-cashout span[style*="dc3545"],
+#game_list-tbl td.col-winloss span[style*="dc3545"] {
+	color: #dc3545 !important;
 }
 
 /* Base table styles */
@@ -1403,7 +1416,7 @@ table.dataTable tbody tr.highlight-row {
 						function applyNegativeStyle(selector, value) {
 							var element = $('#game_list-tbl tfoot ' + selector);
 							if (value < 0) {
-								element.css('color', 'red');
+								element.css('color', '#dc3545');
 							} else {
 								element.css('color', ''); // Reset to default color
 							}

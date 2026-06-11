@@ -15,11 +15,10 @@
         <table id="winloss-details-tbl" class="table table-bordered table-responsive" style="font-size: 13px;">
           <thead>
             <tr>
-              <th class="text-center"><%= __('modal_winloss_details.settlement_date') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.program_date') %></th>
               <th class="text-center"><%= __('modal_winloss_details.buy_in') %></th>
               <th class="text-center"><%= __('modal_winloss_details.cash_out') %></th>
               <th class="text-center"><%= __('modal_winloss_details.win_loss') %></th>
-              <th class="text-center"><%= __('modal_winloss_details.status') %></th>
               <th class="text-center"><%= __('modal_winloss_details.action') %></th>
             </tr>
           </thead>
@@ -56,8 +55,6 @@
 </div>
 <script>
 window.winlossDetailsTranslations = {
-	unsettled: "<%= __('modal_winloss_details.unsettled') %>",
-	settled: "<%= __('modal_winloss_details.settled') %>",
 	view_games: "<%= __('modal_winloss_details.view_games') %>",
 	empty_table: "<%= __('modal_winloss_details.empty_table') %>",
 	processing: "<%= __('modal_winloss_details.processing') %>",
@@ -113,7 +110,7 @@ $(document).ready(function() {
     mode: "range",
     defaultDate: [
       moment().startOf('month').format('YYYY-MM-DD'),
-      moment().format('YYYY-MM-DD')
+      moment().endOf('month').format('YYYY-MM-DD')
     ],
     showMonths: 3,
     onReady: function(selectedDates, dateStr, instance) {
@@ -133,6 +130,26 @@ $(document).ready(function() {
     return parseFloat(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
+  function formatCashout(value) {
+    if (window.fmtOut) return window.fmtOut(value);
+    const formatted = formatCurrency(Math.abs(parseFloat(value || 0)));
+    if (formatted === '0') return '0';
+    return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+  }
+
+  function formatWinloss(value) {
+    const n = parseFloat(value || 0);
+    if (n < 0) {
+      if (window.fmtSigned) return window.fmtSigned(n);
+      const formatted = formatCurrency(Math.abs(n));
+      return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+    }
+    if (n > 0) {
+      return '<span class="winloss-positive">' + formatCurrency(n) + '</span>';
+    }
+    return '0';
+  }
+
   function formatCurrency(value) {
     return formatAmount(value);
   }
@@ -142,12 +159,9 @@ $(document).ready(function() {
     if (!range) return;
     
     const t = window.winlossDetailsTranslations || {};
-    const unsettledLabel = t.unsettled || 'Unsettled';
     
     let [start, end] = range.split(" to ");
     if (!end) end = start;
-    
-    const filterType = 'all'; // Always show all settlements
 
     if (winlossDataTable) {
       winlossDataTable.destroy();
@@ -158,7 +172,7 @@ $(document).ready(function() {
       serverSide: false,
       order: [[0, 'desc']],
       ajax: {
-        url: `/get_winloss_settlement_details?start_date=${start}&end_date=${end}&filter=${filterType}`,
+        url: `/get_winloss_settlement_details?start_date=${start}&end_date=${end}`,
         dataSrc: function(json) {
           if (!Array.isArray(json)) return [];
           
@@ -173,99 +187,78 @@ $(document).ready(function() {
             totalCashin += cashin;
             totalCashout += cashout;
             
-            // Format settlement date and build sort key for correct chronological order
-            let formattedDate = unsettledLabel;
+            let formattedDate = '-';
             let rawDate = null;
-            let sortKey = '9999-99-99'; // Unsettled sorts first when descending
-            if (row.settlement_date && row.settlement_date !== 'Unsettled' && row.settlement_date !== unsettledLabel) {
-              const date = new Date(row.settlement_date);
+            let sortKey = '';
+            const programDate = row.program_date || row.settlement_date;
+            if (programDate) {
+              const date = new Date(programDate);
               if (!isNaN(date.getTime())) {
                 formattedDate = moment(date).format('MMMM D, YYYY');
-                // Use local date parts so URL matches the displayed date (avoids timezone off-by-one)
                 const y = date.getFullYear();
                 const m = String(date.getMonth() + 1).padStart(2, '0');
                 const d = String(date.getDate()).padStart(2, '0');
                 rawDate = y + '-' + m + '-' + d;
                 sortKey = rawDate;
               } else {
-                formattedDate = row.settlement_date;
-                rawDate = row.settlement_date;
+                formattedDate = programDate;
+                rawDate = programDate;
                 sortKey = rawDate || sortKey;
               }
             }
             
             return {
-              settlementDateSort: sortKey,
-              settlementDate: formattedDate,
+              programDateSort: sortKey,
+              programDate: formattedDate,
               cashin: formatCurrency(cashin),
-              cashout: formatCurrency(cashout),
-              winloss: formatCurrency(winloss),
+              cashoutValue: cashout,
               winlossValue: winloss,
-              status: row.status || 'Unsettled',
-              settlementId: row.settlement_id || null,
-              rawSettlementDate: rawDate
+              rawProgramDate: rawDate
             };
           });
           
           // Update totals
           const totalWinloss = totalCashin - totalCashout;
           $('#total-cashin').text(formatCurrency(totalCashin));
-          $('#total-cashout').text(formatCurrency(totalCashout));
-          $('#total-winloss').text(formatCurrency(totalWinloss));
-          $('#total-winloss').removeClass('winloss-positive winloss-negative');
-          if (totalWinloss > 0) {
-            $('#total-winloss').addClass('winloss-positive');
-          } else if (totalWinloss < 0) {
-            $('#total-winloss').addClass('winloss-negative');
-          }
+          $('#total-cashout').html(formatCashout(totalCashout));
+          $('#total-winloss').html(formatWinloss(totalWinloss));
           
           return formatted;
         }
       },
       columns: [
         {
-          data: 'settlementDateSort',
+          data: 'programDateSort',
           className: 'text-center',
           render: function(data, type, row) {
-            if (type === 'display' || type === 'filter') return row.settlementDate;
+            if (type === 'display' || type === 'filter') return row.programDate;
             return data;
           }
         },
         { data: 'cashin', className: 'text-end' },
-        { data: 'cashout', className: 'text-end' },
-        { 
-          data: 'winloss', 
-          className: 'text-center',
-          render: function(data, type, row) {
-            const value = row.winlossValue;
-            const className = value > 0 ? 'winloss-positive' : (value < 0 ? 'winloss-negative' : '');
-            return `<span class="${className}">${data}</span>`;
-          }
-        },
-        { 
-          data: 'status',
-          className: 'text-center',
-          render: function(data) {
-            var t = window.winlossDetailsTranslations || {};
-            var settled = t.settled || 'Settled';
-            var unsettled = t.unsettled || 'Unsettled';
-            if (data === 'Settled') {
-              return '<span class="badge bg-success">' + settled + '</span>';
-            } else {
-              return '<span class="badge bg-warning">' + unsettled + '</span>';
-            }
+        {
+          data: 'cashoutValue',
+          className: 'text-end',
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') return data || 0;
+            return formatCashout(data);
           }
         },
         {
-          data: 'settlementId',
+          data: 'winlossValue',
           className: 'text-center',
-          render: function(data, type, row) {
-            var t = window.winlossDetailsTranslations || {};
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') return data || 0;
+            return formatWinloss(data);
+          }
+        },
+        {
+          data: 'rawProgramDate',
+          className: 'text-center',
+          render: function(data) {
             var viewGames = t.view_games || 'View Games';
-            if (row.status === 'Settled' && data && row.rawSettlementDate) {
-              return '<a href="/game_list?date=' + row.rawSettlementDate + '" target="_blank" class="btn btn-sm btn-primary"><i class="fa fa-eye"></i> ' + viewGames + '</a>';
-            } else if (row.status === 'Unsettled') {
-              return '<a href="/game_list?date=current" target="_blank" class="btn btn-sm btn-warning"><i class="fa fa-eye"></i> ' + viewGames + '</a>';
+            if (data) {
+              return '<a href="/game_list?date=' + data + '" target="_blank" class="btn btn-sm btn-primary"><i class="fa fa-eye"></i> ' + viewGames + '</a>';
             }
             return '-';
           }
@@ -275,8 +268,8 @@ $(document).ready(function() {
       language: (function() {
         var t = window.winlossDetailsTranslations || {};
         return {
-          emptyTable: t.empty_table || 'No settlement data found',
-          processing: t.processing || 'Loading settlement details...',
+          emptyTable: t.empty_table || 'No program date data found',
+          processing: t.processing || 'Loading win/loss details...',
           lengthMenu: t.length_menu || 'Show _MENU_ entries',
           search: t.search || 'Search:',
           info: t.info || 'Showing _START_ to _END_ of _TOTAL_ entries',
