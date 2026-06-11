@@ -73,6 +73,26 @@
 		});
 	}
 
+	function allowSwalFocusInModal(e) {
+		if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+			e.stopImmediatePropagation();
+		}
+	}
+
+	function attachSwalModalFocusFix() {
+		window.addEventListener('focusin', allowSwalFocusInModal, true);
+	}
+
+	function detachSwalModalFocusFix() {
+		window.removeEventListener('focusin', allowSwalFocusInModal, true);
+	}
+
+	function boostSwalZIndex() {
+		document.querySelectorAll('.swal2-container').forEach(function (el) {
+			el.style.zIndex = '1080';
+		});
+	}
+
 	function openEditor(initialValue, onSave) {
 		if (!canEdit()) return;
 		if (!window.Swal) {
@@ -81,17 +101,35 @@
 			return;
 		}
 
+		attachSwalModalFocusFix();
 		window.Swal.fire({
 			title: 'Edit remarks',
 			input: 'textarea',
 			inputValue: initialValue || '',
-			inputAttributes: { maxlength: '500', rows: '4' },
+			inputAttributes: { maxlength: '500', rows: '4', 'aria-label': 'Edit remarks' },
 			showCancelButton: true,
 			confirmButtonText: 'Save',
+			focusConfirm: false,
+			heightAuto: false,
 			preConfirm: function (value) {
 				return value != null ? String(value) : '';
+			},
+			didOpen: function () {
+				boostSwalZIndex();
+				var inp = window.Swal.getInput();
+				if (inp) {
+					inp.removeAttribute('readonly');
+					inp.removeAttribute('disabled');
+					setTimeout(function () {
+						inp.focus();
+					}, 50);
+				}
+			},
+			willClose: function () {
+				detachSwalModalFocusFix();
 			}
 		}).then(function (result) {
+			detachSwalModalFocusFix();
 			if (result.isConfirmed && typeof onSave === 'function') {
 				onSave(result.value != null ? String(result.value) : '');
 			}
