@@ -474,6 +474,17 @@ function houseExpenseRemarksCellHtml(row, displayText) {
     });
 }
 
+function houseExpenseFormatKmDisplay(kmL) {
+    var n = Number(kmL);
+    if (Number.isNaN(n)) return '';
+    return (
+        n.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }) + 'km'
+    );
+}
+
 /** Item table DESCRIPTION column: description text + optional KM/L. */
 function houseExpenseItemDescriptionColumnText(row) {
     if (!row) return '-';
@@ -486,7 +497,7 @@ function houseExpenseItemDescriptionColumnText(row) {
             : '';
     var kmL = row.KM_L;
     if (kmL != null && kmL !== '' && !Number.isNaN(Number(kmL))) {
-        var kmPart = String(Number(kmL)) + 'km';
+        var kmPart = houseExpenseFormatKmDisplay(kmL);
         text = text ? text + ' - ' + kmPart : kmPart;
     }
     return text || '-';
