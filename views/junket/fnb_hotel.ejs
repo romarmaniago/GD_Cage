@@ -215,6 +215,8 @@
 
 </style>
 <%- include ('../partials/permission_view_only_script') %>
+<%- include('../modals/junket/new_service_record') %>
+<%- include('../modals/junket/edit_service_record') %>
 <%- include('../partials/footer') %>
 <script>
 	// Pass translations to JavaScript
@@ -236,6 +238,8 @@
 		export_label: "<%= __('fnb_hotel.export') || 'Export' %>"
 	};
 </script>
+<script src="/assets/js/functions/service_category_select.js"></script>
+<script src="/assets/js/functions/new_service_record.js"></script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
 <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
 <script>
@@ -253,6 +257,4 @@
 <%- include('../modals/popups/new_services_category') %>
 <%- include('../modals/popups/edit_services_category') %>
 <% } %>
-<%- include('../modals/junket/new_service_record') %>
-<%- include('../modals/junket/edit_service_record') %>
 
