@@ -1320,7 +1320,7 @@ function account_details(account_id_data, agent_code, account_name) {
 					$(cell).addClass('text-center');
 				}
 			}
-		]
+		].concat(accountDetailsRemarksColumnDefs())
 	});
 	
 
@@ -1361,16 +1361,43 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 		return '₱' + n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 	}
 
-	function formatAccountLedgerRemarks(row) {
-		const remarks = row.REMARKS || '';
-		const ledgerId = row.account_details_id || row.IDNo;
-		if (window.RemarksEditor && ledgerId) {
-			return window.RemarksEditor.renderCell(remarks, {
-				source: 'account_ledger',
-				recordId: ledgerId
-			});
-		}
-		return remarks;
+	function accountLedgerRowId(row) {
+		return row.account_details_id || row.IDNo || '';
+	}
+
+	function accountDetailsRemarksColumnDefs() {
+		return [
+			{
+				targets: 3,
+				render: function (data, type, row) {
+					var raw = data != null ? String(data) : '';
+					if (type !== 'display') return raw;
+					var ledgerId = row[4];
+					if (window.RemarksEditor && ledgerId) {
+						return window.RemarksEditor.renderCell(raw, {
+							source: 'account_ledger',
+							recordId: ledgerId
+						});
+					}
+					if (!raw) return '<span class="text-muted">-</span>';
+					return raw;
+				},
+				createdCell: function (cell, cellData, rowData) {
+					var ledgerId = rowData && rowData[4];
+					var $cell = $(cell);
+					$cell.addClass('remarks-editor-td text-start');
+					if (ledgerId && window.RemarksEditor && window.RemarksEditor.canEdit()) {
+						$cell.addClass('cursor-pointer');
+					}
+				}
+			},
+			{
+				targets: 4,
+				visible: false,
+				searchable: false,
+				orderable: false
+			}
+		];
 	}
 
 	function reloadDataDetails() {
@@ -1419,7 +1446,8 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
-									formatAccountLedgerRemarks(row)
+									row.REMARKS || '',
+									accountLedgerRowId(row)
 								]);
 								resolve();
 							},
@@ -1432,7 +1460,8 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 									dateFormat,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
-									formatAccountLedgerRemarks(row)
+									row.REMARKS || '',
+									accountLedgerRowId(row)
 								]);
 								resolve();
 							}
@@ -1444,7 +1473,8 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 							dateFormat,
 							transactionCell,
 							formatAccountLedgerAmount(amount, row.TRANSACTION),
-							formatAccountLedgerRemarks(row)
+							row.REMARKS || '',
+							accountLedgerRowId(row)
 						]);
 						resolve();
 					}
@@ -1545,7 +1575,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 		  return m.isValid() ? m.local().format('DD MMM, YYYY HH:mm:ss') : 'Invalid Date';
 		},
 		createdCell: c => $(c).addClass('text-center')
-	  }]
+	  }].concat(accountDetailsRemarksColumnDefs())
 	});
   
 	// 4) Load buong ledger rows at inline‑highlight
@@ -1563,7 +1593,8 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
 			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
 			  `₱${amt.toLocaleString('en-US')}`,
-			  formatAccountLedgerRemarks(r)
+			  r.REMARKS || '',
+			  accountLedgerRowId(r)
 			]).draw(false);
   
 			const node = rowApi.node();

@@ -853,15 +853,27 @@ body.uikit .btn-download {
 
 .remarks-editor-cell {
   width: 100%;
+  min-height: 2em;
+  margin: -2px 0;
 }
 
 .remarks-editor-clickable,
 .marker-history-remarks-clickable {
   display: block;
   width: 100%;
-  min-height: 1.5em;
-  padding: 2px 0;
+  min-height: 2em;
+  padding: 6px 8px;
   cursor: pointer;
+  border-radius: 4px;
+}
+
+#modal-account-details #accountDetails td.remarks-editor-td {
+  padding: 4px 8px !important;
+  vertical-align: middle;
+}
+
+#modal-account-details #accountDetails td.remarks-editor-td:hover .remarks-editor-clickable {
+  background: rgba(13, 110, 253, 0.08);
 }
 
 .remarks-editor-clickable:hover,
