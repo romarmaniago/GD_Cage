@@ -180,6 +180,7 @@
                                             <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl mb-0" style="width:100%">
                                                 <thead>
                                                     <tr>
+                                                        <th class="sortable-col" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
                                                         <th class="expense-name-th sortable-col" data-sort-key="name">
                                                             <span class="house-expense-select-all-slot">
                                                                 <input type="checkbox" id="house-expense-select-all" class="house-expense-select-all-cb" title="Select all" />
@@ -190,7 +191,6 @@
                                                         <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
                                                         <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
                                                         <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
-                                                        <th class="sortable-col text-end" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
                                                         <th class="text-end"><%= __('house_expense.action') %></th>
                                                     </tr>
                                                 </thead>
@@ -1663,8 +1663,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 1.65rem;
-                height: 1.65rem;
+                width: 2.25rem;
+                height: 2.25rem;
                 padding: 0;
                 border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
                 border-radius: 50%;
@@ -1677,6 +1677,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 pointer-events: auto;
                 cursor: pointer;
                 transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+            }
+            .expense-cat-panel-add-btn i.fa {
+                font-size: 1rem;
             }
             /* Category modals: same stacking as modal-edit-house-expense (dialog above backdrop) */
             #modal-house-expense-add-category,
@@ -1985,11 +1988,11 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl th.text-end {
                 text-align: right !important;
             }
-            .expense-item-tbl thead th:nth-child(4),
             .expense-item-tbl thead th:nth-child(5),
             .expense-item-tbl thead th:nth-child(6),
-            .expense-item-tbl tbody td:nth-child(4),
-            .expense-item-tbl tbody td.expense-item-date-cell,
+            .expense-item-tbl thead th:nth-child(7),
+            .expense-item-tbl tbody td:nth-child(5),
+            .expense-item-tbl tbody td:nth-child(6),
             .expense-item-tbl tbody td.expense-item-action-cell {
                 text-align: right !important;
                 vertical-align: middle;
@@ -2005,9 +2008,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl thead th:nth-child(1),
             .expense-item-tbl thead th:nth-child(2),
             .expense-item-tbl thead th:nth-child(3),
+            .expense-item-tbl thead th:nth-child(4),
             .expense-item-tbl tbody td:nth-child(1),
             .expense-item-tbl tbody td:nth-child(2),
-            .expense-item-tbl tbody td:nth-child(3) {
+            .expense-item-tbl tbody td:nth-child(3),
+            .expense-item-tbl tbody td:nth-child(4),
+            .expense-item-tbl tbody td.expense-item-date-cell {
                 text-align: left !important;
                 vertical-align: middle;
             }

@@ -1140,8 +1140,9 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		);
 		const old = oldRows[0];
 		if (!old) return res.status(404).send('Expense not found');
-		if (Number(old.APPROVAL_STATUS) !== 1) {
-			return res.status(400).send('Only approved expenses can be edited');
+		const approvalStatus = Number(old.APPROVAL_STATUS);
+		if (approvalStatus !== 0 && approvalStatus !== 1) {
+			return res.status(400).send('Only pending or approved expenses can be edited');
 		}
 		const oldAmount = old ? Number(old.AMOUNT) : null;
 		let changesText = null;
