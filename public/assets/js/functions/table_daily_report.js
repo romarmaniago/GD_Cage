@@ -34,17 +34,24 @@
     return;
   }
 
+  function toIsoDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function getPreviousDayIso() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return toIsoDate(yesterday);
+  }
+
   function getCurrentMonthRange() {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const toIso = (date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-    return { from: toIso(first), to: toIso(last) };
+    return { from: toIsoDate(first), to: toIsoDate(last) };
   }
 
   function initDailyReportDatePicker() {
@@ -310,10 +317,31 @@
 
   function parseFormattedInteger(value) {
     const clean = String(value ?? '').replace(/,/g, '').trim();
-    if (!clean) return NaN;
+    if (!clean || clean === '-') return NaN;
     const numeric = Number(clean);
     if (Number.isNaN(numeric)) return NaN;
     return Math.round(numeric);
+  }
+
+  function formatDailyReportAmountInput(raw, allowNegative) {
+    const stripped = String(raw ?? '').replace(/,/g, '');
+
+    if (allowNegative) {
+      const isNegative = stripped.trim().startsWith('-');
+      const digits = stripped.replace(/[^\d]/g, '');
+      if (!digits) return isNegative ? '-' : '';
+
+      const numberValue = Number(isNegative ? `-${digits}` : digits);
+      if (Number.isNaN(numberValue)) return '';
+      return formatIntegerWithCommas(numberValue);
+    }
+
+    const digitsOnly = stripped.replace(/[^\d]/g, '');
+    if (!digitsOnly) return '';
+
+    const numberValue = Number(digitsOnly);
+    if (Number.isNaN(numberValue)) return '';
+    return formatIntegerWithCommas(numberValue);
   }
 
   function renderRows(rows) {
@@ -1071,9 +1099,21 @@
     btnSaveDailyReport.disabled = true;
   }
 
+  function setDailyReportDefaultDate() {
+    const defaultDate = reportMode === 'winloss' ? getPreviousDayIso() : null;
+    if (!defaultDate) return;
+
+    if (dailyReportDatePicker) {
+      dailyReportDatePicker.setDate(defaultDate, true);
+    } else {
+      dailyReportDate.value = defaultDate;
+    }
+  }
+
   async function openDailyReportModal() {
     initDailyReportDatePicker();
     resetDailyReportForm();
+    setDailyReportDefaultDate();
     await loadDailyReportTables();
     dailyReportModal.show();
   }
@@ -1190,23 +1230,11 @@
   }
   dailyReportEntriesTbody.addEventListener('input', (event) => {
     const input = event.target;
-    if (!input.classList.contains('daily-report-rolling') && !input.classList.contains('daily-report-winloss')) {
-      return;
-    }
+    const isWinloss = input.classList.contains('daily-report-winloss');
+    const isRolling = input.classList.contains('daily-report-rolling');
+    if (!isWinloss && !isRolling) return;
 
-    const digitsOnly = String(input.value || '').replace(/[^\d-]/g, '');
-    if (digitsOnly === '' || digitsOnly === '-') {
-      input.value = '';
-      return;
-    }
-
-    const numberValue = Number(digitsOnly);
-    if (Number.isNaN(numberValue)) {
-      input.value = '';
-      return;
-    }
-
-    input.value = formatIntegerWithCommas(numberValue);
+    input.value = formatDailyReportAmountInput(input.value, isWinloss);
   });
   formModalEl.addEventListener('hidden.bs.modal', () => {
     setFormAsAdd();
