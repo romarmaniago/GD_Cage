@@ -1147,30 +1147,12 @@ function computeGameRollingAndRollerTotalsFromRecords(gameRecords) {
 	return { total_rolling_chips, total_roller_chips };
 }
 
-function getProjectedRollingChipsFromRecords(gameRecords, ccAmount, { recordIdToReplace } = {}) {
+function validateRollingAgainstRollerChips(gameRecords, ccAmount) {
 	const totals = computeGameRollingAndRollerTotalsFromRecords(gameRecords);
-	let projectedRolling = totals.total_rolling_chips + ccAmount;
-
-	if (recordIdToReplace) {
-		const oldRecord = (gameRecords || []).find((row) => Number(row.IDNo) === Number(recordIdToReplace));
-		if (oldRecord && Number(oldRecord.CAGE_TYPE) === 4) {
-			projectedRolling = totals.total_rolling_chips - (Number(oldRecord.CC_CHIPS) || 0) + ccAmount;
-		}
-	}
-
-	return {
-		projectedRolling,
-		total_roller_chips: totals.total_roller_chips,
-		current_rolling: totals.total_rolling_chips
-	};
-}
-
-function validateRollingAgainstRollerChips(gameRecords, ccAmount, options = {}) {
-	const projection = getProjectedRollingChipsFromRecords(gameRecords, ccAmount, options);
-	if (projection.projectedRolling > projection.total_roller_chips) {
+	if (ccAmount > totals.total_roller_chips) {
 		return {
 			ok: false,
-			error: `Rolling cannot exceed Roller Chips (${projection.total_roller_chips.toLocaleString()}).`
+			error: `Rolling cannot exceed Roller Chips (${totals.total_roller_chips.toLocaleString()}).`
 		};
 	}
 	return { ok: true };
@@ -5222,7 +5204,7 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 
 		const gameId = existingRows[0].GAME_ID;
 		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
-		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount, { recordIdToReplace: recordId });
+		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount);
 		if (!rollingValidation.ok) {
 			return res.status(400).json({ error: rollingValidation.error });
 		}
