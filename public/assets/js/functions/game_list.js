@@ -179,37 +179,16 @@ function computeGameRollingAndRollerTotalsFromRecords(rows) {
 	};
 }
 
-function getProjectedRollingChips(rows, ccAmount, options) {
-	options = options || {};
+function validateRollingAgainstRollerChips(rows, ccAmount) {
 	var totals = computeGameRollingAndRollerTotalsFromRecords(rows);
-	var projected = totals.total_rolling_chips + ccAmount;
-
-	if (options.isUpdate && options.recordId) {
-		var oldRecord = (rows || []).find(function (row) {
-			return String(row.IDNo) === String(options.recordId);
-		});
-		if (oldRecord && parseInt(oldRecord.CAGE_TYPE, 10) === 4) {
-			projected = totals.total_rolling_chips - (Number(oldRecord.CC_CHIPS) || 0) + ccAmount;
-		}
-	}
-
-	return {
-		projectedRolling: projected,
-		total_roller_chips: totals.total_roller_chips,
-		current_rolling: totals.total_rolling_chips
-	};
-}
-
-function validateRollingAgainstRollerChips(rows, ccAmount, options) {
-	var projection = getProjectedRollingChips(rows, ccAmount, options);
-	if (projection.projectedRolling > projection.total_roller_chips) {
+	if (ccAmount > totals.total_roller_chips) {
 		return {
 			ok: false,
-			message: 'Rolling cannot exceed Roller Chips (' + projection.total_roller_chips.toLocaleString() + ').',
-			projection: projection
+			message: 'Rolling cannot exceed Roller Chips (' + totals.total_roller_chips.toLocaleString() + ').',
+			total_roller_chips: totals.total_roller_chips
 		};
 	}
-	return { ok: true, projection: projection };
+	return { ok: true, total_roller_chips: totals.total_roller_chips };
 }
 
 function formatMergeNumeric(value) {
@@ -5133,10 +5112,7 @@ $('#add_buyin').submit(function (event) {
 			url: '/game_list/' + gameId + '/record',
 			method: 'GET',
 			success: function (records) {
-				var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount, {
-					isUpdate: isUpdate,
-					recordId: rollingRecordId
-				});
+				var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount);
 
 				if (!rollingValidation.ok) {
 					Swal.fire({
