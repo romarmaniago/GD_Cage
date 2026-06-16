@@ -1326,58 +1326,28 @@ table.dataTable tbody tr.highlight-row {
 								var totalSettle = 0;
 
 								var table = $('#game_list-tbl').DataTable();
+								var parseCell = window.parseListAmount || function (v) { return parseFloat(String(v || '').replace(/[^0-9.-]/g, '')) || 0; };
 
-								// Process only the rows on the current page
 								table.rows({ page: 'current' }).every(function () {
 									var data = this.data();
 
-									var amountIndex = 6; // BUY-IN
-									var rollingIndex = 9; // TOTAL ROLLING
-									var rollerChipsIndex = 15; // ROLLER CHIPS
-									var chipsReturnIndex = 7; // CASH-OUT
-									var winLossIndex = 8; // WIN/LOSS
-									var commissionIndex = 11; // COMMISSION
-									var addChgIndex = 12; // ADD CHG
-									var totalSettleIndex = 13; // TOTAL SETTLE
+									var amountIndex = 6;
+									var rollingIndex = 9;
+									var rollerChipsIndex = 15;
+									var chipsReturnIndex = 7;
+									var winLossIndex = 8;
+									var commissionIndex = 11;
+									var addChgIndex = 12;
+									var totalSettleIndex = 13;
 
-									var amountValue = data[amountIndex] || '0';
-									var rollingValue = data[rollingIndex] || '0';
-									var rollerChipsValue = data[rollerChipsIndex] || '0';
-									var chipsReturnValue = data[chipsReturnIndex] || '0';
-									var commissionValue = data[commissionIndex] || '0';
-									var addChgValue = data[addChgIndex] || '0';
-									var totalSettleValue = data[totalSettleIndex] || '0';
-									var winLossValue = data[winLossIndex] || '0';
-
-									var tempDiv = $('<div>').html(amountValue);
-									var amountText = tempDiv.text().trim() || amountValue;
-
-									tempDiv = $('<div>').html(rollerChipsValue);
-									var rollerChipsText = tempDiv.text().trim() || rollerChipsValue;
-
-									tempDiv = $('<div>').html(chipsReturnValue);
-									var chipsReturnText = tempDiv.text().trim() || chipsReturnValue;
-
-									tempDiv = $('<div>').html(rollingValue);
-									var rollingText = tempDiv.text().trim() || rollingValue;
-
-									var cleanedAmountValue = parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRollingValue = parseFloat(rollingText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRollerChipsValue = parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedAddChgValue = parseFloat(addChgValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedTotalSettleValue = parseFloat(totalSettleValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
-
-									totalAmount += cleanedAmountValue;
-									totalRolling += cleanedRollingValue;
-									totalRollerChips += cleanedRollerChipsValue;
-									totalChipsReturn += cleanedChipsReturnValue;
-									totalCommission += cleanedCommissionValue;
-									totalAddChg += cleanedAddChgValue;
-									totalSettle += cleanedTotalSettleValue;
-									totalWinLoss += cleanedWinLossValue;
+									totalAmount += parseCell(data[amountIndex] || '0');
+									totalRolling += parseCell(data[rollingIndex] || '0');
+									totalRollerChips += parseCell(data[rollerChipsIndex] || '0');
+									totalChipsReturn += parseCell(data[chipsReturnIndex] || '0');
+									totalCommission += parseCell(data[commissionIndex] || '0');
+									totalAddChg += parseCell(data[addChgIndex] || '0');
+									totalSettle += parseCell(data[totalSettleIndex] || '0');
+									totalWinLoss += parseCell(data[winLossIndex] || '0', { signed: true });
 								});
 
 								var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -1387,7 +1357,9 @@ table.dataTable tbody tr.highlight-row {
 								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedAddChg = totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedTotalSettle = totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedWinLoss = window.formatListAmount
+									? window.formatListAmount(totalWinLoss, 'signed')
+									: totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
@@ -1396,7 +1368,7 @@ table.dataTable tbody tr.highlight-row {
 								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
 								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(formattedAddChg);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(formattedTotalSettle);
-								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
+								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formattedWinLoss);
 
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
 								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
