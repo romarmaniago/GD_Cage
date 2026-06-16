@@ -201,11 +201,34 @@ function formatListAmount(value, mode) {
 	if (mode === 'in' && window.fmtIn) return window.fmtIn(value);
 	return formatMergeNumeric(value);
 }
+window.formatListAmount = formatListAmount;
 
-function parseListAmount(value) {
-	if (window.AmountFormat) return window.AmountFormat.toNumber(value);
-	return parseInt(String(value || '').split(',').join(''), 10) || 0;
+function parseListAmount(value, options) {
+	options = options || {};
+	if (typeof value === 'number') {
+		return Number.isFinite(value) ? value : 0;
+	}
+	var raw = String(value == null ? '' : value);
+	if (raw.indexOf('<') !== -1) {
+		var tmp = document.createElement('div');
+		tmp.innerHTML = raw;
+		raw = (tmp.textContent || tmp.innerText || raw).trim();
+	} else {
+		raw = raw.trim();
+	}
+	var isParenNegative = /^\(\s*[\d,.]+\s*\)$/.test(raw);
+	var cleaned = raw.replace(/,/g, '').replace(/[()]/g, '').replace(/[^\d.-]/g, '').trim();
+	if (!cleaned || cleaned === '-' || cleaned === '.') return 0;
+	var n = parseFloat(cleaned);
+	if (!isFinite(n)) return 0;
+	n = Math.abs(n);
+	if (options.signed) {
+		if (isParenNegative || /^-/.test(raw)) return -n;
+		return n;
+	}
+	return n;
 }
+window.parseListAmount = parseListAmount;
 
 function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	var $modal = $('#modal-change_status');
@@ -2259,15 +2282,8 @@ $(document).ready(function () {
 		return accountIds;
 	}
 
-	function parseMergeNumeric(text) {
-		var cleaned = String(text || '')
-			.replace(/<[^>]*>/g, '')
-			.replace(/,/g, '')
-			.replace(/[^\d.\-]/g, '')
-			.trim();
-		if (!cleaned || cleaned === '-' || cleaned === '.') return 0;
-		var n = parseFloat(cleaned);
-		return isNaN(n) ? 0 : n;
+	function parseMergeNumeric(text, options) {
+		return parseListAmount(text, options);
 	}
 
 	function toTitleCase(text) {
@@ -2332,7 +2348,7 @@ $(document).ready(function () {
 			totalChipsReturn += parseMergeNumeric($row.find('td').eq(7).text());
 			totalRolling += parseMergeNumeric($row.find('td').eq(9).text());
 			totalSettlement += parseMergeNumeric($row.find('td').eq(13).text());
-			totalWinLoss += parseMergeNumeric($row.find('td').eq(8).text());
+			totalWinLoss += parseMergeNumeric($row.find('td').eq(8).text(), { signed: true });
 
 			var rateText = $.trim($row.find('td').eq(10).text())
 				.replace(/\bR\b/g, '')
@@ -2539,7 +2555,7 @@ $(document).ready(function () {
 		},
 	
 		createdRow: function (row, data, index) {
-			if (parseListAmount(data[8]) < 0) {
+			if (parseListAmount(data[8], { signed: true }) < 0) {
 				$('td:eq(8)', row).addClass('text-danger');
 			}
 
@@ -8611,7 +8627,7 @@ $(document).ready(function () {
 		}],
 		createdRow: function (row, data, index) {
 
-			if (parseListAmount(data[10]) < 0) {
+			if (parseListAmount(data[10], { signed: true }) < 0) {
 				$('td:eq(10)', row).addClass('text-danger');
 			}
 		},

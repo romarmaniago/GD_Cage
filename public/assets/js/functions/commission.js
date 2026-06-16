@@ -84,8 +84,30 @@ $(document).ready(function() {
         updateCompareUi();
     }
 
-    function parseNumCell(value) {
-        return parseFloat(String(value == null ? '' : value).replace(/[^0-9.-]/g, '')) || 0;
+    function parseNumCell(value, options) {
+        options = options || {};
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : 0;
+        }
+        var raw = String(value == null ? '' : value);
+        if (raw.indexOf('<') !== -1) {
+            var tmp = document.createElement('div');
+            tmp.innerHTML = raw;
+            raw = (tmp.textContent || tmp.innerText || raw).trim();
+        } else {
+            raw = raw.trim();
+        }
+        var isParenNegative = /^\(\s*[\d,.]+\s*\)$/.test(raw);
+        var cleaned = raw.replace(/,/g, '').replace(/[()]/g, '').replace(/[^\d.-]/g, '').trim();
+        if (!cleaned || cleaned === '-' || cleaned === '.') return 0;
+        var n = parseFloat(cleaned);
+        if (!isFinite(n)) return 0;
+        n = Math.abs(n);
+        if (options.signed) {
+            if (isParenNegative || /^-/.test(raw)) return -n;
+            return n;
+        }
+        return n;
     }
 
     function formatRollingRatePercent(value) {
@@ -146,7 +168,7 @@ $(document).ready(function() {
             dateTime: snapshot.dateTime,
             commissionType: Number(snapshot.commissionType) || 1,
             totalRollingNum: parseNumCell(snapshot.totalRolling),
-            winLossNum: parseNumCell(snapshot.winLoss),
+            winLossNum: parseNumCell(snapshot.winLoss, { signed: true }),
             fnbNum: parseNumCell(snapshot.fnb),
             rollingRateNum: rateNum,
             originalRollingRateNum: rateNum,
@@ -266,14 +288,14 @@ $(document).ready(function() {
             totals.payment += row.paymentNum;
         });
         $('#commission-compare-total-buyin').text(fmtCompareAmount(totals.buyIn));
-        $('#commission-compare-total-return').text(fmtCompareAmount(totals.chipsReturn));
+        $('#commission-compare-total-return').html(fmtCommissionAmount(totals.chipsReturn, 'out'));
         var $compareWinLossTotal = $('#commission-compare-total-winloss');
-        $compareWinLossTotal.text(fmtCompareAmount(totals.winLoss));
+        $compareWinLossTotal.html(fmtCommissionAmount(totals.winLoss, 'signed'));
         applyWinLossColor($compareWinLossTotal, totals.winLoss);
         $('#commission-compare-total-rolling').text(fmtCompareAmount(totals.rolling));
         $('#commission-compare-total-settlement').text(fmtCompareAmount(totals.settlement));
         $('#commission-compare-total-fnb').text(formatAddChgAmount(totals.fnb));
-        $('#commission-compare-total-payment').text(fmtCompareAmount(totals.payment));
+        $('#commission-compare-total-payment').html(fmtCommissionAmount(totals.payment, 'out'));
     }
 
     function refreshCompareModalRowCells() {
@@ -356,7 +378,7 @@ $(document).ready(function() {
 
     function applyWinLossColor($el, value) {
         if (!$el || !$el.length) return;
-        var n = parseNumCell(value);
+        var n = typeof value === 'number' ? value : parseNumCell(value, { signed: true });
         $el.removeClass('commission-winloss-positive commission-winloss-negative');
         if (n > 0) {
             $el.addClass('commission-winloss-positive');
@@ -366,7 +388,7 @@ $(document).ready(function() {
     }
 
     function formatWinLossHtml(value) {
-        var n = parseNumCell(value);
+        var n = parseNumCell(value, { signed: true });
         var text = n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
         var cls = n > 0 ? 'commission-winloss-positive' : (n < 0 ? 'commission-winloss-negative' : '');
         return '<span class="' + cls + '">' + escapeHtml(text) + '</span>';
@@ -537,13 +559,13 @@ $(document).ready(function() {
             var fnbValue = data[9] || '0';
             var paymentValue = data[10] || '0';
 
-            totalBuyIn += parseFloat(String(buyInValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalChipsReturn += parseFloat(String(chipsReturnValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalWinLoss += parseFloat(String(winLossValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalRolling += parseFloat(String(rollingValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalRollingSettlement += parseFloat(String(rollingSettlementValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalFnb += parseFloat(String(fnbValue).replace(/[^0-9.-]/g, '')) || 0;
-            totalPayment += parseFloat(String(paymentValue).replace(/[^0-9.-]/g, '')) || 0;
+            totalBuyIn += parseNumCell(buyInValue);
+            totalChipsReturn += parseNumCell(chipsReturnValue);
+            totalWinLoss += parseNumCell(winLossValue, { signed: true });
+            totalRolling += parseNumCell(rollingValue);
+            totalRollingSettlement += parseNumCell(rollingSettlementValue);
+            totalFnb += parseNumCell(fnbValue);
+            totalPayment += parseNumCell(paymentValue);
         });
 
         function formatNumber(num) {
@@ -551,14 +573,14 @@ $(document).ready(function() {
         }
 
         $('#GRAND_TOTAL_AMOUNT').text(formatNumber(totalBuyIn));
-        $('#GRAND_CHIPS_RETURN').text(formatNumber(totalChipsReturn));
+        $('#GRAND_CHIPS_RETURN').html(fmtCommissionAmount(totalChipsReturn, 'out'));
         var $grandWinLoss = $('#GRAND_WIN_LOSS');
-        $grandWinLoss.text(formatNumber(totalWinLoss));
+        $grandWinLoss.html(fmtCommissionAmount(totalWinLoss, 'signed'));
         applyWinLossColor($grandWinLoss, totalWinLoss);
         $('#GRAND_TOTAL_ROLLING').text(formatNumber(totalRolling));
         $('#GRAND_ROLLING_SETTLEMENT').text(formatNumber(totalRollingSettlement));
         $('#GRAND_FNB').text(formatAddChgAmount(totalFnb));
-        $('#GRAND_PAYMENT').text(formatNumber(totalPayment));
+        $('#GRAND_PAYMENT').html(fmtCommissionAmount(totalPayment, 'out'));
     }
 
     function jumpCommissionRangeToCurrentThreeMonths(instance) {
