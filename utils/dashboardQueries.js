@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY } = require('./saveCashoutTips');
 
 // Function para kunin ang NN Chips Buyin
 async function getNNChipsBuyin() {
@@ -23,7 +24,7 @@ async function getAccountNNChips() {
 
 // Function para kunin ang Total Cash Out Rolling
 async function getTotalCashOutRolling() {
-  const sql = 'SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2';
+  const sql = `SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
   const [rows] = await pool.execute(sql);
   return rows;
 }
@@ -103,7 +104,7 @@ async function getNNReturn() {
 
 // ✅ CC-specific additional queries:
 async function getAccountCCChipsReturn() {
-  const sql = 'SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2';
+  const sql = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
   const [rows] = await pool.execute(sql);
   return rows;
 }
@@ -267,7 +268,8 @@ async function computeCashBalance() {
     pool.execute('SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE=1'),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_WITHDRAW FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='ACCOUNT DETAILS' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute('SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 AND TRANSACTION != 4'),
+    pool.execute(`SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`),
+    pool.execute(`SELECT SUM(NN_CHIPS + CC_CHIPS) AS ROLLER_TIP_CASHIN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 ${SQL_ROLLER_TIP_CASHOUT_ONLY}`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_SETTLEMENT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT_SERVICES FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='SERVICES' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=3 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
@@ -289,7 +291,8 @@ async function computeCashBalance() {
     rowNum(results[6][0], 'TOTAL') +
     rowNum(results[7][0], 'TOTAL') +
     rowNum(results[8][0], 'MARKER_RETURN_CASH') +
-    rowNum(results[9][0], 'RETURN_MONEY');
+    rowNum(results[9][0], 'RETURN_MONEY') +
+    rowNum(results[16][0], 'ROLLER_TIP_CASHIN');
 
   const cashOut =
     rowNum(results[10][0], 'CCChipsBuyin') +
@@ -298,17 +301,32 @@ async function computeCashBalance() {
     rowNum(results[13][0], 'NNChipsBuyin') +
     rowNum(results[14][0], 'ACCOUNT_WITHDRAW') +
     rowNum(results[15][0], 'TOTAL_CASHOUT') +
-    rowNum(results[16][0], 'ACCOUNT_SETTLEMENT') +
-    rowNum(results[17][0], 'ACCOUNT_DEDUCT_SERVICES') +
-    rowNum(results[18][0], 'TOTAL_ISSUE_RECORD') +
-    rowNum(results[19][0], 'TOTAL') +
+    rowNum(results[17][0], 'ACCOUNT_SETTLEMENT') +
+    rowNum(results[18][0], 'ACCOUNT_DEDUCT_SERVICES') +
+    rowNum(results[19][0], 'TOTAL_ISSUE_RECORD') +
     rowNum(results[20][0], 'TOTAL') +
-    rowNum(results[21][0], 'ACCOUNT_TRANSFER') +
-    rowNum(results[22][0], 'MANUAL_BALANCING') +
-    rowNum(results[23][0], 'JUNKET_LOSS');
+    rowNum(results[21][0], 'TOTAL') +
+    rowNum(results[22][0], 'ACCOUNT_TRANSFER') +
+    rowNum(results[23][0], 'MANUAL_BALANCING') +
+    rowNum(results[24][0], 'JUNKET_LOSS');
 
-  const mx = rowNum(results[24][0], 'MX_CASH_NET');
+  const mx = rowNum(results[25][0], 'MX_CASH_NET');
   return cashIn - cashOut + mx;
+}
+
+/** Cash + NN + CC chips balances (same as dashboard house balance components). */
+async function computeHouseBalance() {
+  const [cashBalance, nnChipsBalance, ccChipsBalance] = await Promise.all([
+    computeCashBalance(),
+    computeNnChipsBalance(),
+    computeCcChipsBalance()
+  ]);
+  return {
+    cashBalance,
+    nnChipsBalance,
+    ccChipsBalance,
+    houseBalance: cashBalance + nnChipsBalance + ccChipsBalance
+  };
 }
 
 module.exports = {
@@ -333,5 +351,6 @@ module.exports = {
   getCCReturn,
   computeNnChipsBalance,
   computeCcChipsBalance,
-  computeCashBalance
+  computeCashBalance,
+  computeHouseBalance
 };

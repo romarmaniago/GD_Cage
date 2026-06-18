@@ -202,7 +202,8 @@
                      (+sqlServiceCashGuest[0].TOTAL || 0) +
                      (+sqlServiceDepositGuest[0].TOTAL || 0) +
                      (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-                     (+sqlReturnMoney[0].RETURN_MONEY || 0);
+                     (+sqlReturnMoney[0].RETURN_MONEY || 0) +
+                     (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
                   
                   const cashOutTotal =
                      (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
@@ -258,6 +259,8 @@
                      { label: 'TOTAL_CHIPS_CASHOUT',         sign: '+', value: (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) },
                      { label: 'NN_CHIPS_ACCOUNT_CASH',        sign: '+', value: (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) },
                      { label: 'CC_CHIPS_BUYIN_CASH_ONLY',     sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
+                     { label: 'RETURN_MONEY',                sign: '+', value: (+sqlReturnMoney[0].RETURN_MONEY || 0) },
+                     { label: 'ROLLER_TIP_CASHIN',           sign: '+', value: (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0) },
                      { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
                      { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
                      { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },
