@@ -1720,6 +1720,405 @@ function buildGameRemarksButton(row) {
 	);
 }
 
+function buildGameReceiptButton(row) {
+	return (
+		'<div class="btn-group" role="group">' +
+		'<button type="button" class="btn btn-sm btn-success-subtle action-btn-square js-bs-tooltip-enabled"' +
+		' onclick="showGameReceipts(' + row.game_list_id + ')"' +
+		' data-bs-toggle="tooltip" aria-label="Receipts" data-bs-original-title="Receipts" title="Receipts"' +
+		' style="font-size:8px !important; margin-right: 5px;">' +
+		'<i class="fa fa-receipt"></i></button></div>'
+	);
+}
+
+function formatGameStartReceiptAmount(value) {
+	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatGameReceiptCashoutAmount(value) {
+	var n = Number(value || 0);
+	if (!n) return '';
+	return '(' + formatGameStartReceiptAmount(n) + ')';
+}
+
+function formatGameStartReceiptDateTime(encodedDt) {
+	if (!encodedDt) return '';
+	var m = moment.utc(encodedDt).utcOffset(8);
+	if (!m.isValid()) return '';
+	return m.format('M/D/YYYY HH:mm');
+}
+
+function buildGameReceiptSlipHtml(data, isLatest) {
+	var accountLine = [data.agent_code, data.agent_name].filter(Boolean).join(' - ');
+	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
+	var buyinLabel = data.buyin_label || '* BUY IN';
+	var cashoutLabel = data.cashout_label || '* TOTAL CASH OUT';
+	var showBuyin = data.show_buyin !== false;
+	var showCashout = !!data.show_cashout;
+	var showSummary = !!data.show_summary;
+	var showSettlement = !!data.show_settlement;
+
+	var cashoutRows = '';
+	if (showCashout) {
+		cashoutRows =
+			'<table class="gsr-table gsr-section-cashout">' +
+			'<tbody>' +
+			'<tr><td class="gsr-label">- CASH</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_cash) + '</td></tr>' +
+			'<tr><td class="gsr-label">- DEPOSIT</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_deposit) + '</td></tr>' +
+			'<tr><td class="gsr-label">- CREDIT</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_credit) + '</td></tr>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + cashoutLabel + '</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.total_cashout) + '</td></tr>' +
+			'</tbody></table>';
+	}
+
+	var summaryRows = '';
+	if (showSummary) {
+		summaryRows =
+			'<table class="gsr-table gsr-section-summary">' +
+			'<tbody>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* WIN / LOSS</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.win_loss) + '</td></tr>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* ROLLING</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.rolling) + '</td></tr>' +
+			'</tbody></table>';
+	}
+
+	var settlementRows = '';
+	if (showSettlement) {
+		settlementRows =
+			'<table class="gsr-table gsr-section-settlement">' +
+			'<tbody>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* SETTLEMENT</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.settlement) + '</td></tr>' +
+			'<tr><td class="gsr-label">- ADD CHARGE</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.add_charge) + '</td></tr>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* ACT SETTLMENT</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.act_settlement) + '</td></tr>' +
+			'</tbody></table>';
+	}
+
+	var buyinTable = '';
+	if (showBuyin) {
+		buyinTable =
+			'<table class="gsr-table gsr-section-buyin">' +
+			'<tbody>' +
+			'<tr><td class="gsr-label">- CASH</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.cash) + '</td></tr>' +
+			'<tr><td class="gsr-label">- DEPOSIT</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.deposit) + '</td></tr>' +
+			'<tr><td class="gsr-label">- CREDIT</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.credit) + '</td></tr>' +
+			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + buyinLabel + '</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.buy_in) + '</td></tr>' +
+			'</tbody></table>';
+	}
+
+	return (
+		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '">' +
+		'<div class="game-start-receipt-slip-body">' +
+		'<p class="gsr-brand">GOLDEN DRAGON</p>' +
+		'<p class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</p>' +
+		'<p class="gsr-title">' + (data.title || '* Game start *') + '</p>' +
+		'<p class="gsr-account">' + accountLine + '</p>' +
+		'<p class="gsr-game-no">' + gameNoLine + '</p>' +
+		buyinTable +
+		cashoutRows +
+		summaryRows +
+		settlementRows +
+		'</div>' +
+		'<button type="button" class="btn btn-sm btn-primary w-100 mt-2 js-copy-game-receipt-slip">' +
+		'<i class="fa fa-copy me-1"></i>Copy</button>' +
+		'</div>'
+	);
+}
+
+function getLatestReceiptIndex(receipts) {
+	var list = receipts || [];
+	if (list.length <= 1) return 0;
+	var latestIndex = 0;
+	var latestTime = 0;
+	list.forEach(function (r, i) {
+		var t = r.encoded_dt ? new Date(r.encoded_dt).getTime() : 0;
+		if (!Number.isFinite(t)) return;
+		if (t >= latestTime) {
+			latestTime = t;
+			latestIndex = i;
+		}
+	});
+	return latestIndex;
+}
+
+function scrollGameReceiptLatestIntoView(instant) {
+	var el = document.querySelector('#game-receipts-container .game-start-receipt-slip--latest');
+	if (el && typeof el.scrollIntoView === 'function') {
+		el.scrollIntoView({
+			inline: 'center',
+			block: 'nearest',
+			behavior: instant ? 'instant' : 'smooth'
+		});
+	}
+}
+
+function beginGameReceiptsSettling() {
+	var $container = $('#game-receipts-container');
+	$container.addClass('is-settling');
+	clearTimeout(window._gameReceiptSettlingTimer);
+	window._gameReceiptSettlingTimer = setTimeout(function () {
+		$container.removeClass('is-settling');
+	}, 500);
+}
+
+function getGameReceiptsTrack($container) {
+	var $track = $container.find('.game-receipts-track');
+	if (!$track.length) {
+		$track = $('<div class="game-receipts-track"></div>').appendTo($container);
+	}
+	return $track;
+}
+
+function populateAllGameReceipts(receipts) {
+	var $container = $('#game-receipts-container');
+	if (!$container.length) return;
+	var list = receipts || [];
+	var latestIndex = getLatestReceiptIndex(list);
+	var html = list.map(function (r, i) {
+		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex);
+	}).join('');
+	getGameReceiptsTrack($container).html(html);
+	beginGameReceiptsSettling();
+	requestAnimationFrame(function () {
+		scrollGameReceiptLatestIntoView(true);
+	});
+}
+
+function populateGameReceiptModal(data) {
+	populateAllGameReceipts([data]);
+}
+
+function populateGameStartReceiptModal(data) {
+	populateAllGameReceipts([data]);
+}
+
+function showGameStartReceiptModal() {
+	var modalEl = document.getElementById('modal-game-start-receipt');
+	if (!modalEl) return;
+	if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+		bootstrap.Modal.getOrCreateInstance(modalEl).show();
+	} else if ($('#modal-game-start-receipt').modal) {
+		$('#modal-game-start-receipt').modal('show');
+	}
+}
+
+function showGameReceipts(gameId) {
+	if (!gameId) return;
+	$.ajax({
+		url: '/game_list/' + gameId + '/receipts',
+		method: 'GET',
+		success: function (data) {
+			var receipts = (data && data.receipts) || [];
+			if (!receipts.length) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'info', title: 'No receipts', text: 'No receipts available for this game.', confirmButtonText: 'OK' });
+				}
+				return;
+			}
+			populateAllGameReceipts(receipts);
+			showGameStartReceiptModal();
+		},
+		error: function (xhr) {
+			var msg = xhr.responseJSON?.error || 'Unable to load receipts.';
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+			}
+		}
+	});
+}
+window.showGameReceipts = showGameReceipts;
+
+function showGameReceiptByType(gameId, type) {
+	if (!gameId || !type) return;
+	$.ajax({
+		url: '/game_list/' + gameId + '/receipts',
+		method: 'GET',
+		success: function (data) {
+			var receipt = ((data && data.receipts) || []).find(function (r) { return r.type === type; });
+			if (!receipt) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'info', title: 'No receipt', text: 'No receipt available for this transaction.', confirmButtonText: 'OK' });
+				}
+				return;
+			}
+			populateGameReceiptModal(receipt);
+			showGameStartReceiptModal();
+		},
+		error: function (xhr) {
+			var msg = xhr.responseJSON?.error || 'Unable to load receipt.';
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+			}
+		}
+	});
+}
+window.showGameReceiptByType = showGameReceiptByType;
+
+function getTransactionReceiptSuccessMessage(receiptType) {
+	var messages = {
+		add_buyin: { title: 'Success!', text: 'Buy-in transaction saved successfully.' },
+		cashout: { title: 'Success!', text: 'Cash-out transaction saved successfully.' },
+		game_start: { title: 'Success!', text: 'Game created successfully.' },
+		game_finish: { title: 'Success!', text: 'Game finished successfully.' }
+	};
+	return messages[receiptType] || { title: 'Success!', text: 'Transaction saved successfully.' };
+}
+
+function afterTransactionSavedReceipt(gameId, receiptType, cleanupFn) {
+	if (typeof cleanupFn === 'function') cleanupFn();
+	var msg = getTransactionReceiptSuccessMessage(receiptType);
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({
+			icon: 'success',
+			title: msg.title,
+			text: msg.text,
+			showConfirmButton: false,
+			timer: 1500
+		});
+	}
+	reloadData();
+}
+
+function showGameStartReceipt(gameId) {
+	showGameReceiptByType(gameId, 'game_start');
+}
+window.showGameStartReceipt = showGameStartReceipt;
+
+var gameStartReceiptHtml2CanvasPromise = null;
+
+function loadGameStartReceiptHtml2Canvas() {
+	if (typeof html2canvas !== 'undefined') {
+		return Promise.resolve();
+	}
+	if (gameStartReceiptHtml2CanvasPromise) {
+		return gameStartReceiptHtml2CanvasPromise;
+	}
+	gameStartReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+		var script = document.createElement('script');
+		script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+		script.onload = function () { resolve(); };
+		script.onerror = function () {
+			gameStartReceiptHtml2CanvasPromise = null;
+			reject(new Error('Failed to load image copy library.'));
+		};
+		document.body.appendChild(script);
+	});
+	return gameStartReceiptHtml2CanvasPromise;
+}
+
+function copyGameReceiptSlipImage(slipBodyEl, $btn) {
+	if (!slipBodyEl || !$btn || !$btn.length) return;
+
+	var originalHtml = $btn.html();
+	$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+	loadGameStartReceiptHtml2Canvas()
+		.then(function () {
+			return html2canvas(slipBodyEl, {
+				backgroundColor: '#ffffff',
+				scale: 2,
+				useCORS: true,
+				logging: false
+			});
+		})
+		.then(function (canvas) {
+			return new Promise(function (resolve, reject) {
+				canvas.toBlob(function (blob) {
+					if (!blob) {
+						reject(new Error('Failed to create receipt image.'));
+						return;
+					}
+					resolve(blob);
+				}, 'image/png');
+			});
+		})
+		.then(function (blob) {
+			if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+				throw new Error('Image clipboard is not supported in this browser.');
+			}
+			return navigator.clipboard.write([
+				new ClipboardItem({ 'image/png': Promise.resolve(blob) })
+			]);
+		})
+		.then(function () {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({
+					icon: 'success',
+					title: 'Copied!',
+					text: 'Receipt image copied. You can paste it anywhere.',
+					timer: 2000,
+					showConfirmButton: false
+				});
+			}
+		})
+		.catch(function (err) {
+			var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+			} else {
+				alert(msg);
+			}
+		})
+		.finally(function () {
+			$btn.prop('disabled', false).html(originalHtml);
+		});
+}
+window.copyGameReceiptSlipImage = copyGameReceiptSlipImage;
+
+$(document).off('click', '.js-copy-game-receipt-slip').on('click', '.js-copy-game-receipt-slip', function (e) {
+	e.preventDefault();
+	var $btn = $(this);
+	var slipBody = $btn.closest('.game-start-receipt-slip').find('.game-start-receipt-slip-body')[0];
+	copyGameReceiptSlipImage(slipBody, $btn);
+});
+
+function setGameStartReceiptBackdrop(active) {
+	if (active) {
+		$('body').addClass('game-start-receipt-open');
+		document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+			el.classList.add('game-start-receipt-backdrop');
+		});
+	} else {
+		$('body').removeClass('game-start-receipt-open');
+		document.querySelectorAll('.modal-backdrop.game-start-receipt-backdrop').forEach(function (el) {
+			el.classList.remove('game-start-receipt-backdrop');
+		});
+	}
+}
+
+$(document).off('shown.bs.modal.gameReceiptScroll', '#modal-game-start-receipt').on('shown.bs.modal.gameReceiptScroll', '#modal-game-start-receipt', function () {
+	setGameStartReceiptBackdrop(true);
+	scrollGameReceiptLatestIntoView(true);
+});
+
+$(document).off('hidden.bs.modal.gameReceiptBackdrop', '#modal-game-start-receipt').on('hidden.bs.modal.gameReceiptBackdrop', '#modal-game-start-receipt', function () {
+	setGameStartReceiptBackdrop(false);
+});
+
+function afterNewGameCreated(gameId) {
+	$('#modal-new-game-list').modal('hide');
+	var resetSubmitBtn = function () {
+		var $btn = $('#submit-game-list-btn');
+		if ($btn.length) {
+			var label = $btn.data('label') || 'Save';
+			$btn.prop('disabled', false).text(label);
+		}
+	};
+	resetSubmitBtn();
+	if (gameId && typeof Swal !== 'undefined') {
+		var msg = getTransactionReceiptSuccessMessage('game_start');
+		Swal.fire({
+			icon: 'success',
+			title: msg.title,
+			text: msg.text,
+			showConfirmButton: false,
+			timer: 1500
+		});
+	}
+	if (window.location.pathname === '/agency') {
+		$(document).trigger('agency:new-game-saved');
+	} else {
+		reloadData();
+	}
+}
+
 function openGameRemarks(gameId, agentCode, remarks, guestName) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = userPermissions !== 2;
@@ -3079,6 +3478,7 @@ $(document).ready(function () {
                         </button>
                     </div>`;
                     var btn_remarks = buildGameRemarksButton(row);
+                    var btn_receipts = buildGameReceiptButton(row);
 
                     var ref = '';
                     var acct_code = '';
@@ -3311,7 +3711,7 @@ $(document).ready(function () {
 								// 	gameIdDisplay = `⭐ ${row.game_list_id}`;
 								// }
 
-                                var actionButtons = btn_remarks;
+                                var actionButtons = btn_remarks + btn_receipts;
                                 if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
                                     actionButtons += btn_his;
                                 }
@@ -3431,7 +3831,7 @@ $(document).ready(function () {
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
 								var gameStartCell = buildGameStartCell(game_start);
 								
-								var actionButtons = btn_remarks + btn_settle;
+								var actionButtons = btn_remarks + btn_receipts + btn_settle;
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
@@ -3542,7 +3942,7 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
 						   var gameStartCellEnd = buildGameStartCell(game_start);
-						   var actionButtons = btn_remarks + btn_settle;
+						   var actionButtons = btn_remarks + btn_receipts + btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
@@ -4053,25 +4453,9 @@ $('#add_game_list').submit(function (event) {
                 url: '/add_game_list_split',
                 type: 'POST',
                 data: payload,
-                success: function () {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: 'New game successfully added.',
-                        confirmButtonText: 'OK',
-                        allowOutsideClick: false,
-                        allowEscapeKey: false
-                    }).then(function (swalResult) {
-                        if (swalResult.isConfirmed) {
-                            $('#modal-new-game-list').modal('hide');
-                            if (window.location.pathname === '/agency') {
-                                $(document).trigger('agency:new-game-saved');
-                            } else {
-                                reloadData();
-                                window.location.reload();
-                            }
-                        }
-                    });
+                dataType: 'json',
+                success: function (response) {
+                    afterNewGameCreated(response && response.gameId);
                 },
                 error: function (xhr) {
                     var errorMessage = xhr.responseJSON?.error || "An error occurred.";
@@ -4240,26 +4624,9 @@ $('#add_game_list').submit(function (event) {
                     url: '/add_game_list',
                     type: 'POST',
                     data: formData,
+                    dataType: 'json',
                     success: function (response) {
-                        // Show success message
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: 'New game successfully added.',
-                            confirmButtonText: 'OK',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                $('#modal-new-game-list').modal('hide'); // Close modal
-                                if (window.location.pathname === '/agency') {
-                                    $(document).trigger('agency:new-game-saved');
-                                } else {
-                                    reloadData(); // Reload data after confirmation
-                                    window.location.reload(); // Refresh page
-                                }
-                            }
-                        });
+                        afterNewGameCreated(response && response.gameId);
                     },
                     error: function (xhr, status, error) {
                         var errorMessage = xhr.responseJSON?.error || xhr.responseText || "An error occurred.";
@@ -4397,8 +4764,8 @@ $('#add_buyin').submit(function (event) {
 					split_credit_cc: creditCC
 				},
 				success: function () {
-					Swal.fire({ icon: 'success', title: 'Success!', text: 'Additional Buy-in successfully added.', confirmButtonText: 'OK' }).then(() => {
-						reloadData();
+					var gameId = $('#modal-add-buyin .game_list_id').val();
+					afterTransactionSavedReceipt(gameId, 'add_buyin', function () {
 						$('#modal-add-buyin').modal('hide');
 						$('#add_buyin')[0].reset();
 						$btn.prop('disabled', false).text('Submit');
@@ -4527,15 +4894,8 @@ $('#add_buyin').submit(function (event) {
 					type: 'POST',
 					data: formData,
 					success: function (response) {
-						Swal.fire({
-							icon: 'success',
-							title: 'Success!',
-							text: 'Additional Buy-in successfully added.',
-							confirmButtonText: 'OK',
-							allowOutsideClick: false,
-							allowEscapeKey: false
-						}).then(() => {
-							reloadData();
+						var gameId = $('#modal-add-buyin .game_list_id').val();
+						afterTransactionSavedReceipt(gameId, 'add_buyin', function () {
 							$('#modal-add-buyin').modal('hide');
 							$('#add_buyin')[0].reset();
 							$btn.prop('disabled', false).text('Submit');
@@ -4854,12 +5214,8 @@ $('#add_buyin').submit(function (event) {
 					type: 'POST',
 					data: splitPayload,
 					success: function () {
-						Swal.fire({
-							icon: 'success',
-							title: 'Success!',
-							text: 'Cash-out completed.'
-						}).then(function () {
-							reloadData();
+						var gameId = $('#modal-add-cashout .game_list_id').val();
+						afterTransactionSavedReceipt(gameId, 'cashout', function () {
 							$('#modal-add-cashout').modal('hide');
 							$btn.prop('disabled', false).html('Save');
 						});
@@ -5046,14 +5402,10 @@ $('#add_buyin').submit(function (event) {
 					type: 'POST',
 					data: formData,
 					success: function (response) {
-						Swal.fire({
-							icon: 'success',
-							title: 'Success!',
-							text: 'Cash-out completed!'
-						}).then(() => {
-							reloadData();
+						var gameId = $('#modal-add-cashout .game_list_id').val();
+						afterTransactionSavedReceipt(gameId, 'cashout', function () {
 							$('#modal-add-cashout').modal('hide');
-							$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
+							$btn.prop('disabled', false).html('Save');
 						});
 					},
 					error: function (xhr, status, error) {
@@ -5854,9 +6206,9 @@ $('#edit_status').submit(function (event) {
 						timer: 1500
 					});
 
-					reloadData();
 					refreshSettlementModalLockIfOpen();
 					$('#modal-change_status').modal('hide');
+					reloadData();
 				},
 				error: function (xhr) {
 					var errMsg = 'Failed to update status. Please try again.';
@@ -8666,6 +9018,7 @@ $(document).ready(function () {
                     </button>
                </div>`;
                     var btn_remarks = buildGameRemarksButton(row);
+                    var btn_receipts = buildGameReceiptButton(row);
 
 
 						
@@ -8808,7 +9161,7 @@ $(document).ready(function () {
 								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
-                                var actionButtons = btn_remarks + btn_his;
+                                var actionButtons = btn_remarks + btn_receipts + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
@@ -8818,7 +9171,7 @@ $(document).ready(function () {
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
 								cashout_td = formatListAmount(total_cash_out_chips, 'out');
-                                var actionButtons = btn_remarks + btn_his;
+                                var actionButtons = btn_remarks + btn_receipts + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
@@ -8848,7 +9201,7 @@ $(document).ready(function () {
 										<i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
-						   var actionButtons = btn_remarks + btn_settle;
+						   var actionButtons = btn_remarks + btn_receipts + btn_settle;
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 

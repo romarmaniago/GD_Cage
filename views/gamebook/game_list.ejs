@@ -19,7 +19,7 @@
 									  </div>								 
 									</div>
 									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
-										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm">
+										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm d-none">
 											<i class="fa fa-compress me-1"></i>Merge Settle
 										</button>
 										<button type="button" id="btn-game-list-print" class="btn btn-sm btn-alt-success"><i class="fa fa-print me-1"></i>Print</button>
@@ -30,8 +30,8 @@
 								<div class="dataTables_wrapper">
 									<div class="row mb-2">
 										<div class="col-12 col-lg-6">
-											<!-- Filter Mode Radio Buttons - Single set for both wrappers -->
-											<div class="filter-mode-container">
+											<!-- Filter: program date only (game start filter hidden) -->
+											<div class="filter-mode-container d-none">
 												<div class="d-flex align-items-center gap-3">
 													<label class="mb-0">
 														<input type="radio" name="filter-mode" value="program" checked id="filter-program">
@@ -1408,6 +1408,7 @@ table.dataTable tbody tr.highlight-row {
 					<%- include ('../modals/game_book/new_game_list') %>
 						<%- include ('../modals/game_book/edit_commission_type') %>
 						<%- include ('../modals/game_book/game_remarks') %>
+						<%- include ('../modals/game_book/game_start_receipt') %>
 						<%- include ('../modals/game_book/change_status') %>
 							<%- include ('../modals/game_book/pending_guest_buyin') %>
 							<%- include ('../modals/game_book/pending_junket_new_game') %>

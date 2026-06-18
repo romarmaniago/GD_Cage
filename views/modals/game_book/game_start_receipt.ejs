@@ -1,0 +1,264 @@
+<div class="modal fade" id="modal-game-start-receipt" tabindex="-1" aria-labelledby="modalGameStartReceiptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl game-start-receipt-dialog">
+        <div class="modal-content game-start-receipt-content position-relative">
+            <button type="button" class="btn-close game-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-body p-0">
+                <div id="game-receipts-container" class="game-receipts-container">
+                    <div class="game-receipts-track"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#modal-game-start-receipt .game-start-receipt-dialog {
+    --bs-modal-width: 98vw;
+    width: 98vw !important;
+    max-width: 98vw !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#modal-game-start-receipt .game-start-receipt-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+}
+
+#modal-game-start-receipt .modal-body {
+    background: transparent;
+    width: 100%;
+}
+
+#modal-game-start-receipt .game-receipt-close-btn {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    z-index: 10;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    margin: 0;
+    opacity: 1;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    background-size: 1.35rem;
+    filter: none;
+    --bs-btn-close-opacity: 1;
+}
+
+#modal-game-start-receipt .game-receipt-close-btn:hover {
+    opacity: 1;
+    background-color: #f8f9fa;
+    transform: scale(1.05);
+}
+
+#modal-game-start-receipt .game-receipts-container {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2.5rem 0.5rem 0.75rem;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+#modal-game-start-receipt .game-receipts-track {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.75rem;
+    width: max-content;
+    margin: 0 auto;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip {
+    flex: 0 0 280px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.75rem 0.65rem;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    margin-bottom: 0;
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Dimmed = opaque gray card (no transparency — blur stays on backdrop only) */
+#modal-game-start-receipt .game-start-receipt-slip--past,
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest,
+#modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--past,
+#modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--past:hover {
+    opacity: 1;
+    filter: none;
+    background: #c2c2c2;
+    color: #333;
+    border-color: #959595;
+    transform: scale(0.96);
+    box-shadow: none;
+    z-index: 1;
+    cursor: pointer;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past .gsr-table td {
+    border-color: #8f8f8f;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-cashout,
+#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-summary,
+#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-settlement {
+    border-top-color: #555;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past .gsr-negative {
+    color: #8b2229;
+}
+
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-table td {
+    border-color: #8f8f8f;
+}
+
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-cashout,
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-summary,
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-settlement {
+    border-top-color: #555;
+}
+
+#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-negative {
+    color: #8b2229;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past:hover {
+    opacity: 1;
+    filter: none;
+    background: #fff;
+    color: #000;
+    border-color: #adb5bd;
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+    z-index: 4;
+    position: relative;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-table td {
+    border-color: #adb5bd;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-cashout,
+#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-summary,
+#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-settlement {
+    border-top-color: #000;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-negative {
+    color: #dc3545;
+}
+
+/* Lock latest float while modal is opening (prevents hover/scroll flash) */
+#modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--latest,
+#modal-game-start-receipt .game-receipts-container.is-settling:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest {
+    opacity: 1;
+    filter: none;
+    background: #fff;
+    color: #000;
+    border-color: #adb5bd;
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+    z-index: 3;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip--latest {
+    opacity: 1;
+    filter: none;
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+    border-color: #adb5bd;
+    z-index: 3;
+    position: relative;
+}
+
+#modal-game-start-receipt .game-start-receipt-slip-body {
+    flex: 1 1 auto;
+    padding: 0.5rem 0.25rem 0;
+}
+
+#modal-game-start-receipt .gsr-brand {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+
+#modal-game-start-receipt .gsr-datetime {
+    text-align: center;
+    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+}
+
+#modal-game-start-receipt .gsr-title {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+
+#modal-game-start-receipt .gsr-account,
+#modal-game-start-receipt .gsr-game-no {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+
+#modal-game-start-receipt .gsr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+}
+
+#modal-game-start-receipt .gsr-table td {
+    border: 1px solid #adb5bd;
+    padding: 0.3rem 0.5rem;
+}
+
+#modal-game-start-receipt .gsr-label {
+    text-align: left;
+}
+
+#modal-game-start-receipt .gsr-value {
+    text-align: right;
+    white-space: nowrap;
+}
+
+#modal-game-start-receipt .gsr-total-row td {
+    font-weight: 700;
+}
+
+#modal-game-start-receipt .gsr-negative {
+    color: #dc3545;
+}
+
+#modal-game-start-receipt .gsr-section-cashout,
+#modal-game-start-receipt .gsr-section-summary,
+#modal-game-start-receipt .gsr-section-settlement {
+    border-top: 2px solid #000;
+}
+
+/* Blurred backdrop — hides gamelist table detail while keeping faded receipts readable */
+body.game-start-receipt-open .modal-backdrop.show,
+.modal-backdrop.game-start-receipt-backdrop.show {
+    --bs-backdrop-opacity: 0.38;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+</style>

@@ -1964,6 +1964,9 @@ router.post('/add_game_list', async (req, res) => {
 			]);
 		}
 
+		if (req.xhr || (req.get('Accept') || '').includes('application/json')) {
+			return res.json({ success: true, gameId });
+		}
 		res.redirect('/game_list');
 	} catch (err) {
 		console.error('Error in /add_game_list:', err);
@@ -2152,6 +2155,9 @@ router.post('/add_game_list_split', async (req, res) => {
 			console.error('Telegram block after add_game_list_split:', tgErr);
 		}
 
+		if (req.xhr || (req.get('Accept') || '').includes('application/json')) {
+			return res.json({ success: true, gameId });
+		}
 		return res.redirect('/game_list');
 	} catch (err) {
 		try {
@@ -2875,7 +2881,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
+    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION, ENCODED_DT FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 
@@ -2888,7 +2894,275 @@ router.get('/game_list/:id/record', async (req, res) => {
     }
 });
 
+// GET game start receipt data (initial buy-in breakdown)
+router.get('/game_list/:id/start_receipt', async (req, res) => {
+	const data = await buildGameReceipts(parseInt(req.params.id, 10));
+	if (!data) {
+		return res.status(404).json({ error: 'Game not found' });
+	}
+	const gameStart = (data.receipts || []).find((r) => r.type === 'game_start');
+	if (!gameStart) {
+		return res.status(404).json({ error: 'Game start receipt not found' });
+	}
+	return res.json(gameStart);
+});
 
+function sumChipsByTransaction(records, cageType, encodedDt) {
+	let cash = 0;
+	let deposit = 0;
+	let credit = 0;
+	(records || []).forEach((row) => {
+		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return;
+		if (encodedDt != null && row.ENCODED_DT !== encodedDt) return;
+		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
+		const trans = parseInt(row.TRANSACTION, 10);
+		if (trans === 1) cash += amt;
+		else if (trans === 2) deposit += amt;
+		else if (trans === 3) credit += amt;
+	});
+	return { cash, deposit, credit, total: cash + deposit + credit };
+}
+
+function computeReceiptWinLossRolling(records) {
+	const buyinRecords = (records || []).filter((row) => parseInt(row.CAGE_TYPE, 10) === 1);
+	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
+
+	let totalInitial = 0;
+	let totalAdditional = 0;
+	let totalCashOutNn = 0;
+	let totalCashOutCc = 0;
+	let totalRollingNn = 0;
+	let totalRollingReal = 0;
+	let totalRollingNnReal = 0;
+	let totalRollingCcReal = 0;
+	let totalRollerReturnCc = 0;
+
+	(records || []).forEach((row) => {
+		const cageType = parseInt(row.CAGE_TYPE, 10);
+		const nn = parseFloat(row.NN_CHIPS || 0);
+		const cc = parseFloat(row.CC_CHIPS || 0);
+		const chips = nn + cc;
+
+		if (cageType === 1) {
+			if (row.ENCODED_DT === initialDt) totalInitial += chips;
+			else totalAdditional += chips;
+		} else if (cageType === 2) {
+			totalCashOutNn += nn;
+			totalCashOutCc += cc;
+		} else if (cageType === 3) {
+			totalRollingNn += nn;
+		} else if (cageType === 4) {
+			totalRollingReal += parseFloat(row.AMOUNT || 0);
+			totalRollingNnReal += nn;
+			totalRollingCcReal += cc;
+		} else if (cageType === 5 && parseInt(row.ROLLER_TRANSACTION, 10) === 2) {
+			totalRollerReturnCc += parseFloat(row.ROLLER_CC_CHIPS || 0);
+		}
+	});
+
+	const totalCashOutChips = totalCashOutNn + totalCashOutCc;
+	const totalRollingChips = totalRollingNn + totalRollerReturnCc + totalRollingReal + totalRollingNnReal + totalRollingCcReal - totalCashOutNn;
+	const winLoss = totalInitial + totalAdditional - totalCashOutChips;
+
+	return { win_loss: winLoss, rolling: totalRollingChips };
+}
+
+function computeReceiptCommission(game, winLoss, rolling) {
+	const commissionType = parseInt(game.COMMISSION_TYPE, 10);
+	const rate = parseFloat(game.COMMISSION_PERCENTAGE) || 0;
+	if (commissionType === 1 || commissionType === 3) {
+		return Math.round((rolling * rate) / 100);
+	}
+	if (commissionType === 2) {
+		return Math.round((winLoss * rate) / 100);
+	}
+	return 0;
+}
+
+async function buildGameReceipts(gameId) {
+	if (!gameId || Number.isNaN(gameId)) return null;
+
+	const [gameRows] = await pool.execute(`
+		SELECT
+			game_list.IDNo AS game_list_id,
+			game_list.ENCODED_DT,
+			game_list.GAME_ENDED,
+			game_list.ACTIVE,
+			game_list.SETTLED,
+			game_list.PAYMENT,
+			game_list.COMMISSION_TYPE,
+			game_list.COMMISSION_PERCENTAGE,
+			game_list.GAME_TYPE,
+			agent.AGENT_CODE AS agent_code,
+			agent.NAME AS agent_name,
+			COALESCE((
+				SELECT SUM(gs.AMOUNT)
+				FROM game_services gs
+				WHERE gs.GAME_ID = game_list.IDNo
+				  AND gs.ACTIVE = 1
+				  AND gs.TRANSACTION_ID = 3
+			), 0) AS ADD_CHG
+		FROM game_list
+		JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+		JOIN agent ON agent.IDNo = account.AGENT_ID
+		WHERE game_list.IDNo = ? AND game_list.ACTIVE != 0
+		LIMIT 1`,
+		[gameId]
+	);
+	if (!gameRows.length) return null;
+
+	const game = gameRows[0];
+	const [recordRows] = await pool.execute(`
+		SELECT TRANSACTION, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ENCODED_DT
+		FROM game_record
+		WHERE GAME_ID = ? AND ACTIVE != 0
+		ORDER BY IDNo ASC`,
+		[gameId]
+	);
+
+	const base = {
+		game_id: game.game_list_id,
+		game_type: game.GAME_TYPE || '',
+		agent_code: game.agent_code || '',
+		agent_name: game.agent_name || ''
+	};
+
+	const buyinRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 1);
+	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
+	const additionalDts = [];
+	buyinRecords.forEach((r) => {
+		if (r.ENCODED_DT !== initialDt && !additionalDts.includes(r.ENCODED_DT)) {
+			additionalDts.push(r.ENCODED_DT);
+		}
+	});
+
+	const totalBuyin = sumChipsByTransaction(recordRows, 1, null);
+	const totalCashout = sumChipsByTransaction(recordRows, 2, null);
+	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
+	const receipts = [];
+
+	const initialBuyin = sumChipsByTransaction(recordRows, 1, initialDt);
+	if (initialBuyin.total > 0) {
+		receipts.push({
+			...base,
+			type: 'game_start',
+			title: '* Game start *',
+			encoded_dt: initialDt,
+			show_buyin: true,
+			show_cashout: false,
+			show_summary: false,
+			buyin_label: '* BUY IN',
+			cash: initialBuyin.cash,
+			deposit: initialBuyin.deposit,
+			credit: initialBuyin.credit,
+			buy_in: initialBuyin.total
+		});
+	}
+
+	if (additionalDts.length > 0) {
+		const latestAddDt = additionalDts[additionalDts.length - 1];
+		const latestAdd = sumChipsByTransaction(recordRows, 1, latestAddDt);
+		receipts.push({
+			...base,
+			type: 'add_buyin',
+			title: '* ADD *',
+			encoded_dt: latestAddDt,
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			buyin_label: '* TOTAL BUY IN',
+			cash: latestAdd.cash,
+			deposit: latestAdd.deposit,
+			credit: latestAdd.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: totalCashout.cash,
+			cashout_deposit: totalCashout.deposit,
+			cashout_credit: totalCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling
+		});
+	}
+
+	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2);
+	if (cashoutRecords.length > 0) {
+		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
+		const latestCashout = sumChipsByTransaction(recordRows, 2, latestCashoutDt);
+		receipts.push({
+			...base,
+			type: 'cashout',
+			title: '* CASH OUT *',
+			encoded_dt: latestCashoutDt,
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			buyin_label: '* TOTAL BUY IN',
+			cash: totalBuyin.cash,
+			deposit: totalBuyin.deposit,
+			credit: totalBuyin.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: latestCashout.cash,
+			cashout_deposit: latestCashout.deposit,
+			cashout_credit: latestCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling
+		});
+	}
+
+	const activeStatus = parseInt(game.ACTIVE, 10);
+	if (activeStatus === 1) {
+		const net = computeReceiptCommission(game, winLoss, rolling);
+		const addChg = parseFloat(game.ADD_CHG) || 0;
+		const settlement = net;
+		const actSettlement = settlement - addChg;
+		receipts.push({
+			...base,
+			type: 'game_finish',
+			title: '* Game FINISH *',
+			encoded_dt: game.GAME_ENDED || new Date(),
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			show_settlement: true,
+			buyin_label: '* BUY IN',
+			cashout_label: '* CASH OUT',
+			cash: totalBuyin.cash,
+			deposit: totalBuyin.deposit,
+			credit: totalBuyin.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: totalCashout.cash,
+			cashout_deposit: totalCashout.deposit,
+			cashout_credit: totalCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling,
+			settlement,
+			add_charge: addChg,
+			act_settlement: actSettlement
+		});
+	}
+
+	return { game_id: gameId, receipts };
+}
+
+// GET all transaction receipts for sequential display
+router.get('/game_list/:id/receipts', async (req, res) => {
+	const gameId = parseInt(req.params.id, 10);
+	if (!gameId || Number.isNaN(gameId)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	try {
+		const data = await buildGameReceipts(gameId);
+		if (!data) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		return res.json(data);
+	} catch (error) {
+		console.error('Error fetching game receipts:', error);
+		return res.status(500).json({ error: 'Error fetching game receipts' });
+	}
+});
 
 // DELETE GAME LIST (Deactivate - soft delete)
 router.put('/game_list/remove/:id', async (req, res) => {
