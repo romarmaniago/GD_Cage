@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { computeCashBalance } = require('../utils/dashboardQueries');
 const argon2 = require('argon2');
 const crypto = require('crypto');
 
@@ -270,8 +271,7 @@ async function getRealtimeData() {
   const MARKER_RETURN_CASH = rowVal(rMArkerReturnCash, 'MARKER_RETURN_CASH');
   const RETURN_MONEY = rowVal(rReturnMoney, 'RETURN_MONEY');
 
-  // Cash Balance (same as dashboard.ejs lines 249-260)
-  const cash_balance = CASH_DEPOSIT - CCChipsBuyin - CASH_WITHDRAW - JUNKET_EXPENSE - NNChipsBuyin + ACCOUNT_DEPOSIT + SETTLEMENT_DEPOSIT - ACCOUNT_WITHDRAW + TotalChipsCashout + TOTAL_NN_CASH + CC_CHIPS_BUYIN_CASH_ONLY - TotalCashOut - ACCOUNT_SETTLEMENT - ACCOUNT_DEDUCT_SERVICES + ServiceCashGuest + ServiceDepositGuest - ServiceCashJunket - ServiceDepositJunket - ACCOUNT_TRANSFER + MARKER_RETURN_CASH + RETURN_MONEY;
+  const cash_balance = await computeCashBalance();
 
   const ACCOUNT_DEDUCT = rowVal(rAccountDeduct, 'ACCOUNT_DEDUCT');
   const TOTAL_ISSUE_RECORD = rowVal(rMarkerIssueAccount, 'TOTAL_ISSUE_RECORD');

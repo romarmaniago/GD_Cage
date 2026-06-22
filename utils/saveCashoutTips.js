@@ -53,6 +53,18 @@ function isTipEnabled(body) {
 	return split.total > 0;
 }
 
+function parseRollerName(raw) {
+	const name = String(raw || '').trim();
+	if (!name) return null;
+	return name.length > 255 ? name.slice(0, 255) : name;
+}
+
+function parseTipStatus(raw) {
+	const status = String(raw || '').trim();
+	if (!status) return null;
+	return status.length > 50 ? status.slice(0, 50) : status;
+}
+
 async function saveCashoutTips(db, payload) {
 	const {
 		gameId,
@@ -60,6 +72,8 @@ async function saveCashoutTips(db, payload) {
 		cashoutId,
 		rollerAmount,
 		dealerAmount,
+		rollerName,
+		tipStatus,
 		userId,
 		dateNow
 	} = payload;
@@ -81,7 +95,15 @@ async function saveCashoutTips(db, payload) {
 	if (roller <= 0 && dealer <= 0) {
 		throw new Error('Enter a Roller and/or Dealer tip amount.');
 	}
+	if ((roller > 0 || dealer > 0) && !parseRollerName(rollerName)) {
+		throw new Error('Enter the roller name.');
+	}
+	if ((roller > 0 || dealer > 0) && !parseTipStatus(tipStatus)) {
+		throw new Error('Enter the tip status (Roller or GM).');
+	}
 
+	const parsedRollerName = parseRollerName(rollerName);
+	const parsedTipStatus = parseTipStatus(tipStatus);
 	const rows = [];
 	if (roller > 0) rows.push([TIP_TYPE.ROLLER, roller]);
 	if (dealer > 0) rows.push([TIP_TYPE.DEALER, dealer]);
@@ -90,9 +112,9 @@ async function saveCashoutTips(db, payload) {
 		await db.execute(
 			`INSERT INTO tip (
 				AMOUNT, GAME_ID, ACCOUNT_ID, TIP_TYPE, TIP_DATETIME, CASHOUT_ID,
-				ENCODED_BY, ENCODED_DT, ACTIVE
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-			[amount, parsedGameId, parsedAccountId, tipType, dateNow, parsedCashoutId, userId, dateNow]
+				ROLLER_NAME, TIP_STATUS, ENCODED_BY, ENCODED_DT, ACTIVE
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			[amount, parsedGameId, parsedAccountId, tipType, dateNow, parsedCashoutId, parsedRollerName, parsedTipStatus, userId, dateNow]
 		);
 	}
 }
@@ -116,6 +138,8 @@ module.exports = {
 	isTipEnabled,
 	parseTipAmount,
 	parseTipSplitAmounts,
+	parseRollerName,
+	parseTipStatus,
 	saveCashoutTips,
 	archiveTipsForCashout
 };

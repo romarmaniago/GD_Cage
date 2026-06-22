@@ -1871,6 +1871,122 @@ router.get('/game_list_cashout_credit/:accountId', async (req, res) => {
 	}
 });
 
+router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
+	const accountId = parseInt(req.params.accountId, 10);
+	if (!Number.isFinite(accountId) || accountId <= 0) {
+		return res.status(400).json({ error: 'Invalid account.' });
+	}
+
+	const TIP_TYPE_ROLLER = 1;
+	const TIP_TYPE_DEALER = 2;
+
+	const buildTipHistory = async function (tipType) {
+		const [tipRows] = await pool.execute(
+			`SELECT
+				t.IDNo,
+				t.AMOUNT,
+				t.TIP_DATETIME,
+				t.ROLLER_NAME,
+				t.TIP_STATUS,
+				t.REMARKS,
+				COALESCE(NULLIF(TRIM(t.ROLLER_NAME), ''), NULLIF(TRIM(t.REMARKS), ''), '—') AS PERSON_NAME,
+				COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS TIP_STATUS_LABEL
+			FROM tip t
+			WHERE t.ACTIVE = 1 AND t.ACCOUNT_ID = ? AND t.TIP_TYPE = ?
+			ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC
+			LIMIT 50`,
+			[accountId, tipType]
+		);
+
+		const history = (tipRows || []).map((row) => ({
+			IDNo: row.IDNo,
+			AMOUNT: parseFloat(row.AMOUNT) || 0,
+			TIP_DATETIME: row.TIP_DATETIME,
+			TRANSACTION: tipType === TIP_TYPE_ROLLER ? 'Roller Tip' : 'Dealer Tip',
+			STATUS: row.TIP_STATUS_LABEL || 'Roller',
+			PERSON_NAME: row.PERSON_NAME || '—'
+		}));
+
+		if (tipType === TIP_TYPE_ROLLER) {
+			const [settlementRows] = await pool.execute(
+				`SELECT
+					gl.IDNo,
+					gl.GAME_ENDED,
+					COALESCE(gl.PAYMENT, gl.FNB, 0) AS SETTLEMENT_AMOUNT,
+					COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), '-') AS PERSON_NAME
+				FROM game_list gl
+				LEFT JOIN user_info ui ON ui.IDNo = gl.EDITED_BY
+				WHERE gl.ACCOUNT_ID = ?
+					AND gl.ACTIVE != 0
+					AND gl.SETTLED = 1
+					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0
+				ORDER BY gl.GAME_ENDED DESC, gl.IDNo DESC
+				LIMIT 25`,
+				[accountId]
+			);
+
+			(settlementRows || []).forEach((row) => {
+				const amount = parseFloat(row.SETTLEMENT_AMOUNT) || 0;
+				if (amount <= 0) return;
+				history.push({
+					IDNo: 'S-' + row.IDNo,
+					AMOUNT: -amount,
+					TIP_DATETIME: row.GAME_ENDED,
+					TRANSACTION: 'Settlement',
+					STATUS: 'GM',
+					PERSON_NAME: row.PERSON_NAME || '—'
+				});
+			});
+
+			history.sort((a, b) => {
+				const da = new Date(a.TIP_DATETIME).getTime() || 0;
+				const db = new Date(b.TIP_DATETIME).getTime() || 0;
+				if (db !== da) return db - da;
+				return String(b.IDNo).localeCompare(String(a.IDNo));
+			});
+		}
+
+		const [[balanceRow]] = await pool.execute(
+			`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TIP_TOTAL
+			FROM tip t
+			WHERE t.ACTIVE = 1 AND t.ACCOUNT_ID = ? AND t.TIP_TYPE = ?`,
+			[accountId, tipType]
+		);
+
+		let balance = parseFloat(balanceRow && balanceRow.TIP_TOTAL) || 0;
+
+		if (tipType === TIP_TYPE_ROLLER) {
+			const [[settlementTotalRow]] = await pool.execute(
+				`SELECT COALESCE(SUM(COALESCE(gl.PAYMENT, gl.FNB, 0)), 0) AS SETTLEMENT_TOTAL
+				FROM game_list gl
+				WHERE gl.ACCOUNT_ID = ?
+					AND gl.ACTIVE != 0
+					AND gl.SETTLED = 1
+					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0`,
+				[accountId]
+			);
+			balance -= parseFloat(settlementTotalRow && settlementTotalRow.SETTLEMENT_TOTAL) || 0;
+		}
+
+		return { balance, history };
+	};
+
+	try {
+		const roller = await buildTipHistory(TIP_TYPE_ROLLER);
+		const dealer = await buildTipHistory(TIP_TYPE_DEALER);
+
+		return res.json({
+			rollerBalance: roller.balance,
+			dealerBalance: dealer.balance,
+			rollerHistory: roller.history,
+			dealerHistory: dealer.history
+		});
+	} catch (err) {
+		console.error('Error in /game_list_cashout_tips:', err);
+		return res.status(500).json({ error: 'Failed to load tip context.' });
+	}
+});
+
 // ADD GAME LIST
 router.post('/add_game_list', async (req, res) => {
 	const {
@@ -5148,6 +5264,8 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				cashoutId: gameRecordId,
 				rollerAmount: tipAmounts.roller,
 				dealerAmount: tipAmounts.dealer,
+				rollerName: (req.body.txtTipRollerName || '').toString().trim(),
+				tipStatus: (req.body.txtTipStatus || '').toString().trim(),
 				userId: req.session.user_id,
 				dateNow: date_now
 			});
@@ -5296,6 +5414,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
 	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
 	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const tipRollerName = (req.body.txtTipRollerName || '').toString().trim();
+	const tipStatus = (req.body.txtTipStatus || '').toString().trim();
 	const buildCreditLedgerRemarks = function () {
 		const parts = [];
 		if (creditRemarks) parts.push(creditRemarks);
@@ -5340,6 +5460,13 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	const tipRollerLeg = tipRollerNn + tipRollerCc;
 	const tipDealerLeg = tipDealerNn + tipDealerCc;
 	const tipGrandTotal = tipRollerLeg + tipDealerLeg;
+
+	if ((tipRollerLeg > 0 || tipDealerLeg > 0) && !tipRollerName) {
+		return res.status(400).json({ error: 'Enter the roller name.' });
+	}
+	if ((tipRollerLeg > 0 || tipDealerLeg > 0) && !tipStatus) {
+		return res.status(400).json({ error: 'Enter the tip status (Roller or GM).' });
+	}
 
 	if (splitGrandTotal <= 0 && tipGrandTotal <= 0) {
 		return res.status(400).json({ error: 'Enter a cash-out amount and/or a tip amount.' });
@@ -5509,6 +5636,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				cashoutId: tipRollerRecord.insertId,
 				rollerAmount: tipRollerLeg,
 				dealerAmount: 0,
+				rollerName: tipRollerName,
+				tipStatus,
 				userId,
 				dateNow: date_now
 			});
@@ -5542,6 +5671,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				cashoutId: tipDealerRecord.insertId,
 				rollerAmount: 0,
 				dealerAmount: tipDealerLeg,
+				rollerName: tipRollerName,
+				tipStatus,
 				userId,
 				dateNow: date_now
 			});

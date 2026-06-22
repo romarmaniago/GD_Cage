@@ -1,0 +1,38 @@
+<div class="modal fade" id="modal-tip-settlement" tabindex="-1" aria-labelledby="modal-tip-settlement-label" aria-hidden="true" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-tip-settlement-label"><%= __('tip.settlement') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="form-tip-settlement" autocomplete="off">
+				<div class="modal-body">
+					<div class="mb-3 small">
+						<%= __('tip.available_balance') %>:
+						<strong id="tip-settlement-modal-balance">0</strong>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="tip-settlement-modal-amount"><%= __('tip.amount') %></label>
+						<input type="text" class="form-control text-end" id="tip-settlement-modal-amount" name="txtAmount" inputmode="numeric" autocomplete="off" required>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="tip-settlement-modal-status"><%= __('tip.status') %></label>
+						<input type="text" class="form-control" id="tip-settlement-modal-status" name="txtTipStatus" autocomplete="off" required>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="tip-settlement-modal-name"><%= __('tip.name') %></label>
+						<input type="text" class="form-control" id="tip-settlement-modal-name" name="txtRollerName" autocomplete="off" required>
+					</div>
+					<div class="mb-0">
+						<label class="form-label" for="tip-settlement-modal-remarks"><%= __('tip.remarks_optional') %></label>
+						<textarea class="form-control" id="tip-settlement-modal-remarks" name="txtRemarks" rows="2" autocomplete="off"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary btn-sm" id="btn-tip-settlement-save"><%= __('tip.settle') %></button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('tip.close') %></button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

@@ -36,6 +36,18 @@ function parseRemarks(raw) {
 	return String(raw || '').trim().slice(0, 500) || null;
 }
 
+function parseTipStatus(raw) {
+	const status = String(raw || '').trim();
+	if (!status) return null;
+	return status.slice(0, 50);
+}
+
+function parseRollerName(raw) {
+	const name = String(raw || '').trim();
+	if (!name) return null;
+	return name.slice(0, 255);
+}
+
 function parseTipDatetime(raw) {
 	const s = String(raw || '').trim();
 	if (!s) return null;
@@ -77,10 +89,54 @@ async function validateActiveGame(gameId) {
 	return rows && rows[0] ? rows[0] : null;
 }
 
+async function getRollerTipAvailableBalance(db) {
+	const conn = db || pool;
+	const [[rollerRow]] = await conn.execute(
+		`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TOTAL
+		 FROM tip t
+		 WHERE t.ACTIVE = 1 AND t.TIP_TYPE = ?`,
+		[TIP_TYPE.ROLLER]
+	);
+	const [[tipSettlementRow]] = await conn.execute(
+		`SELECT COALESCE(SUM(ts.AMOUNT), 0) AS TOTAL
+		 FROM tip_settlement ts
+		 WHERE ts.ACTIVE = 1`
+	);
+	const [[gameSettlementRow]] = await conn.execute(
+		`SELECT COALESCE(SUM(COALESCE(gl.PAYMENT, gl.FNB, 0)), 0) AS TOTAL
+		 FROM game_list gl
+		 WHERE gl.ACTIVE != 0
+		   AND gl.SETTLED = 1
+		   AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0`
+	);
+
+	const grossRoller = parseFloat(rollerRow && rollerRow.TOTAL) || 0;
+	const tipSettled = parseFloat(tipSettlementRow && tipSettlementRow.TOTAL) || 0;
+	const gameSettled = parseFloat(gameSettlementRow && gameSettlementRow.TOTAL) || 0;
+	const available = grossRoller - tipSettled - gameSettled;
+
+	return {
+		grossRoller,
+		tipSettled,
+		gameSettled,
+		available: Math.max(0, available)
+	};
+}
+
 router.get('/tip', checkSession, function (req, res) {
 	const data = sessions(req, 'tip');
 	data.permissions = req.session.permissions;
 	res.render('tip/tip', data);
+});
+
+router.get('/tip_roller_balance', checkSession, async (req, res) => {
+	try {
+		const balance = await getRollerTipAvailableBalance(pool);
+		res.json(balance);
+	} catch (err) {
+		console.error('tip_roller_balance:', err);
+		res.status(500).json({ message: 'Failed to load roller tip balance.' });
+	}
 });
 
 router.get('/tip_games', checkSession, async (req, res) => {
@@ -108,7 +164,7 @@ router.get('/tip_games', checkSession, async (req, res) => {
 
 router.get('/tip_data', checkSession, async (req, res) => {
 	try {
-		const [rows] = await pool.execute(
+		const [tipRows] = await pool.execute(
 			`SELECT
 				t.IDNo,
 				t.AMOUNT,
@@ -116,41 +172,294 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				t.ACCOUNT_ID,
 				t.TIP_TYPE,
 				t.TIP_DATETIME,
-				t.CASHOUT_ID,
+				t.ROLLER_NAME,
+				t.TIP_STATUS,
 				t.REMARKS,
-				t.ENCODED_BY,
-				t.ENCODED_DT,
 				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(t.GAME_ID AS CHAR)) AS GAME_NO,
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
-				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
-				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME
+				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME
 			 FROM tip t
 			 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
 			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
 			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
 			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
-			 LEFT JOIN user_info ui ON ui.IDNo = t.ENCODED_BY
 			 WHERE t.ACTIVE = 1
 			 ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC`
 		);
 
-		const data = (rows || []).map((row) => {
-			let accountDisplay = '-';
-			if (row.ACCOUNT_ID && row.AGENT_CODE) {
-				accountDisplay = `${row.AGENT_CODE}${row.AGENT_NAME ? ` (${row.AGENT_NAME})` : ''}`;
+		const [settlementRows] = await pool.execute(
+			`SELECT
+				gl.IDNo,
+				gl.ACCOUNT_ID,
+				gl.GAME_ENDED,
+				COALESCE(gl.PAYMENT, gl.FNB, 0) AS SETTLEMENT_AMOUNT,
+				gl.REMARKS,
+				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(gl.IDNo AS CHAR)) AS GAME_NO,
+				ag.AGENT_CODE,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
+				COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), '—') AS PERSON_NAME
+			 FROM game_list gl
+			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
+			 LEFT JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 LEFT JOIN user_info ui ON ui.IDNo = gl.EDITED_BY
+			 WHERE gl.ACTIVE != 0
+			   AND gl.SETTLED = 1
+			   AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0
+			 ORDER BY gl.GAME_ENDED DESC, gl.IDNo DESC`
+		);
+
+		const [tipSettlementRows] = await pool.execute(
+			`SELECT
+				ts.IDNo,
+				ts.AMOUNT,
+				ts.SETTLEMENT_DATETIME,
+				ts.REMARKS,
+				ts.ROLLER_NAME,
+				ts.TIP_STATUS,
+				COALESCE(NULLIF(TRIM(ts.TIP_STATUS), ''), 'GM') AS TIP_STATUS_LABEL,
+				COALESCE(
+					NULLIF(TRIM(ts.ROLLER_NAME), ''),
+					NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''),
+					'—'
+				) AS PERSON_NAME
+			 FROM tip_settlement ts
+			 LEFT JOIN user_info ui ON ui.IDNo = ts.ENCODED_BY
+			 WHERE ts.ACTIVE = 1
+			 ORDER BY ts.SETTLEMENT_DATETIME DESC, ts.IDNo DESC`
+		);
+
+		const formatAccountDisplay = function (agentCode, agentName) {
+			if (!agentCode) return '-';
+			return `${agentCode}${agentName ? ` (${agentName})` : ''}`;
+		};
+
+		const formatTipPersonName = function (row) {
+			return (row && row.ROLLER_NAME && String(row.ROLLER_NAME).trim()) || '—';
+		};
+
+		const formatRowRemarks = function (raw) {
+			const text = String(raw || '').trim();
+			return text || '—';
+		};
+
+		const remarksEditValue = function (raw) {
+			return String(raw || '').trim();
+		};
+
+		const formatTipStatus = function (row) {
+			return (row && row.TIP_STATUS && String(row.TIP_STATUS).trim()) || 'Roller';
+		};
+
+		const groups = new Map();
+		(tipRows || []).forEach(function (row) {
+			const dtMs = row.TIP_DATETIME ? new Date(row.TIP_DATETIME).getTime() : 0;
+			const key = `${row.GAME_ID}|${row.ACCOUNT_ID}|${dtMs}`;
+			if (!groups.has(key)) {
+				groups.set(key, {
+					TIP_DATETIME: row.TIP_DATETIME,
+					GAME_NO: row.GAME_NO,
+					ACCOUNT_DISPLAY: formatAccountDisplay(row.AGENT_CODE, row.AGENT_NAME),
+					GUEST_NAME: row.GUEST_NAME || '-',
+					roller: null,
+					dealer: null,
+					rollerTipId: null,
+					dealerTipId: null,
+					sortId: row.IDNo
+				});
+			}
+			const group = groups.get(key);
+			const part = {
+				amount: parseFloat(row.AMOUNT) || 0,
+				status: formatTipStatus(row),
+				name: formatTipPersonName(row),
+				remarksRaw: remarksEditValue(row.REMARKS)
+			};
+			if (Number(row.TIP_TYPE) === TIP_TYPE.ROLLER) {
+				group.roller = part;
+				group.rollerTipId = row.IDNo;
+			} else if (Number(row.TIP_TYPE) === TIP_TYPE.DEALER) {
+				group.dealer = part;
+				group.dealerTipId = row.IDNo;
+			}
+			group.sortId = Math.max(group.sortId, row.IDNo);
+		});
+
+		const buildTipSide = function (side, transactionLabel, mirrorSide) {
+			if (side) {
+				return {
+					transaction: transactionLabel,
+					amount: side.amount,
+					status: side.status,
+					name: side.name
+				};
 			}
 			return {
-				...row,
-				ACCOUNT_DISPLAY: accountDisplay,
-				TIP_TYPE_LABEL: tipTypeLabel(row.TIP_TYPE)
+				transaction: transactionLabel,
+				amount: 0,
+				status: mirrorSide ? mirrorSide.status : '—',
+				name: mirrorSide ? mirrorSide.name : '—'
 			};
+		};
+
+		const data = [];
+		groups.forEach(function (group) {
+			const rollerSide = buildTipSide(group.roller, 'Roller Tip', group.dealer);
+			const dealerSide = buildTipSide(group.dealer, 'Dealer Tip', group.roller);
+			const rowRemarksRaw = (group.roller && group.roller.remarksRaw) ||
+				(group.dealer && group.dealer.remarksRaw) ||
+				'';
+			const remarksRecordId = (group.roller && group.roller.remarksRaw && group.rollerTipId) ||
+				(group.dealer && group.dealer.remarksRaw && group.dealerTipId) ||
+				group.rollerTipId ||
+				group.dealerTipId ||
+				null;
+			data.push({
+				TIP_DATETIME: group.TIP_DATETIME,
+				ACCOUNT_DISPLAY: group.ACCOUNT_DISPLAY,
+				GUEST_NAME: group.GUEST_NAME,
+				GAME_NO: group.GAME_NO,
+				ROLLER_TRANSACTION: rollerSide.transaction,
+				ROLLER_AMOUNT: rollerSide.amount,
+				ROLLER_STATUS: rollerSide.status,
+				ROLLER_NAME: rollerSide.name,
+				DEALER_TRANSACTION: dealerSide.transaction,
+				DEALER_AMOUNT: dealerSide.amount,
+				DEALER_STATUS: dealerSide.status,
+				DEALER_NAME: dealerSide.name,
+				REMARKS: formatRowRemarks(rowRemarksRaw),
+				REMARKS_EDIT: rowRemarksRaw,
+				REMARKS_SOURCE: remarksRecordId ? 'tip' : null,
+				REMARKS_RECORD_ID: remarksRecordId,
+				SORT_ID: group.sortId,
+				ROW_KIND: 'tip'
+			});
+		});
+
+		(settlementRows || []).forEach(function (row) {
+			const amount = parseFloat(row.SETTLEMENT_AMOUNT) || 0;
+			if (amount <= 0) return;
+			const personName = row.PERSON_NAME || '—';
+			data.push({
+				TIP_DATETIME: row.GAME_ENDED,
+				ACCOUNT_DISPLAY: formatAccountDisplay(row.AGENT_CODE, row.AGENT_NAME),
+				GUEST_NAME: row.GUEST_NAME || '-',
+				GAME_NO: row.GAME_NO,
+				ROLLER_TRANSACTION: 'Settlement',
+				ROLLER_AMOUNT: -amount,
+				ROLLER_STATUS: 'GM',
+				ROLLER_NAME: personName,
+				DEALER_TRANSACTION: 'Dealer Tip',
+				DEALER_AMOUNT: 0,
+				DEALER_STATUS: 'GM',
+				DEALER_NAME: personName,
+				REMARKS: formatRowRemarks(row.REMARKS),
+				REMARKS_EDIT: remarksEditValue(row.REMARKS),
+				REMARKS_SOURCE: 'game_list',
+				REMARKS_RECORD_ID: row.IDNo,
+				SORT_ID: 'S-' + row.IDNo,
+				ROW_KIND: 'settlement'
+			});
+		});
+
+		(tipSettlementRows || []).forEach(function (row) {
+			const amount = parseFloat(row.AMOUNT) || 0;
+			if (amount <= 0) return;
+			const personName = row.PERSON_NAME || '—';
+			const tipStatus = row.TIP_STATUS_LABEL || 'GM';
+			data.push({
+				TIP_DATETIME: row.SETTLEMENT_DATETIME,
+				ACCOUNT_DISPLAY: '—',
+				GUEST_NAME: '—',
+				GAME_NO: '—',
+				ROLLER_TRANSACTION: 'Settlement',
+				ROLLER_AMOUNT: -amount,
+				ROLLER_STATUS: tipStatus,
+				ROLLER_NAME: personName,
+				DEALER_TRANSACTION: 'Dealer Tip',
+				DEALER_AMOUNT: 0,
+				DEALER_STATUS: tipStatus,
+				DEALER_NAME: personName,
+				REMARKS: formatRowRemarks(row.REMARKS),
+				REMARKS_EDIT: remarksEditValue(row.REMARKS),
+				REMARKS_SOURCE: 'tip_settlement',
+				REMARKS_RECORD_ID: row.IDNo,
+				SORT_ID: 'TS-' + row.IDNo,
+				ROW_KIND: 'tip_settlement'
+			});
+		});
+
+		data.sort(function (a, b) {
+			const da = new Date(a.TIP_DATETIME).getTime() || 0;
+			const db = new Date(b.TIP_DATETIME).getTime() || 0;
+			if (db !== da) return db - da;
+			return String(b.SORT_ID).localeCompare(String(a.SORT_ID));
 		});
 
 		res.json(data);
 	} catch (err) {
 		console.error('tip_data:', err);
 		res.status(500).json({ message: 'Failed to load tip data' });
+	}
+});
+
+router.post('/tip_settlement', checkSession, async (req, res) => {
+	const connection = await pool.getConnection();
+	try {
+		const amount = parseAmount(req.body.txtAmount);
+		const remarks = parseRemarks(req.body.txtRemarks);
+		const tipStatus = parseTipStatus(req.body.txtTipStatus);
+		const rollerName = parseRollerName(req.body.txtRollerName);
+		const userId = req.session.user_id || null;
+		const dateNow = new Date();
+
+		if (Number.isNaN(amount)) {
+			return res.status(400).json({ message: 'Enter a valid settlement amount greater than zero.' });
+		}
+		if (!tipStatus) {
+			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
+		}
+		if (!rollerName) {
+			return res.status(400).json({ message: 'Please enter the name.' });
+		}
+
+		await connection.beginTransaction();
+
+		const balance = await getRollerTipAvailableBalance(connection);
+		if (amount > balance.available) {
+			await connection.rollback();
+			return res.status(400).json({
+				message: 'Settlement amount cannot exceed available roller tip balance.'
+			});
+		}
+
+		await connection.execute(
+			`INSERT INTO tip_settlement (
+				AMOUNT, SETTLEMENT_DATETIME, REMARKS, ROLLER_NAME, TIP_STATUS,
+				ENCODED_BY, ENCODED_DT, ACTIVE
+			) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+			[amount, dateNow, remarks, rollerName, tipStatus, userId, dateNow]
+		);
+
+		await connection.commit();
+
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({
+			message: 'Tip settlement saved successfully.',
+			availableBalance: updatedBalance.available
+		});
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('tip_settlement rollback:', rbErr);
+		}
+		console.error('tip_settlement:', err);
+		res.status(500).json({ message: 'Failed to save tip settlement.' });
+	} finally {
+		connection.release();
 	}
 });
 

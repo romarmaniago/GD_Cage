@@ -5090,6 +5090,38 @@ $('#add_buyin').submit(function (event) {
 					$btn.prop('disabled', false).html('Save');
 					return;
 				}
+				if (tipRollerTotal > 0 || tipDealerTotal > 0) {
+					var $tipRollerName = $('#cashout-tip-roller-name');
+					var tipRollerNameVal = ($tipRollerName.val() || '').toString().trim();
+					$tipRollerName.removeClass('is-invalid');
+					$('#cashout-tip-dealer-roller-name').removeClass('is-invalid');
+					if (!tipRollerNameVal) {
+						$tipRollerName.addClass('is-invalid');
+						$('#cashout-tip-dealer-roller-name').addClass('is-invalid');
+						Swal.fire({
+							icon: 'warning',
+							title: 'Missing Roller Name',
+							text: 'Please enter the roller name for the tip amount.'
+						});
+						$btn.prop('disabled', false).html('Save');
+						return;
+					}
+					var $tipStatus = $('#cashout-tip-roller-status');
+					var tipStatusVal = ($tipStatus.val() || '').toString().trim();
+					$tipStatus.removeClass('is-invalid');
+					$('#cashout-tip-dealer-roller-status').removeClass('is-invalid');
+					if (!tipStatusVal) {
+						$tipStatus.addClass('is-invalid');
+						$('#cashout-tip-dealer-roller-status').addClass('is-invalid');
+						Swal.fire({
+							icon: 'warning',
+							title: 'Missing Tip Status',
+							text: 'Please enter the tip status (Roller or GM).'
+						});
+						$btn.prop('disabled', false).html('Save');
+						return;
+					}
+				}
 			}
 
 			var totalNnAll = totalNN + tipRollerNn + tipDealerNn;
@@ -5215,6 +5247,8 @@ $('#add_buyin').submit(function (event) {
 					txtTipRollerCc: $('#tipRollerCc').val(),
 					txtTipDealerNn: $('#tipDealerNn').val(),
 					txtTipDealerCc: $('#tipDealerCc').val(),
+					txtTipRollerName: ($('#cashout-tip-roller-name').val() || '').toString().trim(),
+					txtTipStatus: ($('#cashout-tip-roller-status').val() || '').toString().trim(),
 					txtDepositRemarks: ($('#cashout-deposit-remarks').val() || '').toString().trim(),
 					txtCreditRemarks: ($('#cashout-credit-remarks').val() || '').toString().trim(),
 					txtCreditGuarantor: ($('#cashout-credit-guarantor').val() || '').toString().trim()
@@ -6603,6 +6637,8 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 	var $cashoutModal = $('#modal-add-cashout');
 	$cashoutModal.find('#nnCashAmount, #nnDepositAmount, #nnCreditAmount, #ccCashAmount, #ccDepositAmount, #ccCreditAmount').val('').removeClass('is-invalid');
 	$cashoutModal.find('#tipRollerNn, #tipRollerCc, #tipDealerNn, #tipDealerCc').val('').removeClass('is-invalid');
+	$cashoutModal.find('#cashout-tip-roller-name, #cashout-tip-dealer-roller-name').val('').removeClass('is-invalid');
+	$cashoutModal.find('#cashout-tip-roller-status, #cashout-tip-dealer-roller-status').val('').removeClass('is-invalid');
 	$cashoutModal.find('#cashout-deposit-remarks').val('');
 	$cashoutModal.find('#cashout-credit-remarks').val('');
 	$cashoutModal.find('#cashout-credit-guarantor').val('');
@@ -6613,68 +6649,7 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 	$('#cashout-agent-code-label').text(agentCode || '');
 	$('#cashout-guest-name-label').text(typeof normalizeGameGuestName === 'function' ? normalizeGameGuestName(guestName) : (guestName || ''));
 
-	function wireCashoutMarkerWarnings(isMarkerGame) {
-		var markerWarningConfirmed = false;
-		var cashDepSelectors = '#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount';
-
-		var askMarkerCashoutWarning = function () {
-			if (!isMarkerGame) return Promise.resolve(true);
-			return Swal.fire({
-				icon: 'warning',
-				title: 'Warning',
-				text: 'This is a marker game. Have you confirmed the Cash Out?',
-				confirmButtonText: 'Yes',
-				cancelButtonText: 'No',
-				showCancelButton: true,
-				allowOutsideClick: false,
-				allowEscapeKey: true
-			}).then(function (result) {
-				return !!result.isConfirmed;
-			});
-		};
-
-		$cashoutModal.find(cashDepSelectors)
-			.off('input.marker-warning')
-			.on('input.marker-warning', function () {
-				if (!isMarkerGame || markerWarningConfirmed) return;
-
-				var $input = $(this);
-				var rawVal = ($input.val() || '').toString().replace(/,/g, '').trim();
-				if (!rawVal) return;
-
-				var amount = parseFloat(rawVal);
-				if (!Number.isFinite(amount) || amount <= 0) return;
-
-				$input.val('');
-				askMarkerCashoutWarning().then(function (confirmed) {
-					if (confirmed) {
-						markerWarningConfirmed = true;
-						$input.val(rawVal);
-					}
-				});
-			});
-	}
-
 	$cashoutModal.modal('show');
-
-	$.ajax({
-		url: '/game_list/' + id + '/record',
-		method: 'GET',
-		success: function (response) {
-			if (parseInt($cashoutModal.find('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
-			var isMarkerGame = false;
-			(response || []).forEach(function (res) {
-				if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
-					isMarkerGame = true;
-				}
-			});
-			wireCashoutMarkerWarnings(isMarkerGame);
-		},
-		error: function () {
-			if (parseInt($cashoutModal.find('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
-			wireCashoutMarkerWarnings(false);
-		}
-	});
 
 	$.ajax({
 		url: '/account_details_data_deposit/' + account,
