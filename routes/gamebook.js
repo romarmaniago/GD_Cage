@@ -1011,21 +1011,48 @@ async function assertPendingGame(db, gameId) {
 	return rows[0];
 }
 
-async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, nnAmount, ccAmount, encodedBy, dateNow }) {
-	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const [nnInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
-	const [ccInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+function buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, fallback) {
+	const parts = [];
+	const remarks = (creditRemarks || '').toString().trim();
+	const guarantor = (creditGuarantor || '').toString().trim();
+	if (remarks) parts.push(remarks);
+	if (guarantor) parts.push('Guarantor: ' + guarantor);
+	if (parts.length) return parts.join(' | ');
+	return fallback || null;
+}
+
+function creditGuarantorRequiredError(creditTotal, creditGuarantor) {
+	if ((parseFloat(creditTotal) || 0) > 0 && !(creditGuarantor || '').toString().trim()) {
+		return 'Please enter the guarantor for the credit amount.';
+	}
+	return null;
+}
+
+const GAME_RECORD_BUYIN_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+const GAME_RECORD_BUYIN_WITH_REMARKS_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, nnAmount, ccAmount, encodedBy, dateNow, cashRemarks, depositRemarks, creditRemarks, creditGuarantor }) {
+	const cashRemarksVal = (cashRemarks || '').toString().trim() || null;
+	const depRemarks = (depositRemarks || '').toString().trim() || null;
+	const creditLedgerRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Add Buy-in Game: ${gameId}`);
+	const gameRecordRemarks = transType === 1 ? cashRemarksVal : (transType === 2 ? depRemarks : (transType === 3 ? creditLedgerRemarks : null));
+	const buyinRecordSql = gameRecordRemarks ? GAME_RECORD_BUYIN_WITH_REMARKS_SQL : GAME_RECORD_BUYIN_SQL;
+	const buyinRecordParams = gameRecordRemarks
+		? [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, gameRecordRemarks, encodedBy, dateNow]
+		: [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow];
+	const [nnInsert] = await db.execute(buyinRecordSql, buyinRecordParams);
+	const [ccInsert] = await db.execute(GAME_RECORD_BUYIN_SQL, [gameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
 	const buyinRecordIds = `${nnInsert.insertId},${ccInsert.insertId}`;
 	const totalAmount = nnAmount + ccAmount;
 	if (transType === 2) {
 		await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, depRemarks, encodedBy, dateNow]
 		);
 	} else if (transType === 3) {
 		await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameId, 10, transType, totalAmount, `Add Buy-in Game: ${gameId}`, encodedBy, dateNow]
+			[accountId, gameId, 10, transType, totalAmount, creditLedgerRemarks, encodedBy, dateNow]
 		);
 	}
 	return { buyinRecordIds };
@@ -2308,6 +2335,10 @@ router.post('/add_game_list_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
+	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
+	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
+	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const cashRemarks = (req.body.txtCashRemarks || '').toString().trim();
 	const encoded_dt = new Date();
 	const program_date = parseGameListProgramDate(txtProgramDate);
 	const trading_date = parseProgramDateAsDateTime(program_date);
@@ -2327,14 +2358,13 @@ router.post('/add_game_list_split', async (req, res) => {
 	if (grandTotal <= 0) {
 		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
-	const gameRecordSQL = `
-		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`;
+	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
 	const ledgerDepositSQL = `
-		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`;
 	const ledgerCreditSQL = `
 		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
@@ -2353,17 +2383,18 @@ router.post('/add_game_list_split', async (req, res) => {
 		const gameId = gameResult.insertId;
 
 		let cashRecordId = null;
+		const creditGameRecordRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Buy-in Game: ${gameId}`);
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
+			const [cashRecord] = await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, cashRemarks || null, encodedBy, encoded_dt]);
 			cashRecordId = cashRecord.insertId;
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, depositRemarks || null, encodedBy, encoded_dt]);
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, encodedBy, encoded_dt]);
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
 		}
 
@@ -2376,10 +2407,19 @@ router.post('/add_game_list_split', async (req, res) => {
 		}
 
 		if (depositTotal > 0) {
-			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, encoded_dt]);
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, depositRemarks || null, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]);
+			await connection.execute(ledgerCreditSQL, [
+				accountId,
+				gameId,
+				10,
+				3,
+				creditTotal,
+				creditGameRecordRemarks,
+				encodedBy,
+				encoded_dt
+			]);
 		}
 
 		const [agentRows] = await connection.execute(`
@@ -5034,6 +5074,10 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalance = parseFloat((totalBalanceGuest2 || '0').toString().replace(/,/g, '')) || 0;
+	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
+	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
+	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const cashRemarks = (req.body.txtCashRemarks || '').toString().trim();
 	const date_now = new Date();
 
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
@@ -5052,9 +5096,11 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 	if (depositTotal > totalBalance) {
 		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
-	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
+	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 	const ledgerCreditSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	const connection = await pool.getConnection();
@@ -5062,20 +5108,30 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		let cashRecordId = null;
+		const creditGameRecordRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Add Buy-in Game: ${game_id}`);
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
+			const [cashRecord] = await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, cashNn, cashCc, 1, cashRemarks || null, req.session.user_id, date_now]);
 			cashRecordId = cashRecord.insertId;
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, depNn, depCc, 2, req.session.user_id, date_now]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, depNn, depCc, 2, depositRemarks || null, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, depNn, depCc, 2, req.session.user_id, date_now]);
-			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, req.session.user_id, date_now]);
+			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, depositRemarks || null, req.session.user_id, date_now]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
-			await connection.execute(ledgerCreditSQL, [txtAccountCode, game_id, 10, 3, creditTotal, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]);
+			await connection.execute(ledgerCreditSQL, [
+				txtAccountCode,
+				game_id,
+				10,
+				3,
+				creditTotal,
+				creditGameRecordRemarks,
+				req.session.user_id,
+				date_now
+			]);
 		}
 
 		if (cashTotal > 0 && cashRecordId) {
@@ -5478,6 +5534,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	if (splitGrandTotal > 0 && creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
 		return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditLeg, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
 	const depositLegTotal = depNn + depCc;
 	const currentBalanceAfterSplit =

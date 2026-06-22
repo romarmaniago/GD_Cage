@@ -1691,7 +1691,6 @@ function openAddGameForGuest(guestId) {
     function applyNewGameAvailableBalance(balance) {
       var safe = Number(balance) || 0;
       $('#total_balanceGuest1').val(safe);
-      $('#total_balanceGuestGameList').val(safe.toLocaleString('en-US'));
     }
 
     var applyDefaults = function (attempt) {
@@ -1822,7 +1821,6 @@ function openAddGameForSelectedAgent() {
     $accountSelect.attr('data-readonly', '1');
     $accountSelect.attr('data-locked-value', accountIdText);
     $('#total_balanceGuest1').val(openingBalance);
-    $('#total_balanceGuestGameList').val(openingBalance.toLocaleString('en-US'));
     fetchAndApplyAvailableChipsForNewGameModal();
   };
 
