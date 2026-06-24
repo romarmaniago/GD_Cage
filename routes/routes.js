@@ -1096,8 +1096,12 @@ pageRouter.get("/telegramAPI", function (req, res) {
 
 });
 //=============== JUNKET =============
-pageRouter.get("/capital", function (req, res) {
-	res.render("junket/capital", sessions(req, 'capital'));
+pageRouter.get("/capital", async function (req, res) {
+	const cashBalance = await dashboardQueries.computeCashBalance();
+	res.render("junket/capital", {
+		...sessions(req, 'capital'),
+		cashBalance
+	});
 });
 
 pageRouter.get("/house_expense", function (req, res) {

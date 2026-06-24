@@ -1,332 +1,1487 @@
-<div class="modal fade" id="modal-add-buyin" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
-	<div class="modal-dialog modal-dialog-centered">
-		<div class="modal-content">
-					<div class="modal-header bg-primary">
-						<h5 class="modal-title text-white" id="staticBackdropLiveLabel">Add Buy In - <span id="buyin-agent-code"></span></h5>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-					</div>
-					<form id="add_buyin">
-					<div class="modal-body">
-						<span class="d-none" id="buyin-availableNN" aria-hidden="true">0</span>
-						<span class="d-none" id="buyin-availableCC" aria-hidden="true">0</span>
-						<input type="hidden" id="total_amount_addbuyin" name="txtTotalAmountBuyin" />
-						
-						<input type="hidden" name="game_id" class="game_list_id">
-						<input type="hidden" name="txtAccountCode" class="txtAccountCode">
+<div class="modal fade" id="modal-add-buyin" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered buyin-modal-dialog">
+		<div class="buyin-modal-cluster">
+		<div class="modal-content buyin-main-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="staticBackdropLiveLabel">Add Buy In - <span id="buyin-agent-code"></span></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="add_buyin">
+			<div class="modal-body">
+				<span class="d-none" id="buyin-availableNN" aria-hidden="true">0</span>
+				<span class="d-none" id="buyin-availableCC" aria-hidden="true">0</span>
+				<input type="hidden" id="total_amount_addbuyin" name="txtTotalAmountBuyin" />
+				<input type="hidden" name="game_id" class="game_list_id">
+				<input type="hidden" name="txtAccountCode" class="txtAccountCode">
+				<input type="hidden" id="total_balanceGuest2" name="totalBalanceGuest2" readonly/>
+				<span class="d-none" id="buyin-nn-balance-base" aria-hidden="true">0</span>
+				<span class="d-none" id="buyin-cc-balance-base" aria-hidden="true">0</span>
+				<span class="d-none" id="buyin-agent-code-label" aria-hidden="true"></span>
+				<span class="d-none" id="buyin-guest-name-label" aria-hidden="true"></span>
 
-						<div class="row mb-4">
-							<div class="col-sm-12">
-								<input type="hidden" class="form-control text-center"  id="total_balanceGuest2" name="totalBalanceGuest2" readonly/>
-								<input type="text" class="form-control text-center"  id="total_balanceGuest2GameList"  readonly/>
-							</div>
+				<div id="split-buyin-row" class="buyin-input-sheet">
+					<div class="buyin-section">
+						<div class="buyin-field-grid">
+							<label class="form-label mb-0" for="splitBuyinCashNN">Cash</label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-nn-input buyin-cash-input" placeholder="NN Chips" id="splitBuyinCashNN" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-cash-input" placeholder="CC Chips" id="splitBuyinCashCC" autocomplete="off" />
 						</div>
-
-						<div class="row mb-4" id="buyin-nncc-row">
-							<div class="col-sm-6">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
-							</div>
-
-								<div class="col-sm-6">
-									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center txtCC" placeholder="CC Chips" name="txtCC">
-								</div>
-							</div>
-
-							<div class="row mb-2" id="buyin-trans-type-row">
-								<div class="col-sm-4">
-									<div class="form-check">
-										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash" name="txtTransType">
-										<label class="form-check-label" for="cash">
-											<span class="d-flex align-items-center">
-												Cash
-											</span>
-										</label>
-									</div>
-								</div>
-								<div class="col-sm-4">
-									<div class="form-check">
-										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit" name="txtTransType">
-										<label class="form-check-label" for="deposit">
-											<span class="d-flex align-items-center">
-												Deposit
-											</span>
-										</label>
-									</div>
-								</div>
-								<div class="col-sm-4">
-									<div class="form-check">
-										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker" name="txtTransType">
-										<label class="form-check-label" for="marker">
-											<span class="d-flex align-items-center">
-												Credit
-											</span>
-										</label>
-									</div>
-								</div>
-							</div>
-
-							<div class="row mb-2">
-								<div class="col-sm-12 d-flex align-items-center justify-content-between">
-									<div class="form-check mb-0">
-										<input class="form-check-input" type="checkbox" id="enableSplitBuyin">
-										<label class="form-check-label" for="enableSplitBuyin">
-											Split Additional Buy-in 
-										</label>
-									</div>
-								</div>
-							</div>
-
-							<div class="row mb-3" id="split-buyin-row" style="display:none;">
-								<div class="col-sm-6 mb-2 mb-sm-0">
-									<div class="border rounded p-2 h-100">
-										<div class="fw-semibold small text-muted mb-2">NN Chips</div>
-										<div class="mb-2">
-											<label class="form-label mb-1">Cash</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCashNN" placeholder="NN Chips">
-										</div>
-										<div class="mb-2">
-											<label class="form-label mb-1">Deposit</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinDepNN" placeholder="NN Chips">
-										</div>
-										<div>
-											<label class="form-label mb-1">Credit</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCreditNN" placeholder="NN Chips">
-										</div>
-									</div>
-								</div>
-								<div class="col-sm-6">
-									<div class="border rounded p-2 h-100">
-										<div class="fw-semibold small text-muted mb-2">CC Chips</div>
-										<div class="mb-2">
-											<label class="form-label mb-1">Cash</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCashCC" placeholder="CC Chips">
-										</div>
-										<div class="mb-2">
-											<label class="form-label mb-1">Deposit</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinDepCC" placeholder="CC Chips">
-										</div>
-										<div>
-											<label class="form-label mb-1">Credit</label>
-											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCreditCC" placeholder="CC Chips">
-										</div>
-									</div>
-								</div>
-							</div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-	const modal = document.getElementById('modal-add-buyin');
-	if (!modal) return;
-
-	function addBuyinParseAvailEl(el) {
-		if (!el) return 0;
-		const raw = (el.textContent || el.innerText || '').replace(/[^0-9.-]+/g, '');
-		const n = parseFloat(raw);
-		return Number.isFinite(n) ? Math.max(0, n) : 0;
-	}
-	function addBuyinAvailableNN() {
-		return addBuyinParseAvailEl(document.getElementById('buyin-availableNN'));
-	}
-	function addBuyinAvailableCC() {
-		return addBuyinParseAvailEl(document.getElementById('buyin-availableCC'));
-	}
-	function addBuyinSplitBuyinEnabled() {
-		const el = document.getElementById('enableSplitBuyin');
-		return !!(el && el.checked);
-	}
-	function addBuyinSplitSumNN() {
-		return ['splitBuyinCashNN', 'splitBuyinDepNN', 'splitBuyinCreditNN'].reduce(function (acc, id) {
-			const el = document.getElementById(id);
-			const v = (el && el.value || '').toString().replace(/,/g, '').trim();
-			return acc + (v === '' ? 0 : (parseFloat(v) || 0));
-		}, 0);
-	}
-	function addBuyinSplitSumCC() {
-		return ['splitBuyinCashCC', 'splitBuyinDepCC', 'splitBuyinCreditCC'].reduce(function (acc, id) {
-			const el = document.getElementById(id);
-			const v = (el && el.value || '').toString().replace(/,/g, '').trim();
-			return acc + (v === '' ? 0 : (parseFloat(v) || 0));
-		}, 0);
-	}
-	function addBuyinSwalWarn(title, text) {
-		if (typeof Swal !== 'undefined') {
-			Swal.fire({ icon: 'warning', title: title, text: text, confirmButtonColor: '#3a57e8' });
-		} else {
-			window.alert(title + '\n\n' + text);
-		}
-	}
-
-	modal.addEventListener('shown.bs.modal', function () {
-		fetch('/game_list_available_chips', { credentials: 'same-origin' })
-			.then(function (r) {
-				if (!r.ok) throw new Error('bad status');
-				return r.json();
-			})
-			.then(function (data) {
-				const nnEl = document.getElementById('buyin-availableNN');
-				const ccEl = document.getElementById('buyin-availableCC');
-				const nn = Number(data && data.availableNN) || 0;
-				const cc = Number(data && data.availableCC) || 0;
-				if (nnEl) nnEl.textContent = nn.toLocaleString('en-US');
-				if (ccEl) ccEl.textContent = cc.toLocaleString('en-US');
-			})
-			.catch(function () {
-				const nnEl = document.getElementById('buyin-availableNN');
-				const ccEl = document.getElementById('buyin-availableCC');
-				if (nnEl) nnEl.textContent = '0';
-				if (ccEl) ccEl.textContent = '0';
-			});
-	});
-
-	const nnInput = document.querySelector('#modal-add-buyin .txtNN');
-	if (nnInput) {
-		nnInput.addEventListener('input', function () {
-			const raw = (this.value || '').toString().replace(/,/g, '');
-			const trimmed = raw.trim();
-
-			if (!trimmed) {
-				this.classList.remove('is-invalid');
-				return;
-			}
-
-			const value = Number(trimmed);
-
-			if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
-				this.classList.add('is-invalid');
-				return;
-			}
-
-			this.classList.remove('is-invalid');
-
-			if (addBuyinSplitBuyinEnabled()) return;
-
-			const avail = addBuyinAvailableNN();
-			if (value > avail) {
-				addBuyinSwalWarn(
-					'Exceeds Available NN Chips',
-					'You only have ' + avail.toLocaleString('en-US') + ' NN Chips available.'
-				);
-				this.value = '';
-				this.classList.remove('is-invalid');
-				this.focus();
-			}
-		});
-	}
-
-	const ccInput = document.querySelector('#modal-add-buyin .txtCC');
-	if (ccInput) {
-		ccInput.addEventListener('input', function () {
-			const raw = (this.value || '').toString().replace(/,/g, '');
-			const trimmed = raw.trim();
-			if (!trimmed) return;
-
-			const value = Number(trimmed);
-			if (!Number.isFinite(value) || value < 0) return;
-
-			if (addBuyinSplitBuyinEnabled()) return;
-
-			const avail = addBuyinAvailableCC();
-			if (value > avail) {
-				addBuyinSwalWarn(
-					'Exceeds Available CC Chips',
-					'You only have ' + avail.toLocaleString('en-US') + ' CC Chips available.'
-				);
-				this.value = '';
-				this.focus();
-			}
-		});
-	}
-
-	const splitToggle = document.getElementById('enableSplitBuyin');
-	const splitRow = document.getElementById('split-buyin-row');
-	const nnccRow = document.getElementById('buyin-nncc-row');
-	const transTypeRow = document.getElementById('buyin-trans-type-row');
-	const radios = document.querySelectorAll('#modal-add-buyin input[name="txtTransType"]');
-	const splitInputs = [
-		document.getElementById('splitBuyinCashNN'),
-		document.getElementById('splitBuyinCashCC'),
-		document.getElementById('splitBuyinDepNN'),
-		document.getElementById('splitBuyinDepCC'),
-		document.getElementById('splitBuyinCreditNN'),
-		document.getElementById('splitBuyinCreditCC')
-	];
-
-	const validateSplit = function (el) {
-		if (!el) return;
-		const raw = (el.value || '').toString().replace(/,/g, '').trim();
-		if (!raw) {
-			el.classList.remove('is-invalid');
-			return;
-		}
-		const n = Number(raw);
-		const isNN = (el.id || '').toLowerCase().includes('nn');
-		const invalid = !Number.isFinite(n) || n < 0 || (isNN && n > 0 && n % 1000 !== 0);
-		el.classList.toggle('is-invalid', invalid);
-	};
-	splitInputs.forEach(function (el) {
-		if (!el) return;
-		el.addEventListener('input', function () {
-			validateSplit(el);
-			const id = (el.id || '').toLowerCase();
-			const avNN = addBuyinAvailableNN();
-			const avCC = addBuyinAvailableCC();
-			if (id.includes('nn')) {
-				const totalNN = addBuyinSplitSumNN();
-				if (totalNN > avNN) {
-					addBuyinSwalWarn(
-						'Exceeds Available NN Chips',
-						'Split NN total cannot exceed ' + avNN.toLocaleString('en-US') + ' Chips.'
-					);
-					el.value = '';
-					el.classList.remove('is-invalid');
-					el.focus();
-					return;
-				}
-			}
-			if (id.includes('cc')) {
-				const totalCC = addBuyinSplitSumCC();
-				if (totalCC > avCC) {
-					addBuyinSwalWarn(
-						'Exceeds Available CC Chips',
-						'Split CC total cannot exceed ' + avCC.toLocaleString('en-US') + ' Chips.'
-					);
-					el.value = '';
-					el.classList.remove('is-invalid');
-					el.focus();
-				}
-			}
-		});
-	});
-
-	if (splitToggle) {
-		splitToggle.addEventListener('change', function () {
-			const isOn = this.checked;
-			if (splitRow) splitRow.style.display = isOn ? '' : 'none';
-			if (nnccRow) nnccRow.style.display = isOn ? 'none' : '';
-			if (transTypeRow) transTypeRow.style.display = isOn ? 'none' : '';
-			radios.forEach(function (r) { r.disabled = isOn; if (isOn) r.checked = false; });
-			if (!isOn) {
-				splitInputs.forEach(function (el) {
-					if (!el) return;
-					el.value = '';
-					el.classList.remove('is-invalid');
-				});
-			}
-		});
-	}
-});
-</script>
-					<div class="modal-footer">
-						<button type="submit" id="submit-buyin-btn" class="btn btn-sm btn-primary" >
-							Save
-						</button>
-						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-							Close
-						</button>
+						<div class="buyin-field-grid">
+							<label class="form-label mb-0" for="splitBuyinDepNN">Deposit</label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-nn-input buyin-deposit-input" placeholder="NN Chips" id="splitBuyinDepNN" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-deposit-input" placeholder="CC Chips" id="splitBuyinDepCC" autocomplete="off" />
+						</div>
+						<div class="buyin-field-grid">
+							<label class="form-label mb-0" for="splitBuyinCreditNN">Credit</label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-nn-input buyin-credit-input" placeholder="NN Chips" id="splitBuyinCreditNN" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center buyin-credit-input" placeholder="CC Chips" id="splitBuyinCreditCC" autocomplete="off" />
+						</div>
 					</div>
-				</form>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="submit" id="submit-buyin-btn" class="btn btn-sm btn-primary">Save</button>
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+			</form>
+		</div>
+
+        <div class="buyin-side-panels buyin-side-panels-empty" id="buyin-side-panels">
+            <div class="buyin-side-resize-handle" id="buyin-side-resize-handle" title="Drag to resize" aria-hidden="true">⇔</div>
+            <div class="buyin-side-panel d-none" id="buyin-cash-panel" aria-hidden="true">
+                <div class="buyin-side-panel-title">Cash</div>
+                <div class="buyin-panel-sheet">
+                    <div class="buyin-cash-balance-head">
+                        <div class="buyin-balance-head-cell">Current NN Balance Of Company</div>
+                        <div class="buyin-balance-head-cell">Anticipated NN Balance Of Company</div>
+                        <div class="buyin-balance-head-cell">Current CC Balance Of Company</div>
+                        <div class="buyin-balance-head-cell">Anticipated CC Balance Of Company</div>
+                    </div>
+                    <div class="buyin-cash-balance-values">
+                        <div class="buyin-balance-value-cell" id="buyin-cash-nn-current">—</div>
+                        <div class="buyin-balance-value-cell" id="buyin-cash-nn-anticipated">—</div>
+                        <div class="buyin-balance-value-cell" id="buyin-cash-cc-current">—</div>
+                        <div class="buyin-balance-value-cell" id="buyin-cash-cc-anticipated">—</div>
+                    </div>
+                    <div class="buyin-processing-row">
+                        <div class="buyin-processing-col">
+                            <div class="buyin-processing-head">Processing Amount</div>
+                            <div class="buyin-processing-body" id="buyin-cash-processing-wrap">
+                                <span id="buyin-cash-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="buyin-remarks-col">
+                            <div class="buyin-processing-head">Cash Buy In</div>
+                            <div class="buyin-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center buyin-cash-remarks-input" id="buyin-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buyin-side-panel d-none" id="buyin-deposit-panel" aria-hidden="true">
+                <div class="buyin-side-panel-title">Deposit</div>
+                <div class="buyin-panel-sheet">
+                    <div class="buyin-balance-head">
+                        <div class="buyin-balance-head-cell" id="buyin-deposit-current-label">Current Balance Of Account</div>
+                        <div class="buyin-balance-head-cell" id="buyin-deposit-anticipated-label">Anticipated Balance Of Account</div>
+                    </div>
+                    <div class="buyin-balance-values">
+                        <div class="buyin-balance-value-cell" id="buyin-deposit-current">—</div>
+                        <div class="buyin-balance-value-cell" id="buyin-deposit-anticipated">—</div>
+                    </div>
+                    <div class="buyin-processing-row">
+                        <div class="buyin-processing-col">
+                            <div class="buyin-processing-head">Processing Amount</div>
+                            <div class="buyin-processing-body" id="buyin-deposit-processing-wrap">
+                                <span id="buyin-deposit-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="buyin-remarks-col">
+                            <div class="buyin-processing-head">Remarks</div>
+                            <div class="buyin-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center buyin-deposit-remarks-input" id="buyin-deposit-remarks" name="txtDepositRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="buyin-history-wrap">
+                        <table class="table table-bordered table-sm mb-0 buyin-history-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="buyin-deposit-history-body">
+                                <tr class="text-muted">
+                                    <td colspan="4" class="text-center small py-2">No history.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="buyin-side-panel d-none buyin-side-panel-credit" id="buyin-credit-panel" aria-hidden="true">
+                <div class="buyin-side-panel-title">Credit</div>
+                <div class="buyin-panel-sheet buyin-credit-sheet">
+                    <div class="buyin-credit-summary-grid">
+                        <div class="buyin-credit-summary-col">
+                            <div class="buyin-balance-head-cell" id="buyin-credit-current-label">Current Credit Balance Of Account</div>
+                            <div class="buyin-balance-value-cell text-amount-negative" id="buyin-credit-current">—</div>
+                        </div>
+                        <div class="buyin-credit-summary-col">
+                            <div class="buyin-balance-head-cell" id="buyin-credit-anticipated-label">Anticipated Credit Balance Of Account</div>
+                            <div class="buyin-balance-value-cell text-amount-negative" id="buyin-credit-anticipated">—</div>
+                        </div>
+                        <div class="buyin-credit-guest-cols" id="buyin-credit-guest-cols"></div>
+                    </div>
+                    <div class="buyin-credit-processing-row">
+                        <div class="buyin-credit-proc-col">
+                            <div class="buyin-processing-head">Processing Amount</div>
+                            <div class="buyin-processing-body" id="buyin-credit-processing-wrap">
+                                <span id="buyin-credit-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="buyin-credit-proc-col">
+                            <div class="buyin-processing-head">채무자 Debtor</div>
+                            <div class="buyin-credit-party-body buyin-credit-debtor-body" id="buyin-credit-debtor">
+                                <div id="buyin-credit-debtor-account">—</div>
+                                <div class="buyin-credit-debtor-guest" id="buyin-credit-debtor-guest">—</div>
+                            </div>
+                        </div>
+                        <div class="buyin-credit-proc-col">
+                            <div class="buyin-processing-head">보증인 Guarantor</div>
+                            <div class="buyin-credit-party-body buyin-credit-guarantor-body">
+                                <input type="text" class="form-control form-control-sm text-center buyin-credit-guarantor-input" id="buyin-credit-guarantor" name="txtCreditGuarantor" placeholder="Guarantor" autocomplete="off" form="add_buyin">
+                            </div>
+                        </div>
+                        <div class="buyin-credit-proc-col">
+                            <div class="buyin-processing-head">Credit Buy In</div>
+                            <div class="buyin-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center buyin-credit-remarks-input" id="buyin-credit-remarks" name="txtCreditRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="buyin-history-wrap buyin-credit-history-wrap">
+                        <table class="table table-bordered table-sm mb-0 buyin-history-tbl buyin-credit-history-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction</th>
+                                    <th colspan="2" class="text-center">채무자 Debtor</th>
+                                    <th>보증인 Guarantor</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Balance</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="buyin-credit-history-body">
+                                <tr class="text-muted">
+                                    <td colspan="8" class="text-center small py-2">No history.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 		</div>
 	</div>
 </div>
+
+<style>
+#modal-add-buyin .select2-container {
+    z-index: 1060;
+}
+#modal-add-buyin .select2-dropdown {
+    z-index: 9999;
+}
+#modal-add-buyin .buyin-main-content {
+    width: 32rem;
+    max-width: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+#modal-add-buyin.show,
+#modal-add-buyin.showing {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+}
+#modal-add-buyin .buyin-modal-dialog {
+    max-width: calc(100vw - 1.5rem);
+    width: max-content;
+    margin: 0 auto;
+}
+#modal-add-buyin .buyin-modal-cluster {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 0 auto;
+}
+#modal-add-buyin .buyin-side-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 36rem;
+    flex-shrink: 0;
+    align-self: flex-start;
+    min-height: 0;
+    position: relative;
+    pointer-events: auto;
+}
+#modal-add-buyin .buyin-side-panels:not(.buyin-side-panels-empty) {
+    display: flex;
+    max-height: calc(100vh - 4.5rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+#modal-add-buyin .buyin-side-resize-handle {
+    position: absolute;
+    right: -0.45rem;
+    top: 0;
+    bottom: 0;
+    width: 0.85rem;
+    cursor: ew-resize;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.72rem;
+    line-height: 1;
+    user-select: none;
+    touch-action: none;
+    border-left: 1px solid #ced4da;
+    border-right: 1px solid #ced4da;
+    background: linear-gradient(90deg, #f8f9fa 0%, #fff 50%, #f8f9fa 100%);
+    border-radius: 0.2rem;
+    opacity: 0.85;
+}
+#modal-add-buyin .buyin-side-resize-handle:hover,
+#modal-add-buyin .buyin-side-resize-handle.is-dragging {
+    opacity: 1;
+    color: #0d6efd;
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+#modal-add-buyin .buyin-side-panels.buyin-side-panels-empty .buyin-side-resize-handle {
+    display: none;
+}
+body.buyin-side-resize-active {
+    cursor: ew-resize !important;
+    user-select: none !important;
+}
+#modal-add-buyin .buyin-side-panels.buyin-side-panels-empty,
+#modal-add-buyin .buyin-side-panels:not(:has(.buyin-side-panel:not(.d-none))) {
+    display: none;
+    width: 0;
+    min-width: 0;
+    gap: 0;
+    overflow: hidden;
+}
+#modal-add-buyin .buyin-side-panel {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.35rem;
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    pointer-events: auto;
+}
+#modal-add-buyin .buyin-side-panel-title {
+    background: #0d6efd;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.35rem 0.5rem;
+}
+#modal-add-buyin .buyin-panel-sheet {
+    display: flex;
+    flex-direction: column;
+}
+#modal-add-buyin .buyin-cash-balance-head,
+#modal-add-buyin .buyin-balance-head {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+#modal-add-buyin .buyin-balance-head {
+    grid-template-columns: 1fr 1fr;
+}
+#modal-add-buyin .buyin-balance-head-cell {
+    background: #cfe2ff;
+    color: #1a1a1a;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.45rem 0.35rem;
+    border-bottom: 1px solid #dee2e6;
+    line-height: 1.25;
+}
+#modal-add-buyin .buyin-balance-head-cell + .buyin-balance-head-cell {
+    border-left: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-cash-balance-values,
+#modal-add-buyin .buyin-balance-values {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-balance-values {
+    grid-template-columns: 1fr 1fr;
+}
+#modal-add-buyin .buyin-balance-value-cell {
+    padding: 0.55rem 0.35rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    word-break: break-word;
+}
+#modal-add-buyin .buyin-balance-value-cell + .buyin-balance-value-cell {
+    border-left: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-processing-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-processing-col + .buyin-remarks-col {
+    border-left: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-processing-head {
+    background: #cfe2ff;
+    color: #1a1a1a;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.45rem 0.4rem;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-processing-body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.55rem 0.4rem;
+    font-weight: 700;
+    font-size: 1rem;
+    min-height: 2.35rem;
+}
+#modal-add-buyin .buyin-processing-body.is-positive {
+    color: #198754;
+}
+#modal-add-buyin .buyin-remarks-body {
+    padding: 0.3rem 0.35rem;
+    min-height: 2.1rem;
+    display: flex;
+    align-items: center;
+}
+#modal-add-buyin .buyin-remarks-body .form-control {
+    width: 100%;
+    min-width: 0;
+    pointer-events: auto;
+}
+#modal-add-buyin .buyin-history-wrap {
+    overflow: auto;
+    min-height: 4.5rem;
+    max-height: 9.75rem;
+}
+#modal-add-buyin .buyin-history-tbl {
+    font-size: 0.72rem;
+    margin-bottom: 0;
+}
+#modal-add-buyin .buyin-history-tbl th {
+    background: #f8f9fa;
+    font-weight: 600;
+    padding: 0.2rem 0.3rem;
+}
+#modal-add-buyin .buyin-history-tbl tr.is-pending td {
+    background: #cfe2ff;
+}
+#modal-add-buyin .buyin-credit-summary-grid {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-side-panels:has(#buyin-credit-panel:not(.d-none)):not([data-user-sized]) {
+    width: 40rem;
+}
+#modal-add-buyin .buyin-processing-body.is-negative {
+    color: #dc3545;
+}
+#modal-add-buyin .buyin-credit-guest-cols {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+#modal-add-buyin .buyin-credit-guest-col {
+    flex: 1 1 0;
+    min-width: 4.5rem;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+}
+#modal-add-buyin .buyin-credit-guest-col:last-child {
+    border-right: none;
+}
+#modal-add-buyin .buyin-credit-history-tbl {
+    min-width: 36rem;
+}
+#modal-add-buyin .buyin-credit-history-tbl th {
+    background: #cfe2ff;
+    font-size: 0.68rem;
+    padding: 0.25rem 0.25rem;
+    vertical-align: middle;
+}
+#modal-add-buyin .buyin-credit-history-tbl td {
+    font-size: 0.68rem;
+    padding: 0.2rem 0.25rem;
+}
+#modal-add-buyin .buyin-credit-history-tbl .buyin-debtor-account {
+    font-weight: 600;
+}
+#modal-add-buyin .buyin-credit-guarantor-body {
+    padding: 0.3rem 0.35rem;
+}
+#modal-add-buyin .buyin-credit-guarantor-input,
+#modal-add-buyin .buyin-credit-remarks-input {
+    width: 100%;
+    min-width: 0;
+    pointer-events: auto;
+}
+#modal-add-buyin .buyin-credit-debtor-guest {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+#modal-add-buyin .buyin-history-tbl .text-amount-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+#modal-add-buyin .buyin-credit-summary-col {
+    flex: 1 1 0;
+    min-width: 0;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+}
+#modal-add-buyin .buyin-credit-processing-row {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 0.9fr) minmax(4rem, 0.8fr) minmax(4.5rem, 0.9fr) minmax(4.5rem, 1fr);
+}
+#modal-add-buyin .buyin-credit-proc-col + .buyin-credit-proc-col {
+    border-left: 1px solid #dee2e6;
+}
+#modal-add-buyin .buyin-credit-party-body {
+    padding: 0.45rem 0.35rem;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-height: 2.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#modal-add-buyin .text-amount-negative {
+    color: #dc3545;
+}
+#modal-add-buyin .buyin-input-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#modal-add-buyin .buyin-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#modal-add-buyin .buyin-field-grid {
+    display: grid;
+    grid-template-columns: 6.75rem minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: center;
+}
+
+#modal-add-buyin .buyin-field-grid .form-control {
+    width: 100%;
+    min-width: 0;
+}
+
+#modal-add-buyin .buyin-field-grid label {
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+#modal-add-buyin .buyin-type-radios {
+    justify-content: flex-start;
+    padding-left: 2rem;
+}
+
+.flatpickr-calendar.buyin-date-calendar .flatpickr-day.selected,
+.flatpickr-calendar.buyin-date-calendar .flatpickr-day.startRange,
+.flatpickr-calendar.buyin-date-calendar .flatpickr-day.endRange,
+.flatpickr-calendar.buyin-date-calendar .flatpickr-day.selected.inRange {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.flatpickr-calendar.buyin-date-calendar .flatpickr-day.today:not(.selected) {
+    background-color: rgba(13, 110, 253, 0.12) !important;
+    border-color: #0d6efd !important;
+    color: #0d6efd !important;
+    font-weight: 600;
+}
+</style>
+
+<script>
+function buyinAvailableNN() {
+    const el = document.getElementById('buyin-availableNN');
+    if (!el) return 0;
+    const raw = (el.textContent || '').replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function buyinAvailableCC() {
+    const el = document.getElementById('buyin-availableCC');
+    if (!el) return 0;
+    const raw = (el.textContent || '').replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function buyinSplitLegTotal(id) {
+    const el = document.getElementById(id);
+    const v = (el && el.value || '').toString().replace(/,/g, '').trim();
+    return v === '' ? 0 : (parseFloat(v) || 0);
+}
+function buyinAccountDepositBalance() {
+    const el = document.getElementById('total_balanceGuest2');
+    const raw = (el && el.value || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+function buyinSplitDepositTotal() {
+    return buyinSplitLegTotal('splitBuyinDepNN') + buyinSplitLegTotal('splitBuyinDepCC');
+}
+function buyinCompanyNnBalance() {
+    const el = document.getElementById('buyin-nn-balance-base');
+    const raw = (el && el.textContent || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function buyinCompanyCcBalance() {
+    const el = document.getElementById('buyin-cc-balance-base');
+    const raw = (el && el.textContent || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+function buyinAfterSplitBalanceRejected(inputEl) {
+    if (inputEl) { inputEl.value = ''; inputEl.classList.remove('is-invalid'); inputEl.focus(); }
+    if (typeof window.updateBuyinBalanceSummary === 'function') window.updateBuyinBalanceSummary();
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const splitInputs = [
+        document.getElementById('splitBuyinCashNN'),
+        document.getElementById('splitBuyinCashCC'),
+        document.getElementById('splitBuyinDepNN'),
+        document.getElementById('splitBuyinDepCC'),
+        document.getElementById('splitBuyinCreditNN'),
+        document.getElementById('splitBuyinCreditCC')
+    ];
+
+    const validateNnSplitInput = function (inputEl) {
+        if (!inputEl) return;
+        const id = inputEl.id || '';
+        const isNnField = id.toLowerCase().includes('nn');
+        const raw = (inputEl.value || '').toString().replace(/,/g, '').trim();
+        if (!raw) {
+            inputEl.classList.remove('is-invalid');
+            return;
+        }
+        const n = Number(raw);
+        const invalid = !Number.isFinite(n) || n < 0 || (isNnField && n > 0 && n % 1000 !== 0);
+        inputEl.classList.toggle('is-invalid', invalid);
+    };
+
+    splitInputs.forEach(function (inputEl) {
+        if (!inputEl) return;
+        inputEl.addEventListener('input', function () {
+            validateNnSplitInput(inputEl);
+            const id = (inputEl.id || '').toLowerCase();
+
+            if (id.includes('dep')) {
+                const depTotal = buyinSplitDepositTotal();
+                const accountBalance = buyinAccountDepositBalance();
+                if (depTotal > accountBalance) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Insufficient Balance',
+                        text: 'Deposit split exceeds available total balance of ₱' + accountBalance.toLocaleString('en-US'),
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    buyinAfterSplitBalanceRejected(inputEl);
+                    return;
+                }
+            } else if (id.includes('cash')) {
+                if (id.includes('nn')) {
+                    const cashNn = buyinSplitLegTotal('splitBuyinCashNN');
+                    const nnBase = buyinCompanyNnBalance();
+                    if (cashNn > nnBase) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Insufficient Balance',
+                            text: 'Cash NN exceeds available company NN balance of ' + nnBase.toLocaleString('en-US') + ' Chips.',
+                            confirmButtonColor: '#3a57e8'
+                        });
+                        buyinAfterSplitBalanceRejected(inputEl);
+                        return;
+                    }
+                }
+                if (id.includes('cc')) {
+                    const cashCc = buyinSplitLegTotal('splitBuyinCashCC');
+                    const ccBase = buyinCompanyCcBalance();
+                    if (cashCc > ccBase) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Insufficient Balance',
+                            text: 'Cash CC exceeds available company CC balance of ' + ccBase.toLocaleString('en-US') + ' Chips.',
+                            confirmButtonColor: '#3a57e8'
+                        });
+                        buyinAfterSplitBalanceRejected(inputEl);
+                        return;
+                    }
+                }
+            }
+
+            const avNN = buyinAvailableNN();
+            const avCC = buyinAvailableCC();
+            if (!id.includes('dep') && !id.includes('cash') && id.includes('nn')) {
+                const totalNN = buyinSplitSumNN();
+                if (totalNN > avNN) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Exceeds Available NN Chips',
+                        text: 'Split NN total cannot exceed ' + avNN.toLocaleString('en-US') + ' Chips.',
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    inputEl.value = '';
+                    inputEl.classList.remove('is-invalid');
+                    inputEl.focus();
+                    return;
+                }
+            }
+            if (!id.includes('dep') && !id.includes('cash') && id.includes('cc')) {
+                const totalCC = buyinSplitSumCC();
+                if (totalCC > avCC) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Exceeds Available CC Chips',
+                        text: 'Split CC total cannot exceed ' + avCC.toLocaleString('en-US') + ' Chips.',
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    inputEl.value = '';
+                    inputEl.classList.remove('is-invalid');
+                    inputEl.focus();
+                }
+            }
+        });
+    });
+});
+function buyinSplitSumNN() {
+    return ['splitBuyinCashNN', 'splitBuyinDepNN', 'splitBuyinCreditNN'].reduce(function (acc, id) {
+        return acc + buyinSplitLegTotal(id);
+    }, 0);
+}
+function buyinSplitSumCC() {
+    return ['splitBuyinCashCC', 'splitBuyinDepCC', 'splitBuyinCreditCC'].reduce(function (acc, id) {
+        return acc + buyinSplitLegTotal(id);
+    }, 0);
+}
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modal-add-buyin');
+    if (!modal) return;
+
+    const nnBaseEl = document.getElementById('buyin-nn-balance-base');
+    const ccBaseEl = document.getElementById('buyin-cc-balance-base');
+    const accountBaseEl = document.getElementById('total_balanceGuest2');
+    const agentCodeEl = document.getElementById('buyin-agent-code-label');
+    const guestNameEl = document.getElementById('buyin-guest-name-label');
+
+    const cashPanel = document.getElementById('buyin-cash-panel');
+    const depositPanel = document.getElementById('buyin-deposit-panel');
+    const creditPanel = document.getElementById('buyin-credit-panel');
+
+    const cashNnCurrentEl = document.getElementById('buyin-cash-nn-current');
+    const cashNnAnticipatedEl = document.getElementById('buyin-cash-nn-anticipated');
+    const cashCcCurrentEl = document.getElementById('buyin-cash-cc-current');
+    const cashCcAnticipatedEl = document.getElementById('buyin-cash-cc-anticipated');
+    const cashProcessingEl = document.getElementById('buyin-cash-processing');
+    const cashProcessingWrap = document.getElementById('buyin-cash-processing-wrap');
+    const cashRemarksInput = document.getElementById('buyin-cash-remarks');
+
+    const depositCurrentLabelEl = document.getElementById('buyin-deposit-current-label');
+    const depositAnticipatedLabelEl = document.getElementById('buyin-deposit-anticipated-label');
+    const depositCurrentEl = document.getElementById('buyin-deposit-current');
+    const depositAnticipatedEl = document.getElementById('buyin-deposit-anticipated');
+    const depositProcessingEl = document.getElementById('buyin-deposit-processing');
+    const depositProcessingWrap = document.getElementById('buyin-deposit-processing-wrap');
+    const depositRemarksInput = document.getElementById('buyin-deposit-remarks');
+    const depositHistoryBody = document.getElementById('buyin-deposit-history-body');
+
+    const creditCurrentLabelEl = document.getElementById('buyin-credit-current-label');
+    const creditAnticipatedLabelEl = document.getElementById('buyin-credit-anticipated-label');
+    const creditCurrentEl = document.getElementById('buyin-credit-current');
+    const creditAnticipatedEl = document.getElementById('buyin-credit-anticipated');
+    const creditProcessingEl = document.getElementById('buyin-credit-processing');
+    const creditProcessingWrap = document.getElementById('buyin-credit-processing-wrap');
+    const creditDebtorAccountEl = document.getElementById('buyin-credit-debtor-account');
+    const creditDebtorGuestEl = document.getElementById('buyin-credit-debtor-guest');
+    const creditGuarantorInput = document.getElementById('buyin-credit-guarantor');
+    const creditRemarksInput = document.getElementById('buyin-credit-remarks');
+    const creditGuestColsEl = document.getElementById('buyin-credit-guest-cols');
+    const creditHistoryBody = document.getElementById('buyin-credit-history-body');
+
+    let ledgerHistory = [];
+    let creditHistory = [];
+    let creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+    let cashEngaged = false;
+    let depositEngaged = false;
+    let creditEngaged = false;
+
+    const parseAmt = function (raw) {
+        const s = (raw || '').toString().replace(/,/g, '').trim();
+        if (!s) return 0;
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    const formatAmt = function (n) {
+        return Math.round(n).toLocaleString('en-US');
+    };
+
+    const formatNegativeAmt = function (n) {
+        const abs = Math.round(Math.abs(parseAmt(n)));
+        if (!abs) return '0';
+        return '(' + formatAmt(abs) + ')';
+    };
+
+    const formatCreditOwed = function (amount) {
+        const owed = Math.max(0, parseAmt(amount));
+        if (!owed) return '0';
+        return formatNegativeAmt(owed);
+    };
+
+    const hasRowInput = function (nnId, ccId) {
+        const nn = (document.getElementById(nnId) && document.getElementById(nnId).value || '').replace(/,/g, '').trim();
+        const cc = (document.getElementById(ccId) && document.getElementById(ccId).value || '').replace(/,/g, '').trim();
+        return !!(nn || cc);
+    };
+
+    const accountCodeEl = modal.querySelector('.txtAccountCode');
+    const hasSelectedAccount = function () {
+        return !!(accountCodeEl && String(accountCodeEl.value || '').trim());
+    };
+
+    const getGuestName = function () {
+        return (guestNameEl && guestNameEl.textContent || '').trim();
+    };
+
+    const extractAccountCode = function (raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        const match = s.match(/\(([^)]+)\)\s*$/);
+        if (match) return match[1].trim();
+        return s;
+    };
+
+    const getCreditAccountCode = function () {
+        if (creditMeta && creditMeta.agentCode) {
+            return extractAccountCode(creditMeta.agentCode);
+        }
+        return (agentCodeEl && agentCodeEl.textContent || '').trim() || 'Account';
+    };
+
+    const syncAgentGuestLabels = function () {};
+
+    const shouldShowCashPanel = function () {
+        return hasRowInput('splitBuyinCashNN', 'splitBuyinCashCC');
+    };
+
+    const shouldShowDepositPanel = function () {
+        return hasRowInput('splitBuyinDepNN', 'splitBuyinDepCC');
+    };
+
+    const shouldShowCreditPanel = function () {
+        return hasRowInput('splitBuyinCreditNN', 'splitBuyinCreditCC');
+    };
+
+    const computeCashProcessing = function () {
+        return parseAmt(document.getElementById('splitBuyinCashNN') && document.getElementById('splitBuyinCashNN').value) +
+            parseAmt(document.getElementById('splitBuyinCashCC') && document.getElementById('splitBuyinCashCC').value);
+    };
+
+    const computeDepositProcessing = function () {
+        return parseAmt(document.getElementById('splitBuyinDepNN') && document.getElementById('splitBuyinDepNN').value) +
+            parseAmt(document.getElementById('splitBuyinDepCC') && document.getElementById('splitBuyinDepCC').value);
+    };
+
+    const computeCreditProcessing = function () {
+        return parseAmt(document.getElementById('splitBuyinCreditNN') && document.getElementById('splitBuyinCreditNN').value) +
+            parseAmt(document.getElementById('splitBuyinCreditCC') && document.getElementById('splitBuyinCreditCC').value);
+    };
+
+    const setProcessingDisplay = function (el, wrap, processing) {
+        if (!el || !wrap) return;
+        if (processing < 0) {
+            el.textContent = formatNegativeAmt(processing);
+        } else {
+            el.textContent = formatAmt(processing);
+        }
+        wrap.classList.toggle('is-negative', processing < 0);
+        wrap.classList.toggle('is-positive', processing > 0);
+    };
+
+    const applyHistoryWrapHeights = function () {
+        modal.querySelectorAll('.buyin-history-wrap').forEach(function (wrap) {
+            const tbl = wrap.querySelector('table');
+            if (!tbl) return;
+            const head = tbl.querySelector('thead');
+            const sampleRow = tbl.querySelector('tbody tr:not(.text-muted)');
+            const headH = head ? head.getBoundingClientRect().height : 28;
+            const rowH = sampleRow ? sampleRow.getBoundingClientRect().height : 26;
+            wrap.style.maxHeight = Math.ceil(headH + rowH * 5) + 'px';
+        });
+    };
+
+    const applySidePanelsDefaultWidth = function () {
+        const sidePanels = document.getElementById('buyin-side-panels');
+        if (!sidePanels || sidePanels.dataset.userSized === '1') return;
+        const creditOpen = creditPanel && !creditPanel.classList.contains('d-none');
+        sidePanels.style.width = creditOpen ? '40rem' : '36rem';
+    };
+
+    const resetSidePanelsWidth = function () {
+        const sidePanels = document.getElementById('buyin-side-panels');
+        if (!sidePanels) return;
+        delete sidePanels.dataset.userSized;
+        sidePanels.style.width = '';
+    };
+
+    const wireSidePanelsResize = function () {
+        const sidePanels = document.getElementById('buyin-side-panels');
+        const resizeHandle = document.getElementById('buyin-side-resize-handle');
+        const cluster = modal.querySelector('.buyin-modal-cluster');
+        if (!sidePanels || !resizeHandle || !cluster) return;
+
+        const minWidth = 18 * 16;
+        let dragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        const getMaxWidth = function () {
+            const mainContent = modal.querySelector('.buyin-main-content');
+            const mainWidth = mainContent ? mainContent.getBoundingClientRect().width : 512;
+            const gap = 12;
+            const padding = 24;
+            return Math.max(minWidth, window.innerWidth - padding - mainWidth - gap - 32);
+        };
+
+        const onMove = function (e) {
+            if (!dragging) return;
+            const nextWidth = Math.min(getMaxWidth(), Math.max(minWidth, startWidth + (e.clientX - startX)));
+            sidePanels.style.width = nextWidth + 'px';
+        };
+
+        const onStop = function () {
+            if (!dragging) return;
+            dragging = false;
+            resizeHandle.classList.remove('is-dragging');
+            document.body.classList.remove('buyin-side-resize-active');
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onStop);
+        };
+
+        resizeHandle.addEventListener('mousedown', function (e) {
+            if (sidePanels.classList.contains('buyin-side-panels-empty')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            startX = e.clientX;
+            startWidth = sidePanels.getBoundingClientRect().width;
+            sidePanels.dataset.userSized = '1';
+            resizeHandle.classList.add('is-dragging');
+            document.body.classList.add('buyin-side-resize-active');
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onStop);
+        });
+    };
+
+    const togglePanel = function (panel, visible) {
+        if (!panel) return;
+        panel.classList.toggle('d-none', !visible);
+        panel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        syncSidePanelsLayout();
+    };
+
+    const syncSidePanelsLayout = function () {
+        const sidePanels = document.getElementById('buyin-side-panels');
+        if (!sidePanels) return;
+        const anyVisible =
+            (cashPanel && !cashPanel.classList.contains('d-none')) ||
+            (depositPanel && !depositPanel.classList.contains('d-none')) ||
+            (creditPanel && !creditPanel.classList.contains('d-none'));
+        sidePanels.classList.toggle('buyin-side-panels-empty', !anyVisible);
+        applySidePanelsDefaultWidth();
+    };
+
+    const getCreditHistoryDebtorParts = function (row) {
+        const code = extractAccountCode((row && row.AGENT_CODE) || creditMeta.agentCode || getCreditAccountCode());
+        const guest = row && row.GUEST_NAME ? String(row.GUEST_NAME).trim() : '';
+        return { account: code || '—', guest: guest || '—' };
+    };
+
+    const parseCreditRemarks = function (remarks) {
+        const raw = String(remarks || '').trim();
+        if (!raw) return { remarks: '', guarantor: '' };
+        const idx = raw.indexOf('Guarantor:');
+        if (idx === -1) return { remarks: raw, guarantor: '' };
+        const remarksPart = raw.slice(0, idx).replace(/\|\s*$/, '').trim();
+        const guarantor = raw.slice(idx + 'Guarantor:'.length).trim();
+        return { remarks: remarksPart, guarantor: guarantor };
+    };
+
+    const renderGuestCreditBreakdown = function () {
+        if (!creditGuestColsEl) return;
+        const guests = Array.isArray(creditMeta.guestBalances) ? creditMeta.guestBalances : [];
+        if (!guests.length) {
+            creditGuestColsEl.innerHTML = '';
+            return;
+        }
+        let html = '';
+        guests.forEach(function (g) {
+            const bal = Number(g.creditBalance) || 0;
+            if (bal <= 0) return;
+            const name = (g.guestName || '').trim() || 'Guest';
+            html += '<div class="buyin-credit-guest-col">' +
+                '<div class="buyin-balance-head-cell">' + name + '</div>' +
+                '<div class="buyin-balance-value-cell text-amount-negative">' + formatCreditOwed(bal) + '</div>' +
+                '</div>';
+        });
+        creditGuestColsEl.innerHTML = html;
+    };
+
+    const getCreditReturnSourceLabel = function (desc) {
+        const normalized = String(desc || '').trim().toUpperCase();
+        if (normalized === 'RETURN_SOURCE:CREDIT') return 'Junket Credit';
+        if (normalized === 'RETURN_SOURCE:BUYIN') return 'Game Credit';
+        return '';
+    };
+
+    const renderCreditTransactionLabel = function (row) {
+        const info = row.TRANSACTION_INFO || '';
+        const parts = String(info).split('-');
+        const transactionId = parseInt(parts[0], 10);
+        const transactionType = parseInt(parts[1], 10);
+        const sourceLabel = getCreditReturnSourceLabel(row.TRANSACTION_DESC);
+        switch (transactionId) {
+            case 3: return 'Cash Credit';
+            case 10: return 'Chips Credit';
+            case 11: return sourceLabel ? (sourceLabel + ' Returned thru Cash') : 'Credit Returned thru Cash';
+            case 12: return sourceLabel ? (sourceLabel + ' Returned thru Deposit') : 'Credit Returned thru Deposit';
+            default:
+                return transactionType === 4 ? 'Chips Return thru Credit' : 'Credit';
+        }
+    };
+
+    const isCreditOutTxn = function (row) {
+        const info = row && row.TRANSACTION_INFO;
+        if (!info) return false;
+        const transactionId = parseInt(String(info).split('-')[0], 10);
+        return transactionId === 3 || transactionId === 10;
+    };
+
+    const computeCreditHistoryBalances = function (rows) {
+        const chronological = rows.slice().reverse();
+        let running = 0;
+        const balanceById = {};
+        chronological.forEach(function (row) {
+            const amount = parseAmt(row.AMOUNT);
+            if (isCreditOutTxn(row)) {
+                running += amount;
+            } else {
+                running = Math.max(0, running - amount);
+            }
+            if (row.IDNo != null) balanceById[row.IDNo] = running;
+        });
+        return balanceById;
+    };
+
+    const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
+        if (!creditHistoryBody) return;
+        const rows = creditHistory.slice();
+        const balanceById = computeCreditHistoryBalances(rows);
+        let html = '';
+
+        rows.forEach(function (row) {
+            const amount = parseAmt(row.AMOUNT);
+            const isOut = isCreditOutTxn(row);
+            const displayAmt = isOut ? formatNegativeAmt(amount) : formatAmt(amount);
+            const amtClass = 'text-end' + (isOut ? ' text-amount-negative' : '');
+            const balance = balanceById[row.IDNo] != null ? balanceById[row.IDNo] : 0;
+            const debtor = getCreditHistoryDebtorParts(row);
+            const parsed = parseCreditRemarks(row.REMARKS);
+            html += '<tr>' +
+                '<td>' + formatHistoryDate(row.ENCODED_DT || row.encoded_date) + '</td>' +
+                '<td>' + renderCreditTransactionLabel(row) + '</td>' +
+                '<td class="buyin-debtor-account">' + debtor.account + '</td>' +
+                '<td>' + debtor.guest + '</td>' +
+                '<td>' + (parsed.guarantor || '—') + '</td>' +
+                '<td class="' + amtClass + '">' + displayAmt + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatCreditOwed(balance) + '</td>' +
+                '<td>' + (parsed.remarks || '—') + '</td>' +
+                '</tr>';
+        });
+
+        if (pendingAmount > 0) {
+            const currentOwed = Math.max(0, parseAmt(creditMeta.totalCredit));
+            const pendingBalance = currentOwed + pendingAmount;
+            const code = getCreditAccountCode();
+            const guest = getGuestName() || '—';
+            html += '<tr class="is-pending">' +
+                '<td>' + formatHistoryDate(new Date()) + '</td>' +
+                '<td>Chips Credit</td>' +
+                '<td class="buyin-debtor-account">' + (code || '—') + '</td>' +
+                '<td>' + guest + '</td>' +
+                '<td>' + (pendingGuarantor || '—') + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatNegativeAmt(pendingAmount) + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatCreditOwed(pendingBalance) + '</td>' +
+                '<td>' + (pendingRemarks || '—') + '</td>' +
+                '</tr>';
+        }
+
+        if (!html) {
+            html = '<tr class="text-muted"><td colspan="8" class="text-center small py-2">No history.</td></tr>';
+        }
+
+        creditHistoryBody.innerHTML = html;
+        requestAnimationFrame(applyHistoryWrapHeights);
+    };
+
+    const formatHistoryDate = function (raw) {
+        if (!raw) return '—';
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return String(raw);
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+
+    const renderDepositHistory = function (pendingAmount, pendingRemarks) {
+        if (!depositHistoryBody) return;
+        let html = '';
+        ledgerHistory.forEach(function (row) {
+            const txn = row.TRANSACTION || row.TRANSACTION_DESC || '—';
+            const amount = parseAmt(row.AMOUNT);
+            const isNeg = (txn || '').toUpperCase().indexOf('WITHDRAW') !== -1;
+            html += '<tr>' +
+                '<td>' + formatHistoryDate(row.encoded_date || row.ENCODED_DT) + '</td>' +
+                '<td>' + txn + '</td>' +
+                '<td class="text-end' + (isNeg ? ' text-amount-negative' : '') + '">' +
+                    (isNeg ? formatNegativeAmt(amount) : formatAmt(amount)) + '</td>' +
+                '<td>' + (row.REMARKS || '—') + '</td>' +
+                '</tr>';
+        });
+        if (pendingAmount > 0) {
+            html += '<tr class="is-pending">' +
+                '<td>' + formatHistoryDate(new Date()) + '</td>' +
+                '<td>Chips Buy In</td>' +
+                '<td class="text-end">' + formatAmt(pendingAmount) + '</td>' +
+                '<td>' + (pendingRemarks || '—') + '</td>' +
+                '</tr>';
+        }
+        if (!html) {
+            html = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+        }
+        depositHistoryBody.innerHTML = html;
+    };
+
+    const updateDebtorDisplay = function () {
+        const code = getCreditAccountCode();
+        const guest = getGuestName();
+        if (creditDebtorAccountEl) creditDebtorAccountEl.textContent = code || '—';
+        if (creditDebtorGuestEl) {
+            creditDebtorGuestEl.textContent = guest || '—';
+            creditDebtorGuestEl.classList.toggle('d-none', !guest);
+        }
+    };
+
+    const updateCashPanel = function () {
+        const show = hasSelectedAccount() && (cashEngaged || shouldShowCashPanel());
+        if (!show) {
+            togglePanel(cashPanel, false);
+            return;
+        }
+        togglePanel(cashPanel, true);
+        const baseNN = parseAmt(nnBaseEl && nnBaseEl.textContent);
+        const baseCC = parseAmt(ccBaseEl && ccBaseEl.textContent);
+        const cashNn = parseAmt(document.getElementById('splitBuyinCashNN') && document.getElementById('splitBuyinCashNN').value);
+        const cashCc = parseAmt(document.getElementById('splitBuyinCashCC') && document.getElementById('splitBuyinCashCC').value);
+        const hasInput = shouldShowCashPanel();
+        const processing = computeCashProcessing();
+
+        if (cashNnCurrentEl) cashNnCurrentEl.textContent = formatAmt(baseNN);
+        if (cashNnAnticipatedEl) cashNnAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, baseNN - cashNn)) : '—';
+        if (cashCcCurrentEl) cashCcCurrentEl.textContent = formatAmt(baseCC);
+        if (cashCcAnticipatedEl) cashCcAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, baseCC - cashCc)) : '—';
+        setProcessingDisplay(cashProcessingEl, cashProcessingWrap, hasInput ? processing : 0);
+    };
+
+    const updateDepositPanel = function () {
+        const show = hasSelectedAccount() && (depositEngaged || shouldShowDepositPanel());
+        if (!show) {
+            togglePanel(depositPanel, false);
+            return;
+        }
+        const code = getCreditAccountCode();
+        const base = parseAmt(accountBaseEl && accountBaseEl.value);
+        const processing = computeDepositProcessing();
+        const hasInput = shouldShowDepositPanel();
+        const pendingRemarks = depositRemarksInput ? depositRemarksInput.value.trim() : '';
+
+        if (depositCurrentLabelEl) depositCurrentLabelEl.textContent = 'Current Balance Of ' + code;
+        if (depositAnticipatedLabelEl) depositAnticipatedLabelEl.textContent = 'Anticipated Balance Of ' + code;
+        if (depositCurrentEl) depositCurrentEl.textContent = formatAmt(base);
+        if (depositAnticipatedEl) depositAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, base - processing)) : '—';
+        setProcessingDisplay(depositProcessingEl, depositProcessingWrap, hasInput ? processing : 0);
+        renderDepositHistory(hasInput ? processing : 0, pendingRemarks);
+        togglePanel(depositPanel, true);
+    };
+
+    const updateCreditPanel = function () {
+        const show = hasSelectedAccount() && (creditEngaged || shouldShowCreditPanel());
+        if (!show) {
+            togglePanel(creditPanel, false);
+            return;
+        }
+        const code = getCreditAccountCode();
+        const base = parseAmt(creditMeta.totalCredit);
+        const processing = computeCreditProcessing();
+        const hasInput = shouldShowCreditPanel();
+        const anticipated = base + processing;
+        const pendingRemarks = creditRemarksInput ? creditRemarksInput.value.trim() : '';
+        const pendingGuarantor = creditGuarantorInput ? creditGuarantorInput.value.trim() : '';
+
+        if (creditCurrentLabelEl) creditCurrentLabelEl.textContent = 'Current Credit Balance Of ' + code;
+        if (creditAnticipatedLabelEl) creditAnticipatedLabelEl.textContent = 'Anticipated Credit Balance Of ' + code;
+        if (creditCurrentEl) creditCurrentEl.textContent = formatCreditOwed(base);
+        if (creditAnticipatedEl) creditAnticipatedEl.textContent = hasInput ? formatCreditOwed(anticipated) : '—';
+        renderGuestCreditBreakdown();
+        setProcessingDisplay(creditProcessingEl, creditProcessingWrap, hasInput ? -processing : 0);
+        updateDebtorDisplay();
+        renderCreditHistoryTable(hasInput ? processing : 0, pendingRemarks, pendingGuarantor);
+        togglePanel(creditPanel, true);
+    };
+
+    const updateBalanceSummary = function () {
+        const active = document.activeElement;
+        if (hasSelectedAccount()) {
+            if (isCashGroupFocused(active)) cashEngaged = true;
+            if (isDepositGroupFocused(active)) depositEngaged = true;
+            if (isCreditGroupFocused(active)) creditEngaged = true;
+        } else {
+            cashEngaged = false;
+            depositEngaged = false;
+            creditEngaged = false;
+        }
+        syncAgentGuestLabels();
+        updateCashPanel();
+        updateDepositPanel();
+        updateCreditPanel();
+    };
+
+    const resetBalanceDisplay = function () {
+        cashEngaged = false;
+        depositEngaged = false;
+        creditEngaged = false;
+        resetSidePanelsWidth();
+        togglePanel(cashPanel, false);
+        togglePanel(depositPanel, false);
+        togglePanel(creditPanel, false);
+        if (cashRemarksInput) cashRemarksInput.value = '';
+        if (depositRemarksInput) depositRemarksInput.value = '';
+        if (creditRemarksInput) creditRemarksInput.value = '';
+        if (creditGuarantorInput) creditGuarantorInput.value = '';
+        ledgerHistory = [];
+        creditHistory = [];
+        creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+        if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+        if (depositHistoryBody) {
+            depositHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+        }
+        if (creditHistoryBody) {
+            creditHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="8" class="text-center small py-2">No history.</td></tr>';
+        }
+    };
+
+    const loadCompanyBalances = function () {
+        return fetch('/game_list_company_balance', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                if (nnBaseEl) nnBaseEl.textContent = String(Number(data && data.nnChipsBalance) || 0);
+                if (ccBaseEl) ccBaseEl.textContent = String(Number(data && data.ccChipsBalance) || 0);
+            })
+            .catch(function () {
+                if (nnBaseEl) nnBaseEl.textContent = '0';
+                if (ccBaseEl) ccBaseEl.textContent = '0';
+            });
+    };
+
+    const loadAccountBalance = function () {
+        const accountId = accountCodeEl && accountCodeEl.value;
+        if (!accountId) {
+            if (accountBaseEl) accountBaseEl.value = '0';
+            ledgerHistory = [];
+            return Promise.resolve();
+        }
+        return fetch('/account_details_data_deposit/' + encodeURIComponent(accountId), { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                ledgerHistory = Array.isArray(data) ? data : [];
+                let depositAmount = 0;
+                let withdrawAmount = 0;
+                let markerReturn = 0;
+                let markerDepositAmount = 0;
+                ledgerHistory.forEach(function (row) {
+                    const amount = parseAmt(row.AMOUNT);
+                    const txn = row.TRANSACTION || '';
+                    if (txn === 'DEPOSIT') depositAmount += amount;
+                    else if (txn === 'WITHDRAW') withdrawAmount += amount;
+                    else if (txn === 'IOU RETURN DEPOSIT') markerReturn += amount;
+                    else if (txn === 'MARKER REDEEM') markerDepositAmount += amount;
+                });
+                const total = depositAmount + markerDepositAmount - withdrawAmount - markerReturn;
+                if (accountBaseEl) accountBaseEl.value = String(total);
+            })
+            .catch(function () {
+                ledgerHistory = [];
+                if (accountBaseEl) accountBaseEl.value = '0';
+            });
+    };
+
+    const loadCreditContext = function () {
+        const accountId = accountCodeEl && accountCodeEl.value;
+        if (!accountId) {
+            creditHistory = [];
+            creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+            if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+            return Promise.resolve();
+        }
+        return fetch('/game_list_cashout_credit/' + encodeURIComponent(accountId), { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                creditMeta = {
+                    totalCredit: Number(data && data.totalCredit) || 0,
+                    balanceCredit: Number(data && data.balanceCredit) || 0,
+                    balanceBuyin: Number(data && data.balanceBuyin) || 0,
+                    guestBalances: Array.isArray(data && data.guestBalances) ? data.guestBalances : [],
+                    agentCode: (data && data.agentCode) || '',
+                    agentName: (data && data.agentName) || '',
+                    agencyName: (data && data.agencyName) || ''
+                };
+                creditHistory = Array.isArray(data && data.history) ? data.history : [];
+            })
+            .catch(function () {
+                creditHistory = [];
+                creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+                if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+            });
+    };
+
+    const loadModalBalances = function () {
+        resetBalanceDisplay();
+        syncAgentGuestLabels();
+        return Promise.all([loadCompanyBalances(), loadAccountBalance(), loadCreditContext()])
+            .then(updateBalanceSummary);
+    };
+
+    const allowSidePanelFocus = function (e) {
+        if (!e.target || !e.target.closest) return;
+        if (e.target.closest('#buyin-side-panels')) {
+            e.stopImmediatePropagation();
+        }
+    };
+
+    window.disengageBuyinSidePanels = function () {
+        cashEngaged = false;
+        depositEngaged = false;
+        creditEngaged = false;
+        updateBalanceSummary();
+    };
+
+    const releaseFocusTrap = function () {
+        if (window.bootstrap && bootstrap.Modal) {
+            const instance = bootstrap.Modal.getInstance(modal) || bootstrap.Modal.getOrCreateInstance(modal, { focus: false });
+            if (instance) {
+                instance._config.focus = false;
+                if (instance._focustrap && typeof instance._focustrap.deactivate === 'function') {
+                    instance._focustrap.deactivate();
+                }
+            }
+        }
+        window.addEventListener('focusin', allowSidePanelFocus, true);
+    };
+
+    const restoreFocusTrap = function () {
+        window.removeEventListener('focusin', allowSidePanelFocus, true);
+    };
+
+    const isDepositGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (depositRemarksInput && activeEl === depositRemarksInput) return true;
+        return activeEl.classList && activeEl.classList.contains('buyin-deposit-input');
+    };
+
+    const isCreditGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (creditRemarksInput && activeEl === creditRemarksInput) return true;
+        if (creditGuarantorInput && activeEl === creditGuarantorInput) return true;
+        return activeEl.classList && activeEl.classList.contains('buyin-credit-input');
+    };
+
+    const isCashGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (cashRemarksInput && activeEl === cashRemarksInput) return true;
+        return activeEl.classList && activeEl.classList.contains('buyin-cash-input');
+    };
+
+    const wireSideField = function (inputEl, panelType) {
+        if (!inputEl) return;
+        inputEl.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        inputEl.addEventListener('focus', function () {
+            if (!hasSelectedAccount()) return;
+            if (panelType === 'cash') cashEngaged = true;
+            else if (panelType === 'deposit') depositEngaged = true;
+            else creditEngaged = true;
+            updateBalanceSummary();
+        });
+        inputEl.addEventListener('input', function () {
+            updateBalanceSummary();
+        });
+        inputEl.addEventListener('blur', function () {
+            setTimeout(function () {
+                const active = document.activeElement;
+                if (panelType === 'cash' && isCashGroupFocused(active)) return;
+                if (panelType === 'deposit' && isDepositGroupFocused(active)) return;
+                if (panelType === 'credit' && isCreditGroupFocused(active)) return;
+                if (panelType === 'cash' && !shouldShowCashPanel()) { cashEngaged = false; updateBalanceSummary(); }
+                if (panelType === 'deposit' && !shouldShowDepositPanel()) { depositEngaged = false; updateBalanceSummary(); }
+                if (panelType === 'credit' && !shouldShowCreditPanel()) { creditEngaged = false; updateBalanceSummary(); }
+            }, 0);
+        });
+    };
+
+    const wirePanelInputs = function (selector, type) {
+        const inputs = modal.querySelectorAll(selector);
+        const hasInputFn = type === 'cash' ? shouldShowCashPanel : (type === 'deposit' ? shouldShowDepositPanel : shouldShowCreditPanel);
+        inputs.forEach(function (inputEl) {
+            inputEl.addEventListener('focus', function () {
+                if (!hasSelectedAccount()) return;
+                if (type === 'cash') cashEngaged = true;
+                else if (type === 'deposit') depositEngaged = true;
+                else creditEngaged = true;
+                updateBalanceSummary();
+            });
+            inputEl.addEventListener('input', function () {
+                updateBalanceSummary();
+            });
+            inputEl.addEventListener('blur', function () {
+                setTimeout(function () {
+                    const active = document.activeElement;
+                    let stillFocused = false;
+                    inputs.forEach(function (el) { if (el === active) stillFocused = true; });
+                    if (type === 'cash' && isCashGroupFocused(active)) stillFocused = true;
+                    if (type === 'deposit' && isDepositGroupFocused(active)) stillFocused = true;
+                    if (type === 'credit' && isCreditGroupFocused(active)) stillFocused = true;
+                    if (!stillFocused && !hasInputFn()) {
+                        if (type === 'cash') cashEngaged = false;
+                        else if (type === 'deposit') depositEngaged = false;
+                        else creditEngaged = false;
+                        updateBalanceSummary();
+                    }
+                }, 0);
+            });
+        });
+    };
+
+    wirePanelInputs('.buyin-cash-input', 'cash');
+    wirePanelInputs('.buyin-deposit-input', 'deposit');
+    wirePanelInputs('.buyin-credit-input', 'credit');
+    wireSideField(cashRemarksInput, 'cash');
+    wireSideField(depositRemarksInput, 'deposit');
+    wireSideField(creditRemarksInput, 'credit');
+    wireSideField(creditGuarantorInput, 'credit');
+
+    modal.querySelectorAll('.buyin-field-grid label[for="splitBuyinCashNN"]').forEach(function (labelEl) {
+        labelEl.style.cursor = 'pointer';
+        labelEl.addEventListener('click', function () {
+            if (!hasSelectedAccount()) return;
+            cashEngaged = true;
+            updateCashPanel();
+        });
+    });
+
+    modal.querySelectorAll('.buyin-field-grid label[for="splitBuyinCreditNN"]').forEach(function (labelEl) {
+        labelEl.style.cursor = 'pointer';
+        labelEl.addEventListener('click', function () {
+            if (!hasSelectedAccount()) return;
+            creditEngaged = true;
+            updateCreditPanel();
+        });
+    });
+
+    modal.addEventListener('shown.bs.modal', function () {
+        releaseFocusTrap();
+        fetch('/game_list_available_chips', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                const nnEl = document.getElementById('buyin-availableNN');
+                const ccEl = document.getElementById('buyin-availableCC');
+                const nn = Number(data && data.availableNN) || 0;
+                const cc = Number(data && data.availableCC) || 0;
+                if (nnEl) nnEl.textContent = nn.toLocaleString('en-US');
+                if (ccEl) ccEl.textContent = cc.toLocaleString('en-US');
+            })
+            .catch(function () {
+                const nnEl = document.getElementById('buyin-availableNN');
+                const ccEl = document.getElementById('buyin-availableCC');
+                if (nnEl) nnEl.textContent = '0';
+                if (ccEl) ccEl.textContent = '0';
+            });
+        loadModalBalances();
+    });
+    modal.addEventListener('hidden.bs.modal', function () {
+        restoreFocusTrap();
+        resetBalanceDisplay();
+    });
+
+    wireSidePanelsResize();
+    syncSidePanelsLayout();
+
+    window.refreshBuyinModalBalances = function () {
+        return loadModalBalances();
+    };
+    window.updateBuyinBalanceSummary = updateBalanceSummary;
+});
+</script>

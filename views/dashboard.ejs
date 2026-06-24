@@ -219,7 +219,8 @@
                      (+sqlServiceDepositJunket[0].TOTAL || 0) +
                      (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
                      (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
-                     (+sqlJunketLoss[0].JUNKET_LOSS || 0);
+                     (+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+                     (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
 
                   // Money Exchange net cash effect:
                   // pending principal OR realized margin (if already returned)
@@ -261,6 +262,7 @@
                      { label: 'CC_CHIPS_BUYIN_CASH_ONLY',     sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
                      { label: 'RETURN_MONEY',                sign: '+', value: (+sqlReturnMoney[0].RETURN_MONEY || 0) },
                      { label: 'ROLLER_TIP_CASHIN',           sign: '+', value: (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0) },
+                     { label: 'TIP_SETTLEMENT',              sign: '-', value: (+sqlTipSettlement[0].TIP_SETTLEMENT || 0) },
                      { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
                      { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
                      { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },

@@ -278,7 +278,8 @@ async function computeCashBalance() {
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_TRANSFER FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=1 AND account_ledger.TRANSFER=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute('SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing'),
     pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1'),
-    pool.execute(SQL_MX_CASH_NET)
+    pool.execute(SQL_MX_CASH_NET),
+    pool.execute('SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1')
   ]);
 
   const cashIn =
@@ -308,7 +309,8 @@ async function computeCashBalance() {
     rowNum(results[21][0], 'TOTAL') +
     rowNum(results[22][0], 'ACCOUNT_TRANSFER') +
     rowNum(results[23][0], 'MANUAL_BALANCING') +
-    rowNum(results[24][0], 'JUNKET_LOSS');
+    rowNum(results[24][0], 'JUNKET_LOSS') +
+    rowNum(results[26][0], 'TIP_SETTLEMENT');
 
   const mx = rowNum(results[25][0], 'MX_CASH_NET');
   return cashIn - cashOut + mx;

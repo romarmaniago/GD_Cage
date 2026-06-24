@@ -80,6 +80,18 @@ const REMARKS_TABLES = {
 		column: 'REMARKS',
 		activeCol: 'ACTIVE',
 		activeValue: 1
+	},
+	tip: {
+		table: 'tip',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1
+	},
+	tip_settlement: {
+		table: 'tip_settlement',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1
 	}
 };
 

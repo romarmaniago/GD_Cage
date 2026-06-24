@@ -7,44 +7,229 @@ function formatMoney(n) {
 	});
 }
 
-function tipTypeColorClass(tipType) {
-	return Number(tipType) === 1 ? 'tip-type-roller' : 'tip-type-dealer';
+function parseSettlementAmount(raw) {
+	const clean = String(raw || '').replace(/,/g, '').trim();
+	if (clean === '') return NaN;
+	const n = Number(clean);
+	return Number.isFinite(n) && n > 0 ? n : NaN;
 }
 
-function updateTipAmountTotal(api) {
-	const total = api
-		.column(4, { search: 'applied' })
+function formatSettlementAmountInput(raw) {
+	const digits = String(raw || '').replace(/,/g, '').replace(/[^\d]/g, '');
+	if (!digits) return '';
+	return formatMoney(Number(digits));
+}
+
+function wireTipSettlementAmountInput() {
+	$('#tip-settlement-modal-amount').on('input', function () {
+		var formatted = formatSettlementAmountInput(this.value);
+		if (this.value !== formatted) {
+			this.value = formatted;
+		}
+	});
+}
+
+function formatSignedMoney(n) {
+	const num = Number(n) || 0;
+	if (num < 0) {
+		return '(' + formatMoney(Math.abs(num)) + ')';
+	}
+	return formatMoney(num);
+}
+
+function renderAmountCell(value, type) {
+	const n = value == null || value === '' ? 0 : Number(value) || 0;
+	if (type === 'sort' || type === 'filter') return n;
+	const cls = n < 0 ? 'tip-amount-negative' : '';
+	return '<span class="' + cls + '">' + formatSignedMoney(n) + '</span>';
+}
+
+function updateTipAmountTotals(api) {
+	const rollerTotal = api
+		.column(6, { search: 'applied' })
 		.data()
 		.reduce(function (sum, val) {
 			return sum + (Number(val) || 0);
 		}, 0);
 
-	$(api.column(4).footer()).html('<span class="tip-amount">' + formatMoney(total) + '</span>');
+	const dealerTotal = api
+		.column(10, { search: 'applied' })
+		.data()
+		.reduce(function (sum, val) {
+			return sum + (Number(val) || 0);
+		}, 0);
+
+	$(api.column(6).footer()).html(
+		'<span class="' + (rollerTotal < 0 ? 'tip-amount-negative tip-roller-total' : 'tip-roller-total') + '">' + formatSignedMoney(rollerTotal) + '</span>'
+	);
+	$(api.column(10).footer()).html(
+		'<span class="tip-dealer-total">' + formatMoney(dealerTotal) + '</span>'
+	);
+}
+
+function updateRollerAvailableBalance(amount) {
+	$('#tip-roller-available-balance').text(formatMoney(amount));
+	$('#tip-settlement-modal-balance').text(formatMoney(amount));
+}
+
+function fetchRollerBalance() {
+	return $.get('/tip_roller_balance')
+		.then(function (data) {
+			updateRollerAvailableBalance(data && data.available != null ? data.available : 0);
+			return data;
+		});
 }
 
 function fetchTipData() {
-	$.get('/tip_data')
-		.done(function (rows) {
+	return $.get('/tip_data')
+		.then(function (rows) {
 			tipTable.clear().rows.add(rows || []).draw();
+		});
+}
+
+function refreshTipPage() {
+	return $.when(fetchRollerBalance(), fetchTipData());
+}
+
+function resetTipSettlementModal() {
+	$('#tip-settlement-modal-amount, #tip-settlement-modal-status, #tip-settlement-modal-name, #tip-settlement-modal-remarks')
+		.val('')
+		.removeClass('is-invalid');
+}
+
+function openTipSettlementModal() {
+	resetTipSettlementModal();
+	var availableText = ($('#tip-roller-available-balance').text() || '').replace(/,/g, '').trim();
+	$('#tip-settlement-modal-balance').text(formatMoney(Number(availableText) || 0));
+	var modalEl = document.getElementById('modal-tip-settlement');
+	if (modalEl && window.bootstrap && bootstrap.Modal) {
+		bootstrap.Modal.getOrCreateInstance(modalEl).show();
+	}
+	setTimeout(function () {
+		$('#tip-settlement-modal-amount').trigger('focus');
+	}, 200);
+}
+
+function submitTipSettlement(event) {
+	if (event) event.preventDefault();
+
+	var i18n = window.tipSettlementI18n || {};
+	var $amountInput = $('#tip-settlement-modal-amount');
+	var $statusInput = $('#tip-settlement-modal-status');
+	var $nameInput = $('#tip-settlement-modal-name');
+	var $btn = $('#btn-tip-settlement-save');
+	var amount = parseSettlementAmount($amountInput.val());
+	var statusVal = ($statusInput.val() || '').toString().trim();
+	var nameVal = ($nameInput.val() || '').toString().trim();
+
+	$amountInput.removeClass('is-invalid');
+	$statusInput.removeClass('is-invalid');
+	$nameInput.removeClass('is-invalid');
+
+	if (Number.isNaN(amount)) {
+		$amountInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Invalid Amount',
+			text: i18n.invalidAmount || 'Enter a valid settlement amount greater than zero.'
+		});
+		return;
+	}
+
+	var availableText = ($('#tip-roller-available-balance').text() || '').replace(/,/g, '').trim();
+	var available = Number(availableText) || 0;
+
+	if (amount > available) {
+		$amountInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Invalid Amount',
+			text: i18n.exceedsBalance || 'Settlement amount cannot exceed available roller tip balance.'
+		});
+		return;
+	}
+
+	if (!statusVal) {
+		$statusInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Missing Status',
+			text: i18n.missingStatus || 'Please enter the tip status (Roller or GM).'
+		});
+		return;
+	}
+
+	if (!nameVal) {
+		$nameInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Missing Name',
+			text: i18n.missingName || 'Please enter the name.'
+		});
+		return;
+	}
+
+	$btn.prop('disabled', true);
+	$.post('/tip_settlement', {
+		txtAmount: $amountInput.val(),
+		txtTipStatus: statusVal,
+		txtRollerName: nameVal,
+		txtRemarks: ($('#tip-settlement-modal-remarks').val() || '').toString().trim()
+	})
+		.done(function (resp) {
+			if (resp && resp.availableBalance != null) {
+				updateRollerAvailableBalance(resp.availableBalance);
+			}
+			var modalEl = document.getElementById('modal-tip-settlement');
+			if (modalEl && window.bootstrap && bootstrap.Modal) {
+				bootstrap.Modal.getInstance(modalEl).hide();
+			}
+			resetTipSettlementModal();
+			return refreshTipPage();
 		})
-		.fail(function () {
-			Swal.fire('Error', 'Failed to load tip records.', 'error');
+		.then(function () {
+			Swal.fire({
+				icon: 'success',
+				title: 'Saved',
+				text: i18n.saved || 'Tip settlement saved successfully.',
+				timer: 1800,
+				showConfirmButton: false
+			});
+		})
+		.fail(function (xhr) {
+			var message = xhr.responseJSON && xhr.responseJSON.message
+				? xhr.responseJSON.message
+				: 'Failed to save tip settlement.';
+			Swal.fire({ icon: 'error', title: 'Error', text: message });
+		})
+		.always(function () {
+			$btn.prop('disabled', false);
 		});
 }
 
 $(document).ready(function () {
+	var i18nEl = document.getElementById('tip-settlement-i18n');
+	if (i18nEl) {
+		try {
+			window.tipSettlementI18n = JSON.parse(i18nEl.textContent || '{}');
+		} catch (e) {
+			window.tipSettlementI18n = {};
+		}
+	}
+
 	tipTable = $('#tip-tbl').DataTable({
 		pageLength: 25,
 		order: [[0, 'desc']],
+		orderCellsTop: true,
 		footerCallback: function () {
-			updateTipAmountTotal(this.api());
+			updateTipAmountTotals(this.api());
 		},
 		columns: [
 			{
 				data: 'TIP_DATETIME',
 				render: function (data, type) {
 					if (!data) return '';
-					if (type === 'sort') return data;
+					if (type === 'sort' || type === 'filter') return data;
 					return moment(data).format('DD MMM YYYY HH:mm');
 				}
 			},
@@ -64,23 +249,94 @@ $(document).ready(function () {
 				}
 			},
 			{
-				data: 'AMOUNT',
-				render: function (data, type) {
-					const n = Number(data) || 0;
-					if (type === 'sort') return n;
-					return formatMoney(n);
+				data: 'REMARKS',
+				className: 'remarks-editor-td',
+				defaultContent: '—',
+				render: function (data, type, row) {
+					if (type === 'sort' || type === 'filter') {
+						return data != null && data !== '—' ? String(data) : '';
+					}
+					if (window.RemarksEditor && row.REMARKS_SOURCE && row.REMARKS_RECORD_ID) {
+						return window.RemarksEditor.renderCell(
+							row.REMARKS_EDIT != null ? row.REMARKS_EDIT : '',
+							{
+								source: row.REMARKS_SOURCE,
+								recordId: row.REMARKS_RECORD_ID,
+								displayText: data != null && data !== '—' ? String(data) : ''
+							}
+						);
+					}
+					return data != null && String(data).trim() !== '' && data !== '—'
+						? String(data)
+						: '<span class="text-muted">—</span>';
 				}
 			},
 			{
-				data: 'TIP_TYPE',
-				render: function (data, type, row) {
-					const label = row.TIP_TYPE_LABEL || (Number(data) === 1 ? 'Roller' : 'Dealer');
-					if (type === 'sort') return label;
-					return '<span class="' + tipTypeColorClass(data) + '">' + label + '</span>';
+				data: 'ROLLER_TRANSACTION',
+				className: 'tip-col-roller',
+				defaultContent: 'Roller Tip'
+			},
+			{
+				data: 'ROLLER_AMOUNT',
+				className: 'tip-col-roller',
+				defaultContent: 0,
+				render: function (data, type) {
+					return renderAmountCell(data, type);
+				}
+			},
+			{
+				data: 'ROLLER_STATUS',
+				className: 'tip-col-roller',
+				defaultContent: '—',
+				render: function (data) {
+					return data != null && String(data).trim() !== '' ? String(data) : '—';
+				}
+			},
+			{
+				data: 'ROLLER_NAME',
+				className: 'tip-col-roller',
+				defaultContent: '—',
+				render: function (data) {
+					return data != null && String(data).trim() !== '' ? String(data) : '—';
+				}
+			},
+			{
+				data: 'DEALER_TRANSACTION',
+				className: 'tip-col-dealer',
+				defaultContent: 'Dealer Tip'
+			},
+			{
+				data: 'DEALER_AMOUNT',
+				className: 'tip-col-dealer',
+				defaultContent: 0,
+				render: function (data, type) {
+					return renderAmountCell(data, type);
+				}
+			},
+			{
+				data: 'DEALER_STATUS',
+				className: 'tip-col-dealer',
+				defaultContent: '—',
+				render: function (data) {
+					return data != null && String(data).trim() !== '' ? String(data) : '—';
+				}
+			},
+			{
+				data: 'DEALER_NAME',
+				className: 'tip-col-dealer',
+				defaultContent: '—',
+				render: function (data) {
+					return data != null && String(data).trim() !== '' ? String(data) : '—';
 				}
 			}
 		]
 	});
 
-	fetchTipData();
+	refreshTipPage().fail(function () {
+		Swal.fire('Error', 'Failed to load tip records.', 'error');
+	});
+
+	$('#btn-tip-settlement-open').on('click', openTipSettlementModal);
+	$('#form-tip-settlement').on('submit', submitTipSettlement);
+	wireTipSettlementAmountInput();
 });

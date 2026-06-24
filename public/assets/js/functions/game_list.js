@@ -21,12 +21,12 @@ function resetNewGameInputs() {
 
 	$('#txtNN, #txtCC, #txtRollerNN, #txtRollerCC').val('');
 	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
-	$('#enableSplitNewGame').prop('checked', false);
-	$('#split-new-game-row').hide();
-	$('#txtNN, #txtCC').closest('.row').show();
-	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
+	$('#new-game-cash-remarks, #new-game-deposit-remarks, #new-game-credit-remarks, #new-game-credit-guarantor').val('');
+	$('#split-new-game-row').show();
+	$('#new-game-base-amount-row').addClass('d-none');
 	$('#txtGuestId').val('');
 	ensureNewGameProgramDatePicker();
+	if (typeof newGameListRefreshCommissionRate === 'function') newGameListRefreshCommissionRate();
 }
 
 function isEndGameStatus(status) {
@@ -1060,11 +1060,54 @@ function syncSelectedGuestIdFromGuestDropdown() {
 	$('#txtGuestId').val(guestId);
 }
 
+var NEW_GAME_SELECT2_PARENT = '#modal-new-game-list';
+
+function getNewGameSelect2Opts(placeholder) {
+	return {
+		placeholder: placeholder || 'Select an option',
+		dropdownParent: $(NEW_GAME_SELECT2_PARENT),
+		width: '100%'
+	};
+}
+
+function initNewGameAccountSelect2($select, placeholder) {
+	if (!$select || !$select.length) return;
+	if ($select.data('select2')) {
+		$select.select2('destroy');
+	}
+	$select.select2(getNewGameSelect2Opts(placeholder));
+}
+
+function initNewGameGuestSelect2($guestSelect) {
+	initNewGameAccountSelect2($guestSelect, 'Select guest (optional)');
+}
+
+function bindNewGameSelect2Handlers() {
+	$('#txtTrans, #txtGuestGame')
+		.off('select2:select.newGame select2:opening.newGame')
+		.on('select2:opening.newGame', function (e) {
+			if ($(this).attr('data-readonly') === '1') {
+				e.preventDefault();
+				return;
+			}
+			if (typeof window.disengageNewGameSidePanels === 'function') {
+				window.disengageNewGameSidePanels();
+			}
+		})
+		.on('select2:select.newGame', function () {
+			var $el = $(this);
+			setTimeout(function () {
+				if ($el.data('select2')) {
+					$el.select2('close');
+				}
+			}, 0);
+		});
+}
+
 function setNewGameListOpeningBalance(balance) {
 	var n = parseFloat(balance);
 	if (isNaN(n)) n = 0;
 	$('#total_balanceGuest1').val(n);
-	$('#total_balanceGuestGameList').val(n.toLocaleString('en-US'));
 }
 
 function fetchAndApplyAvailableChipsForNewGameModal() {
@@ -1206,10 +1249,7 @@ function loadGuestsForSelectedAccount(preselectGuestId) {
 	}
 
 	$guestSelect.empty().append($('<option>', { value: '', text: '--SELECT GUEST--' }));
-	$guestSelect.select2({
-		placeholder: 'Select guest (optional)',
-		dropdownParent: '#modal-new-game-list'
-	});
+	initNewGameGuestSelect2($guestSelect);
 	$guestSelect.val('').trigger('change');
 	$guestSelect.prop('disabled', !selectedAccountId);
 
@@ -1262,12 +1302,11 @@ function addGameList(accountId, opts) {
 	// Helper to populate select options and refresh Select2
 	function populateOptions() {
 		if (!$select.length) return;
-		
-		// Destroy Select2 first to ensure clean state
+
 		if ($select.data('select2')) {
 			$select.select2('destroy');
 		}
-		
+
 		// Populate options
 		$select.empty();
 		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
@@ -1281,15 +1320,13 @@ function addGameList(accountId, opts) {
 				var guestId = option.guest_id || option.GUESTNo || '';
 				$opt.attr('data-guest-id', guestId);
 				$opt.attr('data-agent-id', option.agent_id || '');
+				$opt.attr('data-agent-code', option.agent_code || '');
 				$select.append($opt);
 			});
 		}
 		
-		// Reinitialize Select2 with fresh options
-		$select.select2({
-			placeholder: 'Select an option',
-			dropdownParent: '#modal-new-game-list',
-		});
+		initNewGameAccountSelect2($select);
+		bindNewGameSelect2Handlers();
 		if (preselectAccountId) {
 			scheduleNewGameListAccountPrefill(preselectAccountId, opts, 0);
 		} else {
@@ -1301,12 +1338,10 @@ function addGameList(accountId, opts) {
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
 	$('#modal-new-game-list').modal('show');
 	$('#txtGuestId').val('');
-	$('#enableSplitNewGame').prop('checked', false);
-	$('#split-new-game-row').hide();
+	$('#split-new-game-row').show();
 	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
-	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
-	$('#modal-new-game-list input[name="txtTransType"]').first().closest('.row.mb-2').show();
-	$('#txtNN, #txtCC').closest('.row').show();
+	$('#new-game-base-amount-row').addClass('d-none');
+	if (typeof newGameListRefreshCommissionRate === 'function') newGameListRefreshCommissionRate();
 	
 	// Populate dropdown based on data availability
 	if (Array.isArray(_accountOptionsCache)) {
@@ -4275,6 +4310,24 @@ $(document).ready(function () {
 function formatNumberWithCommas(number) {
 	return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
+
+function validateCreditGuarantorRequired(creditTotal, guarantorSelector, onFail) {
+	var $guarantor = $(guarantorSelector);
+	var guarantorVal = ($guarantor.val() || '').toString().trim();
+	$guarantor.removeClass('is-invalid');
+	if ((parseFloat(creditTotal) || 0) > 0 && !guarantorVal) {
+		$guarantor.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Missing Guarantor',
+			text: 'Please enter the guarantor for the credit amount.'
+		});
+		if (typeof onFail === 'function') onFail();
+		return false;
+	}
+	return true;
+}
+
 $('#add_game_list').submit(function (event) {
     event.preventDefault(); // Prevent the default form submission
 
@@ -4304,18 +4357,10 @@ $('#add_game_list').submit(function (event) {
         Loading...
     `); // Disable button immediately
 
-    // Retrieve values and trim them
-    var nnChips = $('#txtNN').val().trim();
-    var ccChips = $('#txtCC').val().trim();
-    var transType = $('input[name="txtTransType"]:checked').val(); // Get the selected transaction type
-    var commissionTypeSelected = $('#commissionType').val() !== ''; // Check if commission type is selected
-    var txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0; // Convert NN Chips to number
-    var txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0; // Convert CC Chips to number
+    var commissionTypeSelected = $('#commissionType').val() !== '';
     var totalBalanceGuest1 = $('#total_balanceGuest1').val().replace(/,/g, '').trim();
-    var splitEnabled = $('#enableSplitNewGame').is(':checked');
 
-    if (splitEnabled) {
-        var parseSplitNum = function (selector) {
+    var parseSplitNum = function (selector) {
             var v = ($(selector).val() || '').toString().replace(/,/g, '').trim();
             return v === '' ? 0 : parseFloat(v);
         };
@@ -4363,6 +4408,11 @@ $('#add_game_list').submit(function (event) {
                 confirmButtonText: 'OK'
             });
             $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if (!validateCreditGuarantorRequired(creditLegTotal, '#new-game-credit-guarantor', function () {
+            $btn.prop('disabled', false).text('Submit');
+        })) {
             return;
         }
         if (!commissionTypeSelected) {
@@ -4446,7 +4496,11 @@ $('#add_game_list').submit(function (event) {
                 split_dep_nn: splitDepNN,
                 split_dep_cc: splitDepCC,
                 split_credit_nn: splitCreditNN,
-                split_credit_cc: splitCreditCC
+                split_credit_cc: splitCreditCC,
+                txtDepositRemarks: ($('#new-game-deposit-remarks').val() || '').toString().trim(),
+                txtCreditRemarks: ($('#new-game-credit-remarks').val() || '').toString().trim(),
+                txtCreditGuarantor: ($('#new-game-credit-guarantor').val() || '').toString().trim(),
+                txtCashRemarks: ($('#new-game-cash-remarks').val() || '').toString().trim()
             };
 
             $.ajax({
@@ -4464,191 +4518,6 @@ $('#add_game_list').submit(function (event) {
                 }
             });
         });
-        return;
-    }
-
-    // Enforce NN Chips as positive thousands (1,000 / 2,000 / 3,000 ...) when provided
-    var nnDigits = nnChips.replace(/,/g, '');
-    var nnTrimmed = nnDigits.trim();
-    if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
-        Swal.fire({
-            title: 'Invalid NN Chips amount',
-            text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-            icon: 'error',
-            confirmButtonText: 'OK'
-        });
-
-        $btn.prop('disabled', false).text('Submit'); // Re-enable button
-        return;
-    }
-
-    // Check if the required fields are filled
-    if ((nnChips === '' && ccChips === '') || !transType || !commissionTypeSelected) {
-        // Build the warning message based on what's missing
-        let message = 'Please fill in the required fields: ';
-        if (nnChips === '' && ccChips === '') {
-            message += 'NN Chips or CC Chips, ';
-        }
-        if (!transType) {
-            message += 'Transaction Type, ';
-        }
-        if (!commissionTypeSelected) {
-            message += 'Commission Type.';
-        }
-
-        // Show SweetAlert for missing fields
-        Swal.fire({
-            title: 'Warning',
-            text: message.slice(0, -2) + '!', // Remove the last comma and space
-            icon: 'warning',
-            confirmButtonText: 'OK'
-        });
-
-        $btn.prop('disabled', false).text('Submit'); // Re-enable button
-    } else if (transType == 2 && (txtNNamount + txtCCamount) > totalBalanceGuest1) {
-        // If Transaction Type is 2, check if the sum of NN and CC exceeds the total balance
-        Swal.fire({
-            title: 'Insufficient Balance',
-            text: 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest1),
-            icon: 'error',
-            confirmButtonText: 'OK'
-        });
-
-        $btn.prop('disabled', false).text('Submit'); // Re-enable button
-    } else {
-        // All validations passed, show confirmation dialog
-        var gameType = $('input[name="txtGameType"]:checked').val() || '';
-        var accountCode = $('#txtTrans').val() || '';
-        var accountText = $('#txtTrans option:selected').text() || accountCode;
-        var rollerNN = $('#txtRollerNN').val().trim();
-        var rollerCC = $('#txtRollerCC').val().trim();
-        var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
-        var rollerCCAmount = parseFloat(rollerCC.replace(/,/g, '')) || 0;
-        var commissionType = $('#commissionType').val() || '';
-        var commissionTypeText = $('#commissionType option:selected').text() || '';
-        var commissionRate = $('#commissionRate').val() || '0';
-
-        // Enforce Roller NN Chips as positive thousands when provided
-        var rollerNNDigits = rollerNN.replace(/,/g, '');
-        var rollerNNTrimmed = rollerNNDigits.trim();
-        if (rollerNNTrimmed !== '' && (rollerNNAmount <= 0 || rollerNNAmount % 1000 !== 0)) {
-            Swal.fire({
-                title: 'Invalid Roller NN Chips amount',
-                text: 'Roller NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
-
-            $btn.prop('disabled', false).text('Submit'); // Re-enable button
-            return;
-        }
-
-        var transTypeText = '';
-        if (transType == '1') transTypeText = 'Cash';
-        else if (transType == '2') transTypeText = 'Deposit';
-        else if (transType == '3') transTypeText = 'Credit';
-
-        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-        var buildRow = function (label, value) {
-            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-        };
-
-        var confirmationRows = '';
-        confirmationRows += buildRow('Program date:', programDateVal || '-');
-        confirmationRows += buildRow('Game Type:', gameType || '-');
-        confirmationRows += buildRow('Account:', accountText || '-');
-        var guestIdSelected = $('#txtGuestGame').val() || '';
-        var guestText = $('#txtGuestGame option:selected').text() || '';
-        if (guestIdSelected) {
-            confirmationRows += buildRow('Guest:', guestText || '-');
-        }
-
-        if (txtNNamount > 0) {
-            confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString('en-US'));
-        }
-        if (txtCCamount > 0) {
-            confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString('en-US'));
-        }
-        if (txtNNamount > 0 || txtCCamount > 0) {
-            confirmationRows += buildRow('Total Amount:', parseFloat(txtNNamount + txtCCamount).toLocaleString('en-US'));
-        }
-
-        confirmationRows += buildRow('Payment Type:', transTypeText || '-');
-
-        if (rollerNNAmount > 0 || rollerCCAmount > 0) {
-            var rollerParts = [];
-            if (rollerNNAmount > 0) rollerParts.push(`NN: ${parseFloat(rollerNNAmount).toLocaleString('en-US')}`);
-            if (rollerCCAmount > 0) rollerParts.push(`CC: ${parseFloat(rollerCCAmount).toLocaleString('en-US')}`);
-            confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
-        }
-
-        confirmationRows += buildRow('Commission Type:', commissionTypeText || '-');
-        if (commissionRate > 0) {
-            confirmationRows += buildRow('Commission Rate:', `${commissionRate}%`);
-        }
-
-        var confirmationMessage = `
-            <div style="max-width:420px;margin:0 auto;text-align:center;">
-                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-                    ${confirmationRows}
-                </table>
-            </div>
-        `;
-
-        var $form = $(this); // Store form reference
-
-        Swal.fire({
-            icon: 'question',
-            title: 'Confirm New Game',
-            html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Confirm',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            width: '500px'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // User confirmed, proceed with transaction
-                $btn.prop('disabled', true).html(`
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Loading...
-                `);
-
-                var formData = $form.serialize();
-
-                $.ajax({
-                    url: '/add_game_list',
-                    type: 'POST',
-                    data: formData,
-                    dataType: 'json',
-                    success: function (response) {
-                        afterNewGameCreated(response && response.gameId);
-                    },
-                    error: function (xhr, status, error) {
-                        var errorMessage = xhr.responseJSON?.error || xhr.responseText || "An error occurred.";
-                        console.error('Error adding game list:', errorMessage);
-
-                        // Show error message
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: errorMessage,
-                            confirmButtonText: 'OK'
-                        });
-
-                        $btn.prop('disabled', false).text('Submit'); // Re-enable button after error
-                    }
-                });
-            } else {
-                // User cancelled, re-enable button
-                $btn.prop('disabled', false).text('Submit');
-            }
-        });
-    }
 });
 
 	
@@ -4661,269 +4530,126 @@ $('#add_buyin').submit(function (event) {
 		Loading...
 	`);
 
-	const nnChips = $('.txtNN').val().trim();
-	const ccChips = $('.txtCC').val().trim();
-	const transType = $('input[name="txtTransType"]:checked').val(); // Get selected type
-	const transTypeSelected = !!transType;
-
 	const totalBalanceGuest2 = $('#total_balanceGuest2').val().replace(/,/g, '').trim();
-	const splitEnabled = $('#enableSplitBuyin').is(':checked');
 
-	if (splitEnabled) {
-		const parseSplitNum = function (selector) {
-			const v = ($(selector).val() || '').toString().replace(/,/g, '').trim();
-			return v === '' ? 0 : parseFloat(v);
-		};
-		const cashNN = parseSplitNum('#splitBuyinCashNN');
-		const cashCC = parseSplitNum('#splitBuyinCashCC');
-		const depNN = parseSplitNum('#splitBuyinDepNN');
-		const depCC = parseSplitNum('#splitBuyinDepCC');
-		const creditNN = parseSplitNum('#splitBuyinCreditNN');
-		const creditCC = parseSplitNum('#splitBuyinCreditCC');
-		const splitValues = [cashNN, cashCC, depNN, depCC, creditNN, creditCC];
-		['#splitBuyinCashNN', '#splitBuyinCashCC', '#splitBuyinDepNN', '#splitBuyinDepCC', '#splitBuyinCreditNN', '#splitBuyinCreditCC']
-			.forEach(function (s) { $(s).removeClass('is-invalid'); });
+	const parseSplitNum = function (selector) {
+		const v = ($(selector).val() || '').toString().replace(/,/g, '').trim();
+		return v === '' ? 0 : parseFloat(v);
+	};
+	const cashNN = parseSplitNum('#splitBuyinCashNN');
+	const cashCC = parseSplitNum('#splitBuyinCashCC');
+	const depNN = parseSplitNum('#splitBuyinDepNN');
+	const depCC = parseSplitNum('#splitBuyinDepCC');
+	const creditNN = parseSplitNum('#splitBuyinCreditNN');
+	const creditCC = parseSplitNum('#splitBuyinCreditCC');
+	const splitValues = [cashNN, cashCC, depNN, depCC, creditNN, creditCC];
+	['#splitBuyinCashNN', '#splitBuyinCashCC', '#splitBuyinDepNN', '#splitBuyinDepCC', '#splitBuyinCreditNN', '#splitBuyinCreditCC']
+		.forEach(function (s) { $(s).removeClass('is-invalid'); });
 
-		if (splitValues.some(function (n) { return !Number.isFinite(n) || n < 0; })) {
-			Swal.fire({ title: 'Invalid Input', text: 'Please enter valid split amounts.', icon: 'error', confirmButtonText: 'OK' });
-			$btn.prop('disabled', false).text('Submit');
-			return;
-		}
-		if ((cashNN > 0 && cashNN % 1000 !== 0) || (depNN > 0 && depNN % 1000 !== 0) || (creditNN > 0 && creditNN % 1000 !== 0)) {
-			if (cashNN > 0 && cashNN % 1000 !== 0) $('#splitBuyinCashNN').addClass('is-invalid');
-			if (depNN > 0 && depNN % 1000 !== 0) $('#splitBuyinDepNN').addClass('is-invalid');
-			if (creditNN > 0 && creditNN % 1000 !== 0) $('#splitBuyinCreditNN').addClass('is-invalid');
-			Swal.fire({ title: 'Invalid NN Chips amount', text: 'NN split amounts must be in thousands (e.g. 1,000 / 2,000 / 3,000).', icon: 'error', confirmButtonText: 'OK' });
-			$btn.prop('disabled', false).text('Submit');
-			return;
-		}
-
-		const cashTotal = cashNN + cashCC;
-		const depTotal = depNN + depCC;
-		const creditTotal = creditNN + creditCC;
-		const splitTotal = cashTotal + depTotal + creditTotal;
-		if (splitTotal <= 0) {
-			Swal.fire({ title: 'Warning', text: 'Please enter at least one split amount.', icon: 'warning', confirmButtonText: 'OK' });
-			$btn.prop('disabled', false).text('Submit');
-			return;
-		}
-		if (depTotal > (parseFloat(totalBalanceGuest2) || 0)) {
-			Swal.fire({
-				title: 'Insufficient Balance',
-				text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),
-				icon: 'error',
-				confirmButtonText: 'OK'
-			});
-			$btn.prop('disabled', false).text('Submit');
-			return;
-		}
-
-		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-		var buildRow = function (label, value) {
-			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-		};
-		var rows = '';
-		if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString('en-US'));
-		if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString('en-US'));
-		if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString('en-US'));
-		if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString('en-US'));
-		if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString('en-US'));
-		if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString('en-US'));
-		rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
-
-		Swal.fire({
-			icon: 'question',
-			title: 'Confirm Transaction',
-			html: `<div style="max-width:420px;margin:0 auto;text-align:left;"><div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div><table style="margin:0 auto;border-collapse:collapse;min-width:260px;">${rows}</table></div><div style="margin-top:12px;">Are you sure you want to proceed?</div>`,
-			showCancelButton: true,
-			confirmButtonText: 'Yes, Confirm',
-			cancelButtonText: 'Cancel',
-			confirmButtonColor: '#3085d6',
-			cancelButtonColor: '#d33',
-			allowOutsideClick: false,
-			allowEscapeKey: false
-		}).then(function (result) {
-			if (!result.isConfirmed) {
-				$btn.prop('disabled', false).text('Submit');
-				return;
-			}
-			$.ajax({
-				url: '/game_list/add/buyin_split',
-				type: 'POST',
-				data: {
-					game_id: $('#modal-add-buyin .game_list_id').val(),
-					txtAccountCode: $('#modal-add-buyin .txtAccountCode').val(),
-					totalBalanceGuest2: $('#total_balanceGuest2').val(),
-					txtTotalAmountBuyin: $('#total_amount_addbuyin').val(),
-					split_cash_nn: cashNN,
-					split_cash_cc: cashCC,
-					split_dep_nn: depNN,
-					split_dep_cc: depCC,
-					split_credit_nn: creditNN,
-					split_credit_cc: creditCC
-				},
-				success: function () {
-					var gameId = $('#modal-add-buyin .game_list_id').val();
-					afterTransactionSavedReceipt(gameId, 'add_buyin', function () {
-						$('#modal-add-buyin').modal('hide');
-						$('#add_buyin')[0].reset();
-						$btn.prop('disabled', false).text('Submit');
-					});
-				},
-				error: function (xhr) {
-					const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
-					Swal.fire({ icon: 'error', title: 'Error', text: errorMessage, confirmButtonText: 'OK' });
-					$btn.prop('disabled', false).text('Submit');
-				}
-			});
-		});
+	if (splitValues.some(function (n) { return !Number.isFinite(n) || n < 0; })) {
+		Swal.fire({ title: 'Invalid Input', text: 'Please enter valid split amounts.', icon: 'error', confirmButtonText: 'OK' });
+		$btn.prop('disabled', false).text('Save');
 		return;
 	}
-	
-	const txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0;
-	const txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0;
-	const totalEnteredAmount = txtNNamount + txtCCamount;
-
-	// Enforce NN Chips as positive thousands (1,000 / 2,000 / 3,000 ...) when provided
-	const $nnInput = $('.txtNN');
-	$nnInput.removeClass('is-invalid'); // reset state on each submit
-	const nnDigits = nnChips.replace(/,/g, '');
-	const nnTrimmed = nnDigits.trim();
-	if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
-		$nnInput.addClass('is-invalid');
-		Swal.fire({
-			title: 'Invalid NN Chips amount',
-			text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
-			icon: 'error',
-			confirmButtonText: 'OK'
-		});
-
-		$btn.prop('disabled', false).text('Submit'); // Re-enable button
+	if ((cashNN > 0 && cashNN % 1000 !== 0) || (depNN > 0 && depNN % 1000 !== 0) || (creditNN > 0 && creditNN % 1000 !== 0)) {
+		if (cashNN > 0 && cashNN % 1000 !== 0) $('#splitBuyinCashNN').addClass('is-invalid');
+		if (depNN > 0 && depNN % 1000 !== 0) $('#splitBuyinDepNN').addClass('is-invalid');
+		if (creditNN > 0 && creditNN % 1000 !== 0) $('#splitBuyinCreditNN').addClass('is-invalid');
+		Swal.fire({ title: 'Invalid NN Chips amount', text: 'NN split amounts must be in thousands (e.g. 1,000 / 2,000 / 3,000).', icon: 'error', confirmButtonText: 'OK' });
+		$btn.prop('disabled', false).text('Save');
 		return;
 	}
 
-	// Validation
-	if (!nnChips && !ccChips && !transTypeSelected) {
-		Swal.fire({
-			title: 'Warning',
-			text: 'Please fill in at least one field: NN Chips or CC Chips, and select a Transaction Type!',
-			icon: 'warning',
-			confirmButtonText: 'OK'
-		});
-	} else if (!nnChips && !ccChips) {
-		Swal.fire({
-			title: 'Warning',
-			text: 'Please fill in at least one field: NN Chips or CC Chips!',
-			icon: 'warning',
-			confirmButtonText: 'OK'
-		});
-	} else if (!transTypeSelected) {
-		Swal.fire({
-			title: 'Warning',
-			text: 'Please select a Transaction Type!',
-			icon: 'warning',
-			confirmButtonText: 'OK'
-		});
-	} else if (transType == '2' && totalEnteredAmount > totalBalanceGuest2) { // Deposit type
+	const cashTotal = cashNN + cashCC;
+	const depTotal = depNN + depCC;
+	const creditTotal = creditNN + creditCC;
+	const splitTotal = cashTotal + depTotal + creditTotal;
+	if (splitTotal <= 0) {
+		Swal.fire({ title: 'Warning', text: 'Please enter at least one split amount.', icon: 'warning', confirmButtonText: 'OK' });
+		$btn.prop('disabled', false).text('Save');
+		return;
+	}
+	if (depTotal > (parseFloat(totalBalanceGuest2) || 0)) {
 		Swal.fire({
 			title: 'Insufficient Balance',
-			text: 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),
+			text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),
 			icon: 'error',
 			confirmButtonText: 'OK'
 		});
-	} else {
-		// All validations passed, show confirmation dialog
-		var transTypeText = '';
-		if (transType == '1') transTypeText = 'Cash';
-		else if (transType == '2') transTypeText = 'Deposit';
-		else if (transType == '3') transTypeText = 'Credit';
-
-		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-		var buildRow = function (label, value) {
-			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-		};
-
-		var confirmationRows = '';
-		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
-		if (txtNNamount > 0) {
-			confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString('en-US'));
-		}
-		if (txtCCamount > 0) {
-			confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString('en-US'));
-		}
-		if (totalEnteredAmount > 0) {
-			confirmationRows += buildRow('Total Amount:', parseFloat(totalEnteredAmount).toLocaleString('en-US'));
-		}
-
-		var confirmationMessage = `
-			<div style="max-width:420px;margin:0 auto;text-align:left;">
-				<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div>
-				<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-					${confirmationRows}
-				</table>
-			</div>
-		`;
-		
-		var $form = $(this); // Store form reference
-		
-		Swal.fire({
-			icon: 'question',
-			title: 'Confirm Transaction',
-			html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-			showCancelButton: true,
-			confirmButtonText: 'Yes, Confirm',
-			cancelButtonText: 'Cancel',
-			confirmButtonColor: '#3085d6',
-			cancelButtonColor: '#d33',
-			allowOutsideClick: false,
-			allowEscapeKey: false
-		}).then((result) => {
-			if (result.isConfirmed) {
-				// User confirmed, proceed with transaction
-				$btn.prop('disabled', true).html(`
-					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-					Loading...
-				`);
-				
-				const formData = $form.serialize();
-
-				$.ajax({
-					url: '/game_list/add/buyin',
-					type: 'POST',
-					data: formData,
-					success: function (response) {
-						var gameId = $('#modal-add-buyin .game_list_id').val();
-						afterTransactionSavedReceipt(gameId, 'add_buyin', function () {
-							$('#modal-add-buyin').modal('hide');
-							$('#add_buyin')[0].reset();
-							$btn.prop('disabled', false).text('Submit');
-						});
-					},
-					error: function (xhr) {
-						const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
-						console.error('Error adding buy-in transaction:', errorMessage);
-						Swal.fire({
-							icon: 'error',
-							title: 'Error',
-							text: errorMessage,
-							confirmButtonText: 'OK'
-						});
-						$btn.prop('disabled', false).text('Submit');
-					}
-				});
-			} else {
-				// User cancelled, re-enable button
-				$btn.prop('disabled', false).text('Submit');
-			}
-		});
+		$btn.prop('disabled', false).text('Save');
+		return;
+	}
+	if (!validateCreditGuarantorRequired(creditTotal, '#buyin-credit-guarantor', function () {
+		$btn.prop('disabled', false).text('Save');
+	})) {
+		return;
 	}
 
-	// Re-enable button if we exited early
-	if (!$btn.is(':disabled')) $btn.text('Save');
-});
+	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+	var buildRow = function (label, value) {
+		return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+	};
+	var rows = '';
+	if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString('en-US'));
+	if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString('en-US'));
+	if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString('en-US'));
+	if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString('en-US'));
+	if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString('en-US'));
+	if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString('en-US'));
+	rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
 
+	Swal.fire({
+		icon: 'question',
+		title: 'Confirm Transaction',
+		html: `<div style="max-width:420px;margin:0 auto;text-align:left;"><div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div><table style="margin:0 auto;border-collapse:collapse;min-width:260px;">${rows}</table></div><div style="margin-top:12px;">Are you sure you want to proceed?</div>`,
+		showCancelButton: true,
+		confirmButtonText: 'Yes, Confirm',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		allowOutsideClick: false,
+		allowEscapeKey: false
+	}).then(function (result) {
+		if (!result.isConfirmed) {
+			$btn.prop('disabled', false).text('Save');
+			return;
+		}
+		$.ajax({
+			url: '/game_list/add/buyin_split',
+			type: 'POST',
+			data: {
+				game_id: $('#modal-add-buyin .game_list_id').val(),
+				txtAccountCode: $('#modal-add-buyin .txtAccountCode').val(),
+				totalBalanceGuest2: $('#total_balanceGuest2').val(),
+				txtTotalAmountBuyin: $('#total_amount_addbuyin').val(),
+				split_cash_nn: cashNN,
+				split_cash_cc: cashCC,
+				split_dep_nn: depNN,
+				split_dep_cc: depCC,
+				split_credit_nn: creditNN,
+				split_credit_cc: creditCC,
+				txtDepositRemarks: ($('#buyin-deposit-remarks').val() || '').toString().trim(),
+				txtCreditRemarks: ($('#buyin-credit-remarks').val() || '').toString().trim(),
+				txtCreditGuarantor: ($('#buyin-credit-guarantor').val() || '').toString().trim(),
+				txtCashRemarks: ($('#buyin-cash-remarks').val() || '').toString().trim()
+			},
+			success: function () {
+				var gameId = $('#modal-add-buyin .game_list_id').val();
+				afterTransactionSavedReceipt(gameId, 'add_buyin', function () {
+					$('#modal-add-buyin').modal('hide');
+					$('#add_buyin')[0].reset();
+					$btn.prop('disabled', false).text('Save');
+				});
+			},
+			error: function (xhr) {
+				const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
+				Swal.fire({ icon: 'error', title: 'Error', text: errorMessage, confirmButtonText: 'OK' });
+				$btn.prop('disabled', false).text('Save');
+			}
+		});
+	});
+});
 
 	function parseCashoutAmount(raw) {
 		var v = (raw || '').toString().replace(/,/g, '').trim();
@@ -5081,6 +4807,11 @@ $('#add_buyin').submit(function (event) {
 						$btn.prop('disabled', false).html('Save');
 						return;
 					}
+					if (!validateCreditGuarantorRequired(creditLeg, '#cashout-credit-guarantor', function () {
+						$btn.prop('disabled', false).html('Save');
+					})) {
+						return;
+					}
 				}
 			}
 
@@ -5089,6 +4820,38 @@ $('#add_buyin').submit(function (event) {
 					!checkNnThousands('Tip Dealer NN', tipDealerNn, $('#tipDealerNn'))) {
 					$btn.prop('disabled', false).html('Save');
 					return;
+				}
+				if (tipRollerTotal > 0 || tipDealerTotal > 0) {
+					var $tipRollerName = $('#cashout-tip-roller-name');
+					var tipRollerNameVal = ($tipRollerName.val() || '').toString().trim();
+					$tipRollerName.removeClass('is-invalid');
+					$('#cashout-tip-dealer-roller-name').removeClass('is-invalid');
+					if (!tipRollerNameVal) {
+						$tipRollerName.addClass('is-invalid');
+						$('#cashout-tip-dealer-roller-name').addClass('is-invalid');
+						Swal.fire({
+							icon: 'warning',
+							title: 'Missing Roller Name',
+							text: 'Please enter the roller name for the tip amount.'
+						});
+						$btn.prop('disabled', false).html('Save');
+						return;
+					}
+					var $tipStatus = $('#cashout-tip-roller-status');
+					var tipStatusVal = ($tipStatus.val() || '').toString().trim();
+					$tipStatus.removeClass('is-invalid');
+					$('#cashout-tip-dealer-roller-status').removeClass('is-invalid');
+					if (!tipStatusVal) {
+						$tipStatus.addClass('is-invalid');
+						$('#cashout-tip-dealer-roller-status').addClass('is-invalid');
+						Swal.fire({
+							icon: 'warning',
+							title: 'Missing Tip Status',
+							text: 'Please enter the tip status (Roller or GM).'
+						});
+						$btn.prop('disabled', false).html('Save');
+						return;
+					}
 				}
 			}
 
@@ -5215,6 +4978,8 @@ $('#add_buyin').submit(function (event) {
 					txtTipRollerCc: $('#tipRollerCc').val(),
 					txtTipDealerNn: $('#tipDealerNn').val(),
 					txtTipDealerCc: $('#tipDealerCc').val(),
+					txtTipRollerName: ($('#cashout-tip-roller-name').val() || '').toString().trim(),
+					txtTipStatus: ($('#cashout-tip-roller-status').val() || '').toString().trim(),
 					txtDepositRemarks: ($('#cashout-deposit-remarks').val() || '').toString().trim(),
 					txtCreditRemarks: ($('#cashout-credit-remarks').val() || '').toString().trim(),
 					txtCreditGuarantor: ($('#cashout-credit-guarantor').val() || '').toString().trim()
@@ -6061,58 +5826,17 @@ $('#edit_status').submit(function (event) {
 function addBuyin(id, account, agentCode, guestName) {
 	$('#modal-add-buyin').modal('show');
 	setGameListModalAccountLabel('#buyin-agent-code', agentCode, guestName);
+	$('#buyin-agent-code-label').text(String(agentCode || '').trim());
+	$('#buyin-guest-name-label').text(normalizeGameGuestName(guestName) || '');
 
-	$('.txtAmount').val('');
-	$('.txtNN').val('');
-	$('.txtCC').val('');
-	$('#modal-add-buyin input[name="txtTransType"]').prop('checked', false).prop('disabled', false);
-	$('#enableSplitBuyin').prop('checked', false);
-	$('#split-buyin-row').hide();
-	$('#buyin-nncc-row').show();
-	$('#buyin-trans-type-row').show();
 	$('#splitBuyinCashNN, #splitBuyinCashCC, #splitBuyinDepNN, #splitBuyinDepCC, #splitBuyinCreditNN, #splitBuyinCreditCC').val('').removeClass('is-invalid');
 
-	$('.game_list_id').val(id);
-	$('.txtAccountCode').val(account);
-	
+	$('#modal-add-buyin .game_list_id').val(id);
+	$('#modal-add-buyin .txtAccountCode').val(account);
 
-	 // Fetch account details to calculate balance
-	 $.ajax({
-		url: '/account_details_data_deposit/' + account,
-		method: 'GET',
-		success: function (data) {
-			let deposit_amount = 0;
-			let withdraw_amount = 0;
-			let marker_return = 0;
-			let marker_deposit_amount = 0;
-	
-			data.forEach(function (row) {
-				const amount = parseFloat(row.AMOUNT) || 0;
-	
-				if (row.TRANSACTION === 'DEPOSIT') {
-                    deposit_amount += amount;
-                } else if (row.TRANSACTION === 'WITHDRAW') {
-                    withdraw_amount += amount;
-                } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += amount;
-                } else if (row.TRANSACTION === 'MARKER REDEEM') {
-					marker_deposit_amount += amount;
-				}
-			});
-	
-			const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-	
-			// Set raw numeric value safely
-			$('#total_balanceGuest2').val(totalBalance);
-			$('#total_balanceGuest2GameList').val(totalBalance.toLocaleString('en-US'));
-		},
-		error: function (xhr, status, error) {
-			console.error('Error fetching account details:', error);
-		}
-	});
-	
-	
-
+	if (typeof window.refreshBuyinModalBalances === 'function') {
+		window.refreshBuyinModalBalances();
+	}
 
 	// Initialize totals
 		let totalInitialBuyIn = 0;
@@ -6603,6 +6327,8 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 	var $cashoutModal = $('#modal-add-cashout');
 	$cashoutModal.find('#nnCashAmount, #nnDepositAmount, #nnCreditAmount, #ccCashAmount, #ccDepositAmount, #ccCreditAmount').val('').removeClass('is-invalid');
 	$cashoutModal.find('#tipRollerNn, #tipRollerCc, #tipDealerNn, #tipDealerCc').val('').removeClass('is-invalid');
+	$cashoutModal.find('#cashout-tip-roller-name, #cashout-tip-dealer-roller-name').val('').removeClass('is-invalid');
+	$cashoutModal.find('#cashout-tip-roller-status, #cashout-tip-dealer-roller-status').val('').removeClass('is-invalid');
 	$cashoutModal.find('#cashout-deposit-remarks').val('');
 	$cashoutModal.find('#cashout-credit-remarks').val('');
 	$cashoutModal.find('#cashout-credit-guarantor').val('');
@@ -6613,68 +6339,7 @@ function addCashout(id, account, total_rolling_chips, agentCode, guestName) {
 	$('#cashout-agent-code-label').text(agentCode || '');
 	$('#cashout-guest-name-label').text(typeof normalizeGameGuestName === 'function' ? normalizeGameGuestName(guestName) : (guestName || ''));
 
-	function wireCashoutMarkerWarnings(isMarkerGame) {
-		var markerWarningConfirmed = false;
-		var cashDepSelectors = '#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount';
-
-		var askMarkerCashoutWarning = function () {
-			if (!isMarkerGame) return Promise.resolve(true);
-			return Swal.fire({
-				icon: 'warning',
-				title: 'Warning',
-				text: 'This is a marker game. Have you confirmed the Cash Out?',
-				confirmButtonText: 'Yes',
-				cancelButtonText: 'No',
-				showCancelButton: true,
-				allowOutsideClick: false,
-				allowEscapeKey: true
-			}).then(function (result) {
-				return !!result.isConfirmed;
-			});
-		};
-
-		$cashoutModal.find(cashDepSelectors)
-			.off('input.marker-warning')
-			.on('input.marker-warning', function () {
-				if (!isMarkerGame || markerWarningConfirmed) return;
-
-				var $input = $(this);
-				var rawVal = ($input.val() || '').toString().replace(/,/g, '').trim();
-				if (!rawVal) return;
-
-				var amount = parseFloat(rawVal);
-				if (!Number.isFinite(amount) || amount <= 0) return;
-
-				$input.val('');
-				askMarkerCashoutWarning().then(function (confirmed) {
-					if (confirmed) {
-						markerWarningConfirmed = true;
-						$input.val(rawVal);
-					}
-				});
-			});
-	}
-
 	$cashoutModal.modal('show');
-
-	$.ajax({
-		url: '/game_list/' + id + '/record',
-		method: 'GET',
-		success: function (response) {
-			if (parseInt($cashoutModal.find('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
-			var isMarkerGame = false;
-			(response || []).forEach(function (res) {
-				if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
-					isMarkerGame = true;
-				}
-			});
-			wireCashoutMarkerWarnings(isMarkerGame);
-		},
-		error: function () {
-			if (parseInt($cashoutModal.find('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
-			wireCashoutMarkerWarnings(false);
-		}
-	});
 
 	$.ajax({
 		url: '/account_details_data_deposit/' + account,
@@ -7946,11 +7611,6 @@ function get_account() {
 
 	// Helper to populate select from cached data
 	function populateSelect(options) {
-		// Destroy Select2 first
-		if ($select.data('select2')) {
-			$select.select2('destroy');
-		}
-		
 		$select.empty();
 		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
 
@@ -7963,15 +7623,13 @@ function get_account() {
 				var guestId = option.guest_id || option.GUESTNo || '';
 				$opt.attr('data-guest-id', guestId);
 				$opt.attr('data-agent-id', option.agent_id || '');
+				$opt.attr('data-agent-code', option.agent_code || '');
 				$select.append($opt);
 			});
 		}
 
-		// Reinitialize Select2 with fresh options
-		$select.select2({
-			placeholder: 'Select an option',
-			dropdownParent: '#modal-new-game-list',
-		});
+		initNewGameAccountSelect2($select);
+		bindNewGameSelect2Handlers();
 		syncSelectedGuestIdFromAccount();
 		loadGuestsForSelectedAccount();
 	}
@@ -8018,7 +7676,12 @@ $(document).ready(function () {
 			return;
 		}
 		syncSelectedGuestIdFromAccount();
-		loadGuestsForSelectedAccount();
+		setTimeout(function () {
+			loadGuestsForSelectedAccount();
+			if (typeof window.refreshNewGameListModalBalances === 'function') {
+				window.refreshNewGameListModalBalances();
+			}
+		}, 0);
 	});
 
 	$('#txtGuestGame').on('change', function () {
@@ -8031,13 +7694,12 @@ $(document).ready(function () {
 			return;
 		}
 		syncSelectedGuestIdFromGuestDropdown();
-	});
-
-	$('#txtTrans, #txtGuestGame').on('select2:opening', function (e) {
-		if ($(this).attr('data-readonly') === '1') {
-			e.preventDefault();
+		if (typeof window.updateNewGameBalanceSummary === 'function') {
+			window.updateNewGameBalanceSummary();
 		}
 	});
+
+	bindNewGameSelect2Handlers();
 
 	$('#modal-new-game-list').on('hidden.bs.modal', function () {
 		resetNewGameInputs();
@@ -10034,7 +9696,6 @@ $('#txtTrans').on('change', function () {
 		
 					// Set raw numeric value safely
 					$('#total_balanceGuest1').val(totalBalance);
-					$('#total_balanceGuestGameList').val(totalBalance.toLocaleString('en-US'));
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching account details:', error);

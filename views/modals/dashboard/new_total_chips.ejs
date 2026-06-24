@@ -35,33 +35,7 @@
               (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
               (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
               (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
-            const refCashBal = (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-              (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-              (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
-              (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
-              (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
-              (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
-              (+sqlServiceCashGuest[0].TOTAL || 0) +
-              (+sqlServiceDepositGuest[0].TOTAL || 0) +
-              (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-              (+sqlReturnMoney[0].RETURN_MONEY || 0) -
-              (
-                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
-                (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
-                (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
-                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
-                (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
-                (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
-                (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
-                (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
-                (+sqlServiceCashJunket[0].TOTAL || 0) +
-                (+sqlServiceDepositJunket[0].TOTAL || 0) +
-                (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
-                (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
-                (+sqlJunketLoss[0].JUNKET_LOSS || 0)
-              ) +
-              (+sqlMxCashNet[0].MX_CASH_NET || 0);
+            const refCashBal = typeof cashBalance !== 'undefined' ? cashBalance : 0;
             const refCcBalStr = refCcBal.toLocaleString('en-US');
             const refNnBalStr = refNnBal.toLocaleString('en-US');
             const refCashBalStr = refCashBal.toLocaleString('en-US');

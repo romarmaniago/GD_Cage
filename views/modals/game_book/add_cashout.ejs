@@ -47,16 +47,16 @@
 								<div class="cashout-field-grid">
 									<label class="form-label mb-0" for="tipRollerNn">Tip (Roller)</label>
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center cashout-cash-input" placeholder="NN Chips" name="txtTipRollerNn" id="tipRollerNn">
+										class="form-control text-center cashout-nn-input cashout-tip-roller-input" placeholder="NN Chips" name="txtTipRollerNn" id="tipRollerNn">
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center cashout-cash-input" placeholder="CC Chips" name="txtTipRollerCc" id="tipRollerCc">
+										class="form-control text-center cashout-tip-roller-input" placeholder="CC Chips" name="txtTipRollerCc" id="tipRollerCc">
 								</div>
 								<div class="cashout-field-grid">
 									<label class="form-label mb-0" for="tipDealerNn">Tip (Dealer)</label>
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center" placeholder="NN Chips" name="txtTipDealerNn" id="tipDealerNn">
+										class="form-control text-center cashout-nn-input cashout-tip-dealer-input" placeholder="NN Chips" name="txtTipDealerNn" id="tipDealerNn">
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center" placeholder="CC Chips" name="txtTipDealerCc" id="tipDealerCc">
+										class="form-control text-center cashout-tip-dealer-input" placeholder="CC Chips" name="txtTipDealerCc" id="tipDealerCc">
 								</div>
 							</div>
 						</div>
@@ -69,6 +69,7 @@
 			</div>
 
 			<div class="cashout-side-panels cashout-side-panels-empty" id="cashout-side-panels">
+				<div class="cashout-side-resize-handle" id="cashout-side-resize-handle" title="Drag to resize" aria-hidden="true">⇔</div>
 				<div class="cashout-side-panel d-none" id="cashout-cash-panel" aria-hidden="true">
 					<div class="cashout-side-panel-title">Cash</div>
 					<div class="cashout-panel-sheet">
@@ -195,6 +196,112 @@
 						</div>
 					</div>
 				</div>
+
+				<div class="cashout-tip-panels-row" id="cashout-tip-panels-row">
+					<div class="cashout-side-panel d-none cashout-side-panel-tip-roller" id="cashout-tip-roller-panel" aria-hidden="true">
+						<div class="cashout-side-panel-title">Tip (Roller)</div>
+						<div class="cashout-panel-sheet">
+							<div class="cashout-balance-head">
+								<div class="cashout-balance-head-cell">Current Tip Balance</div>
+								<div class="cashout-balance-head-cell">Anticipated Tip Balance</div>
+							</div>
+							<div class="cashout-balance-values">
+								<div class="cashout-balance-value-cell" id="cashout-tip-roller-current">—</div>
+								<div class="cashout-balance-value-cell" id="cashout-tip-roller-anticipated">—</div>
+							</div>
+							<div class="cashout-tip-processing-row">
+								<div class="cashout-tip-proc-col">
+									<div class="cashout-processing-head">Processing Amount</div>
+									<div class="cashout-processing-body" id="cashout-tip-roller-processing-wrap">
+										<span id="cashout-tip-roller-processing">0</span>
+									</div>
+								</div>
+								<div class="cashout-tip-proc-col">
+									<div class="cashout-processing-head">Status</div>
+									<div class="cashout-tip-meta-body cashout-tip-name-body">
+										<input type="text" class="form-control form-control-sm text-center cashout-tip-meta-input" id="cashout-tip-roller-status" name="txtTipStatus" placeholder="Roller / GM" autocomplete="off" form="add_cashout">
+									</div>
+								</div>
+							<div class="cashout-tip-proc-col">
+								<div class="cashout-processing-head">Name</div>
+								<div class="cashout-tip-meta-body cashout-tip-name-body">
+									<input type="text" class="form-control form-control-sm text-center cashout-tip-roller-name-input" id="cashout-tip-roller-name" name="txtTipRollerName" placeholder="Name" autocomplete="off" form="add_cashout">
+								</div>
+							</div>
+							</div>
+							<div class="cashout-history-wrap">
+								<table class="table table-bordered table-sm mb-0 cashout-history-tbl cashout-tip-history-tbl">
+									<thead>
+										<tr>
+											<th>Date</th>
+											<th>Transaction</th>
+											<th class="text-end">Amount</th>
+											<th>Status</th>
+											<th>Name</th>
+										</tr>
+									</thead>
+									<tbody id="cashout-tip-roller-history-body">
+										<tr class="text-muted">
+											<td colspan="5" class="text-center small py-2">No history.</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+
+					<div class="cashout-side-panel d-none cashout-side-panel-tip-dealer" id="cashout-tip-dealer-panel" aria-hidden="true">
+						<div class="cashout-side-panel-title">Tip (Dealer)</div>
+						<div class="cashout-panel-sheet">
+							<div class="cashout-balance-head">
+								<div class="cashout-balance-head-cell">Current Tip Balance</div>
+								<div class="cashout-balance-head-cell">Anticipated Tip Balance</div>
+							</div>
+							<div class="cashout-balance-values">
+								<div class="cashout-balance-value-cell" id="cashout-tip-dealer-current">—</div>
+								<div class="cashout-balance-value-cell" id="cashout-tip-dealer-anticipated">—</div>
+							</div>
+							<div class="cashout-tip-processing-row">
+								<div class="cashout-tip-proc-col">
+									<div class="cashout-processing-head">Processing Amount</div>
+									<div class="cashout-processing-body" id="cashout-tip-dealer-processing-wrap">
+										<span id="cashout-tip-dealer-processing">0</span>
+									</div>
+								</div>
+								<div class="cashout-tip-proc-col">
+									<div class="cashout-processing-head">Status</div>
+									<div class="cashout-tip-meta-body cashout-tip-name-body">
+										<input type="text" class="form-control form-control-sm text-center cashout-tip-meta-input" id="cashout-tip-dealer-roller-status" placeholder="Roller / GM" autocomplete="off">
+									</div>
+								</div>
+								<div class="cashout-tip-proc-col">
+									<div class="cashout-processing-head">Name</div>
+									<div class="cashout-tip-meta-body cashout-tip-name-body">
+										<input type="text" class="form-control form-control-sm text-center cashout-tip-roller-name-input" id="cashout-tip-dealer-roller-name" placeholder="Name" autocomplete="off">
+									</div>
+								</div>
+							</div>
+							<div class="cashout-history-wrap">
+								<table class="table table-bordered table-sm mb-0 cashout-history-tbl cashout-tip-history-tbl">
+									<thead>
+										<tr>
+											<th>Date</th>
+											<th>Transaction</th>
+											<th class="text-end">Amount</th>
+											<th>Status</th>
+											<th>Name</th>
+										</tr>
+									</thead>
+									<tbody id="cashout-tip-dealer-history-body">
+										<tr class="text-muted">
+											<td colspan="5" class="text-center small py-2">No history.</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -274,9 +381,113 @@
 	flex-shrink: 0;
 	align-self: flex-start;
 	min-height: 0;
+	position: relative;
+	pointer-events: auto;
 }
-#modal-add-cashout .cashout-side-panels:has(#cashout-credit-panel:not(.d-none)) {
+#modal-add-cashout .cashout-side-panels:has(#cashout-credit-panel:not(.d-none)):not([data-user-sized]),
+#modal-add-cashout .cashout-side-panels:has(#cashout-tip-panels-row .cashout-side-panel:not(.d-none)):not([data-user-sized]) {
 	width: 40rem;
+}
+#modal-add-cashout .cashout-tip-panels-row {
+	display: flex;
+	gap: 0.75rem;
+	width: 100%;
+	min-width: 0;
+}
+#modal-add-cashout .cashout-tip-panels-row:not(:has(.cashout-side-panel:not(.d-none))) {
+	display: none;
+}
+#modal-add-cashout .cashout-tip-panels-row .cashout-side-panel {
+	flex: 1 1 0;
+	min-width: 0;
+}
+#modal-add-cashout .cashout-tip-processing-row {
+	display: grid;
+	grid-template-columns: 1fr 0.75fr 0.75fr;
+	border-bottom: 1px solid #dee2e6;
+}
+#modal-add-cashout .cashout-tip-proc-col + .cashout-tip-proc-col {
+	border-left: 1px solid #dee2e6;
+}
+#modal-add-cashout .cashout-tip-meta-body {
+	padding: 0.45rem 0.35rem;
+	text-align: center;
+	font-size: 0.78rem;
+	font-weight: 600;
+	min-height: 2.35rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#modal-add-cashout .cashout-tip-name-body {
+	padding: 0.3rem 0.35rem;
+}
+#modal-add-cashout .cashout-tip-roller-name-input,
+#modal-add-cashout .cashout-tip-meta-input {
+	width: 100%;
+	min-width: 0;
+	pointer-events: auto;
+}
+#modal-add-cashout .cashout-tip-history-tbl th {
+	background: #cfe2ff;
+	font-size: 0.68rem;
+	padding: 0.25rem 0.25rem;
+}
+#modal-add-cashout .cashout-tip-history-tbl td {
+	font-size: 0.68rem;
+	padding: 0.2rem 0.25rem;
+}
+#modal-add-cashout .cashout-tip-history-tbl thead th {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	box-shadow: inset 0 -1px 0 #dee2e6;
+}
+#modal-add-cashout .cashout-side-panels:not(.cashout-side-panels-empty) {
+	max-height: calc(100vh - 4.5rem);
+	overflow-y: auto;
+	overflow-x: hidden;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+}
+#modal-add-cashout .cashout-side-resize-handle {
+	position: absolute;
+	right: -0.45rem;
+	top: 0;
+	bottom: 0;
+	width: 0.85rem;
+	cursor: ew-resize;
+	z-index: 3;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #6c757d;
+	font-size: 0.72rem;
+	line-height: 1;
+	user-select: none;
+	touch-action: none;
+	border-left: 1px solid #ced4da;
+	border-right: 1px solid #ced4da;
+	background: linear-gradient(90deg, #f8f9fa 0%, #fff 50%, #f8f9fa 100%);
+	border-radius: 0.2rem;
+	opacity: 0.85;
+}
+#modal-add-cashout .cashout-side-resize-handle:hover,
+#modal-add-cashout .cashout-side-resize-handle.is-dragging {
+	opacity: 1;
+	color: #0d6efd;
+	border-color: #0d6efd;
+	background: #e7f1ff;
+}
+#modal-add-cashout .cashout-side-panels.cashout-side-panels-empty .cashout-side-resize-handle {
+	display: none;
+}
+body.cashout-side-resize-active {
+	cursor: ew-resize !important;
+	user-select: none !important;
+}
+#modal-add-cashout .cashout-side-panel {
+	pointer-events: auto;
 }
 #modal-add-cashout .cashout-side-panels.cashout-side-panels-empty,
 #modal-add-cashout .cashout-side-panels:not(:has(.cashout-side-panel:not(.d-none))) {
@@ -319,6 +530,9 @@
 }
 #modal-add-cashout .cashout-credit-proc-col + .cashout-credit-proc-col {
 	border-left: 1px solid #dee2e6;
+}
+#modal-add-cashout .cashout-credit-history-tbl {
+	min-width: 36rem;
 }
 #modal-add-cashout .cashout-credit-history-tbl th {
 	background: #cfe2ff;
@@ -364,8 +578,20 @@
 	min-width: 0;
 	pointer-events: auto;
 }
-#modal-add-cashout .cashout-credit-history-wrap {
-	max-height: 12rem;
+#modal-add-cashout .cashout-credit-history-wrap,
+#modal-add-cashout .cashout-history-wrap {
+	overflow: auto;
+	min-height: 4.5rem;
+	max-height: 9.75rem;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+#modal-add-cashout .cashout-history-tbl thead th,
+#modal-add-cashout .cashout-credit-history-tbl thead th {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	box-shadow: inset 0 -1px 0 #dee2e6;
 }
 #modal-add-cashout .cashout-remarks-body .cashout-deposit-remarks-input,
 #modal-add-cashout .cashout-remarks-body .cashout-credit-remarks-input {
@@ -455,6 +681,9 @@
 #modal-add-cashout .cashout-processing-body.is-negative {
 	color: #dc3545;
 }
+#modal-add-cashout .text-amount-negative {
+	color: #dc3545;
+}
 #modal-add-cashout .cashout-processing-body.is-positive {
 	color: #198754;
 }
@@ -468,10 +697,6 @@
 	width: 100%;
 	min-width: 0;
 	pointer-events: auto;
-}
-#modal-add-cashout .cashout-history-wrap {
-	overflow: auto;
-	max-height: 10rem;
 }
 #modal-add-cashout .cashout-history-tbl {
 	font-size: 0.72rem;
@@ -545,6 +770,22 @@ document.addEventListener('DOMContentLoaded', function () {
 	const creditGuarantorInput = document.getElementById('cashout-credit-guarantor');
 	const creditRemarksInput = document.getElementById('cashout-credit-remarks');
 	const creditHistoryBody = document.getElementById('cashout-credit-history-body');
+	const tipRollerPanel = document.getElementById('cashout-tip-roller-panel');
+	const tipDealerPanel = document.getElementById('cashout-tip-dealer-panel');
+	const tipRollerCurrentEl = document.getElementById('cashout-tip-roller-current');
+	const tipRollerAnticipatedEl = document.getElementById('cashout-tip-roller-anticipated');
+	const tipRollerProcessingEl = document.getElementById('cashout-tip-roller-processing');
+	const tipRollerProcessingWrap = document.getElementById('cashout-tip-roller-processing-wrap');
+	const tipRollerNameInput = document.getElementById('cashout-tip-roller-name');
+	const tipDealerNameInput = document.getElementById('cashout-tip-dealer-roller-name');
+	const tipRollerStatusInput = document.getElementById('cashout-tip-roller-status');
+	const tipDealerStatusInput = document.getElementById('cashout-tip-dealer-roller-status');
+	const tipRollerHistoryBody = document.getElementById('cashout-tip-roller-history-body');
+	const tipDealerCurrentEl = document.getElementById('cashout-tip-dealer-current');
+	const tipDealerAnticipatedEl = document.getElementById('cashout-tip-dealer-anticipated');
+	const tipDealerProcessingEl = document.getElementById('cashout-tip-dealer-processing');
+	const tipDealerProcessingWrap = document.getElementById('cashout-tip-dealer-processing-wrap');
+	const tipDealerHistoryBody = document.getElementById('cashout-tip-dealer-history-body');
 
 	const allowCashoutSidePanelFocus = function (e) {
 		if (!e.target || !e.target.closest) return;
@@ -577,6 +818,13 @@ document.addEventListener('DOMContentLoaded', function () {
 	let cashEngaged = false;
 	let depositEngaged = false;
 	let creditEngaged = false;
+	let tipRollerEngaged = false;
+	let tipDealerEngaged = false;
+	let rollerTipHistory = [];
+	let dealerTipHistory = [];
+	let rollerTipBalance = 0;
+	let dealerTipBalance = 0;
+	const HISTORY_VISIBLE_ROWS = 5;
 
 	const parseAmt = function (raw) {
 		const s = (raw || '').toString().replace(/,/g, '').trim();
@@ -587,6 +835,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	const formatAmt = function (n) {
 		return Math.round(n).toLocaleString('en-US');
+	};
+
+	const formatNegativeAmt = function (n) {
+		const abs = Math.round(Math.abs(parseAmt(n)));
+		if (!abs) return '0';
+		return '(' + formatAmt(abs) + ')';
 	};
 
 	const hasRowInput = function (nnId, ccId) {
@@ -601,6 +855,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	const getGuestName = function () {
 		return (guestNameEl && guestNameEl.textContent || '').trim();
+	};
+	const getTipRollerName = function () {
+		return (tipRollerNameInput && tipRollerNameInput.value || '').trim();
+	};
+	const getTipStatus = function () {
+		return (tipRollerStatusInput && tipRollerStatusInput.value || '').trim();
 	};
 
 	const getCreditHistoryDebtorParts = function (row) {
@@ -659,7 +919,15 @@ document.addEventListener('DOMContentLoaded', function () {
 	};
 
 	const shouldShowCashPanel = function () {
-		return hasRowInput('nnCashAmount', 'ccCashAmount') || hasRowInput('tipRollerNn', 'tipRollerCc');
+		return hasRowInput('nnCashAmount', 'ccCashAmount');
+	};
+
+	const shouldShowTipRollerPanel = function () {
+		return hasRowInput('tipRollerNn', 'tipRollerCc');
+	};
+
+	const shouldShowTipDealerPanel = function () {
+		return hasRowInput('tipDealerNn', 'tipDealerCc');
 	};
 
 	const shouldShowDepositPanel = function () {
@@ -680,17 +948,28 @@ document.addEventListener('DOMContentLoaded', function () {
 	const formatCreditOwed = function (amount) {
 		const owed = Math.max(0, parseAmt(amount));
 		if (!owed) return '0';
-		return '-' + formatAmt(owed);
+		return formatNegativeAmt(owed);
 	};
 
 	const computeCashProcessing = function () {
 		const cashLeg =
 			parseAmt(document.getElementById('nnCashAmount') && document.getElementById('nnCashAmount').value) +
 			parseAmt(document.getElementById('ccCashAmount') && document.getElementById('ccCashAmount').value);
-		const rollerTip =
+		return -cashLeg;
+	};
+
+	const computeTipRollerProcessing = function () {
+		return (
 			parseAmt(document.getElementById('tipRollerNn') && document.getElementById('tipRollerNn').value) +
-			parseAmt(document.getElementById('tipRollerCc') && document.getElementById('tipRollerCc').value);
-		return -cashLeg + rollerTip;
+			parseAmt(document.getElementById('tipRollerCc') && document.getElementById('tipRollerCc').value)
+		);
+	};
+
+	const computeTipDealerProcessing = function () {
+		return (
+			parseAmt(document.getElementById('tipDealerNn') && document.getElementById('tipDealerNn').value) +
+			parseAmt(document.getElementById('tipDealerCc') && document.getElementById('tipDealerCc').value)
+		);
 	};
 
 	const computeDepositProcessing = function () {
@@ -703,7 +982,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	const setProcessingDisplay = function (el, wrap, processing) {
 		if (!el || !wrap) return;
 		if (processing < 0) {
-			el.textContent = '-' + formatAmt(Math.abs(processing));
+			el.textContent = formatNegativeAmt(processing);
 		} else {
 			el.textContent = formatAmt(processing);
 		}
@@ -718,14 +997,96 @@ document.addEventListener('DOMContentLoaded', function () {
 		syncSidePanelsLayout();
 	};
 
+	const applyHistoryWrapHeights = function () {
+		modal.querySelectorAll('.cashout-history-wrap').forEach(function (wrap) {
+			const tbl = wrap.querySelector('table');
+			if (!tbl) return;
+			const head = tbl.querySelector('thead');
+			const sampleRow = tbl.querySelector('tbody tr:not(.text-muted)');
+			const headH = head ? head.getBoundingClientRect().height : 28;
+			const rowH = sampleRow ? sampleRow.getBoundingClientRect().height : 26;
+			wrap.style.maxHeight = Math.ceil(headH + rowH * HISTORY_VISIBLE_ROWS) + 'px';
+		});
+	};
+
 	const syncSidePanelsLayout = function () {
 		const sidePanels = document.getElementById('cashout-side-panels');
 		if (!sidePanels) return;
 		const anyVisible =
 			(cashPanel && !cashPanel.classList.contains('d-none')) ||
 			(depositPanel && !depositPanel.classList.contains('d-none')) ||
-			(creditPanel && !creditPanel.classList.contains('d-none'));
+			(creditPanel && !creditPanel.classList.contains('d-none')) ||
+			(tipRollerPanel && !tipRollerPanel.classList.contains('d-none')) ||
+			(tipDealerPanel && !tipDealerPanel.classList.contains('d-none'));
 		sidePanels.classList.toggle('cashout-side-panels-empty', !anyVisible);
+		applySidePanelsDefaultWidth();
+	};
+
+	const applySidePanelsDefaultWidth = function () {
+		const sidePanels = document.getElementById('cashout-side-panels');
+		if (!sidePanels || sidePanels.dataset.userSized === '1') return;
+		const creditOpen = creditPanel && !creditPanel.classList.contains('d-none');
+		const tipsOpen =
+			(tipRollerPanel && !tipRollerPanel.classList.contains('d-none')) ||
+			(tipDealerPanel && !tipDealerPanel.classList.contains('d-none'));
+		sidePanels.style.width = (creditOpen || tipsOpen) ? '40rem' : '24rem';
+	};
+
+	const resetSidePanelsWidth = function () {
+		const sidePanels = document.getElementById('cashout-side-panels');
+		if (!sidePanels) return;
+		delete sidePanels.dataset.userSized;
+		sidePanels.style.width = '';
+	};
+
+	const wireSidePanelsResize = function () {
+		const sidePanels = document.getElementById('cashout-side-panels');
+		const resizeHandle = document.getElementById('cashout-side-resize-handle');
+		const cluster = modal.querySelector('.cashout-modal-cluster');
+		if (!sidePanels || !resizeHandle || !cluster) return;
+
+		const minWidth = 18 * 16;
+		let dragging = false;
+		let startX = 0;
+		let startWidth = 0;
+
+		const getMaxWidth = function () {
+			const clusterRect = cluster.getBoundingClientRect();
+			const mainContent = modal.querySelector('.cashout-main-content');
+			const mainWidth = mainContent ? mainContent.getBoundingClientRect().width : 512;
+			const gap = 12;
+			const padding = 24;
+			return Math.max(minWidth, window.innerWidth - padding - mainWidth - gap - 32);
+		};
+
+		const onMove = function (e) {
+			if (!dragging) return;
+			const nextWidth = Math.min(getMaxWidth(), Math.max(minWidth, startWidth + (e.clientX - startX)));
+			sidePanels.style.width = nextWidth + 'px';
+		};
+
+		const onStop = function () {
+			if (!dragging) return;
+			dragging = false;
+			resizeHandle.classList.remove('is-dragging');
+			document.body.classList.remove('cashout-side-resize-active');
+			window.removeEventListener('mousemove', onMove);
+			window.removeEventListener('mouseup', onStop);
+		};
+
+		resizeHandle.addEventListener('mousedown', function (e) {
+			if (sidePanels.classList.contains('cashout-side-panels-empty')) return;
+			e.preventDefault();
+			e.stopPropagation();
+			dragging = true;
+			startX = e.clientX;
+			startWidth = sidePanels.getBoundingClientRect().width;
+			sidePanels.dataset.userSized = '1';
+			resizeHandle.classList.add('is-dragging');
+			document.body.classList.add('cashout-side-resize-active');
+			window.addEventListener('mousemove', onMove);
+			window.addEventListener('mouseup', onStop);
+		});
 	};
 
 	const formatHistoryDate = function (raw) {
@@ -741,14 +1102,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	const renderHistoryTable = function (pendingAmount, pendingRemarks) {
 		if (!historyBody) return;
-		const rows = ledgerHistory.slice(0, 5).reverse();
+		const rows = ledgerHistory.slice();
 		let html = '';
 
 		rows.forEach(function (row) {
 			const txn = row.TRANSACTION || row.TRANSACTION_DESC || '—';
 			const amount = parseAmt(row.AMOUNT);
 			const isNeg = isNegativeLedgerTxn(txn);
-			const displayAmt = (isNeg ? '-' : '') + formatAmt(Math.abs(amount));
+			const displayAmt = isNeg ? formatNegativeAmt(amount) : formatAmt(amount);
 			const amtClass = isNeg ? 'text-end text-amount-negative' : 'text-end';
 			html += '<tr>' +
 				'<td>' + formatHistoryDate(row.encoded_date || row.ENCODED_DT) + '</td>' +
@@ -772,6 +1133,98 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		historyBody.innerHTML = html;
+		requestAnimationFrame(applyHistoryWrapHeights);
+	};
+
+	const renderTipHistoryTable = function (bodyEl, rows, pendingAmount, pendingStatus, pendingName, pendingTransaction) {
+		if (!bodyEl) return;
+		let html = '';
+
+		rows.forEach(function (row) {
+			const amount = parseAmt(row.AMOUNT);
+			const amtClass = amount < 0 ? 'text-end text-amount-negative' : 'text-end';
+			const displayAmt = amount < 0 ? formatNegativeAmt(amount) : formatAmt(amount);
+			html += '<tr>' +
+				'<td>' + formatHistoryDate(row.TIP_DATETIME || row.ENCODED_DT) + '</td>' +
+				'<td>' + (row.TRANSACTION || '—') + '</td>' +
+				'<td class="' + amtClass + '">' + displayAmt + '</td>' +
+				'<td>' + (row.STATUS || '—') + '</td>' +
+				'<td>' + (row.PERSON_NAME || '—') + '</td>' +
+				'</tr>';
+		});
+
+		if (pendingAmount > 0) {
+			html += '<tr class="is-pending">' +
+				'<td>' + formatHistoryDate(new Date()) + '</td>' +
+				'<td>' + (pendingTransaction || 'Tip') + '</td>' +
+				'<td class="text-end">' + formatAmt(pendingAmount) + '</td>' +
+				'<td>' + (pendingStatus || 'Roller') + '</td>' +
+				'<td>' + (pendingName || '—') + '</td>' +
+				'</tr>';
+		}
+
+		if (!html) {
+			html = '<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>';
+		}
+
+		bodyEl.innerHTML = html;
+		requestAnimationFrame(applyHistoryWrapHeights);
+	};
+
+	const updateTipRollerPanel = function () {
+		const show = tipRollerEngaged || shouldShowTipRollerPanel();
+		if (!show) {
+			togglePanel(tipRollerPanel, false);
+			return;
+		}
+
+		const base = parseAmt(rollerTipBalance);
+		const processing = computeTipRollerProcessing();
+		const hasInput = shouldShowTipRollerPanel();
+		const rollerName = getTipRollerName() || '—';
+		const tipStatus = getTipStatus() || '—';
+
+		if (tipRollerCurrentEl) tipRollerCurrentEl.textContent = formatAmt(base);
+		if (tipRollerAnticipatedEl) tipRollerAnticipatedEl.textContent = hasInput ? formatAmt(base + processing) : '—';
+		setProcessingDisplay(tipRollerProcessingEl, tipRollerProcessingWrap, hasInput ? processing : 0);
+
+		renderTipHistoryTable(
+			tipRollerHistoryBody,
+			rollerTipHistory,
+			hasInput ? processing : 0,
+			tipStatus,
+			rollerName,
+			'Roller Tip'
+		);
+		togglePanel(tipRollerPanel, true);
+	};
+
+	const updateTipDealerPanel = function () {
+		const show = tipDealerEngaged || shouldShowTipDealerPanel();
+		if (!show) {
+			togglePanel(tipDealerPanel, false);
+			return;
+		}
+
+		const base = parseAmt(dealerTipBalance);
+		const processing = computeTipDealerProcessing();
+		const hasInput = shouldShowTipDealerPanel();
+		const rollerName = getTipRollerName() || '—';
+		const tipStatus = getTipStatus() || '—';
+
+		if (tipDealerCurrentEl) tipDealerCurrentEl.textContent = formatAmt(base);
+		if (tipDealerAnticipatedEl) tipDealerAnticipatedEl.textContent = hasInput ? formatAmt(base + processing) : '—';
+		setProcessingDisplay(tipDealerProcessingEl, tipDealerProcessingWrap, hasInput ? processing : 0);
+
+		renderTipHistoryTable(
+			tipDealerHistoryBody,
+			dealerTipHistory,
+			hasInput ? processing : 0,
+			tipStatus,
+			rollerName,
+			'Dealer Tip'
+		);
+		togglePanel(tipDealerPanel, true);
 	};
 
 	const getCreditReturnSourceLabel = function (desc) {
@@ -822,14 +1275,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
 		if (!creditHistoryBody) return;
-		const rows = creditHistory.slice(0, 8);
+		const rows = creditHistory.slice();
 		const balanceById = computeCreditHistoryBalances(rows);
 		let html = '';
 
 		rows.forEach(function (row) {
 			const amount = parseAmt(row.AMOUNT);
 			const isOut = isCreditOutTxn(row);
-			const displayAmt = isOut ? '-' + formatAmt(amount) : formatAmt(amount);
+			const displayAmt = isOut ? formatNegativeAmt(amount) : formatAmt(amount);
 			const amtClass = 'text-end' + (isOut ? ' text-amount-negative' : '');
 			const balance = balanceById[row.IDNo] != null ? balanceById[row.IDNo] : 0;
 			const debtor = getCreditHistoryDebtorParts(row);
@@ -868,6 +1321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		creditHistoryBody.innerHTML = html;
+		requestAnimationFrame(applyHistoryWrapHeights);
 	};
 
 	const updateCreditPanel = function () {
@@ -941,19 +1395,34 @@ document.addEventListener('DOMContentLoaded', function () {
 		updateCashPanel();
 		updateDepositPanel();
 		updateCreditPanel();
+		updateTipRollerPanel();
+		updateTipDealerPanel();
 	};
 
 	const resetBalanceDisplay = function () {
 		cashEngaged = false;
 		depositEngaged = false;
 		creditEngaged = false;
+		tipRollerEngaged = false;
+		tipDealerEngaged = false;
+		resetSidePanelsWidth();
 		togglePanel(cashPanel, false);
 		togglePanel(depositPanel, false);
 		togglePanel(creditPanel, false);
+		togglePanel(tipRollerPanel, false);
+		togglePanel(tipDealerPanel, false);
 		if (remarksInput) remarksInput.value = '';
 		if (creditRemarksInput) creditRemarksInput.value = '';
 		if (creditGuarantorInput) creditGuarantorInput.value = '';
+		if (tipRollerNameInput) tipRollerNameInput.value = '';
+		if (tipDealerNameInput) tipDealerNameInput.value = '';
+		if (tipRollerStatusInput) tipRollerStatusInput.value = '';
+		if (tipDealerStatusInput) tipDealerStatusInput.value = '';
 		creditHistory = [];
+		rollerTipHistory = [];
+		dealerTipHistory = [];
+		rollerTipBalance = 0;
+		dealerTipBalance = 0;
 		creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
 		if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
 		if (historyBody) {
@@ -961,6 +1430,12 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 		if (creditHistoryBody) {
 			creditHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="8" class="text-center small py-2">No history.</td></tr>';
+		}
+		if (tipRollerHistoryBody) {
+			tipRollerHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>';
+		}
+		if (tipDealerHistoryBody) {
+			tipDealerHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>';
 		}
 	};
 
@@ -1052,9 +1527,44 @@ document.addEventListener('DOMContentLoaded', function () {
 			});
 	};
 
+	const loadTipContext = function () {
+		const accountInput = modal.querySelector('.txtAccountCode');
+		const accountId = accountInput ? accountInput.value : '';
+		if (!accountId) {
+			rollerTipHistory = [];
+			dealerTipHistory = [];
+			rollerTipBalance = 0;
+			dealerTipBalance = 0;
+			return Promise.resolve();
+		}
+
+		return fetch('/game_list_cashout_tips/' + encodeURIComponent(accountId), { credentials: 'same-origin' })
+			.then(function (r) {
+				if (!r.ok) throw new Error('bad status');
+				return r.json();
+			})
+			.then(function (data) {
+				rollerTipBalance = Number(data && data.rollerBalance) || 0;
+				dealerTipBalance = Number(data && data.dealerBalance) || 0;
+				rollerTipHistory = Array.isArray(data && data.rollerHistory) ? data.rollerHistory : [];
+				dealerTipHistory = Array.isArray(data && data.dealerHistory) ? data.dealerHistory : [];
+			})
+			.catch(function () {
+				rollerTipHistory = [];
+				dealerTipHistory = [];
+				rollerTipBalance = 0;
+				dealerTipBalance = 0;
+			});
+	};
+
 	const loadModalBalances = function () {
 		resetBalanceDisplay();
-		return Promise.all([loadCompanyBalance(), loadAccountBalance(), loadCreditContext()]).then(updateBalanceSummary);
+		return Promise.all([
+			loadCompanyBalance(),
+			loadAccountBalance(),
+			loadCreditContext(),
+			loadTipContext()
+		]).then(updateBalanceSummary);
 	};
 
 	const validateNnSplitInput = function (inputEl) {
@@ -1083,6 +1593,87 @@ document.addEventListener('DOMContentLoaded', function () {
 		if (creditRemarksInput && activeEl === creditRemarksInput) return true;
 		if (creditGuarantorInput && activeEl === creditGuarantorInput) return true;
 		return activeEl.classList && activeEl.classList.contains('cashout-credit-input');
+	};
+
+	const isTipRollerGroupFocused = function (activeEl) {
+		if (!activeEl) return false;
+		if (tipRollerNameInput && activeEl === tipRollerNameInput) return true;
+		if (tipDealerNameInput && activeEl === tipDealerNameInput) return true;
+		if (tipRollerStatusInput && activeEl === tipRollerStatusInput) return true;
+		if (tipDealerStatusInput && activeEl === tipDealerStatusInput) return true;
+		return activeEl.classList && activeEl.classList.contains('cashout-tip-roller-input');
+	};
+
+	const isTipDealerGroupFocused = function (activeEl) {
+		if (!activeEl) return false;
+		if (tipDealerNameInput && activeEl === tipDealerNameInput) return true;
+		if (tipDealerStatusInput && activeEl === tipDealerStatusInput) return true;
+		return activeEl.classList && activeEl.classList.contains('cashout-tip-dealer-input');
+	};
+
+	const syncTipField = function (sourceEl, targetEl) {
+		if (!sourceEl || !targetEl || targetEl.value === sourceEl.value) return;
+		targetEl.value = sourceEl.value;
+	};
+
+	const wireTipMetaField = function (inputEl, panelType, fieldType) {
+		if (!inputEl) return;
+		inputEl.removeAttribute('readonly');
+		inputEl.removeAttribute('disabled');
+		inputEl.addEventListener('mousedown', function (e) {
+			e.stopPropagation();
+		});
+		inputEl.addEventListener('focus', function () {
+			if (panelType === 'roller') {
+				tipRollerEngaged = true;
+				if (tipRollerPanel && tipRollerPanel.classList.contains('d-none')) {
+					updateTipRollerPanel();
+				}
+			} else {
+				tipDealerEngaged = true;
+				if (tipDealerPanel && tipDealerPanel.classList.contains('d-none')) {
+					updateTipDealerPanel();
+				}
+			}
+		});
+		inputEl.addEventListener('input', function () {
+			if (fieldType === 'name') {
+				if (panelType === 'roller') {
+					syncTipField(tipRollerNameInput, tipDealerNameInput);
+				} else {
+					syncTipField(tipDealerNameInput, tipRollerNameInput);
+				}
+			} else {
+				if (panelType === 'roller') {
+					syncTipField(tipRollerStatusInput, tipDealerStatusInput);
+				} else {
+					syncTipField(tipDealerStatusInput, tipRollerStatusInput);
+				}
+			}
+			updateBalanceSummary();
+		});
+		inputEl.addEventListener('blur', function () {
+			setTimeout(function () {
+				const active = document.activeElement;
+				if (panelType === 'roller') {
+					if (isTipRollerGroupFocused(active)) return;
+					if (!shouldShowTipRollerPanel()) {
+						tipRollerEngaged = false;
+						updateBalanceSummary();
+					}
+				} else {
+					if (isTipDealerGroupFocused(active) || isTipRollerGroupFocused(active)) return;
+					if (!shouldShowTipDealerPanel()) {
+						tipDealerEngaged = false;
+						updateBalanceSummary();
+					}
+				}
+			}, 0);
+		});
+	};
+
+	const wireTipRollerSideField = function (inputEl, fieldType) {
+		wireTipMetaField(inputEl, 'roller', fieldType);
 	};
 
 	const wireCreditSideField = function (inputEl) {
@@ -1116,13 +1707,19 @@ document.addEventListener('DOMContentLoaded', function () {
 		const inputs = modal.querySelectorAll(selector);
 		const hasInputFn = type === 'cash'
 			? shouldShowCashPanel
-			: (type === 'deposit' ? shouldShowDepositPanel : shouldShowCreditPanel);
+			: (type === 'deposit'
+				? shouldShowDepositPanel
+				: (type === 'credit'
+					? shouldShowCreditPanel
+					: (type === 'tipRoller' ? shouldShowTipRollerPanel : shouldShowTipDealerPanel)));
 
 		inputs.forEach(function (inputEl) {
 			inputEl.addEventListener('focus', function () {
 				if (type === 'cash') cashEngaged = true;
 				else if (type === 'deposit') depositEngaged = true;
-				else creditEngaged = true;
+				else if (type === 'credit') creditEngaged = true;
+				else if (type === 'tipRoller') tipRollerEngaged = true;
+				else tipDealerEngaged = true;
 				updateBalanceSummary();
 			});
 
@@ -1143,10 +1740,18 @@ document.addEventListener('DOMContentLoaded', function () {
 					if (type === 'credit' && isCreditGroupFocused(active)) {
 						stillFocused = true;
 					}
+					if (type === 'tipRoller' && isTipRollerGroupFocused(active)) {
+						stillFocused = true;
+					}
+					if (type === 'tipDealer' && isTipDealerGroupFocused(active)) {
+						stillFocused = true;
+					}
 					if (!stillFocused && !hasInputFn()) {
 						if (type === 'cash') cashEngaged = false;
 						else if (type === 'deposit') depositEngaged = false;
-						else creditEngaged = false;
+						else if (type === 'credit') creditEngaged = false;
+						else if (type === 'tipRoller') tipRollerEngaged = false;
+						else tipDealerEngaged = false;
 						updateBalanceSummary();
 					}
 				}, 0);
@@ -1163,6 +1768,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	wirePanelInputs('.cashout-cash-input', 'cash');
 	wirePanelInputs('.cashout-deposit-input', 'deposit');
 	wirePanelInputs('.cashout-credit-input', 'credit');
+	wirePanelInputs('.cashout-tip-roller-input', 'tipRoller');
+	wirePanelInputs('.cashout-tip-dealer-input', 'tipDealer');
 
 	if (remarksInput) {
 		remarksInput.removeAttribute('readonly');
@@ -1194,6 +1801,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	wireCreditSideField(creditRemarksInput);
 	wireCreditSideField(creditGuarantorInput);
+	wireTipRollerSideField(tipRollerNameInput, 'name');
+	wireTipRollerSideField(tipRollerStatusInput, 'status');
+	wireTipMetaField(tipDealerNameInput, 'dealer', 'name');
+	wireTipMetaField(tipDealerStatusInput, 'dealer', 'status');
+	wireSidePanelsResize();
 
 	modal.addEventListener('shown.bs.modal', function () {
 		releaseCashoutFocusTrap();

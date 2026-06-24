@@ -36,23 +36,58 @@
 
         <div class="card-body">
 
+          <div class="tip-settlement-bar mb-3" id="tip-settlement-bar">
+            <div class="tip-settlement-info">
+              <div class="tip-settlement-title"><%= __('tip.settlement') %></div>
+              <div class="tip-settlement-balance mt-2">
+                <%= __('tip.available_balance') %>:
+                <strong id="tip-roller-available-balance">0</strong>
+              </div>
+            </div>
+            <div class="tip-settlement-actions">
+              <button type="button" class="btn btn-primary btn-sm" id="btn-tip-settlement-open"><%= __('tip.settle') %></button>
+            </div>
+          </div>
+
           <table id="tip-tbl" class="table nowrap small-text" style="width:100%">
 
             <thead>
 
               <tr>
 
-                <th><%= __('tip.date_time') %></th>
+                <th rowspan="2"><%= __('tip.date_time') %></th>
 
-                <th><%= __('tip.account') %></th>
+                <th rowspan="2"><%= __('tip.account') %></th>
 
-                <th><%= __('tip.guest') %></th>
+                <th rowspan="2"><%= __('tip.guest') %></th>
 
-                <th><%= __('tip.game_no') %></th>
+                <th rowspan="2"><%= __('tip.game_no') %></th>
 
-                <th><%= __('tip.amount') %></th>
+                <th rowspan="2"><%= __('tip.remarks') %></th>
 
-                <th><%= __('tip.tip_type') %></th>
+                <th colspan="4" class="tip-group-head tip-group-head-roller"><%= __('tip.roller') %></th>
+
+                <th colspan="4" class="tip-group-head tip-group-head-dealer"><%= __('tip.dealer') %></th>
+
+              </tr>
+
+              <tr>
+
+                <th class="tip-col tip-col-roller"><%= __('tip.transaction') %></th>
+
+                <th class="tip-col tip-col-roller"><%= __('tip.amount') %></th>
+
+                <th class="tip-col tip-col-roller"><%= __('tip.status') %></th>
+
+                <th class="tip-col tip-col-roller"><%= __('tip.name') %></th>
+
+                <th class="tip-col tip-col-dealer"><%= __('tip.transaction') %></th>
+
+                <th class="tip-col tip-col-dealer"><%= __('tip.amount') %></th>
+
+                <th class="tip-col tip-col-dealer"><%= __('tip.status') %></th>
+
+                <th class="tip-col tip-col-dealer"><%= __('tip.name') %></th>
 
               </tr>
 
@@ -61,9 +96,16 @@
             <tbody></tbody>
             <tfoot>
               <tr>
+                <th></th>
+                <th></th>
+                <th></th>
                 <th><%= __('tip.total') || 'TOTAL' %></th>
                 <th></th>
                 <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th><%= __('tip.total') || 'TOTAL' %></th>
                 <th></th>
                 <th></th>
                 <th></th>
@@ -83,12 +125,21 @@
 
 
 
+<%- include('../modals/tip/tip_settlement') %>
+
 <%- include ('../partials/permission_view_only_script') %>
 
 <%- include('../partials/footer') %>
 
 
 
+<script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
+  invalidAmount: __('tip.settlement_invalid_amount'),
+  exceedsBalance: __('tip.settlement_exceeds_balance'),
+  missingStatus: __('tip.settlement_missing_status'),
+  missingName: __('tip.settlement_missing_name'),
+  saved: __('tip.settlement_saved')
+}) %></script>
 <script src="/assets/js/functions/tip.js"></script>
 
 
@@ -99,6 +150,37 @@
 
     overflow-x: auto;
 
+  }
+
+  .tip-settlement-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+  }
+
+  .tip-settlement-title {
+    font-weight: 600;
+    color: #1d4ed8;
+  }
+
+  .tip-settlement-balance strong {
+    color: #1d4ed8;
+    font-size: 1.05rem;
+  }
+
+  .tip-settlement-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  #modal-tip-settlement .form-control.is-invalid {
+    border-color: #dc3545;
   }
 
 
@@ -133,12 +215,77 @@
 
   }
 
+  #tip-tbl thead .tip-group-head {
+    text-align: center !important;
+    font-weight: 600;
+  }
 
+  #tip-tbl thead .tip-group-head-roller {
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    border-bottom: 1px solid rgba(29, 78, 216, 0.18);
+  }
 
-  #tip-tbl thead th:nth-child(5),
-  #tip-tbl tbody td:nth-child(5),
-  #tip-tbl tfoot th:nth-child(5) {
+  #tip-tbl thead .tip-group-head-dealer {
+    background: #ffedd5 !important;
+    color: #c2410c !important;
+    border-bottom: 1px solid rgba(194, 65, 12, 0.18);
+    text-align: center !important;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+
+  #tip-tbl thead .tip-col-roller {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+  }
+
+  #tip-tbl thead .tip-col-dealer {
+    background: #fff7ed !important;
+    color: #c2410c !important;
+  }
+
+  #tip-tbl tbody td.tip-col-roller {
+    background: #f8fbff;
+  }
+
+  #tip-tbl tbody td.tip-col-dealer {
+    background: #fffaf5;
+  }
+
+  #tip-tbl tbody tr:hover td.tip-col-roller {
+    background: #eef6ff !important;
+  }
+
+  #tip-tbl tbody tr:hover td.tip-col-dealer {
+    background: #fff3e8 !important;
+  }
+
+  #tip-tbl thead tr:nth-child(2) th.tip-col-roller:nth-child(2),
+  #tip-tbl thead tr:nth-child(2) th.tip-col-dealer:nth-child(6),
+  #tip-tbl tbody td.tip-col-roller:nth-child(7),
+  #tip-tbl tbody td.tip-col-dealer:nth-child(11),
+  #tip-tbl tfoot th:nth-child(7),
+  #tip-tbl tfoot th:nth-child(11) {
     text-align: right;
+  }
+
+  #tip-tbl tfoot th:nth-child(n+6):nth-child(-n+9) {
+    background: #eef6ff;
+  }
+
+  #tip-tbl tfoot th:nth-child(n+10):nth-child(-n+13) {
+    background: #fff4e8;
+  }
+
+  #tip-tbl tfoot .tip-roller-total {
+    color: #1d4ed8;
+    font-weight: 600;
+  }
+
+  #tip-tbl tfoot .tip-dealer-total {
+    color: #c2410c;
+    font-weight: 600;
   }
 
   #tip-tbl tfoot th {
@@ -173,6 +320,20 @@
 
   }
 
+  #tip-tbl td.remarks-editor-td {
+    text-align: left;
+    max-width: 220px;
+  }
+
+  #tip-tbl td.remarks-editor-td .remarks-editor-clickable {
+    cursor: pointer;
+  }
+
+  #tip-tbl td.remarks-editor-td:hover .remarks-editor-clickable {
+    background: #f0f4ff;
+    border-radius: 4px;
+  }
+
 
 
   #tip-tbl tbody tr:hover {
@@ -181,30 +342,18 @@
 
   }
 
-
-
-  .tip-type-roller {
-
-    color: #0d6efd;
-
+  #tip-tbl .tip-amount-negative {
+    color: #dc3545;
     font-weight: 600;
-
   }
-
-
-
-  .tip-type-dealer {
-
-    color: #e89149;
-
-    font-weight: 600;
-
-  }
-
-
 
   #tip-tbl tfoot .tip-amount {
     color: #198754;
+    font-weight: 600;
+  }
+
+  #tip-tbl tfoot .tip-amount-negative {
+    color: #dc3545;
     font-weight: 600;
   }
 
@@ -265,5 +414,4 @@
   }
 
 </style>
-
 

@@ -19,9 +19,10 @@ const _sqlCCReturn = typeof sqlCCReturn !== 'undefined' ? sqlCCReturn : [{ CCRet
 const _sqlRollerCCSubtract = typeof sqlRollerCCSubtract !== 'undefined' ? sqlRollerCCSubtract : [{ ROLLER_CC_SUBTRACT: 0 }];
 const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd : [{ ROLLER_CC_ADD: 0 }];
 %>
-<div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+<div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered new-game-list-modal-dialog">
-        <div class="modal-content">
+        <div class="new-game-modal-cluster">
+        <div class="modal-content new-game-main-content">
         <div class="modal-header bg-primary">
             <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_new_game_list.new_game') %></h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -50,13 +51,11 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                  (+_sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString('en-US') %></h6>
              
           
-                <!-- Total Balance Display -->
-                <div class="row mb-2">
-                    <div class="col-sm-12">
-                        <input type="hidden" id="total_balanceGuest1" placeholder="Total Balance" name="totalBalanceGuest1" readonly/>
-                        <input type="text" class="form-control text-center" id="total_balanceGuestGameList" placeholder="Total Balance" readonly/>
-                    </div>
-                </div>
+                <input type="hidden" id="total_balanceGuest1" name="totalBalanceGuest1" readonly/>
+                <span class="d-none" id="new-game-nn-balance-base" aria-hidden="true">0</span>
+                <span class="d-none" id="new-game-cc-balance-base" aria-hidden="true">0</span>
+                <span class="d-none" id="new-game-agent-code-label" aria-hidden="true"></span>
+                <span class="d-none" id="new-game-guest-name-label" aria-hidden="true"></span>
                 <div class="row mb-2">
                     <div class="col-6">
                         <input type="text" class="form-control" name="txtProgramDate" id="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
@@ -79,87 +78,37 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
 
              
 
-              <div class="row mb-2">
+              <div class="row mb-2 d-none" id="new-game-base-amount-row">
                   <div class="col-sm-6">
-                      <!-- <label class="form-label"><%= __('modal_new_game_list.nn_placeholder') %></label> -->
                       <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtNN" id="txtNN" placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" />
                   </div>
                   <div class="col-sm-6">
-                      <!-- <label class="form-label"><%= __('modal_new_game_list.cc_placeholder') %></label> -->
                       <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtCC" id="txtCC" placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" />
                   </div>
               </div>
 
-             
-              <div class="row mb-2">
-                  <div class="col-sm-12">
-                      <div class="row mb-2">
-                          <div class="col-sm-4">
-                              <div class="form-check">
-                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_game" name="txtTransType" >
-                                  <label class="form-check-label" for="cash_game"><%= __('modal_new_game_list.cash_game') %></label>
-                              </div>
-                          </div>
-                          <div class="col-sm-4">
-                              <div class="form-check">
-                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit_game" name="txtTransType" >
-                                  <label class="form-check-label" for="deposit_game"><%= __('modal_new_game_list.deposit_game') %></label>
-                              </div>
-                          </div>
-                          <div class="col-sm-4">
-                              <div class="form-check">
-                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker_game" name="txtTransType" >
-                                  <label class="form-check-label" for="marker_game"><%= __('modal_new_game_list.marker_game') %></label>
-                              </div>
-                          </div>
+              <div id="split-new-game-row" class="new-game-input-sheet">
+                  <div class="new-game-section">
+                      <div class="new-game-field-grid">
+                          <label class="form-label mb-0" for="splitCashNN">Cash</label>
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-nn-input new-game-cash-input" placeholder="NN Chips" id="splitCashNN" autocomplete="off" />
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-cash-input" placeholder="CC Chips" id="splitCashCC" autocomplete="off" />
                       </div>
-                  </div>
-              </div>
-
-              <div class="row mb-2">
-                  <div class="col-sm-12 d-flex align-items-center justify-content-between">
-                      <div class="form-check mb-0">
-                          <input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="enableSplitNewGame">
-                          <label class="form-check-label" for="enableSplitNewGame">
-                              Split Buy-in
-                          </label>
+                      <div class="new-game-field-grid">
+                          <label class="form-label mb-0" for="splitDepNN">Deposit</label>
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-nn-input new-game-deposit-input" placeholder="NN Chips" id="splitDepNN" autocomplete="off" />
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-deposit-input" placeholder="CC Chips" id="splitDepCC" autocomplete="off" />
                       </div>
-                  </div>
-              </div>
-
-              <div class="row mb-2" id="split-new-game-row" style="display:none;">
-                  <div class="col-sm-6 mb-2 mb-sm-0">
-                      <div class="border rounded p-2 h-100">
-                          <div class="fw-semibold small text-muted mb-2">NN Chips</div>
-                          <div class="mb-2">
-                              <label class="form-label mb-1">Cash</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCashNN" placeholder="NN Chips" />
-                          </div>
-                          <div class="mb-2">
-                              <label class="form-label mb-1">Deposit</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitDepNN" placeholder="NN Chips" />
-                          </div>
-                          <div>
-                              <label class="form-label mb-1">Credit</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCreditNN" placeholder="NN Chips" />
-                          </div>
-                      </div>
-                  </div>
-                  <div class="col-sm-6">
-                      <div class="border rounded p-2 h-100">
-                          <div class="fw-semibold small text-muted mb-2">CC Chips</div>
-                          <div class="mb-2">
-                              <label class="form-label mb-1">Cash</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCashCC" placeholder="CC Chips" />
-                          </div>
-                          <div class="mb-2">
-                              <label class="form-label mb-1">Deposit</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitDepCC" placeholder="CC Chips" />
-                          </div>
-                          <div>
-                              <label class="form-label mb-1">Credit</label>
-                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCreditCC" placeholder="CC Chips" />
-                          </div>
+                      <div class="new-game-field-grid">
+                          <label class="form-label mb-0" for="splitCreditNN">Credit</label>
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-nn-input new-game-credit-input" placeholder="NN Chips" id="splitCreditNN" autocomplete="off" />
+                          <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                              class="form-control text-center new-game-credit-input" placeholder="CC Chips" id="splitCreditCC" autocomplete="off" />
                       </div>
                   </div>
               </div>
@@ -201,7 +150,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                       </select>
                   </div>
 
-                  <div class="col-sm-2">
+                  <div class="col-sm-2" id="commissionRateWrap">
                       <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
                   </div>
               </div>
@@ -210,14 +159,483 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
             <button type="submit" id="submit-game-list-btn" class="btn btn-sm btn-primary" data-label="<%= __('modal_new_game_list.save') %>"><%= __('modal_new_game_list.save') %></button>
             <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_game_list.close') %></button>
         </div>
+        </form>
         </div>
-    </form>
+
+        <div class="new-game-side-panels new-game-side-panels-empty" id="new-game-side-panels">
+            <div class="new-game-side-resize-handle" id="new-game-side-resize-handle" title="Drag to resize" aria-hidden="true">⇔</div>
+            <div class="new-game-side-panel d-none" id="new-game-cash-panel" aria-hidden="true">
+                <div class="new-game-side-panel-title">Cash</div>
+                <div class="new-game-panel-sheet">
+                    <div class="new-game-cash-balance-head">
+                        <div class="new-game-balance-head-cell">Current NN Balance Of Company</div>
+                        <div class="new-game-balance-head-cell">Anticipated NN Balance Of Company</div>
+                        <div class="new-game-balance-head-cell">Current CC Balance Of Company</div>
+                        <div class="new-game-balance-head-cell">Anticipated CC Balance Of Company</div>
+                    </div>
+                    <div class="new-game-cash-balance-values">
+                        <div class="new-game-balance-value-cell" id="new-game-cash-nn-current">—</div>
+                        <div class="new-game-balance-value-cell" id="new-game-cash-nn-anticipated">—</div>
+                        <div class="new-game-balance-value-cell" id="new-game-cash-cc-current">—</div>
+                        <div class="new-game-balance-value-cell" id="new-game-cash-cc-anticipated">—</div>
+                    </div>
+                    <div class="new-game-processing-row">
+                        <div class="new-game-processing-col">
+                            <div class="new-game-processing-head">Processing Amount</div>
+                            <div class="new-game-processing-body" id="new-game-cash-processing-wrap">
+                                <span id="new-game-cash-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="new-game-remarks-col">
+                            <div class="new-game-processing-head">Cash Buy In</div>
+                            <div class="new-game-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center new-game-cash-remarks-input" id="new-game-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_game_list">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="new-game-side-panel d-none" id="new-game-deposit-panel" aria-hidden="true">
+                <div class="new-game-side-panel-title">Deposit</div>
+                <div class="new-game-panel-sheet">
+                    <div class="new-game-balance-head">
+                        <div class="new-game-balance-head-cell" id="new-game-deposit-current-label">Current Balance Of Account</div>
+                        <div class="new-game-balance-head-cell" id="new-game-deposit-anticipated-label">Anticipated Balance Of Account</div>
+                    </div>
+                    <div class="new-game-balance-values">
+                        <div class="new-game-balance-value-cell" id="new-game-deposit-current">—</div>
+                        <div class="new-game-balance-value-cell" id="new-game-deposit-anticipated">—</div>
+                    </div>
+                    <div class="new-game-processing-row">
+                        <div class="new-game-processing-col">
+                            <div class="new-game-processing-head">Processing Amount</div>
+                            <div class="new-game-processing-body" id="new-game-deposit-processing-wrap">
+                                <span id="new-game-deposit-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="new-game-remarks-col">
+                            <div class="new-game-processing-head">Remarks</div>
+                            <div class="new-game-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center new-game-deposit-remarks-input" id="new-game-deposit-remarks" name="txtDepositRemarks" placeholder="Remarks" autocomplete="off" form="add_game_list">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="new-game-history-wrap">
+                        <table class="table table-bordered table-sm mb-0 new-game-history-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="new-game-deposit-history-body">
+                                <tr class="text-muted">
+                                    <td colspan="4" class="text-center small py-2">No history.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="new-game-side-panel d-none new-game-side-panel-credit" id="new-game-credit-panel" aria-hidden="true">
+                <div class="new-game-side-panel-title">Credit</div>
+                <div class="new-game-panel-sheet new-game-credit-sheet">
+                    <div class="new-game-credit-summary-grid">
+                        <div class="new-game-credit-summary-col">
+                            <div class="new-game-balance-head-cell" id="new-game-credit-current-label">Current Credit Balance Of Account</div>
+                            <div class="new-game-balance-value-cell text-amount-negative" id="new-game-credit-current">—</div>
+                        </div>
+                        <div class="new-game-credit-summary-col">
+                            <div class="new-game-balance-head-cell" id="new-game-credit-anticipated-label">Anticipated Credit Balance Of Account</div>
+                            <div class="new-game-balance-value-cell text-amount-negative" id="new-game-credit-anticipated">—</div>
+                        </div>
+                        <div class="new-game-credit-guest-cols" id="new-game-credit-guest-cols"></div>
+                    </div>
+                    <div class="new-game-credit-processing-row">
+                        <div class="new-game-credit-proc-col">
+                            <div class="new-game-processing-head">Processing Amount</div>
+                            <div class="new-game-processing-body" id="new-game-credit-processing-wrap">
+                                <span id="new-game-credit-processing">0</span>
+                            </div>
+                        </div>
+                        <div class="new-game-credit-proc-col">
+                            <div class="new-game-processing-head">채무자 Debtor</div>
+                            <div class="new-game-credit-party-body new-game-credit-debtor-body" id="new-game-credit-debtor">
+                                <div id="new-game-credit-debtor-account">—</div>
+                                <div class="new-game-credit-debtor-guest" id="new-game-credit-debtor-guest">—</div>
+                            </div>
+                        </div>
+                        <div class="new-game-credit-proc-col">
+                            <div class="new-game-processing-head">보증인 Guarantor</div>
+                            <div class="new-game-credit-party-body new-game-credit-guarantor-body">
+                                <input type="text" class="form-control form-control-sm text-center new-game-credit-guarantor-input" id="new-game-credit-guarantor" name="txtCreditGuarantor" placeholder="Guarantor" autocomplete="off" form="add_game_list">
+                            </div>
+                        </div>
+                        <div class="new-game-credit-proc-col">
+                            <div class="new-game-processing-head">Credit Buy In</div>
+                            <div class="new-game-remarks-body">
+                                <input type="text" class="form-control form-control-sm text-center new-game-credit-remarks-input" id="new-game-credit-remarks" name="txtCreditRemarks" placeholder="Remarks" autocomplete="off" form="add_game_list">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="new-game-history-wrap new-game-credit-history-wrap">
+                        <table class="table table-bordered table-sm mb-0 new-game-history-tbl new-game-credit-history-tbl">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction</th>
+                                    <th colspan="2" class="text-center">채무자 Debtor</th>
+                                    <th>보증인 Guarantor</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-end">Balance</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="new-game-credit-history-body">
+                                <tr class="text-muted">
+                                    <td colspan="8" class="text-center small py-2">No history.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
     </div>
-    </div>
+</div>
 
 <style>
+#modal-new-game-list .select2-container {
+    z-index: 1060;
+}
+#modal-new-game-list .select2-dropdown {
+    z-index: 9999;
+}
+#modal-new-game-list .new-game-main-content {
+    width: 32rem;
+    max-width: 100%;
+    flex-shrink: 0;
+    position: relative;
+}
+#modal-new-game-list.show,
+#modal-new-game-list.showing {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+}
 #modal-new-game-list .new-game-list-modal-dialog {
-    max-width: 580px;
+    max-width: calc(100vw - 1.5rem);
+    width: max-content;
+    margin: 0 auto;
+}
+#modal-new-game-list .new-game-modal-cluster {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 0 auto;
+}
+#modal-new-game-list .new-game-side-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 36rem;
+    flex-shrink: 0;
+    align-self: flex-start;
+    min-height: 0;
+    position: relative;
+    pointer-events: auto;
+}
+#modal-new-game-list .new-game-side-panels:not(.new-game-side-panels-empty) {
+    display: flex;
+    max-height: calc(100vh - 4.5rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+#modal-new-game-list .new-game-side-resize-handle {
+    position: absolute;
+    right: -0.45rem;
+    top: 0;
+    bottom: 0;
+    width: 0.85rem;
+    cursor: ew-resize;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.72rem;
+    line-height: 1;
+    user-select: none;
+    touch-action: none;
+    border-left: 1px solid #ced4da;
+    border-right: 1px solid #ced4da;
+    background: linear-gradient(90deg, #f8f9fa 0%, #fff 50%, #f8f9fa 100%);
+    border-radius: 0.2rem;
+    opacity: 0.85;
+}
+#modal-new-game-list .new-game-side-resize-handle:hover,
+#modal-new-game-list .new-game-side-resize-handle.is-dragging {
+    opacity: 1;
+    color: #0d6efd;
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+#modal-new-game-list .new-game-side-panels.new-game-side-panels-empty .new-game-side-resize-handle {
+    display: none;
+}
+body.new-game-side-resize-active {
+    cursor: ew-resize !important;
+    user-select: none !important;
+}
+#modal-new-game-list .new-game-side-panels.new-game-side-panels-empty,
+#modal-new-game-list .new-game-side-panels:not(:has(.new-game-side-panel:not(.d-none))) {
+    display: none;
+    width: 0;
+    min-width: 0;
+    gap: 0;
+    overflow: hidden;
+}
+#modal-new-game-list .new-game-side-panel {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.35rem;
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    pointer-events: auto;
+}
+#modal-new-game-list .new-game-side-panel-title {
+    background: #0d6efd;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.35rem 0.5rem;
+}
+#modal-new-game-list .new-game-panel-sheet {
+    display: flex;
+    flex-direction: column;
+}
+#modal-new-game-list .new-game-cash-balance-head,
+#modal-new-game-list .new-game-balance-head {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+#modal-new-game-list .new-game-balance-head {
+    grid-template-columns: 1fr 1fr;
+}
+#modal-new-game-list .new-game-balance-head-cell {
+    background: #cfe2ff;
+    color: #1a1a1a;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.45rem 0.35rem;
+    border-bottom: 1px solid #dee2e6;
+    line-height: 1.25;
+}
+#modal-new-game-list .new-game-balance-head-cell + .new-game-balance-head-cell {
+    border-left: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-cash-balance-values,
+#modal-new-game-list .new-game-balance-values {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-balance-values {
+    grid-template-columns: 1fr 1fr;
+}
+#modal-new-game-list .new-game-balance-value-cell {
+    padding: 0.55rem 0.35rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    word-break: break-word;
+}
+#modal-new-game-list .new-game-balance-value-cell + .new-game-balance-value-cell {
+    border-left: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-processing-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-processing-col + .new-game-remarks-col {
+    border-left: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-processing-head {
+    background: #cfe2ff;
+    color: #1a1a1a;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.45rem 0.4rem;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-processing-body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.55rem 0.4rem;
+    font-weight: 700;
+    font-size: 1rem;
+    min-height: 2.35rem;
+}
+#modal-new-game-list .new-game-processing-body.is-positive {
+    color: #198754;
+}
+#modal-new-game-list .new-game-remarks-body {
+    padding: 0.3rem 0.35rem;
+    min-height: 2.1rem;
+    display: flex;
+    align-items: center;
+}
+#modal-new-game-list .new-game-remarks-body .form-control {
+    width: 100%;
+    min-width: 0;
+    pointer-events: auto;
+}
+#modal-new-game-list .new-game-history-wrap {
+    overflow: auto;
+    min-height: 4.5rem;
+    max-height: 9.75rem;
+}
+#modal-new-game-list .new-game-history-tbl {
+    font-size: 0.72rem;
+    margin-bottom: 0;
+}
+#modal-new-game-list .new-game-history-tbl th {
+    background: #f8f9fa;
+    font-weight: 600;
+    padding: 0.2rem 0.3rem;
+}
+#modal-new-game-list .new-game-history-tbl tr.is-pending td {
+    background: #cfe2ff;
+}
+#modal-new-game-list .new-game-credit-summary-grid {
+    display: flex;
+    border-bottom: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-side-panels:has(#new-game-credit-panel:not(.d-none)):not([data-user-sized]) {
+    width: 40rem;
+}
+#modal-new-game-list .new-game-processing-body.is-negative {
+    color: #dc3545;
+}
+#modal-new-game-list .new-game-credit-guest-cols {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+#modal-new-game-list .new-game-credit-guest-col {
+    flex: 1 1 0;
+    min-width: 4.5rem;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+}
+#modal-new-game-list .new-game-credit-guest-col:last-child {
+    border-right: none;
+}
+#modal-new-game-list .new-game-credit-history-tbl {
+    min-width: 36rem;
+}
+#modal-new-game-list .new-game-credit-history-tbl th {
+    background: #cfe2ff;
+    font-size: 0.68rem;
+    padding: 0.25rem 0.25rem;
+    vertical-align: middle;
+}
+#modal-new-game-list .new-game-credit-history-tbl td {
+    font-size: 0.68rem;
+    padding: 0.2rem 0.25rem;
+}
+#modal-new-game-list .new-game-credit-history-tbl .new-game-debtor-account {
+    font-weight: 600;
+}
+#modal-new-game-list .new-game-credit-guarantor-body {
+    padding: 0.3rem 0.35rem;
+}
+#modal-new-game-list .new-game-credit-guarantor-input,
+#modal-new-game-list .new-game-credit-remarks-input {
+    width: 100%;
+    min-width: 0;
+    pointer-events: auto;
+}
+#modal-new-game-list .new-game-credit-debtor-guest {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+#modal-new-game-list .new-game-history-tbl .text-amount-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+#modal-new-game-list .new-game-credit-summary-col {
+    flex: 1 1 0;
+    min-width: 0;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+}
+#modal-new-game-list .new-game-credit-processing-row {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 0.9fr) minmax(4rem, 0.8fr) minmax(4.5rem, 0.9fr) minmax(4.5rem, 1fr);
+}
+#modal-new-game-list .new-game-credit-proc-col + .new-game-credit-proc-col {
+    border-left: 1px solid #dee2e6;
+}
+#modal-new-game-list .new-game-credit-party-body {
+    padding: 0.45rem 0.35rem;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-height: 2.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#modal-new-game-list .text-amount-negative {
+    color: #dc3545;
+}
+#modal-new-game-list .new-game-input-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#modal-new-game-list .new-game-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#modal-new-game-list .new-game-field-grid {
+    display: grid;
+    grid-template-columns: 6.75rem minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: center;
+}
+
+#modal-new-game-list .new-game-field-grid .form-control {
+    width: 100%;
+    min-width: 0;
+}
+
+#modal-new-game-list .new-game-field-grid label {
+    white-space: nowrap;
+    font-weight: 500;
 }
 
 #modal-new-game-list .new-game-type-radios {
@@ -278,8 +696,7 @@ function newGameListSplitSumCC() {
 }
 
 function newGameListSplitBuyinEnabled() {
-    const el = document.getElementById('enableSplitNewGame');
-    return !!(el && el.checked);
+    return true;
 }
 
 function newGameListSplitLegTotal(id) {
@@ -290,6 +707,41 @@ function newGameListSplitLegTotal(id) {
 
 function newGameListSplitHasCreditLeg() {
     return newGameListSplitLegTotal('splitCreditNN') + newGameListSplitLegTotal('splitCreditCC') > 0;
+}
+
+function newGameListAccountDepositBalance() {
+    const el = document.getElementById('total_balanceGuest1');
+    const raw = (el && el.value || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function newGameListSplitDepositTotal() {
+    return newGameListSplitLegTotal('splitDepNN') + newGameListSplitLegTotal('splitDepCC');
+}
+
+function newGameListCompanyNnBalance() {
+    const el = document.getElementById('new-game-nn-balance-base');
+    const raw = (el && el.textContent || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function newGameListCompanyCcBalance() {
+    const el = document.getElementById('new-game-cc-balance-base');
+    const raw = (el && el.textContent || '').toString().replace(/,/g, '').trim();
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function newGameListAfterSplitBalanceRejected(inputEl) {
+    if (inputEl) {
+        inputEl.value = '';
+        inputEl.classList.remove('is-invalid');
+        inputEl.focus();
+    }
+    if (typeof newGameListRefreshCommissionRate === 'function') newGameListRefreshCommissionRate();
+    if (typeof window.updateNewGameBalanceSummary === 'function') window.updateNewGameBalanceSummary();
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -370,16 +822,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 this.classList.remove('is-invalid');
                 this.focus();
             }
+            newGameListRefreshCommissionRate();
         });
     }
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    const splitToggle = document.getElementById('enableSplitNewGame');
-    const splitRow = document.getElementById('split-new-game-row');
-    const transTypeRow = document.querySelector('#modal-new-game-list input[name="txtTransType"]')?.closest('.row.mb-2');
-    const transTypeRadios = document.querySelectorAll('#modal-new-game-list input[name="txtTransType"]');
-    const baseAmountRow = document.querySelector('#modal-new-game-list #txtNN')?.closest('.row');
     const splitInputs = [
         document.getElementById('splitCashNN'),
         document.getElementById('splitCashCC'),
@@ -407,11 +855,56 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!inputEl) return;
         inputEl.addEventListener('input', function () {
             validateNnSplitInput(inputEl);
-            newGameListRefreshCommissionRate();
             const id = (inputEl.id || '').toLowerCase();
+
+            if (id.includes('dep')) {
+                const depTotal = newGameListSplitDepositTotal();
+                const accountBalance = newGameListAccountDepositBalance();
+                if (depTotal > accountBalance) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Insufficient Balance',
+                        text: 'Deposit split exceeds available total balance of ₱' + accountBalance.toLocaleString('en-US'),
+                        confirmButtonColor: '#3a57e8'
+                    });
+                    newGameListAfterSplitBalanceRejected(inputEl);
+                    return;
+                }
+            } else if (id.includes('cash')) {
+                if (id.includes('nn')) {
+                    const cashNn = newGameListSplitLegTotal('splitCashNN');
+                    const nnBase = newGameListCompanyNnBalance();
+                    if (cashNn > nnBase) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Insufficient Balance',
+                            text: 'Cash NN exceeds available company NN balance of ' + nnBase.toLocaleString('en-US') + ' Chips.',
+                            confirmButtonColor: '#3a57e8'
+                        });
+                        newGameListAfterSplitBalanceRejected(inputEl);
+                        return;
+                    }
+                }
+                if (id.includes('cc')) {
+                    const cashCc = newGameListSplitLegTotal('splitCashCC');
+                    const ccBase = newGameListCompanyCcBalance();
+                    if (cashCc > ccBase) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Insufficient Balance',
+                            text: 'Cash CC exceeds available company CC balance of ' + ccBase.toLocaleString('en-US') + ' Chips.',
+                            confirmButtonColor: '#3a57e8'
+                        });
+                        newGameListAfterSplitBalanceRejected(inputEl);
+                        return;
+                    }
+                }
+            }
+
+            newGameListRefreshCommissionRate();
             const avNN = newGameListAvailableNN();
             const avCC = newGameListAvailableCC();
-            if (id.includes('nn')) {
+            if (!id.includes('dep') && !id.includes('cash') && id.includes('nn')) {
                 const rollerNNVal = parseFloat((document.getElementById('txtRollerNN') && document.getElementById('txtRollerNN').value || '').replace(/,/g, '')) || 0;
                 const totalNN = newGameListSplitSumNN() + rollerNNVal;
                 if (totalNN > avNN) {
@@ -424,10 +917,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     inputEl.value = '';
                     inputEl.classList.remove('is-invalid');
                     inputEl.focus();
+                    newGameListRefreshCommissionRate();
                     return;
                 }
             }
-            if (id.includes('cc')) {
+            if (!id.includes('dep') && !id.includes('cash') && id.includes('cc')) {
                 const rollerCCVal = parseFloat((document.getElementById('txtRollerCC') && document.getElementById('txtRollerCC').value || '').replace(/,/g, '')) || 0;
                 const totalCC = newGameListSplitSumCC() + rollerCCVal;
                 if (totalCC > avCC) {
@@ -442,27 +936,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     inputEl.focus();
                 }
             }
+            newGameListRefreshCommissionRate();
         });
-    });
-
-    if (!splitToggle) return;
-    splitToggle.addEventListener('change', function () {
-        const isOn = !!this.checked;
-        if (splitRow) splitRow.style.display = isOn ? '' : 'none';
-        if (baseAmountRow) baseAmountRow.style.display = isOn ? 'none' : '';
-        if (transTypeRow) transTypeRow.style.display = isOn ? 'none' : '';
-        transTypeRadios.forEach(function (radio) {
-            radio.disabled = isOn;
-            if (isOn) radio.checked = false;
-        });
-        if (!isOn) {
-            splitInputs.forEach(function (inputEl) {
-                if (!inputEl) return;
-                inputEl.value = '';
-                inputEl.classList.remove('is-invalid');
-            });
-        }
-        newGameListRefreshCommissionRate();
     });
 });
 
@@ -526,61 +1001,23 @@ function newGameListRefreshCommissionRate() {
     const defaultSharedGameRate = 50;
     const defaultMarkerRollingRate = 1.50;
 
-    if (newGameListSplitBuyinEnabled()) {
-        commissionRate.setAttribute('required', 'required');
-        commissionRate.classList.remove('is-invalid');
-        if (commissionType.value === '1') {
-            commissionRate.setAttribute('step', '0.05');
-            commissionRate.setAttribute('min', '0');
-            commissionRate.value = newGameListSplitHasCreditLeg()
-                ? defaultMarkerRollingRate
-                : defaultRollingGameRate;
-        } else if (commissionType.value === '2') {
-            commissionRate.setAttribute('step', '0.1');
-            commissionRate.setAttribute('min', '50');
-            commissionRate.value = defaultSharedGameRate;
-        } else {
-            commissionRate.setAttribute('step', '0.05');
-            commissionRate.removeAttribute('min');
-            commissionRate.value = '';
-        }
-        return;
-    }
-
-    commissionRate.removeAttribute('required');
+    commissionRate.setAttribute('required', 'required');
     commissionRate.classList.remove('is-invalid');
-
-    const selectedTransactionRadio = document.querySelector('#modal-new-game-list input[name="txtTransType"]:checked');
-    const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
-
-    if (!selectedTransaction) {
-        commissionRate.value = '';
-        if (commissionType.value === '1') {
-            commissionRate.setAttribute('step', '0.05');
-            commissionRate.setAttribute('min', '0');
-        } else if (commissionType.value === '2') {
-            commissionRate.setAttribute('step', '0.1');
-            commissionRate.setAttribute('min', '50');
-        } else {
-            commissionRate.setAttribute('step', '0.05');
-            commissionRate.removeAttribute('min');
-        }
-        return;
-    }
-
     if (commissionType.value === '1') {
         commissionRate.setAttribute('step', '0.05');
-        if (selectedTransaction === '3') {
-            commissionRate.value = defaultMarkerRollingRate;
-            commissionRate.setAttribute('min', '0');
-        } else {
-            commissionRate.value = defaultRollingGameRate;
-            commissionRate.setAttribute('min', '0');
-        }
+        commissionRate.setAttribute('min', '0');
+        commissionRate.value = newGameListSplitHasCreditLeg()
+            ? defaultMarkerRollingRate
+            : defaultRollingGameRate;
     } else if (commissionType.value === '2') {
         commissionRate.setAttribute('step', '0.1');
-        commissionRate.value = defaultSharedGameRate;
         commissionRate.setAttribute('min', '50');
+        commissionRate.value = defaultSharedGameRate;
+    } else {
+        commissionRate.removeAttribute('required');
+        commissionRate.setAttribute('step', '0.05');
+        commissionRate.removeAttribute('min');
+        commissionRate.value = '';
     }
 }
 
@@ -591,14 +1028,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (commissionType && commissionRate) {
         commissionType.addEventListener('change', newGameListRefreshCommissionRate);
-    }
-
-    const transactionTypeRadios = document.querySelectorAll('#modal-new-game-list input[name="txtTransType"]');
-    transactionTypeRadios.forEach(function (radio) {
-        radio.addEventListener('change', newGameListRefreshCommissionRate);
-    });
-
-    if (commissionType && commissionRate) {
         newGameListRefreshCommissionRate();
     }
 
@@ -676,6 +1105,794 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('modal-new-game-list');
+    if (!modal) return;
+
+    const nnBaseEl = document.getElementById('new-game-nn-balance-base');
+    const ccBaseEl = document.getElementById('new-game-cc-balance-base');
+    const accountBaseEl = document.getElementById('total_balanceGuest1');
+    const agentCodeEl = document.getElementById('new-game-agent-code-label');
+    const guestNameEl = document.getElementById('new-game-guest-name-label');
+
+    const cashPanel = document.getElementById('new-game-cash-panel');
+    const depositPanel = document.getElementById('new-game-deposit-panel');
+    const creditPanel = document.getElementById('new-game-credit-panel');
+
+    const cashNnCurrentEl = document.getElementById('new-game-cash-nn-current');
+    const cashNnAnticipatedEl = document.getElementById('new-game-cash-nn-anticipated');
+    const cashCcCurrentEl = document.getElementById('new-game-cash-cc-current');
+    const cashCcAnticipatedEl = document.getElementById('new-game-cash-cc-anticipated');
+    const cashProcessingEl = document.getElementById('new-game-cash-processing');
+    const cashProcessingWrap = document.getElementById('new-game-cash-processing-wrap');
+    const cashRemarksInput = document.getElementById('new-game-cash-remarks');
+
+    const depositCurrentLabelEl = document.getElementById('new-game-deposit-current-label');
+    const depositAnticipatedLabelEl = document.getElementById('new-game-deposit-anticipated-label');
+    const depositCurrentEl = document.getElementById('new-game-deposit-current');
+    const depositAnticipatedEl = document.getElementById('new-game-deposit-anticipated');
+    const depositProcessingEl = document.getElementById('new-game-deposit-processing');
+    const depositProcessingWrap = document.getElementById('new-game-deposit-processing-wrap');
+    const depositRemarksInput = document.getElementById('new-game-deposit-remarks');
+    const depositHistoryBody = document.getElementById('new-game-deposit-history-body');
+
+    const creditCurrentLabelEl = document.getElementById('new-game-credit-current-label');
+    const creditAnticipatedLabelEl = document.getElementById('new-game-credit-anticipated-label');
+    const creditCurrentEl = document.getElementById('new-game-credit-current');
+    const creditAnticipatedEl = document.getElementById('new-game-credit-anticipated');
+    const creditProcessingEl = document.getElementById('new-game-credit-processing');
+    const creditProcessingWrap = document.getElementById('new-game-credit-processing-wrap');
+    const creditDebtorAccountEl = document.getElementById('new-game-credit-debtor-account');
+    const creditDebtorGuestEl = document.getElementById('new-game-credit-debtor-guest');
+    const creditGuarantorInput = document.getElementById('new-game-credit-guarantor');
+    const creditRemarksInput = document.getElementById('new-game-credit-remarks');
+    const creditGuestColsEl = document.getElementById('new-game-credit-guest-cols');
+    const creditHistoryBody = document.getElementById('new-game-credit-history-body');
+
+    let ledgerHistory = [];
+    let creditHistory = [];
+    let creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+    let cashEngaged = false;
+    let depositEngaged = false;
+    let creditEngaged = false;
+
+    const parseAmt = function (raw) {
+        const s = (raw || '').toString().replace(/,/g, '').trim();
+        if (!s) return 0;
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    const formatAmt = function (n) {
+        return Math.round(n).toLocaleString('en-US');
+    };
+
+    const formatNegativeAmt = function (n) {
+        const abs = Math.round(Math.abs(parseAmt(n)));
+        if (!abs) return '0';
+        return '(' + formatAmt(abs) + ')';
+    };
+
+    const formatCreditOwed = function (amount) {
+        const owed = Math.max(0, parseAmt(amount));
+        if (!owed) return '0';
+        return formatNegativeAmt(owed);
+    };
+
+    const hasRowInput = function (nnId, ccId) {
+        const nn = (document.getElementById(nnId) && document.getElementById(nnId).value || '').replace(/,/g, '').trim();
+        const cc = (document.getElementById(ccId) && document.getElementById(ccId).value || '').replace(/,/g, '').trim();
+        return !!(nn || cc);
+    };
+
+    const getAgentCode = function () {
+        const sel = document.getElementById('txtTrans');
+        if (sel && sel.value && sel.selectedOptions && sel.selectedOptions[0]) {
+            const text = (sel.selectedOptions[0].text || '').trim();
+            if (text) return text;
+        }
+        return (agentCodeEl && agentCodeEl.textContent || '').trim() || 'Account';
+    };
+
+    const hasSelectedAccount = function () {
+        const sel = document.getElementById('txtTrans');
+        return !!(sel && String(sel.value || '').trim());
+    };
+
+    const getGuestName = function () {
+        const sel = document.getElementById('txtGuestGame');
+        if (sel && sel.selectedOptions && sel.selectedOptions[0]) {
+            const val = sel.value;
+            if (val) return (sel.selectedOptions[0].text || '').trim();
+        }
+        return (guestNameEl && guestNameEl.textContent || '').trim();
+    };
+
+    const extractAccountCode = function (raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        const match = s.match(/\(([^)]+)\)\s*$/);
+        if (match) return match[1].trim();
+        return s;
+    };
+
+    const getCreditAccountCode = function () {
+        if (creditMeta && creditMeta.agentCode) {
+            return extractAccountCode(creditMeta.agentCode);
+        }
+        const sel = document.getElementById('txtTrans');
+        if (sel && sel.value && sel.selectedOptions && sel.selectedOptions[0]) {
+            const dataCode = sel.selectedOptions[0].getAttribute('data-agent-code');
+            if (dataCode) return String(dataCode).trim();
+            return extractAccountCode((sel.selectedOptions[0].text || '').trim());
+        }
+        return extractAccountCode(getAgentCode()) || 'Account';
+    };
+
+    const syncAgentGuestLabels = function () {
+        if (agentCodeEl) agentCodeEl.textContent = getAgentCode();
+        if (guestNameEl) guestNameEl.textContent = getGuestName();
+    };
+
+    const shouldShowCashPanel = function () {
+        return hasRowInput('splitCashNN', 'splitCashCC');
+    };
+
+    const shouldShowDepositPanel = function () {
+        return hasRowInput('splitDepNN', 'splitDepCC');
+    };
+
+    const shouldShowCreditPanel = function () {
+        return hasRowInput('splitCreditNN', 'splitCreditCC');
+    };
+
+    const computeCashProcessing = function () {
+        return parseAmt(document.getElementById('splitCashNN') && document.getElementById('splitCashNN').value) +
+            parseAmt(document.getElementById('splitCashCC') && document.getElementById('splitCashCC').value);
+    };
+
+    const computeDepositProcessing = function () {
+        return parseAmt(document.getElementById('splitDepNN') && document.getElementById('splitDepNN').value) +
+            parseAmt(document.getElementById('splitDepCC') && document.getElementById('splitDepCC').value);
+    };
+
+    const computeCreditProcessing = function () {
+        return parseAmt(document.getElementById('splitCreditNN') && document.getElementById('splitCreditNN').value) +
+            parseAmt(document.getElementById('splitCreditCC') && document.getElementById('splitCreditCC').value);
+    };
+
+    const setProcessingDisplay = function (el, wrap, processing) {
+        if (!el || !wrap) return;
+        if (processing < 0) {
+            el.textContent = formatNegativeAmt(processing);
+        } else {
+            el.textContent = formatAmt(processing);
+        }
+        wrap.classList.toggle('is-negative', processing < 0);
+        wrap.classList.toggle('is-positive', processing > 0);
+    };
+
+    const applyHistoryWrapHeights = function () {
+        modal.querySelectorAll('.new-game-history-wrap').forEach(function (wrap) {
+            const tbl = wrap.querySelector('table');
+            if (!tbl) return;
+            const head = tbl.querySelector('thead');
+            const sampleRow = tbl.querySelector('tbody tr:not(.text-muted)');
+            const headH = head ? head.getBoundingClientRect().height : 28;
+            const rowH = sampleRow ? sampleRow.getBoundingClientRect().height : 26;
+            wrap.style.maxHeight = Math.ceil(headH + rowH * 5) + 'px';
+        });
+    };
+
+    const applySidePanelsDefaultWidth = function () {
+        const sidePanels = document.getElementById('new-game-side-panels');
+        if (!sidePanels || sidePanels.dataset.userSized === '1') return;
+        const creditOpen = creditPanel && !creditPanel.classList.contains('d-none');
+        sidePanels.style.width = creditOpen ? '40rem' : '36rem';
+    };
+
+    const resetSidePanelsWidth = function () {
+        const sidePanels = document.getElementById('new-game-side-panels');
+        if (!sidePanels) return;
+        delete sidePanels.dataset.userSized;
+        sidePanels.style.width = '';
+    };
+
+    const wireSidePanelsResize = function () {
+        const sidePanels = document.getElementById('new-game-side-panels');
+        const resizeHandle = document.getElementById('new-game-side-resize-handle');
+        const cluster = modal.querySelector('.new-game-modal-cluster');
+        if (!sidePanels || !resizeHandle || !cluster) return;
+
+        const minWidth = 18 * 16;
+        let dragging = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        const getMaxWidth = function () {
+            const mainContent = modal.querySelector('.new-game-main-content');
+            const mainWidth = mainContent ? mainContent.getBoundingClientRect().width : 512;
+            const gap = 12;
+            const padding = 24;
+            return Math.max(minWidth, window.innerWidth - padding - mainWidth - gap - 32);
+        };
+
+        const onMove = function (e) {
+            if (!dragging) return;
+            const nextWidth = Math.min(getMaxWidth(), Math.max(minWidth, startWidth + (e.clientX - startX)));
+            sidePanels.style.width = nextWidth + 'px';
+        };
+
+        const onStop = function () {
+            if (!dragging) return;
+            dragging = false;
+            resizeHandle.classList.remove('is-dragging');
+            document.body.classList.remove('new-game-side-resize-active');
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onStop);
+        };
+
+        resizeHandle.addEventListener('mousedown', function (e) {
+            if (sidePanels.classList.contains('new-game-side-panels-empty')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            startX = e.clientX;
+            startWidth = sidePanels.getBoundingClientRect().width;
+            sidePanels.dataset.userSized = '1';
+            resizeHandle.classList.add('is-dragging');
+            document.body.classList.add('new-game-side-resize-active');
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onStop);
+        });
+    };
+
+    const togglePanel = function (panel, visible) {
+        if (!panel) return;
+        panel.classList.toggle('d-none', !visible);
+        panel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        syncSidePanelsLayout();
+    };
+
+    const syncSidePanelsLayout = function () {
+        const sidePanels = document.getElementById('new-game-side-panels');
+        if (!sidePanels) return;
+        const anyVisible =
+            (cashPanel && !cashPanel.classList.contains('d-none')) ||
+            (depositPanel && !depositPanel.classList.contains('d-none')) ||
+            (creditPanel && !creditPanel.classList.contains('d-none'));
+        sidePanels.classList.toggle('new-game-side-panels-empty', !anyVisible);
+        applySidePanelsDefaultWidth();
+    };
+
+    const getCreditHistoryDebtorParts = function (row) {
+        const code = extractAccountCode((row && row.AGENT_CODE) || creditMeta.agentCode || getCreditAccountCode());
+        const guest = row && row.GUEST_NAME ? String(row.GUEST_NAME).trim() : '';
+        return { account: code || '—', guest: guest || '—' };
+    };
+
+    const parseCreditRemarks = function (remarks) {
+        const raw = String(remarks || '').trim();
+        if (!raw) return { remarks: '', guarantor: '' };
+        const idx = raw.indexOf('Guarantor:');
+        if (idx === -1) return { remarks: raw, guarantor: '' };
+        const remarksPart = raw.slice(0, idx).replace(/\|\s*$/, '').trim();
+        const guarantor = raw.slice(idx + 'Guarantor:'.length).trim();
+        return { remarks: remarksPart, guarantor: guarantor };
+    };
+
+    const renderGuestCreditBreakdown = function () {
+        if (!creditGuestColsEl) return;
+        const guests = Array.isArray(creditMeta.guestBalances) ? creditMeta.guestBalances : [];
+        if (!guests.length) {
+            creditGuestColsEl.innerHTML = '';
+            return;
+        }
+        let html = '';
+        guests.forEach(function (g) {
+            const bal = Number(g.creditBalance) || 0;
+            if (bal <= 0) return;
+            const name = (g.guestName || '').trim() || 'Guest';
+            html += '<div class="new-game-credit-guest-col">' +
+                '<div class="new-game-balance-head-cell">' + name + '</div>' +
+                '<div class="new-game-balance-value-cell text-amount-negative">' + formatCreditOwed(bal) + '</div>' +
+                '</div>';
+        });
+        creditGuestColsEl.innerHTML = html;
+    };
+
+    const getCreditReturnSourceLabel = function (desc) {
+        const normalized = String(desc || '').trim().toUpperCase();
+        if (normalized === 'RETURN_SOURCE:CREDIT') return 'Junket Credit';
+        if (normalized === 'RETURN_SOURCE:BUYIN') return 'Game Credit';
+        return '';
+    };
+
+    const renderCreditTransactionLabel = function (row) {
+        const info = row.TRANSACTION_INFO || '';
+        const parts = String(info).split('-');
+        const transactionId = parseInt(parts[0], 10);
+        const transactionType = parseInt(parts[1], 10);
+        const sourceLabel = getCreditReturnSourceLabel(row.TRANSACTION_DESC);
+        switch (transactionId) {
+            case 3: return 'Cash Credit';
+            case 10: return 'Chips Credit';
+            case 11: return sourceLabel ? (sourceLabel + ' Returned thru Cash') : 'Credit Returned thru Cash';
+            case 12: return sourceLabel ? (sourceLabel + ' Returned thru Deposit') : 'Credit Returned thru Deposit';
+            default:
+                return transactionType === 4 ? 'Chips Return thru Credit' : 'Credit';
+        }
+    };
+
+    const isCreditOutTxn = function (row) {
+        const info = row && row.TRANSACTION_INFO;
+        if (!info) return false;
+        const transactionId = parseInt(String(info).split('-')[0], 10);
+        return transactionId === 3 || transactionId === 10;
+    };
+
+    const computeCreditHistoryBalances = function (rows) {
+        const chronological = rows.slice().reverse();
+        let running = 0;
+        const balanceById = {};
+        chronological.forEach(function (row) {
+            const amount = parseAmt(row.AMOUNT);
+            if (isCreditOutTxn(row)) {
+                running += amount;
+            } else {
+                running = Math.max(0, running - amount);
+            }
+            if (row.IDNo != null) balanceById[row.IDNo] = running;
+        });
+        return balanceById;
+    };
+
+    const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
+        if (!creditHistoryBody) return;
+        const rows = creditHistory.slice();
+        const balanceById = computeCreditHistoryBalances(rows);
+        let html = '';
+
+        rows.forEach(function (row) {
+            const amount = parseAmt(row.AMOUNT);
+            const isOut = isCreditOutTxn(row);
+            const displayAmt = isOut ? formatNegativeAmt(amount) : formatAmt(amount);
+            const amtClass = 'text-end' + (isOut ? ' text-amount-negative' : '');
+            const balance = balanceById[row.IDNo] != null ? balanceById[row.IDNo] : 0;
+            const debtor = getCreditHistoryDebtorParts(row);
+            const parsed = parseCreditRemarks(row.REMARKS);
+            html += '<tr>' +
+                '<td>' + formatHistoryDate(row.ENCODED_DT || row.encoded_date) + '</td>' +
+                '<td>' + renderCreditTransactionLabel(row) + '</td>' +
+                '<td class="new-game-debtor-account">' + debtor.account + '</td>' +
+                '<td>' + debtor.guest + '</td>' +
+                '<td>' + (parsed.guarantor || '—') + '</td>' +
+                '<td class="' + amtClass + '">' + displayAmt + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatCreditOwed(balance) + '</td>' +
+                '<td>' + (parsed.remarks || '—') + '</td>' +
+                '</tr>';
+        });
+
+        if (pendingAmount > 0) {
+            const currentOwed = Math.max(0, parseAmt(creditMeta.totalCredit));
+            const pendingBalance = currentOwed + pendingAmount;
+            const code = getCreditAccountCode();
+            const guest = getGuestName() || '—';
+            html += '<tr class="is-pending">' +
+                '<td>' + formatHistoryDate(new Date()) + '</td>' +
+                '<td>Chips Credit</td>' +
+                '<td class="new-game-debtor-account">' + (code || '—') + '</td>' +
+                '<td>' + guest + '</td>' +
+                '<td>' + (pendingGuarantor || '—') + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatNegativeAmt(pendingAmount) + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatCreditOwed(pendingBalance) + '</td>' +
+                '<td>' + (pendingRemarks || '—') + '</td>' +
+                '</tr>';
+        }
+
+        if (!html) {
+            html = '<tr class="text-muted"><td colspan="8" class="text-center small py-2">No history.</td></tr>';
+        }
+
+        creditHistoryBody.innerHTML = html;
+        requestAnimationFrame(applyHistoryWrapHeights);
+    };
+
+    const formatHistoryDate = function (raw) {
+        if (!raw) return '—';
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return String(raw);
+        return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+    };
+
+    const renderDepositHistory = function (pendingAmount, pendingRemarks) {
+        if (!depositHistoryBody) return;
+        let html = '';
+        ledgerHistory.forEach(function (row) {
+            const txn = row.TRANSACTION || row.TRANSACTION_DESC || '—';
+            const amount = parseAmt(row.AMOUNT);
+            const isNeg = (txn || '').toUpperCase().indexOf('WITHDRAW') !== -1;
+            html += '<tr>' +
+                '<td>' + formatHistoryDate(row.encoded_date || row.ENCODED_DT) + '</td>' +
+                '<td>' + txn + '</td>' +
+                '<td class="text-end' + (isNeg ? ' text-amount-negative' : '') + '">' +
+                    (isNeg ? formatNegativeAmt(amount) : formatAmt(amount)) + '</td>' +
+                '<td>' + (row.REMARKS || '—') + '</td>' +
+                '</tr>';
+        });
+        if (pendingAmount > 0) {
+            html += '<tr class="is-pending">' +
+                '<td>' + formatHistoryDate(new Date()) + '</td>' +
+                '<td>Chips Buy In</td>' +
+                '<td class="text-end">' + formatAmt(pendingAmount) + '</td>' +
+                '<td>' + (pendingRemarks || '—') + '</td>' +
+                '</tr>';
+        }
+        if (!html) {
+            html = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+        }
+        depositHistoryBody.innerHTML = html;
+    };
+
+    const updateDebtorDisplay = function () {
+        const code = getCreditAccountCode();
+        const guest = getGuestName();
+        if (creditDebtorAccountEl) creditDebtorAccountEl.textContent = code || '—';
+        if (creditDebtorGuestEl) {
+            creditDebtorGuestEl.textContent = guest || '—';
+            creditDebtorGuestEl.classList.toggle('d-none', !guest);
+        }
+    };
+
+    const updateCashPanel = function () {
+        const show = hasSelectedAccount() && (cashEngaged || shouldShowCashPanel());
+        if (!show) {
+            togglePanel(cashPanel, false);
+            return;
+        }
+        togglePanel(cashPanel, true);
+        const baseNN = parseAmt(nnBaseEl && nnBaseEl.textContent);
+        const baseCC = parseAmt(ccBaseEl && ccBaseEl.textContent);
+        const cashNn = parseAmt(document.getElementById('splitCashNN') && document.getElementById('splitCashNN').value);
+        const cashCc = parseAmt(document.getElementById('splitCashCC') && document.getElementById('splitCashCC').value);
+        const hasInput = shouldShowCashPanel();
+        const processing = computeCashProcessing();
+
+        if (cashNnCurrentEl) cashNnCurrentEl.textContent = formatAmt(baseNN);
+        if (cashNnAnticipatedEl) cashNnAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, baseNN - cashNn)) : '—';
+        if (cashCcCurrentEl) cashCcCurrentEl.textContent = formatAmt(baseCC);
+        if (cashCcAnticipatedEl) cashCcAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, baseCC - cashCc)) : '—';
+        setProcessingDisplay(cashProcessingEl, cashProcessingWrap, hasInput ? processing : 0);
+    };
+
+    const updateDepositPanel = function () {
+        const show = hasSelectedAccount() && (depositEngaged || shouldShowDepositPanel());
+        if (!show) {
+            togglePanel(depositPanel, false);
+            return;
+        }
+        const code = getCreditAccountCode();
+        const base = parseAmt(accountBaseEl && accountBaseEl.value);
+        const processing = computeDepositProcessing();
+        const hasInput = shouldShowDepositPanel();
+        const pendingRemarks = depositRemarksInput ? depositRemarksInput.value.trim() : '';
+
+        if (depositCurrentLabelEl) depositCurrentLabelEl.textContent = 'Current Balance Of ' + code;
+        if (depositAnticipatedLabelEl) depositAnticipatedLabelEl.textContent = 'Anticipated Balance Of ' + code;
+        if (depositCurrentEl) depositCurrentEl.textContent = formatAmt(base);
+        if (depositAnticipatedEl) depositAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, base - processing)) : '—';
+        setProcessingDisplay(depositProcessingEl, depositProcessingWrap, hasInput ? processing : 0);
+        renderDepositHistory(hasInput ? processing : 0, pendingRemarks);
+        togglePanel(depositPanel, true);
+    };
+
+    const updateCreditPanel = function () {
+        const show = hasSelectedAccount() && (creditEngaged || shouldShowCreditPanel());
+        if (!show) {
+            togglePanel(creditPanel, false);
+            return;
+        }
+        const code = getCreditAccountCode();
+        const base = parseAmt(creditMeta.totalCredit);
+        const processing = computeCreditProcessing();
+        const hasInput = shouldShowCreditPanel();
+        const anticipated = base + processing;
+        const pendingRemarks = creditRemarksInput ? creditRemarksInput.value.trim() : '';
+        const pendingGuarantor = creditGuarantorInput ? creditGuarantorInput.value.trim() : '';
+
+        if (creditCurrentLabelEl) creditCurrentLabelEl.textContent = 'Current Credit Balance Of ' + code;
+        if (creditAnticipatedLabelEl) creditAnticipatedLabelEl.textContent = 'Anticipated Credit Balance Of ' + code;
+        if (creditCurrentEl) creditCurrentEl.textContent = formatCreditOwed(base);
+        if (creditAnticipatedEl) creditAnticipatedEl.textContent = hasInput ? formatCreditOwed(anticipated) : '—';
+        renderGuestCreditBreakdown();
+        setProcessingDisplay(creditProcessingEl, creditProcessingWrap, hasInput ? -processing : 0);
+        updateDebtorDisplay();
+        renderCreditHistoryTable(hasInput ? processing : 0, pendingRemarks, pendingGuarantor);
+        togglePanel(creditPanel, true);
+    };
+
+    const updateBalanceSummary = function () {
+        const active = document.activeElement;
+        if (hasSelectedAccount()) {
+            if (isCashGroupFocused(active)) cashEngaged = true;
+            if (isDepositGroupFocused(active)) depositEngaged = true;
+            if (isCreditGroupFocused(active)) creditEngaged = true;
+        } else {
+            cashEngaged = false;
+            depositEngaged = false;
+            creditEngaged = false;
+        }
+        syncAgentGuestLabels();
+        updateCashPanel();
+        updateDepositPanel();
+        updateCreditPanel();
+    };
+
+    const resetBalanceDisplay = function () {
+        cashEngaged = false;
+        depositEngaged = false;
+        creditEngaged = false;
+        resetSidePanelsWidth();
+        togglePanel(cashPanel, false);
+        togglePanel(depositPanel, false);
+        togglePanel(creditPanel, false);
+        if (cashRemarksInput) cashRemarksInput.value = '';
+        if (depositRemarksInput) depositRemarksInput.value = '';
+        if (creditRemarksInput) creditRemarksInput.value = '';
+        if (creditGuarantorInput) creditGuarantorInput.value = '';
+        ledgerHistory = [];
+        creditHistory = [];
+        creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+        if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+        if (depositHistoryBody) {
+            depositHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+        }
+        if (creditHistoryBody) {
+            creditHistoryBody.innerHTML = '<tr class="text-muted"><td colspan="8" class="text-center small py-2">No history.</td></tr>';
+        }
+    };
+
+    const loadCompanyBalances = function () {
+        return fetch('/game_list_company_balance', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                if (nnBaseEl) nnBaseEl.textContent = String(Number(data && data.nnChipsBalance) || 0);
+                if (ccBaseEl) ccBaseEl.textContent = String(Number(data && data.ccChipsBalance) || 0);
+            })
+            .catch(function () {
+                if (nnBaseEl) nnBaseEl.textContent = '0';
+                if (ccBaseEl) ccBaseEl.textContent = '0';
+            });
+    };
+
+    const loadAccountBalance = function () {
+        const accountId = document.getElementById('txtTrans') && document.getElementById('txtTrans').value;
+        if (!accountId) {
+            if (accountBaseEl) accountBaseEl.value = '0';
+            ledgerHistory = [];
+            return Promise.resolve();
+        }
+        return fetch('/account_details_data_deposit/' + encodeURIComponent(accountId), { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                ledgerHistory = Array.isArray(data) ? data : [];
+                let depositAmount = 0;
+                let withdrawAmount = 0;
+                let markerReturn = 0;
+                let markerDepositAmount = 0;
+                ledgerHistory.forEach(function (row) {
+                    const amount = parseAmt(row.AMOUNT);
+                    const txn = row.TRANSACTION || '';
+                    if (txn === 'DEPOSIT') depositAmount += amount;
+                    else if (txn === 'WITHDRAW') withdrawAmount += amount;
+                    else if (txn === 'IOU RETURN DEPOSIT') markerReturn += amount;
+                    else if (txn === 'MARKER REDEEM') markerDepositAmount += amount;
+                });
+                const total = depositAmount + markerDepositAmount - withdrawAmount - markerReturn;
+                if (accountBaseEl) accountBaseEl.value = String(total);
+            })
+            .catch(function () {
+                ledgerHistory = [];
+                if (accountBaseEl) accountBaseEl.value = '0';
+            });
+    };
+
+    const loadCreditContext = function () {
+        const accountId = document.getElementById('txtTrans') && document.getElementById('txtTrans').value;
+        if (!accountId) {
+            creditHistory = [];
+            creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+            if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+            return Promise.resolve();
+        }
+        return fetch('/game_list_cashout_credit/' + encodeURIComponent(accountId), { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (data) {
+                creditMeta = {
+                    totalCredit: Number(data && data.totalCredit) || 0,
+                    balanceCredit: Number(data && data.balanceCredit) || 0,
+                    balanceBuyin: Number(data && data.balanceBuyin) || 0,
+                    guestBalances: Array.isArray(data && data.guestBalances) ? data.guestBalances : [],
+                    agentCode: (data && data.agentCode) || '',
+                    agentName: (data && data.agentName) || '',
+                    agencyName: (data && data.agencyName) || ''
+                };
+                creditHistory = Array.isArray(data && data.history) ? data.history : [];
+            })
+            .catch(function () {
+                creditHistory = [];
+                creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
+                if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+            });
+    };
+
+    const loadModalBalances = function () {
+        resetBalanceDisplay();
+        syncAgentGuestLabels();
+        return Promise.all([loadCompanyBalances(), loadAccountBalance(), loadCreditContext()])
+            .then(updateBalanceSummary);
+    };
+
+    const allowSidePanelFocus = function (e) {
+        if (!e.target || !e.target.closest) return;
+        if (
+            e.target.closest('#new-game-side-panels') ||
+            e.target.closest('.select2-container') ||
+            e.target.closest('.select2-dropdown')
+        ) {
+            e.stopImmediatePropagation();
+        }
+    };
+
+    window.disengageNewGameSidePanels = function () {
+        cashEngaged = false;
+        depositEngaged = false;
+        creditEngaged = false;
+        updateBalanceSummary();
+    };
+
+    const releaseFocusTrap = function () {
+        if (window.bootstrap && bootstrap.Modal) {
+            const instance = bootstrap.Modal.getInstance(modal) || bootstrap.Modal.getOrCreateInstance(modal, { focus: false });
+            if (instance) {
+                instance._config.focus = false;
+                if (instance._focustrap && typeof instance._focustrap.deactivate === 'function') {
+                    instance._focustrap.deactivate();
+                }
+            }
+        }
+        window.addEventListener('focusin', allowSidePanelFocus, true);
+    };
+
+    const restoreFocusTrap = function () {
+        window.removeEventListener('focusin', allowSidePanelFocus, true);
+    };
+
+    const isDepositGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (depositRemarksInput && activeEl === depositRemarksInput) return true;
+        return activeEl.classList && activeEl.classList.contains('new-game-deposit-input');
+    };
+
+    const isCreditGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (creditRemarksInput && activeEl === creditRemarksInput) return true;
+        if (creditGuarantorInput && activeEl === creditGuarantorInput) return true;
+        return activeEl.classList && activeEl.classList.contains('new-game-credit-input');
+    };
+
+    const isCashGroupFocused = function (activeEl) {
+        if (!activeEl) return false;
+        if (cashRemarksInput && activeEl === cashRemarksInput) return true;
+        return activeEl.classList && activeEl.classList.contains('new-game-cash-input');
+    };
+
+    const wireSideField = function (inputEl, panelType) {
+        if (!inputEl) return;
+        inputEl.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        inputEl.addEventListener('focus', function () {
+            if (!hasSelectedAccount()) return;
+            if (panelType === 'cash') cashEngaged = true;
+            else if (panelType === 'deposit') depositEngaged = true;
+            else creditEngaged = true;
+            updateBalanceSummary();
+        });
+        inputEl.addEventListener('input', function () {
+            updateBalanceSummary();
+        });
+        inputEl.addEventListener('blur', function () {
+            setTimeout(function () {
+                const active = document.activeElement;
+                if (panelType === 'cash' && isCashGroupFocused(active)) return;
+                if (panelType === 'deposit' && isDepositGroupFocused(active)) return;
+                if (panelType === 'credit' && isCreditGroupFocused(active)) return;
+                if (panelType === 'cash' && !shouldShowCashPanel()) { cashEngaged = false; updateBalanceSummary(); }
+                if (panelType === 'deposit' && !shouldShowDepositPanel()) { depositEngaged = false; updateBalanceSummary(); }
+                if (panelType === 'credit' && !shouldShowCreditPanel()) { creditEngaged = false; updateBalanceSummary(); }
+            }, 0);
+        });
+    };
+
+    const wirePanelInputs = function (selector, type) {
+        const inputs = modal.querySelectorAll(selector);
+        const hasInputFn = type === 'cash' ? shouldShowCashPanel : (type === 'deposit' ? shouldShowDepositPanel : shouldShowCreditPanel);
+        inputs.forEach(function (inputEl) {
+            inputEl.addEventListener('focus', function () {
+                if (!hasSelectedAccount()) return;
+                if (type === 'cash') cashEngaged = true;
+                else if (type === 'deposit') depositEngaged = true;
+                else creditEngaged = true;
+                updateBalanceSummary();
+            });
+            inputEl.addEventListener('input', function () {
+                updateBalanceSummary();
+                if (typeof newGameListRefreshCommissionRate === 'function') newGameListRefreshCommissionRate();
+            });
+            inputEl.addEventListener('blur', function () {
+                setTimeout(function () {
+                    const active = document.activeElement;
+                    let stillFocused = false;
+                    inputs.forEach(function (el) { if (el === active) stillFocused = true; });
+                    if (type === 'cash' && isCashGroupFocused(active)) stillFocused = true;
+                    if (type === 'deposit' && isDepositGroupFocused(active)) stillFocused = true;
+                    if (type === 'credit' && isCreditGroupFocused(active)) stillFocused = true;
+                    if (!stillFocused && !hasInputFn()) {
+                        if (type === 'cash') cashEngaged = false;
+                        else if (type === 'deposit') depositEngaged = false;
+                        else creditEngaged = false;
+                        updateBalanceSummary();
+                    }
+                }, 0);
+            });
+        });
+    };
+
+    wirePanelInputs('.new-game-cash-input', 'cash');
+    wirePanelInputs('.new-game-deposit-input', 'deposit');
+    wirePanelInputs('.new-game-credit-input', 'credit');
+    wireSideField(cashRemarksInput, 'cash');
+    wireSideField(depositRemarksInput, 'deposit');
+    wireSideField(creditRemarksInput, 'credit');
+    wireSideField(creditGuarantorInput, 'credit');
+
+    modal.querySelectorAll('.new-game-field-grid label[for="splitCashNN"]').forEach(function (labelEl) {
+        labelEl.style.cursor = 'pointer';
+        labelEl.addEventListener('click', function () {
+            if (!hasSelectedAccount()) return;
+            cashEngaged = true;
+            updateCashPanel();
+        });
+    });
+
+    modal.querySelectorAll('.new-game-field-grid label[for="splitCreditNN"]').forEach(function (labelEl) {
+        labelEl.style.cursor = 'pointer';
+        labelEl.addEventListener('click', function () {
+            if (!hasSelectedAccount()) return;
+            creditEngaged = true;
+            updateCreditPanel();
+        });
+    });
+
+    modal.addEventListener('shown.bs.modal', function () {
+        releaseFocusTrap();
+        loadModalBalances();
+    });
+    modal.addEventListener('hidden.bs.modal', function () {
+        restoreFocusTrap();
+        resetBalanceDisplay();
+    });
+
+    wireSidePanelsResize();
+    syncSidePanelsLayout();
+
+    window.refreshNewGameListModalBalances = function () {
+        return loadModalBalances();
+    };
+    window.updateNewGameBalanceSummary = updateBalanceSummary;
+});
 </script>
 
 
