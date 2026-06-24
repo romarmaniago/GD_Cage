@@ -864,8 +864,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			}
 		}
 
-		// Date range mode: Filter by settlement date
-		// Shows settled expenses within date range + unsettled expenses if toDate > last settlement date
+		// Date range mode: filter by expense encoded date (matches date range picker UI)
 		if (!fromDate || !toDate) {
 			const currentDate = new Date();
 			const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -878,119 +877,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
 		}
 
-		// Get last settlement date to determine if unsettled expenses should be shown
-		let nextSettlementDateStr = null;
-		let lastSettlementDateStr = null;
-		let hasSettlement = false;
-		try {
-			const [lastSettlementRows] = await pool.execute(
-				'SELECT MAX(CAST(SETTLEMENT_DATE AS DATE)) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND CAST(SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)',
-				[toDate]
-			);
-			if (lastSettlementRows[0] && lastSettlementRows[0].last_settlement) {
-				hasSettlement = true;
-				const lastSettlement = lastSettlementRows[0].last_settlement;
-				let lastDate;
-				if (lastSettlement instanceof Date) {
-					const pad = (n) => String(n).padStart(2, '0');
-					lastDate = `${lastSettlement.getFullYear()}-${pad(lastSettlement.getMonth() + 1)}-${pad(lastSettlement.getDate())}`;
-				} else {
-					lastDate = String(lastSettlement).slice(0, 10);
-				}
-				lastSettlementDateStr = lastDate;
-				
-				const last = new Date(lastDate + 'T12:00:00');
-				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-				const pad = (n) => String(n).padStart(2, '0');
-				nextSettlementDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
-			}
-		} catch (e) {
-			// If error, don't show unsettled expenses
-		}
-
-		// Date range mode: Show expenses settled within date range + unsettled expenses if toDate > last settlement
-		let query = `
-			-- Expenses settled within the date range
-			SELECT 
-				e.IDNo,
-				e.CATEGORY_ID,
-				e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-				e.DATE_TIME,
-				e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-				e.RECEIVER COLLATE utf8mb4_unicode_ci AS RECEIVER,
-				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
-				e.AMOUNT,
-				e.KM_L,
-				e.VEHICLE_ID,
-				hv.PLATE_NO COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-				hv.MODEL COLLATE utf8mb4_unicode_ci AS vehicle_model,
-				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
-				e.ENCODED_BY,
-				e.ENCODED_DT,
-				e.EDITED_BY,
-				e.EDITED_DT,
-				e.ACTIVE,
-				e.RESET,
-				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
-				e.IDNo AS expense_id,
-				ec.IDNo AS expense_category_id,
-				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-				ec.TYPE AS expense_type,
-				u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-				'expense' COLLATE utf8mb4_unicode_ci AS record_type
-			FROM junket_house_expense e
-			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
-			JOIN user_info u ON u.IDNo = e.ENCODED_BY
-			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
-			JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
-			JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
-			WHERE e.ACTIVE = 1
-				AND eds.SETTLEMENT_DATE BETWEEN ? AND ?
-			
-			UNION ALL
-			
-			-- Return money settled within the date range
-			SELECT 
-				rm.IDNo,
-				NULL AS CATEGORY_ID,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-				NULL AS DATE_TIME,
-				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
-				1 AS APPROVAL_STATUS,
-				rm.AMOUNT,
-				NULL AS KM_L,
-				NULL AS VEHICLE_ID,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-				rm.ENCODED_BY,
-				rm.ENCODED_DT,
-				rm.EDITED_BY,
-				rm.EDITED_DT,
-				rm.ACTIVE,
-				NULL AS RESET,
-				0 AS EDIT_LOG_COUNT,
-				rm.IDNo AS expense_id,
-				NULL AS expense_category_id,
-				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-				0 AS expense_type,
-				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-			FROM junket_return_money rm
-			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-			JOIN expense_daily_settlement_items edsi2 ON edsi2.EXPENSE_ID = rm.IDNo AND edsi2.EXPENSE_TYPE = 'return_money'
-			JOIN expense_daily_settlement eds2 ON edsi2.DAILY_SETTLEMENT_ID = eds2.IDNo AND eds2.ACTIVE = 1
-			WHERE rm.ACTIVE = 1
-				AND eds2.SETTLEMENT_DATE BETWEEN ? AND ?`;
-
-		// Add unsettled expenses only if toDate > last settlement date
-		if (hasSettlement && lastSettlementDateStr && toDate > lastSettlementDateStr) {
-			query += `
-			
-			UNION ALL
-			
-			-- Unsettled expenses (for next settlement date)
+		const query = `
 			SELECT 
 				e.IDNo,
 				e.CATEGORY_ID,
@@ -1023,11 +910,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
 			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			WHERE e.ACTIVE = 1
-				AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
+				AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
 			
 			UNION ALL
 			
-			-- Unsettled return money (for next settlement date)
 			SELECT 
 				rm.IDNo,
 				NULL AS CATEGORY_ID,
@@ -1058,10 +944,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			FROM junket_return_money rm
 			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
 			WHERE rm.ACTIVE = 1
-				AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)`;
-		}
-
-		query += `
+				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
 			
 			ORDER BY ENCODED_DT DESC
 		`;

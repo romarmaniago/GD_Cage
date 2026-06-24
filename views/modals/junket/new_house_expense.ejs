@@ -2,19 +2,15 @@
     aria-hidden="true" data-keyboard="false" data-backdrop="static">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
-
-
-
-
             <div class="modal-header bg-primary">
                 <h5 class="block-title text-white"><%= __('modal_new_house_expense.add_house_expense') %></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body">
                 <form id="add_junket_house_expense" novalidate>
-
                     <input type="hidden" id="house-expense-new-expense-category-id" value="" />
+
                     <div class="row mb-3 d-none" id="house-expense-new-cat-preset-wrap">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.category_placeholder') || 'Category' %></label>
@@ -29,43 +25,41 @@
                             </select>
                         </div>
                     </div>
-                    <div class="row mb-3">
+                    <div class="row mb-3" id="house-expense-new-row-receipt-photo">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.receipt_photo') || 'Receipt Photo' %></label>
                             <input type="file" name="photo" class="form-control" />
                         </div>
                     </div>
                     <div class="row mb-3 d-none" id="house-expense-vehicle-wrap">
-                        <div class="col-sm-12 form-floating-outline">
+                        <div class="col-sm-12 form-floating-outline he-vehicle-col">
                             <label class="form-label" for="txtVehicleId">Vehicle</label>
                             <select class="form-select" name="txtVehicleId" id="txtVehicleId">
                                 <option value="">-- Select vehicle --</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="row mb-3 d-none" id="house-expense-km-l-wrap">
-                        <div class="col-sm-12 form-floating-outline">
+                        <div class="col-sm-12 form-floating-outline he-km-col">
                             <label class="form-label" for="txtKmL">KM</label>
                             <input type="text" class="form-control" name="txtKmL" id="txtKmL" />
                         </div>
                     </div>
-                    <div class="row mb-3">
+                    <div class="row mb-3" id="house-expense-new-row-receipt-no">
                         <div class="col-sm-12 form-floating-outline">
-                            <label class="form-label"><%= __('modal_new_house_expense.receipt_no') %></label>
+                            <label class="form-label" id="house-expense-new-receipt-no-label"><%= __('modal_new_house_expense.receipt_no') %></label>
                             <textarea class="form-control" name="txtReceiptNo" id="txtReceiptNo" rows="3"></textarea>
                         </div>
                     </div>
-                    <div class="row mb-3">
+                    <div class="row mb-3" id="house-expense-new-row-officer-receiver">
                         <div class="col-sm-6 form-floating-outline">
-                            <label class="form-label"><%= __('modal_new_house_expense.description') %></label>
+                            <label class="form-label" id="house-expense-new-description-label"><%= __('modal_new_house_expense.description') %></label>
                             <input type="text" class="form-control" name="txtDescription" id="txtNewExpenseInCharge" />
                         </div>
                         <div class="col-sm-6 form-floating-outline">
-                            <label class="form-label"><%= __('modal_new_house_expense.receiver') || 'Receiver' %></label>
+                            <label class="form-label" id="house-expense-new-receiver-label"><%= __('modal_new_house_expense.receiver') || 'Receiver' %></label>
                             <input type="text" class="form-control" name="txtReceiver" id="txtNewExpenseReceiver" />
                         </div>
                     </div>
-                    <div class="row mb-3">
+                    <div class="row mb-3" id="house-expense-new-row-amount">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.amount') %></label>
                             <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
@@ -82,7 +76,7 @@
                         </button>
                     </div>
                 </form>
-
             </div>
         </div>
     </div>
+</div>
