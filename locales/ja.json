@@ -498,7 +498,12 @@
 		"compare_preview": "プレビュー",
 		"search_account": "アカウント",
 		"search_name": "名前",
-		"search_game_no": "ゲーム #"
+		"search_game_no": "ゲーム #",
+		"program_date_col": "commission.program_date_col",
+		"game_start": "commission.game_start",
+		"type": "commission.type",
+		"acct_no": "commission.acct_no",
+		"guest": "commission.guest"
 	},
 	"junket_loss": {
 		"junket": "ジャンケット",

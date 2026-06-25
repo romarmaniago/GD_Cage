@@ -500,7 +500,12 @@
 		"compare_preview": "点击预览",
 		"search_account": "账户",
 		"search_name": "姓名",
-		"search_game_no": "局号"
+		"search_game_no": "局号",
+		"program_date_col": "commission.program_date_col",
+		"game_start": "commission.game_start",
+		"type": "commission.type",
+		"acct_no": "commission.acct_no",
+		"guest": "commission.guest"
 	},
 	"junket_loss": {
 		"junket": "接待",
