@@ -4,12 +4,26 @@
 aside.sidebar {
     display: flex;
     flex-direction: column;
+    height: 100vh;
     min-height: 100vh;
+    overflow: hidden;
+}
+
+aside.sidebar .sidebar-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: none !important;
 }
 
 aside.sidebar .sidebar-footer {
     margin-top: auto;
     flex-shrink: 0;
+}
+
+aside.sidebar .sidebar-list {
+    padding-bottom: 1rem;
 }
 
 .sidebar.sidebar-white {
@@ -85,7 +99,7 @@ aside.sidebar .sidebar-footer {
           </i>
       </div>
   </div>
-  <div class="sidebar-body pt-0 data-scrollbar">
+  <div class="sidebar-body pt-0 sidebar-menu-scroll">
       <div class="sidebar-list">
           <!-- Sidebar Menu Start -->
           <ul class="navbar-nav iq-main-menu" id="sidebar-menu">
@@ -120,7 +134,7 @@ aside.sidebar .sidebar-footer {
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link  <%= currentPage === 'agency' || currentPage === 'agent' || currentPage === 'account_ledger' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-special" role="button" aria-expanded="false" aria-controls="sidebar-special">
+                  <a class="nav-link <%= currentPage === 'agency' ? 'active bg-gradient-primary' : '' %>" href="/agency">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M11.9488 14.54C8.49884 14.54 5.58789 15.1038 5.58789 17.2795C5.58789 19.4562 8.51765 20.0001 11.9488 20.0001C15.3988 20.0001 18.3098 19.4364 18.3098 17.2606C18.3098 15.084 15.38 14.54 11.9488 14.54Z" fill="currentColor"></path>
@@ -131,55 +145,19 @@ aside.sidebar .sidebar-footer {
                             <path d="M3.32156 13.5127C2.21752 13.7297 1.49225 14.1719 1.19139 14.8167C0.936203 15.3453 0.936203 15.9586 1.19139 16.4872C1.65163 17.4851 3.13531 17.8066 3.71195 17.8885C3.83104 17.9065 3.92595 17.8038 3.91342 17.6832C3.61883 14.9167 5.9621 13.6046 6.56918 13.3029C6.59425 13.2885 6.59962 13.2677 6.59694 13.2542C6.59515 13.2452 6.5853 13.2317 6.5656 13.2299C5.25294 13.2047 3.84358 13.3848 3.32156 13.5127Z" fill="currentColor"></path>
                         </svg>
                     </i>
-                      <span class="item-name"><%= __('sidebar.accounts') %></span>
-                      <i class="right-icon">
-                          <svg class="icon-18" xmlns="http://www.w3.org/2000/svg" width="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                          </svg>
-                      </i>
+                    <span class="item-name">Line</span>
                   </a>
-                  <ul class="sub-nav collapse" id="sidebar-special" data-bs-parent="#sidebar-menu">
-                      <!-- <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'agency' ? 'active' : '' %>" href="/agency">
-                            <i class="icon">
-                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                      <g>
-                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                      </g>
-                                  </svg>
-                              </i>
-                            <i class="sidenav-mini-icon"> A </i>
-                            <span class="item-name">Agents</span>
-                          </a>
-                      </li> -->
-                    
-                      <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'agency' ? 'active bg-gradient-primary text-white' : '' %>" href="/agency">
-                            <i class="icon">
-                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                    <g>
-                                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                    </g>
-                                </svg>
-                            </i>
-                            <span class="item-name">Line</span>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link  <%= currentPage === 'agent' ? 'active bg-gradient-primary text-white' : '' %>" href="/agent">
-                            <i class="icon">
-                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                    <g>
-                                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                    </g>
-                                </svg>
-                            </i>
-                            <i class="sidenav-mini-icon"> G </i>
-                            <span class="item-name">Agent</span>
-                        </a>
-                    </li>
-                      
-                  </ul>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link <%= currentPage === 'agent' ? 'active bg-gradient-primary' : '' %>" href="/agent">
+                    <i class="icon">
+                        <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="currentColor"/>
+                            <path opacity="0.4" d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </i>
+                    <span class="item-name">Agent</span>
+                  </a>
               </li>
 
               <!-- <li class="nav-item">
@@ -211,90 +189,52 @@ aside.sidebar .sidebar-footer {
                 </a>
                 </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
+                  <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary' : '' %>" href="/house_expense">
                       <i class="icon">
-                    
-
-                            <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M9.14373 20.7821V17.7152C9.14372 16.9381 9.77567 16.3067 10.5584 16.3018H13.4326C14.2189 16.3018 14.8563 16.9346 14.8563 17.7152V20.7732C14.8562 21.4473 15.404 21.9951 16.0829 22H18.0438C18.9596 22.0023 19.8388 21.6428 20.4872 21.0007C21.1356 20.3586 21.5 19.4868 21.5 18.5775V9.86585C21.5 9.13139 21.1721 8.43471 20.6046 7.9635L13.943 2.67427C12.7785 1.74912 11.1154 1.77901 9.98539 2.74538L3.46701 7.9635C2.87274 8.42082 2.51755 9.11956 2.5 9.86585V18.5686C2.5 20.4637 4.04738 22 5.95617 22H7.87229C8.19917 22.0023 8.51349 21.8751 8.74547 21.6464C8.97746 21.4178 9.10793 21.1067 9.10792 20.7821H9.14373Z" fill="currentColor"/>
-                                </svg>
-                      </i>
-                      <span class="item-name"><%= __('sidebar.junket') %></span>
-                      <i class="right-icon">
-                          <svg class="icon-18" xmlns="http://www.w3.org/2000/svg" width="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path opacity="0.4" d="M16 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path opacity="0.4" d="M7 11H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                              <path opacity="0.4" d="M7 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                           </svg>
-
-                        
                       </i>
+                      <span class="item-name"><%= __('sidebar.junket_expenses') %></span>
                   </a>
-                  <ul class="sub-nav collapse <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' ? 'show' : '' %>" id="sidebar-user" data-bs-parent="#sidebar-menu">
-                      <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary text-white' : '' %>" href="/house_expense">
-                              <i class="icon">
-                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                      <g>
-                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                      </g>
-                                  </svg>
-                              </i>
-                              <i class="sidenav-mini-icon"> J </i>
-                              <span class="item-name"><%= __('sidebar.junket_expenses') %></span>
-                          </a>
-                      </li>
-                      <!-- <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'booking' ? 'active bg-gradient-primary text-white' : '' %>" href="/booking">
-                              <i class="icon">
-                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                      <g>
-                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                      </g>
-                                  </svg>
-                              </i>
-                              <i class="sidenav-mini-icon"> H </i>
-                              <span class="item-name"><%= __('sidebar.hotel_booking') %></span>
-                          </a>
-                      </li>  -->
-                      <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'fnb-hotel' ? 'active bg-primary-subtle text-primary' : '' %>" href="/fnb-hotel">
-                            <i class="icon">
-                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                    <g>
-                                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                    </g>
-                                </svg>
-                            </i>
-                            <i class="sidenav-mini-icon"> H </i>
-                            <span class="item-name"><%= __('fnb_hotel.title') %></span>
-                        </a>
-                     </li>
-                      <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'commission' ? 'active bg-gradient-primary text-white' : '' %>" href="/commission">
-                              <i class="icon">
-                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                      <g>
-                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                      </g>
-                                  </svg>
-                              </i>
-                              <i class="sidenav-mini-icon"> C </i>
-                              <span class="item-name"><%= __('sidebar.commission') %></span>
-                          </a>
-                      </li>
-                      <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'junket_loss' ? 'active bg-gradient-primary text-white' : '' %>" href="/junket_loss">
-                              <i class="icon">
-                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                                      <g>
-                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                                      </g>
-                                  </svg>
-                              </i>
-                              <i class="sidenav-mini-icon"> L </i>
-                              <span class="item-name"><%= __('sidebar.junket_loss') %></span>
-                          </a>
-                      </li>
-                  </ul>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link <%= currentPage === 'fnb-hotel' ? 'active bg-gradient-primary' : '' %>" href="/fnb-hotel">
+                      <i class="icon">
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M9.14373 20.7821V17.7152C9.14372 16.9381 9.77567 16.3067 10.5584 16.3018H13.4326C14.2189 16.3018 14.8563 16.9346 14.8563 17.7152V20.7732C14.8562 21.4473 15.404 21.9951 16.0829 22H18.0438C18.9596 22.0023 19.8388 21.6428 20.4872 21.0007C21.1356 20.3586 21.5 19.4868 21.5 18.5775V9.86585C21.5 9.13139 21.1721 8.43471 20.6046 7.9635L13.943 2.67427C12.7785 1.74912 11.1154 1.77901 9.98539 2.74538L3.46701 7.9635C2.87274 8.42082 2.51755 9.11956 2.5 9.86585V18.5686C2.5 20.4637 4.04738 22 5.95617 22H7.87229C8.19917 22.0023 8.51349 21.8751 8.74547 21.6464C8.97746 21.4178 9.10793 21.1067 9.10792 20.7821H9.14373Z" fill="currentColor"/>
+                          </svg>
+                      </i>
+                      <span class="item-name"><%= __('fnb_hotel.title') %></span>
+                  </a>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link <%= currentPage === 'commission' ? 'active bg-gradient-primary' : '' %>" href="/commission">
+                      <i class="icon">
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
+                              <path d="M12 6V18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                              <path d="M15.5 9.5C15.5 8.11929 13.932 7 12 7C10.068 7 8.5 8.11929 8.5 9.5C8.5 10.8807 10.068 12 12 12C13.932 12 15.5 13.1193 15.5 14.5C15.5 15.8807 13.932 17 12 17C10.068 17 8.5 15.8807 8.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                      </i>
+                      <span class="item-name"><%= __('sidebar.commission') %></span>
+                  </a>
+              </li>
+              <li class="nav-item">
+                  <a class="nav-link <%= currentPage === 'junket_loss' ? 'active bg-gradient-primary' : '' %>" href="/junket_loss">
+                      <i class="icon">
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path opacity="0.4" d="M16.6756 2H7.33333C3.92889 2 2 3.92889 2 7.33333V16.6667C2 20.0711 3.92889 22 7.33333 22H16.6756C20.08 22 22 20.0711 22 16.6667V7.33333C22 3.92889 20.08 2 16.6756 2Z" fill="currentColor"/>
+                              <path d="M8.5 10L12 13.5L15.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M8.5 14.5L12 18L15.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                      </i>
+                      <span class="item-name"><%= __('sidebar.junket_loss') %></span>
+                  </a>
               </li>
               <li class="nav-item">
                 <a class="nav-link <%= currentPage === 'marker_history' ? 'active bg-gradient-primary' : '' %>" href="/markerHistory">
@@ -389,127 +329,126 @@ aside.sidebar .sidebar-footer {
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'manage_users' ? 'active bg-gradient-primary' : '' %>" href="/manage_users">
+                  <a class="nav-link <%= currentPage === 'manage_users' || currentPage === 'user_roles' || currentPage === 'expense_category' || currentPage === 'telegramAPI' || currentPage === 'Change_Game_No' || currentPage === 'activity_log' || currentPage === 'net_profit' || currentPage === 'dashboard_history' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-settings" role="button" aria-expanded="false" aria-controls="sidebar-settings">
                       <i class="icon">
-                        <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                            <g>
-                            <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                            </g>
-                        </svg> 
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path opacity="0.4" d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="currentColor"/>
+                              <path d="M13.9799 2.06001C13.9799 2.06001 13.0299 2.00001 11.9999 2.00001C10.9699 2.00001 10.0199 2.06001 10.0199 2.06001C9.87994 2.07001 9.75994 2.16001 9.71994 2.29001L9.43994 3.17001C9.29994 3.59001 8.95994 3.91001 8.53994 4.05001L7.65994 4.33001C7.52994 4.37001 7.43994 4.49001 7.42994 4.63001C7.42994 4.63001 7.36994 5.58001 7.36994 6.61001C7.36994 7.64001 7.42994 8.59001 7.42994 8.59001C7.43994 8.73001 7.52994 8.85001 7.65994 8.89001L8.53994 9.17001C8.95994 9.31001 9.27994 9.63001 9.41994 10.05L9.69994 10.93C9.73994 11.06 9.85994 11.15 9.99994 11.16C9.99994 11.16 10.9499 11.22 11.9799 11.22C13.0099 11.22 13.9599 11.16 13.9599 11.16C14.0999 11.15 14.2199 11.06 14.2599 10.93L14.5399 10.05C14.6799 9.63001 14.9999 9.31001 15.4199 9.17001L16.2999 8.89001C16.4299 8.85001 16.5199 8.73001 16.5299 8.59001C16.5299 8.59001 16.5899 7.64001 16.5899 6.61001C16.5899 5.58001 16.5299 4.63001 16.5299 4.63001C16.5199 4.49001 16.4299 4.37001 16.2999 4.33001L15.4199 4.05001C14.9999 3.91001 14.6799 3.59001 14.5399 3.17001L14.2599 2.29001C14.2199 2.16001 14.0999 2.07001 13.9599 2.06001H13.9799Z" fill="currentColor"/>
+                              <path d="M13.9799 12.84C13.9799 12.84 13.0299 12.78 11.9999 12.78C10.9699 12.78 10.0199 12.84 10.0199 12.84C9.87994 12.85 9.75994 12.94 9.71994 13.07L9.43994 13.95C9.29994 14.37 8.95994 14.69 8.53994 14.83L7.65994 15.11C7.52994 15.15 7.43994 15.27 7.42994 15.41C7.42994 15.41 7.36994 16.36 7.36994 17.39C7.36994 18.42 7.42994 19.37 7.42994 19.37C7.43994 19.51 7.52994 19.63 7.65994 19.67L8.53994 19.95C8.95994 20.09 9.27994 20.41 9.41994 20.83L9.69994 21.71C9.73994 21.84 9.85994 21.93 9.99994 21.94C9.99994 21.94 10.9499 22 11.9799 22C13.0099 22 13.9599 21.94 13.9599 21.94C14.0999 21.93 14.2199 21.84 14.2599 21.71L14.5399 20.83C14.6799 20.41 14.9999 20.09 15.4199 19.95L16.2999 19.67C16.4299 19.63 16.5199 19.51 16.5299 19.37C16.5299 19.37 16.5899 18.42 16.5899 17.39C16.5899 16.36 16.5299 15.41 16.5299 15.41C16.5199 15.27 16.4299 15.15 16.2999 15.11L15.4199 14.83C14.9999 14.69 14.6799 14.37 14.5399 13.95L14.2599 13.07C14.2199 12.94 14.0999 12.85 13.9599 12.84H13.9799Z" fill="currentColor"/>
+                          </svg>
                       </i>
-                      <span class="item-name"><%= __('sidebar.manage_user') %></span>
+                      <span class="item-name"><%= __('sidebar.settings') %></span>
+                      <i class="right-icon">
+                          <svg class="icon-18" xmlns="http://www.w3.org/2000/svg" width="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                      </i>
                   </a>
+                  <ul class="sub-nav collapse <%= currentPage === 'manage_users' || currentPage === 'user_roles' || currentPage === 'expense_category' || currentPage === 'telegramAPI' || currentPage === 'Change_Game_No' || currentPage === 'activity_log' || currentPage === 'net_profit' || currentPage === 'dashboard_history' ? 'show' : '' %>" id="sidebar-settings" data-bs-parent="#sidebar-menu">
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'manage_users' ? 'active bg-gradient-primary text-white' : '' %>" href="/manage_users">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.manage_user') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'user_roles' ? 'active bg-gradient-primary text-white' : '' %>" href="/user_roles">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.user_role') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'expense_category' ? 'active bg-gradient-primary text-white' : '' %>" href="/expense_category">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.expense_category') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'telegramAPI' ? 'active bg-gradient-primary text-white' : '' %>" href="/telegramAPI">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.telegram_API') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'Change_Game_No' ? 'active bg-gradient-primary text-white' : '' %>" href="/Change_Game_No">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.modify_game') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'activity_log' ? 'active bg-gradient-primary text-white' : '' %>" href="/activity_log">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.activity_log') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link" href="#" id="sidebarDeleteTestData">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Delete Data</span>
+                          </a>
+                      </li>
+                      <% if (typeof permissions !== 'undefined' && permissions === 0) { %>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'net_profit' ? 'active bg-gradient-primary text-white' : '' %>" href="/net_profit">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Net profit</span>
+                          </a>
+                      </li>
+                      <li class="nav-item <%= currentPage === 'dashboard_history' ? 'monthly-settle-parent' : '' %>">
+                          <a class="nav-link" href="#" id="sidebarMonthlySettle">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Monthly Settle</span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'dashboard_history' ? 'active bg-gradient-primary text-white' : '' %>" href="/dashboard_history">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.reset_history') %></span>
+                          </a>
+                      </li>
+                      <% } %>
+                  </ul>
               </li>
-              <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'user_roles' ? 'active bg-gradient-primary' : '' %>" href="/user_roles">
-                    <i class="icon">
-                        <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                            <g>
-                            <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                            </g>
-                        </svg>
-                    </i>
-                    <span class="item-name"><%= __('sidebar.user_role') %></span>
-                </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link <%= currentPage === 'expense_category' ? 'active bg-gradient-primary' : '' %>" href="/expense_category">
-                  <i class="icon">
-                    <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                        <g>
-                        <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                        </g>
-                    </svg> 
-                  </i>
-                  <span class="item-name"><%= __('sidebar.expense_category') %></span>
-              </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link <%= currentPage === 'telegramAPI' ? 'active bg-gradient-primary' : '' %>" href="/telegramAPI">
-                <i class="icon">
-                    <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                        <g>
-                        <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                        </g>
-                    </svg>
-                </i>
-                <span class="item-name"><%= __('sidebar.telegram_API') %></span>
-            </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link <%= currentPage === 'Change_Game_No' ? 'active bg-gradient-primary' : '' %>" href="/Change_Game_No">
-              <i class="icon">
-                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                    <g>
-                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                    </g>
-                </svg> 
-              </i>
-              <span class="item-name"><%= __('sidebar.modify_game') %></span>
-          </a>
-      </li>
-      <li class="nav-item">
-          <a class="nav-link <%= currentPage === 'activity_log' ? 'active bg-gradient-primary' : '' %>" href="/activity_log">
-              <i class="icon">
-                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                    <g>
-                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                    </g>
-                </svg> 
-              </i>
-              <span class="item-name"><%= __('sidebar.activity_log') %></span>
-          </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link <%= currentPage === 'delete_test_data' ? 'active bg-gradient-primary' : '' %>" href="#" id="sidebarDeleteTestData">
-            <i class="icon">
-              <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                  <g>
-                  <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                  </g>
-              </svg>
-            </i>
-            <span class="item-name">Delete Data</span>
-        </a>
-    </li>
-      <% if (typeof permissions !== 'undefined' && permissions === 0) { %>
-      <li class="nav-item">
-        <a class="nav-link <%= currentPage === 'net_profit' ? 'active bg-gradient-primary' : '' %>" href="/net_profit">
-            <i class="icon">
-                <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path opacity="0.4" d="M16.0756 2H19.4616C20.8639 2 22.0001 3.14585 22.0001 4.55996V7.97452C22.0001 9.38864 20.8639 10.5345 19.4616 10.5345H16.0756C14.6734 10.5345 13.5371 9.38864 13.5371 7.97452V4.55996C13.5371 3.14585 14.6734 2 16.0756 2Z" fill="currentColor"></path>
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4.53852 2H7.92449C9.32676 2 10.463 3.14585 10.463 4.55996V7.97452C10.463 9.38864 9.32676 10.5345 7.92449 10.5345H4.53852C3.13626 10.5345 2 9.38864 2 7.97452V4.55996C2 3.14585 3.13626 2 4.53852 2ZM4.53852 13.4655H7.92449C9.32676 13.4655 10.463 14.6114 10.463 16.0255V19.44C10.463 20.8532 9.32676 22 7.92449 22H4.53852C3.13626 22 2 20.8532 2 19.44V16.0255C2 14.6114 3.13626 13.4655 4.53852 13.4655ZM19.4615 13.4655H16.0755C14.6732 13.4655 13.537 14.6114 13.537 16.0255V19.44C13.537 20.8532 14.6732 22 16.0755 22H19.4615C20.8637 22 22 20.8532 22 19.44V16.0255C22 14.6114 20.8637 13.4655 19.4615 13.4655Z" fill="currentColor"></path>
-                </svg>
-            </i>
-            <span class="item-name">Net profit</span>
-        </a>
-      </li>
-      <li class="nav-item <%= currentPage === 'dashboard_history' ? 'monthly-settle-parent' : '' %>">
-        <a class="nav-link" href="#" id="sidebarMonthlySettle">
-            <i class="icon">
-                <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M3 16.8701V9.25708H21V16.9311C21 20.0701 19.0241 22.0001 15.8628 22.0001H8.12733C4.99561 22.0001 3 20.0301 3 16.8701ZM7.95938 14.4101C7.50494 14.4311 7.12953 14.0701 7.10977 13.6111C7.10977 13.1511 7.46542 12.7711 7.91987 12.7501C8.36443 12.7501 8.72997 13.1011 8.73985 13.5501C8.7596 14.0111 8.40395 14.3911 7.95938 14.4101ZM12.0198 14.4101C11.5653 14.4311 11.1899 14.0701 11.1701 13.6111C11.1701 13.1511 11.5258 12.7711 11.9802 12.7501C12.4248 12.7501 12.7903 13.1011 12.8002 13.5501C12.82 14.0111 12.4643 14.3911 12.0198 14.4101ZM16.0505 18.0901C15.596 18.0801 15.2305 17.7001 15.2305 17.2401C15.2206 16.7801 15.5862 16.4011 16.0406 16.3911H16.0505C16.5148 16.3911 16.8902 16.7711 16.8902 17.2401C16.8902 17.7101 16.5148 18.0901 16.0505 18.0901ZM11.1701 17.2401C11.1899 17.7001 11.5653 18.0611 12.0198 18.0401C12.4643 18.0211 12.82 17.6411 12.8002 17.1811C12.7903 16.7311 12.4248 16.3801 11.9802 16.3801C11.5258 16.4011 11.1701 16.7801 11.1701 17.2401ZM7.09989 17.2401C7.11965 17.7001 7.49506 18.0611 7.94951 18.0401C8.39407 18.0211 8.74973 17.6411 8.72997 17.1811C8.72009 16.7311 8.35456 16.3801 7.90999 16.3801C7.45554 16.4011 7.09989 16.7801 7.09989 17.2401ZM15.2404 13.6011C15.2404 13.1411 15.596 12.7711 16.0505 12.7611C16.4951 12.7611 16.8507 13.1201 16.8705 13.5611C16.8804 14.0211 16.5247 14.4011 16.0801 14.4101C15.6257 14.4201 15.2503 14.0701 15.2404 13.6111V13.6011Z" fill="currentColor"/>
-                    <path opacity="0.4" d="M3.00293 9.25699C3.01577 8.66999 3.06517 7.50499 3.15803 7.12999C3.63224 5.02099 5.24256 3.68099 7.54442 3.48999H16.4555C18.7376 3.69099 20.3677 5.03999 20.8419 7.12999C20.9338 7.49499 20.9832 8.66899 20.996 9.25699H3.00293Z" fill="currentColor"/>
-                    <path d="M8.30465 6.59C8.73934 6.59 9.06535 6.261 9.06535 5.82V2.771C9.06535 2.33 8.73934 2 8.30465 2C7.86996 2 7.54395 2.33 7.54395 2.771V5.82C7.54395 6.261 7.86996 6.59 8.30465 6.59Z" fill="currentColor"/>
-                    <path d="M15.6953 6.59C16.1201 6.59 16.456 6.261 16.456 5.82V2.771C16.456 2.33 16.1201 2 15.6953 2C15.2606 2 14.9346 2.33 14.9346 2.771V5.82C14.9346 6.261 15.2606 6.59 15.6953 6.59Z" fill="currentColor"/>
-                </svg>
-            </i>
-            <span class="item-name">Monthly Settle</span>
-        </a>
-        <ul class="sub-nav show" data-bs-parent="#sidebar-menu">
-            <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'dashboard_history' ? 'active bg-gradient-primary' : '' %>" href="/dashboard_history">
-                    <i class="icon">
-                        <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                            <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
-                        </svg>
-                    </i>
-                    <span class="item-name"><%= __('sidebar.reset_history') %></span>
-                </a>
-            </li>
-        </ul>
-    </li>
-    <% } %>
            
           <!-- Sidebar Menu End -->        </div>
   </div>
