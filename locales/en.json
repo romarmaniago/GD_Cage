@@ -1344,10 +1344,6 @@
 		"account": "Account",
 		"guest": "Guest",
 		"tip_type": "Tip Type",
-		"transaction": "Transaction",
-		"status": "Status",
-		"name": "Name",
-		"remarks": "Remarks",
 		"roller": "Roller",
 		"dealer": "Dealer",
 		"date_time": "Date & Time",
@@ -1363,18 +1359,6 @@
 		"deleted": "Deleted successfully.",
 		"delete_confirm": "Delete this record?",
 		"delete_confirm_text": "This cannot be undone.",
-		"total": "TOTAL",
-		"settlement": "Tip Settlement",
-		"settlement_help": "Settle roller tips for employee payout. Amount cannot exceed available roller tip balance.",
-		"available_balance": "Roller Tip Balance",
-		"settlement_amount": "Settlement Amount",
-		"settle": "Settle",
-		"settlement_saved": "Tip settlement saved successfully.",
-		"settlement_exceeds_balance": "Settlement amount cannot exceed available roller tip balance.",
-		"settlement_invalid_amount": "Enter a valid settlement amount greater than zero.",
-		"settlement_missing_status": "Please enter the tip status (Roller or GM).",
-		"settlement_missing_name": "Please enter the name.",
-		"settlement_confirm": "Settle roller tips?",
-		"settlement_confirm_text": "This will record a roller tip settlement of"
+		"total": "TOTAL"
 	}
 }
