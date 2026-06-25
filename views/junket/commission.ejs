@@ -49,7 +49,7 @@
 							</div>
 						</div>
 								<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
-								<table id="commission-tbl" class="table  nowrap small-text" style="width:100%">
+								<table id="commission-tbl" class="table small-text commission-fit-table" style="width:100%">
 									<thead>
 										<tr>
 										<th class="commission-compare-col text-center" style="width: 42px;">
@@ -57,17 +57,21 @@
 												<i class="fa fa-check-square-o" aria-hidden="true"></i>
 											</span>
 										</th>
-										<th class="d-none d-sm-table-cell" style="width: 75px;"><%= __('commission.game_no') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.account_name') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.total_buyin') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.chips_return') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.win_loss') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.total_rolling') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.rolling_rate') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.settlement') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.fb') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('commission.payment') %></th>
-										<th class="d-none d-sm-table-cell commission-date-sort-col"><%= __('commission.date_time') %></th>
+										<th class="d-none d-sm-table-cell text-start col-program-date"><%= __('commission.program_date_col') %></th>
+										<th class="d-none d-sm-table-cell text-start col-game-start"><%= __('commission.game_start') %></th>
+										<th class="d-none d-sm-table-cell text-center col-type"><%= __('commission.type') %></th>
+										<th class="d-none d-sm-table-cell text-center" style="width: 75px;"><%= __('commission.game_no') %></th>
+										<th class="d-none d-sm-table-cell text-center col-acct-no"><%= __('commission.acct_no') %></th>
+										<th class="d-none d-sm-table-cell text-center col-guest"><%= __('commission.guest') %></th>
+										<th class="d-none d-sm-table-cell text-center col-buyin"><%= __('commission.total_buyin') %></th>
+										<th class="d-none d-sm-table-cell text-center col-cashout"><%= __('commission.chips_return') %></th>
+										<th class="d-none d-sm-table-cell text-center col-winloss"><%= __('commission.win_loss') %></th>
+										<th class="d-none d-sm-table-cell text-center col-total-rolling"><%= __('commission.total_rolling') %></th>
+										<th class="d-none d-sm-table-cell text-center col-game-rate"><%= __('commission.rolling_rate') %></th>
+										<th class="d-none d-sm-table-cell text-center col-commission"><%= __('commission.settlement') %></th>
+										<th class="d-none d-sm-table-cell text-center"><%= __('commission.fb') %></th>
+										<th class="d-none d-sm-table-cell text-center"><%= __('commission.payment') %></th>
+										<th class="d-none d-sm-table-cell text-center commission-date-sort-col col-game-end"><%= __('commission.date_time') %></th>
 										</tr>
 									</thead>
 									<tbody>
@@ -75,17 +79,16 @@
 									<tfoot>
 										<tr>
 										<th></th>
-										<th></th>
-										<th><%= __('commission.grand_total') %></th>
-										<th id="GRAND_TOTAL_AMOUNT">0.00</th>
-										<th id="GRAND_CHIPS_RETURN">0.00</th>
-										<th id="GRAND_WIN_LOSS">0.00</th>
-										<th id="GRAND_TOTAL_ROLLING">0.00</th>
-										<th></th>
-										<th id="GRAND_ROLLING_SETTLEMENT">0.00</th>
+										<th colspan="6"><%= __('commission.grand_total') %></th>
+										<th class="col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
+										<th class="col-cashout" id="GRAND_CHIPS_RETURN">0.00</th>
+										<th class="col-winloss" id="GRAND_WIN_LOSS">0.00</th>
+										<th class="col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
+										<th class="col-game-rate"></th>
+										<th class="col-commission" id="GRAND_ROLLING_SETTLEMENT">0.00</th>
 										<th id="GRAND_FNB">0</th>
 										<th id="GRAND_PAYMENT">0.00</th>
-										<th></th>
+										<th class="col-game-end"></th>
 										</tr>
 									</tfoot>
 								</table>
@@ -113,33 +116,36 @@
 							<table id="commission-compare-modal-tbl" class="table nowrap small-text" style="width:100%">
 								<thead>
 									<tr>
+										<th class="commission-compare-sortable-col text-start" data-sort-key="programDate"><%= __('commission.program_date_col') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col text-start" data-sort-key="gameStart"><%= __('commission.game_start') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="type"><%= __('commission.type') %> <span class="commission-compare-sort-indicator">-</span></th>
 										<th class="commission-compare-sortable-col" style="width: 75px;" data-sort-key="gameNo"><%= __('commission.game_no') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="account"><%= __('commission.account_name') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="totalBuyIn"><%= __('commission.total_buyin') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="chipsReturn"><%= __('commission.chips_return') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="winLoss"><%= __('commission.win_loss') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="totalRolling"><%= __('commission.total_rolling') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="rollingRate"><%= __('commission.rolling_rate') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="settlement"><%= __('commission.settlement') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="acctNo"><%= __('commission.acct_no') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col" data-sort-key="guest"><%= __('commission.guest') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-buyin" data-sort-key="totalBuyIn"><%= __('commission.total_buyin') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-cashout" data-sort-key="chipsReturn"><%= __('commission.chips_return') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-winloss" data-sort-key="winLoss"><%= __('commission.win_loss') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-total-rolling" data-sort-key="totalRolling"><%= __('commission.total_rolling') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-game-rate" data-sort-key="rollingRate"><%= __('commission.rolling_rate') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-commission" data-sort-key="settlement"><%= __('commission.settlement') %> <span class="commission-compare-sort-indicator">-</span></th>
 										<th class="commission-compare-sortable-col" data-sort-key="fnb"><%= __('commission.fb') %> <span class="commission-compare-sort-indicator">-</span></th>
 										<th class="commission-compare-sortable-col" data-sort-key="payment"><%= __('commission.payment') %> <span class="commission-compare-sort-indicator">-</span></th>
-										<th class="commission-compare-sortable-col" data-sort-key="dateTime"><%= __('commission.date_time') %> <span class="commission-compare-sort-indicator">-</span></th>
+										<th class="commission-compare-sortable-col col-game-end" data-sort-key="dateTime"><%= __('commission.date_time') %> <span class="commission-compare-sort-indicator">-</span></th>
 									</tr>
 								</thead>
 								<tbody id="commission-compare-modal-body"></tbody>
 								<tfoot>
 									<tr>
-										<th></th>
-										<th><%= __('commission.grand_total') %></th>
-										<th id="commission-compare-total-buyin">0</th>
-										<th id="commission-compare-total-return">0</th>
-										<th id="commission-compare-total-winloss">0</th>
-										<th id="commission-compare-total-rolling">0</th>
-										<th></th>
-										<th id="commission-compare-total-settlement">0</th>
+										<th colspan="6"><%= __('commission.grand_total') %></th>
+										<th class="col-buyin" id="commission-compare-total-buyin">0</th>
+										<th class="col-cashout" id="commission-compare-total-return">0</th>
+										<th class="col-winloss" id="commission-compare-total-winloss">0</th>
+										<th class="col-total-rolling" id="commission-compare-total-rolling">0</th>
+										<th class="col-game-rate"></th>
+										<th class="col-commission" id="commission-compare-total-settlement">0</th>
 										<th id="commission-compare-total-fnb">0</th>
 										<th id="commission-compare-total-payment">0</th>
-										<th></th>
+										<th class="col-game-end"></th>
 									</tr>
 								</tfoot>
 							</table>
@@ -171,7 +177,6 @@
 		</div>
 
 		<%- include ('../modals/junket/edit_commission') %>
-		<%- include ('../modals/game_book/merge_settlement') %>
 
 		<%- include ('../partials/footer'); -%>
 
@@ -204,12 +209,118 @@
 			};
 		</script>
 		<script src="/assets/js/functions/commission.js"></script>
+		<%- include ('../modals/game_book/merge_settlement') %>
 		
 		
 		
 		<style>
 .card-body {
-  overflow-x: auto;
+  overflow-x: hidden;
+}
+
+#commission-tbl_wrapper,
+#commission-tbl_wrapper .dataTables_scroll,
+#commission-tbl_wrapper .dataTables_scrollBody,
+#commission-tbl_wrapper .dataTables_scrollHead {
+  overflow-x: hidden !important;
+}
+
+#commission-tbl.commission-fit-table {
+  table-layout: fixed;
+  width: 100% !important;
+  font-size: 10px;
+  border-collapse: collapse;
+}
+
+#commission-tbl.commission-fit-table thead th,
+#commission-tbl.commission-fit-table tbody td,
+#commission-tbl.commission-fit-table tfoot th {
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+#commission-tbl.commission-fit-table tbody td,
+#commission-tbl.commission-fit-table tfoot th {
+  padding: 4px 3px !important;
+}
+
+#commission-tbl.commission-fit-table tbody td.col-buyin,
+#commission-tbl.commission-fit-table tbody td.col-cashout,
+#commission-tbl.commission-fit-table tbody td.col-winloss,
+#commission-tbl.commission-fit-table tbody td.col-total-rolling,
+#commission-tbl.commission-fit-table tbody td.col-game-rate,
+#commission-tbl.commission-fit-table tbody td.col-commission,
+#commission-tbl.commission-fit-table tfoot th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#commission-tbl.commission-fit-table tbody td.col-program-date,
+#commission-tbl.commission-fit-table tbody td.col-game-start,
+#commission-tbl.commission-fit-table tbody td.col-game-end,
+#commission-tbl.commission-fit-table tbody td.col-guest,
+#commission-tbl.commission-fit-table tbody td.col-acct-no {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none !important;
+  line-height: 1.25;
+  font-size: 10px;
+}
+
+#commission-tbl.commission-fit-table tbody td.col-type,
+#commission-tbl.commission-fit-table tbody td:nth-child(5) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+#commission-tbl.commission-fit-table thead th {
+  padding: 8px 4px !important;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
+  hyphens: auto;
+  line-height: 1.25;
+  text-align: center;
+  vertical-align: middle;
+}
+
+#commission-tbl.commission-fit-table th.col-type,
+#commission-tbl.commission-fit-table td.col-type {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+
+#commission-tbl.commission-fit-table tbody td:nth-child(2),
+#commission-tbl.commission-fit-table tbody td:nth-child(3),
+#commission-tbl.commission-fit-table tbody td:nth-child(5),
+#commission-tbl.commission-fit-table tbody td:nth-child(6),
+#commission-tbl.commission-fit-table tbody td:nth-child(7),
+#commission-tbl.commission-fit-table tbody td:nth-child(16) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+#commission-tbl.commission-fit-table tbody td:nth-child(n+8):not(:nth-child(16)) {
+  padding-right: 4px !important;
+}
+
+#commission-tbl.commission-fit-table tfoot th.col-buyin,
+#commission-tbl.commission-fit-table tfoot th.col-cashout,
+#commission-tbl.commission-fit-table tfoot th.col-winloss,
+#commission-tbl.commission-fit-table tfoot th.col-total-rolling,
+#commission-tbl.commission-fit-table tfoot th.col-game-rate,
+#commission-tbl.commission-fit-table tfoot th.col-commission,
+#commission-tbl.commission-fit-table tfoot th#GRAND_FNB,
+#commission-tbl.commission-fit-table tfoot th#GRAND_PAYMENT {
+  padding-right: 4px !important;
+  text-align: right !important;
 }
 
 
@@ -220,16 +331,59 @@
 	margin-right: auto;
 }
 
- /* Base table styles — main + compare modal */
- #commission-tbl,
+ /* Base table styles — compare modal only (main table uses .commission-fit-table) */
  #commission-compare-modal-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
 }
 
-/* Header styles */
-#commission-tbl thead th,
+/* Header styles — readable wrapped labels */
+#commission-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 600;
+    font-size: 11px;
+    padding: 8px 4px;
+    text-align: center;
+    border: none;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+#commission-tbl.commission-fit-table thead th:nth-child(2),
+#commission-tbl.commission-fit-table thead th:nth-child(3),
+#commission-tbl.commission-fit-table thead th:nth-child(5),
+#commission-tbl.commission-fit-table thead th:nth-child(6),
+#commission-tbl.commission-fit-table thead th:nth-child(7),
+#commission-tbl.commission-fit-table thead th:nth-child(16) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+#commission-tbl.commission-fit-table thead th:nth-child(n+8):not(:nth-child(16)) {
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
+
+#commission-tbl thead th.sorting:hover,
+#commission-tbl thead th.sorting_asc:hover,
+#commission-tbl thead th.sorting_desc:hover,
+#commission-tbl thead th.commission-date-sort-col:hover {
+    background: #dfe6ff !important;
+}
+
+#commission-tbl thead th.sorting_asc,
+#commission-tbl thead th.sorting_desc,
+#commission-tbl thead th.commission-date-sort-col.sorting_asc,
+#commission-tbl thead th.commission-date-sort-col.sorting_desc {
+    background: #d9eadf !important;
+    color: #1f7a37;
+}
+
 #commission-compare-modal-tbl thead th {
     background: var(--bs-primary-bg-subtle);
     color: var(--bs-primary);
@@ -338,22 +492,115 @@
 	text-align: center;
 }
 
+#commission-tbl thead th:nth-child(2),
 #commission-tbl thead th:nth-child(3),
-#commission-tbl thead th:nth-child(12) {
-    text-align: left;
-    padding-left: 20px;
-}
-
-#commission-tbl thead th:nth-child(4),
 #commission-tbl thead th:nth-child(5),
 #commission-tbl thead th:nth-child(6),
 #commission-tbl thead th:nth-child(7),
+#commission-tbl thead th:nth-child(16) {
+    text-align: center;
+}
+
+#commission-tbl tbody td:nth-child(2),
+#commission-tbl tbody td:nth-child(3),
+#commission-tbl tbody td:nth-child(5),
+#commission-tbl tbody td:nth-child(6),
+#commission-tbl tbody td:nth-child(7),
+#commission-tbl tbody td:nth-child(16) {
+    text-align: left;
+    padding-left: 6px;
+}
+
 #commission-tbl thead th:nth-child(8),
 #commission-tbl thead th:nth-child(9),
 #commission-tbl thead th:nth-child(10),
-#commission-tbl thead th:nth-child(11) {
+#commission-tbl thead th:nth-child(11),
+#commission-tbl thead th:nth-child(12),
+#commission-tbl thead th:nth-child(13),
+#commission-tbl thead th:nth-child(14),
+#commission-tbl thead th:nth-child(15) {
+    text-align: center;
+}
+
+#commission-tbl tbody td:nth-child(8),
+#commission-tbl tbody td:nth-child(9),
+#commission-tbl tbody td:nth-child(10),
+#commission-tbl tbody td:nth-child(11),
+#commission-tbl tbody td:nth-child(12),
+#commission-tbl tbody td:nth-child(13),
+#commission-tbl tbody td:nth-child(14),
+#commission-tbl tbody td:nth-child(15) {
     text-align: right;
     padding-right: 20px;
+}
+
+#commission-tbl tfoot th.col-buyin,
+#commission-tbl tfoot th.col-cashout,
+#commission-tbl tfoot th.col-winloss,
+#commission-tbl tfoot th.col-total-rolling,
+#commission-tbl tfoot th.col-game-rate,
+#commission-tbl tfoot th.col-commission,
+#commission-tbl tfoot th#GRAND_FNB,
+#commission-tbl tfoot th#GRAND_PAYMENT,
+#commission-compare-modal-tbl tfoot th.col-buyin,
+#commission-compare-modal-tbl tfoot th.col-cashout,
+#commission-compare-modal-tbl tfoot th.col-winloss,
+#commission-compare-modal-tbl tfoot th.col-total-rolling,
+#commission-compare-modal-tbl tfoot th.col-game-rate,
+#commission-compare-modal-tbl tfoot th.col-commission,
+#commission-compare-modal-tbl tfoot th#commission-compare-total-fnb,
+#commission-compare-modal-tbl tfoot th#commission-compare-total-payment {
+    text-align: right !important;
+    padding-right: 6px !important;
+}
+
+/* Header + Footer Colors - BUY-IN (Blue) */
+#commission-tbl td.col-buyin,
+#commission-tbl th.col-buyin,
+#commission-compare-modal-tbl td.col-buyin,
+#commission-compare-modal-tbl th.col-buyin {
+    background-color: #e4f0fb !important;
+    color: #1565c0 !important;
+    font-weight: 500;
+}
+
+#commission-tbl thead th.col-buyin {
+    font-weight: 500;
+}
+
+#commission-tbl tbody td.col-buyin,
+#commission-tbl tfoot th.col-buyin {
+    font-weight: 600;
+}
+
+/* Header + Footer Colors - ROLLING (Green) */
+#commission-tbl td.col-total-rolling,
+#commission-tbl th.col-total-rolling,
+#commission-compare-modal-tbl td.col-total-rolling,
+#commission-compare-modal-tbl th.col-total-rolling {
+    background-color: #e8f5e9 !important;
+    color: #2e7d32 !important;
+    font-weight: 500;
+}
+
+#commission-tbl tbody td.col-total-rolling,
+#commission-tbl tfoot th.col-total-rolling {
+    font-weight: 600;
+}
+
+/* Header + Footer Colors - WIN/LOSS (Orange) */
+#commission-tbl td.col-winloss,
+#commission-tbl th.col-winloss,
+#commission-compare-modal-tbl td.col-winloss,
+#commission-compare-modal-tbl th.col-winloss {
+    background-color: #fff0e1 !important;
+    color: #ef6c00 !important;
+    font-weight: 500;
+}
+
+#commission-tbl tbody td.col-winloss,
+#commission-tbl tfoot th.col-winloss {
+    font-weight: 600;
 }
 
 /* Win/Loss sign colors */
@@ -377,8 +624,7 @@
     border-bottom: 1px solid #eee;
 }
 
-/* Cell styles */
-#commission-tbl td,
+/* Cell styles — compare modal only */
 #commission-compare-modal-tbl td {
     padding: 12px 15px;
     color: #666;
@@ -421,23 +667,36 @@
 	box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb, 13, 110, 253), 0.25);
 }
 
-#commission-tbl tbody td:nth-child(3),
-#commission-tbl tbody td:nth-child(12) {
-    text-align: left;
-    padding-left: 20px;
-}
-
-#commission-tbl tbody td:nth-child(4),
-#commission-tbl tbody td:nth-child(5),
-#commission-tbl tbody td:nth-child(6),
-#commission-tbl tbody td:nth-child(7),
 #commission-tbl tbody td:nth-child(8),
 #commission-tbl tbody td:nth-child(9),
 #commission-tbl tbody td:nth-child(10),
 #commission-tbl tbody td:nth-child(11),
-#commission-tbl tfoot th:nth-child(n+4) {
+#commission-tbl tbody td:nth-child(12),
+#commission-tbl tbody td:nth-child(13),
+#commission-tbl tbody td:nth-child(14),
+#commission-tbl tbody td:nth-child(15) {
     text-align: right;
     padding-right: 20px;
+}
+
+#commission-tbl tfoot th.col-buyin,
+#commission-tbl tfoot th.col-cashout,
+#commission-tbl tfoot th.col-winloss,
+#commission-tbl tfoot th.col-total-rolling,
+#commission-tbl tfoot th.col-game-rate,
+#commission-tbl tfoot th.col-commission,
+#commission-tbl tfoot th#GRAND_FNB,
+#commission-tbl tfoot th#GRAND_PAYMENT,
+#commission-compare-modal-tbl tfoot th.col-buyin,
+#commission-compare-modal-tbl tfoot th.col-cashout,
+#commission-compare-modal-tbl tfoot th.col-winloss,
+#commission-compare-modal-tbl tfoot th.col-total-rolling,
+#commission-compare-modal-tbl tfoot th.col-game-rate,
+#commission-compare-modal-tbl tfoot th.col-commission,
+#commission-compare-modal-tbl tfoot th#commission-compare-total-fnb,
+#commission-compare-modal-tbl tfoot th#commission-compare-total-payment {
+    text-align: right !important;
+    padding-right: 6px !important;
 }
 
 #commission-tbl tbody tr:hover,
@@ -446,32 +705,40 @@
 }
 
 /* Compare modal — same alignment as main table (no checkbox column) */
+#commission-compare-modal-tbl thead th:nth-child(1),
 #commission-compare-modal-tbl thead th:nth-child(2),
+#commission-compare-modal-tbl thead th:nth-child(4),
+#commission-compare-modal-tbl thead th:nth-child(5),
+#commission-compare-modal-tbl thead th:nth-child(6),
+#commission-compare-modal-tbl thead th:nth-child(15),
+#commission-compare-modal-tbl tbody td:nth-child(1),
 #commission-compare-modal-tbl tbody td:nth-child(2),
-#commission-compare-modal-tbl tfoot th:nth-child(2),
-#commission-compare-modal-tbl thead th:nth-child(11),
-#commission-compare-modal-tbl tbody td:nth-child(11) {
+#commission-compare-modal-tbl tbody td:nth-child(4),
+#commission-compare-modal-tbl tbody td:nth-child(5),
+#commission-compare-modal-tbl tbody td:nth-child(6),
+#commission-compare-modal-tbl tbody td:nth-child(15),
+#commission-compare-modal-tbl tfoot th:nth-child(1) {
     text-align: left;
     padding-left: 20px;
 }
 
-#commission-compare-modal-tbl thead th:nth-child(3),
-#commission-compare-modal-tbl thead th:nth-child(4),
-#commission-compare-modal-tbl thead th:nth-child(5),
-#commission-compare-modal-tbl thead th:nth-child(6),
 #commission-compare-modal-tbl thead th:nth-child(7),
 #commission-compare-modal-tbl thead th:nth-child(8),
 #commission-compare-modal-tbl thead th:nth-child(9),
 #commission-compare-modal-tbl thead th:nth-child(10),
-#commission-compare-modal-tbl tbody td:nth-child(3),
-#commission-compare-modal-tbl tbody td:nth-child(4),
-#commission-compare-modal-tbl tbody td:nth-child(5),
-#commission-compare-modal-tbl tbody td:nth-child(6),
+#commission-compare-modal-tbl thead th:nth-child(11),
+#commission-compare-modal-tbl thead th:nth-child(12),
+#commission-compare-modal-tbl thead th:nth-child(13),
+#commission-compare-modal-tbl thead th:nth-child(14),
 #commission-compare-modal-tbl tbody td:nth-child(7),
 #commission-compare-modal-tbl tbody td:nth-child(8),
 #commission-compare-modal-tbl tbody td:nth-child(9),
 #commission-compare-modal-tbl tbody td:nth-child(10),
-#commission-compare-modal-tbl tfoot th:nth-child(n+3) {
+#commission-compare-modal-tbl tbody td:nth-child(11),
+#commission-compare-modal-tbl tbody td:nth-child(12),
+#commission-compare-modal-tbl tbody td:nth-child(13),
+#commission-compare-modal-tbl tbody td:nth-child(14),
+#commission-compare-modal-tbl tfoot th:nth-child(n+7) {
     text-align: right;
     padding-right: 20px;
 }

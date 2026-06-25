@@ -83,7 +83,9 @@
 		"vs_last_month": "先月比",
 		"cash_out": "キャッシュアウト",
 		"net_junket_money": "ジャンケット純資金",
-		"net_junket_cash": "ジャンケット純現金"
+		"net_junket_cash": "ジャンケット純現金",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "ホーム",
@@ -147,7 +149,25 @@
 		"deleted": "削除しました。",
 		"delete_confirm": "この記録を削除しますか？",
 		"delete_confirm_text": "元に戻せません。",
-		"total": "合計"
+		"total": "合計",
+		"transaction": "tip.transaction",
+		"status": "tip.status",
+		"name": "tip.name",
+		"settlement": "tip.settlement",
+		"settlement_help": "tip.settlement_help",
+		"optional": "tip.optional",
+		"available_roller_balance": "tip.available_roller_balance",
+		"available_balance": "tip.available_balance",
+		"settlement_amount": "tip.settlement_amount",
+		"settle": "tip.settle",
+		"settlement_invalid_amount": "tip.settlement_invalid_amount",
+		"settlement_exceeds_balance": "tip.settlement_exceeds_balance",
+		"settlement_confirm": "tip.settlement_confirm",
+		"settlement_confirm_text": "tip.settlement_confirm_text",
+		"settlement_saved": "tip.settlement_saved",
+		"settlement_missing_status": "tip.settlement_missing_status",
+		"settlement_missing_name": "tip.settlement_missing_name",
+		"remarks": "tip.remarks"
 	},
 	"footer": {
 		"by": "バイ",
@@ -480,7 +500,12 @@
 		"compare_preview": "プレビュー",
 		"search_account": "アカウント",
 		"search_name": "名前",
-		"search_game_no": "ゲーム #"
+		"search_game_no": "ゲーム #",
+		"program_date_col": "commission.program_date_col",
+		"game_start": "commission.game_start",
+		"type": "commission.type",
+		"acct_no": "commission.acct_no",
+		"guest": "commission.guest"
 	},
 	"junket_loss": {
 		"junket": "ジャンケット",
@@ -1322,7 +1347,8 @@
 		"deleted": "削除されました！",
 		"service_deleted": "サービス記録が削除されました。",
 		"delete_failed": "削除失敗",
-		"failed_to_delete": "サービス記録の削除に失敗しました。"
+		"failed_to_delete": "サービス記録の削除に失敗しました。",
+		"select_account": "fnb_hotel.select_account"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

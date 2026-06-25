@@ -189,14 +189,15 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
 		}
-		if (sourceType === 'GUEST' && !parsedAccountId) {
-			return res.status(400).json({ error: 'Account is required for guest payment' });
+		if (!parsedAccountId) {
+			return res.status(400).json({ error: 'Account is required' });
 		}
 
 		const resolvedGameId = Number.isNaN(parsedGameId) ? null : parsedGameId;
-		const resolvedAgentId = !Number.isNaN(parsedAgentId)
-			? parsedAgentId
-			: (sourceType === 'JUNKET' ? 0 : null);
+		const resolvedAgentId = !Number.isNaN(parsedAgentId) ? parsedAgentId : null;
+		if (resolvedAgentId === null) {
+			return res.status(400).json({ error: 'Invalid account/agent' });
+		}
 
 		const encodedBy = req.session?.user_id || null;
 		const now = new Date();
@@ -226,48 +227,48 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			]);
 		}
 
-		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {
+		if (parsedTransactionId === 2 && parsedAccountId) {
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
 				[parsedAccountId, resolvedGameId, amt, encodedBy, now]
 			);
 
-			try {
-				const [accountRows] = await pool.execute(
-					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
-					        COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
-					 FROM account
-					 JOIN agent ON agent.IDNo = account.AGENT_ID
-					 WHERE account.ACTIVE = 1 AND account.IDNo = ?
-					 LIMIT 1`,
-					[parsedAccountId]
-				);
+			if (sourceType === 'GUEST') {
+				try {
+					const [accountRows] = await pool.execute(
+						`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
+						        COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+						 FROM account
+						 JOIN agent ON agent.IDNo = account.AGENT_ID
+						 WHERE account.ACTIVE = 1 AND account.IDNo = ?
+						 LIMIT 1`,
+						[parsedAccountId]
+					);
 
-				if (Array.isArray(accountRows) && accountRows.length > 0) {
-					const { AGENT_CODE, NAME } = accountRows[0];
-					const TELEGRAM_ID = getAgentTelegramChatId(accountRows[0]);
+					if (Array.isArray(accountRows) && accountRows.length > 0) {
+						const { AGENT_CODE, NAME } = accountRows[0];
+						const TELEGRAM_ID = getAgentTelegramChatId(accountRows[0]);
 
-					if (TELEGRAM_ID) {
-						const formattedAmount = amt.toLocaleString('en-US');
-						const serviceLabel = resolvedCategory;
-						const date_nowTG = now.toLocaleDateString();
-						const updated_time = now.toLocaleTimeString();
-						const remarksText = (remarks || '').trim();
-						const serviceLine = remarksText
-							? `서비스: ${serviceLabel} - ${remarksText}`
-							: `서비스: ${serviceLabel}`;
+						if (TELEGRAM_ID) {
+							const formattedAmount = amt.toLocaleString('en-US');
+							const serviceLabel = resolvedCategory;
+							const date_nowTG = now.toLocaleDateString();
+							const updated_time = now.toLocaleTimeString();
+							const remarksText = (remarks || '').trim();
+							const serviceLine = remarksText
+								? `서비스: ${serviceLabel} - ${remarksText}`
+								: `서비스: ${serviceLabel}`;
 
-						const text = `Demo Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+							const text = `Demo Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
-						// Send to individual guest
-						await sendTelegramMessage(text, TELEGRAM_ID);
-						// Also broadcast to additional guest chats/channels
-						await sendTelegramToAdditionalChats(text);
+							await sendTelegramMessage(text, TELEGRAM_ID);
+							await sendTelegramToAdditionalChats(text);
+						}
 					}
+				} catch (telegramErr) {
+					console.error('Failed to send Telegram message for F&B / Hotel service deposit:', telegramErr.message || telegramErr);
 				}
-			} catch (telegramErr) {
-				console.error('Failed to send Telegram message for F&B / Hotel service deposit:', telegramErr.message || telegramErr);
 			}
 		}
 
@@ -331,9 +332,9 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ error: 'Cannot edit service with game ID. Please edit from gamebook.' });
 		}
 
-		// Get existing account_id if it was a GUEST payment
+		// Get existing account_id from agent
 		let existingAccountId = null;
-		if (existingService.SOURCE_TYPE === 'GUEST' && existingService.AGENT_ID) {
+		if (existingService.AGENT_ID) {
 			const [accountRows] = await pool.execute(
 				`SELECT IDNo FROM account WHERE AGENT_ID = ? AND ACTIVE = 1 LIMIT 1`,
 				[existingService.AGENT_ID]
@@ -353,13 +354,14 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
 		}
-		if (sourceType === 'GUEST' && !parsedAccountId) {
-			return res.status(400).json({ error: 'Account is required for guest payment' });
+		if (!parsedAccountId) {
+			return res.status(400).json({ error: 'Account is required' });
 		}
 
-		const resolvedAgentId = !Number.isNaN(parsedAgentId)
-			? parsedAgentId
-			: (sourceType === 'JUNKET' ? 0 : null);
+		const resolvedAgentId = !Number.isNaN(parsedAgentId) ? parsedAgentId : null;
+		if (resolvedAgentId === null) {
+			return res.status(400).json({ error: 'Invalid account/agent' });
+		}
 
 		const updatedBy = req.session?.user_id || null;
 		const now = new Date();
@@ -416,7 +418,7 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		}
 
 		// Create new account_ledger entry if deposit (fnb_hotel update: no game_id - services without game)
-		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {
+		if (parsedTransactionId === 2 && parsedAccountId) {
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
@@ -465,7 +467,7 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 
 		// Soft delete matching account_ledger when this was GUEST + deposit (fnb_hotel: GAME_ID always NULL)
 		const transId = parseInt(existingService.TRANSACTION_ID, 10);
-		if (transId === 2 && (existingService.SOURCE_TYPE || '').toUpperCase() === 'GUEST' && existingService.AGENT_ID) {
+		if (transId === 2 && existingService.AGENT_ID) {
 			const [accountRows] = await pool.execute(
 				`SELECT IDNo FROM account WHERE AGENT_ID = ? AND ACTIVE = 1 LIMIT 1`,
 				[existingService.AGENT_ID]

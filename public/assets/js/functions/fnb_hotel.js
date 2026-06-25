@@ -185,9 +185,7 @@ $(document).ready(function() {
 
 					const displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
 					const sourceHtml = `<span class="${sourceClass}">${displaySource}</span>`;
-					const agentHtml = service.SOURCE_TYPE === 'JUNKET'
-						? '-'
-						: (service.agent_name || 'Unknown');
+					const agentHtml = service.agent_name || '-';
 					const gameIdHtml = service.GAME_ID ? service.GAME_ID : '-';
 					const serviceTypeHtml = service.SERVICE_TYPE || '';
 					const amountHtml = `<span class="${amountClass}">${displayAmt}</span>`;
@@ -490,7 +488,7 @@ $(document).ready(function() {
 			$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
 		}
 
-		if (sourceType === 'GUEST' && agentId) {
+		if (agentId) {
 			$('#modal-services-edit-record').data('pendingAgentId', agentId);
 		}
 

@@ -10,7 +10,7 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
-const { isTipEnabled, saveCashoutTips, archiveTipsForCashout } = require('../utils/saveCashoutTips');
+const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION } = require('../utils/saveCashoutTips');
 
 /** Junket/house account used when resolving pending via New Game (account.IDNo). */
 const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
@@ -1011,21 +1011,48 @@ async function assertPendingGame(db, gameId) {
 	return rows[0];
 }
 
-async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, nnAmount, ccAmount, encodedBy, dateNow }) {
-	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const [nnInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
-	const [ccInsert] = await db.execute(gameRecordSQL, [gameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
+function buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, fallback) {
+	const parts = [];
+	const remarks = (creditRemarks || '').toString().trim();
+	const guarantor = (creditGuarantor || '').toString().trim();
+	if (remarks) parts.push(remarks);
+	if (guarantor) parts.push('Guarantor: ' + guarantor);
+	if (parts.length) return parts.join(' | ');
+	return fallback || null;
+}
+
+function creditGuarantorRequiredError(creditTotal, creditGuarantor) {
+	if ((parseFloat(creditTotal) || 0) > 0 && !(creditGuarantor || '').toString().trim()) {
+		return 'Please enter the guarantor for the credit amount.';
+	}
+	return null;
+}
+
+const GAME_RECORD_BUYIN_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+const GAME_RECORD_BUYIN_WITH_REMARKS_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, nnAmount, ccAmount, encodedBy, dateNow, cashRemarks, depositRemarks, creditRemarks, creditGuarantor }) {
+	const cashRemarksVal = (cashRemarks || '').toString().trim() || null;
+	const depRemarks = (depositRemarks || '').toString().trim() || null;
+	const creditLedgerRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Add Buy-in Game: ${gameId}`);
+	const gameRecordRemarks = transType === 1 ? cashRemarksVal : (transType === 2 ? depRemarks : (transType === 3 ? creditLedgerRemarks : null));
+	const buyinRecordSql = gameRecordRemarks ? GAME_RECORD_BUYIN_WITH_REMARKS_SQL : GAME_RECORD_BUYIN_SQL;
+	const buyinRecordParams = gameRecordRemarks
+		? [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, gameRecordRemarks, encodedBy, dateNow]
+		: [gameId, dateNow, 1, 0, nnAmount, ccAmount, transType, encodedBy, dateNow];
+	const [nnInsert] = await db.execute(buyinRecordSql, buyinRecordParams);
+	const [ccInsert] = await db.execute(GAME_RECORD_BUYIN_SQL, [gameId, dateNow, 3, 0, nnAmount, ccAmount, transType, encodedBy, dateNow]);
 	const buyinRecordIds = `${nnInsert.insertId},${ccInsert.insertId}`;
 	const totalAmount = nnAmount + ccAmount;
 	if (transType === 2) {
 		await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, depRemarks, encodedBy, dateNow]
 		);
 	} else if (transType === 3) {
 		await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, gameId, 10, transType, totalAmount, `Add Buy-in Game: ${gameId}`, encodedBy, dateNow]
+			[accountId, gameId, 10, transType, totalAmount, creditLedgerRemarks, encodedBy, dateNow]
 		);
 	}
 	return { buyinRecordIds };
@@ -1701,6 +1728,292 @@ router.get('/game_list_available_chips', async (_req, res) => {
 	}
 });
 
+router.get('/game_list_company_balance', async (_req, res) => {
+	try {
+		const balances = await dashboardQueries.computeHouseBalance();
+		return res.json(balances);
+	} catch (err) {
+		console.error('Error in /game_list_company_balance:', err);
+		return res.status(500).json({ error: 'Failed to load company balance.' });
+	}
+});
+
+router.get('/game_list_cashout_credit/:accountId', async (req, res) => {
+	const accountId = parseInt(req.params.accountId, 10);
+	if (!Number.isFinite(accountId) || accountId <= 0) {
+		return res.status(400).json({ error: 'Invalid account.' });
+	}
+
+	const markerQuery = `
+		SELECT account.IDNo AS ACCOUNT_ID,
+			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
+			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT,
+			agent.AGENT_CODE AS AGENT_CODE,
+			agent.NAME AS AGENT_NAME,
+			agency.AGENCY AS AGENCY_NAME
+		FROM agent
+		JOIN account ON agent.IDNo = account.AGENT_ID
+		JOIN agency ON agency.IDNo = agent.AGENCY
+		JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+		WHERE account_ledger.TRANSACTION_TYPE IN (3, 4)
+			AND account_ledger.ACTIVE = 1 AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ?
+		GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME, agency.AGENCY`;
+
+	const breakdownQuery = `
+		SELECT inner_sub.BALANCE_CREDIT,
+			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
+			inner_sub.TOTAL_AMOUNT
+		FROM (
+			SELECT sub.ACCOUNT_ID,
+				ROUND(
+					GREATEST(
+						0,
+						sub.CREDIT_ISSUED -
+						sub.RETURNS_TAGGED_CREDIT -
+						COALESCE(sub.RETURNS_UNTAGGED * sub.CREDIT_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
+					),
+					0
+				) AS BALANCE_CREDIT,
+				ROUND(
+					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
+					0
+				) AS TOTAL_AMOUNT
+			FROM (
+				SELECT account.IDNo AS ACCOUNT_ID,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
+					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
+					SUM(CASE
+						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
+							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
+							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
+							AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
+						THEN account_ledger.AMOUNT
+						ELSE 0
+					END) AS RETURNS_UNTAGGED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
+				FROM account
+				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4)
+					AND account_ledger.ACTIVE = 1
+					AND account.IDNo = ?
+				GROUP BY account.IDNo
+			) sub
+		) inner_sub`;
+
+	const guestBalancesQuery = `
+		SELECT
+			guest.IDNo AS GUEST_ID,
+			COALESCE(NULLIF(TRIM(guest.NAME), ''), 'Unknown') AS GUEST_NAME,
+			ROUND(SUM(game_credit.BALANCE), 0) AS CREDIT_BALANCE
+		FROM (
+			SELECT
+				gl.GUEST_ID,
+				GREATEST(
+					0,
+					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END), 0) -
+					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END), 0)
+				) AS BALANCE
+			FROM game_list gl
+			LEFT JOIN account_ledger al ON al.GAME_ID = gl.IDNo
+				AND al.ACCOUNT_ID = gl.ACCOUNT_ID
+				AND al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE IN (3, 4)
+				AND (al.TRANSACTION_ID IN (3, 10, 11, 12, 1) OR al.TRANSACTION_TYPE = 4)
+			WHERE gl.ACCOUNT_ID = ?
+			GROUP BY gl.IDNo, gl.GUEST_ID
+		) game_credit
+		INNER JOIN guest ON guest.IDNo = game_credit.GUEST_ID
+		WHERE game_credit.BALANCE > 0
+		GROUP BY guest.IDNo, guest.NAME
+		ORDER BY guest.NAME ASC`;
+
+	const historyQuery = `
+		SELECT account_ledger.*,
+			agent.NAME AS AGENT_NAME,
+			agent.AGENT_CODE AS AGENT_CODE,
+			agency.AGENCY AS AGENCY_NAME,
+			COALESCE(NULLIF(TRIM(guest.NAME), ''), '') AS GUEST_NAME,
+			CONCAT(account_ledger.TRANSACTION_ID, '-', account_ledger.TRANSACTION_TYPE) AS TRANSACTION_INFO
+		FROM account_ledger
+		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+		JOIN agent ON agent.IDNo = account.AGENT_ID
+		JOIN agency ON agency.IDNo = agent.AGENCY
+		LEFT JOIN game_list gl ON gl.IDNo = account_ledger.GAME_ID AND gl.ACCOUNT_ID = account_ledger.ACCOUNT_ID
+		LEFT JOIN guest ON guest.IDNo = gl.GUEST_ID
+		WHERE account_ledger.ACTIVE = 1
+			AND account_ledger.ACCOUNT_ID = ?
+			AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)
+		ORDER BY account_ledger.ENCODED_DT DESC, account_ledger.IDNo DESC
+		LIMIT 25`;
+
+	try {
+		const [[markerRow]] = await pool.execute(markerQuery, [accountId]);
+		const [[breakdownRow]] = await pool.execute(breakdownQuery, [accountId]);
+		const [guestBalanceRows] = await pool.execute(guestBalancesQuery, [accountId]);
+		const [history] = await pool.execute(historyQuery, [accountId]);
+
+		let agentCode = markerRow ? markerRow.AGENT_CODE || '' : '';
+		let agentName = markerRow ? markerRow.AGENT_NAME || '' : '';
+		let agencyName = markerRow ? markerRow.AGENCY_NAME || '' : '';
+
+		if (!agentCode) {
+			const [[agentRow]] = await pool.execute(`
+				SELECT agent.AGENT_CODE, agent.NAME AS AGENT_NAME, agency.AGENCY AS AGENCY_NAME
+				FROM account
+				JOIN agent ON agent.IDNo = account.AGENT_ID
+				JOIN agency ON agency.IDNo = agent.AGENCY
+				WHERE account.IDNo = ? AND account.ACTIVE = 1
+				LIMIT 1
+			`, [accountId]);
+			if (agentRow) {
+				agentCode = agentRow.AGENT_CODE || '';
+				agentName = agentRow.AGENT_NAME || '';
+				agencyName = agentRow.AGENCY_NAME || '';
+			}
+		}
+
+		const totalCredit = markerRow ? parseFloat(markerRow.TOTAL_AMOUNT) || 0 : 0;
+		const balanceCredit = breakdownRow ? parseFloat(breakdownRow.BALANCE_CREDIT) || 0 : 0;
+		const balanceBuyin = breakdownRow ? parseFloat(breakdownRow.BALANCE_BUYIN) || 0 : 0;
+		const guestBalances = (guestBalanceRows || []).map((row) => ({
+			guestId: row.GUEST_ID,
+			guestName: row.GUEST_NAME || '',
+			creditBalance: parseFloat(row.CREDIT_BALANCE) || 0
+		}));
+
+		return res.json({
+			totalCredit,
+			balanceCredit,
+			balanceBuyin,
+			guestBalances,
+			agentCode,
+			agentName,
+			agencyName,
+			history: history || []
+		});
+	} catch (err) {
+		console.error('Error in /game_list_cashout_credit:', err);
+		return res.status(500).json({ error: 'Failed to load credit context.' });
+	}
+});
+
+router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
+	const accountId = parseInt(req.params.accountId, 10);
+	if (!Number.isFinite(accountId) || accountId <= 0) {
+		return res.status(400).json({ error: 'Invalid account.' });
+	}
+
+	const TIP_TYPE_ROLLER = 1;
+	const TIP_TYPE_DEALER = 2;
+
+	const buildTipHistory = async function (tipType) {
+		const [tipRows] = await pool.execute(
+			`SELECT
+				t.IDNo,
+				t.AMOUNT,
+				t.TIP_DATETIME,
+				t.ROLLER_NAME,
+				t.TIP_STATUS,
+				t.REMARKS,
+				COALESCE(NULLIF(TRIM(t.ROLLER_NAME), ''), NULLIF(TRIM(t.REMARKS), ''), '—') AS PERSON_NAME,
+				COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS TIP_STATUS_LABEL
+			FROM tip t
+			WHERE t.ACTIVE = 1 AND t.ACCOUNT_ID = ? AND t.TIP_TYPE = ?
+			ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC
+			LIMIT 50`,
+			[accountId, tipType]
+		);
+
+		const history = (tipRows || []).map((row) => ({
+			IDNo: row.IDNo,
+			AMOUNT: parseFloat(row.AMOUNT) || 0,
+			TIP_DATETIME: row.TIP_DATETIME,
+			TRANSACTION: tipType === TIP_TYPE_ROLLER ? 'Roller Tip' : 'Dealer Tip',
+			STATUS: row.TIP_STATUS_LABEL || 'Roller',
+			PERSON_NAME: row.PERSON_NAME || '—'
+		}));
+
+		if (tipType === TIP_TYPE_ROLLER) {
+			const [settlementRows] = await pool.execute(
+				`SELECT
+					gl.IDNo,
+					gl.GAME_ENDED,
+					COALESCE(gl.PAYMENT, gl.FNB, 0) AS SETTLEMENT_AMOUNT,
+					COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), '-') AS PERSON_NAME
+				FROM game_list gl
+				LEFT JOIN user_info ui ON ui.IDNo = gl.EDITED_BY
+				WHERE gl.ACCOUNT_ID = ?
+					AND gl.ACTIVE != 0
+					AND gl.SETTLED = 1
+					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0
+				ORDER BY gl.GAME_ENDED DESC, gl.IDNo DESC
+				LIMIT 25`,
+				[accountId]
+			);
+
+			(settlementRows || []).forEach((row) => {
+				const amount = parseFloat(row.SETTLEMENT_AMOUNT) || 0;
+				if (amount <= 0) return;
+				history.push({
+					IDNo: 'S-' + row.IDNo,
+					AMOUNT: -amount,
+					TIP_DATETIME: row.GAME_ENDED,
+					TRANSACTION: 'Settlement',
+					STATUS: 'GM',
+					PERSON_NAME: row.PERSON_NAME || '—'
+				});
+			});
+
+			history.sort((a, b) => {
+				const da = new Date(a.TIP_DATETIME).getTime() || 0;
+				const db = new Date(b.TIP_DATETIME).getTime() || 0;
+				if (db !== da) return db - da;
+				return String(b.IDNo).localeCompare(String(a.IDNo));
+			});
+		}
+
+		const [[balanceRow]] = await pool.execute(
+			`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TIP_TOTAL
+			FROM tip t
+			WHERE t.ACTIVE = 1 AND t.ACCOUNT_ID = ? AND t.TIP_TYPE = ?`,
+			[accountId, tipType]
+		);
+
+		let balance = parseFloat(balanceRow && balanceRow.TIP_TOTAL) || 0;
+
+		if (tipType === TIP_TYPE_ROLLER) {
+			const [[settlementTotalRow]] = await pool.execute(
+				`SELECT COALESCE(SUM(COALESCE(gl.PAYMENT, gl.FNB, 0)), 0) AS SETTLEMENT_TOTAL
+				FROM game_list gl
+				WHERE gl.ACCOUNT_ID = ?
+					AND gl.ACTIVE != 0
+					AND gl.SETTLED = 1
+					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0`,
+				[accountId]
+			);
+			balance -= parseFloat(settlementTotalRow && settlementTotalRow.SETTLEMENT_TOTAL) || 0;
+		}
+
+		return { balance, history };
+	};
+
+	try {
+		const roller = await buildTipHistory(TIP_TYPE_ROLLER);
+		const dealer = await buildTipHistory(TIP_TYPE_DEALER);
+
+		return res.json({
+			rollerBalance: roller.balance,
+			dealerBalance: dealer.balance,
+			rollerHistory: roller.history,
+			dealerHistory: dealer.history
+		});
+	} catch (err) {
+		console.error('Error in /game_list_cashout_tips:', err);
+		return res.status(500).json({ error: 'Failed to load tip context.' });
+	}
+});
+
 // ADD GAME LIST
 router.post('/add_game_list', async (req, res) => {
 	const {
@@ -1964,6 +2277,9 @@ router.post('/add_game_list', async (req, res) => {
 			]);
 		}
 
+		if (req.xhr || (req.get('Accept') || '').includes('application/json')) {
+			return res.json({ success: true, gameId });
+		}
 		res.redirect('/game_list');
 	} catch (err) {
 		console.error('Error in /add_game_list:', err);
@@ -2019,6 +2335,10 @@ router.post('/add_game_list_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
+	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
+	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
+	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const cashRemarks = (req.body.txtCashRemarks || '').toString().trim();
 	const encoded_dt = new Date();
 	const program_date = parseGameListProgramDate(txtProgramDate);
 	const trading_date = parseProgramDateAsDateTime(program_date);
@@ -2038,14 +2358,13 @@ router.post('/add_game_list_split', async (req, res) => {
 	if (grandTotal <= 0) {
 		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
-	const gameRecordSQL = `
-		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`;
+	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
 	const ledgerDepositSQL = `
-		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`;
 	const ledgerCreditSQL = `
 		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
@@ -2064,17 +2383,18 @@ router.post('/add_game_list_split', async (req, res) => {
 		const gameId = gameResult.insertId;
 
 		let cashRecordId = null;
+		const creditGameRecordRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Buy-in Game: ${gameId}`);
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
+			const [cashRecord] = await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, cashNn, cashCc, 1, cashRemarks || null, encodedBy, encoded_dt]);
 			cashRecordId = cashRecord.insertId;
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, cashNn, cashCc, 1, encodedBy, encoded_dt]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, depNn, depCc, 2, depositRemarks || null, encodedBy, encoded_dt]);
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, depNn, depCc, 2, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [gameId, trading_date, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, encodedBy, encoded_dt]);
 			await connection.execute(gameRecordSQL, [gameId, trading_date, 3, 0, creditNn, creditCc, 3, encodedBy, encoded_dt]);
 		}
 
@@ -2087,10 +2407,19 @@ router.post('/add_game_list_split', async (req, res) => {
 		}
 
 		if (depositTotal > 0) {
-			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, encoded_dt]);
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, depositRemarks || null, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]);
+			await connection.execute(ledgerCreditSQL, [
+				accountId,
+				gameId,
+				10,
+				3,
+				creditTotal,
+				creditGameRecordRemarks,
+				encodedBy,
+				encoded_dt
+			]);
 		}
 
 		const [agentRows] = await connection.execute(`
@@ -2152,6 +2481,9 @@ router.post('/add_game_list_split', async (req, res) => {
 			console.error('Telegram block after add_game_list_split:', tgErr);
 		}
 
+		if (req.xhr || (req.get('Accept') || '').includes('application/json')) {
+			return res.json({ success: true, gameId });
+		}
 		return res.redirect('/game_list');
 	} catch (err) {
 		try {
@@ -2875,7 +3207,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION FROM game_record
+    const query = `SELECT IDNo, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION, ENCODED_DT FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 
@@ -2888,7 +3220,275 @@ router.get('/game_list/:id/record', async (req, res) => {
     }
 });
 
+// GET game start receipt data (initial buy-in breakdown)
+router.get('/game_list/:id/start_receipt', async (req, res) => {
+	const data = await buildGameReceipts(parseInt(req.params.id, 10));
+	if (!data) {
+		return res.status(404).json({ error: 'Game not found' });
+	}
+	const gameStart = (data.receipts || []).find((r) => r.type === 'game_start');
+	if (!gameStart) {
+		return res.status(404).json({ error: 'Game start receipt not found' });
+	}
+	return res.json(gameStart);
+});
 
+function sumChipsByTransaction(records, cageType, encodedDt) {
+	let cash = 0;
+	let deposit = 0;
+	let credit = 0;
+	(records || []).forEach((row) => {
+		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return;
+		if (encodedDt != null && row.ENCODED_DT !== encodedDt) return;
+		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
+		const trans = parseInt(row.TRANSACTION, 10);
+		if (trans === 1) cash += amt;
+		else if (trans === 2) deposit += amt;
+		else if (trans === 3) credit += amt;
+	});
+	return { cash, deposit, credit, total: cash + deposit + credit };
+}
+
+function computeReceiptWinLossRolling(records) {
+	const buyinRecords = (records || []).filter((row) => parseInt(row.CAGE_TYPE, 10) === 1);
+	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
+
+	let totalInitial = 0;
+	let totalAdditional = 0;
+	let totalCashOutNn = 0;
+	let totalCashOutCc = 0;
+	let totalRollingNn = 0;
+	let totalRollingReal = 0;
+	let totalRollingNnReal = 0;
+	let totalRollingCcReal = 0;
+	let totalRollerReturnCc = 0;
+
+	(records || []).forEach((row) => {
+		const cageType = parseInt(row.CAGE_TYPE, 10);
+		const nn = parseFloat(row.NN_CHIPS || 0);
+		const cc = parseFloat(row.CC_CHIPS || 0);
+		const chips = nn + cc;
+
+		if (cageType === 1) {
+			if (row.ENCODED_DT === initialDt) totalInitial += chips;
+			else totalAdditional += chips;
+		} else if (cageType === 2) {
+			totalCashOutNn += nn;
+			totalCashOutCc += cc;
+		} else if (cageType === 3) {
+			totalRollingNn += nn;
+		} else if (cageType === 4) {
+			totalRollingReal += parseFloat(row.AMOUNT || 0);
+			totalRollingNnReal += nn;
+			totalRollingCcReal += cc;
+		} else if (cageType === 5 && parseInt(row.ROLLER_TRANSACTION, 10) === 2) {
+			totalRollerReturnCc += parseFloat(row.ROLLER_CC_CHIPS || 0);
+		}
+	});
+
+	const totalCashOutChips = totalCashOutNn + totalCashOutCc;
+	const totalRollingChips = totalRollingNn + totalRollerReturnCc + totalRollingReal + totalRollingNnReal + totalRollingCcReal - totalCashOutNn;
+	const winLoss = totalInitial + totalAdditional - totalCashOutChips;
+
+	return { win_loss: winLoss, rolling: totalRollingChips };
+}
+
+function computeReceiptCommission(game, winLoss, rolling) {
+	const commissionType = parseInt(game.COMMISSION_TYPE, 10);
+	const rate = parseFloat(game.COMMISSION_PERCENTAGE) || 0;
+	if (commissionType === 1 || commissionType === 3) {
+		return Math.round((rolling * rate) / 100);
+	}
+	if (commissionType === 2) {
+		return Math.round((winLoss * rate) / 100);
+	}
+	return 0;
+}
+
+async function buildGameReceipts(gameId) {
+	if (!gameId || Number.isNaN(gameId)) return null;
+
+	const [gameRows] = await pool.execute(`
+		SELECT
+			game_list.IDNo AS game_list_id,
+			game_list.ENCODED_DT,
+			game_list.GAME_ENDED,
+			game_list.ACTIVE,
+			game_list.SETTLED,
+			game_list.PAYMENT,
+			game_list.COMMISSION_TYPE,
+			game_list.COMMISSION_PERCENTAGE,
+			game_list.GAME_TYPE,
+			agent.AGENT_CODE AS agent_code,
+			agent.NAME AS agent_name,
+			COALESCE((
+				SELECT SUM(gs.AMOUNT)
+				FROM game_services gs
+				WHERE gs.GAME_ID = game_list.IDNo
+				  AND gs.ACTIVE = 1
+				  AND gs.TRANSACTION_ID = 3
+			), 0) AS ADD_CHG
+		FROM game_list
+		JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+		JOIN agent ON agent.IDNo = account.AGENT_ID
+		WHERE game_list.IDNo = ? AND game_list.ACTIVE != 0
+		LIMIT 1`,
+		[gameId]
+	);
+	if (!gameRows.length) return null;
+
+	const game = gameRows[0];
+	const [recordRows] = await pool.execute(`
+		SELECT TRANSACTION, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ENCODED_DT
+		FROM game_record
+		WHERE GAME_ID = ? AND ACTIVE != 0
+		ORDER BY IDNo ASC`,
+		[gameId]
+	);
+
+	const base = {
+		game_id: game.game_list_id,
+		game_type: game.GAME_TYPE || '',
+		agent_code: game.agent_code || '',
+		agent_name: game.agent_name || ''
+	};
+
+	const buyinRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 1);
+	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
+	const additionalDts = [];
+	buyinRecords.forEach((r) => {
+		if (r.ENCODED_DT !== initialDt && !additionalDts.includes(r.ENCODED_DT)) {
+			additionalDts.push(r.ENCODED_DT);
+		}
+	});
+
+	const totalBuyin = sumChipsByTransaction(recordRows, 1, null);
+	const totalCashout = sumChipsByTransaction(recordRows, 2, null);
+	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
+	const receipts = [];
+
+	const initialBuyin = sumChipsByTransaction(recordRows, 1, initialDt);
+	if (initialBuyin.total > 0) {
+		receipts.push({
+			...base,
+			type: 'game_start',
+			title: '* Game start *',
+			encoded_dt: initialDt,
+			show_buyin: true,
+			show_cashout: false,
+			show_summary: false,
+			buyin_label: '* BUY IN',
+			cash: initialBuyin.cash,
+			deposit: initialBuyin.deposit,
+			credit: initialBuyin.credit,
+			buy_in: initialBuyin.total
+		});
+	}
+
+	if (additionalDts.length > 0) {
+		const latestAddDt = additionalDts[additionalDts.length - 1];
+		const latestAdd = sumChipsByTransaction(recordRows, 1, latestAddDt);
+		receipts.push({
+			...base,
+			type: 'add_buyin',
+			title: '* ADD *',
+			encoded_dt: latestAddDt,
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			buyin_label: '* TOTAL BUY IN',
+			cash: latestAdd.cash,
+			deposit: latestAdd.deposit,
+			credit: latestAdd.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: totalCashout.cash,
+			cashout_deposit: totalCashout.deposit,
+			cashout_credit: totalCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling
+		});
+	}
+
+	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2);
+	if (cashoutRecords.length > 0) {
+		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
+		const latestCashout = sumChipsByTransaction(recordRows, 2, latestCashoutDt);
+		receipts.push({
+			...base,
+			type: 'cashout',
+			title: '* CASH OUT *',
+			encoded_dt: latestCashoutDt,
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			buyin_label: '* TOTAL BUY IN',
+			cash: totalBuyin.cash,
+			deposit: totalBuyin.deposit,
+			credit: totalBuyin.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: latestCashout.cash,
+			cashout_deposit: latestCashout.deposit,
+			cashout_credit: latestCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling
+		});
+	}
+
+	const activeStatus = parseInt(game.ACTIVE, 10);
+	if (activeStatus === 1) {
+		const net = computeReceiptCommission(game, winLoss, rolling);
+		const addChg = parseFloat(game.ADD_CHG) || 0;
+		const settlement = net;
+		const actSettlement = settlement - addChg;
+		receipts.push({
+			...base,
+			type: 'game_finish',
+			title: '* Game FINISH *',
+			encoded_dt: game.GAME_ENDED || new Date(),
+			show_buyin: true,
+			show_cashout: true,
+			show_summary: true,
+			show_settlement: true,
+			buyin_label: '* BUY IN',
+			cashout_label: '* CASH OUT',
+			cash: totalBuyin.cash,
+			deposit: totalBuyin.deposit,
+			credit: totalBuyin.credit,
+			buy_in: totalBuyin.total,
+			cashout_cash: totalCashout.cash,
+			cashout_deposit: totalCashout.deposit,
+			cashout_credit: totalCashout.credit,
+			total_cashout: totalCashout.total,
+			win_loss: winLoss,
+			rolling,
+			settlement,
+			add_charge: addChg,
+			act_settlement: actSettlement
+		});
+	}
+
+	return { game_id: gameId, receipts };
+}
+
+// GET all transaction receipts for sequential display
+router.get('/game_list/:id/receipts', async (req, res) => {
+	const gameId = parseInt(req.params.id, 10);
+	if (!gameId || Number.isNaN(gameId)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	try {
+		const data = await buildGameReceipts(gameId);
+		if (!data) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		return res.json(data);
+	} catch (error) {
+		console.error('Error fetching game receipts:', error);
+		return res.status(500).json({ error: 'Error fetching game receipts' });
+	}
+});
 
 // DELETE GAME LIST (Deactivate - soft delete)
 router.put('/game_list/remove/:id', async (req, res) => {
@@ -4474,6 +5074,10 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 	const creditTotal = creditNn + creditCc;
 	const grandTotal = cashTotal + depositTotal + creditTotal;
 	const totalBalance = parseFloat((totalBalanceGuest2 || '0').toString().replace(/,/g, '')) || 0;
+	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
+	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
+	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const cashRemarks = (req.body.txtCashRemarks || '').toString().trim();
 	const date_now = new Date();
 
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
@@ -4492,9 +5096,11 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 	if (depositTotal > totalBalance) {
 		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
-	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const gameRecordSQL = GAME_RECORD_BUYIN_SQL;
+	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 	const ledgerCreditSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	const connection = await pool.getConnection();
@@ -4502,20 +5108,30 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		let cashRecordId = null;
+		const creditGameRecordRemarks = buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, `Add Buy-in Game: ${game_id}`);
 		if (cashTotal > 0) {
-			const [cashRecord] = await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
+			const [cashRecord] = await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, cashNn, cashCc, 1, cashRemarks || null, req.session.user_id, date_now]);
 			cashRecordId = cashRecord.insertId;
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
 		}
 		if (depositTotal > 0) {
-			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, depNn, depCc, 2, req.session.user_id, date_now]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, depNn, depCc, 2, depositRemarks || null, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, depNn, depCc, 2, req.session.user_id, date_now]);
-			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, req.session.user_id, date_now]);
+			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, depositRemarks || null, req.session.user_id, date_now]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
+			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
-			await connection.execute(ledgerCreditSQL, [txtAccountCode, game_id, 10, 3, creditTotal, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]);
+			await connection.execute(ledgerCreditSQL, [
+				txtAccountCode,
+				game_id,
+				10,
+				3,
+				creditTotal,
+				creditGameRecordRemarks,
+				req.session.user_id,
+				date_now
+			]);
 		}
 
 		if (cashTotal > 0 && cashRecordId) {
@@ -4697,13 +5313,15 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		await connection.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
 
 		if (isTipEnabled(req.body)) {
+			const tipAmounts = parseTipSplitAmounts(req.body);
 			await saveCashoutTips(connection, {
 				gameId: game_id,
 				accountId: txtAccountCode,
 				cashoutId: gameRecordId,
-				rollerAmount: req.body.txtTipRoller,
-				dealerAmount: req.body.txtTipDealer,
-				expectedTotal: chipsReturn,
+				rollerAmount: tipAmounts.roller,
+				dealerAmount: tipAmounts.dealer,
+				rollerName: (req.body.txtTipRollerName || '').toString().trim(),
+				tipStatus: (req.body.txtTipStatus || '').toString().trim(),
 				userId: req.session.user_id,
 				dateNow: date_now
 			});
@@ -4845,6 +5463,21 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	let depCc = parseAmt(req.body.split_dep_cc);
 	let creditNn = parseAmt(req.body.split_credit_nn);
 	let creditCc = parseAmt(req.body.split_credit_cc);
+	const tipRollerNn = parseAmt(req.body.txtTipRollerNn);
+	const tipRollerCc = parseAmt(req.body.txtTipRollerCc);
+	const tipDealerNn = parseAmt(req.body.txtTipDealerNn);
+	const tipDealerCc = parseAmt(req.body.txtTipDealerCc);
+	const depositRemarks = (req.body.txtDepositRemarks || '').toString().trim();
+	const creditRemarks = (req.body.txtCreditRemarks || '').toString().trim();
+	const creditGuarantor = (req.body.txtCreditGuarantor || '').toString().trim();
+	const tipRollerName = (req.body.txtTipRollerName || '').toString().trim();
+	const tipStatus = (req.body.txtTipStatus || '').toString().trim();
+	const buildCreditLedgerRemarks = function () {
+		const parts = [];
+		if (creditRemarks) parts.push(creditRemarks);
+		if (creditGuarantor) parts.push('Guarantor: ' + creditGuarantor);
+		return parts.length ? parts.join(' | ') : null;
+	};
 
 	const rollingLimit = parseFloat((txtTotalRolling || '0').replace(/,/g, '')) || 0;
 	const markerBalance = parseFloat((txtMarkerChipsReturn || '0').replace(/,/g, '')) || 0;
@@ -4855,7 +5488,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
 	}
 
-	if ([cashNn, cashCc, depNn, depCc, creditNn, creditCc].some((n) => !Number.isFinite(n) || n < 0)) {
+	if ([cashNn, cashCc, depNn, depCc, creditNn, creditCc, tipRollerNn, tipRollerCc, tipDealerNn, tipDealerCc]
+		.some((n) => !Number.isFinite(n) || n < 0)) {
 		return res.status(400).json({ error: 'Invalid amounts.' });
 	}
 	if (cashNn > 0 && cashNn % 1000 !== 0) {
@@ -4867,21 +5501,41 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	if (creditNn > 0 && creditNn % 1000 !== 0) {
 		return res.status(400).json({ error: 'NN Credit must be in thousands.' });
 	}
+	if (tipRollerNn > 0 && tipRollerNn % 1000 !== 0) {
+		return res.status(400).json({ error: 'Tip Roller NN must be in thousands.' });
+	}
+	if (tipDealerNn > 0 && tipDealerNn % 1000 !== 0) {
+		return res.status(400).json({ error: 'Tip Dealer NN must be in thousands.' });
+	}
 
 	const totalNN = cashNn + depNn + creditNn;
 	const cashLeg = cashNn + cashCc;
 	const depLeg = depNn + depCc;
 	const creditLeg = creditNn + creditCc;
 	const splitGrandTotal = cashLeg + depLeg + creditLeg;
-	if (splitGrandTotal <= 0) {
-		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
+	const tipRollerLeg = tipRollerNn + tipRollerCc;
+	const tipDealerLeg = tipDealerNn + tipDealerCc;
+	const tipGrandTotal = tipRollerLeg + tipDealerLeg;
+
+	if ((tipRollerLeg > 0 || tipDealerLeg > 0) && !tipRollerName) {
+		return res.status(400).json({ error: 'Enter the roller name.' });
 	}
-	if (totalNN > rollingLimit) {
+	if ((tipRollerLeg > 0 || tipDealerLeg > 0) && !tipStatus) {
+		return res.status(400).json({ error: 'Enter the tip status (Roller or GM).' });
+	}
+
+	if (splitGrandTotal <= 0 && tipGrandTotal <= 0) {
+		return res.status(400).json({ error: 'Enter a cash-out amount and/or a tip amount.' });
+	}
+	const totalNnAll = totalNN + tipRollerNn + tipDealerNn;
+	if (totalNnAll > rollingLimit) {
 		return res.status(400).json({ error: 'Total NN exceeds Total Rolling.' });
 	}
-	if (creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
+	if (splitGrandTotal > 0 && creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
 		return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });
 	}
+	const guarantorErr = creditGuarantorRequiredError(creditLeg, creditGuarantor);
+	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
 
 	const depositLegTotal = depNn + depCc;
 	const currentBalanceAfterSplit =
@@ -4893,6 +5547,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 
 	const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 	const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query2Deposit = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query2Credit = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	const connection = await pool.getConnection();
 	let gameRecordIdCash = null;
@@ -4939,13 +5595,14 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			if (!gameRecordIdCash) {
 				gameRecordIdCash = r2.insertId;
 			}
-			await connection.execute(query2, [
+			await connection.execute(query2Deposit, [
 				txtAccountCode,
 				game_id,
 				1,
 				2,
 				CashOutDESC,
 				depLeg,
+				depositRemarks || null,
 				userId,
 				date_now
 			]);
@@ -4966,13 +5623,14 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			if (!gameRecordIdCash) {
 				gameRecordIdCash = r3.insertId;
 			}
-			await connection.execute(query2, [
+			await connection.execute(query2Credit, [
 				txtAccountCode,
 				game_id,
 				1,
 				4,
 				CashOutDESC,
 				creditLeg,
+				buildCreditLedgerRemarks(),
 				userId,
 				date_now
 			]);
@@ -5003,14 +5661,76 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			]);
 		}
 
-		if (isTipEnabled(req.body) && gameRecordIdCash) {
+		const cashTransactionQuery = `
+			INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`;
+
+		if (tipRollerLeg > 0) {
+			const [tipRollerRecord] = await connection.execute(query1, [
+				game_id,
+				date_now,
+				2,
+				0,
+				tipRollerNn,
+				tipRollerCc,
+				CASHOUT_TRANSACTION.TIP_ROLLER,
+				userId,
+				date_now
+			]);
+			await connection.execute(query2, [
+				txtAccountCode,
+				game_id,
+				1,
+				CASHOUT_TRANSACTION.TIP_ROLLER,
+				CashOutDESC,
+				tipRollerLeg,
+				userId,
+				date_now
+			]);
 			await saveCashoutTips(connection, {
 				gameId: game_id,
 				accountId: txtAccountCode,
-				cashoutId: gameRecordIdCash,
-				rollerAmount: req.body.txtTipRoller,
-				dealerAmount: req.body.txtTipDealer,
-				expectedTotal: splitGrandTotal,
+				cashoutId: tipRollerRecord.insertId,
+				rollerAmount: tipRollerLeg,
+				dealerAmount: 0,
+				rollerName: tipRollerName,
+				tipStatus,
+				userId,
+				dateNow: date_now
+			});
+		}
+
+		if (tipDealerLeg > 0) {
+			const [tipDealerRecord] = await connection.execute(query1, [
+				game_id,
+				date_now,
+				2,
+				0,
+				tipDealerNn,
+				tipDealerCc,
+				CASHOUT_TRANSACTION.TIP_DEALER,
+				userId,
+				date_now
+			]);
+			await connection.execute(query2, [
+				txtAccountCode,
+				game_id,
+				1,
+				CASHOUT_TRANSACTION.TIP_DEALER,
+				CashOutDESC,
+				tipDealerLeg,
+				userId,
+				date_now
+			]);
+			await saveCashoutTips(connection, {
+				gameId: game_id,
+				accountId: txtAccountCode,
+				cashoutId: tipDealerRecord.insertId,
+				rollerAmount: 0,
+				dealerAmount: tipDealerLeg,
+				rollerName: tipRollerName,
+				tipStatus,
 				userId,
 				dateNow: date_now
 			});
@@ -5063,12 +5783,15 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			const cashTotal = cashNn + cashCc;
 			const depTotal = depNn + depCc;
 			const creditTotal = creditNn + creditCc;
+			const combinedGrandTotal = splitGrandTotal + tipGrandTotal;
 			const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 			const telegramGameNo = cutoffTelegram.telegramGameNo;
 			const creditLineKo = creditTotal > 0 ? `\n크레딧: ${creditTotal.toLocaleString('en-US')}` : '';
 			const creditLineMgmt = creditTotal > 0 ? `\n크레딧 Credit: ${creditTotal.toLocaleString('en-US')}` : '';
-			const text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\n현금: ${cashTotal.toLocaleString('en-US')}\n계좌입금: ${depTotal.toLocaleString('en-US')}${creditLineKo}\n총 캐시아웃: ${splitGrandTotal.toLocaleString('en-US')}\n잔고: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString('en-US')}\n계좌입금 Deposit: ${depTotal.toLocaleString('en-US')}${creditLineMgmt}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString('en-US')}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+			const tipLineKo = tipGrandTotal > 0 ? `\n팁: ${tipGrandTotal.toLocaleString('en-US')}` : '';
+			const tipLineMgmt = tipGrandTotal > 0 ? `\n팁 Tip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
+			const text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\n현금: ${cashTotal.toLocaleString('en-US')}\n계좌입금: ${depTotal.toLocaleString('en-US')}${creditLineKo}${tipLineKo}\n총 캐시아웃: ${combinedGrandTotal.toLocaleString('en-US')}\n잔고: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString('en-US')}\n계좌입금 Deposit: ${depTotal.toLocaleString('en-US')}${creditLineMgmt}${tipLineMgmt}\n총 캐시아웃 Total Cash-out: ${combinedGrandTotal.toLocaleString('en-US')}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
 
 			const telegramId =
 				telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
@@ -5077,7 +5800,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				cashoutSplitLogLabel,
 				agentCode,
 				agentName,
-				splitGrandTotal,
+				combinedGrandTotal,
 				telegramGameNo
 			);
 			if (telegramId) {

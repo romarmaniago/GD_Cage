@@ -3,6 +3,7 @@ const path = require('path');
 const router = express.Router();
 const pool = require('../config/db');
 const dashboardQueries = require('../utils/dashboardQueries');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY } = require('../utils/saveCashoutTips');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
@@ -32,7 +33,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 		WHERE ACTIVE=1`;
 
 	let sqlTotalRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4) AND RESET=1';
-	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
+	let sqlTotalCashOutRollingReset = `SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
 	let sqlReturnRollerCCChips = 'SELECT SUM(ROLLER_CC_CHIPS) AS RETURN_ROLLER_CC FROM game_record WHERE ACTIVE = 1 AND ROLLER_TRANSACTION = 2 AND RESET=1';
 
 	let sqlUnreturnedRollerChips = `
@@ -59,7 +60,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 		WHERE balances.net_balance > 0
 	`;
 
-	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
+	let sqlTotalCashOutReset = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
 	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
@@ -402,9 +403,11 @@ ON
 
 	let sqlTotalRealRolling = 'SELECT SUM(CC_CHIPS) AS TOTAL_REAL_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 4';
 	let sqlTotalRolling = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4)';
-	let sqlAccountCCChipsReturn = 'SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2';
-	let sqlTotalCashOutRolling = 'SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2';
-	let sqlTotalCashOut = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION != 4';
+	let sqlAccountCCChipsReturn = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
+	let sqlTotalCashOutRolling = `SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
+	let sqlTotalCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`;
+	let sqlRollerTipCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS ROLLER_TIP_CASHIN FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 2 ${SQL_ROLLER_TIP_CASHOUT_ONLY}`;
+	let sqlTipSettlement = 'SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1';
 
 	/* money_exchange_transaction — deposit: EXCHANGE_AMOUNT; return: RETURN_AMOUNT + MARGIN_RETURN */
 	let sqlMxDepositExchangeAmount = 'SELECT SUM(EXCHANGE_AMOUNT) AS MX_DEPOSIT_EXCHANGE FROM money_exchange_transaction WHERE ACTIVE = 1 AND TRANS_TYPE = 1';
@@ -609,6 +612,8 @@ let sqlServiceSettle = `
 
 		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
+		const [rollerTipCashOut] = await pool.execute(sqlRollerTipCashOut);
+		const [tipSettlementResult] = await pool.execute(sqlTipSettlement);
 		const [totalWinLoss] = await pool.execute(sqlWinLoss);
 		const [serviceCashGuestResults] = await pool.execute(sqlServiceCashGuest);
 		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
@@ -903,6 +908,8 @@ let sqlServiceSettle = `
 			sqlTotalRolling: totalRolling,
 			sqlTotalRollingReset: TotalRollingResetResult,
 			sqlTotalCashOut: totalCashOut,
+			sqlRollerTipCashOut: rollerTipCashOut,
+			sqlTipSettlement: tipSettlementResult,
 			sqlTotalCashOutReset: TotalCashOutResetResult,
 			sqlTotalCashOutRolling: totalCashOutRolling,
 			sqlTotalCashOutRollingReset: TotalCashOutRollingResetResult,
@@ -2021,6 +2028,49 @@ router.get('/cash_out_details', async (req, res) => {
 			REMARKS_EDIT: row.REMARKS || ''
 		}));
 
+		// 9. Tip Settlement (tip_settlement)
+		const [tipSettlementRaw] = await pool.execute(
+			`
+			SELECT
+				ts.IDNo,
+				ts.AMOUNT,
+				ts.REMARKS,
+				ts.ROLLER_NAME,
+				ts.TIP_STATUS,
+				ts.ENCODED_BY,
+				ts.SETTLEMENT_DATETIME AS ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM tip_settlement ts
+			LEFT JOIN user_info u ON ts.ENCODED_BY = u.IDNo
+			WHERE ts.ACTIVE = 1
+				AND DATE(ts.SETTLEMENT_DATETIME) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const tipSettlementRows = tipSettlementRaw.map((row) => {
+			const namePart = row.ROLLER_NAME ? String(row.ROLLER_NAME).trim() : '';
+			const statusPart = row.TIP_STATUS ? String(row.TIP_STATUS).trim() : '';
+			const remarksPart = row.REMARKS ? String(row.REMARKS).trim() : '';
+			const detailParts = [namePart, statusPart, remarksPart].filter(Boolean);
+			return {
+				IDNo: row.IDNo,
+				TRANSACTION_ID: row.IDNo,
+				AMOUNT: row.AMOUNT,
+				CATEGORY: 'Tip Settlement',
+				TYPE: 2,
+				REMARKS: detailParts.length ? detailParts.join(' - ') : 'Tip Settlement',
+				ENCODED_BY: row.ENCODED_BY,
+				ENCODED_DT: row.ENCODED_DT,
+				ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+				AGENT_NAME: '-',
+				SERVICE_TRANSACTION_ID: null,
+				SERVICE_SOURCE_TYPE: null,
+				REMARKS_SOURCE: 'tip_settlement',
+				REMARKS_EDIT: remarksPart
+			};
+		});
+
 		const allRows = [
 			...capitalOutRows,
 			...chipsBuyinRows,
@@ -2029,7 +2079,8 @@ router.get('/cash_out_details', async (req, res) => {
 			...accountCreditRows,
 			...commissionCashoutRows,
 			...junketServiceRows,
-			...expenseRows
+			...expenseRows,
+			...tipSettlementRows
 		];
 
 		allRows.sort((a, b) => {
