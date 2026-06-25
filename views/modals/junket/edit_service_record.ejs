@@ -100,7 +100,7 @@
 
 		function toggleAccountByTransactionType() {
 			const type = $transactionType.val();
-			const shouldShow = type === 'GUEST';
+			const shouldShow = type === 'GUEST' || type === 'JUNKET';
 			if (shouldShow) {
 				$accountWrapper.show();
 				$accountSelect.prop('disabled', false);
@@ -117,7 +117,7 @@
 				depositBalance = 0;
 				updateBalanceHint();
 				$paymentMethods.hide();
-				$('#edit-services-transaction-cash').prop('checked', true);
+				$('input[name="edit-services-transaction"]').prop('checked', false);
 			}
 		}
 
@@ -286,8 +286,8 @@
 				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_service_type || 'Select a service type.' });
 				return;
 			}
-			if (sourceType === 'GUEST' && !accountId) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_account_for_guest || 'Select an account for guest payment.' });
+			if (!accountId) {
+				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_account || 'Select an account.' });
 				return;
 			}
 			if (!transactionId) {

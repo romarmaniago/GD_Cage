@@ -83,7 +83,9 @@
 		"date_time": "날짜 및 시간",
 		"week": "주",
 		"vs_last_month": "지난달 대비",
-		"cash_out": "출금"
+		"cash_out": "출금",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "홈",
@@ -500,7 +502,12 @@
 		"compare_preview": "미리보기",
 		"search_account": "계정",
 		"search_name": "이름",
-		"search_game_no": "게임 #"
+		"search_game_no": "게임 #",
+		"program_date_col": "commission.program_date_col",
+		"game_start": "commission.game_start",
+		"type": "commission.type",
+		"acct_no": "commission.acct_no",
+		"guest": "commission.guest"
 	},
 	"junket_loss": {
 		"junket": "정켓",
@@ -1340,7 +1347,8 @@
 		"deleted": "삭제됨!",
 		"service_deleted": "서비스 기록이 삭제되었습니다.",
 		"delete_failed": "삭제 실패",
-		"failed_to_delete": "서비스 기록 삭제에 실패했습니다."
+		"failed_to_delete": "서비스 기록 삭제에 실패했습니다.",
+		"select_account": "fnb_hotel.select_account"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

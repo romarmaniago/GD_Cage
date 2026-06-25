@@ -83,7 +83,9 @@
 		"vs_last_month": "与上月相比",
 		"cash_out": "现金出账",
 		"net_junket_money": "净赌团资金",
-		"net_junket_cash": "净赌团现金"
+		"net_junket_cash": "净赌团现金",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "主页",
@@ -500,7 +502,12 @@
 		"compare_preview": "点击预览",
 		"search_account": "账户",
 		"search_name": "姓名",
-		"search_game_no": "局号"
+		"search_game_no": "局号",
+		"program_date_col": "commission.program_date_col",
+		"game_start": "commission.game_start",
+		"type": "commission.type",
+		"acct_no": "commission.acct_no",
+		"guest": "commission.guest"
 	},
 	"junket_loss": {
 		"junket": "接待",
@@ -1340,7 +1347,8 @@
 		"deleted": "已删除！",
 		"service_deleted": "服务记录已删除。",
 		"delete_failed": "删除失败",
-		"failed_to_delete": "删除服务记录失败。"
+		"failed_to_delete": "删除服务记录失败。",
+		"select_account": "fnb_hotel.select_account"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

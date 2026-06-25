@@ -20,6 +20,66 @@ $(document).ready(function() {
             .replace(/'/g, '&#39;');
     }
 
+    function formatCommissionProgramDate(row) {
+        var raw = row.PROGRAM_DATE || row.GAME_DATE_START;
+        if (!raw) return '-';
+        return moment.utc(raw).utcOffset(8).format('MMMM DD, YYYY');
+    }
+
+    function formatCommissionGameStart(row) {
+        if (!row.GAME_DATE_START) return '-';
+        var m = moment.utc(row.GAME_DATE_START);
+        if (!m.isValid()) return '-';
+        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+    }
+
+    function formatCommissionGameType(row) {
+        var t = String(row.GAME_TYPE || 'LIVE').toUpperCase();
+        var cls = t === 'TELEBET' ? 'css-red' : 'css-blue';
+        var label = t === 'TELEBET' ? 'TELEBET' : 'LIVE';
+        return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
+    }
+
+    function parseCommissionDisplayDate(value) {
+        var raw = String(value == null ? '' : value).trim();
+        if (!raw || raw === '-') return null;
+        var formats = [
+            'DD MMM, YYYY HH:mm:ss',
+            'DD MMM YY HH:mm',
+            'MM/DD HH:mm',
+            'MMMM DD, YYYY HH:mm:ss',
+            'MMMM DD, YYYY',
+            'MMM DD, YYYY HH:mm:ss',
+            'MMM DD, YYYY',
+            'MMM DD, YY',
+            moment.ISO_8601
+        ];
+        var m = moment.utc(raw, formats, true);
+        if (m.isValid()) return m;
+        m = moment(raw, formats, true);
+        return m.isValid() ? m : null;
+    }
+
+    function formatCommissionGameEnd(row) {
+        if (!row.GAME_ENDED) return '-';
+        var m = moment.utc(row.GAME_ENDED);
+        if (!m.isValid()) return '-';
+        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+    }
+
+    function formatCommissionDateTimeDisplay(value) {
+        var m = parseCommissionDisplayDate(value);
+        if (!m) {
+            var raw = String(value == null ? '' : value).trim();
+            return raw && raw !== '-' ? raw : '-';
+        }
+        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+    }
+
+    function formatCommissionGameEndDisplay(value) {
+        return formatCommissionDateTimeDisplay(value);
+    }
+
     function updateCompareUi() {
         var $selectionMount = $('#commission-compare-selection-mount');
         var $toolbarIdle = $('#commission-compare-toolbar-idle');
@@ -157,9 +217,16 @@ $(document).ready(function() {
 
     function buildCompareModalRowFromSnapshot(snapshot) {
         var rateNum = parseRollingRatePercent(snapshot.rollingRate);
+        var acctNo = snapshot.acctNo || '';
+        var guest = snapshot.guest || '';
         return {
+            programDate: snapshot.programDate,
+            gameStart: snapshot.gameStart,
+            type: snapshot.type,
             gameNo: snapshot.gameNo,
-            account: snapshot.account,
+            acctNo: acctNo,
+            guest: guest,
+            account: snapshot.account || (acctNo + (guest && guest !== '-' ? ' - ' + guest : '')),
             totalBuyIn: snapshot.totalBuyIn,
             chipsReturn: snapshot.chipsReturn,
             winLoss: snapshot.winLoss,
@@ -178,16 +245,18 @@ $(document).ready(function() {
     }
 
     function parseCompareModalSortDate(value) {
-        var raw = String(value || '');
-        var m = moment.utc(raw, ['MMMM DD, YYYY HH:mm:ss', 'DD MMM, YYYY HH:mm:ss', moment.ISO_8601], true);
-        if (m.isValid()) return m.valueOf();
-        m = moment(raw, ['MMMM DD, YYYY HH:mm:ss', 'DD MMM, YYYY HH:mm:ss'], true);
-        return m.isValid() ? m.valueOf() : 0;
+        var m = parseCommissionDisplayDate(value);
+        return m ? m.valueOf() : 0;
     }
 
     function getCompareModalSortValue(row, key) {
         if (!row) return '';
+        if (key === 'programDate') return parseCompareModalSortDate(row.programDate);
+        if (key === 'gameStart') return parseCompareModalSortDate(row.gameStart);
+        if (key === 'type') return String(row.type || '').toLowerCase();
         if (key === 'gameNo') return Number(row.gameNo) || 0;
+        if (key === 'acctNo') return String(row.acctNo || '').toLowerCase();
+        if (key === 'guest') return String(row.guest || '').toLowerCase();
         if (key === 'account') return String(row.account || '').toLowerCase();
         if (key === 'totalBuyIn') return parseNumCell(row.totalBuyIn);
         if (key === 'chipsReturn') return parseNumCell(row.chipsReturn);
@@ -251,8 +320,12 @@ $(document).ready(function() {
         var rowCls = rowIndex === 0 ? ' commission-compare-first-row' : '';
         return (
             '<tr data-row-index="' + rowIndex + '" class="' + rowCls.trim() + '">' +
+            '<td>' + escapeHtml(row.programDate) + '</td>' +
+            '<td>' + escapeHtml(row.gameStart) + '</td>' +
+            '<td>' + row.type + '</td>' +
             '<td>' + escapeHtml(row.gameNo) + '</td>' +
-            '<td>' + escapeHtml(row.account) + '</td>' +
+            '<td>' + escapeHtml(row.acctNo) + '</td>' +
+            '<td>' + escapeHtml(row.guest) + '</td>' +
             '<td>' + escapeHtml(row.totalBuyIn) + '</td>' +
             '<td>' + escapeHtml(row.chipsReturn) + '</td>' +
             '<td>' + formatWinLossHtml(row.winLoss) + '</td>' +
@@ -396,20 +469,27 @@ $(document).ready(function() {
 
     function rowSnapshotFromData(data) {
         if (!data || !data.length) return null;
-        var gameNo = String(data[1] == null ? '' : data[1]).trim();
+        var gameNo = String(data[4] == null ? '' : data[4]).trim();
         if (!gameNo) return null;
+        var acctNo = String(data[5] == null ? '' : data[5]);
+        var guest = String(data[6] == null ? '' : data[6]);
         return {
+            programDate: String(data[1] == null ? '' : data[1]),
+            gameStart: String(data[2] == null ? '' : data[2]),
+            type: String(data[3] == null ? '' : data[3]),
             gameNo: gameNo,
-            account: String(data[2] == null ? '' : data[2]),
-            totalBuyIn: String(data[3] == null ? '' : data[3]),
-            chipsReturn: String(data[4] == null ? '' : data[4]),
-            winLoss: String(data[5] == null ? '' : data[5]),
-            totalRolling: String(data[6] == null ? '' : data[6]),
-            rollingRate: String(data[7] == null ? '' : data[7]),
-            settlement: String(data[8] == null ? '' : data[8]),
-            fnb: String(data[9] == null ? '' : data[9]),
-            payment: String(data[10] == null ? '' : data[10]),
-            dateTime: String(data[11] == null ? '' : data[11]),
+            acctNo: acctNo,
+            guest: guest,
+            account: acctNo + (guest && guest !== '-' ? ' - ' + guest : ''),
+            totalBuyIn: String(data[7] == null ? '' : data[7]),
+            chipsReturn: String(data[8] == null ? '' : data[8]),
+            winLoss: String(data[9] == null ? '' : data[9]),
+            totalRolling: String(data[10] == null ? '' : data[10]),
+            rollingRate: String(data[11] == null ? '' : data[11]),
+            settlement: String(data[12] == null ? '' : data[12]),
+            fnb: String(data[13] == null ? '' : data[13]),
+            payment: String(data[14] == null ? '' : data[14]),
+            dateTime: String(data[15] == null ? '' : data[15]),
             chipLabel: 'Game #' + gameNo
         };
     }
@@ -466,7 +546,7 @@ $(document).ready(function() {
         var total = 0;
         var selected = 0;
         forEachFilteredCompareRow(function (data) {
-            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            var gameId = String(data[4] == null ? '' : data[4]).trim();
             if (!gameId) return;
             total++;
             if (compareSelection.has(gameId)) selected++;
@@ -482,7 +562,7 @@ $(document).ready(function() {
 
     function toggleSelectAllFiltered(checked) {
         forEachFilteredCompareRow(function (data) {
-            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            var gameId = String(data[4] == null ? '' : data[4]).trim();
             if (!gameId) return;
             if (checked) {
                 addRowToCompareSelection(data);
@@ -501,7 +581,7 @@ $(document).ready(function() {
             var data = this.data();
             var node = this.node();
             if (!data || !node) return;
-            var gameId = String(data[1] == null ? '' : data[1]).trim();
+            var gameId = String(data[4] == null ? '' : data[4]).trim();
             var $cell = $('td:eq(0)', node);
             if (!compareSelectMode) {
                 $cell.empty();
@@ -551,13 +631,13 @@ $(document).ready(function() {
             var data = this.data();
             if (!data) return;
 
-            var buyInValue = data[3] || '0';
-            var chipsReturnValue = data[4] || '0';
-            var winLossValue = data[5] || '0';
-            var rollingValue = data[6] || '0';
-            var rollingSettlementValue = data[8] || '0';
-            var fnbValue = data[9] || '0';
-            var paymentValue = data[10] || '0';
+            var buyInValue = data[7] || '0';
+            var chipsReturnValue = data[8] || '0';
+            var winLossValue = data[9] || '0';
+            var rollingValue = data[10] || '0';
+            var rollingSettlementValue = data[12] || '0';
+            var fnbValue = data[13] || '0';
+            var paymentValue = data[14] || '0';
 
             totalBuyIn += parseNumCell(buyInValue);
             totalChipsReturn += parseNumCell(chipsReturnValue);
@@ -676,29 +756,67 @@ $(document).ready(function() {
 
     // Initialize DataTable
     var dataTable = $('#commission-tbl').DataTable({
-    "order": [[11, 'desc']],
+    "scrollX": false,
+    "autoWidth": false,
+    "order": [[15, 'desc']],
     "columnDefs": [
       {
         "targets": 0,
         "orderable": false,
         "searchable": false,
+        "width": "28px",
         "className": "text-center commission-compare-cell"
       },
       {
-        "targets": [3, 4, 5, 6, 7, 8, 9, 10],
+        "targets": 1,
+        "width": "7%",
+        "className": "col-program-date",
+        "render": function (data, type) {
+          var dateMoment = parseCommissionDisplayDate(data);
+          if (type === 'sort' || type === 'type') {
+            return dateMoment ? dateMoment.valueOf() : 0;
+          }
+          return data || '-';
+        }
+      },
+      {
+        "targets": 2,
+        "width": "7%",
+        "className": "col-game-start",
+        "render": function (data, type) {
+          var dateMoment = parseCommissionDisplayDate(data);
+          if (type === 'sort' || type === 'type') {
+            return dateMoment ? dateMoment.valueOf() : 0;
+          }
+          return formatCommissionDateTimeDisplay(data);
+        }
+      },
+      { "targets": 3, "width": "3%", "className": "col-type text-center" },
+      { "targets": 4, "width": "3%" },
+      { "targets": 5, "width": "4%", "className": "col-acct-no" },
+      { "targets": 6, "width": "9%", "className": "col-guest" },
+      { "targets": 7, "width": "6%", "className": "col-buyin" },
+      { "targets": 8, "width": "6%", "className": "col-cashout" },
+      { "targets": 9, "width": "6%", "className": "col-winloss" },
+      { "targets": 10, "width": "6%", "className": "col-total-rolling" },
+      { "targets": 11, "width": "4%", "className": "col-game-rate" },
+      { "targets": 12, "width": "5.5%", "className": "col-commission" },
+      { "targets": 13, "width": "4.5%" },
+      { "targets": 14, "width": "6%" },
+      {
+        "targets": [7, 8, 9, 10, 11, 12, 13, 14],
         "searchable": false
       },
       {
-        "targets": 11,
+        "targets": 15,
+        "width": "8%",
+        "className": "col-game-end",
         "render": function (data, type) {
-          var dateMoment = moment.utc(String(data || ''), 'MMMM DD, YYYY HH:mm:ss', true);
+          var dateMoment = parseCommissionDisplayDate(data);
           if (type === 'sort' || type === 'type') {
-            return dateMoment.isValid() ? dateMoment.valueOf() : 0;
+            return dateMoment ? dateMoment.valueOf() : 0;
           }
-          if (dateMoment.isValid()) {
-            return dateMoment.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
-          }
-          return window.commissionTranslations?.invalid_date || 'Invalid Date';
+          return formatCommissionGameEndDisplay(data);
         },
         "createdCell": function (cell) {
           $(cell).addClass('text-center');
@@ -706,7 +824,15 @@ $(document).ready(function() {
       }
     ],
     "createdRow": function (row, data) {
-        applyWinLossColor($('td:eq(5)', row), data[5]);
+        applyWinLossColor($('td:eq(9)', row), data[9]);
+        var guestText = String(data[6] == null ? '' : data[6]).trim();
+        if (guestText && guestText !== '-') {
+            $('td:eq(6)', row).attr('title', guestText);
+        }
+        var acctText = String(data[5] == null ? '' : data[5]).trim();
+        if (acctText && acctText !== '-') {
+            $('td:eq(5)', row).attr('title', acctText);
+        }
     },
     "drawCallback": function () {
         placeCommissionDateFilter();
@@ -715,6 +841,9 @@ $(document).ready(function() {
         refreshCompareSelectAllHeader();
         refreshCompareCheckboxCells();
         calculateCommissionTotals();
+        if ($.fn.DataTable.isDataTable('#commission-tbl')) {
+            $('#commission-tbl').DataTable().columns.adjust();
+        }
     },
     "language": {
         "search": (window.commissionTranslations?.search || "Search:"),
@@ -902,12 +1031,15 @@ $(document).ready(function() {
                                     totalPayment += paymentValue;
                                     
                                     
-                         var formattedDate = moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                                    // Add row to table with total_amount in a separate column (without drawing yet)
+                         var formattedGameEnd = formatCommissionGameEnd(row);
                                     dataTable.row.add([
                                         '',
+                                        formatCommissionProgramDate(row),
+                                        formatCommissionGameStart(row),
+                                        formatCommissionGameType(row),
                                         row.game_list_id,
-                                        `${row.agent_code} - ${row.agent_name}`,
+                                        row.agent_code || '',
+                                        row.guest_name || '-',
                                         formatAddChgAmount(total_amount),
                                         fmtCommissionAmount(total_cash_out_chips, 'out'),
                                         winloss,
@@ -916,7 +1048,7 @@ $(document).ready(function() {
                                         formatAddChgAmount(net),
                                         formatAddChgAmount(fb),
                                         fmtCommissionAmount(paymentValue, 'out'),
-                                        formattedDate
+                                        formattedGameEnd
                                     ]);
                                 },
                                 error: function(xhr, status, error) {
@@ -993,8 +1125,12 @@ $(document).ready(function() {
         if (includeFooter && dataRowCount > 0) {
             rows.push([
                 '',
+                $('#commission-tbl tfoot th').eq(1).text().trim(),
                 '',
-                $('#commission-tbl tfoot th').eq(2).text().trim(),
+                '',
+                '',
+                '',
+                '',
                 $('#GRAND_TOTAL_AMOUNT').text().trim(),
                 $('#GRAND_CHIPS_RETURN').text().trim(),
                 $('#GRAND_WIN_LOSS').text().trim(),
@@ -1021,10 +1157,10 @@ $(document).ready(function() {
             'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;}',
             'th{background:#d9e1f2;text-align:right;font-weight:700;}',
             'th:nth-child(1){text-align:center;}',
-            'th:nth-child(2),th:nth-child(11){text-align:left;}',
+            'th:nth-child(2),th:nth-child(3),th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(16){text-align:left;}',
             'td{text-align:right;}',
             'td:nth-child(1){text-align:center;}',
-            'td:nth-child(2),td:nth-child(11){text-align:left;}',
+            'td:nth-child(2),td:nth-child(3),td:nth-child(5),td:nth-child(6),td:nth-child(7),td:nth-child(16){text-align:left;}',
             'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
         ].join('');
     }

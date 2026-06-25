@@ -45,8 +45,10 @@ router.get('/commission_data', async (req, res) => {
             game_list.FNB AS fnb,
             game_list.PAYMENT AS payment,
             game_list.ACCOUNT_ID,
-            game_list.ENCODED_DT,
+            game_list.ENCODED_DT AS GAME_DATE_START,
             game_list.GAME_ENDED,
+            game_list.PROGRAM_DATE,
+            game_list.GAME_TYPE,
             game_list.SETTLED,
             game_list.COMMISSION_PERCENTAGE,
             game_list.COMMISSION_TYPE,
@@ -54,11 +56,13 @@ router.get('/commission_data', async (req, res) => {
             agent.IDNo AS agent_id,
             agent.AGENT_CODE AS agent_code,
             agent.NAME AS agent_name,
-            agent.AGENCY AS agency_id
+            agent.AGENCY AS agency_id,
+            COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name
         FROM game_list 
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
         JOIN agency ON agency.IDNo = agent.AGENCY
+        LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
         WHERE game_list.ACTIVE != 0
           AND game_list.SETTLED = 1
           AND DATE(COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT)) >= ?
