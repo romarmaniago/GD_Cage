@@ -83,7 +83,9 @@
 		"vs_last_month": "先月比",
 		"cash_out": "キャッシュアウト",
 		"net_junket_money": "ジャンケット純資金",
-		"net_junket_cash": "ジャンケット純現金"
+		"net_junket_cash": "ジャンケット純現金",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "ホーム",

@@ -83,7 +83,9 @@
 		"vs_last_month": "与上月相比",
 		"cash_out": "现金出账",
 		"net_junket_money": "净赌团资金",
-		"net_junket_cash": "净赌团现金"
+		"net_junket_cash": "净赌团现金",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "主页",

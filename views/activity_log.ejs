@@ -49,17 +49,18 @@
                     <table id="activity-logs-table" class="table nowrap small-text" style="width:100%"> 
                         <thead>
                             <tr>
-                                <th><%= __('dashboard.description') %></th>
-                                <th><%= __('dashboard.source_table') %></th>
-                                <th><%= __('dashboard.amount') %></th>
-                                <th><%= __('dashboard.action') %></th>
-                                <th><%= __('dashboard.encoded_by') %></th>
                                 <th><%= __('dashboard.date_time') %></th>
+                                <th><%= __('dashboard.starting_page') %></th>
+                                <th><%= __('dashboard.amount') %></th>
+                                <th><%= __('dashboard.ending_page') %></th>
+                                <th><%= __('dashboard.action') %></th>
+                                <th><%= __('dashboard.description') %></th>
+                                <th><%= __('dashboard.encoded_by') %></th>
                             </tr>
                         </thead>
                         <tbody id="activity-logs-tbody">
                             <tr>
-                                <td colspan="6" class="text-muted text-center py-4">
+                                <td colspan="7" class="text-muted text-center py-4">
                                     <i class="fas fa-spinner fa-spin me-2"></i><%= __('dashboard.loading_activity_logs') %>
                                 </td>
                             </tr>
@@ -114,9 +115,73 @@
     }
 
     function formatDate(dateString) {
-        const opts = { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" };
-        return new Date(dateString).toLocaleDateString("en-US", opts);
+        if (!dateString) return '—';
+        if (typeof moment !== 'undefined') {
+            return moment(dateString).utcOffset(8).format('YYYY-M-D HH:mm');
+        }
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return '—';
+        const pad = (n) => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
     }
+
+    function getStartingPage(log) {
+        var action = String(log.action_type || '');
+        var source = String(log.source_table || '');
+        if (['deposit', 'withdraw', 'transfer', 'credit_return', 'transaction'].includes(action)) return 'Credit';
+        if (action === 'junket_chips_added') return 'Dashboard';
+        if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
+        if (['return_added', 'return_edited'].includes(action)) return 'Line';
+        if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
+        if (action === 'settlement_added') return 'Dashboard';
+        if (['game_added', 'game_buyin', 'game_cashout', 'game_rolling', 'roller_add', 'roller_return'].includes(action)) return 'Game Book';
+        if (action === 'service_added') return 'Game Book';
+        if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
+        if (source === 'agency') return 'Agency';
+        if (source === 'Guest') return 'Guest';
+        if (source === 'booking') return 'Booking';
+        return source || '—';
+    }
+
+    function getEndingPage(log) {
+        var action = String(log.action_type || '');
+        var source = String(log.source_table || '');
+        var name = String(log.name || '').toLowerCase();
+        if (['deposit', 'credit_return'].includes(action)) return 'Credit';
+        if (action === 'withdraw') return 'Credit';
+        if (action === 'transfer') return 'Line';
+        if (['game_added', 'game_buyin', 'game_cashout', 'game_rolling'].includes(action)) return 'Game Book';
+        if (action === 'roller_add' || action === 'roller_return') return 'Tip (Roller)';
+        if (action === 'service_added') {
+            if (name.indexOf('hotel') >= 0) return 'Hotel';
+            if (name.indexOf('delivery') >= 0) return 'Delivery';
+            return 'F&B';
+        }
+        if (action === 'junket_chips_added') return 'Game Book';
+        if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
+        if (['return_added', 'return_edited'].includes(action)) return 'Return Money';
+        if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
+        if (action === 'settlement_added') return 'Game Book';
+        if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
+        if (source === 'agency') return 'Agency';
+        if (source === 'Guest') return 'Guest';
+        if (source === 'booking') return 'Booking';
+        return getStartingPage(log);
+    }
+
+    var activityFilterToStartingPage = {
+        'Game': 'Game Book',
+        'Account Transaction': 'Credit',
+        'Junket Expense': 'Expense',
+        'Services': 'Game Book',
+        'Junket Return Money': 'Line',
+        'Junket Total Chips': 'Dashboard',
+        'Junket Capital': 'Capital',
+        'Daily Settlement': 'Dashboard',
+        'Guest': 'Guest',
+        'agency': 'Agency',
+        'User': 'User'
+    };
 
     function highlightName(text) {
         if (text == null || text === undefined) return "";
@@ -124,23 +189,28 @@
     }
 
     function getActionDisplay(actionType) {
-        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "service_added", "junket_chips_added", "return_added", "capital_added"];
+        if (actionType === 'settlement_added') return 'Settlement';
+        if (actionType === 'game_added') return 'New Game';
+        if (actionType === 'deposit') return 'Deposit';
+        if (actionType === 'withdraw') return 'Cash Out';
+        if (actionType === 'transfer') return 'Transfer';
+        if (actionType === 'credit_return') return 'Credit';
+        if (actionType === 'game_buyin') return 'In';
+        if (actionType === 'game_cashout') return 'Cash Out';
+        if (actionType === 'game_rolling') return 'Out';
+        if (actionType === 'roller_add') return 'In';
+        if (actionType === 'roller_return') return 'Out';
+        if (actionType === 'junket_chips_added') return 'Cash';
+        if (actionType === 'service_added') return 'Out';
+        if (actionType === 'return_added') return 'Deposit';
+        if (actionType === 'capital_added') return 'Cash-in';
+        if (actionType === 'capital_edited') return 'Edit';
+        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "return_added"];
         const editKeys = ["edited", "expense_edited", "user_edited", "role_edited", "return_edited", "capital_edited"];
-        if (actionType === "settlement_added") return "Settled";
-        if (actionType === "game_added") return "New Game";
         if (addKeys.includes(actionType)) return "<%= __('dashboard.action_add') %>";
         if (editKeys.includes(actionType)) return "<%= __('dashboard.action_edit') %>";
-        if (actionType === "deleted") return "<%= __('dashboard.action_delete') %>";
-        if (actionType === "transaction") return "<%= __('dashboard.transaction') %>";
-        if (actionType === "transfer") return "Transfer";
-        if (actionType === "deposit") return "Deposit";
-        if (actionType === "withdraw") return "Withdraw";
-        if (actionType === "game_buyin") return "Buy-in";
-        if (actionType === "game_cashout") return "<%= __('dashboard.cash_out') %>";
-        if (actionType === "game_rolling") return "<%= __('dashboard.rolling') %>";
-        if (actionType === "roller_add") return "<%= __('dashboard.action_add') %>";
-        if (actionType === "roller_return") return "Return";
-        if (actionType === "credit_return") return "Credit Return";
+        if (actionType === 'deleted') return "<%= __('dashboard.action_delete') %>";
+        if (actionType === 'transaction') return "<%= __('dashboard.transaction') %>";
         return actionType || "-";
     }
 
@@ -156,27 +226,26 @@
 
     function formatAmount(log) {
         if (log == null) return "-";
-        const amt = log.amount;
-        const nn = parseFloat(log.nn_amount) || 0;
-        const cc = parseFloat(log.cc_amount) || 0;
-        const isGame = log.source_table === 'Game' || log.source_table === 'game_list';
-        const fmt = window.AmountFormat;
-        if (isGame && (nn > 0 || cc > 0)) {
-            const parts = [];
-            if (nn > 0) parts.push('NN : ' + (fmt ? fmt.formatCommas(nn) : nn.toLocaleString('en-US')));
-            if (cc > 0) parts.push('CC : ' + (fmt ? fmt.formatCommas(cc) : cc.toLocaleString('en-US')));
-            return parts.join(', ') || "-";
+        var amt = log.amount;
+        var nn = parseFloat(log.nn_amount) || 0;
+        var cc = parseFloat(log.cc_amount) || 0;
+        var n = parseFloat(amt);
+        if ((isNaN(n) || n === 0) && (nn > 0 || cc > 0)) {
+            n = nn + cc;
         }
-        if (amt == null || amt === "" || amt === undefined) return "-";
-        const n = parseFloat(amt);
+        if (amt == null || amt === "" || amt === undefined) {
+            if (nn <= 0 && cc <= 0) return "-";
+        }
         if (isNaN(n)) return "-";
-        if (fmt) {
-            const dir = getActivityAmountDirection(log);
-            if (dir === 'out') return fmt.formatDirectionalAmount(Math.abs(n), 'out', { html: true });
-            if (dir === 'in') return fmt.formatDirectionalAmount(Math.abs(n), 'in', { html: true, showPositiveSign: true });
-            return fmt.formatSignedAmount(n, { html: true });
+        if (n === 0) return "-";
+        var fmt = window.AmountFormat;
+        var dir = getActivityAmountDirection(log);
+        var abs = Math.abs(n);
+        var formatted = fmt ? fmt.formatCommas(abs) : abs.toLocaleString('en-US');
+        if (dir === 'out' || n < 0) {
+            return '<span class="activity-amt-out">(' + formatted + ')</span>';
         }
-        return n.toLocaleString('en-US');
+        return '<span class="activity-amt-in">' + formatted + '</span>';
     }
 
     function getClickableText(fullText, linkUrl, ledgerId, guest = '', acctName = '', sourceTable = '') {
@@ -280,7 +349,7 @@
                 const noActivityText = "<%= __('dashboard.no_recent_activity') %>";
                 
                 if (!data.length) {
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">${noActivityText}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-muted text-center py-4">${noActivityText}</td></tr>`;
                     // Initialize DataTable even with no data
                     initializeDataTable();
                     return;
@@ -314,13 +383,16 @@
                     }
                     let displayName = log.name;
                     const dateValue = log.action_time ? new Date(log.action_time).toISOString() : '';
+                    const startingPage = getStartingPage(log);
+                    const endingPage = getEndingPage(log);
                     return `<tr>
-                        <td style="color:#6c757d;">${getClickableText(displayName, url, log.related_id, log.guest_name, log.account_name, log.source_table)}</td>
-                        <td style="color:#6c757d; white-space:nowrap; font-size:12px;">${log.source_table || "—"}</td>
-                        <td style="color:#6c757d; text-align:right;">${formatAmount(log)}</td>
-                        <td style="color:#6c757d;">${getActionDisplay(log.action_type)}</td>
-                        <td style="color:#6c757d;">${log.encoded_by_name || "—"}</td>
                         <td style="color:#6c757d; white-space:nowrap;" data-order="${dateValue}">${formatDate(log.action_time)}</td>
+                        <td style="color:#6c757d; white-space:nowrap;">${startingPage}</td>
+                        <td style="text-align:right;">${formatAmount(log)}</td>
+                        <td style="color:#6c757d; white-space:nowrap;">${endingPage}</td>
+                        <td style="color:#6c757d;">${getActionDisplay(log.action_type)}</td>
+                        <td style="color:#6c757d;">${getClickableText(displayName, url, log.related_id, log.guest_name, log.account_name, log.source_table)}</td>
+                        <td style="color:#6c757d;">${log.encoded_by_name || "—"}</td>
                     </tr>`;
                 }).join("");
 
@@ -330,7 +402,7 @@
                 .catch(err => {
                     console.error(err);
                     const tbody = document.getElementById("activity-logs-tbody");
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-4">Failed to load activity logs.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Failed to load activity logs.</td></tr>';
                 });
         }
 
@@ -341,12 +413,13 @@
             if (!$.fn.DataTable.isDataTable('#activity-logs-table')) return;
             
             currentSourceFilter = filter;
-            const sourceColumnIndex = 1; // Source column is index 1 (0-based)
+            const sourceColumnIndex = 1;
 
             if (filter === 'all') {
                 $('#activity-logs-table').DataTable().column(sourceColumnIndex).search('').draw();
             } else {
-                const regex = '^' + filter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
+                const pageLabel = activityFilterToStartingPage[filter] || filter;
+                const regex = '^' + pageLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
                 $('#activity-logs-table').DataTable()
                     .column(sourceColumnIndex)
                     .search(regex, true, false)
@@ -396,33 +469,20 @@
             }
 
             var dataTable = $('#activity-logs-table').DataTable({
-                "order": [[5, 'desc']], // Sort by date/time column (descending) - now column 5 instead of 6
+                "order": [[0, 'desc']],
                 "columnDefs": [
                     {
-                        "targets": 5, // Date & Time column (now column 5)
-                        "orderDataType": "dom-data-order", // Use custom sort that reads data-order attribute
-                        "type": "date",
-                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-                            $(cell).addClass('text-center');
-                        }
+                        "targets": 0,
+                        "orderDataType": "dom-data-order",
+                        "type": "date"
                     },
                     {
-                        "targets": 0, // Description column (0)
-                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-                            $(cell).addClass('text-left');
-                        }
+                        "targets": 2,
+                        "className": "text-end activity-col-amount"
                     },
                     {
-                        "targets": [1, 2, 3, 4], // Other columns (1-4)
-                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-                            $(cell).addClass('text-center');
-                        }
-                    },
-                    {
-                        "targets": 2, // Amount column (now column 2)
-                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
-                            $(cell).addClass('text-right');
-                        }
+                        "targets": [0, 1, 3, 4, 5, 6],
+                        "className": "text-start"
                     }
                 ],
                 "paging": true,
@@ -484,42 +544,46 @@
     #activity-logs-table thead th {
         background: var(--bs-primary-bg-subtle);
         color: var(--bs-primary);
-        font-weight: 500;
+        font-weight: 600;
         padding: 12px 15px;
-        text-align: center;
-        border: none;
-    }
-
-    /* Description header - left aligned */
-    #activity-logs-table thead th:nth-child(1) {
         text-align: left;
+        border: none;
+        white-space: nowrap;
     }
 
-    /* Row styles */
+    #activity-logs-table thead th.activity-col-amount,
+    #activity-logs-table thead th:nth-child(3),
+    #activity-logs-table td.activity-col-amount {
+        text-align: right !important;
+    }
+
+    .activity-amt-in {
+        color: #16a34a;
+        font-weight: 600;
+    }
+
+    .activity-amt-out {
+        color: #dc2626;
+        font-weight: 600;
+    }
+
     #activity-logs-table tbody tr {
         border-bottom: 1px solid #eee;
     }
 
-    /* Cell styles */
     #activity-logs-table td {
         padding: 12px 15px;
         color: #666;
-        text-align: center;
+        text-align: left;
+        vertical-align: middle;
     }
 
-    /* Description column - left aligned */
-    #activity-logs-table td:nth-child(1) {
-        text-align: left;
+    #activity-logs-table td:nth-child(3) {
+        text-align: right;
     }
 
     #activity-logs-table tbody tr:hover {
         background-color: #f5f5f5 !important;
-    }
-
-    /* Amount column - right aligned */
-    #activity-logs-table td:nth-child(3) {
-        text-align: right;
-        color: #333;
     }
 
     /* Adjust spacing and alignment for date range picker */

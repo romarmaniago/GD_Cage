@@ -83,7 +83,9 @@
 		"date_time": "날짜 및 시간",
 		"week": "주",
 		"vs_last_month": "지난달 대비",
-		"cash_out": "출금"
+		"cash_out": "출금",
+		"starting_page": "dashboard.starting_page",
+		"ending_page": "dashboard.ending_page"
 	},
 	"sidebar": {
 		"home": "홈",
