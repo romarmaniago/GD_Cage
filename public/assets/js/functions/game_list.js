@@ -37,6 +37,15 @@ function isCutoffStatus(status) {
 	return status == '4';
 }
 
+function isOnGameStatus(status) {
+	return status == '2';
+}
+
+function isInGameSettlementMode() {
+	return isOnGameStatus($('#status').val()) &&
+		parseInt($('#modal-change_status').data('changeStatusActiveGame'), 10) === 2;
+}
+
 function isEndGameOrCutoffStatus(status) {
 	return status == '1' || status == '4';
 }
@@ -489,7 +498,179 @@ function formatChangeStatusCutoffDateDisplay(ymd) {
 }
 
 function loadChangeStatusCutoffLastRolling(gameId) {
-	var $field = $('#txtCutoffLastRolling');
+	loadChangeStatusLastRollingForField(gameId, '#txtCutoffLastRolling');
+}
+
+function updateChangeStatusCutoffSection() {
+	var selectedStatus = $('#status').val();
+	if (isCutoffStatus(selectedStatus)) {
+		$('#cutoff-details-section').show();
+		ensureChangeStatusCutoffDatePicker();
+		syncCutoffFieldDisabledState();
+		loadChangeStatusCutoffLastRolling(game_id);
+	} else {
+		resetChangeStatusCutoffFields();
+	}
+}
+
+$(document).off('change.cutoffsplit', '#chkCutoffSplit').on('change.cutoffsplit', '#chkCutoffSplit', function () {
+	toggleChangeStatusCutoffSplit();
+});
+
+function closeChangeStatusInGameDatePicker() {
+	var el = document.getElementById('txtInGameProgramDate');
+	if (el && el._flatpickr) {
+		el._flatpickr.close();
+	}
+}
+
+function resetChangeStatusInGameFields() {
+	closeChangeStatusInGameDatePicker();
+	resetChangeStatusInGameSidePanel();
+	$('#ingame-settlement-section').hide();
+	$('#chkInGameSplit').prop('checked', false);
+	$('#txtInGameUseSplit').val('0');
+	$('#txtInGameRemainingNN, #txtInGameRemainingCC, #txtInGameCashNN, #txtInGameCashCC, #txtInGameDepNN, #txtInGameDepCC, #txtInGameCreditNN, #txtInGameCreditCC')
+		.prop('disabled', false);
+	$('#txtInGameRemainingNN, #txtInGameRemainingCC').val('').removeClass('is-invalid');
+	$('#txtInGameCashNN, #txtInGameCashCC, #txtInGameDepNN, #txtInGameDepCC, #txtInGameCreditNN, #txtInGameCreditCC')
+		.val('').removeClass('is-invalid');
+	$('#txtInGameTipRollerNn, #txtInGameTipRollerCc, #txtInGameTipDealerNn, #txtInGameTipDealerCc').val('').removeClass('is-invalid');
+	$('#txtInGameLastRolling').val('').removeClass('is-invalid');
+	$('#txtInGameExpectedSettlement').text('—');
+	toggleChangeStatusInGameSplit();
+	var dateEl = document.getElementById('txtInGameProgramDate');
+	if (dateEl && dateEl._flatpickr) {
+		dateEl._flatpickr.clear();
+	} else {
+		$('#txtInGameProgramDate').val('');
+	}
+}
+
+function syncInGameFieldDisabledState() {
+	var split = $('#chkInGameSplit').is(':checked');
+	$('#txtInGameRemainingNN, #txtInGameRemainingCC').prop('disabled', split);
+	$('#txtInGameCashNN, #txtInGameCashCC, #txtInGameDepNN, #txtInGameDepCC, #txtInGameCreditNN, #txtInGameCreditCC')
+		.prop('disabled', !split);
+}
+
+function toggleChangeStatusInGameSplit() {
+	var split = $('#chkInGameSplit').is(':checked');
+	$('#txtInGameUseSplit').val(split ? '1' : '0');
+	if (split) {
+		$('#ingame-remaining-row').hide();
+		$('#ingame-split-rows').show();
+	} else {
+		$('#ingame-remaining-row').show();
+		$('#ingame-split-rows').hide();
+	}
+	syncInGameFieldDisabledState();
+}
+
+function collectChangeStatusInGameChipData() {
+	var useSplit = $('#chkInGameSplit').is(':checked');
+	if (useSplit) {
+		return {
+			useSplit: true,
+			cashNn: parseCutoffFieldAmount($('#txtInGameCashNN').val()),
+			cashCc: parseCutoffFieldAmount($('#txtInGameCashCC').val()),
+			depNn: parseCutoffFieldAmount($('#txtInGameDepNN').val()),
+			depCc: parseCutoffFieldAmount($('#txtInGameDepCC').val()),
+			creditNn: parseCutoffFieldAmount($('#txtInGameCreditNN').val()),
+			creditCc: parseCutoffFieldAmount($('#txtInGameCreditCC').val()),
+			tipRollerNn: parseCutoffFieldAmount($('#txtInGameTipRollerNn').val()),
+			tipRollerCc: parseCutoffFieldAmount($('#txtInGameTipRollerCc').val()),
+			tipDealerNn: parseCutoffFieldAmount($('#txtInGameTipDealerNn').val()),
+			tipDealerCc: parseCutoffFieldAmount($('#txtInGameTipDealerCc').val())
+		};
+	}
+	return {
+		useSplit: false,
+		remainingNn: parseCutoffFieldAmount($('#txtInGameRemainingNN').val()),
+		remainingCc: parseCutoffFieldAmount($('#txtInGameRemainingCC').val()),
+		tipRollerNn: parseCutoffFieldAmount($('#txtInGameTipRollerNn').val()),
+		tipRollerCc: parseCutoffFieldAmount($('#txtInGameTipRollerCc').val()),
+		tipDealerNn: parseCutoffFieldAmount($('#txtInGameTipDealerNn').val()),
+		tipDealerCc: parseCutoffFieldAmount($('#txtInGameTipDealerCc').val())
+	};
+}
+
+function validateChangeStatusInGameNnFields(data) {
+	var nnFields = [];
+	if (data.useSplit) {
+		if (data.cashNn > 0) nnFields.push({ amount: data.cashNn, selector: '#txtInGameCashNN' });
+		if (data.depNn > 0) nnFields.push({ amount: data.depNn, selector: '#txtInGameDepNN' });
+		if (data.creditNn > 0) nnFields.push({ amount: data.creditNn, selector: '#txtInGameCreditNN' });
+	} else if (data.remainingNn > 0) {
+		nnFields.push({ amount: data.remainingNn, selector: '#txtInGameRemainingNN' });
+	}
+	if (data.tipRollerNn > 0) nnFields.push({ amount: data.tipRollerNn, selector: '#txtInGameTipRollerNn' });
+	if (data.tipDealerNn > 0) nnFields.push({ amount: data.tipDealerNn, selector: '#txtInGameTipDealerNn' });
+
+	$('#txtInGameRemainingNN, #txtInGameCashNN, #txtInGameDepNN, #txtInGameCreditNN, #txtInGameTipRollerNn, #txtInGameTipDealerNn')
+		.removeClass('is-invalid');
+
+	var invalid = nnFields.find(function (field) {
+		return field.amount % 1000 !== 0;
+	});
+	if (invalid) {
+		$(invalid.selector).addClass('is-invalid');
+		return false;
+	}
+	return true;
+}
+
+function ensureChangeStatusInGameDatePicker() {
+	var el = document.getElementById('txtInGameProgramDate');
+	if (!el || typeof flatpickr === 'undefined') {
+		return;
+	}
+	var listYmd = ($('#modal-change_status').data('gameProgramDate') || '').trim();
+	var defaultYmd = /^\d{4}-\d{2}-\d{2}$/.test(listYmd) ? listYmd : getDefaultProgramDateYmd();
+	var defaultDate = defaultYmd ? (defaultYmd + 'T12:00:00') : new Date();
+	if (el._flatpickr) {
+		el._flatpickr.destroy();
+	}
+	flatpickr(el, {
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'F j, Y',
+		defaultDate: defaultDate,
+		allowInput: true,
+		disableMobile: true,
+		closeOnSelect: true,
+		appendTo: document.body,
+		onReady: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (instance && instance.calendarContainer) {
+				instance.calendarContainer.classList.add('change-status-cutoff-date-calendar');
+			}
+		}
+	});
+}
+
+function getChangeStatusInGameProgramDateValue() {
+	var el = document.getElementById('txtInGameProgramDate');
+	if (!el) {
+		return '';
+	}
+	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length > 0) {
+		return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
+	}
+	var raw = (el.value || '').trim();
+	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function loadChangeStatusInGameLastRolling(gameId) {
+	loadChangeStatusLastRollingForField(gameId, '#txtInGameLastRolling');
+}
+
+function loadChangeStatusLastRollingForField(gameId, fieldSelector) {
+	var $field = $(fieldSelector);
 	if (!$field.length || !gameId) {
 		return;
 	}
@@ -521,20 +702,270 @@ function loadChangeStatusCutoffLastRolling(gameId) {
 	});
 }
 
-function updateChangeStatusCutoffSection() {
-	var selectedStatus = $('#status').val();
-	if (isCutoffStatus(selectedStatus)) {
-		$('#cutoff-details-section').show();
-		ensureChangeStatusCutoffDatePicker();
-		syncCutoffFieldDisabledState();
-		loadChangeStatusCutoffLastRolling(game_id);
+function updateInGameExpectedSettlement() {
+	var $modal = $('#modal-change_status');
+	var servicesRaw = $modal.data('servicesValue');
+	if (servicesRaw === null || servicesRaw === undefined) {
+		$('#txtInGameExpectedSettlement').text('—');
+		updateChangeStatusInGameSidePanel();
+		return;
+	}
+	var commission = parseFloat($modal.data('settlementValue')) || 0;
+	var services = parseFloat(servicesRaw) || 0;
+	var addChg = parseFloat($modal.data('addChgValue')) || 0;
+	var expected = Math.max(0, commission - addChg - services);
+	$('#txtInGameExpectedSettlement').text(expected.toLocaleString('en-US'));
+	updateChangeStatusInGameSidePanel();
+}
+
+function computeInGameChipsWithdrawalTotal() {
+	var chipData = collectChangeStatusInGameChipData();
+	if (chipData.useSplit) {
+		return chipData.cashNn + chipData.cashCc + chipData.depNn + chipData.depCc +
+			chipData.creditNn + chipData.creditCc;
+	}
+	return chipData.remainingNn + chipData.remainingCc;
+}
+
+function getInGameExpectedSettlementAmount() {
+	var text = ($('#txtInGameExpectedSettlement').text() || '').trim();
+	if (!text || text === '—') {
+		return 0;
+	}
+	return parseFloat(text.replace(/,/g, '')) || 0;
+}
+
+function getChangeStatusInGameGuestRemarks() {
+	var $modal = $('#modal-change_status');
+	var guestName = ($modal.data('changeStatusGuestName') || '').trim();
+	if (guestName) {
+		return guestName;
+	}
+	var labelText = ($('#change-status-agent-code').text() || '').trim();
+	var match = labelText.match(/\(([^)]+)\)\s*$/);
+	return match ? match[1].trim() : labelText || '—';
+}
+
+function computeChangeStatusInGameAccountBalance(rows) {
+	var depositAmount = 0;
+	var withdrawAmount = 0;
+	var markerReturn = 0;
+	var markerDepositAmount = 0;
+	(rows || []).forEach(function (row) {
+		var amount = parseFloat(row.AMOUNT) || 0;
+		var txn = row.TRANSACTION || '';
+		if (txn === 'DEPOSIT') {
+			depositAmount += amount;
+		} else if (txn === 'WITHDRAW') {
+			withdrawAmount += amount;
+		} else if (txn === 'IOU RETURN DEPOSIT') {
+			markerReturn += amount;
+		} else if (txn === 'MARKER REDEEM') {
+			markerDepositAmount += amount;
+		}
+	});
+	return depositAmount + markerDepositAmount - withdrawAmount - markerReturn;
+}
+
+function formatInGameSidePanelAmount(value) {
+	var num = parseFloat(value) || 0;
+	return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatInGameSidePanelNegativeAmount(value) {
+	var num = Math.abs(parseFloat(value) || 0);
+	if (num <= 0) {
+		return '0';
+	}
+	return '(' + formatInGameSidePanelAmount(num) + ')';
+}
+
+function formatInGameHistoryDate(raw) {
+	if (!raw) {
+		return '—';
+	}
+	var d = new Date(raw);
+	if (Number.isNaN(d.getTime())) {
+		return String(raw);
+	}
+	return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+}
+
+function isInGameNegativeLedgerTxn(txnName) {
+	return (txnName || '').toUpperCase().indexOf('WITHDRAW') !== -1;
+}
+
+function renderChangeStatusInGameHistoryTable(settlementAmount, chipsWithdrawal, remarks) {
+	var $body = $('#ingame-deposit-history-body');
+	if (!$body.length) {
+		return;
+	}
+	var rows = $('#modal-change_status').data('ingameLedgerHistory') || [];
+	var html = '';
+
+	rows.forEach(function (row) {
+		var txn = row.TRANSACTION || row.TRANSACTION_DESC || '—';
+		var amount = parseFloat(row.AMOUNT) || 0;
+		var isNeg = isInGameNegativeLedgerTxn(txn);
+		var displayAmt = isNeg ? formatInGameSidePanelNegativeAmount(amount) : formatInGameSidePanelAmount(amount);
+		var amtClass = isNeg ? 'text-end text-amount-negative' : 'text-end';
+		html += '<tr>' +
+			'<td>' + formatInGameHistoryDate(row.encoded_date || row.ENCODED_DT) + '</td>' +
+			'<td>' + txn + '</td>' +
+			'<td class="' + amtClass + '">' + displayAmt + '</td>' +
+			'<td>' + (row.REMARKS || '—') + '</td>' +
+			'</tr>';
+	});
+
+	if (settlementAmount > 0) {
+		html += '<tr class="is-pending">' +
+			'<td>' + formatInGameHistoryDate(new Date()) + '</td>' +
+			'<td>Settlement</td>' +
+			'<td class="text-end">' + formatInGameSidePanelAmount(settlementAmount) + '</td>' +
+			'<td>' + remarks + '</td>' +
+			'</tr>';
+	}
+
+	if (chipsWithdrawal > 0) {
+		html += '<tr class="is-pending">' +
+			'<td>' + formatInGameHistoryDate(new Date()) + '</td>' +
+			'<td>Chips Withdrawal</td>' +
+			'<td class="text-end text-amount-negative">' + formatInGameSidePanelNegativeAmount(chipsWithdrawal) + '</td>' +
+			'<td>' + remarks + '</td>' +
+			'</tr>';
+	}
+
+	if (!html) {
+		html = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+	}
+
+	$body.html(html);
+}
+
+function updateChangeStatusInGameSidePanel() {
+	var $modal = $('#modal-change_status');
+	var $sidePanels = $('#change-status-ingame-side-panels');
+	var $panel = $('#change-status-ingame-panel');
+	var agentCode = ($modal.data('changeStatusAgentCode') || '').trim();
+	var remarks = getChangeStatusInGameGuestRemarks();
+	var settlementAmount = getInGameExpectedSettlementAmount();
+	var chipsWithdrawal = computeInGameChipsWithdrawalTotal();
+	var currentBalance = parseFloat($modal.data('ingameAccountBalance'));
+	if (Number.isNaN(currentBalance)) {
+		currentBalance = 0;
+	}
+	var hasPreview = settlementAmount > 0 || chipsWithdrawal > 0;
+	var anticipated = currentBalance + settlementAmount - chipsWithdrawal;
+
+	if (agentCode) {
+		$('#ingame-deposit-current-label').text('Current Balance Of ' + agentCode);
+		$('#ingame-deposit-anticipated-label').text('Anticipated Balance Of ' + agentCode);
+	}
+
+	$('#ingame-deposit-current').text(formatInGameSidePanelAmount(currentBalance));
+	$('#ingame-deposit-anticipated').text(hasPreview ? formatInGameSidePanelAmount(anticipated) : '—');
+
+	if (settlementAmount > 0) {
+		$('#ingame-processing-settlement-row').show();
+		$('#ingame-processing-settlement-amount').text(formatInGameSidePanelAmount(settlementAmount));
+		$('#ingame-processing-settlement-remarks').text(remarks);
 	} else {
-		resetChangeStatusCutoffFields();
+		$('#ingame-processing-settlement-row').hide();
+	}
+
+	if (chipsWithdrawal > 0) {
+		$('#ingame-processing-chips-row').show();
+		$('#ingame-processing-chips-amount').text(formatInGameSidePanelNegativeAmount(chipsWithdrawal));
+		$('#ingame-processing-chips-remarks').text(remarks);
+	} else {
+		$('#ingame-processing-chips-row').hide();
+	}
+
+	renderChangeStatusInGameHistoryTable(settlementAmount, chipsWithdrawal, remarks);
+
+	if (!isInGameSettlementMode()) {
+		$panel.addClass('d-none').attr('aria-hidden', 'true');
+		$sidePanels.addClass('change-status-side-panels-empty');
+		$modal.removeClass('change-status-ingame-wide');
+		return;
+	}
+
+	$panel.removeClass('d-none').attr('aria-hidden', 'false');
+	$sidePanels.removeClass('change-status-side-panels-empty');
+	$modal.addClass('change-status-ingame-wide');
+}
+
+function resetChangeStatusInGameSidePanel() {
+	var $modal = $('#modal-change_status');
+	$modal.removeData('ingameLedgerHistory');
+	$modal.removeData('ingameAccountBalance');
+	$('#ingame-deposit-current, #ingame-deposit-anticipated').text('—');
+	$('#ingame-processing-settlement-row, #ingame-processing-chips-row').hide();
+	$('#ingame-processing-settlement-amount, #ingame-processing-chips-amount').text('0');
+	$('#ingame-processing-settlement-remarks, #ingame-processing-chips-remarks').text('—');
+	$('#ingame-deposit-current-label').text('Current Balance Of Account');
+	$('#ingame-deposit-anticipated-label').text('Anticipated Balance Of Account');
+	$('#ingame-deposit-history-body').html(
+		'<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>'
+	);
+	$('#change-status-ingame-panel').addClass('d-none').attr('aria-hidden', 'true');
+	$('#change-status-ingame-side-panels').addClass('change-status-side-panels-empty');
+	$modal.removeClass('change-status-ingame-wide');
+}
+
+function loadChangeStatusInGameAccountData(accountId) {
+	var $modal = $('#modal-change_status');
+	if (!accountId) {
+		$modal.data('ingameLedgerHistory', []);
+		$modal.data('ingameAccountBalance', 0);
+		updateChangeStatusInGameSidePanel();
+		return $.Deferred().resolve().promise();
+	}
+	return $.ajax({
+		url: '/account_details_data_deposit/' + encodeURIComponent(accountId),
+		method: 'GET'
+	}).done(function (data) {
+		var rows = Array.isArray(data) ? data : [];
+		$modal.data('ingameLedgerHistory', rows);
+		$modal.data('ingameAccountBalance', computeChangeStatusInGameAccountBalance(rows));
+	}).fail(function () {
+		$modal.data('ingameLedgerHistory', []);
+		$modal.data('ingameAccountBalance', 0);
+	}).always(function () {
+		updateChangeStatusInGameSidePanel();
+	});
+}
+
+function updateChangeStatusInGameSection() {
+	if (isInGameSettlementMode()) {
+		$('#ingame-settlement-section').show();
+		ensureChangeStatusInGameDatePicker();
+		syncInGameFieldDisabledState();
+		loadChangeStatusInGameLastRolling(game_id);
+		updateInGameExpectedSettlement();
+		var accountId = ($('.txtAccountCode').val() || '').trim();
+		loadChangeStatusInGameAccountData(accountId);
+	} else {
+		resetChangeStatusInGameFields();
 	}
 }
 
-$(document).off('change.cutoffsplit', '#chkCutoffSplit').on('change.cutoffsplit', '#chkCutoffSplit', function () {
-	toggleChangeStatusCutoffSplit();
+$(document).off('input.ingamepreview', '#ingame-settlement-section .cutoff-excel-field')
+	.on('input.ingamepreview', '#ingame-settlement-section .cutoff-excel-field', function () {
+		if (isInGameSettlementMode()) {
+			updateChangeStatusInGameSidePanel();
+		}
+	});
+
+$(document).off('change.ingamesplitpanel', '#chkInGameSplit')
+	.on('change.ingamesplitpanel', '#chkInGameSplit', function () {
+		if (isInGameSettlementMode()) {
+			updateChangeStatusInGameSidePanel();
+		}
+	});
+
+$(document).off('change.ingamesplit', '#chkInGameSplit').on('change.ingamesplit', '#chkInGameSplit', function () {
+	toggleChangeStatusInGameSplit();
 });
 
 function updateChangeStatusRollerReturnSection() {
@@ -543,6 +974,7 @@ function updateChangeStatusRollerReturnSection() {
 	var isPendingResolve = !!$('#modal-change_status').data('isPendingResolve');
 
 	if (isCutoffStatus(selectedStatus)) {
+		resetChangeStatusInGameFields();
 		$('#txtReturnRollerNN').val('');
 		$('#txtReturnRollerCC').val('');
 		updateReturnRollerRemainingHint();
@@ -554,7 +986,21 @@ function updateChangeStatusRollerReturnSection() {
 		return;
 	}
 
+	if (isInGameSettlementMode()) {
+		resetChangeStatusCutoffFields();
+		$('#txtReturnRollerNN').val('');
+		$('#txtReturnRollerCC').val('');
+		updateReturnRollerRemainingHint();
+		$('#roller-chips-return-section').hide();
+		if (!isPendingFaultSettled()) {
+			$('#pending-resolve-status-banner').hide();
+		}
+		updateChangeStatusInGameSection();
+		return;
+	}
+
 	resetChangeStatusCutoffFields();
+	resetChangeStatusInGameFields();
 
 	if (isPendingFaultSettled()) {
 		applyPendingFaultSettledUi();
@@ -785,8 +1231,12 @@ function applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName)
 	var activeStatus = currentStatus != null && currentStatus !== undefined && currentStatus !== ''
 		? parseInt(currentStatus, 10)
 		: parseInt(game.game_status, 10);
+	$modal.data('changeStatusActiveGame', activeStatus);
+	$modal.data('addChgValue', parseFloat(game.ADD_CHG || game.add_chg || 0) || 0);
 	var code = agentCode || game.agent_code || '';
 	var name = normalizeGameGuestName(guestName || game.guest_name || '');
+	$modal.data('changeStatusAgentCode', code);
+	$modal.data('changeStatusGuestName', name);
 
 	setChangeStatusPendingResolveFlags(game);
 
@@ -5517,6 +5967,7 @@ $('#edit_status').submit(function (event) {
 	// Get the value of the status select
 	var status = $('#status').val();
 	var isCutoff = isCutoffStatus(status);
+	var isInGameSettlement = isInGameSettlementMode();
 
 	// Validate that the user has selected a status
 	if (status === null) {
@@ -5535,8 +5986,8 @@ $('#edit_status').submit(function (event) {
 		return;
 	}
 
-	// Prevent settlement issues when awaiting END GAME or CUT OFF
-	if (isEndGameOrCutoffStatus(status)) {
+	// Prevent settlement issues when awaiting END GAME, CUT OFF, or in-game settlement
+	if (isEndGameOrCutoffStatus(status) || isInGameSettlement) {
 		const $modal = $('#modal-change_status');
 		const servicesValueRaw = $modal.data('servicesValue');
 		const settlementValueRaw = $modal.data('settlementValue');
@@ -5582,8 +6033,8 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
-	// Validation for roller chips return when END GAME only (CUT OFF does not auto-return roller)
-	if (isCutoff) {
+	// Validation for roller chips return when END GAME only (CUT OFF / in-game settlement do not auto-return roller)
+	if (isCutoff || isInGameSettlement) {
 		$('#txtReturnRollerNN').val('');
 		$('#txtReturnRollerCC').val('');
 	} else if (isEndGameStatus(status)) {
@@ -5794,6 +6245,86 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
+	if (isInGameSettlement) {
+		var $ingameModal = $('#modal-change_status');
+		if (!$ingameModal.data('rollerTotalsLoaded')) {
+			Swal.fire({
+				icon: 'info',
+				title: 'Please wait',
+				text: 'Roller chip balance is still loading. Please try again in a moment.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var ingameDateVal = getChangeStatusInGameProgramDateValue();
+		if (!ingameDateVal) {
+			ensureChangeStatusInGameDatePicker();
+			ingameDateVal = getChangeStatusInGameProgramDateValue();
+		}
+		if (!ingameDateVal) {
+			var programYmd = ($ingameModal.data('gameProgramDate') || '').trim();
+			if (/^\d{4}-\d{2}-\d{2}$/.test(programYmd)) {
+				ingameDateVal = programYmd;
+			}
+		}
+		if (!ingameDateVal) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Program Date Required',
+				text: 'Please select a program date for in-game settlement.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		syncInGameFieldDisabledState();
+		var ingameChipData = collectChangeStatusInGameChipData();
+		var ingameChipAmounts = ingameChipData.useSplit
+			? [ingameChipData.cashNn, ingameChipData.cashCc, ingameChipData.depNn, ingameChipData.depCc,
+				ingameChipData.creditNn, ingameChipData.creditCc, ingameChipData.tipRollerNn, ingameChipData.tipRollerCc,
+				ingameChipData.tipDealerNn, ingameChipData.tipDealerCc]
+			: [ingameChipData.remainingNn, ingameChipData.remainingCc, ingameChipData.tipRollerNn, ingameChipData.tipRollerCc,
+				ingameChipData.tipDealerNn, ingameChipData.tipDealerCc];
+
+		if (ingameChipAmounts.some(function (amount) { return Number.isNaN(amount) || amount < 0; })) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Input',
+				text: 'Please enter valid chip amounts.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (!validateChangeStatusInGameNnFields(ingameChipData)) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid NN Chips amount',
+				text: 'NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var ingameLastRollingRaw = ($('#txtInGameLastRolling').val() || '').toString().replace(/,/g, '').trim();
+		var ingameLastRollingAmount = parseFloat(ingameLastRollingRaw) || 0;
+		var ingameRollerBalance = Math.max(0, parseFloat($ingameModal.data('combinedNet')) || 0);
+		$('#txtInGameLastRolling').removeClass('is-invalid');
+		if (ingameLastRollingRaw !== '' && ingameLastRollingAmount > 0 && ingameLastRollingAmount > ingameRollerBalance + 0.001) {
+			$('#txtInGameLastRolling').addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Last Rolling',
+				text: 'Last Rolling cannot exceed available roller chips balance (' + ingameRollerBalance.toLocaleString('en-US') + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+	}
+
 	// All validations passed, show confirmation dialog
 	var translations = window.gamelistTranslations || {};
 	var statusText = (status == '1') ? (translations.end_game || 'END GAME')
@@ -5808,7 +6339,11 @@ $('#edit_status').submit(function (event) {
 	};
 
 	var confirmationRows = '';
-	confirmationRows += buildRow('New Status:', statusText);
+	if (isInGameSettlement) {
+		confirmationRows += buildRow('Action:', 'In-Game Settlement');
+	} else {
+		confirmationRows += buildRow('New Status:', statusText);
+	}
 
 	if (isCutoff) {
 		var cutoffDateDisplay = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
@@ -5846,6 +6381,45 @@ $('#edit_status').submit(function (event) {
 		var transferRollerNN = computeCutoffTransferRollerNN(cutoffRollerTotals);
 		if (transferRollerNN > 0) {
 			confirmationRows += buildRow('Roller Chips:', transferRollerNN.toLocaleString('en-US'));
+		}
+	}
+
+	if (isInGameSettlement) {
+		var ingameDateDisplay = getChangeStatusInGameProgramDateValue();
+		if (!ingameDateDisplay) {
+			ingameDateDisplay = ($('#modal-change_status').data('gameProgramDate') || '').trim();
+		}
+		if (ingameDateDisplay) {
+			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(ingameDateDisplay));
+		}
+
+		var confirmInGameData = collectChangeStatusInGameChipData();
+		var buildInGameChipPairRow = function (label, nnValue, ccValue) {
+			var parts = [];
+			if (nnValue > 0) parts.push('NN: ' + nnValue.toLocaleString('en-US'));
+			if (ccValue > 0) parts.push('CC: ' + ccValue.toLocaleString('en-US'));
+			if (!parts.length) return;
+			confirmationRows += buildRow(label, parts.join(', '));
+		};
+
+		if (confirmInGameData.useSplit) {
+			buildInGameChipPairRow('Cash:', confirmInGameData.cashNn, confirmInGameData.cashCc);
+			buildInGameChipPairRow('Deposit:', confirmInGameData.depNn, confirmInGameData.depCc);
+			buildInGameChipPairRow('Credit:', confirmInGameData.creditNn, confirmInGameData.creditCc);
+		} else {
+			buildInGameChipPairRow('Remaining Chips:', confirmInGameData.remainingNn, confirmInGameData.remainingCc);
+		}
+
+		buildInGameChipPairRow('Tip (Roller):', confirmInGameData.tipRollerNn, confirmInGameData.tipRollerCc);
+		buildInGameChipPairRow('Tip (Dealer):', confirmInGameData.tipDealerNn, confirmInGameData.tipDealerCc);
+
+		var ingameLastRollingDisplay = ($('#txtInGameLastRolling').val() || '').trim();
+		if (ingameLastRollingDisplay) {
+			confirmationRows += buildRow('Last Rolling:', ingameLastRollingDisplay);
+		}
+		var expectedSettlementText = ($('#txtInGameExpectedSettlement').text() || '').trim();
+		if (expectedSettlementText && expectedSettlementText !== '—') {
+			confirmationRows += buildRow('Expected Settlement:', expectedSettlementText);
 		}
 	}
 
@@ -5888,10 +6462,13 @@ $('#edit_status').submit(function (event) {
 	if (isCutoff) {
 		closeChangeStatusCutoffDatePicker();
 	}
+	if (isInGameSettlement) {
+		closeChangeStatusInGameDatePicker();
+	}
 
 	Swal.fire({
 		icon: 'question',
-		title: 'Confirm Status Change',
+		title: isInGameSettlement ? 'Confirm In-Game Settlement' : 'Confirm Status Change',
 		html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
 		showCancelButton: true,
 		confirmButtonText: 'Yes, Confirm',
@@ -5925,6 +6502,22 @@ $('#edit_status').submit(function (event) {
 					submitParams.set('txtCutoffProgramDate', cutoffYmd);
 				}
 				formData = submitParams.toString();
+			} else if (isInGameSettlement) {
+				syncInGameFieldDisabledState();
+				formData = $form.serialize();
+				var ingameParams = new URLSearchParams(formData);
+				ingameParams.set('txtStatus', '2');
+				ingameParams.set('txtWasInGameSettlement', '1');
+				ingameParams.set('txtReturnRollerNN', '');
+				ingameParams.set('txtReturnRollerCC', '');
+				var ingameYmd = getChangeStatusInGameProgramDateValue();
+				if (!ingameYmd) {
+					ingameYmd = ($('#modal-change_status').data('gameProgramDate') || '').trim();
+				}
+				if (ingameYmd) {
+					ingameParams.set('txtInGameProgramDate', ingameYmd);
+				}
+				formData = ingameParams.toString();
 			}
 
 			// Submit the form via AJAX
@@ -5935,7 +6528,7 @@ $('#edit_status').submit(function (event) {
 				success: function (response) {
 					Swal.fire({
 						icon: 'success',
-						title: isCutoff ? 'Game ended (Cut Off)!' : 'Status updated successfully!',
+						title: isCutoff ? 'Game ended (Cut Off)!' : (isInGameSettlement ? 'In-game settlement recorded!' : 'Status updated successfully!'),
 						showConfirmButton: false,
 						timer: 1500
 					});
@@ -7080,6 +7673,10 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$changeStatusModal.data('settlementValue', net);
 	$changeStatusModal.data('servicesValue', null); // reset while loading
 	$changeStatusModal.data('changeStatusGuestId', guestId || null);
+	$changeStatusModal.data('changeStatusAgentCode', agentCode || '');
+	$changeStatusModal.data('changeStatusGuestName', typeof normalizeGameGuestName === 'function'
+		? normalizeGameGuestName(guestName)
+		: (guestName || ''));
 	$changeStatusModal.data('gameProgramDate', '');
 	loadServiceTotalForStatusModal(id);
 
@@ -7096,7 +7693,11 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	updateReturnRollerRemainingHint();
 	$('#roller-chips-return-section').hide();
 	resetChangeStatusCutoffFields();
+	resetChangeStatusInGameFields();
 	$changeStatusModal.data('rollerTotalsLoaded', false);
+	$changeStatusModal.data('changeStatusActiveGame', null);
+	$changeStatusModal.removeData('changeStatusAgentCode');
+	$changeStatusModal.removeData('changeStatusGuestName');
 	$changeStatusModal.removeData('combinedNet');
 
 	game_id = id;
@@ -7184,9 +7785,11 @@ function loadServiceTotalForStatusModal(gameId) {
 				: 0;
 
 			$modal.data('servicesValue', totalServices);
+			updateInGameExpectedSettlement();
 		},
 		error: function () {
 			$modal.data('servicesValue', 0);
+			updateInGameExpectedSettlement();
 		}
 	});
 }

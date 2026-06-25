@@ -1263,7 +1263,19 @@
 		"cutoff_credit": "modal_change_status.cutoff_credit",
 		"cutoff_split": "modal_change_status.cutoff_split",
 		"cutoff_tip_roller": "modal_change_status.cutoff_tip_roller",
-		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer"
+		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer",
+		"ingame_settlement_title": "modal_change_status.ingame_settlement_title",
+		"ingame_expected_settlement": "modal_change_status.ingame_expected_settlement",
+		"ingame_current_balance": "modal_change_status.ingame_current_balance",
+		"ingame_anticipated_balance": "modal_change_status.ingame_anticipated_balance",
+		"ingame_processing_amount": "modal_change_status.ingame_processing_amount",
+		"ingame_transaction": "modal_change_status.ingame_transaction",
+		"ingame_remarks": "modal_change_status.ingame_remarks",
+		"ingame_txn_settlement": "modal_change_status.ingame_txn_settlement",
+		"ingame_txn_chips_withdrawal": "modal_change_status.ingame_txn_chips_withdrawal",
+		"ingame_history_date": "modal_change_status.ingame_history_date",
+		"ingame_history_amount": "modal_change_status.ingame_history_amount",
+		"ingame_no_history": "modal_change_status.ingame_no_history"
 	},
 	"modal_transfer_account": {
 		"transfer_account": "アカウント移動 -",

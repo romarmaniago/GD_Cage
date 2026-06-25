@@ -250,6 +250,40 @@ function parseCutoffTips(body) {
 	};
 }
 
+function isInGameSplitEnabled(body) {
+	return (
+		body.txtInGameUseSplit === '1' ||
+		body.txtInGameUseSplit === 1 ||
+		String(body.txtInGameUseSplit || '').toLowerCase() === 'true'
+	);
+}
+
+function buildInGameSettlementLegs(body, parentTransType) {
+	if (isInGameSplitEnabled(body)) {
+		return [
+			{ nn: parseChipAmount(body.txtInGameCashNN), cc: parseChipAmount(body.txtInGameCashCC), transType: 1 },
+			{ nn: parseChipAmount(body.txtInGameDepNN), cc: parseChipAmount(body.txtInGameDepCC), transType: 2 },
+			{ nn: parseChipAmount(body.txtInGameCreditNN), cc: parseChipAmount(body.txtInGameCreditCC), transType: 4 }
+		].filter((leg) => leg.nn + leg.cc > 0);
+	}
+
+	const nn = parseChipAmount(body.txtInGameRemainingNN);
+	const cc = parseChipAmount(body.txtInGameRemainingCC);
+	if (nn + cc <= 0) {
+		return [];
+	}
+	return [{ nn, cc, transType: parentTransType }];
+}
+
+function parseInGameTips(body) {
+	return {
+		rollerNn: parseChipAmount(body.txtInGameTipRollerNn),
+		rollerCc: parseChipAmount(body.txtInGameTipRollerCc),
+		dealerNn: parseChipAmount(body.txtInGameTipDealerNn),
+		dealerCc: parseChipAmount(body.txtInGameTipDealerCc)
+	};
+}
+
 function buyinTransTypeForCutoffLeg(transType) {
 	return transType === 4 ? 3 : transType;
 }
@@ -753,6 +787,167 @@ async function performGameCutoff(db, params) {
 		buyInNN,
 		buyInCC
 	};
+}
+
+/**
+ * In-game settlement: record chip movements on the active game, then mark provisional settlement slip.
+ * Game stays ON GAME (ACTIVE = 2).
+ */
+async function performInGameSettlement(db, params) {
+	const {
+		gameId,
+		encodedBy,
+		dateNow,
+		programDate,
+		remainingLegs,
+		lastRollingCC,
+		tips
+	} = params;
+
+	const [gameRows] = await db.execute(
+		`SELECT ACCOUNT_ID, ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[gameId]
+	);
+	if (!gameRows.length) {
+		const err = new Error('Game not found.');
+		err.statusCode = 404;
+		throw err;
+	}
+	const game = gameRows[0];
+	if (parseInt(game.ACTIVE, 10) !== 2) {
+		const err = new Error('Only ON GAME games can use in-game settlement.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const accountId = parseInt(game.ACCOUNT_ID, 10);
+	const legs = Array.isArray(remainingLegs) && remainingLegs.length ? remainingLegs : [];
+	const settlementTips = tips || { rollerNn: 0, rollerCc: 0, dealerNn: 0, dealerCc: 0 };
+	const rollerTotals = await getRollerTotalsForGame(db, gameId);
+	const totalRollerBalance = Math.max(0, rollerTotals.combinedNet || 0);
+	const parentNetNN = Math.max(0, rollerTotals.netNNRaw || 0);
+	const lastRolling = Math.max(0, lastRollingCC);
+	const lastRollingNnReturn = Math.min(lastRolling, parentNetNN);
+	const lastRollingCcReturn = Math.max(0, lastRolling - lastRollingNnReturn);
+
+	for (const leg of legs) {
+		if (leg.nn > 0 && leg.nn % 1000 !== 0) {
+			const err = new Error('Remaining NN Chips must be in thousands.');
+			err.statusCode = 400;
+			throw err;
+		}
+	}
+	if (settlementTips.rollerNn > 0 && settlementTips.rollerNn % 1000 !== 0) {
+		const err = new Error('Tip Roller NN Chips must be in thousands.');
+		err.statusCode = 400;
+		throw err;
+	}
+	if (settlementTips.dealerNn > 0 && settlementTips.dealerNn % 1000 !== 0) {
+		const err = new Error('Tip Dealer NN Chips must be in thousands.');
+		err.statusCode = 400;
+		throw err;
+	}
+	if (lastRollingCC > 0 && lastRollingCC > totalRollerBalance + 0.001) {
+		const err = new Error(
+			`Last Rolling (${lastRollingCC}) exceeds available roller chips balance (${totalRollerBalance}).`
+		);
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const tradingDate = parseProgramDateAsDateTime(programDate) || dateNow;
+	const rollerChipsSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const rollingRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`;
+	const agentQuery = `
+		SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+		FROM agent
+		JOIN account ON account.AGENT_ID = agent.IDNo
+		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+	`;
+
+	await insertCutoffTipRecords(db, {
+		parentGameId: gameId,
+		parentAccountId: accountId,
+		encodedBy,
+		dateNow,
+		tips: settlementTips
+	});
+
+	for (const leg of legs) {
+		await insertCutoffCashoutLeg(db, {
+			parentGameId: gameId,
+			parentAccountId: accountId,
+			leg,
+			encodedBy,
+			dateNow,
+			agentQuery
+		});
+	}
+
+	if (lastRollingNnReturn > 0) {
+		await db.execute(rollingRecordSQL, [
+			gameId,
+			dateNow,
+			4,
+			0,
+			lastRollingNnReturn,
+			encodedBy,
+			dateNow
+		]);
+		await db.execute(rollerChipsSQL, [
+			gameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			lastRollingNnReturn,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (lastRollingCcReturn > 0) {
+		await db.execute(rollerChipsSQL, [
+			gameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			lastRollingCcReturn,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+
+	for (const leg of legs) {
+		await insertCutoffBuyinLeg(db, {
+			newGameId: gameId,
+			parentAccountId: accountId,
+			leg,
+			encodedBy,
+			dateNow,
+			tradingDateNew: tradingDate,
+			agentQuery
+		});
+	}
+
+	await db.execute(
+		`UPDATE game_list SET FAKE_SETTLE = 1, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 2`,
+		[encodedBy, dateNow, gameId]
+	);
+
+	return { gameId, lastRollingCC };
 }
 
 /** Auto roller RETURN on pending game when fault is resolved (guest buy-in / junket new game). */
@@ -4037,6 +4232,59 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				console.error('Error in cutoff change_status:', cutoffErr);
 				const statusCode = cutoffErr.statusCode || 500;
 				const msg = cutoffErr.message || 'Error processing cut off.';
+				return res.status(statusCode).json({ error: msg });
+			} finally {
+				connection.release();
+			}
+		}
+
+		const isInGameSettlementRequest =
+			req.body.txtWasInGameSettlement === '1' ||
+			req.body.txtWasInGameSettlement === 1 ||
+			String(req.body.txtWasInGameSettlement || '').toLowerCase() === 'true';
+		if (isInGameSettlementRequest) {
+			const programDate = parseGameListProgramDate(req.body.txtInGameProgramDate);
+			if (!normalizeSettlementDateYmd(programDate)) {
+				return res.status(400).json({ error: 'Program date is required for in-game settlement.' });
+			}
+
+			const lastRollingCC = parseChipAmount(req.body.txtInGameLastRolling);
+			const tips = parseInGameTips(req.body);
+
+			const connection = await pool.getConnection();
+			try {
+				await connection.beginTransaction();
+				const [gameMetaRows] = await connection.execute(
+					`SELECT INITIAL_MOP FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+					[id]
+				);
+				const initialMop = gameMetaRows.length ? gameMetaRows[0].INITIAL_MOP : null;
+				const parentTransType = await resolveParentTransType(connection, id, initialMop);
+				const remainingLegs = buildInGameSettlementLegs(req.body, parentTransType);
+
+				await performInGameSettlement(connection, {
+					gameId: id,
+					encodedBy: editedBy,
+					dateNow: date_now,
+					programDate,
+					remainingLegs,
+					lastRollingCC,
+					tips
+				});
+				await connection.commit();
+				return res.json({
+					success: true,
+					message: 'In-game settlement recorded.'
+				});
+			} catch (settleErr) {
+				try {
+					await connection.rollback();
+				} catch (rbErr) {
+					console.error('in-game settlement rollback:', rbErr);
+				}
+				console.error('Error in in-game settlement change_status:', settleErr);
+				const statusCode = settleErr.statusCode || 500;
+				const msg = settleErr.message || 'Error processing in-game settlement.';
 				return res.status(statusCode).json({ error: msg });
 			} finally {
 				connection.release();
