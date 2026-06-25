@@ -897,6 +897,7 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
         select: '#house-expense-new-cat-select-wrap',
         photo: '#house-expense-new-row-receipt-photo',
         vehicle: '#house-expense-vehicle-wrap',
+        km: '#house-expense-new-km-l-wrap',
         receiptNo: '#house-expense-new-row-receipt-no',
         officer: '#house-expense-new-row-officer-receiver',
         amount: '#house-expense-new-row-amount'
@@ -905,10 +906,10 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
 
     if (useLockedItemFormat) {
         order = ['preset', 'officer'];
-        if (showVehicleFields) order.push('vehicle');
+        if (showVehicleFields) order.push('vehicle', 'km');
         order.push('amount', 'receiptNo', 'photo');
     } else {
-        order = ['preset', 'select', 'photo', 'vehicle', 'receiptNo', 'officer', 'amount'];
+        order = ['preset', 'select', 'photo', 'vehicle', 'km', 'receiptNo', 'officer', 'amount'];
     }
 
     if ($form.length && $footer.length) {
@@ -921,10 +922,8 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
     var $descLabel = $('#house-expense-new-description-label');
     var $recvLabel = $('#house-expense-new-receiver-label');
     var $receiptLabel = $('#house-expense-new-receipt-no-label');
-    var $vehicleCol = $('#house-expense-vehicle-wrap .he-vehicle-col');
-    var $kmCol = $('#house-expense-vehicle-wrap .he-km-col');
-    var $vehicleLabel = $vehicleCol.find('label');
-    var $kmLabel = $kmCol.find('label');
+    var $vehicleLabel = $('#house-expense-new-vehicle-label');
+    var $kmLabel = $('#house-expense-new-km-label');
 
     if ($descLabel.length && !$descLabel.data('default-text')) {
         $descLabel.data('default-text', $.trim($descLabel.text()));
@@ -935,8 +934,6 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
     }
 
     if (useLockedItemFormat) {
-        $vehicleCol.removeClass('col-sm-12').addClass('col-sm-6');
-        $kmCol.removeClass('col-sm-12').addClass('col-sm-6');
         $descLabel.text('Approved By');
         $recvLabel.text('Received By');
         $receiptLabel.text('Description');
@@ -948,8 +945,6 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
             $kmLabel.text($kmLabel.data('default-text') || 'KM');
         }
     } else {
-        $vehicleCol.removeClass('col-sm-6').addClass('col-sm-12');
-        $kmCol.removeClass('col-sm-6').addClass('col-sm-12');
         $descLabel.text($descLabel.data('default-text') || 'Description');
         $recvLabel.text($recvLabel.data('default-text') || 'Receiver');
         $receiptLabel.text($receiptLabel.data('default-text') || 'Receipt No');
@@ -962,6 +957,7 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
 function houseExpenseToggleCarExpenseFields(categoryId) {
     var showVehicleFields = houseExpenseCarSubCategoryShowsVehicleFields(categoryId);
     var $vehicleWrap = $('#house-expense-vehicle-wrap');
+    var $newKmWrap = $('#house-expense-new-km-l-wrap');
     var $editVehicleWrap = $('#house-expense-edit-vehicle-wrap');
     var $editKmWrap = $('#house-expense-edit-km-l-wrap');
 
@@ -970,11 +966,16 @@ function houseExpenseToggleCarExpenseFields(categoryId) {
     if ($vehicleWrap.length) {
         if (showVehicleFields) {
             $vehicleWrap.removeClass('d-none');
-            $('#house-expense-vehicle-wrap .he-km-col').removeClass('d-none');
             houseExpensePopulateVehicleSelects($('#txtVehicleId').val() || '');
         } else {
             $vehicleWrap.addClass('d-none');
             $('#txtVehicleId').val('');
+        }
+    }
+    if ($newKmWrap.length) {
+        if (showVehicleFields) $newKmWrap.removeClass('d-none');
+        else {
+            $newKmWrap.addClass('d-none');
             $('#txtKmL').val('');
         }
     }

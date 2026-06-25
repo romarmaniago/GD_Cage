@@ -32,15 +32,17 @@
                         </div>
                     </div>
                     <div class="row mb-3 d-none" id="house-expense-vehicle-wrap">
-                        <div class="col-sm-12 form-floating-outline he-vehicle-col">
-                            <label class="form-label" for="txtVehicleId">Vehicle</label>
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="txtVehicleId" id="house-expense-new-vehicle-label">Vehicle</label>
                             <select class="form-select" name="txtVehicleId" id="txtVehicleId">
                                 <option value="">-- Select vehicle --</option>
                             </select>
                         </div>
-                        <div class="col-sm-12 form-floating-outline he-km-col">
-                            <label class="form-label" for="txtKmL">KM</label>
-                            <input type="text" class="form-control" name="txtKmL" id="txtKmL" />
+                    </div>
+                    <div class="row mb-3 d-none" id="house-expense-new-km-l-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="txtKmL" id="house-expense-new-km-label">KM</label>
+                            <input type="text" class="form-control" name="txtKmL" id="txtKmL" onkeypress="return onlyNumberKey(event)" data-type="number" />
                         </div>
                     </div>
                     <div class="row mb-3" id="house-expense-new-row-receipt-no">
