@@ -1233,6 +1233,13 @@
 		"cutoff_option": "CUT OFF",
 		"cutoff_date_label": "Program Date",
 		"cutoff_buyin_label": "Buy-in",
+		"cutoff_remaining_chips": "Remaining Chips",
+		"cutoff_cash": "Cash",
+		"cutoff_deposit": "Deposit",
+		"cutoff_credit": "Credit",
+		"cutoff_split": "Split",
+		"cutoff_tip_roller": "Tip (Roller)",
+		"cutoff_tip_dealer": "Tip (Dealer)",
 		"cutoff_last_rolling_label": "Last Rolling",
 		"save": "Save",
 		"close": "Close"

@@ -33,35 +33,132 @@
 			</div>
 
 			<div id="cutoff-details-section" style="display: none;" class="mt-3 pt-3 border-top">
-				<div class="row mb-2">
-					<div class="col-sm-12">
-						<label class="form-label mb-1" for="txtCutoffProgramDate"><strong><%= __('modal_change_status.cutoff_date_label') %></strong></label>
-						<input type="text" class="form-control" name="txtCutoffProgramDate" id="txtCutoffProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
-					</div>
-				</div>
-				<div class="row mb-2">
-					<div class="col-sm-12">
-						<label class="form-label mb-1"><strong><%= __('modal_change_status.cutoff_buyin_label') %></strong></label>
-					</div>
-					<div class="col-sm-6">
-						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-							class="form-control text-center" name="txtCutoffBuyInNN" id="txtCutoffBuyInNN"
-							placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" />
-					</div>
-					<div class="col-sm-6">
-						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-							class="form-control text-center" name="txtCutoffBuyInCC" id="txtCutoffBuyInCC"
-							placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" />
-					</div>
-				</div>
-				<div class="row mb-2">
-					<div class="col-sm-12">
-						<label class="form-label mb-1" for="txtCutoffLastRolling"><strong><%= __('modal_change_status.cutoff_last_rolling_label') %></strong></label>
-						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-							class="form-control text-center" name="txtCutoffLastRolling" id="txtCutoffLastRolling"
-							placeholder="CC Chips" />
-					</div>
-				</div>
+				<input type="hidden" name="txtCutoffUseSplit" id="txtCutoffUseSplit" value="0" />
+				<input type="hidden" name="txtCutoffBuyInNN" id="txtCutoffBuyInNN" value="" />
+				<input type="hidden" name="txtCutoffBuyInCC" id="txtCutoffBuyInCC" value="" />
+
+				<table class="cutoff-excel-grid cutoff-excel-meta mb-2">
+					<tbody>
+						<tr>
+							<td class="cutoff-excel-label"><%= __('modal_change_status.cutoff_date_label') %></td>
+							<td class="cutoff-excel-input" colspan="2">
+								<input type="text" class="cutoff-excel-field" name="txtCutoffProgramDate" id="txtCutoffProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+							</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<table class="cutoff-excel-grid cutoff-excel-chips">
+					<thead>
+						<tr>
+							<th class="cutoff-excel-label cutoff-excel-head-spacer"></th>
+							<th class="cutoff-excel-head cutoff-excel-head-nn"><span class="cutoff-chip-indicator cutoff-chip-indicator-nn" aria-hidden="true"></span><%= __('modal_new_game_list.nn_placeholder') %></th>
+							<th class="cutoff-excel-head cutoff-excel-head-cc"><span class="cutoff-chip-indicator cutoff-chip-indicator-cc" aria-hidden="true"></span><%= __('modal_new_game_list.cc_placeholder') %></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr id="cutoff-remaining-row">
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffRemainingNN"><%= __('modal_change_status.cutoff_remaining_chips') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffRemainingNN" id="txtCutoffRemainingNN"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center" name="txtCutoffRemainingCC" id="txtCutoffRemainingCC"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+					</tbody>
+					<tbody id="cutoff-split-rows" style="display: none;">
+						<tr>
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffCashNN"><%= __('modal_change_status.cutoff_cash') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffCashNN" id="txtCutoffCashNN"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffCashCC" id="txtCutoffCashCC"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+						<tr>
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffDepNN"><%= __('modal_change_status.cutoff_deposit') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffDepNN" id="txtCutoffDepNN"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffDepCC" id="txtCutoffDepCC"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+						<tr>
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffCreditNN"><%= __('modal_change_status.cutoff_credit') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffCreditNN" id="txtCutoffCreditNN"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffCreditCC" id="txtCutoffCreditCC"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+					</tbody>
+					<tbody>
+						<tr class="cutoff-excel-split-row">
+							<td class="cutoff-excel-label cutoff-excel-split-cell">
+								<div class="form-check mb-0">
+									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="chkCutoffSplit" />
+									<label class="form-check-label" for="chkCutoffSplit"><%= __('modal_change_status.cutoff_split') %></label>
+								</div>
+							</td>
+							<td class="cutoff-excel-input"></td>
+							<td class="cutoff-excel-input"></td>
+						</tr>
+						<tr>
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffTipRollerNn" id="txtCutoffTipRollerNn"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center" name="txtCutoffTipRollerCc" id="txtCutoffTipRollerCc"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+						<tr>
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label></td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffTipDealerNn" id="txtCutoffTipDealerNn"
+									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							</td>
+							<td class="cutoff-excel-input">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center" name="txtCutoffTipDealerCc" id="txtCutoffTipDealerCc"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+						<tr class="cutoff-excel-last-row">
+							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffLastRolling"><%= __('modal_change_status.cutoff_last_rolling_label') %></label></td>
+							<td class="cutoff-excel-input cutoff-excel-last-input" colspan="2">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="cutoff-excel-field text-center" name="txtCutoffLastRolling" id="txtCutoffLastRolling"
+									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 			
 			<!-- Roller Chips Return Section (END GAME only) -->
@@ -202,5 +299,125 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	background-color: #0d6efd !important;
 	border-color: #0d6efd !important;
 	color: #ffffff !important;
+}
+
+#modal-change_status .cutoff-excel-grid {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+#modal-change_status .cutoff-excel-grid th,
+#modal-change_status .cutoff-excel-grid td {
+	border: 1px solid #adb5bd;
+	padding: 0;
+	vertical-align: middle;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-label {
+	width: 34%;
+	padding: 0.45rem 0.55rem;
+	font-weight: 600;
+	font-size: 0.875rem;
+	color: #343a40;
+	text-align: left;
+	background: #fff;
+	white-space: nowrap;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-head {
+	padding: 0.4rem 0.35rem;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #1a1a1a;
+	text-align: center;
+	background: #fff;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-head-nn {
+	background: #cfe2ff;
+	color: #084298;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-head-cc {
+	background: #fff3cd;
+	color: #664d03;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator {
+	display: inline-block;
+	width: 0.55rem;
+	height: 0.55rem;
+	margin-right: 0.35rem;
+	border-radius: 0.1rem;
+	vertical-align: middle;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator-nn {
+	background: #0d6efd;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator-cc {
+	background: #ffc107;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-head-spacer {
+	background: #fff;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-input {
+	padding: 0;
+	background: #fff;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-field {
+	display: block;
+	width: 100%;
+	min-height: 2rem;
+	padding: 0.35rem 0.45rem;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	font-size: 0.875rem;
+	line-height: 1.4;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-field:focus {
+	outline: none;
+	box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.35);
+	background: #fff;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-field.is-invalid {
+	box-shadow: inset 0 0 0 1px #dc3545;
+}
+
+#modal-change_status .cutoff-excel-grid .cutoff-excel-field::placeholder {
+	color: #adb5bd;
+}
+
+#modal-change_status .cutoff-excel-split-cell {
+	padding: 0.35rem 0.55rem;
+}
+
+#modal-change_status .cutoff-excel-split-cell .form-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 0.35rem;
+	min-height: 1.5rem;
+}
+
+#modal-change_status .cutoff-excel-chips {
+	margin-top: 0;
+}
+
+#modal-change_status .cutoff-excel-meta {
+	margin-bottom: 0.65rem;
+}
+
+#modal-change_status .cutoff-excel-meta .cutoff-excel-input {
+	padding: 0;
 }
 </style>

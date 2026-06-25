@@ -232,6 +232,7 @@ window.parseListAmount = parseListAmount;
 
 function storeChangeStatusRollerTotals(rollerTotals, gameId) {
 	var $modal = $('#modal-change_status');
+	$modal.data('rollerTotalsLoaded', true);
 	$modal.data('netRollerNN', rollerTotals.netNNRaw);
 	$modal.data('netRollerCC', rollerTotals.netCCRaw);
 	$modal.data('combinedNet', rollerTotals.combinedNet);
@@ -312,14 +313,117 @@ function closeChangeStatusCutoffDatePicker() {
 function resetChangeStatusCutoffFields() {
 	closeChangeStatusCutoffDatePicker();
 	$('#cutoff-details-section').hide();
-	$('#txtCutoffBuyInNN, #txtCutoffBuyInCC').val('').removeClass('is-invalid');
-	$('#txtCutoffLastRolling').val('');
+	$('#chkCutoffSplit').prop('checked', false);
+	$('#txtCutoffUseSplit').val('0');
+	$('#txtCutoffRemainingNN, #txtCutoffRemainingCC, #txtCutoffCashNN, #txtCutoffCashCC, #txtCutoffDepNN, #txtCutoffDepCC, #txtCutoffCreditNN, #txtCutoffCreditCC')
+		.prop('disabled', false);
+	$('#txtCutoffRemainingNN, #txtCutoffRemainingCC').val('').removeClass('is-invalid');
+	$('#txtCutoffCashNN, #txtCutoffCashCC, #txtCutoffDepNN, #txtCutoffDepCC, #txtCutoffCreditNN, #txtCutoffCreditCC')
+		.val('').removeClass('is-invalid');
+	$('#txtCutoffTipRollerNn, #txtCutoffTipRollerCc, #txtCutoffTipDealerNn, #txtCutoffTipDealerCc').val('').removeClass('is-invalid');
+	$('#txtCutoffBuyInNN, #txtCutoffBuyInCC').val('');
+	$('#txtCutoffLastRolling').val('').removeClass('is-invalid');
+	toggleChangeStatusCutoffSplit();
 	var dateEl = document.getElementById('txtCutoffProgramDate');
 	if (dateEl && dateEl._flatpickr) {
 		dateEl._flatpickr.clear();
 	} else {
 		$('#txtCutoffProgramDate').val('');
 	}
+}
+
+function syncCutoffFieldDisabledState() {
+	var split = $('#chkCutoffSplit').is(':checked');
+	$('#txtCutoffRemainingNN, #txtCutoffRemainingCC').prop('disabled', split);
+	$('#txtCutoffCashNN, #txtCutoffCashCC, #txtCutoffDepNN, #txtCutoffDepCC, #txtCutoffCreditNN, #txtCutoffCreditCC')
+		.prop('disabled', !split);
+}
+
+function toggleChangeStatusCutoffSplit() {
+	var split = $('#chkCutoffSplit').is(':checked');
+	$('#txtCutoffUseSplit').val(split ? '1' : '0');
+	if (split) {
+		$('#cutoff-remaining-row').hide();
+		$('#cutoff-split-rows').show();
+	} else {
+		$('#cutoff-remaining-row').show();
+		$('#cutoff-split-rows').hide();
+	}
+	syncCutoffFieldDisabledState();
+}
+
+function parseCutoffFieldAmount(raw) {
+	var cleaned = (raw || '').toString().replace(/,/g, '').trim();
+	if (!cleaned) return 0;
+	var value = parseFloat(cleaned);
+	return Number.isFinite(value) ? value : NaN;
+}
+
+function collectChangeStatusCutoffChipData() {
+	var useSplit = $('#chkCutoffSplit').is(':checked');
+	if (useSplit) {
+		return {
+			useSplit: true,
+			cashNn: parseCutoffFieldAmount($('#txtCutoffCashNN').val()),
+			cashCc: parseCutoffFieldAmount($('#txtCutoffCashCC').val()),
+			depNn: parseCutoffFieldAmount($('#txtCutoffDepNN').val()),
+			depCc: parseCutoffFieldAmount($('#txtCutoffDepCC').val()),
+			creditNn: parseCutoffFieldAmount($('#txtCutoffCreditNN').val()),
+			creditCc: parseCutoffFieldAmount($('#txtCutoffCreditCC').val()),
+			tipRollerNn: parseCutoffFieldAmount($('#txtCutoffTipRollerNn').val()),
+			tipRollerCc: parseCutoffFieldAmount($('#txtCutoffTipRollerCc').val()),
+			tipDealerNn: parseCutoffFieldAmount($('#txtCutoffTipDealerNn').val()),
+			tipDealerCc: parseCutoffFieldAmount($('#txtCutoffTipDealerCc').val())
+		};
+	}
+	return {
+		useSplit: false,
+		remainingNn: parseCutoffFieldAmount($('#txtCutoffRemainingNN').val()),
+		remainingCc: parseCutoffFieldAmount($('#txtCutoffRemainingCC').val()),
+		tipRollerNn: parseCutoffFieldAmount($('#txtCutoffTipRollerNn').val()),
+		tipRollerCc: parseCutoffFieldAmount($('#txtCutoffTipRollerCc').val()),
+		tipDealerNn: parseCutoffFieldAmount($('#txtCutoffTipDealerNn').val()),
+		tipDealerCc: parseCutoffFieldAmount($('#txtCutoffTipDealerCc').val())
+	};
+}
+
+function syncChangeStatusCutoffHiddenBuyIn(data) {
+	var totalNn = 0;
+	var totalCc = 0;
+	if (data.useSplit) {
+		totalNn = (data.cashNn || 0) + (data.depNn || 0) + (data.creditNn || 0);
+		totalCc = (data.cashCc || 0) + (data.depCc || 0) + (data.creditCc || 0);
+	} else {
+		totalNn = data.remainingNn || 0;
+		totalCc = data.remainingCc || 0;
+	}
+	$('#txtCutoffBuyInNN').val(totalNn > 0 ? String(totalNn) : '');
+	$('#txtCutoffBuyInCC').val(totalCc > 0 ? String(totalCc) : '');
+}
+
+function validateChangeStatusCutoffNnFields(data) {
+	var nnFields = [];
+	if (data.useSplit) {
+		if (data.cashNn > 0) nnFields.push({ amount: data.cashNn, selector: '#txtCutoffCashNN' });
+		if (data.depNn > 0) nnFields.push({ amount: data.depNn, selector: '#txtCutoffDepNN' });
+		if (data.creditNn > 0) nnFields.push({ amount: data.creditNn, selector: '#txtCutoffCreditNN' });
+	} else if (data.remainingNn > 0) {
+		nnFields.push({ amount: data.remainingNn, selector: '#txtCutoffRemainingNN' });
+	}
+	if (data.tipRollerNn > 0) nnFields.push({ amount: data.tipRollerNn, selector: '#txtCutoffTipRollerNn' });
+	if (data.tipDealerNn > 0) nnFields.push({ amount: data.tipDealerNn, selector: '#txtCutoffTipDealerNn' });
+
+	$('#txtCutoffRemainingNN, #txtCutoffCashNN, #txtCutoffDepNN, #txtCutoffCreditNN, #txtCutoffTipRollerNn, #txtCutoffTipDealerNn')
+		.removeClass('is-invalid');
+
+	var invalid = nnFields.find(function (field) {
+		return field.amount % 1000 !== 0;
+	});
+	if (invalid) {
+		$(invalid.selector).addClass('is-invalid');
+		return false;
+	}
+	return true;
 }
 
 function ensureChangeStatusCutoffDatePicker() {
@@ -422,11 +526,16 @@ function updateChangeStatusCutoffSection() {
 	if (isCutoffStatus(selectedStatus)) {
 		$('#cutoff-details-section').show();
 		ensureChangeStatusCutoffDatePicker();
+		syncCutoffFieldDisabledState();
 		loadChangeStatusCutoffLastRolling(game_id);
 	} else {
 		resetChangeStatusCutoffFields();
 	}
 }
+
+$(document).off('change.cutoffsplit', '#chkCutoffSplit').on('change.cutoffsplit', '#chkCutoffSplit', function () {
+	toggleChangeStatusCutoffSplit();
+});
 
 function updateChangeStatusRollerReturnSection() {
 	var selectedStatus = $('#status').val();
@@ -5607,6 +5716,18 @@ $('#edit_status').submit(function (event) {
 	}
 
 	if (isCutoff) {
+		var $cutoffModal = $('#modal-change_status');
+		if (!$cutoffModal.data('rollerTotalsLoaded')) {
+			Swal.fire({
+				icon: 'info',
+				title: 'Please wait',
+				text: 'Roller chip balance is still loading. Please try again in a moment.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
 		var cutoffDateVal = getChangeStatusCutoffProgramDateValue();
 		if (!cutoffDateVal) {
 			ensureChangeStatusCutoffDatePicker();
@@ -5626,17 +5747,32 @@ $('#edit_status').submit(function (event) {
 			return;
 		}
 
-		var buyInNNRaw = ($('#txtCutoffBuyInNN').val() || '').toString().replace(/,/g, '').trim();
-		var buyInCCRaw = ($('#txtCutoffBuyInCC').val() || '').toString().replace(/,/g, '').trim();
-		var buyInNNAmount = parseFloat(buyInNNRaw) || 0;
-		var buyInCCAmount = parseFloat(buyInCCRaw) || 0;
-		$('#txtCutoffBuyInNN').removeClass('is-invalid');
-		if (buyInNNRaw !== '' && (buyInNNAmount <= 0 || buyInNNAmount % 1000 !== 0)) {
-			$('#txtCutoffBuyInNN').addClass('is-invalid');
+		syncCutoffFieldDisabledState();
+		var cutoffChipData = collectChangeStatusCutoffChipData();
+		syncChangeStatusCutoffHiddenBuyIn(cutoffChipData);
+
+		var chipAmounts = cutoffChipData.useSplit
+			? [cutoffChipData.cashNn, cutoffChipData.cashCc, cutoffChipData.depNn, cutoffChipData.depCc,
+				cutoffChipData.creditNn, cutoffChipData.creditCc, cutoffChipData.tipRollerNn, cutoffChipData.tipRollerCc,
+				cutoffChipData.tipDealerNn, cutoffChipData.tipDealerCc]
+			: [cutoffChipData.remainingNn, cutoffChipData.remainingCc, cutoffChipData.tipRollerNn, cutoffChipData.tipRollerCc,
+				cutoffChipData.tipDealerNn, cutoffChipData.tipDealerCc];
+
+		if (chipAmounts.some(function (amount) { return Number.isNaN(amount) || amount < 0; })) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Input',
+				text: 'Please enter valid chip amounts.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (!validateChangeStatusCutoffNnFields(cutoffChipData)) {
 			Swal.fire({
 				icon: 'error',
 				title: 'Invalid NN Chips amount',
-				text: 'Buy-in NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+				text: 'NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
 			});
 			$btn.prop('disabled', false).html('Save');
 			return;
@@ -5679,16 +5815,28 @@ $('#edit_status').submit(function (event) {
 		if (cutoffDateDisplay) {
 			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(cutoffDateDisplay));
 		}
-		var confirmBuyInNN = parseFloat(($('#txtCutoffBuyInNN').val() || '').replace(/,/g, '').trim()) || 0;
-		var confirmBuyInCC = parseFloat(($('#txtCutoffBuyInCC').val() || '').replace(/,/g, '').trim()) || 0;
-		if (confirmBuyInNN > 0) {
-			confirmationRows += buildRow('Buy-in NN:', confirmBuyInNN.toLocaleString('en-US'));
+
+		var confirmCutoffData = collectChangeStatusCutoffChipData();
+		var buildChipPairRow = function (label, nnValue, ccValue) {
+			var parts = [];
+			if (nnValue > 0) parts.push('NN: ' + nnValue.toLocaleString('en-US'));
+			if (ccValue > 0) parts.push('CC: ' + ccValue.toLocaleString('en-US'));
+			if (!parts.length) return;
+			confirmationRows += buildRow(label, parts.join(', '));
+		};
+
+		if (confirmCutoffData.useSplit) {
+			buildChipPairRow('Cash:', confirmCutoffData.cashNn, confirmCutoffData.cashCc);
+			buildChipPairRow('Deposit:', confirmCutoffData.depNn, confirmCutoffData.depCc);
+			buildChipPairRow('Credit:', confirmCutoffData.creditNn, confirmCutoffData.creditCc);
+		} else {
+			buildChipPairRow('Remaining Chips:', confirmCutoffData.remainingNn, confirmCutoffData.remainingCc);
 		}
-		if (confirmBuyInCC > 0) {
-			confirmationRows += buildRow('Buy-in CC:', confirmBuyInCC.toLocaleString('en-US'));
-		}
+
+		buildChipPairRow('Tip (Roller):', confirmCutoffData.tipRollerNn, confirmCutoffData.tipRollerCc);
+		buildChipPairRow('Tip (Dealer):', confirmCutoffData.tipDealerNn, confirmCutoffData.tipDealerCc);
+
 		var lastRollingDisplay = ($('#txtCutoffLastRolling').val() || '').trim();
-		var lastRollingAmount = parseFloat(lastRollingDisplay.replace(/,/g, '')) || 0;
 		if (lastRollingDisplay) {
 			confirmationRows += buildRow('Last Rolling:', lastRollingDisplay);
 		}
@@ -5764,6 +5912,9 @@ $('#edit_status').submit(function (event) {
 			// Serialize form data
 			var formData = $form.serialize();
 			if (isCutoff) {
+				syncCutoffFieldDisabledState();
+				syncChangeStatusCutoffHiddenBuyIn(collectChangeStatusCutoffChipData());
+				formData = $form.serialize();
 				var submitParams = new URLSearchParams(formData);
 				submitParams.set('txtStatus', '1');
 				submitParams.set('txtWasCutoff', '1');
@@ -6945,6 +7096,8 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	updateReturnRollerRemainingHint();
 	$('#roller-chips-return-section').hide();
 	resetChangeStatusCutoffFields();
+	$changeStatusModal.data('rollerTotalsLoaded', false);
+	$changeStatusModal.removeData('combinedNet');
 
 	game_id = id;
 
@@ -6994,6 +7147,18 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
+			storeChangeStatusRollerTotals({
+				netNNRaw: 0,
+				netCCRaw: 0,
+				combinedNet: 0,
+				requiredReturnNN: 0,
+				requiredReturnCC: 0,
+				requiredReturnTotal: 0,
+				totalAddNN: 0,
+				totalAddCC: 0,
+				totalReturnNN: 0,
+				totalReturnCC: 0
+			}, id);
 		}
 	});
 }

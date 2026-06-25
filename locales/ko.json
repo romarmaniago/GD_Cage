@@ -1256,7 +1256,14 @@
 		"cutoff_buyin_label": "바이인",
 		"cutoff_last_rolling_label": "마지막 롤링",
 		"save": "저장",
-		"close": "닫기"
+		"close": "닫기",
+		"cutoff_remaining_chips": "modal_change_status.cutoff_remaining_chips",
+		"cutoff_cash": "modal_change_status.cutoff_cash",
+		"cutoff_deposit": "modal_change_status.cutoff_deposit",
+		"cutoff_credit": "modal_change_status.cutoff_credit",
+		"cutoff_split": "modal_change_status.cutoff_split",
+		"cutoff_tip_roller": "modal_change_status.cutoff_tip_roller",
+		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer"
 	},
 	"modal_transfer_account": {
 		"transfer_account": "계정 이전 -",

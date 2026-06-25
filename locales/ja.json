@@ -1256,7 +1256,14 @@
 		"cutoff_buyin_label": "バイイン",
 		"cutoff_last_rolling_label": "最終ローリング",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"cutoff_remaining_chips": "modal_change_status.cutoff_remaining_chips",
+		"cutoff_cash": "modal_change_status.cutoff_cash",
+		"cutoff_deposit": "modal_change_status.cutoff_deposit",
+		"cutoff_credit": "modal_change_status.cutoff_credit",
+		"cutoff_split": "modal_change_status.cutoff_split",
+		"cutoff_tip_roller": "modal_change_status.cutoff_tip_roller",
+		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer"
 	},
 	"modal_transfer_account": {
 		"transfer_account": "アカウント移動 -",
