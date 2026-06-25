@@ -1347,7 +1347,8 @@
 		"deleted": "삭제됨!",
 		"service_deleted": "서비스 기록이 삭제되었습니다.",
 		"delete_failed": "삭제 실패",
-		"failed_to_delete": "서비스 기록 삭제에 실패했습니다."
+		"failed_to_delete": "서비스 기록 삭제에 실패했습니다.",
+		"select_account": "fnb_hotel.select_account"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

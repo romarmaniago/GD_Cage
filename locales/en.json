@@ -1311,6 +1311,7 @@
 		"missing_fields": "Missing fields",
 		"select_who_is_paying": "Select who is paying.",
 		"select_service_type": "Select a service type.",
+		"select_account": "Select an account.",
 		"select_account_for_guest": "Select an account for guest payment.",
 		"select_transaction_type": "Select a transaction type.",
 		"invalid_amount": "Invalid amount",

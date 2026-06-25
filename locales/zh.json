@@ -1347,7 +1347,8 @@
 		"deleted": "已删除！",
 		"service_deleted": "服务记录已删除。",
 		"delete_failed": "删除失败",
-		"failed_to_delete": "删除服务记录失败。"
+		"failed_to_delete": "删除服务记录失败。",
+		"select_account": "fnb_hotel.select_account"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",
