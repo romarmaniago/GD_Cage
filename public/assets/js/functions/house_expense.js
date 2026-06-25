@@ -833,10 +833,16 @@ function houseExpenseFindCategoryRow(catId) {
     });
 }
 
-/** True for main vehicle/car category names. */
+/** True for main vehicle/car category names (e.g. "VEHICLE", "VEHICLE 차량", "Car Expenses"). */
 function houseExpenseIsVehicleMainCategoryName(name) {
-    var n = String(name || '').trim().toUpperCase();
-    return n === 'CAR' || n === 'VEHICLE' || n === 'VEHICLES';
+    var raw = String(name || '').trim();
+    if (!raw) return false;
+    var upper = raw.toUpperCase();
+    if (upper === 'CAR' || upper === 'VEHICLE' || upper === 'VEHICLES') return true;
+    var lead = (upper.match(/^[A-Z]+/) || [])[0] || '';
+    if (lead === 'CAR' || lead === 'VEHICLE' || lead === 'VEHICLES') return true;
+    if (raw.indexOf('차량') >= 0) return true;
+    return false;
 }
 
 /** True when category is a sub-category under Car / Vehicle. */
