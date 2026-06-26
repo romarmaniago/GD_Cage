@@ -372,9 +372,33 @@
   border-top: 2px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.15);
 }
 
+.dash-matrix-foot .dash-matrix-table tfoot tr.dash-matrix-total-row th.is-total-label {
+  background: var(--rolling-excel-date);
+  color: #0f172a;
+  font-weight: 700;
+  text-align: left;
+}
+
+.dash-matrix-foot .dash-matrix-table tfoot tr.dash-matrix-total-row th.is-total-amt {
+  background: var(--rolling-excel-gold);
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+.dash-matrix-foot .dash-matrix-table tfoot tr.dash-matrix-total-row th.is-total-remarks {
+  background: var(--rolling-excel-remarks);
+}
+
 .dash-dual-matrix-col .dash-matrix-panel {
   flex: 1 1 auto;
   min-height: 0;
+  padding: 0;
+}
+
+.dash-dual-matrix-col .dash-rolling-scroll,
+.dash-dual-matrix-col .dash-wl-scroll {
+  padding: 0;
 }
 
 .dash-dual-matrix {
@@ -382,6 +406,20 @@
   flex-direction: row;
   align-items: stretch;
   width: 100%;
+  --rolling-excel-date: #dbeafe;
+  --rolling-excel-casino: #dcfce7;
+  --rolling-excel-gold: #fef9c3;
+  --rolling-excel-diff: #ffedd5;
+  --rolling-excel-remarks: #e2e8f0;
+  --rolling-excel-today: #fef08a;
+  --rolling-total-text: #a16207;
+  --rolling-excel-grid: #64748b;
+  --dash-row-line: #f1f5f9;
+  --dash-header-line: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
+  --dash-col-line: var(--dash-header-line);
+  --dash-excel-grid-line: #64748b;
+  --dash-excel-total-top: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.18);
+  --dash-excel-total-bottom: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
 }
 
 .dash-dual-matrix-col {
@@ -466,6 +504,17 @@
   z-index: 1;
 }
 
+.dash-matrix-table thead th.dash-matrix-th-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.35);
+  text-underline-offset: 2px;
+}
+
+.dash-matrix-table thead th.dash-matrix-th-link:hover {
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
+}
+
 .dash-matrix-table tbody td {
   padding: 7px 10px;
   text-align: right;
@@ -513,8 +562,322 @@
   border-top: 2px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.15);
 }
 
+.dash-matrix-foot .dash-matrix-table tfoot tr.dash-matrix-total-row th {
+  padding: 0.35rem 0.45rem;
+  min-height: 1.65rem;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  border-top: 2px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.15);
+}
+
 .dash-matrix-table tfoot th.date-col {
   text-align: left;
+}
+
+/* Main Cage Rolling Check — Excel cell colors & grid */
+.dash-rolling-panel .dash-rolling-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+#dash-rolling-root {
+  font-size: 11px;
+}
+
+.dash-rolling-foot,
+.dash-wl-foot {
+  flex-shrink: 0;
+  padding: 0;
+  background: #fff;
+}
+
+.dash-matrix-preview {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  background: #fff;
+}
+
+.dash-rolling-preview,
+.dash-wl-preview {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-rolling-row.is-preview,
+.dash-wl-row.is-preview {
+  flex: 1 1 0;
+  min-height: 1.65rem;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.dash-rolling-row.is-preview .dash-rolling-body-cell,
+.dash-wl-row.is-preview .dash-wl-body-cell {
+  background: #fafbfc;
+  color: #94a3b8;
+  border-bottom: 1px solid #eef2f6;
+  font-weight: 500;
+}
+
+.dash-rolling-row.is-preview .dash-rolling-body-cell.is-date,
+.dash-wl-row.is-preview .dash-wl-body-cell.is-date {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.dash-rolling-row.is-preview:hover .dash-rolling-body-cell,
+.dash-wl-row.is-preview:hover .dash-wl-body-cell {
+  background: #fafbfc;
+}
+
+.dash-rolling-foot .dash-rolling-row.is-total,
+.dash-wl-foot .dash-wl-row.is-total {
+  margin: 0;
+}
+
+.dash-rolling-head-excel,
+.dash-rolling-row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.7fr);
+  gap: 0;
+}
+
+.dash-rolling-head-excel {
+  grid-template-rows: auto auto;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0;
+  border: 1px solid var(--dash-header-line);
+  border-top: none;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.dash-rolling-head-cell,
+.dash-wl-head-cell {
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.45rem;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0f172a;
+  min-height: 1.65rem;
+  box-sizing: border-box;
+  border-right: 1px solid var(--dash-col-line);
+  border-bottom: none;
+}
+
+.dash-rolling-head-cell.is-remarks,
+.dash-wl-head-cell.is-remarks {
+  border-right: none;
+}
+
+.dash-rolling-head-cell.is-date,
+.dash-rolling-head-cell.is-remarks,
+.dash-rolling-head-cell.is-buyin,
+.dash-rolling-head-cell.is-cashout,
+.dash-rolling-head-cell.is-rolling,
+.dash-rolling-head-cell.is-beyond-chips,
+.dash-wl-head-cell.is-date,
+.dash-wl-head-cell.is-casino,
+.dash-wl-head-cell.is-gold,
+.dash-wl-head-cell.is-diff,
+.dash-wl-head-cell.is-remarks {
+  border-bottom: 1px solid var(--dash-header-line);
+}
+
+.dash-rolling-head-cell.is-date {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  justify-content: flex-start;
+  padding-left: 0.55rem;
+  background: var(--rolling-excel-date);
+  font-weight: 600;
+}
+
+.dash-rolling-head-cell.is-casino-group {
+  grid-column: 2 / 5;
+  grid-row: 1;
+  justify-content: center;
+  background: var(--rolling-excel-casino);
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: 1px solid var(--dash-col-line);
+}
+
+.dash-rolling-head-cell.is-gold-group {
+  grid-column: 5;
+  grid-row: 1;
+  justify-content: center;
+  background: var(--rolling-excel-gold);
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  border-bottom: 1px solid var(--dash-col-line);
+}
+
+.dash-rolling-head-cell.is-beyond-chips {
+  grid-column: 5;
+  grid-row: 2;
+  justify-content: center;
+  background: var(--rolling-excel-gold);
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.dash-rolling-head-cell.is-remarks {
+  grid-column: 6;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-remarks);
+}
+
+.dash-rolling-head-cell.is-buyin {
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: flex-end;
+  background: var(--rolling-excel-casino);
+  font-weight: 600;
+}
+
+.dash-rolling-head-cell.is-cashout {
+  grid-column: 3;
+  grid-row: 2;
+  justify-content: flex-end;
+  background: var(--rolling-excel-casino);
+  font-weight: 600;
+}
+
+.dash-rolling-head-cell.is-rolling {
+  grid-column: 4;
+  grid-row: 2;
+  justify-content: flex-end;
+  background: var(--rolling-excel-casino);
+  font-weight: 600;
+}
+
+.dash-rolling-head-cell .dash-card-link {
+  font-size: 10px;
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: underline;
+  text-decoration-color: rgba(15, 23, 42, 0.35);
+}
+
+.dash-rolling-head-cell .dash-card-link:hover {
+  color: var(--bs-primary, #0d6efd);
+}
+
+.dash-rolling-row,
+.dash-wl-row {
+  margin: 0;
+}
+
+.dash-rolling-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-rolling-body-cell {
+  background: #f8fafc;
+}
+
+.dash-rolling-body-cell,
+.dash-wl-body-cell {
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.45rem;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0f172a;
+  min-height: 1.65rem;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--dash-row-line);
+  border-right: none;
+}
+
+.dash-rolling-body-cell {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: #fff;
+  justify-content: flex-end;
+}
+
+.dash-rolling-body-cell.is-date {
+  justify-content: flex-start;
+  padding-left: 0.55rem;
+  background: #fff;
+  color: #334155;
+  font-weight: 600;
+}
+
+.dash-rolling-body-cell.is-col-casino {
+  background: #fff;
+}
+
+.dash-rolling-body-cell.is-col-gold {
+  background: #fff;
+}
+
+.dash-rolling-body-cell.is-col-remarks {
+  justify-content: center;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.dash-rolling-row.is-today .dash-rolling-body-cell {
+  background: var(--rolling-excel-today);
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell,
+.dash-wl-row.is-total .dash-wl-body-cell {
+  border-bottom: none;
+  border-right: 1px solid var(--dash-col-line);
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell.is-col-remarks.is-total-remarks,
+.dash-wl-row.is-total .dash-wl-body-cell.is-col-remarks.is-total-remarks {
+  border-right: none;
+}
+
+.dash-rolling-row.is-total,
+.dash-wl-row.is-total {
+  border-top: 1px solid var(--dash-excel-total-top);
+  border-bottom: 1px solid var(--dash-excel-total-bottom);
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell.is-date.is-total-label,
+.dash-wl-row.is-total .dash-wl-body-cell.is-date.is-total-label {
+  background: var(--rolling-excel-gold);
+  color: #0f172a;
+  font-weight: 700;
+  justify-content: flex-end;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell.is-total-amt,
+.dash-wl-row.is-total .dash-wl-body-cell.is-total-amt {
+  background: var(--rolling-excel-gold);
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell.is-total-amt.text-dash-neg,
+.dash-wl-row.is-total .dash-wl-body-cell.is-total-amt.text-dash-neg {
+  color: #dc3545;
+}
+
+.dash-rolling-row.is-total .dash-rolling-body-cell.is-col-remarks.is-total-remarks,
+.dash-wl-row.is-total .dash-wl-body-cell.is-col-remarks.is-total-remarks {
+  background: var(--rolling-excel-gold);
 }
 
 .dash-card-link {
@@ -526,6 +889,116 @@
 
 .dash-card-link:hover {
   text-decoration: underline;
+}
+
+/* W/L Check — same grid UI as Main Cage Rolling Check */
+.dash-wl-panel .dash-wl-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+#dash-wl-root {
+  font-size: 11px;
+}
+
+.dash-wl-head-excel,
+.dash-wl-row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
+  gap: 0;
+}
+
+.dash-wl-head-excel {
+  grid-template-rows: auto auto;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0;
+  border: 1px solid var(--dash-header-line);
+  border-top: none;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.dash-wl-head-cell.is-date {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-date);
+  font-weight: 600;
+}
+
+.dash-wl-head-cell.is-casino {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-casino);
+  font-weight: 600;
+}
+
+.dash-wl-head-cell.is-gold {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-gold);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.dash-wl-head-cell.is-diff {
+  grid-column: 4;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-diff);
+  font-weight: 600;
+}
+
+.dash-wl-head-cell.is-remarks {
+  grid-column: 5;
+  grid-row: 1 / 3;
+  justify-content: center;
+  background: var(--rolling-excel-remarks);
+  font-weight: 600;
+}
+
+.dash-wl-head-cell.is-gold small {
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.dash-wl-row {
+  border-bottom: none;
+}
+
+.dash-wl-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-wl-body-cell {
+  background: #f8fafc;
+}
+
+.dash-wl-body-cell {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: #fff;
+  justify-content: flex-end;
+}
+
+.dash-wl-body-cell.is-date {
+  justify-content: flex-start;
+  padding-left: 0.55rem;
+  color: #334155;
+}
+
+.dash-wl-body-cell.is-col-remarks {
+  justify-content: center;
+  font-size: 10px;
+}
+
+.dash-wl-row.is-today .dash-wl-body-cell {
+  background: var(--rolling-excel-today);
 }
 
 @media (max-width: 1199px) {

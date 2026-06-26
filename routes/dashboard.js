@@ -3519,6 +3519,16 @@ function listDatesInclusive(fromStr, toStr) {
 	return dates;
 }
 
+router.get('/dashboard_house_balances', checkSession, async (req, res) => {
+	try {
+		const balances = await dashboardQueries.computeHouseBalance();
+		res.json(balances);
+	} catch (err) {
+		console.error('dashboard_house_balances:', err);
+		res.status(500).json({ message: 'Error loading house balances.' });
+	}
+});
+
 router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 	try {
 		const now = new Date();
@@ -3532,19 +3542,18 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			 FROM junket_tables WHERE ACTIVE = 1 ORDER BY IDNo ASC`
 		);
 
-		const [gameRows] = await pool.execute(
+		const [chipsRows] = await pool.execute(
 			`SELECT
-				DATE_FORMAT(gl.PROGRAM_DATE, '%Y-%m-%d') AS report_date,
-				SUM(CASE WHEN gr.CAGE_TYPE = 1 AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS buy_in,
-				SUM(CASE WHEN gr.CAGE_TYPE = 2 AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS cash_out,
-				SUM(CASE WHEN gr.CAGE_TYPE IN (3, 4) AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS rolling
-			 FROM game_record gr
-			 INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
-			 WHERE gr.ACTIVE = 1
-				AND gl.ACTIVE != 0
-				AND gl.PROGRAM_DATE BETWEEN ? AND ?
-			 GROUP BY gl.PROGRAM_DATE
-			 ORDER BY gl.PROGRAM_DATE ASC`,
+				DATE_FORMAT(j.ENCODED_DT, '%Y-%m-%d') AS report_date,
+				SUM(CASE WHEN j.TRANSACTION_ID = 1 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS buy_in,
+				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS cash_out,
+				SUM(CASE WHEN j.TRANSACTION_ID = 3 THEN COALESCE(j.CC_CHIPS, 0) ELSE 0 END) AS rolling
+			 FROM junket_total_chips j
+			 WHERE j.ACTIVE = 1
+				AND j.ENCODED_DT IS NOT NULL
+				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			 GROUP BY DATE(j.ENCODED_DT)
+			 ORDER BY DATE(j.ENCODED_DT) ASC`,
 			[dateFrom, dateTo]
 		);
 
@@ -3563,9 +3572,9 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			[dateFrom, dateTo]
 		);
 
-		const gameByDate = {};
-		(gameRows || []).forEach((row) => {
-			gameByDate[row.report_date] = row;
+		const chipsByDate = {};
+		(chipsRows || []).forEach((row) => {
+			chipsByDate[row.report_date] = row;
 		});
 
 		const dailyByDateTable = {};
@@ -3588,10 +3597,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		let totalGoldWl = 0;
 
 		listDatesInclusive(dateFrom, dateTo).forEach((date) => {
-			const game = gameByDate[date] || {};
-			const buyIn = Number(game.buy_in) || 0;
-			const cashOut = Number(game.cash_out) || 0;
-			const rolling = Number(game.rolling) || 0;
+			const chips = chipsByDate[date] || {};
+			const buyIn = Number(chips.buy_in) || 0;
+			const cashOut = Number(chips.cash_out) || 0;
+			const rolling = Number(chips.rolling) || 0;
 
 			const dayTables = dailyByDateTable[date] || {};
 			const goldRow = goldTable ? dayTables[goldTable.id] : null;

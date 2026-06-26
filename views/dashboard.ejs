@@ -301,41 +301,29 @@
                            <span>Main Cage Rolling Check</span>
                            <a href="/table_daily_report_rolling" target="_blank" class="dash-card-link">Open report</a>
                         </div>
-                        <div class="dash-matrix-panel">
-                           <div class="dash-matrix-scroll">
-                              <table class="dash-matrix-table table mb-0" id="dash-rolling-table">
-                                 <thead id="dash-rolling-thead"></thead>
-                                 <tbody id="dash-rolling-tbody">
-                                    <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
-                                 </tbody>
-                              </table>
+                        <div class="dash-matrix-panel dash-rolling-panel">
+                           <div class="dash-matrix-scroll dash-rolling-scroll">
+                              <div id="dash-rolling-root">
+                                 <div class="text-center text-muted py-4">Loading...</div>
+                              </div>
                            </div>
-                           <div class="dash-matrix-foot">
-                              <table class="dash-matrix-table table mb-0">
-                                 <tfoot id="dash-rolling-tfoot"></tfoot>
-                              </table>
-                           </div>
+                           <div class="dash-matrix-foot dash-rolling-foot" id="dash-rolling-foot"></div>
+                           <div class="dash-matrix-preview dash-rolling-preview" id="dash-rolling-preview"></div>
                         </div>
                      </div>
                      <div class="dash-dual-matrix-col is-wl">
-                        <div class="dash-section-header is-alt d-flex justify-content-between align-items-center gap-2">
+                        <div class="dash-section-header d-flex justify-content-between align-items-center gap-2">
                            <span>W/L Check</span>
                            <a href="/table_daily_report_winloss" target="_blank" class="dash-card-link">Open report</a>
                         </div>
-                        <div class="dash-matrix-panel">
-                           <div class="dash-matrix-scroll">
-                              <table class="dash-matrix-table table mb-0" id="dash-wl-table">
-                                 <thead id="dash-wl-thead"></thead>
-                                 <tbody id="dash-wl-tbody">
-                                    <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
-                                 </tbody>
-                              </table>
+                        <div class="dash-matrix-panel dash-wl-panel">
+                           <div class="dash-matrix-scroll dash-wl-scroll">
+                              <div id="dash-wl-root">
+                                 <div class="text-center text-muted py-4">Loading...</div>
+                              </div>
                            </div>
-                           <div class="dash-matrix-foot">
-                              <table class="dash-matrix-table table mb-0">
-                                 <tfoot id="dash-wl-tfoot"></tfoot>
-                              </table>
-                           </div>
+                           <div class="dash-matrix-foot dash-wl-foot" id="dash-wl-foot"></div>
+                           <div class="dash-matrix-preview dash-wl-preview" id="dash-wl-preview"></div>
                         </div>
                      </div>
                   </div>
