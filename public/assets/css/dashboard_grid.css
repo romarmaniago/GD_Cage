@@ -348,6 +348,35 @@
   padding: 0 0.25rem 0.25rem;
 }
 
+.dash-matrix-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-matrix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.25rem;
+}
+
+.dash-matrix-foot {
+  flex-shrink: 0;
+  padding: 0 0.25rem 0.25rem;
+  background: #fff;
+}
+
+.dash-matrix-foot .dash-matrix-table tfoot th {
+  border-top: 2px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.15);
+}
+
+.dash-dual-matrix-col .dash-matrix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .dash-dual-matrix {
   display: flex;
   flex-direction: row;
@@ -370,8 +399,29 @@
   border-left: 1px solid #e2e8f0;
 }
 
-.dash-dual-matrix-col .dash-matrix-wrap {
+.dash-top-row .dash-dual-matrix-panel-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-top-row .dash-dual-matrix-panel {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dash-top-row .dash-dual-matrix-panel > .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-top-row .dash-dual-matrix-panel .dash-dual-matrix {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dash-dual-matrix-col .dash-section-header {
@@ -479,7 +529,15 @@
 }
 
 @media (max-width: 1199px) {
-  .dash-matrix-wrap {
+  .dash-top-row .dash-dual-matrix-panel {
+    height: auto !important;
+  }
+
+  .dash-top-row .dash-dual-matrix-panel .dash-matrix-scroll {
+    max-height: 320px;
+  }
+
+  .dash-matrix-scroll {
     max-height: 320px;
   }
 

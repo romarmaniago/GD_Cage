@@ -163,6 +163,33 @@
     return escapeHtml(value).replace(/'/g, '&#39;');
   }
 
+  function syncMatrixPanelHeight() {
+    const ref = document.getElementById('dash-anticipated-panel');
+    const panel = document.getElementById('dash-dual-matrix-panel');
+    if (!ref || !panel) return;
+
+    if (window.innerWidth < 1200) {
+      panel.style.height = '';
+      return;
+    }
+
+    panel.style.height = `${ref.offsetHeight}px`;
+  }
+
+  function initMatrixPanelHeightSync() {
+    const ref = document.getElementById('dash-anticipated-panel');
+    if (!ref) return;
+
+    syncMatrixPanelHeight();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => syncMatrixPanelHeight());
+      ro.observe(ref);
+    }
+
+    window.addEventListener('resize', syncMatrixPanelHeight);
+  }
+
   async function loadGridData() {
     const from = document.getElementById('dash-date-from')?.value || '';
     const to = document.getElementById('dash-date-to')?.value || '';
@@ -174,12 +201,14 @@
       renderRollingTable(data);
       renderWlTable(data);
       updateOnGameSummary(data);
+      syncMatrixPanelHeight();
     } catch (err) {
       console.error('dashboard_grid_data:', err);
     }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    initMatrixPanelHeightSync();
     loadGridData();
   });
 

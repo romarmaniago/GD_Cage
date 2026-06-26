@@ -175,8 +175,9 @@
       var nowStamp = new Date();
       var monthStart = new Date(nowStamp.getFullYear(), nowStamp.getMonth(), 1);
       var monthEnd = new Date(nowStamp.getFullYear(), nowStamp.getMonth() + 1, 0);
-      var dashboardDateFrom = monthStart.toISOString().slice(0, 10);
-      var dashboardDateTo = monthEnd.toISOString().slice(0, 10);
+      var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
+      var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
+      var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
    %>
 
    <form id="expense-form" action="/insert-dash-history" method="POST">
@@ -191,7 +192,7 @@
       <input type="hidden" id="dash-date-from" value="<%= dashboardDateFrom %>">
       <input type="hidden" id="dash-date-to" value="<%= dashboardDateTo %>">
 
-      <div class="row g-3 mb-3">
+      <div class="row g-3 mb-3 dash-top-row">
          <!-- Cage Balance + Main -->
          <div class="col-xl-2 col-lg-3 align-self-start">
             <div class="card dash-card dash-panel-narrow">
@@ -239,7 +240,7 @@
 
          <!-- Anticipated Profit + Actual Check -->
          <div class="col-xl-2 col-lg-3 align-self-start">
-            <div class="card dash-card dash-panel-narrow">
+            <div class="card dash-card dash-panel-narrow" id="dash-anticipated-panel">
                <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center flex-wrap gap-1">
                   <span>Anticipated Profit</span>
                   <span class="dash-card-meta"><%= (+monthStart.getMonth()+1) %>/<%= monthStart.getDate() %> – <%= (+monthEnd.getMonth()+1) %>/<%= monthEnd.getDate() %></span>
@@ -291,8 +292,8 @@
          </div>
 
          <!-- Rolling + W/L Check (was Summary column) -->
-         <div class="col-xl-8 col-lg-6 align-self-start">
-            <div class="card dash-card">
+         <div class="col-xl-8 col-lg-6 dash-dual-matrix-panel-col">
+            <div class="card dash-card dash-dual-matrix-panel" id="dash-dual-matrix-panel">
                <div class="card-body p-0">
                   <div class="dash-dual-matrix">
                      <div class="dash-dual-matrix-col is-rolling">
@@ -300,14 +301,20 @@
                            <span>Main Cage Rolling Check</span>
                            <a href="/table_daily_report_rolling" target="_blank" class="dash-card-link">Open report</a>
                         </div>
-                        <div class="dash-matrix-wrap">
-                           <table class="dash-matrix-table table mb-0" id="dash-rolling-table">
-                              <thead id="dash-rolling-thead"></thead>
-                              <tbody id="dash-rolling-tbody">
-                                 <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
-                              </tbody>
-                              <tfoot id="dash-rolling-tfoot"></tfoot>
-                           </table>
+                        <div class="dash-matrix-panel">
+                           <div class="dash-matrix-scroll">
+                              <table class="dash-matrix-table table mb-0" id="dash-rolling-table">
+                                 <thead id="dash-rolling-thead"></thead>
+                                 <tbody id="dash-rolling-tbody">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                                 </tbody>
+                              </table>
+                           </div>
+                           <div class="dash-matrix-foot">
+                              <table class="dash-matrix-table table mb-0">
+                                 <tfoot id="dash-rolling-tfoot"></tfoot>
+                              </table>
+                           </div>
                         </div>
                      </div>
                      <div class="dash-dual-matrix-col is-wl">
@@ -315,14 +322,20 @@
                            <span>W/L Check</span>
                            <a href="/table_daily_report_winloss" target="_blank" class="dash-card-link">Open report</a>
                         </div>
-                        <div class="dash-matrix-wrap">
-                           <table class="dash-matrix-table table mb-0" id="dash-wl-table">
-                              <thead id="dash-wl-thead"></thead>
-                              <tbody id="dash-wl-tbody">
-                                 <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
-                              </tbody>
-                              <tfoot id="dash-wl-tfoot"></tfoot>
-                           </table>
+                        <div class="dash-matrix-panel">
+                           <div class="dash-matrix-scroll">
+                              <table class="dash-matrix-table table mb-0" id="dash-wl-table">
+                                 <thead id="dash-wl-thead"></thead>
+                                 <tbody id="dash-wl-tbody">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+                                 </tbody>
+                              </table>
+                           </div>
+                           <div class="dash-matrix-foot">
+                              <table class="dash-matrix-table table mb-0">
+                                 <tfoot id="dash-wl-tfoot"></tfoot>
+                              </table>
+                           </div>
                         </div>
                      </div>
                   </div>
