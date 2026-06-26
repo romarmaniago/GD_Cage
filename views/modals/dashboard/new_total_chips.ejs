@@ -11,6 +11,10 @@
       <div class="modal-body">
         <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
           <%
+            function sumServiceTotals(rows) {
+              if (!rows || !rows.length) return 0;
+              return rows.reduce(function(sum, row) { return sum + (+row.TOTAL || 0); }, 0);
+            }
             const refCcBal = (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
               (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
               (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
@@ -35,7 +39,38 @@
               (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
               (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
               (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
-            const refCashBal = typeof cashBalance !== 'undefined' ? cashBalance : 0;
+            let refCashBal = typeof cashBalance !== 'undefined' ? cashBalance : 0;
+            if (typeof sqlCashDeposit !== 'undefined' && sqlCashDeposit && sqlCashDeposit[0]) {
+              const refCashInTotal =
+                (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+                (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+                (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
+                (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+                (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
+                (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
+                sumServiceTotals(sqlServiceCashGuest) +
+                sumServiceTotals(sqlServiceDepositGuest) +
+                (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+                (+sqlReturnMoney[0].RETURN_MONEY || 0) +
+                (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
+              const refCashOutTotal =
+                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+                (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+                (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+                (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+                (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+                (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+                sumServiceTotals(sqlServiceCashJunket) +
+                sumServiceTotals(sqlServiceDepositJunket) +
+                (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+                (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+                (+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+                (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+              refCashBal = refCashInTotal - refCashOutTotal + (+sqlMxCashNet[0].MX_CASH_NET || 0);
+            }
             const refCcBalStr = refCcBal.toLocaleString('en-US');
             const refNnBalStr = refNnBal.toLocaleString('en-US');
             const refCashBalStr = refCashBal.toLocaleString('en-US');
@@ -348,6 +383,32 @@ $(document).ready(function() {
   if (permissions === 2) {
     $('#add_junket_total_chips button[type="submit"]').prop('disabled', true);
   }
+
+  window.openTotalChipsModal = function(mode) {
+    $('#nnChips').val('').removeClass('is-invalid');
+    $('#ccChips').val('').removeClass('is-invalid');
+    $('#totalChips').val('');
+    $('input[name="optBuyinReturn"]').prop('checked', false);
+
+    if (mode === 'buyin') {
+      $('#add').prop('checked', true);
+    } else if (mode === 'rolling') {
+      $('#rolling').prop('checked', true);
+    } else if (mode === 'cashout') {
+      $('#deduct').prop('checked', true);
+    }
+
+    if (typeof updatetypeDescription === 'function') {
+      updatetypeDescription();
+    } else if (typeof syncChipsInputsForTransactionMode === 'function') {
+      syncChipsInputsForTransactionMode();
+    }
+
+    const modalEl = document.getElementById('modal-new-total-chips');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  };
 
   function syncChipsInputsForTransactionMode() {
     const selected = $('input[name="optBuyinReturn"]:checked').val();
@@ -844,8 +905,30 @@ $(document).ready(function() {
 
   // Initialize date picker and load history when modal is shown
   let totalChipsPicker = null;
+
+  function refreshTotalChipsRefBalances() {
+    fetch('/dashboard_house_balances', { credentials: 'same-origin' })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (!data || data.message) return;
+        const cash = Math.round(Number(data.cashBalance) || 0);
+        const nn = Math.round(Number(data.nnChipsBalance) || 0);
+        const cc = Math.round(Number(data.ccChipsBalance) || 0);
+        $('#total-chips-cash-balance-display').text(cash.toLocaleString('en-US'));
+        $('#total-chips-cash-balance').val(cash.toLocaleString('en-US'));
+        $('#nnbalance-display').text(nn.toLocaleString('en-US'));
+        $('#nnbalance').val(nn.toLocaleString('en-US'));
+        $('#ccbalance-display').text(cc.toLocaleString('en-US'));
+        $('#ccbalance').val(cc.toLocaleString('en-US'));
+      })
+      .catch(function(err) {
+        console.error('refreshTotalChipsRefBalances:', err);
+      });
+  }
+
   $('#modal-new-total-chips').on('shown.bs.modal', function () {
     console.log('Total Chips Modal shown');
+    refreshTotalChipsRefBalances();
     
     const now = new Date();
     const startOfMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
