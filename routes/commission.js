@@ -9,6 +9,12 @@ router.get("/commission", checkSession, function (req, res) {
 	res.render("junket/commission", data);
 });
 
+router.get("/additional_commission", checkSession, function (req, res) {
+	const data = sessions(req, 'additional_commission');
+	data.permissions = req.session.permissions;
+	res.render("junket/additional_commission", data);
+});
+
 router.get("/commission_analytics", checkSession, function (req, res) {
 	const data = sessions(req, 'commission');
 	data.permissions = req.session.permissions;
@@ -17,6 +23,88 @@ router.get("/commission_analytics", checkSession, function (req, res) {
 
 router.get("/commission_panel", checkSession, function (req, res) {
 	res.redirect(302, '/commission_analytics');
+});
+
+router.get('/additional_commission_data', checkSession, async (req, res) => {
+    const query = `
+        SELECT
+            ac.IDNo,
+            ac.AGENT_ID,
+            COALESCE(agent.AGENT_CODE, CAST(ac.AGENT_ID AS CHAR), '') AS account,
+            COALESCE(NULLIF(TRIM(ac.AGENT_NAME), ''), agent.NAME, '') AS name,
+            ac.CASH_OUT,
+            ac.REMARKS,
+            ac.ENCODED_DT
+        FROM additional_commission ac
+        LEFT JOIN agent ON agent.IDNo = ac.AGENT_ID
+        WHERE ac.ACTIVE = 1
+        ORDER BY ac.ENCODED_DT DESC, ac.IDNo DESC`;
+
+    try {
+        const [rows] = await pool.execute(query);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error loading additional commission data:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/additional_commission_agents', checkSession, async (req, res) => {
+    try {
+        const [rows] = await pool.execute(`
+            SELECT IDNo AS agent_id, AGENT_CODE AS account, NAME AS name
+            FROM agent
+            WHERE ACTIVE = 1
+            ORDER BY AGENT_CODE ASC, NAME ASC
+        `);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error loading additional commission agents:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.post('/add_additional_commission', checkSession, async (req, res) => {
+    try {
+        const { agentId, agentName, cashOut, remarks } = req.body;
+        const cleanCashOut = String(cashOut || '').replace(/,/g, '');
+        const parsedAgentId = parseInt(agentId, 10);
+        const parsedCashOut = Number(cleanCashOut);
+
+        if (!parsedAgentId || cleanCashOut === '' || Number.isNaN(parsedCashOut)) {
+            return res.status(400).json({ message: 'Invalid payload' });
+        }
+
+        const [agentRows] = await pool.execute(
+            'SELECT NAME FROM agent WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+            [parsedAgentId]
+        );
+
+        if (!agentRows.length) {
+            return res.status(400).json({ message: 'Invalid agent' });
+        }
+
+        const savedAgentName = String(agentName || agentRows[0].NAME || '').trim();
+
+        await pool.execute(
+            `INSERT INTO additional_commission
+                (AGENT_ID, AGENT_NAME, CASH_OUT, REMARKS, ENCODED_DT, ENCODED_BY, ACTIVE)
+             VALUES (?, ?, ?, ?, ?, ?, 1)`,
+            [
+                parsedAgentId,
+                savedAgentName,
+                parsedCashOut,
+                String(remarks || '').trim(),
+                new Date(),
+                req.session.user_id
+            ]
+        );
+
+        res.json({ message: 'Saved successfully' });
+    } catch (error) {
+        console.error('Error saving additional commission:', error);
+        res.status(500).json({ message: 'Failed to save additional commission' });
+    }
 });
 
 // GET COMMISSION DATA
