@@ -194,9 +194,9 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	}
 
-	function onRollerInputChange() {
+	function onRollerInputChange(event) {
 		if (typeof updateRollerChipsRemainingHint === 'function') {
-			updateRollerChipsRemainingHint();
+			updateRollerChipsRemainingHint(event.currentTarget);
 		}
 	}
 
