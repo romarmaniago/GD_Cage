@@ -192,10 +192,10 @@
       <input type="hidden" id="dash-date-to" value="<%= dashboardDateTo %>">
 
       <div class="row g-3 mb-3">
-         <!-- Cage Balance -->
-         <div class="col-xl-3 col-lg-4">
+         <!-- Cage Balance + Main -->
+         <div class="col-xl-3 col-lg-4 align-self-start">
             <div class="card dash-card">
-               <div class="card-header d-flex justify-content-between align-items-center">
+               <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center">
                   <a href="/activity_log">Cage Balance</a>
                   <span class="dash-card-meta"><%= nowStamp.toLocaleString('en-US', { year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) %></span>
                </div>
@@ -211,73 +211,8 @@
                   <div class="dash-kv-group-title">Balance</div>
                   <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(houseBalance) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">The difference</span><span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span></div>
-               </div>
-            </div>
-         </div>
 
-         <!-- Anticipated Profit -->
-         <div class="col-xl-5 col-lg-8">
-            <div class="card dash-card">
-               <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                  <span>Anticipated Profit</span>
-                  <span class="dash-card-meta">Date Range: <%= (+monthStart.getMonth()+1) %>/<%= monthStart.getDate() %> – <%= (+monthEnd.getMonth()+1) %>/<%= monthEnd.getDate() %></span>
-               </div>
-               <div class="card-body">
-                  <div class="dash-kv-group-title">Casino</div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-winloss-details">W/L</a></span><span class="dash-kv-value" id="winloss"><%- fmtAmt(winLossTotal) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">W/L Rate</span><span class="dash-kv-value"><%= wlSharePct.toFixed(2) %>%</span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">W/L Settlement</span><span class="dash-kv-value"><%- fmtAmt(wlSettlement) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">SOA (F&amp;B, Hotel)</span><span class="dash-kv-value"><%- fmtNeg(serviceSettleTotal) %></span></div>
-                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
-                  <div class="dash-kv-group-title is-warn">Company</div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value">0</span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">F&amp;B</span><span class="dash-kv-value"><%- fmtAmt(fnbDeposit) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Hotel</span><span class="dash-kv-value"><%- fmtAmt(hotelDeposit) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Incidental</span><span class="dash-kv-value"><%- fmtNeg(incidentalDeposit) %></span></div>
-                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtNeg(companyExpenseTotal) %></span></div>
-                  <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
-               </div>
-            </div>
-         </div>
-
-         <!-- Summary stats -->
-         <div class="col-xl-4 col-lg-12">
-            <div class="card dash-card">
-               <div class="card-header">Summary</div>
-               <div class="card-body">
-                  <div class="dash-stat-grid">
-                     <div class="dash-stat-card">
-                        <div class="dash-stat-label"><%= __('dashboard.total_chips') %></div>
-                        <div class="dash-stat-value"><%- totalChipsBalance.toLocaleString() %></div>
-                        <a href="#modal-new-total-chips" data-bs-toggle="modal" data-view-only-disable class="dash-stat-link">View details</a>
-                     </div>
-                     <div class="dash-stat-card">
-                        <div class="dash-stat-label"><%= __('dashboard.commission') %></div>
-                        <div class="dash-stat-value" id="comms">₱ <%- commissionSettlement.toLocaleString() %></div>
-                     </div>
-                     <div class="dash-stat-card">
-                        <div class="dash-stat-label"><%= __('dashboard.credit') %></div>
-                        <div class="dash-stat-value" id="dashboard-credit-value">₱ <%- creditTotal.toLocaleString() %></div>
-                     </div>
-                     <div class="dash-stat-card">
-                        <div class="dash-stat-label"><%= __('dashboard.guest_balance') %></div>
-                        <div class="dash-stat-value">₱ <%- guestBalance.toLocaleString() %></div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         </div>
-      </div>
-
-      <div class="row g-3 mb-3">
-         <!-- Financial breakdown -->
-         <div class="col-xl-3 col-lg-5">
-            <div class="card dash-card">
-               <div class="card-header">Main</div>
-               <div class="card-body">
+                  <div class="dash-section-header is-alt">Main</div>
                   <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link"><%- fmtAmt(houseBalance) %></a></span></div>
                   <div class="dash-kv-group-title is-warn">Liabilities</div>
                   <div class="dash-kv"><span class="dash-kv-label">Utang</span><span class="dash-kv-value"><%- fmtNeg(junketCreditAmount) %></span></div>
@@ -302,11 +237,32 @@
             </div>
          </div>
 
-         <!-- Status summaries -->
-         <div class="col-xl-4 col-lg-7">
+         <!-- Anticipated Profit + Actual Check -->
+         <div class="col-xl-3 col-lg-4 align-self-start">
             <div class="card dash-card">
-               <div class="card-header">Actual Check</div>
+               <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center flex-wrap gap-1">
+                  <span>Anticipated Profit</span>
+                  <span class="dash-card-meta"><%= (+monthStart.getMonth()+1) %>/<%= monthStart.getDate() %> – <%= (+monthEnd.getMonth()+1) %>/<%= monthEnd.getDate() %></span>
+               </div>
                <div class="card-body">
+                  <div class="dash-kv-group-title">Casino</div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-winloss-details">W/L</a></span><span class="dash-kv-value" id="winloss"><%- fmtAmt(winLossTotal) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">W/L Rate</span><span class="dash-kv-value"><%= wlSharePct.toFixed(2) %>%</span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">W/L Settlement</span><span class="dash-kv-value"><%- fmtAmt(wlSettlement) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">SOA (F&amp;B, Hotel)</span><span class="dash-kv-value"><%- fmtNeg(serviceSettleTotal) %></span></div>
+                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
+                  <div class="dash-kv-group-title is-warn">Company</div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value">0</span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">F&amp;B</span><span class="dash-kv-value"><%- fmtAmt(fnbDeposit) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">Hotel</span><span class="dash-kv-value"><%- fmtAmt(hotelDeposit) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label">Incidental</span><span class="dash-kv-value"><%- fmtNeg(incidentalDeposit) %></span></div>
+                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtNeg(companyExpenseTotal) %></span></div>
+                  <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
+
+                  <div class="dash-section-header is-alt">Actual Check</div>
                   <div class="dash-kv-group-title">Current Time W/L</div>
                   <div class="dash-kv"><span class="dash-kv-label">Buy In</span><span class="dash-kv-value" id="dash-actual-buyin">—</span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Cash Out</span><span class="dash-kv-value text-dash-neg" id="dash-actual-cashout">—</span></div>
@@ -334,41 +290,64 @@
             </div>
          </div>
 
-         <!-- House / cash balance -->
-         <div class="col-xl-5 col-lg-12">
+         <!-- Summary + House / Cash Balance -->
+         <div class="col-xl-6 col-lg-4 align-self-start">
             <div class="card dash-card">
-               <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                  <span><%= __('dashboard.house_balance') %> / <%= __('dashboard.cash_balance') %></span>
-                  <div class="dash-balance-hero">
-                     <span class="item" id="house-balance-value">₱ <%= houseBalance.toLocaleString('en-US') %></span>
-                     <span class="sep">/</span>
-                     <span class="item" id="cash-balance-value">₱ <%= cashBalance.toLocaleString('en-US') %></span>
-                  </div>
-               </div>
-               <div class="card-body p-3">
-                  <div class="dash-flow-row">
-                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Cash-In" data-view-only-disable><%= __('dashboard.cash_in') %></a>
-                     <strong><%= Math.round(cashInTotal).toLocaleString('en-US') %></strong>
-                  </div>
-                  <div class="dash-flow-row">
-                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Cash-Out" data-view-only-disable><%= __('dashboard.cash_out') %></a>
-                     <strong class="text-danger">(<%= Math.round(cashOutTotal).toLocaleString('en-US') %>)</strong>
-                  </div>
-                  <div class="dash-flow-row">
-                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Transaction" data-view-only-disable><%= __('dashboard.chips_transaction') %></a>
-                     <strong id="chips-transaction-total">₱0</strong>
-                  </div>
-                  <div class="row g-2 mt-2">
-                     <div class="col-md-6">
-                        <div class="dash-mini-metric">
-                           <div class="label"><%= __('dashboard.net_junket_money') %></div>
-                           <div class="value">₱ <%- netJunketMoney.toLocaleString('en-US') %></div>
-                        </div>
+               <div class="card-header dash-card-header-compact">Summary</div>
+               <div class="card-body">
+                  <div class="dash-stat-grid">
+                     <div class="dash-stat-card">
+                        <div class="dash-stat-label"><%= __('dashboard.total_chips') %></div>
+                        <div class="dash-stat-value"><%- totalChipsBalance.toLocaleString() %></div>
+                        <a href="#modal-new-total-chips" data-bs-toggle="modal" data-view-only-disable class="dash-stat-link">View details</a>
                      </div>
-                     <div class="col-md-6">
-                        <div class="dash-mini-metric">
-                           <div class="label"><%= __('dashboard.net_junket_cash') %></div>
-                           <div class="value">₱ <%- netJunketCash.toLocaleString('en-US') %></div>
+                     <div class="dash-stat-card">
+                        <div class="dash-stat-label"><%= __('dashboard.commission') %></div>
+                        <div class="dash-stat-value" id="comms">₱ <%- commissionSettlement.toLocaleString() %></div>
+                     </div>
+                     <div class="dash-stat-card">
+                        <div class="dash-stat-label"><%= __('dashboard.credit') %></div>
+                        <div class="dash-stat-value" id="dashboard-credit-value">₱ <%- creditTotal.toLocaleString() %></div>
+                     </div>
+                     <div class="dash-stat-card">
+                        <div class="dash-stat-label"><%= __('dashboard.guest_balance') %></div>
+                        <div class="dash-stat-value">₱ <%- guestBalance.toLocaleString() %></div>
+                     </div>
+                  </div>
+
+                  <div class="dash-section-header is-alt d-flex flex-wrap justify-content-between align-items-center gap-2">
+                     <span><%= __('dashboard.house_balance') %> / <%= __('dashboard.cash_balance') %></span>
+                     <div class="dash-balance-hero">
+                        <span class="item" id="house-balance-value">₱ <%= houseBalance.toLocaleString('en-US') %></span>
+                        <span class="sep">/</span>
+                        <span class="item" id="cash-balance-value">₱ <%= cashBalance.toLocaleString('en-US') %></span>
+                     </div>
+                  </div>
+                  <div class="dash-house-body">
+                     <div class="dash-flow-row">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Cash-In" data-view-only-disable><%= __('dashboard.cash_in') %></a>
+                        <strong><%= Math.round(cashInTotal).toLocaleString('en-US') %></strong>
+                     </div>
+                     <div class="dash-flow-row">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Cash-Out" data-view-only-disable><%= __('dashboard.cash_out') %></a>
+                        <strong class="text-danger">(<%= Math.round(cashOutTotal).toLocaleString('en-US') %>)</strong>
+                     </div>
+                     <div class="dash-flow-row">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modal-Transaction" data-view-only-disable><%= __('dashboard.chips_transaction') %></a>
+                        <strong id="chips-transaction-total">₱0</strong>
+                     </div>
+                     <div class="row g-2 p-2">
+                        <div class="col-6">
+                           <div class="dash-mini-metric">
+                              <div class="label"><%= __('dashboard.net_junket_money') %></div>
+                              <div class="value">₱ <%- netJunketMoney.toLocaleString('en-US') %></div>
+                           </div>
+                        </div>
+                        <div class="col-6">
+                           <div class="dash-mini-metric">
+                              <div class="label"><%= __('dashboard.net_junket_cash') %></div>
+                              <div class="value">₱ <%- netJunketCash.toLocaleString('en-US') %></div>
+                           </div>
                         </div>
                      </div>
                   </div>
