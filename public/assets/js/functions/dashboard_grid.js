@@ -395,6 +395,9 @@
     initMatrixPanelHeightSync();
     bindDualMatrixScrollSync();
     loadGridData();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') loadGridData();
+    });
   });
 
   window.dashboardGridReload = loadGridData;
