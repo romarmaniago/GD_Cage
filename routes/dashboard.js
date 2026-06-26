@@ -3636,7 +3636,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				gr.ROLLER_CC_CHIPS, gr.ROLLER_TRANSACTION
 			 FROM game_record gr
 			 INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
-			 WHERE gr.ACTIVE = 1 AND gl.ACTIVE NOT IN (0, 1)`
+			 WHERE gr.ACTIVE = 1 AND gl.ACTIVE = 2`
 		);
 
 		let onGameBuyIn = 0;
