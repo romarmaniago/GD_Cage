@@ -329,6 +329,84 @@
       <div class="dash-kv"><span class="dash-kv-label">Total Rolling</span><span class="dash-kv-value">${formatAmount(og.rolling)}</span></div>`;
     const gamesEl = document.getElementById('dash-on-game-count');
     if (gamesEl) gamesEl.textContent = `${og.game_count || 0} Games`;
+    renderOnGameDetails(og.games || []);
+  }
+
+  function setGuestSummaryValue(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const n = Number(value) || 0;
+    el.textContent = formatAmount(n);
+    el.classList.toggle('text-dash-neg', n < 0);
+  }
+
+  function renderGuestSummaryStats(stats) {
+    const payload = stats || {};
+    setGuestSummaryValue('dash-guest-summary-total-guest', payload.total_guest);
+    setGuestSummaryValue('dash-guest-summary-total-balance', payload.total_balance);
+    setGuestSummaryValue('dash-guest-summary-total-credit', payload.total_credit);
+    setGuestSummaryValue('dash-guest-summary-total-winloss', payload.total_winloss);
+    setGuestSummaryValue('dash-guest-summary-total-rolling', payload.total_rolling);
+    setGuestSummaryValue('dash-guest-summary-total-commission', payload.total_commission);
+  }
+
+  async function loadGuestSummaryStats() {
+    const status = document.getElementById('dash-guest-summary-status');
+    if (status) {
+      status.textContent = 'Loading...';
+      status.classList.remove('text-danger');
+    }
+
+    try {
+      const res = await fetch('/agency_line_stats', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load guest summary.');
+      renderGuestSummaryStats(data);
+      if (status) status.textContent = '';
+    } catch (err) {
+      console.error('agency_line_stats:', err);
+      renderGuestSummaryStats({});
+      if (status) {
+        status.textContent = 'Failed to load guest summary.';
+        status.classList.add('text-danger');
+      }
+    }
+  }
+
+  function renderOnGameDetails(games) {
+    const body = document.getElementById('dash-on-game-modal-body');
+    if (!body) return;
+
+    if (!games.length) {
+      body.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No games on game.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = games.map((game) => {
+      const gameType = String(game.game_type || '');
+      const gameTypeLabel = gameType === 'LIVE'
+        ? (window.onGameListTranslations?.live || 'LIVE')
+        : gameType === 'TELEBET'
+          ? (window.onGameListTranslations?.telebet || 'TELEBET')
+          : gameType;
+      const gameTypeClass = gameType === 'LIVE' ? 'text-primary' : gameType === 'TELEBET' ? 'text-danger' : '';
+      const account = `${game.agent_code || ''}${game.agent_name ? ` (${game.agent_name})` : ''}`.trim();
+      const winLoss = Number(game.win_loss) || 0;
+
+      return `
+        <tr>
+          <td>${escapeHtml(account || `Account #${game.account_id || ''}`)}</td>
+          <td>${escapeHtml(game.guest_name || '-')}</td>
+          <td>${escapeHtml(game.game_id)}</td>
+          <td><span class="${gameTypeClass}">${escapeHtml(gameTypeLabel || '-')}</span></td>
+          <td class="text-end">${escapeHtml(formatAmount(game.buy_in))}</td>
+          <td class="text-end text-dash-neg">${escapeHtml(formatAmount(-Math.abs(Number(game.cash_out) || 0)))}</td>
+          <td class="text-end${winLoss < 0 ? ' text-dash-neg' : ''}">${escapeHtml(formatAmount(winLoss))}</td>
+          <td class="text-end">${escapeHtml(formatAmount(game.rolling))}</td>
+          <td class="text-end">${escapeHtml(formatAmount(game.roller_chips))}</td>
+        </tr>`;
+    }).join('');
   }
 
   function escapeHtml(value) {
@@ -395,6 +473,12 @@
     initMatrixPanelHeightSync();
     bindDualMatrixScrollSync();
     loadGridData();
+
+    const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
+    if (guestSummaryModal) {
+      guestSummaryModal.addEventListener('show.bs.modal', loadGuestSummaryStats);
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') loadGridData();
     });

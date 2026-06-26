@@ -372,6 +372,17 @@ router.get('/agency_line_stats', async (req, res) => {
 			combinedParams
 		);
 
+		const [[guestRow]] = await pool.execute(
+			`SELECT COUNT(*) AS total_guest
+			 FROM account acc
+			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.ACTIVE = 1
+			   AND ag.ACTIVE = 1
+			   ${agencyFilter}
+			   ${agentFilter}`,
+			combinedParams
+		);
+
 		const [gameRows] = await pool.execute(
 			`SELECT
 					gl.IDNo AS game_id,
@@ -477,6 +488,7 @@ router.get('/agency_line_stats', async (req, res) => {
 		res.json({
 			total_line: Number(lineRow?.total_line ?? 0),
 			total_agent: Number(agentRow?.total_agent ?? 0),
+			total_guest: Number(guestRow?.total_guest ?? 0),
 			total_rolling: totalRolling,
 			total_winloss: totalWinLoss,
 			total_commission: totalCommission,
