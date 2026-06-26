@@ -55,13 +55,59 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  function isoDateLocal(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function buildNextMonthPreviewDates(dateToStr, count = 5) {
+    const parts = String(dateToStr || '').split('-');
+    if (parts.length !== 3) return [];
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    if (!Number.isFinite(y) || !Number.isFinite(m)) return [];
+    const start = new Date(y, m, 1);
+    const dates = [];
+    for (let i = 0; i < count; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      dates.push(isoDateLocal(d));
+    }
+    return dates;
+  }
+
+  function renderRollingPreviewRows(dates) {
+    return dates.map((date) => `
+      <div class="dash-rolling-row is-preview" data-date="${escapeAttr(date)}">
+        <span class="dash-rolling-body-cell is-date">${toDisplayDate(date)}</span>
+        <span class="dash-rolling-body-cell is-col-casino"></span>
+        <span class="dash-rolling-body-cell is-col-casino"></span>
+        <span class="dash-rolling-body-cell is-col-casino"></span>
+        <span class="dash-rolling-body-cell is-col-gold"></span>
+        <span class="dash-rolling-body-cell is-col-remarks"></span>
+      </div>`).join('');
+  }
+
+  function renderWlPreviewRows(dates) {
+    return dates.map((date) => `
+      <div class="dash-wl-row is-preview" data-date="${escapeAttr(date)}">
+        <span class="dash-wl-body-cell is-date">${toDisplayDate(date)}</span>
+        <span class="dash-wl-body-cell is-col-casino"></span>
+        <span class="dash-wl-body-cell is-col-gold"></span>
+        <span class="dash-wl-body-cell is-col-diff"></span>
+        <span class="dash-wl-body-cell is-col-remarks"></span>
+      </div>`).join('');
+  }
+
   function renderRollingTable(payload) {
     const root = document.getElementById('dash-rolling-root');
-    if (!root || !payload) return;
+    const foot = document.getElementById('dash-rolling-foot');
+    const preview = document.getElementById('dash-rolling-preview');
+    if (!root || !foot || !preview || !payload) return;
 
     const today = todayIso();
     const rows = payload.rolling_rows || [];
     const t = payload.totals || {};
+    const previewDates = buildNextMonthPreviewDates(payload.date_to);
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-rolling-row is-today' : 'dash-rolling-row';
@@ -92,7 +138,9 @@
         </div>
         <div class="dash-rolling-head-cell is-beyond-chips">Beyond Chips</div>
       </div>
-      ${bodyHtml}
+      ${bodyHtml}`;
+
+    foot.innerHTML = `
       <div class="dash-rolling-row is-total">
         <span class="dash-rolling-body-cell is-date is-total-label">Total</span>
         <span class="dash-rolling-body-cell is-col-casino is-total-amt${totalNegClass(t.buy_in)}">${escapeHtml(formatTotalCell(t.buy_in))}</span>
@@ -102,13 +150,15 @@
         <span class="dash-rolling-body-cell is-col-remarks is-total-remarks"></span>
       </div>`;
 
+    preview.innerHTML = renderRollingPreviewRows(previewDates);
+
     updateActualCheck(payload);
     bindRollingHeaderClicks(root);
     syncRollingTableLayout();
   }
   function syncDualMatrixRowHeights() {
-    const rollingRows = [...document.querySelectorAll('#dash-rolling-root .dash-rolling-row:not(.is-total)')];
-    const wlRows = [...document.querySelectorAll('#dash-wl-root .dash-wl-row:not(.is-total)')];
+    const rollingRows = [...document.querySelectorAll('#dash-rolling-root .dash-rolling-row')];
+    const wlRows = [...document.querySelectorAll('#dash-wl-root .dash-wl-row')];
     rollingRows.forEach((row) => { row.style.minHeight = ''; });
     wlRows.forEach((row) => { row.style.minHeight = ''; });
 
@@ -121,14 +171,27 @@
       wlRow.style.minHeight = `${h}px`;
     });
 
+    const rollingPreviewRows = [...document.querySelectorAll('#dash-rolling-preview .dash-rolling-row.is-preview')];
+    const wlPreviewRows = [...document.querySelectorAll('#dash-wl-preview .dash-wl-row.is-preview')];
+    rollingPreviewRows.forEach((row) => { row.style.minHeight = ''; });
+    wlPreviewRows.forEach((row) => { row.style.minHeight = ''; });
+    const wlPreviewByDate = new Map(wlPreviewRows.map((row) => [row.dataset.date, row]));
+    rollingPreviewRows.forEach((row) => {
+      const wlRow = wlPreviewByDate.get(row.dataset.date);
+      if (!wlRow) return;
+      const h = Math.max(row.offsetHeight, wlRow.offsetHeight);
+      row.style.minHeight = `${h}px`;
+      wlRow.style.minHeight = `${h}px`;
+    });
+
     const rollingHead = document.querySelector('.dash-rolling-head-excel');
     const wlHead = document.querySelector('.dash-wl-head-excel');
     if (rollingHead && wlHead) {
       wlHead.style.minHeight = `${rollingHead.offsetHeight}px`;
     }
 
-    const rollingTotal = document.querySelector('#dash-rolling-root .dash-rolling-row.is-total');
-    const wlTotal = document.querySelector('#dash-wl-root .dash-wl-row.is-total');
+    const rollingTotal = document.querySelector('#dash-rolling-foot .dash-rolling-row.is-total');
+    const wlTotal = document.querySelector('#dash-wl-foot .dash-wl-row.is-total');
     if (rollingTotal) rollingTotal.style.minHeight = '';
     if (wlTotal) wlTotal.style.minHeight = '';
     if (rollingTotal && wlTotal) {
@@ -192,10 +255,13 @@
 
   function renderWlTable(payload) {
     const root = document.getElementById('dash-wl-root');
-    if (!root || !payload) return;
+    const foot = document.getElementById('dash-wl-foot');
+    const preview = document.getElementById('dash-wl-preview');
+    if (!root || !foot || !preview || !payload) return;
 
     const today = todayIso();
     const rows = payload.wl_rows || [];
+    const previewDates = buildNextMonthPreviewDates(payload.date_to);
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-wl-row is-today' : 'dash-wl-row';
@@ -223,7 +289,9 @@
         <div class="dash-wl-head-cell is-diff">The difference</div>
         <div class="dash-wl-head-cell is-remarks">Remarks</div>
       </div>
-      ${bodyHtml}
+      ${bodyHtml}`;
+
+    foot.innerHTML = `
       <div class="dash-wl-row is-total">
         <span class="dash-wl-body-cell is-date is-total-label">Total</span>
         <span class="dash-wl-body-cell is-col-casino is-total-amt${totalNegClass(t.casino_wl)}">${escapeHtml(formatTotalCell(t.casino_wl))}</span>
@@ -231,6 +299,8 @@
         <span class="dash-wl-body-cell is-col-diff is-total-amt${totalNegClass(totalDiff)}">${escapeHtml(formatTotalCell(totalDiff))}</span>
         <span class="dash-wl-body-cell is-col-remarks is-total-remarks"></span>
       </div>`;
+
+    preview.innerHTML = renderWlPreviewRows(previewDates);
 
     syncRollingTableLayout();
   }
