@@ -451,6 +451,19 @@ ON
 		WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1
 	`;
 
+	let sqlCurrencyPending = `
+		SELECT UPPER(c.CODE) AS CODE,
+			COALESCE(SUM(
+				CASE WHEN ret.ID IS NULL THEN COALESCE(d.EXCHANGE_AMOUNT, 0) ELSE 0 END
+			), 0) AS PENDING
+		FROM money_exchange_transaction d
+		INNER JOIN currency_master c ON c.ID = d.EXCHANGE_CURRENCY_ID
+		LEFT JOIN money_exchange_transaction ret
+			ON ret.SOURCE_DEPOSIT_ID = d.ID AND ret.TRANS_TYPE = 2 AND ret.ACTIVE = 1
+		WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1
+		GROUP BY c.CODE
+	`;
+
 	let sqlWinLoss = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1';
 	
 let sqlServiceCashGuest = `
@@ -569,6 +582,7 @@ let sqlServiceSettle = `
 		const [MxPhpDepositInResult] = await pool.execute(sqlMxPhpDepositIn);
 		const [MxPhpDepositOutResult] = await pool.execute(sqlMxPhpDepositOut);
 		const [MxCashNetResult] = await pool.execute(sqlMxCashNet);
+		const [CurrencyPendingResult] = await pool.execute(sqlCurrencyPending);
 		const [ChipsReturnMarkerResult] = await pool.execute(sqlChipsReturnMarker);
 		const [MArkerReturnDepositResult] = await pool.execute(sqlMArkerReturnDeposit);
 		const [MArkerReturnCashResult] = await pool.execute(sqlMArkerReturnCash);
@@ -865,6 +879,8 @@ let sqlServiceSettle = `
 			sqlMxPhpDepositIn: MxPhpDepositInResult,
 			sqlMxPhpDepositOut: MxPhpDepositOutResult,
 			sqlMxCashNet: MxCashNetResult,
+			sqlCurrencyPending: CurrencyPendingResult,
+			dashboardWlSharePct: 65,
 			sqlChipsReturnMarker: ChipsReturnMarkerResult,
 			sqlMArkerReturnDeposit: MArkerReturnDepositResult,
 			sqlMArkerReturnCash: MArkerReturnCashResult,
@@ -3481,6 +3497,180 @@ router.get('/get_winloss_settlement_details', async (req, res) => {
 	} catch (err) {
 		console.error("Error in get_winloss_settlement_details route:", err);
 		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
+
+function pad2(n) {
+	return String(n).padStart(2, '0');
+}
+
+function isoDateOnly(d) {
+	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function listDatesInclusive(fromStr, toStr) {
+	const dates = [];
+	const start = new Date(`${fromStr}T00:00:00`);
+	const end = new Date(`${toStr}T00:00:00`);
+	if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return dates;
+	for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+		dates.push(isoDateOnly(d));
+	}
+	return dates;
+}
+
+router.get('/dashboard_grid_data', checkSession, async (req, res) => {
+	try {
+		const now = new Date();
+		const defaultFrom = isoDateOnly(new Date(now.getFullYear(), now.getMonth(), 1));
+		const defaultTo = isoDateOnly(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+		const dateFrom = String(req.query.date_from || defaultFrom).trim();
+		const dateTo = String(req.query.date_to || defaultTo).trim();
+
+		const [tableRows] = await pool.execute(
+			`SELECT IDNo AS id, TABLE_NAME AS table_name
+			 FROM junket_tables WHERE ACTIVE = 1 ORDER BY IDNo ASC`
+		);
+
+		const [gameRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(gl.PROGRAM_DATE, '%Y-%m-%d') AS report_date,
+				SUM(CASE WHEN gr.CAGE_TYPE = 1 AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS buy_in,
+				SUM(CASE WHEN gr.CAGE_TYPE = 2 AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS cash_out,
+				SUM(CASE WHEN gr.CAGE_TYPE IN (3, 4) AND gr.RESET = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END) AS rolling
+			 FROM game_record gr
+			 INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			 WHERE gr.ACTIVE = 1
+				AND gl.ACTIVE != 0
+				AND gl.PROGRAM_DATE BETWEEN ? AND ?
+			 GROUP BY gl.PROGRAM_DATE
+			 ORDER BY gl.PROGRAM_DATE ASC`,
+			[dateFrom, dateTo]
+		);
+
+		const [dailyRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(dtr.REPORT_DATE, '%Y-%m-%d') AS report_date,
+				jt.IDNo AS junket_table_id,
+				jt.TABLE_NAME AS table_name,
+				dtr.ROLLING_AMT AS rolling_amt,
+				dtr.WINLOSS_AMT AS winloss_amt
+			 FROM daily_table_reports dtr
+			 INNER JOIN junket_tables jt ON jt.IDNo = dtr.JUNKET_TABLE_ID
+			 WHERE dtr.ACTIVE = 1
+				AND dtr.REPORT_DATE BETWEEN ? AND ?
+			 ORDER BY dtr.REPORT_DATE ASC, jt.IDNo ASC`,
+			[dateFrom, dateTo]
+		);
+
+		const gameByDate = {};
+		(gameRows || []).forEach((row) => {
+			gameByDate[row.report_date] = row;
+		});
+
+		const dailyByDateTable = {};
+		(dailyRows || []).forEach((row) => {
+			if (!dailyByDateTable[row.report_date]) dailyByDateTable[row.report_date] = {};
+			dailyByDateTable[row.report_date][row.junket_table_id] = row;
+		});
+
+		const casinoTable = (tableRows || []).find((t) => /casino/i.test(t.table_name)) || tableRows?.[0];
+		const goldTable = (tableRows || []).find((t) => /gold\s*dragon/i.test(t.table_name))
+			|| (tableRows && tableRows.length > 1 ? tableRows[1] : null);
+
+		const rollingRows = [];
+		const wlRows = [];
+		let totalBuyIn = 0;
+		let totalCashOut = 0;
+		let totalRolling = 0;
+		let totalBeyond = 0;
+		let totalCasinoWl = 0;
+		let totalGoldWl = 0;
+
+		listDatesInclusive(dateFrom, dateTo).forEach((date) => {
+			const game = gameByDate[date] || {};
+			const buyIn = Number(game.buy_in) || 0;
+			const cashOut = Number(game.cash_out) || 0;
+			const rolling = Number(game.rolling) || 0;
+
+			const dayTables = dailyByDateTable[date] || {};
+			const goldRow = goldTable ? dayTables[goldTable.id] : null;
+			const beyond = goldRow ? Number(goldRow.rolling_amt) || 0 : 0;
+
+			const casinoWl = buyIn - cashOut;
+			const goldWl = goldRow ? Number(goldRow.winloss_amt) || 0 : casinoWl;
+
+			rollingRows.push({
+				date,
+				buy_in: buyIn,
+				cash_out: cashOut,
+				rolling,
+				beyond_chips: beyond
+			});
+
+			wlRows.push({
+				date,
+				casino: casinoWl,
+				gold_dragon: goldWl
+			});
+
+			totalBuyIn += buyIn;
+			totalCashOut += cashOut;
+			totalRolling += rolling;
+			totalBeyond += beyond;
+			totalCasinoWl += casinoWl;
+			totalGoldWl += goldWl;
+		});
+
+		const [onGameRows] = await pool.execute(
+			`SELECT gr.GAME_ID, gr.CAGE_TYPE, gr.NN_CHIPS, gr.CC_CHIPS, gr.AMOUNT,
+				gr.ROLLER_CC_CHIPS, gr.ROLLER_TRANSACTION
+			 FROM game_record gr
+			 INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			 WHERE gr.ACTIVE = 1 AND gl.ACTIVE NOT IN (0, 1)`
+		);
+
+		let onGameBuyIn = 0;
+		let onGameCashOut = 0;
+		let onGameRolling = 0;
+		const onGameIds = new Set();
+		(onGameRows || []).forEach((r) => {
+			onGameIds.add(r.GAME_ID);
+			const ct = Number(r.CAGE_TYPE);
+			const nn = Number(r.NN_CHIPS) || 0;
+			const cc = Number(r.CC_CHIPS) || 0;
+			const amt = Number(r.AMOUNT) || 0;
+			if (ct === 1) onGameBuyIn += amt + nn + cc;
+			if (ct === 2) onGameCashOut += amt + nn + cc;
+			if (ct === 3) onGameRolling += amt + nn + cc;
+			if (ct === 4) onGameRolling += amt + nn + cc;
+		});
+
+		res.json({
+			date_from: dateFrom,
+			date_to: dateTo,
+			tables: tableRows || [],
+			rolling_rows: rollingRows,
+			wl_rows: wlRows,
+			totals: {
+				buy_in: totalBuyIn,
+				cash_out: totalCashOut,
+				rolling: totalRolling,
+				beyond_chips: totalBeyond,
+				wl_total: totalCasinoWl,
+				casino_wl: totalCasinoWl,
+				gold_dragon_wl: totalGoldWl
+			},
+			on_game: {
+				game_count: onGameIds.size,
+				buy_in: onGameBuyIn,
+				cash_out: onGameCashOut,
+				rolling: onGameRolling
+			}
+		});
+	} catch (err) {
+		console.error('dashboard_grid_data:', err);
+		res.status(500).json({ message: 'Error loading dashboard grid data.' });
 	}
 });
 

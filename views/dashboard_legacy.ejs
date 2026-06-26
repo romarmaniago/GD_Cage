@@ -1,0 +1,1716 @@
+<%- include('partials/header') %>
+   <%- include('partials/loader') %>
+      <%- include('partials/sidebar') %>
+
+         <%- include('partials/topbar') %>
+
+
+            <div class="conatiner-fluid content-inner py-0">
+
+               <div id="user-role" data-permissions="<%= permissions %>"></div>
+                 <style>
+                  .plus-icon {
+                     color: #5a6474;
+                     transition: color 0.3s ease-in-out;
+                     font-size: 18px;
+
+                  }
+
+                  .plus-icon:hover {
+                     color: #8a92a6;
+                  }
+
+                  .plus-spacing {
+                     margin-left: 7px;
+                     /* Pwede mong dagdagan kung masyadong dikit pa rin */
+                  }
+
+                  li.card {
+                     width: 291px !important;
+                     /* adjust as needed */
+                  }
+
+                  .d-slider1 .swiper-button-next:after {
+                     color: #000 !important;
+                     font-weight: bold !important;
+                     /* Make the arrows bold */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     transition: none !important;
+                     visibility: visible !important;
+                     /* Disable any transition */
+                     /* Ensure the color is applied */
+                  }
+
+                  .d-slider1 .swiper-button-prev:after {
+                     color: #000 !important;
+                     font-weight: bold !important;
+                     /* Make the arrows bold */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     transition: none !important;
+                     visibility: visible !important;
+                     /* Disable any transition */
+                     /* Ensure the color is applied */
+                  }
+
+                  .d-slider1 .swiper-button-next:before {
+                     color: #000 !important;
+                     font-weight: bold !important;
+                     /* Make the arrows bold */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     transition: none !important;
+                     visibility: visible !important;
+                     /* Disable any transition */
+                     /* Ensure the color is applied */
+                  }
+
+                  .d-slider1 .swiper-button-prev:before {
+                     color: #000 !important;
+                     font-weight: bold !important;
+                     /* Make the arrows bold */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     transition: none !important;
+                     visibility: visible !important;
+                     /* Disable any transition */
+                     /* Ensure the color is applied */
+                  }
+
+                  /* If the arrows are SVG, make sure the fill color stays black */
+                  .d-slider1 .swiper-button-next svg,
+                  .d-slider1 .swiper-button-prev svg {
+                     fill: #000 !important;
+                     /* Change fill color to black */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     visibility: visible !important;
+                     transition: none !important;
+                     /* Disable any transition */
+                  }
+
+                  /* Prevent color change on hover and active states */
+                  .d-slider1 .swiper-button-next:hover,
+                  .d-slider1 .swiper-button-prev:hover,
+                  .d-slider1 .swiper-button-next:active,
+                  .d-slider1 .swiper-button-prev:active {
+                     color: #000 !important;
+                     /* Ensure color stays black */
+                     fill: #000 !important;
+                     /* Ensure fill stays black */
+                     opacity: 1 !important;
+                     /* Ensure buttons are fully opaque */
+                     visibility: visible !important;
+                     transition: none !important;
+                     /* Disable any transition */
+                  }
+
+                  .my-custom-next,
+                  .my-custom-prev {
+                     color: #000;
+                     /* Always black text/icon */
+                     font-weight: bold;
+                     /* Make them bold if you want */
+                     cursor: pointer;
+                     /* Show pointer on hover */
+                     transition: none;
+                     /* Disable transitions */
+                     /* Add any other styling you need, e.g. padding, positioning, etc. */
+                  }
+
+                  /* Hover/active states (optional) */
+                  .my-custom-next:hover,
+                  .my-custom-prev:hover,
+                  .my-custom-next:active,
+                  .my-custom-prev:active {
+                     color: #000;
+                     /* Keep it black even on hover/click */
+                     transition: none;
+                  }
+
+                  /* Ensuring transfer account stays on top while keeping guest account in the background */
+                  #modal-guestAccount {
+                     z-index: 1050 !important;
+                     /* Default z-index */
+                  }
+
+                  #modal-account-details {
+                     z-index: 1060 !important;
+                     /* Account details modal above guest account */
+                  }
+
+                  #modal-transfer_account {
+                     z-index: 1070 !important;
+                     /* Transfer modal above everything */
+                  }
+
+                  /* Optional: Apply backdrop effect for modals */
+                  .modal-backdrop {
+                     z-index: 1040 !important;
+                     /* Ensure backdrop stays behind the account details */
+                  }
+
+               </style>
+                 
+               <%
+                  // ============================================
+                  // CALCULATIONS - MOVED TO TOP FOR BETTER ORGANIZATION
+                  // ============================================
+                  
+                  // NN CHIPS Balance Calculation
+                  const nnChipsBalance = 
+                     (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+                     (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
+                     (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+                     (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+                     (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                     (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                     (+sqlCCChipsRolling[0].CCChipsRolling || 0) + 
+                     (+sqlNNBuyin[0].NNBuyin || 0) - 
+                     (+sqlNNReturn[0].NNReturn || 0) -
+                     (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                     (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) - (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
+                  
+                  // CC CHIPS Balance Calculation
+                  const ccChipsBalance = 
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                     (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
+                     (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
+                     (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+                     (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                     (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                     (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + 
+                     (+sqlCCBuyin[0].CCBuyin || 0) - 
+                     (+sqlCCReturn[0].CCReturn || 0) -
+                     (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                     (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) - (+sqlCCChipsMonthlySettle[0].CCChipsMonthlySettle || 0);
+                  
+                  // TOTAL CHIPS Balance Calculation (Simplified: NN + CC)
+                  const totalChipsBalance = nnChipsBalance + ccChipsBalance;
+                  
+                  // Cash movement components based on Cash Balance formula
+                  // CASH IN  = lahat ng may '+' sign
+                  // CASH OUT = lahat ng may '-' sign
+                  const cashInTotal =
+                     (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+                     (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+                     (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
+                     (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+                     (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
+                     (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
+                     (+sqlServiceCashGuest[0].TOTAL || 0) +
+                     (+sqlServiceDepositGuest[0].TOTAL || 0) +
+                     (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+                     (+sqlReturnMoney[0].RETURN_MONEY || 0) +
+                     (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
+                  
+                  const cashOutTotal =
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+                     (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+                     (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                     (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+                     (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+                     (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+                     (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                     (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+                     (+sqlServiceCashJunket[0].TOTAL || 0) +
+                     (+sqlServiceDepositJunket[0].TOTAL || 0) +
+                     (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+                     (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+                     (+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+                     (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+
+                  // Money Exchange net cash effect:
+                  // pending principal OR realized margin (if already returned)
+                  const mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
+                  
+                  // Cash Balance = Pure Cash In/Out ONLY
+                  // Only includes transactions from junket_capital and junket_house_expense tables
+                  // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
+                  const cashBalance = cashInTotal - cashOutTotal + mxCashNet;
+                  
+                  const guestBalance = Math.round(
+                     (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) + 
+                     (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+                     (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
+                     (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
+                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0)  -
+                     (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
+                  );
+
+                   const houseBalance = cashBalance + totalChipsBalance;
+                    
+                  
+                  const netJunketMoney = houseBalance - guestBalance;
+                  const netJunketCash = cashBalance - guestBalance;
+                  const unreturnedRollerChipsTotal = (+sqlUnreturnedRollerChips[0].TOTAL_UNRETURNED || 0);
+                  
+                  // Detailed breakdown for tracing Cash Balance
+                  const cashBalanceDebug = [
+                     { label: 'CASH_DEPOSIT',                sign: '+', value: (+sqlCashDeposit[0].CASH_DEPOSIT || 0) },
+                     { label: 'CC_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) },
+                     { label: 'CASH_WITHDRAW',               sign: '-', value: (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) },
+                     { label: 'JUNKET_EXPENSE',              sign: '-', value: (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) },
+                     { label: 'NN_CHIPS_BUYIN (ALL)',         sign: '-', value: (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) },
+                     { label: 'ACCOUNT_DEPOSIT',             sign: '+', value: (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) },
+                     { label: 'SETTLEMENT_DEPOSIT',           sign: '+', value: (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) },
+                     { label: 'ACCOUNT_WITHDRAW',            sign: '-', value: (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) },
+                     { label: 'TOTAL_CHIPS_CASHOUT',         sign: '+', value: (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) },
+                     { label: 'NN_CHIPS_ACCOUNT_CASH',        sign: '+', value: (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) },
+                     { label: 'CC_CHIPS_BUYIN_CASH_ONLY',     sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
+                     { label: 'RETURN_MONEY',                sign: '+', value: (+sqlReturnMoney[0].RETURN_MONEY || 0) },
+                     { label: 'ROLLER_TIP_CASHIN',           sign: '+', value: (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0) },
+                     { label: 'TIP_SETTLEMENT',              sign: '-', value: (+sqlTipSettlement[0].TIP_SETTLEMENT || 0) },
+                     { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
+                     { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
+                     { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },
+                     { label: 'SERVICE_CASH_GUEST',          sign: '+', value: (+sqlServiceCashGuest[0].TOTAL || 0) },
+                     { label: 'SERVICE_DEPOSIT_GUEST',        sign: '+', value: (+sqlServiceDepositGuest[0].TOTAL || 0) },
+                     { label: 'SERVICE_CASH_JUNKET',         sign: '-', value: (+sqlServiceCashJunket[0].TOTAL || 0) },
+                     { label: 'SERVICE_DEPOSIT_JUNKET',       sign: '-', value: (+sqlServiceDepositJunket[0].TOTAL || 0) },
+                     { label: 'ACCOUNT_TRANSFER',             sign: '-', value: (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) }
+                  ];
+               %>
+                 
+               <!-- CARDS -->
+               <form id="expense-form" action="/insert-dash-history" method="POST">
+                  <input type="hidden" name="EXPENSE_HISTORY"
+                     value="<%- (sqlJunketExpenseReset && sqlJunketExpenseReset[0] ? (sqlJunketExpenseReset[0].RESET_EXPENSE || 0) : 0) %>">
+                  
+                  <div class="row">
+                        <div class="col-md-12 col-lg-12">
+                        <div class="row row-cols-1">
+                           <div class="overflow-hidden d-slider1 ">
+
+                              <ul class="p-0 m-0 mb-2 swiper-wrapper list-inline">
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="700">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+                                             <svg class="icon-25" width="25" viewBox="0 0 1080 1080" fill="white"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <g transform="translate(0,1080) scale(0.1,-0.1)" fill="white"
+                                                   stroke="none">
+                                                   <path d="M2895 10465 c-620 -58 -1212 -236 -1582 -477 -439 -286 -677 -634
+-700 -1027 -6 -102 17 -394 43 -565 19 -119 14 -225 -15 -356 -35 -155 -27
+-472 19 -755 16 -97 12 -212 -12 -325 -30 -144 -30 -419 1 -728 23 -238 22
+-301 -10 -437 -26 -109 -25 -324 2 -603 24 -252 21 -409 -10 -576 -27 -140
+-27 -270 -1 -535 38 -392 65 -512 155 -698 128 -263 385 -522 703 -710 243
+-143 675 -300 1012 -367 288 -57 480 -76 791 -76 324 0 548 21 846 81 56 11
+124 19 150 17 45 -3 49 -5 60 -38 7 -19 12 -87 13 -150 2 -405 131 -749 379
+-1012 166 -177 427 -359 683 -477 245 -113 618 -227 899 -276 201 -35 323 -46
+574 -52 744 -17 1396 131 1905 432 286 170 517 385 641 600 103 177 143 339
+184 735 9 85 23 202 30 259 22 155 19 241 -11 352 -41 150 -43 301 -8 579 35
+288 37 451 6 567 -25 93 -27 128 -9 159 7 12 52 57 101 100 155 137 271 299
+329 462 43 118 58 200 82 437 3 33 15 124 26 202 25 184 24 261 -3 381 -32
+134 -31 388 0 579 28 166 28 293 2 393 -46 176 -46 230 1 600 20 156 21 185
+11 280 -33 293 -163 518 -427 739 -128 106 -248 182 -420 266 -590 288 -1308
+390 -2050 290 -516 -70 -950 -232 -1273 -477 -118 -90 -136 -96 -128 -40 3 20
+8 71 11 112 4 41 16 134 28 205 17 102 22 169 21 310 -1 161 -3 190 -27 278
+-73 274 -244 511 -527 730 -139 108 -263 182 -440 263 -413 188 -839 302
+-1298 349 -184 18 -556 18 -757 0z m730 -185 c98 -11 218 -27 265 -35 129 -22
+481 -114 515 -134 63 -36 56 -108 -15 -143 -50 -25 -184 -24 -275 2 -249 72
+-436 102 -725 119 -155 9 -212 22 -252 59 -26 22 -23 74 6 101 58 55 190 63
+481 31z m-1517 -264 c34 -18 62 -52 62 -77 0 -33 -43 -70 -133 -115 -138 -69
+-263 -165 -447 -344 -123 -119 -152 -134 -246 -127 -128 10 -204 60 -189 127
+9 39 152 191 260 275 156 121 335 226 455 267 66 22 190 19 238 -6z m1402
+-131 c302 -35 534 -102 780 -225 233 -117 410 -300 472 -492 32 -96 30 -240
+-4 -335 -98 -274 -434 -521 -841 -618 -261 -62 -650 -91 -877 -66 -516 59
+-960 271 -1149 550 -86 127 -116 228 -109 367 6 103 29 175 83 260 74 116 232
+256 380 339 309 173 856 268 1265 220z m1823 -383 c62 -28 109 -83 160 -186
+57 -114 73 -164 94 -285 19 -114 8 -229 -28 -288 -45 -73 -164 -101 -279 -67
+-120 36 -135 63 -126 229 10 163 -8 242 -91 413 -14 29 -28 71 -30 95 -4 36
+-1 46 22 69 15 15 46 32 68 37 58 14 159 5 210 -17z m-3897 -826 c35 -16 67
+-43 105 -87 162 -191 307 -313 469 -394 96 -48 134 -77 149 -113 11 -26 10
+-35 -8 -70 -23 -46 -71 -89 -121 -110 -170 -71 -595 178 -850 498 -82 104 -90
+118 -90 167 0 48 20 78 72 104 86 44 184 46 274 5z m6824 -91 c154 -20 293
+-48 425 -86 139 -41 172 -57 185 -89 16 -38 -3 -66 -58 -87 -67 -25 -142 -20
+-282 19 -163 46 -268 64 -532 88 -233 21 -271 31 -282 76 -10 37 1 63 37 85
+30 19 44 20 207 15 96 -2 231 -12 300 -21z m-1440 -210 c35 -18 50 -43 50 -83
+0 -36 -13 -48 -124 -106 -135 -70 -214 -127 -291 -207 -141 -146 -152 -156
+-201 -173 -123 -42 -254 1 -254 83 0 32 11 46 113 146 247 244 582 405 707
+340z m1349 -141 c318 -54 534 -138 728 -282 257 -192 337 -447 214 -690 -78
+-154 -243 -287 -482 -390 -529 -226 -1312 -172 -1752 121 -102 68 -230 201
+-274 283 -131 246 -51 493 229 704 181 137 472 238 776 270 117 12 454 3 561
+-16z m-3460 -140 c129 -70 121 -159 -22 -238 -68 -38 -254 -105 -381 -137
+-250 -64 -702 -135 -797 -125 -182 18 -280 127 -199 219 48 55 111 76 262 88
+268 20 486 66 733 155 191 68 213 74 286 70 49 -2 79 -10 118 -32z m4966 -194
+c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
+-4 -62 28 -73 58 -73 191 0 136 -19 228 -71 336 -45 94 -48 126 -15 159 21 20
+43 28 116 38 36 6 123 -13 155 -33z m-8884 -93 c80 -157 258 -370 418 -499
+350 -283 939 -515 1516 -597 287 -41 520 -50 811 -31 717 48 1315 242 1764
+573 178 132 360 338 459 519 20 37 39 68 43 68 11 0 -2 -123 -22 -221 -62
+-292 -249 -551 -567 -787 -296 -218 -665 -370 -1118 -461 -209 -42 -351 -59
+-597 -72 -669 -34 -1298 90 -1841 363 -521 261 -869 684 -912 1110 -11 100 7
+113 46 35z m5456 -612 c37 -19 67 -47 118 -111 102 -128 263 -258 420 -337 68
+-34 90 -60 90 -107 0 -30 -8 -47 -29 -69 -37 -39 -83 -54 -166 -55 -58 0 -78
+5 -156 43 -187 89 -380 242 -505 399 -68 84 -88 136 -70 180 32 77 195 108
+298 57z m-5437 -532 c78 -137 137 -212 269 -343 131 -130 245 -219 394 -308
+366 -216 895 -375 1457 -437 180 -20 585 -20 778 0 633 66 1290 308 1653 611
+142 118 309 313 391 456 18 32 36 58 41 58 12 0 8 -103 -7 -182 -52 -269 -258
+-566 -541 -780 -340 -256 -901 -462 -1435 -527 -427 -52 -895 -32 -1330 55
+-469 93 -946 308 -1250 562 -219 184 -397 449 -455 678 -27 103 -44 254 -29
+254 5 -1 34 -44 64 -97z m8280 30 c93 -38 117 -110 57 -167 -60 -56 -358 -160
+-587 -205 -287 -56 -505 -75 -593 -50 -21 5 -52 23 -69 38 -27 24 -31 35 -31
+75 0 35 5 52 23 71 35 38 53 41 418 90 150 20 300 59 459 118 66 25 133 48
+149 50 44 7 134 -3 174 -20z m965 -320 c-23 -217 -134 -430 -324 -621 -327
+-329 -817 -534 -1466 -613 -210 -25 -294 -22 -469 16 -182 40 -390 65 -626 75
+-145 7 -243 16 -300 29 -211 48 -526 202 -738 361 -172 129 -241 219 -250 326
+-4 50 13 150 27 158 4 3 51 -31 106 -75 171 -137 294 -212 505 -309 374 -171
+772 -255 1261 -267 281 -7 419 3 674 47 500 87 842 218 1130 433 160 119 317
+285 420 444 22 34 44 62 49 63 4 0 5 -30 1 -67z m-9262 -799 c127 -216 370
+-469 597 -621 346 -231 867 -401 1470 -480 172 -22 727 -25 890 -5 286 36 566
+100 822 188 406 139 668 294 914 539 128 128 216 244 290 384 37 70 41 50 19
+-99 -29 -200 -82 -326 -175 -420 -53 -52 -131 -94 -325 -174 -270 -112 -538
+-315 -719 -543 -31 -40 -69 -79 -85 -87 -87 -46 -446 -129 -691 -162 -167 -22
+-656 -30 -833 -14 -473 43 -920 162 -1270 336 -494 247 -818 589 -922 974 -27
+100 -44 250 -29 250 5 0 26 -30 47 -66z m9254 -193 c-17 -270 -227 -574 -544
+-788 -210 -142 -210 -142 -324 -40 -45 39 -94 82 -108 94 l-26 22 56 24 c462
+206 715 404 894 700 25 42 49 77 52 77 3 0 3 -40 0 -89z m-2522 -369 c412 -66
+645 -138 645 -199 0 -50 -68 -105 -145 -117 -44 -8 -73 -2 -206 37 -194 57
+-446 98 -731 117 -202 13 -248 34 -248 109 0 36 28 68 67 77 16 3 33 8 38 10
+6 2 96 2 200 0 149 -3 231 -11 380 -34z m-1709 -236 c52 -24 64 -39 64 -81 0
+-36 -27 -59 -140 -121 -169 -92 -247 -150 -386 -290 -72 -73 -146 -140 -165
+-150 -20 -10 -64 -19 -109 -22 -68 -3 -80 -1 -130 25 -70 37 -89 67 -70 114
+21 51 231 255 335 325 113 77 238 148 335 190 97 43 188 46 266 10z m1529
+-151 c219 -34 420 -96 631 -195 140 -65 214 -118 319 -224 149 -152 206 -274
+206 -442 0 -163 -64 -297 -210 -443 -96 -97 -186 -160 -317 -225 -344 -169
+-916 -244 -1334 -175 -94 16 -283 63 -375 95 -117 39 -371 164 -442 218 -33
+25 -97 85 -142 132 -263 278 -250 602 36 875 96 91 189 154 325 219 207 98
+415 148 773 184 91 9 425 -3 530 -19z m-6427 -345 c75 -99 247 -271 347 -346
+276 -207 641 -370 1095 -487 289 -75 679 -113 1055 -104 243 6 438 28 722 82
+159 30 179 32 190 18 20 -26 33 -110 33 -217 0 -121 -2 -124 -102 -155 -277
+-84 -848 -137 -1212 -112 -405 29 -738 100 -1091 233 -688 259 -1140 714
+-1206 1216 -18 135 -9 141 57 36 30 -49 81 -123 112 -164z m8125 -23 c144 -60
+267 -330 267 -586 0 -103 -12 -150 -47 -192 -37 -43 -80 -59 -161 -59 -82 0
+-145 20 -195 61 -43 35 -57 78 -44 134 5 22 7 90 5 150 -4 107 -6 113 -61 242
+-70 164 -73 177 -53 208 45 69 179 89 289 42z m-3885 -823 c41 -20 69 -46 131
+-123 128 -158 263 -269 461 -380 102 -58 130 -86 130 -130 0 -76 -66 -130
+-185 -152 -94 -17 -184 15 -373 135 -195 124 -321 237 -438 391 -62 82 -88
+137 -78 168 14 46 84 99 159 118 48 13 136 0 193 -27z m3257 -578 c61 -28 105
+-77 105 -116 0 -38 -41 -85 -99 -115 -264 -133 -755 -251 -1097 -262 -168 -6
+-172 -5 -227 20 -126 57 -129 175 -7 237 56 29 114 39 274 50 241 16 436 62
+756 179 112 40 219 43 295 7z m-3895 -323 c106 -175 211 -299 354 -419 426
+-357 1014 -584 1726 -666 168 -19 633 -16 845 6 295 30 525 77 772 157 600
+194 1025 502 1250 905 26 46 50 84 54 84 16 0 -17 -215 -48 -315 -57 -180
+-155 -336 -313 -495 -290 -293 -623 -473 -1120 -603 -619 -163 -1206 -187
+-1775 -71 -457 92 -951 299 -1249 524 -219 164 -428 436 -500 651 -34 100 -70
+329 -53 329 2 0 28 -39 57 -87z" />
+
+                                                </g>
+                                             </svg>
+
+
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.total_chips') %>
+                                                   <a href="#modal-new-total-chips" data-bs-toggle="modal" data-view-only-disable>
+                                                      <span class="ms-2 plus-spacing">
+                                                         <i class="fa-solid fa-circle-plus plus-icon"></i>
+                                                      </span>
+                                                   </a>
+                                             </h6>
+                                             <h6 class="counter"><%- totalChipsBalance.toLocaleString() %>
+                                             </h6>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="800">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+                                             <svg class="icon-25" width="25" viewBox="0 0 1080 1080" fill="white"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <g transform="translate(0,1080) scale(0.1,-0.1)" fill="white"
+                                                   stroke="none">
+                                                   <path d="M5915 10374 c-914 -62 -1518 -160 -2024 -326 -344 -113 -557 -227
+-729 -392 -162 -156 -200 -258 -209 -564 l-6 -193 44 -45 c296 -305 969 -527
+2029 -668 177 -24 542 -60 885 -88 204 -17 1018 -16 1285 0 1009 64 1902 221
+2420 427 245 98 377 174 498 289 l72 69 0 131 c0 72 -5 187 -10 255 -8 113
+-12 131 -44 195 -82 166 -225 292 -480 423 -446 228 -1242 401 -2176 473 -404
+31 -1207 38 -1555 14z" />
+                                                   <path d="M2955 8278 c-8 -45 -2 -765 7 -773 4 -4 62 2 130 14 68 11 159 25
+203 31 96 12 496 30 688 30 l137 0 0 45 0 45 53 -1 c28 0 111 -8 182 -17 l130
+-17 3 -55 c2 -30 6 -58 10 -62 4 -4 79 -25 167 -48 88 -22 254 -72 368 -111
+114 -38 212 -67 217 -64 5 3 12 36 16 74 3 38 9 73 13 79 5 8 59 8 190 0 l183
+-12 -6 -70 c-3 -39 -9 -118 -12 -176 l-6 -105 78 -47 c82 -49 226 -151 390
+-277 l96 -74 421 12 c421 12 531 17 917 46 404 31 913 98 1230 161 645 129
+1092 301 1339 515 l81 70 0 410 c0 225 -2 409 -4 409 -3 0 -32 -16 -66 -36
+-212 -124 -502 -242 -820 -333 -768 -221 -1656 -326 -2745 -325 -923 1 -1661
+77 -2405 249 -435 100 -844 252 -1118 414 -29 17 -55 31 -57 31 -2 0 -7 -15
+-10 -32z m6463 -630 c10 -30 22 -120 37 -259 5 -42 2 -60 -8 -71 -25 -25 -346
+-64 -353 -43 -12 33 -51 354 -43 356 60 10 311 47 331 48 22 1 28 -5 36 -31z
+m-1131 -380 l6 -176 -29 -5 c-37 -8 -335 -30 -339 -25 -8 9 -23 364 -16 371
+10 10 352 26 364 17 4 -4 10 -85 14 -182z m-1327 -78 l0 -190 -185 0 -185 0 0
+190 0 190 185 0 185 0 0 -190z" />
+                                                   <path d="M3225 7120 c-910 -138 -1698 -634 -2211 -1391 -246 -362 -428 -791
+-514 -1209 -50 -243 -63 -387 -64 -670 0 -344 25 -553 99 -837 93 -355 279
+-745 507 -1063 231 -321 567 -641 893 -852 549 -354 1106 -518 1755 -518 570
+0 1120 140 1611 410 335 185 517 326 813 631 166 171 229 248 343 419 105 158
+136 213 222 392 168 345 272 721 312 1121 18 180 7 605 -20 782 -58 375 -158
+691 -321 1010 -252 495 -592 893 -1026 1203 -418 298 -1003 527 -1473 577
+-207 22 -768 19 -926 -5z m294 -707 c-1 -104 -4 -231 -8 -283 l-6 -95 -95 -12
+c-119 -14 -296 -59 -468 -118 -73 -25 -137 -43 -142 -40 -16 10 -159 241 -216
+350 -31 57 -54 112 -52 121 7 37 370 165 606 214 149 31 251 46 340 49 l42 1
+-1 -187z m601 167 c238 -36 451 -96 682 -192 54 -22 102 -45 107 -52 15 -17
+-243 -460 -275 -473 -8 -3 -66 13 -127 36 -156 57 -301 95 -442 116 -66 9
+-125 19 -131 20 -18 5 -24 85 -24 331 l0 234 43 0 c23 0 98 -9 167 -20z
+m-1790 -690 l132 -225 -79 -69 c-133 -118 -347 -338 -397 -408 -26 -38 -51
+-68 -55 -68 -22 0 -471 276 -471 289 0 16 61 102 135 191 144 173 410 427 539
+514 32 21 42 24 52 14 6 -7 71 -114 144 -238z m3054 156 c197 -149 392 -348
+545 -555 57 -77 60 -85 44 -96 -75 -51 -447 -265 -461 -265 -6 0 -54 52 -107
+115 -53 63 -142 157 -198 208 -55 50 -128 118 -161 149 l-61 57 28 58 c78 161
+233 413 255 413 3 0 56 -38 116 -84z m-1475 -1051 c445 -491 698 -842 793
+-1097 36 -99 49 -241 28 -329 -32 -139 -140 -291 -259 -363 -103 -63 -258 -83
+-389 -50 -35 9 -65 14 -68 12 -2 -3 21 -106 51 -229 30 -123 55 -232 55 -241
+0 -11 -11 -21 -27 -25 -48 -14 -761 -9 -774 4 -10 10 1 66 45 249 31 130 55
+238 52 241 -2 3 -36 -3 -75 -12 -49 -12 -97 -16 -163 -13 -83 3 -103 8 -172
+41 -105 50 -192 134 -244 236 -54 106 -67 159 -66 276 0 81 6 115 28 180 73
+215 266 506 564 853 149 172 286 326 371 414 l55 58 29 -28 c16 -15 91 -95
+166 -177z m2327 -36 c54 -121 97 -250 139 -414 32 -126 85 -412 85 -461 l0
+-24 -227 1 c-126 1 -253 4 -283 7 -52 7 -55 8 -62 42 -4 19 -18 94 -32 165
+-30 157 -65 281 -112 395 -41 102 -42 120 -6 141 15 9 117 68 227 133 110 64
+206 115 214 114 8 -2 34 -46 57 -99z m-4898 59 c111 -61 392 -230 392 -236 0
+-3 -25 -82 -55 -176 -64 -201 -110 -386 -120 -479 l-7 -67 -242 0 c-244 0
+-309 7 -320 36 -10 27 23 227 66 398 56 224 150 493 190 544 16 18 33 15 96
+-20z m218 -1448 c16 -130 44 -243 110 -443 l56 -171 -25 -22 c-67 -58 -413
+-253 -448 -254 -35 0 -181 409 -223 625 -27 139 -46 278 -46 332 l0 33 282 -2
+282 -3 12 -95z m4904 78 c-1 -92 -57 -388 -106 -561 -39 -135 -125 -359 -153
+-396 l-18 -23 -40 20 c-57 30 -426 242 -436 251 -4 4 8 45 28 91 60 140 130
+412 150 583 l7 57 284 0 284 0 0 -22z m-4410 -1183 c111 -123 238 -245 364
+-351 l50 -41 -140 -241 c-76 -133 -141 -242 -144 -242 -3 0 -41 27 -85 60
+-120 90 -303 258 -412 378 -119 132 -245 294 -235 303 22 21 458 268 474 269
+3 0 61 -61 128 -135z m3667 24 c186 -106 273 -160 273 -169 0 -3 -37 -55 -82
+-115 -134 -179 -397 -429 -611 -582 l-45 -33 -115 198 c-118 204 -157 275
+-157 290 0 5 39 40 87 78 121 95 207 178 336 322 62 70 115 121 122 118 7 -2
+93 -51 192 -107z m-2788 -659 c157 -59 288 -94 466 -125 l130 -22 3 -278 2
+-278 -97 7 c-255 18 -593 107 -841 223 l-82 38 141 243 c77 133 142 242 143
+242 1 0 62 -23 135 -50z m1752 -26 c60 -90 229 -379 229 -392 0 -5 -35 -26
+-77 -47 -203 -96 -579 -198 -847 -231 -44 -5 -60 -3 -67 7 -5 8 -9 134 -9 280
+l0 265 133 27 c166 33 368 88 483 132 49 18 94 32 99 31 6 -1 31 -33 56 -72z" />
+                                                   <path d="M10135 6874 c-719 -383 -1838 -593 -3343 -627 l-102 -2 106 -142 107
+-143 78 0 79 0 0 -100 c0 -119 7 -142 105 -347 l74 -153 53 0 c29 0 156 9 282
+20 708 62 1429 190 1906 339 319 99 577 230 738 376 l52 47 -1 371 c-1 205 -4
+384 -8 399 l-6 26 -120 -64z m-621 -596 c17 -95 36 -239 36 -281 0 -58 -1 -58
+-163 -81 -151 -20 -193 -21 -201 0 -9 24 -48 324 -43 337 4 12 246 54 323 56
+39 1 42 -1 48 -31z m-1141 -310 c19 -219 20 -288 6 -293 -8 -3 -91 -11 -185
+-18 l-172 -13 -6 42 c-3 22 -8 107 -12 187 l-7 146 24 5 c23 6 94 9 270 14
+l76 2 6 -72z" />
+                                                   <path d="M10086 5494 c-281 -139 -490 -216 -826 -304 -437 -115 -871 -186
+-1528 -249 -161 -15 -295 -31 -298 -34 -4 -3 12 -88 34 -189 42 -190 60 -295
+87 -508 9 -69 18 -140 22 -159 l6 -34 86 7 c778 61 1696 258 2163 463 143 62
+330 178 404 250 39 38 41 43 47 118 8 92 7 405 -2 596 l-6 136 -189 -93z
+m-560 -525 c9 -15 44 -263 44 -315 l0 -42 -72 -10 c-129 -19 -288 -36 -293
+-31 -5 6 -33 232 -37 309 l-3 54 40 8 c50 11 239 35 282 37 17 0 35 -4 39 -10z
+m-1142 -286 c3 -16 8 -98 11 -184 l7 -156 -49 -6 c-26 -4 -107 -9 -180 -13
+l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
+                                                   <path d="M10095 4139 c-557 -273 -1141 -420 -2115 -534 -168 -19 -322 -38
+-342 -42 -64 -10 -69 -18 -78 -135 -12 -143 -62 -423 -111 -618 -22 -89 -38
+-165 -34 -168 8 -8 365 22 625 53 869 103 1507 283 1890 533 120 78 256 217
+304 311 36 68 40 84 47 185 9 132 10 452 1 482 -7 19 -18 15 -187 -67z m-577
+-548 c9 -5 22 -70 38 -181 13 -95 23 -174 21 -176 -6 -7 -297 -35 -332 -32
+-36 3 -40 6 -46 38 -10 49 -39 314 -34 318 4 5 271 40 310 41 17 0 36 -3 43
+-8z m-1133 -263 c7 -20 27 -350 21 -355 -6 -7 -262 -33 -322 -33 l-52 0 -7
+163 c-4 90 -6 171 -4 182 5 24 36 32 169 43 157 14 190 14 195 0z" />
+
+                                                </g>
+                                             </svg>
+
+
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.nn_chips') %>
+                                                   <a href="#modal-new-nn-chips" data-bs-toggle="modal" data-view-only-disable>
+                                                      <span class="ms-2 plus-spacing">
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
+                                                      </span>
+                                                   </a>
+                                             </h6>
+                                             <h6 class="counter"><%- nnChipsBalance.toLocaleString() %>
+                                             </h6>
+                                             <input type="hidden" name="NN_CASHOUT" value="<%- nnChipsBalance %>">
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="900">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+
+                                             <svg class="icon-25" width="25" viewBox="0 0 1080 1080" fill="white"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <g transform="translate(0,1080) scale(0.1,-0.1)" fill="white"
+                                                   stroke="none">
+                                                   <path d="M5940 10399 c-488 -33 -719 -57 -1065 -110 -645 -99 -1175 -257
+                                                -1484 -442 -211 -127 -334 -250 -420 -419 l-44 -87 -5 -922 c-5 -900 -4 -921
+                                                14 -916 11 3 78 17 149 31 133 25 317 40 663 52 106 4 189 10 185 14 -4 4 -37
+                                                17 -73 29 -103 36 -281 126 -323 163 -32 28 -39 42 -47 93 -11 65 -12 593 -1
+                                                637 l6 26 135 -54 c391 -158 806 -262 1345 -338 622 -88 1018 -111 1770 -103
+                                                757 8 1209 47 1830 158 440 79 783 176 1073 304 46 20 87 34 90 30 11 -11 14
+                                                -559 3 -637 -9 -67 -13 -76 -50 -109 -135 -121 -575 -272 -1116 -383 -335 -68
+                                                -692 -114 -1170 -148 -238 -17 -1303 -17 -1545 0 -194 14 -583 49 -645 58 -56
+                                                9 -40 -2 72 -50 216 -92 567 -306 812 -494 l123 -95 422 7 c739 12 996 26
+                                                1391 77 647 83 1088 185 1519 350 98 38 182 67 185 63 3 -3 7 -158 9 -343 l3
+                                                -338 -66 -60 c-81 -75 -217 -138 -467 -217 -562 -177 -1136 -269 -2003 -321
+                                                -143 -9 -268 -17 -278 -18 -14 -2 -6 -21 46 -107 35 -58 101 -178 147 -267
+                                                l85 -163 55 0 c30 0 141 7 247 15 885 69 1601 214 2090 422 57 23 109 43 117
+                                                43 22 0 26 -49 26 -366 l0 -303 -49 -49 c-200 -207 -1149 -446 -2066 -522 -71
+                                                -6 -138 -13 -147 -16 -25 -7 -23 -40 12 -304 17 -123 30 -228 30 -233 0 -13
+                                                162 -3 440 28 679 77 1267 212 1632 375 61 28 117 50 124 50 20 0 24 -64 24
+                                                -382 l0 -307 -52 -51 c-163 -160 -764 -339 -1533 -455 -145 -22 -305 -40 -622
+                                                -71 l-62 -6 -7 -36 c-6 -41 -112 -475 -120 -497 -10 -24 38 -28 203 -16 932
+                                                67 1787 260 2227 502 238 131 420 311 486 481 l30 77 0 2795 0 2796 -25 65
+                                                c-13 36 -41 91 -62 122 -52 79 -204 229 -293 290 -468 319 -1539 557 -2710
+                                                603 -307 12 -1087 11 -1270 -1z m1239 -559 c439 -13 729 -41 1174 -116 690
+                                                -115 1258 -302 1373 -452 l33 -44 -31 -39 c-60 -75 -205 -148 -463 -235 -597
+                                                -199 -1325 -311 -2235 -345 -849 -31 -1766 35 -2445 177 -482 101 -943 265
+                                                -1060 377 -25 24 -45 50 -45 58 0 23 43 76 91 114 68 52 169 98 354 158 548
+                                                179 1011 265 1785 333 352 31 751 35 1469 14z" />
+                                                   <path d="M3906 8143 c-12 -41 -27 -164 -29 -248 l-2 -90 49 -12 c60 -15 284
+                                                -39 291 -31 7 6 29 162 39 269 5 52 3 69 -9 79 -11 9 -272 49 -327 50 -4 0 -9
+                                                -8 -12 -17z" />
+                                                   <path d="M9075 8139 c-71 -11 -134 -24 -140 -30 -11 -11 19 -299 35 -329 11
+                                                -21 35 -21 215 1 140 17 135 15 135 62 0 23 -7 104 -17 180 l-17 137 -41 -1
+                                                c-22 0 -98 -10 -170 -20z" />
+                                                   <path
+                                                      d="M5076 7908 c-6 -28 -25 -214 -28 -283 l-3 -50 70 -6 c122 -11 283
+                                                -10 291 2 7 12 37 330 31 335 -7 8 -190 24 -269 24 -83 0 -88 -1 -92 -22z" />
+                                                   <path d="M7828 7923 l-78 -4 0 -28 c0 -36 30 -334 34 -338 4 -4 304 17 335 23
+                                                23 5 23 5 17 112 -4 59 -9 137 -12 175 l-6 67 -107 -2 c-58 -1 -141 -4 -183
+                                                -5z" />
+                                                   <path
+                                                      d="M6420 7670 l0 -180 180 0 180 0 0 180 0 180 -180 0 -180 0 0 -180z" />
+                                                   <path
+                                                      d="M3435 7174 c-569 -58 -1116 -263 -1609 -604 -222 -153 -516 -437
+                                                -728 -700 -158 -199 -368 -582 -473 -863 -234 -633 -274 -1304 -115 -1962 172
+                                                -713 555 -1326 1125 -1799 513 -425 1094 -667 1804 -751 272 -32 686 -14 959
+                                                41 724 146 1371 513 1860 1057 239 265 390 491 536 799 206 436 290 771 316
+                                                1264 31 593 -75 1122 -330 1649 -166 341 -363 617 -645 901 -444 448 -1046
+                                                775 -1662 905 -255 54 -332 61 -673 64 -179 1 -343 1 -365 -1z m570 -555 c666
+                                                -57 1248 -329 1741 -815 368 -363 636 -845 745 -1339 47 -217 60 -327 66 -570
+                                                4 -188 2 -271 -11 -384 -29 -246 -103 -529 -197 -756 -324 -775 -967 -1352
+                                                -1783 -1599 -289 -88 -542 -121 -876 -113 -265 6 -360 19 -600 78 -516 127
+                                                -974 391 -1329 765 -212 224 -346 410 -474 662 -412 809 -422 1714 -28 2517
+                                                259 526 651 935 1179 1230 315 176 718 296 1087 324 160 12 343 12 480 0z" />
+                                                   <path d="M3450 6209 c-167 -27 -322 -63 -436 -103 -113 -38 -241 -89 -252
+                                                -100 -7 -7 199 -384 249 -457 l19 -26 139 47 c77 25 196 57 265 70 l126 24 0
+                                                278 0 278 -27 -1 c-16 -1 -53 -5 -83 -10z" />
+                                                   <path d="M3960 5951 c0 -203 3 -271 13 -279 6 -5 32 -13 57 -17 74 -11 301
+                                                -72 391 -105 46 -16 86 -27 89 -23 10 12 270 462 270 468 0 10 -98 54 -196 88
+                                                -179 62 -501 137 -591 137 l-33 0 0 -269z" />
+                                                   <path d="M2320 5743 c-147 -107 -500 -480 -500 -528 0 -17 27 -37 128 -97 70
+                                                -41 172 -99 228 -128 l100 -53 192 190 c106 105 192 196 192 203 0 26 -255
+                                                460 -270 460 -4 0 -35 -21 -70 -47z" />
+                                                   <path d="M5111 5752 c-29 -44 -213 -357 -234 -398 l-15 -29 188 -182 c104
+                                                -100 197 -186 208 -192 16 -9 46 5 178 81 215 123 284 167 284 182 0 16 -140
+                                                183 -249 299 -93 98 -308 277 -331 277 -3 0 -16 -17 -29 -38z" />
+                                                   <path d="M3548 5068 l-3 -133 -91 -45 c-103 -51 -171 -99 -230 -162 -102 -108
+                                                -158 -210 -175 -320 -15 -96 -6 -250 20 -322 26 -75 97 -180 164 -244 113
+                                                -106 204 -150 437 -207 213 -53 268 -73 317 -118 60 -55 76 -89 71 -147 -8
+                                                -76 -36 -120 -105 -167 -80 -53 -156 -72 -221 -54 -74 19 -167 68 -234 122
+                                                l-62 49 -44 -42 c-83 -81 -253 -270 -250 -279 8 -24 214 -165 306 -209 l102
+                                                -49 0 -141 0 -140 213 2 212 3 3 132 3 132 107 55 c177 91 273 182 347 331
+                                                153 306 17 667 -315 835 -38 19 -139 51 -258 81 -107 27 -213 57 -236 68 -57
+                                                25 -113 75 -138 124 -73 143 109 317 307 292 63 -7 161 -55 241 -117 l59 -46
+                                                154 151 154 150 -54 48 c-73 66 -177 136 -282 190 l-86 44 -3 130 -3 130 -212
+                                                3 -212 2 -3 -132z" />
+                                                   <path d="M1557 4758 c-41 -99 -80 -214 -107 -318 -20 -79 -70 -351 -70 -382 0
+                                                -17 16 -18 277 -16 l277 3 22 105 c12 58 40 171 63 252 22 81 41 155 41 165 0
+                                                12 -39 40 -123 90 -176 103 -322 183 -334 183 -6 0 -26 -37 -46 -82z" />
+                                                   <path d="M5693 4712 c-122 -70 -224 -130 -228 -134 -4 -4 14 -74 40 -156 26
+                                                -83 57 -201 69 -263 l22 -114 279 -3 278 -2 -7 72 c-20 216 -174 729 -218 728
+                                                -7 0 -113 -58 -235 -128z" />
+                                                   <path d="M1446 3633 l-68 -4 6 -62 c25 -216 162 -692 209 -721 11 -7 27 -6 52
+                                                3 82 29 425 242 425 263 0 6 -20 73 -45 149 -24 75 -55 190 -68 255 l-23 119
+                                                -210 1 c-115 0 -240 -1 -278 -3z" />
+                                                   <path d="M5675 3633 c-33 -2 -64 -8 -68 -12 -5 -5 -19 -57 -33 -117 -13 -60
+                                                -43 -173 -65 -251 -23 -79 -39 -149 -36 -156 3 -7 76 -56 163 -109 229 -137
+                                                294 -172 304 -162 22 23 111 281 155 454 23 88 55 276 55 323 l0 37 -207 -2
+                                                c-115 -1 -235 -3 -268 -5z" />
+                                                   <path d="M5207 2692 c-54 -68 -170 -187 -260 -268 l-77 -69 31 -65 c42 -89
+                                                229 -420 238 -420 11 0 172 133 243 201 115 110 292 305 316 348 l23 41 -83
+                                                54 c-106 68 -376 226 -386 226 -4 -1 -24 -22 -45 -48z" />
+                                                   <path d="M2040 2604 c-118 -69 -219 -129 -224 -134 -33 -33 352 -443 532 -567
+                                                28 -20 53 -34 55 -32 14 17 257 454 257 461 0 17 -372 398 -389 398 -9 0 -113
+                                                -57 -231 -126z" />
+                                                   <path d="M3017 2112 c-42 -47 -257 -421 -257 -449 0 -12 190 -84 330 -127 101
+                                                -30 308 -73 403 -82 l67 -7 0 280 0 280 -57 7 c-72 8 -262 57 -375 95 l-86 29
+                                                -25 -26z" />
+                                                   <path d="M4349 2095 c-76 -24 -189 -55 -254 -68 -64 -14 -118 -27 -120 -29 -2
+                                                -1 -5 -124 -6 -272 -2 -203 0 -271 9 -274 21 -7 182 18 313 48 218 50 479 143
+                                                479 170 0 17 -43 98 -137 258 -86 147 -130 213 -142 211 -3 0 -67 -20 -142
+                                                -44z" />
+                                                   <path d="M9075 6779 c-71 -11 -134 -24 -140 -30 -11 -11 19 -299 35 -329 11
+                                                -21 35 -21 215 1 140 17 135 15 135 62 0 23 -7 104 -17 180 l-17 137 -41 -1
+                                                c-22 0 -98 -10 -170 -20z" />
+                                                   <path d="M7808 6513 c-56 -4 -58 -5 -58 -32 0 -37 30 -334 34 -338 4 -4 266
+                                                15 320 23 l38 6 -6 107 c-4 58 -9 136 -12 174 l-6 67 -127 -2 c-69 -1 -152 -3
+                                                -183 -5z" />
+                                                   <path
+                                                      d="M6501 6423 c8 -10 59 -71 114 -137 55 -65 111 -132 124 -148 18 -23
+                                                26 -27 32 -16 5 7 9 82 9 166 l0 152 -146 0 c-138 0 -146 -1 -133 -17z" />
+                                                   <path d="M9118 5465 c-59 -7 -126 -16 -149 -20 l-42 -7 8 -97 c4 -53 12 -132
+                                                19 -176 l12 -80 74 2 c69 3 280 29 287 37 4 3 -36 325 -42 344 -5 14 -26 14
+                                                -167 -3z" />
+                                                   <path
+                                                      d="M7890 5193 c-74 -8 -136 -16 -138 -18 -5 -5 28 -349 34 -354 6 -6
+                                                307 17 329 25 16 6 17 21 13 168 -3 89 -8 169 -13 179 -9 21 -33 21 -225 0z" />
+                                                   <path
+                                                      d="M9130 4094 c-14 -2 -65 -9 -114 -16 l-89 -11 7 -90 c9 -111 32 -247
+                                                44 -259 9 -9 340 18 351 28 9 8 -39 327 -50 340 -11 13 -85 17 -149 8z" />
+                                                   <path d="M7945 3829 c-88 -5 -166 -11 -172 -14 -9 -3 -13 -26 -13 -67 0 -69
+                                                18 -287 24 -297 5 -8 336 22 351 31 7 4 7 42 2 110 -4 56 -10 136 -13 176 -3
+                                                39 -9 71 -12 71 -4 -1 -79 -6 -167 -10z" />
+
+                                                </g>
+                                             </svg>
+
+
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2 ">
+                                                <%= __('dashboard.cc_chips') %>
+                                                   <a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>
+                                                      <span class="ms-2 plus-spacing">
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
+                                                      </span>
+                                                   </a>
+                                             </h6>
+                                             <h6 class="counter"><%- ccChipsBalance.toLocaleString() %>
+                                             </h6>
+                                             <input type="hidden" name="CC_CASHOUT" value="<%- ccChipsBalance %>">
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="1000">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver d-flex align-items-center justify-content-center">
+                                             <i class="fa-solid fa-coins icon-25" style="font-size: 25px; color: #fff;"></i>
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.unreturned_roller_chips') %>
+                                                <a href="/game_list?unreturned_roller=1" target="_blank">
+                                                   <span class="ms-2 plus-spacing">
+                                                      <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                         data-bs-toggle="tooltip" data-bs-placement="top"
+                                                         title="<%= __('dashboard.view_game_book') %>"></i>
+                                                   </span>
+                                                </a>
+                                             </h6>
+                                             <h6 class="counter"><%- unreturnedRollerChipsTotal.toLocaleString() %></h6>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="1100">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+                                             <svg class="icon-25" width="25" viewBox="0 0 1080 1080" fill="white"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <g transform="translate(0,1080) scale(0.1,-0.1)" fill="white"
+                                                   stroke="none">
+                                                   <path d="M5975 10789 c-27 -4 -93 -13 -145 -19 -52 -7 -113 -15 -135 -20 -22
+-5 -77 -16 -122 -25 -135 -27 -378 -99 -490 -146 -13 -5 -33 -13 -45 -18 -198
+-77 -476 -229 -663 -364 -636 -456 -1072 -1080 -1285 -1837 -131 -463 -149
+-1034 -49 -1535 225 -1126 1029 -2060 2114 -2457 90 -32 321 -99 405 -117 266
+-55 427 -71 703 -71 362 1 655 44 967 142 391 123 746 314 1085 582 132 105
+409 384 514 520 265 341 471 740 584 1131 160 554 175 1148 45 1695 -73 308
+-187 600 -340 870 -337 594 -846 1071 -1451 1360 -314 149 -661 253 -972 289
+-55 7 -128 16 -161 21 -72 12 -487 11 -559 -1z m1078 -1332 c95 -33 175 -119
+203 -216 22 -75 14 -148 -29 -251 -105 -255 -236 -569 -257 -615 -10 -22 -34
+-78 -53 -125 -65 -160 -139 -335 -163 -388 -13 -29 -24 -54 -24 -57 0 -4 -166
+-400 -180 -430 -9 -18 -91 -216 -177 -425 -19 -47 -43 -103 -53 -125 -10 -22
+-42 -96 -70 -165 -123 -294 -151 -362 -203 -485 -30 -71 -85 -201 -121 -289
+-84 -200 -86 -204 -135 -253 -66 -66 -121 -88 -221 -88 -70 0 -94 5 -135 25
+-111 55 -179 163 -179 285 1 75 -6 58 189 520 37 88 83 198 102 245 19 47 41
+99 48 115 23 49 185 436 185 440 0 3 11 28 24 57 22 50 64 148 176 418 101
+244 153 367 170 405 10 22 34 78 53 125 65 160 139 335 163 388 13 29 24 54
+24 57 0 4 159 384 184 440 8 17 35 82 61 145 40 96 57 124 100 166 85 84 215
+117 318 81z m-1590 -689 c204 -94 302 -348 209 -540 -99 -205 -341 -295 -536
+-199 -288 142 -319 532 -55 702 83 53 142 69 239 66 66 -2 98 -9 143 -29z
+m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
+-27 -154 -41 -79 -80 -125 -148 -170 -161 -108 -366 -91 -498 41 -170 169
+-174 421 -10 578 55 52 136 98 198 111 73 16 187 2 256 -31z" />
+                                                   <path d="M3360 4133 c-189 -10 -435 -42 -570 -74 -25 -6 -65 -15 -90 -21 -25
+-5 -83 -21 -129 -35 -384 -113 -655 -420 -727 -821 -11 -63 -13 -363 -14
+-1629 l0 -1553 2796 0 c1673 0 2811 4 2833 9 20 5 68 15 106 22 169 29 396
+131 550 247 56 42 486 465 1277 1257 1327 1328 1242 1234 1241 1375 0 111 -25
+160 -134 265 -299 284 -740 436 -1155 397 -280 -27 -502 -106 -739 -265 -75
+-50 -217 -187 -840 -807 -412 -411 -772 -763 -800 -782 -103 -73 -202 -118
+-326 -147 -32 -7 -372 -11 -1092 -11 l-1045 -1 -55 25 c-69 30 -133 95 -164
+166 -21 47 -24 67 -21 135 4 98 24 142 93 210 99 97 1 89 1220 95 984 5 1075
+7 1128 23 257 78 461 271 542 512 49 144 70 376 43 469 -25 88 -91 163 -178
+205 l-55 26 -655 6 c-360 3 -664 9 -675 12 -11 4 -59 16 -106 27 -124 29 -251
+72 -384 130 -27 13 -70 31 -95 42 -25 11 -79 36 -120 55 -132 62 -346 160
+-465 213 -127 56 -332 126 -465 159 -223 55 -478 78 -730 64z" />
+                                                   <path d="M380 3093 c-64 -22 -125 -67 -158 -116 -61 -90 -57 6 -57 -1422 0
+-1239 1 -1312 18 -1350 31 -68 68 -113 121 -148 88 -57 90 -57 509 -57 l387 0
+-2 1553 -3 1552 -385 2 c-329 2 -392 0 -430 -14z" />
+
+                                                </g>
+                                             </svg>
+
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.commission') %>
+                                                   <a href="/commission" target="_blank">
+                                                      <span class="ms-2 plus-spacing">
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
+                                                      </span>
+                                                   </a>
+                                             </h6>
+                                             <h6 id="comms" class="counter" data-original-commission="<%- Math.round(+sqlCommissionSettlement || 0) %>">₱ <%- Math.round(+sqlCommissionSettlement || 0).toLocaleString('en-US') %></h6>
+                                             <input type="hidden" name="COMMISSION_HISTORY"
+                                                value="<%- Math.round(+sqlCommissionSettlement || 0) %>">
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="1200">
+                                    <div class="card-body">
+                                       <div class="progress-widget">
+                                          <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+                                             <svg class="icon-25" width="25" viewBox="0 0 1080 1080" fill="white"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <g transform="translate(0,1080) scale(0.1,-0.1)" fill="white"
+                                                   stroke="none">
+                                                   <path d="M7300 7500 c0 -1815 4 -3300 8 -3300 5 0 18 10 29 22 11 13 132 133
+                                             269 268 137 134 342 337 457 449 l207 205 0 2828 0 2828 -485 0 -485 0 0
+                                             -3300z" />
+                                                   <path
+                                                      d="M4137 9523 c-4 -3 -7 -952 -7 -2108 0 -1666 3 -2104 13 -2117 14 -18
+                                             921 -698 931 -698 3 0 6 1109 6 2465 l0 2465 -468 0 c-258 0 -472 -3 -475 -7z" />
+                                                   <path d="M2550 5749 c0 -1483 3 -1860 13 -1857 6 2 220 213 475 468 l462 465
+                                             0 1393 0 1392 -475 0 -475 0 0 -1861z" />
+                                                   <path d="M8907 6323 c-4 -3 -7 -145 -7 -315 l0 -308 399 0 c220 0 402 -4 405
+                                             -9 3 -4 -157 -170 -357 -367 -199 -197 -887 -881 -1530 -1519 -642 -638 -1172
+                                             -1162 -1178 -1163 -5 -2 -575 420 -1265 938 -691 517 -1262 940 -1270 938 -8
+                                             -2 -934 -923 -2058 -2047 l-2044 -2044 141 -136 c78 -75 179 -171 224 -214
+                                             l81 -79 1109 1103 c609 607 1442 1436 1851 1844 408 407 747 741 752 743 5 2
+                                             578 -422 1271 -943 l1262 -946 101 98 c55 54 831 825 1724 1713 893 888 1630
+                                             1616 1638 1618 12 3 14 -55 14 -397 l0 -401 315 0 315 0 0 950 0 950 -943 0
+                                             c-519 0 -947 -3 -950 -7z" />
+                                                   <path d="M957 5693 c-8 -8 -9 -3393 -1 -3393 5 0 242 232 762 745 l202 199 -2
+                                             1226 -3 1225 -476 3 c-261 1 -479 -1 -482 -5z" />
+                                                   <path d="M5727 5693 c-4 -3 -7 -361 -7 -794 l0 -788 420 -315 c231 -174 426
+                                             -316 434 -316 7 0 32 20 55 45 l41 45 0 1053 c0 806 -3 1056 -12 1065 -9 9
+                                             -127 12 -468 12 -251 0 -460 -3 -463 -7z" />
+
+                                                </g>
+                                             </svg>
+
+                                          </div>
+                                          <div class="progress-detail">
+                                             <h6 class="mb-2">
+                                                <%= __('dashboard.win_loss') %>
+                                                   <a href="#" data-bs-toggle="modal" data-bs-target="#modal-winloss-details">
+                                                      <span class="ms-2 plus-spacing">
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
+                                                      </span>
+                                                   </a>
+                                             </h6>
+
+
+                                             <h6 class="card-title mb-0 counter" id="winloss" data-original-winloss="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>"> ₱ <%-
+                                                   parseFloat(sqlWinLossReset[0].RESET_CASHIN -
+                                                   sqlTotalCashOutReset[0].CASHOUT_RESET +
+                                                   sqlWinlossManual[0].WINLOSS).toLocaleString('en-US') %></h6>
+                                             <div id="winloss-comparison" class="mt-1"
+                                                style="font-weight: 100;  font-size: 12px;"></div>
+                                             <input type="hidden" name="WINLOSS_HISTORY"
+                                                value="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>">
+                                             </h6>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </li>
+                                 <li class="swiper-slide card card-slide" data-aos="fade-up" data-aos-delay="1300">
+                                 <div class="card-body">
+                                    <div class="progress-widget">
+                                       <div class="p-3 mb-2 rounded bg-gradient-dark-silver">
+                                          <svg class="icon-25" width="25" viewBox="0 0 24 24" fill="none"
+                                             xmlns="http://www.w3.org/2000/svg">
+                                             <path
+                                                d="M3 6.75A2.75 2.75 0 0 1 5.75 4h12.5A2.75 2.75 0 0 1 21 6.75v10.5A2.75 2.75 0 0 1 18.25 20H5.75A2.75 2.75 0 0 1 3 17.25V6.75Zm1.5 1.5v9a1.25 1.25 0 0 0 1.25 1.25h12.5A1.25 1.25 0 0 0 19.5 17.25v-9H4.5Z"
+                                                fill="white" />
+                                             <path d="M4.5 9h15v2h-15V9Z" fill="white" />
+                                             <path
+                                                d="M6.5 14.25h4.5a.75.75 0 0 1 0 1.5H6.5a.75.75 0 0 1 0-1.5Zm8 0h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5Z"
+                                                fill="white" />
+                                          </svg>
+                                       </div>
+                                       <div class="progress-detail">
+                                          <h6 class="mb-2"><%= __('dashboard.credit') %>
+                                             <a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker">
+                                                <span class="ms-2 plus-spacing">
+                                                   <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                      data-bs-toggle="tooltip" data-bs-placement="top"
+                                                      title="Details"></i>
+                                                </span>
+                                             </a>
+                                          </h6>
+                                          <h6 class="counter" id="dashboard-credit-value">₱ <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
+                                             (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                                             (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+                                             (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+                                             (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+                                             (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString('en-US') %></h6>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </li>
+                              </ul>
+                              <div class="swiper-button swiper-button-next my-custom-next"></div>
+                              <div class="swiper-button swiper-button-prev my-custom-prev"></div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <style>
+                     .highlight-row {
+                        background-color: #ffeaa7 !important;
+                     }
+
+                  </style>
+                  <!-- END CARDS -->
+                  <!-- JUNKET BALANC -->
+                  <div class="col-md-12 col-lg-12">
+                     <div class="row">
+
+                        <div class="col-lg-5">
+                           <div class="card">
+                              <div class="card-body">
+                                 <%
+                                    // All calculations are now at the top of the file for better organization
+                                 %>
+                                 <div class="row">
+                                    <div class="col-6">
+                                       <h5 class="mb-3">
+                                          <%= __('dashboard.house_balance') %>
+                                       </h5>
+                                       <h2 class="counter mb-2" id="house-balance-value">₱ <%= houseBalance.toLocaleString('en-US') %></h2>
+                                    </div>
+                                    <div class="col-6">
+                                       <h5 class="mb-3">
+                                          <%= __('dashboard.cash_balance') %>
+                                       </h5>
+                                       <h2 class="counter mb-2" id="cash-balance-value">₱ <%= cashBalance.toLocaleString('en-US') %></h2>
+                                    </div>
+                                 </div>
+
+
+
+
+
+
+                                 <div class="row mt-4 house-balance-actions">
+                                    <div class="col-6">
+                                       <a href="#" class="btn bg-gradient-primary d-block rounded text-white" data-bs-toggle="modal"
+                                          data-bs-target="#modal-new-capital" data-view-only-disable>
+                                          <%= __('dashboard.add_view_history') %>
+                                       </a>
+                                    </div>
+                                    <div class="col-6">
+                                       <a href="#" class="btn bg-gradient-dark-silver d-block rounded text-white" data-bs-toggle="modal" data-bs-target="#modal-cash-balance-history">
+                                          <%= __('dashboard.history') %>
+                                       </a>
+                                    </div>
+                                 </div>
+                               
+                                 <div class="mt-3">
+                                    <div class="pb-3">
+                                       <div
+                                          class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
+                                          data-bs-target="#modal-Cash-In" data-bs-toggle="modal" data-view-only-disable>
+                                          <p class="mt-0">
+                                             <%= __('dashboard.cash_in') %>
+                                          </p>
+                                          <h6><%= Math.round(cashInTotal).toLocaleString('en-US') %></h6>
+                                       </div>
+                                       <div class="progress bg-primary-subtle shadow-none w-100 mb-1" style="height: 10px">
+                                          <div class="progress-bar bg-primary" data-toggle="progress-bar"
+                                             role="progressbar" aria-valuenow="60" aria-valuemin="0"
+                                             aria-valuemax="100"></div>
+                                       </div>
+                                    </div>
+                                    <div class="pb-3">
+                                       <div
+                                          class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
+                                          data-bs-target="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>
+                                          <p class="mb-0">
+                                            <%= __('dashboard.cash_out') %>
+                                          </p>
+                                          <h6 class="text-danger">(<%= Math.round(cashOutTotal).toLocaleString('en-US') %>)</h6>
+                                       </div>
+                                       <div class="progress bg-warning-subtle shadow-none w-100 mb-1"
+                                          style="height: 10px">
+                                          <div class="progress-bar bg-warning" data-toggle="progress-bar"
+                                             role="progressbar" aria-valuenow="70" aria-valuemin="0"
+                                             aria-valuemax="100">
+                                          </div>
+                                       </div>
+                                    </div>
+                                    <div class="pb-3">
+                                       <div
+                                          class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
+                                          data-bs-target="#modal-Transaction" data-bs-toggle="modal" data-view-only-disable>
+                                          <p class="mb-0">
+                                             <%= __('dashboard.chips_transaction') %>
+                                          </p>
+                                          <h6 id="chips-transaction-total">₱0</h6>
+                                       </div>
+                                       <div class="progress bg-success-subtle shadow-none w-100 mb-1"
+                                          style="height: 10px">
+                                          <div class="progress-bar bg-success" data-toggle="progress-bar"
+                                             role="progressbar" aria-valuenow="80" aria-valuemin="0"
+                                             aria-valuemax="100">
+                                          </div>
+                                       </div>
+                                    </div>
+                                   
+                                    <!-- Cash Balance Breakdown Button - Admin Only (IDNo = 20) -->
+                                    <% if (user_id === 21) { %>
+                                    <div class="mt-3">
+                                       <button class="btn btn-primary btn-sm w-100" type="button"
+                                          data-bs-toggle="modal" data-bs-target="#modal-cash-balance-breakdown">
+                                          <i class="fas fa-calculator me-2"></i> Cash Balance Breakdown
+                                       </button>
+                                    </div>
+                                    <% } %>
+
+                                 </div>
+                              </div>
+
+                           </div>
+
+                        </div>
+
+                        <!-- GUEST BALANCE -->
+
+                        <div class="col-lg-4">
+                           <div class="d-flex flex-column gap-2 h-100">
+                              <div class="card flex-grow-1 card-guest-balance" data-aos="fade-up" data-aos-delay="500">
+                                 <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="text-start">
+                                       <h6 class="mb-2 ">
+                                          <%= __('dashboard.guest_balance') %>
+
+                                       </h6>
+                                       <h4 class="counter ">₱ <%- guestBalance.toLocaleString('en-US') %>
+                                       </h4>
+                                    </div>
+                                    <span class="plus-spacing d-flex align-items-center justify-content-center">
+                                       <a href="#" class="btn btn-sm btn-guest-balance" data-bs-toggle="modal"
+                                          data-bs-target="#modal-guestAccount" data-view-only-disable>
+                                          <%= __('dashboard.details') %>
+                                       </a>
+                                    </span>
+                                 </div>
+                              </div>
+                              <div class="d-flex gap-2">
+                                 <div class="card card-net-junket-money flex-fill" data-aos="fade-up" data-aos-delay="700">
+                                    <div class="card-body d-flex align-items-center justify-content-between">
+                                       <div class="text-start">
+                                          <h6 class="mb-2 ">
+                                             <%= __('dashboard.net_junket_money') %>
+                                          </h6>
+                                          <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString('en-US') %></h4>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div class="card card-net-junket-cash flex-fill" data-aos="fade-up" data-aos-delay="700">
+                                    <div class="card-body d-flex align-items-center justify-content-between">
+                                       <div class="text-start">
+                                          <h6 class="mb-2 ">
+                                             <%= __('dashboard.net_junket_cash') %>
+                                          </h6>
+                                          <h4 class="counter ">₱ <%- netJunketCash.toLocaleString('en-US') %></h4>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="card" data-aos="fade-up" data-aos-delay="900">
+                            
+                                   
+                          
+                                 <div class="card-body d-flex align-items-center justify-content-between">
+                                    
+                                    <div class="d-flex gap-2 w-100">
+
+                                       <a href="/agent" target="_blank" class="btn btn-sm btn-guest-balance flex-fill text-center">
+                                          Guest
+                                       </a>
+                                       <a href="#" class="btn btn-sm btn-net-junket-money flex-fill text-center" data-bs-toggle="modal" data-bs-target="#modal-services-new-record" data-view-only-disable>
+                                          Service
+                                       </a>
+                                       
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                       
+                     <div class="col-lg-3">
+                           <div class="card" data-aos="fade-up" data-aos-delay="600">
+                              <div class="card-header">
+                                 <!-- Top Row: Win/Loss + Dropdown -->
+                                 <div class="d-flex justify-content-between align-items-center ">
+                                    <!-- LEFT: Title and Amount -->
+                                    <div>
+                                       <h6 class="mb-2">
+                                          <%= __('dashboard.win_loss') %>
+                                       </h6>
+                                       <div class="d-flex align-items-center">
+                                          <h4 class="card-title counter m-0" id="winlossweekly">
+                                             ₱ <span class="text-muted">Loading...</span>
+                                          </h4>
+                                          <span id="winloss-trend" class="badge trend-indicator"
+                                             data-positive="<%= __('dashboard.positive') %>"
+                                             data-negative="<%= __('dashboard.negative') %>"
+                                             style="margin-left: 10px;"></span>
+                                       </div>
+
+
+                                       <div id="winloss-comparison " class="mt-1 "></div>
+                                       <input type="hidden" name="WINLOSS_HISTORY1" value="0">
+                                    </div>
+
+                                    <!-- RIGHT: Dropdown -->
+                                    <div class="dropdown">
+                                       <a href="#" class="text-gray dropdown-toggle" id="dropdownMenuButton3"
+                                          data-bs-toggle="dropdown" aria-expanded="false">
+                                          <%= __('dashboard.Weekly') %>
+                                       </a>
+                                       <ul class="dropdown-menu dropdown-menu-end custom-dropdown-menu-end"
+                                          aria-labelledby="dropdownMenuButton3" id="winloss-filter">
+                                          <li><a class="dropdown-item" href="#" data-range="week">
+                                                <%= __('dashboard.Weekly') %>
+                                             </a></li>
+                                          <li><a class="dropdown-item" href="#" data-range="month">
+                                                <%= __('dashboard.Monthly') %>
+                                             </a></li>
+                                          <li><a class="dropdown-item" href="#" data-range="year">
+                                                <%= __('dashboard.Yearly') %>
+                                             </a></li>
+                                       </ul>
+                                    </div>
+                                 </div>
+
+
+
+
+                              </div>
+
+                              <div class="card-body">
+                                 <div id="d-activity" class="d-activity"></div>
+                                 <div class="d-flex align-items-center justify-content-center mt-4">
+
+                                    <!-- Left Arrow -->
+                                    <button id="prev-week-btn" type="button" class="circle-btn me-2"
+                                       title="Previous Week">
+                                       <i class="fas fa-chevron-left"></i>
+                                    </button>
+
+                                    <!-- Centered Week Label + Date Range -->
+                                    <div class="d-flex flex-column align-items-center text-center">
+                                       <div id="week-label">This Week</div>
+                                       <span id="week-date-range" class="text-muted small"></span>
+                                    </div>
+
+                                    <!-- Right Arrow -->
+                                    <button id="next-week-btn" type="button" class="circle-btn ms-2 d-none"
+                                       title="This Week">
+                                       <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+
+
+                             <!-- ON GAME -->
+                        <div class="col-lg-6">
+                           <div class="overflow-hidden card" data-aos="fade-up" data-aos-delay="600">
+                              <div class="flex-wrap card-header d-flex justify-content-between">
+                                 <div class="header-title">
+                                    <h4 class="mb-2 card-title">
+                                       <%= __('dashboard.on_game') %>
+                                    </h4>
+                                    <p class="mb-0">
+
+                                    </p>
+                                 </div>
+                              </div>
+                              <div class="p-0 card-body">
+                                 <div class="mt-4 table-responsive">
+                                    <table id="on_game-tbl" class="table mb-0 table-striped" role="grid">
+                                       <thead>
+                                          <tr>
+                                             <th>
+                                                <%= __('dashboard.game_number') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.guest') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.game_type') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.total_buyin') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.rolling') %>
+                                             </th>
+                                             <th>
+                                                <%= __('dashboard.cash_out') %>
+                                             </th>
+                                          </tr>
+                                       </thead>
+                                       <tbody>
+                                          <tr>
+                                             <td></td>
+                                             <td></td>
+                                             <td></td>
+                                             <td></td>
+                                             <td></td>
+                                             <td></td>
+                                          </tr>
+                                       </tbody>
+                                       <tfoot>
+                                          <tr>
+                                             <td colspan="6" class="text-center">
+                                                <a href="/game_list" target="_blank"
+                                                   class="btn btn-primary-subtle btn-lg w-100">
+                                                   <%= __('dashboard.show_details') %>
+                                                </a>
+                                             </td>
+                                          </tr>
+                                       </tfoot>
+                                    </table>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                        <!-- END ON GAME -->
+                           <!-- ROLLING -->
+                           <div class="col-lg-6">
+                              <div class="card" data-aos="fade-up" data-aos-delay="900">
+                                 <div class="flex-wrap card-header d-flex justify-content-between">
+                                    <div class="header-title">
+                                       <h4 class="card-title">
+                                          <%= __('dashboard.rolling') %>
+                                       </h4>
+                                    </div>
+                                 </div>
+                                 <div class="card-body">
+                                    <div class="flex-wrap d-flex align-items-center justify-content-between">
+
+                                      <!-- In-update na chart container: -->
+                                      <div id="myChart" class="col-md-12 col-lg-12 myChart"
+                                         data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0)) %>"
+                                      data-houserolling="<%- (+sqlHouseRollingReset[0].HouseRollingChips || 0) %>">
+                                         <span id="totalrolling"></span>
+                                         <span id="totalhouserolling"></span>
+                                      </div>
+                                      <input type="hidden" name="HOUSE_ROLLING_HISTORY"
+                                      value="<%- (+sqlHouseRollingReset[0].HouseRollingChips || 0) %>">
+                                       <input type="hidden" name="TOTAL_ROLLING_HISTORY"
+                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0)) %>">
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>    
+                           <!-- END ROLLING -->
+                        <!-- END ACTIVITY OVERVIEW CARDS -->
+                     </div>
+                  </div>
+            </div>
+
+            </form>
+            <%- include ('modals/accounts/account_details'); %>
+               <%- include ('modals/accounts/transfer_account'); %>
+                  <%- include ('modals/accounts/account_dashboard') %>
+                     <%- include ('modals/accounts/transaction_history') %>
+                     <%- include ('modals/dashboard/Cash-In') %>
+                        <%- include ('modals/dashboard/Cash-Out') %>
+                           <%- include ('modals/dashboard/Transaction') %>
+                           <%- include ('modals/dashboard/Expenses') %>
+                              <%- include ('modals/junket/new_capital') %>
+
+                                 
+                                    <%- include ('modals/dashboard/new_total_chips') %>
+                                          <%- include ('modals/dashboard/nnchips') %>
+                                             <%- include ('modals/dashboard/ccchips') %>
+                                             <%- include('modals/accounts/account_details_alt') %>
+                                             <%- include('modals/dashboard/cash_balance_history') %>
+                                             <%- include ('modals/junket/new_service_record') %>
+                                             <%- include ('modals/dashboard/winloss_details') %>
+                                             <%- include('partials/permission_view_only_script') %>
+                                             <%- include ('modals/dashboard/marker') %>
+                                             <%- include ('modals/game_book/new_game_list') %>
+                                             <!-- Cash Balance Breakdown Modal - Admin Only -->
+                                             <% if (user_id === 21) { %>
+                                             <div class="modal fade" id="modal-cash-balance-breakdown" tabindex="-1" aria-labelledby="modal-cash-balance-breakdown-label" aria-hidden="true">
+                                                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                                                   <div class="modal-content">
+                                                      <div class="modal-header">
+                                                         <h5 class="modal-title" id="modal-cash-balance-breakdown-label">
+                                                            <i class="fas fa-calculator me-2"></i> Cash Balance Breakdown
+                                                         </h5>
+                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                      </div>
+                                                      <div class="modal-body">
+                                                         <div class="table-responsive">
+                                                            <table class="table table-bordered table-hover mb-0" style="font-size: 15px;">
+                                                               <thead>
+                                                                  <tr>
+                                                                     <th width="8%" class="text-center" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Sign</th>
+                                                                     <th width="52%" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Source</th>
+                                                                     <th class="text-end" width="40%" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Amount (₱)</th>
+                                                                  </tr>
+                                                               </thead>
+                                                               <tbody style="font-size: 15px;">
+                                                                  <% 
+                                                                     let debugSubtotal = 0; 
+                                                                     cashBalanceDebug.forEach(row => { 
+                                                                        const signed = (row.sign === '+' ? 1 : -1) * row.value;
+                                                                        debugSubtotal += signed;
+                                                                        const rowClass = Math.abs(row.value - 500000) < 100000 ? 'table-warning' : '';
+                                                                        const signColor = row.sign === '+' ? 'text-success' : 'text-danger';
+                                                                  %>
+                                                                     <tr class="<%= rowClass %>">
+                                                                        <td class="text-center" style="padding: 12px; font-size: 18px; font-weight: bold;">
+                                                                           <span class="<%= signColor %>"><%= row.sign %></span>
+                                                                        </td>
+                                                                        <td style="padding: 12px; font-weight: 500;"><%= row.label %></td>
+                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 15px;">₱ <%= row.value.toLocaleString('en-US') %></td>
+                                                                     </tr>
+                                                                  <% }); %>
+                                                               </tbody>
+                                                               <tfoot style="font-size: 16px; font-weight: bold;">
+                                                                  <tr class="table-primary">
+                                                                     <th colspan="2" style="padding: 14px;">Computed Cash Balance (debug)</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= debugSubtotal.toLocaleString('en-US') %></th>
+                                                                  </tr>
+                                                                  <tr class="table-success">
+                                                                     <th colspan="2" style="padding: 14px;">Displayed Cash Balance</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= cashBalance.toLocaleString('en-US') %></th>
+                                                                  </tr>
+                                                                  <tr class="table-danger">
+                                                                     <th colspan="2" style="padding: 14px;">Difference</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= Math.abs(debugSubtotal - cashBalance).toLocaleString('en-US') %></th>
+                                                                  </tr>
+                                                               </tfoot>
+                                                            </table>
+                                                         </div>
+                                                      </div>
+                                                      <div class="modal-footer">
+                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                      </div>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <% } %>
+
+
+
+                                                   <script>
+                                                       // Pass translations to on_game_list.js
+                                                       window.onGameListTranslations = {
+                                                           live: "<%= __('gamelist.live') %>",
+                                                           telebet: "<%= __('gamelist.telebet') %>"
+                                                       };
+                                                   </script>
+                                                   <script src="/assets/js/functions/capital.js"></script>
+                                                   <script src="/assets/js/functions/reset.js"></script>
+                                                   <script src="/assets/js/functions/on_game_list.js"></script>
+                                                   <script src="/assets/js/functions/accountDashboard.js"></script>
+                                                   <script src="/assets/js/functions/account.js"></script>
+
+
+                                                   <!-- <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                           // Retrieve user permissions from the HTML element
+                           var userPermissions = parseInt(document.getElementById('user-role').getAttribute('data-permissions'), 10);
+
+                           document.getElementById('cash-balance-link').addEventListener('click', function (event) {
+                              // Use the permissions to determine if the user can access the feature
+                              if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2 && userPermissions !== 0) { // 11 indicates manager, 0 = Super admin
+                                 event.preventDefault(); // Prevent the link's default action (opening the modal)
+
+                                 Swal.fire({
+                                    icon: 'warning',
+                                    title: 'No Permission',
+                                    text: 'You do not have permission to access this feature.',
+                                    confirmButtonText: 'OK',
+                                    confirmButtonColor: '#6f9c40'
+                                 });
+                              } else {
+                                 // If the user is a manager, manually open the modal
+                                 var modal = new bootstrap.Modal(document.getElementById('modal-new-capital'));
+                                 modal.show();
+                              }
+                           });
+                        });
+                     </script> -->
+
+
+                                                   <script>
+
+
+                                                      let currentWeekOffset = 0;
+
+
+                                                      function formatDashboardWinlossAmount(value) {
+                                                         const n = parseFloat(value || 0);
+                                                         if (n < 0) {
+                                                            const amountHtml = window.fmtSigned
+                                                               ? window.fmtSigned(n)
+                                                               : '<span style="color:#dc3545 !important;">(' + Math.abs(n).toLocaleString('en-US') + ')</span>';
+                                                            return '₱ ' + amountHtml;
+                                                         }
+                                                         return '₱ ' + n.toLocaleString('en-US');
+                                                      }
+
+                                                      function getWeekNumber(d) {
+                                                         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                                                         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+                                                         var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+                                                         var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+                                                         return weekNo;
+                                                      }
+
+                                                      function getStartDateOfRange(offset = 0) {
+                                                         const today = new Date();
+                                                         const day = today.getDay();
+                                                         const diffToMonday = day === 0 ? -6 : 1 - day;
+                                                         const start = new Date(today);
+                                                         start.setDate(start.getDate() + diffToMonday + (offset * 7));
+                                                         return start;
+                                                      }
+
+                                                      function loadWinloss(range, label, offset = 0) {
+                                                         currentWeekOffset = offset;
+
+                                                         // Show loading state
+                                                         document.getElementById('winlossweekly').innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading...</span>';
+                                                         document.getElementById('winloss-comparison').innerHTML = '';
+
+                                                         // Update week label
+                                                         if (range === 'week') {
+                                                            if (offset === 0) {
+                                                               document.getElementById('week-label').textContent = "<%= __('dashboard.this_week') %>";
+                                                            } else {
+                                                               const startDate = getStartDateOfRange(offset);
+                                                               const weekNum = getWeekNumber(startDate);
+                                                               
+                                                               const weekText = "<%= __('dashboard.week') %>";
+                                                               const labelText = `${weekText} ${weekNum}`;
+                                                               
+                                                               document.getElementById('week-label').textContent = labelText;
+                                                            }
+
+                                                            const dateRange = getDateRange(offset);
+                                                            document.getElementById('week-date-range').textContent = `(${dateRange})`;
+                                                         } else {
+                                                            document.getElementById('week-label').textContent = label;
+                                                            document.getElementById('week-date-range').textContent = '';
+                                                         }
+
+
+
+                                                         // Only update dropdown label if not custom offset
+                                                         if (range !== 'week' || offset === 0) {
+                                                            document.getElementById('dropdownMenuButton3').textContent = label;
+                                                         }
+
+                                                         fetch(`/get_winloss?range=${range}&offset=${offset}`)
+                                                            .then(res => res.json())
+                                                            .then(data => {
+                                                               document.getElementById('winlossweekly').innerHTML = formatDashboardWinlossAmount(data.winloss);
+                                                               document.querySelector('input[name="WINLOSS_HISTORY1"]').value = data.winloss;
+
+                                                               // Update comparison data
+                                                               if (data.percentChange !== undefined) {
+                                                                  const comparisonEl = document.getElementById('winloss-comparison');
+                                                                  if (comparisonEl) {
+                                                                     const percentChange = data.percentChange.toFixed(1);
+                                                                     const isPositive = percentChange > 0;
+                                                                     const arrowIcon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
+                                                                     const colorClass = isPositive ? 'text-success' : 'text-danger';
+                                                                     const vsLastMonthText = "<%= __('dashboard.vs_last_month') %>";
+
+                                                                     comparisonEl.innerHTML = `
+                  <small class="${colorClass}">
+                     <i class="fas ${arrowIcon}"></i> ${Math.abs(percentChange)}% ${vsLastMonthText}
+                  </small>
+               `;
+                                                                  }
+                                                               }
+
+                                                               if (data.chart) {
+                                                                  updateWinlossChart(data.chart);
+                                                               }
+
+                                                               // Toggle arrows: only show "→" when not on current week
+                                                               document.getElementById('next-week-btn').classList.toggle('d-none', offset === 0);
+                                                            })
+                                                            .catch(err => {
+                                                               console.error('Error loading winloss:', err);
+                                                               document.getElementById('winlossweekly').innerHTML = '₱ 0';
+                                                            });
+                                                      }
+                                                      function getDateRange(offset = 0) {
+                                                         const today = new Date();
+                                                         const day = today.getDay();
+                                                         const diffToMonday = day === 0 ? -6 : 1 - day;
+
+                                                         const start = new Date(today);
+                                                         start.setDate(start.getDate() + diffToMonday + (offset * 7));
+
+                                                         const end = new Date(start);
+                                                         end.setDate(start.getDate() + 6);
+
+                                                         const options = { month: 'short', day: 'numeric' };
+                                                         return `${start.toLocaleDateString('en-US', options)} – ${end.toLocaleDateString('en-US', options)}`;
+                                                      }
+
+                                                      // Dropdown
+                                                      document.querySelectorAll('#winloss-filter a.dropdown-item').forEach(item => {
+                                                         item.addEventListener('click', function (e) {
+                                                            e.preventDefault();
+                                                            const range = this.getAttribute('data-range');
+                                                            const label = this.textContent.trim();
+                                                            currentWeekOffset = 0;
+                                                            loadWinloss(range, label, 0);
+                                                         });
+                                                      });
+
+                                                      // Arrows
+                                                      document.getElementById('prev-week-btn').addEventListener('click', () => {
+                                                         currentWeekOffset--;
+                                                         loadWinloss('week', '', currentWeekOffset);
+                                                      });
+                                                      document.getElementById('next-week-btn').addEventListener('click', () => {
+                                                         currentWeekOffset++;
+                                                         if (currentWeekOffset > 0) currentWeekOffset = 0;
+                                                         loadWinloss('week', '', currentWeekOffset);
+                                                     });
+
+                                                      // Init
+                                                      window.addEventListener('DOMContentLoaded', () => {
+                                                         const winlossCard = document.getElementById('winloss');
+                                                         if (winlossCard) {
+                                                            const raw = parseFloat(winlossCard.dataset.originalWinloss || 0);
+                                                            winlossCard.innerHTML = formatDashboardWinlossAmount(raw);
+                                                         }
+                                                         loadWinloss('week', '', 0);
+                                                      });
+
+
+
+
+
+
+                                                      // END OF WIN / LOSS
+                                                   </script>
+
+
+
+
+
+                                                   <style>
+                                                      .cursor-pointer {
+                                                         cursor: pointer !important;
+                                                      }
+
+
+                                                      #week-label {
+                                                         min-width: 100px;
+                                                         text-align: center;
+                                                         font-weight: 500;
+                                                         font-size: 14px;
+                                                         line-height: 1.2;
+                                                      }
+
+                                                      #week-date-range {
+                                                         font-size: 12px;
+                                                         line-height: 1.2;
+                                                      }
+
+
+                                                      .circle-btn {
+                                                         width: 36px;
+                                                         height: 36px;
+                                                         border-radius: 50%;
+                                                         display: flex;
+                                                         align-items: center;
+                                                         justify-content: center;
+                                                         border: 1px solid var(--bs-secondary);
+                                                         /* uses Bootstrap color */
+                                                         color: var(--bs-secondary);
+                                                         background-color: transparent;
+                                                         transition: all 0.2s ease;
+                                                      }
+
+                                                      .circle-btn:hover {
+                                                         background-color: var(--bs-secondary);
+                                                         color: white;
+                                                         box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+                                                      }
+
+                                                      /* Trend indicator styles */
+                                                      .trend-indicator {
+                                                         font-size: 12px;
+                                                         padding: 4px 8px;
+                                                         border-radius: 4px;
+                                                         font-weight: 500;
+                                                      }
+
+                                                      .trend-indicator.positive {
+                                                         background-color: rgba(25, 135, 84, 0.1);
+                                                         color: var(--bs-success);
+                                                      }
+
+                                                      .trend-indicator.negative {
+                                                         background-color: rgba(220, 53, 69, 0.1);
+                                                         color: var(--bs-danger);
+                                                      }
+
+                                                      /* Custom tooltip styles */
+                                                      .custom-tooltip {
+                                                         font-family: var(--bs-body-font-family);
+                                                      }
+
+                                                      #on_game-tbl th,
+                                                      #on_game-tbl td {
+                                                         text-align: center;
+                                                         font-size: 14px;
+                                                         vertical-align: middle;
+                                                         /* Para naka-center rin vertically */
+                                                      }
+
+                                                      .css-blue {
+                                                         max-width: 100%;
+                                                         font-family: Inter, sans-serif;
+                                                         font-size: 0.75rem;
+                                                         /* Slightly smaller font */
+                                                         display: inline-flex;
+                                                         align-items: center;
+                                                         justify-content: center;
+                                                         height: 24px;
+                                                         /* Reduced height for a badge-like appearance */
+                                                         cursor: unset;
+                                                         vertical-align: middle;
+                                                         box-sizing: border-box;
+                                                         padding: 2px 10px;
+                                                         /* Reduced padding for a thinner look */
+                                                         color: rgb(32, 174, 243);
+                                                         background-color: rgba(32, 174, 243, 0.12);
+                                                         white-space: nowrap;
+                                                         transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+                                                         outline: 0px;
+                                                         text-decoration: none;
+                                                         border-radius: 999px;
+                                                      }
+
+                                                      .css-green {
+                                                         max-width: 100%;
+                                                         font-family: Inter, sans-serif;
+                                                         font-size: 0.75rem;
+                                                         /* Slightly smaller font */
+                                                         display: inline-flex;
+                                                         align-items: center;
+                                                         justify-content: center;
+                                                         height: 24px;
+                                                         /* Reduced height for a badge-like appearance */
+                                                         cursor: unset;
+                                                         vertical-align: middle;
+                                                         box-sizing: border-box;
+                                                         padding: 2px 10px;
+                                                         /* Reduced padding for a thinner look */
+                                                         color: rgb(255, 255, 255);
+                                                         background-color: rgba(255, 255, 255, 0.12);
+                                                         white-space: nowrap;
+                                                         transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+                                                         outline: 0px;
+                                                         text-decoration: none;
+                                                         border-radius: 999px;
+                                                      }
+
+                                                      .highlighted-row {
+                                                         background-color: #fff3cd !important;
+                                                         border-left: 4px solid #ffc107;
+                                                      }
+
+                                                      #prev-week-btn,
+                                                      #next-week-btn {
+                                                         background-color: transparent;
+                                                         border: 1px solid #e0e0e0;
+                                                         color: #666;
+                                                         width: 28px;
+                                                         height: 28px;
+                                                         border-radius: 50%;
+                                                         display: flex;
+                                                         align-items: center;
+                                                         justify-content: center;
+                                                         transition: all 0.2s ease;
+                                                      }
+
+                                                      #prev-week-btn:hover,
+                                                      #next-week-btn:hover {
+                                                         background-color: #f5f5f5;
+                                                         color: #333;
+                                                      }
+
+                                                      #prev-week-btn:focus,
+                                                      #next-week-btn:focus {
+                                                         box-shadow: none;
+                                                         outline: none;
+                                                      }
+                                                   </style>
+
+<%- include('partials/footer') %>
+<script>
+	window.fnbHotelTranslations = {
+		missing_fields: "<%= __('fnb_hotel.missing_fields') %>",
+		select_who_is_paying: "<%= __('fnb_hotel.select_who_is_paying') %>",
+		select_service_type: "<%= __('fnb_hotel.select_service_type') %>",
+		select_account: "<%= __('fnb_hotel.select_account') %>",
+		select_account_for_guest: "<%= __('fnb_hotel.select_account_for_guest') %>",
+		select_transaction_type: "<%= __('fnb_hotel.select_transaction_type') %>",
+		saving: "<%= __('fnb_hotel.saving') %>",
+		service_recorded: "<%= __('fnb_hotel.service_recorded') %>",
+		error: "<%= __('fnb_hotel.error') %>",
+		failed_to_save: "<%= __('fnb_hotel.failed_to_save') %>",
+		save: "<%= __('fnb_hotel.save') %>"
+	};
+</script>
+<script src="/assets/js/functions/service_category_select.js"></script>
+<script src="/assets/js/functions/new_service_record.js"></script>
