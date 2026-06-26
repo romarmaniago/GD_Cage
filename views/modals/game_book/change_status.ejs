@@ -457,9 +457,9 @@ document.addEventListener('DOMContentLoaded', function () {
 	nnInput.addEventListener('input', validateReturnNNInline);
 
 	var ccInput = document.querySelector('#modal-change_status .txtReturnRollerCC');
-	function onReturnInputChange() {
+	function onReturnInputChange(event) {
 		if (typeof updateReturnRollerRemainingHint === 'function') {
-			updateReturnRollerRemainingHint();
+			updateReturnRollerRemainingHint(event.currentTarget);
 		}
 	}
 	nnInput.addEventListener('input', onReturnInputChange);

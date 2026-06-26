@@ -1029,10 +1029,11 @@ function updateChangeStatusRollerReturnSection() {
 	}
 }
 
-function updateReturnRollerRemainingHint() {
+function updateReturnRollerRemainingHint(activeInput) {
 	var $hint = $('#return-roller-remaining-hint');
 	if (!$hint.length) return;
 
+	var $modal = $('#modal-change_status');
 	var requiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 	if (requiredTotal <= 0 || !$('#roller-chips-return-inputs').is(':visible')) {
 		$hint.hide().text('');
@@ -1043,19 +1044,29 @@ function updateReturnRollerRemainingHint() {
 	var returnCC = parseFloat(($('#txtReturnRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
 	var enteredTotal = returnNN + returnCC;
 	var remaining = requiredTotal - enteredTotal;
+	var activeInputId = activeInput && activeInput.id ? activeInput.id : '';
+	var activeAmount = activeInputId === 'txtReturnRollerNN' ? returnNN
+		: activeInputId === 'txtReturnRollerCC' ? returnCC
+			: 0;
+	var otherAmount = activeInputId === 'txtReturnRollerNN' ? returnCC
+		: activeInputId === 'txtReturnRollerCC' ? returnNN
+			: 0;
 
 	if (enteredTotal <= 0) {
 		$hint.hide().text('');
 		return;
 	}
 
-	if (remaining > 0) {
-		$hint.removeClass('text-success').addClass('text-danger')
-			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
-			.show();
-	} else if (remaining === 0) {
+	if (remaining === 0) {
 		$hint.removeClass('text-danger').addClass('text-success')
 			.text('Complete')
+			.show();
+	} else if (remaining > 0) {
+		var displayRemaining = otherAmount > 0 && activeAmount > 0
+			? requiredTotal - otherAmount
+			: remaining;
+		$hint.removeClass('text-success').addClass('text-danger')
+			.text('Remaining chips to return: ' + displayRemaining.toLocaleString('en-US'))
 			.show();
 	} else {
 		$hint.removeClass('text-success').addClass('text-danger')
@@ -1064,7 +1075,7 @@ function updateReturnRollerRemainingHint() {
 	}
 }
 
-function updateRollerChipsRemainingHint() {
+function updateRollerChipsRemainingHint(activeInput) {
 	var $hint = $('#roller-chips-remaining-hint');
 	if (!$hint.length) return;
 
@@ -1084,6 +1095,13 @@ function updateRollerChipsRemainingHint() {
 	var returnCC = parseFloat(($('#modal-add-roller-chips .txtRollerCC').val() || '').replace(/,/g, '').trim()) || 0;
 	var enteredTotal = returnNN + returnCC;
 	var remaining = requiredTotal - enteredTotal;
+	var activeInputName = activeInput && activeInput.name ? activeInput.name : '';
+	var activeAmount = activeInputName === 'txtRollerNN' ? returnNN
+		: activeInputName === 'txtRollerCC' ? returnCC
+			: 0;
+	var otherAmount = activeInputName === 'txtRollerNN' ? returnCC
+		: activeInputName === 'txtRollerCC' ? returnNN
+			: 0;
 
 	if (enteredTotal <= 0) {
 		$hint.hide().text('');
@@ -1091,8 +1109,11 @@ function updateRollerChipsRemainingHint() {
 	}
 
 	if (remaining > 0) {
+		var displayRemaining = otherAmount > 0 && activeAmount > 0
+			? requiredTotal - otherAmount
+			: remaining;
 		$hint.removeClass('text-success').addClass('text-danger')
-			.text('Remaining chips to return: ' + remaining.toLocaleString('en-US'))
+			.text('Remaining chips to return: ' + displayRemaining.toLocaleString('en-US'))
 			.show();
 	} else if (remaining === 0) {
 		$hint.removeClass('text-danger').addClass('text-success')
