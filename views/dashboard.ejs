@@ -277,14 +277,17 @@
                   <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value"><%- fmtAmt(totalRollingAmount) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
-                  <div class="dash-kv-group-title">On Game <span id="dash-on-game-count">—</span></div>
+                  <div class="dash-kv-group-title d-flex justify-content-between align-items-center">
+                     <span>On Game</span>
+                     <span id="dash-on-game-count">—</span>
+                  </div>
                   <div id="dash-on-game-summary">
                      <div class="dash-kv"><span class="dash-kv-label">Total B/I</span><span class="dash-kv-value">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Total C/O</span><span class="dash-kv-value">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Total Rolling</span><span class="dash-kv-value">—</span></div>
                   </div>
                   <div class="dash-card-actions">
-                     <a href="/game_list" target="_blank" class="btn btn-sm btn-primary-subtle">Quick View</a>
+                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-on-game-details" class="btn btn-sm btn-primary-subtle">Quick View</a>
                      <a href="/game_list" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
                   </div>
                </div>
@@ -299,7 +302,6 @@
                      <div class="dash-dual-matrix-col is-rolling">
                         <div class="dash-section-header d-flex justify-content-between align-items-center gap-2">
                            <span>Main Cage Rolling Check</span>
-                           <a href="/table_daily_report_rolling" target="_blank" class="dash-card-link">Open report</a>
                         </div>
                         <div class="dash-matrix-panel dash-rolling-panel">
                            <div class="dash-matrix-scroll dash-rolling-scroll">
@@ -314,7 +316,6 @@
                      <div class="dash-dual-matrix-col is-wl">
                         <div class="dash-section-header d-flex justify-content-between align-items-center gap-2">
                            <span>W/L Check</span>
-                           <a href="/table_daily_report_winloss" target="_blank" class="dash-card-link">Open report</a>
                         </div>
                         <div class="dash-matrix-panel dash-wl-panel">
                            <div class="dash-matrix-scroll dash-wl-scroll">
@@ -398,6 +399,45 @@
          </div>
       </div>
    </form>
+</div>
+
+<div class="modal fade" id="modal-on-game-details" tabindex="-1" aria-labelledby="modal-on-game-details-label" aria-hidden="true">
+   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable dash-on-game-modal-dialog">
+      <div class="modal-content">
+         <div class="modal-header">
+            <h5 class="modal-title" id="modal-on-game-details-label">On Game Details</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+         </div>
+         <div class="modal-body p-0">
+            <div class="table-responsive">
+               <table id="dash-on-game-details-tbl" class="table nowrap small-text mb-0">
+                  <thead>
+                     <tr>
+                        <th>Account #</th>
+                        <th>Player's Name</th>
+                        <th>GAME #</th>
+                        <th>Game Type</th>
+                        <th class="text-end">Buy In</th>
+                        <th class="text-end">Cash Out</th>
+                        <th class="text-end">Win / Lose</th>
+                        <th class="text-end">Rolling</th>
+                        <th class="text-end">Rolling Chips</th>
+                     </tr>
+                  </thead>
+                  <tbody id="dash-on-game-modal-body">
+                     <tr>
+                        <td colspan="9" class="text-center text-muted py-4">Loading...</td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+         </div>
+         <div class="modal-footer">
+            <!-- <a href="/game_list" target="_blank" class="btn btn-outline-primary">Go to Page</a> -->
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+         </div>
+      </div>
+   </div>
 </div>
 
 <%- include ('modals/accounts/account_details') %>

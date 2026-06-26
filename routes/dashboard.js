@@ -3632,27 +3632,134 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		});
 
 		const [onGameRows] = await pool.execute(
-			`SELECT gr.GAME_ID, gr.CAGE_TYPE, gr.NN_CHIPS, gr.CC_CHIPS, gr.AMOUNT,
-				gr.ROLLER_CC_CHIPS, gr.ROLLER_TRANSACTION
-			 FROM game_record gr
-			 INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
-			 WHERE gr.ACTIVE = 1 AND gl.ACTIVE = 2`
+			`SELECT
+				gl.IDNo AS game_id,
+				account.IDNo AS account_id,
+				gl.GAME_TYPE,
+				agent.AGENT_CODE AS agent_code,
+				agent.NAME AS agent_name,
+				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
+				gr.CAGE_TYPE,
+				gr.NN_CHIPS,
+				gr.CC_CHIPS,
+				gr.AMOUNT,
+				gr.ROLLER_NN_CHIPS,
+				gr.ROLLER_CC_CHIPS,
+				gr.ROLLER_TRANSACTION
+			 FROM game_list gl
+			 INNER JOIN account ON gl.ACCOUNT_ID = account.IDNo
+			 INNER JOIN agent ON agent.IDNo = account.AGENT_ID
+			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
+			 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+			 WHERE gl.ACTIVE = 2
+			 ORDER BY gl.IDNo ASC, gr.IDNo ASC`
 		);
 
 		let onGameBuyIn = 0;
 		let onGameCashOut = 0;
 		let onGameRolling = 0;
-		const onGameIds = new Set();
+		const onGameMap = new Map();
 		(onGameRows || []).forEach((r) => {
-			onGameIds.add(r.GAME_ID);
+			const gameId = r.game_id;
+			if (!onGameMap.has(gameId)) {
+				onGameMap.set(gameId, {
+					game_id: gameId,
+					account_id: r.account_id,
+					agent_code: r.agent_code || '',
+					agent_name: r.agent_name || '',
+					guest_name: r.guest_name || '-',
+					game_type: r.GAME_TYPE || '',
+					total_nn_init: 0,
+					total_cc_init: 0,
+					total_nn: 0,
+					total_cc: 0,
+					total_cash_out_nn: 0,
+					total_cash_out_cc: 0,
+					total_rolling_nn: 0,
+					total_rolling_cc: 0,
+					total_rolling_amount: 0,
+					total_rolling_real: 0,
+					total_rolling_nn_real: 0,
+					total_rolling_cc_real: 0,
+					total_roller_nn: 0,
+					total_roller_cc: 0,
+					total_roller_return_cc: 0
+				});
+			}
+
+			const game = onGameMap.get(gameId);
 			const ct = Number(r.CAGE_TYPE);
 			const nn = Number(r.NN_CHIPS) || 0;
 			const cc = Number(r.CC_CHIPS) || 0;
 			const amt = Number(r.AMOUNT) || 0;
-			if (ct === 1) onGameBuyIn += amt + nn + cc;
-			if (ct === 2) onGameCashOut += amt + nn + cc;
-			if (ct === 3) onGameRolling += amt + nn + cc;
-			if (ct === 4) onGameRolling += amt + nn + cc;
+
+			if (ct === 1 && (game.total_nn_init !== 0 || game.total_cc_init !== 0)) {
+				game.total_nn += nn;
+				game.total_cc += cc;
+			}
+			if (ct === 1 && game.total_nn_init === 0 && game.total_cc_init === 0) {
+				game.total_nn_init += nn;
+				game.total_cc_init += cc;
+			}
+			if (ct === 2) {
+				game.total_cash_out_nn += nn;
+				game.total_cash_out_cc += cc;
+			}
+			if (ct === 3) {
+				game.total_rolling_amount += amt;
+				game.total_rolling_nn += nn;
+				game.total_rolling_cc += cc;
+			}
+			if (ct === 4) {
+				game.total_rolling_real += amt;
+				game.total_rolling_nn_real += nn;
+				game.total_rolling_cc_real += cc;
+			}
+			if (ct === 5 && (parseInt(r.ROLLER_TRANSACTION, 10) || 1) === 2) {
+				game.total_roller_nn -= Number(r.ROLLER_NN_CHIPS) || 0;
+				game.total_roller_cc -= Number(r.ROLLER_CC_CHIPS) || 0;
+				game.total_roller_return_cc += Number(r.ROLLER_CC_CHIPS) || 0;
+			} else if (ct === 5) {
+				game.total_roller_nn += Number(r.ROLLER_NN_CHIPS) || 0;
+				game.total_roller_cc += Number(r.ROLLER_CC_CHIPS) || 0;
+			}
+		});
+
+		const onGameDetails = Array.from(onGameMap.values()).map((game) => {
+			const totalInitial = game.total_nn_init + game.total_cc_init;
+			const totalBuyInChips = game.total_nn + game.total_cc;
+			const totalCashOutChips = game.total_cash_out_nn + game.total_cash_out_cc;
+			const totalRollingChips =
+				game.total_rolling_nn +
+				game.total_roller_return_cc +
+				game.total_rolling_amount +
+				game.total_rolling_real +
+				game.total_rolling_nn_real +
+				game.total_rolling_cc_real -
+				game.total_cash_out_nn;
+			const totalRollerChips = game.total_roller_nn + game.total_roller_cc;
+			const totalBuyIn = totalInitial + totalBuyInChips;
+			const totalCashOut = totalCashOutChips;
+
+			const detail = {
+				game_id: game.game_id,
+				account_id: game.account_id,
+				agent_code: game.agent_code,
+				agent_name: game.agent_name,
+				guest_name: game.guest_name,
+				game_type: game.game_type,
+				buy_in: totalBuyIn,
+				cash_out: totalCashOut,
+				win_loss: totalBuyIn - totalCashOut,
+				rolling: totalRollingChips,
+				roller_chips: totalRollerChips
+			};
+
+			onGameBuyIn += detail.buy_in;
+			onGameCashOut += detail.cash_out;
+			onGameRolling += detail.rolling;
+
+			return detail;
 		});
 
 		res.json({
@@ -3671,10 +3778,11 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				gold_dragon_wl: totalGoldWl
 			},
 			on_game: {
-				game_count: onGameIds.size,
+				game_count: onGameDetails.length,
 				buy_in: onGameBuyIn,
 				cash_out: onGameCashOut,
-				rolling: onGameRolling
+				rolling: onGameRolling,
+				games: onGameDetails
 			}
 		});
 	} catch (err) {
