@@ -102,23 +102,14 @@ async function getRollerTipAvailableBalance(db) {
 		 FROM tip_settlement ts
 		 WHERE ts.ACTIVE = 1`
 	);
-	const [[gameSettlementRow]] = await conn.execute(
-		`SELECT COALESCE(SUM(COALESCE(gl.PAYMENT, gl.FNB, 0)), 0) AS TOTAL
-		 FROM game_list gl
-		 WHERE gl.ACTIVE != 0
-		   AND gl.SETTLED = 1
-		   AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0`
-	);
 
 	const grossRoller = parseFloat(rollerRow && rollerRow.TOTAL) || 0;
 	const tipSettled = parseFloat(tipSettlementRow && tipSettlementRow.TOTAL) || 0;
-	const gameSettled = parseFloat(gameSettlementRow && gameSettlementRow.TOTAL) || 0;
-	const available = grossRoller - tipSettled - gameSettled;
+	const available = grossRoller - tipSettled;
 
 	return {
 		grossRoller,
 		tipSettled,
-		gameSettled,
 		available: Math.max(0, available)
 	};
 }
@@ -186,29 +177,6 @@ router.get('/tip_data', checkSession, async (req, res) => {
 			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			 WHERE t.ACTIVE = 1
 			 ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC`
-		);
-
-		const [settlementRows] = await pool.execute(
-			`SELECT
-				gl.IDNo,
-				gl.ACCOUNT_ID,
-				gl.GAME_ENDED,
-				COALESCE(gl.PAYMENT, gl.FNB, 0) AS SETTLEMENT_AMOUNT,
-				gl.REMARKS,
-				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(gl.IDNo AS CHAR)) AS GAME_NO,
-				ag.AGENT_CODE,
-				ag.NAME AS AGENT_NAME,
-				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
-				COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), '—') AS PERSON_NAME
-			 FROM game_list gl
-			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
-			 LEFT JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
-			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
-			 LEFT JOIN user_info ui ON ui.IDNo = gl.EDITED_BY
-			 WHERE gl.ACTIVE != 0
-			   AND gl.SETTLED = 1
-			   AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0
-			 ORDER BY gl.GAME_ENDED DESC, gl.IDNo DESC`
 		);
 
 		const [tipSettlementRows] = await pool.execute(
@@ -335,32 +303,6 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				REMARKS_RECORD_ID: remarksRecordId,
 				SORT_ID: group.sortId,
 				ROW_KIND: 'tip'
-			});
-		});
-
-		(settlementRows || []).forEach(function (row) {
-			const amount = parseFloat(row.SETTLEMENT_AMOUNT) || 0;
-			if (amount <= 0) return;
-			const personName = row.PERSON_NAME || '—';
-			data.push({
-				TIP_DATETIME: row.GAME_ENDED,
-				ACCOUNT_DISPLAY: formatAccountDisplay(row.AGENT_CODE, row.AGENT_NAME),
-				GUEST_NAME: row.GUEST_NAME || '-',
-				GAME_NO: row.GAME_NO,
-				ROLLER_TRANSACTION: 'Settlement',
-				ROLLER_AMOUNT: -amount,
-				ROLLER_STATUS: 'GM',
-				ROLLER_NAME: personName,
-				DEALER_TRANSACTION: 'Dealer Tip',
-				DEALER_AMOUNT: 0,
-				DEALER_STATUS: 'GM',
-				DEALER_NAME: personName,
-				REMARKS: formatRowRemarks(row.REMARKS),
-				REMARKS_EDIT: remarksEditValue(row.REMARKS),
-				REMARKS_SOURCE: 'game_list',
-				REMARKS_RECORD_ID: row.IDNo,
-				SORT_ID: 'S-' + row.IDNo,
-				ROW_KIND: 'settlement'
 			});
 		});
 

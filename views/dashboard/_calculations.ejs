@@ -1,0 +1,160 @@
+<%
+function sumServiceRows(rows, match) {
+   if (!rows || !rows.length) return 0;
+   const key = String(match || '').toLowerCase();
+   let total = 0;
+   rows.forEach((row) => {
+      const type = String(row.SERVICE_TYPE || '').toLowerCase();
+      if (type.includes(key)) total += (+row.TOTAL || 0);
+   });
+   return total;
+}
+
+function sumAllServiceRows(rows) {
+   if (!rows || !rows.length) return 0;
+   return rows.reduce((sum, row) => sum + (+row.TOTAL || 0), 0);
+}
+
+function pickCurrency(rows, code) {
+   if (!rows || !rows.length) return 0;
+   const row = rows.find((r) => String(r.CODE || '').toUpperCase() === String(code).toUpperCase());
+   return row ? (+row.PENDING || 0) : 0;
+}
+
+// NN / CC chips
+const nnChipsBalance =
+   (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+   (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
+   (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+   (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+   (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+   (+sqlCCChipsRolling[0].CCChipsRolling || 0) +
+   (+sqlNNBuyin[0].NNBuyin || 0) -
+   (+sqlNNReturn[0].NNReturn || 0) -
+   (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+   (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
+   (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
+
+const ccChipsBalance =
+   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+   (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
+   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
+   (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+   (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+   (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+   (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) +
+   (+sqlCCBuyin[0].CCBuyin || 0) -
+   (+sqlCCReturn[0].CCReturn || 0) -
+   (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+   (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) -
+   (+sqlCCChipsMonthlySettle[0].CCChipsMonthlySettle || 0);
+
+const totalChipsBalance = nnChipsBalance + ccChipsBalance;
+const rcChipsBalance = (+sqlUnreturnedRollerChips[0].TOTAL_UNRETURNED || 0);
+
+const cashInTotal =
+   (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+   (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+   (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
+   (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+   (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
+   (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
+   sumAllServiceRows(sqlServiceCashGuest) +
+   sumAllServiceRows(sqlServiceDepositGuest) +
+   (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+   (+sqlReturnMoney[0].RETURN_MONEY || 0) +
+   (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
+
+const cashOutTotal =
+   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+   (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+   (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+   (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+   (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+   (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+   (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+   (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+   (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+   sumAllServiceRows(sqlServiceCashJunket) +
+   sumAllServiceRows(sqlServiceDepositJunket) +
+   (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+   (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+   (+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+   (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+
+const mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
+const cashBalance = cashInTotal - cashOutTotal + mxCashNet;
+
+const guestBalance = Math.round(
+   (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+   (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+   (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
+   (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
+   (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) -
+   (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
+);
+
+const houseBalance = cashBalance + totalChipsBalance;
+const netJunketMoney = houseBalance - guestBalance;
+const netJunketCash = cashBalance - guestBalance;
+
+const winLossTotal = parseFloat(
+   (+sqlWinLossReset[0].RESET_CASHIN || 0) -
+   (+sqlTotalCashOutReset[0].CASHOUT_RESET || 0) +
+   (+sqlWinlossManual[0].WINLOSS || 0)
+);
+
+const totalRollingAmount =
+   (+sqlTotalRollingReset[0].RESET_ROLLING || 0) -
+   (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) +
+   (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) +
+   (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) -
+   (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0);
+
+const houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
+const commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
+const expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
+const junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
+const junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
+const tipSettlementAmount = (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+const serviceSettleTotal = (+sqlServiceSettle[0]?.TOTAL || 0);
+
+const creditTotal =
+   (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
+   (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+   (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+   (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+   (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+   (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0);
+
+const fnbDeposit = sumServiceRows(sqlServiceDepositJunket, 'fnb');
+const hotelDeposit = sumServiceRows(sqlServiceDepositJunket, 'hotel');
+const incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
+
+const wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : 65;
+const wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
+const casinoAnticipatedTotal = wlSettlement - serviceSettleTotal;
+
+const companyExpenseTotal =
+   expenseReset +
+   junketLossAmount +
+   commissionSettlement +
+   fnbDeposit +
+   hotelDeposit +
+   incidentalDeposit;
+
+const grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
+
+const usdBalance = pickCurrency(sqlCurrencyPending, 'USD');
+const gcashBalance = pickCurrency(sqlCurrencyPending, 'GCASH');
+const phpBalance = cashBalance;
+const cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance + rcChipsBalance;
+const cageBalanceDiff = houseBalance - cageBalanceTotal;
+
+const nowStamp = new Date();
+const monthStart = new Date(nowStamp.getFullYear(), nowStamp.getMonth(), 1);
+const monthEnd = new Date(nowStamp.getFullYear(), nowStamp.getMonth() + 1, 0);
+const dashboardDateFrom = monthStart.toISOString().slice(0, 10);
+const dashboardDateTo = monthEnd.toISOString().slice(0, 10);
+%>
