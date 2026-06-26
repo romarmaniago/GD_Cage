@@ -1,0 +1,383 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner py-0">
+	<div class="row">
+		<div class="col-sm-12">
+			<div class="card">
+				<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+					<h3 class="card-title mb-0">
+						<div class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="#">Junket</a>
+							<a href="/additional_commission" class="active">Additional Commission</a>
+						</div>
+					</h3>
+					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" class="btn btn-sm btn-primary" id="btn-add-additional-commission">
+							<i class="fa fa-plus me-1"></i> Add
+						</button>
+					</div>
+				</div>
+				<div class="card-body">
+					<div class="table-responsive">
+						<table id="additional-commission-tbl" class="table nowrap small-text" style="width:100%">
+							<thead>
+								<tr>
+									<th>Date</th>
+									<th>Account</th>
+									<th>Name</th>
+									<th>Cash-out</th>
+									<th>Remarks</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td colspan="5" class="text-center text-muted">Loading...</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="modal-additional-commission" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white">Add Additional Commission</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="additional-commission-form">
+				<div class="modal-body">
+					<div class="mb-3">
+						<label for="additional-commission-agent" class="form-label">Account</label>
+						<select id="additional-commission-agent" class="js-select2 form-select" style="width: 100%;" data-placeholder="Select account" required>
+							<option value="">Select account</option>
+						</select>
+					</div>
+					<div class="mb-3">
+						<label for="additional-commission-cash-out" class="form-label">Cash-out</label>
+						<input type="text" id="additional-commission-cash-out" class="form-control" inputmode="decimal" autocomplete="off" required />
+					</div>
+					<div class="mb-3">
+						<label for="additional-commission-remarks" class="form-label">Remarks</label>
+						<textarea id="additional-commission-remarks" class="form-control" rows="3"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary" id="additional-commission-save-btn">Save</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<style>
+	.card-body {
+		overflow-x: auto;
+	}
+
+	#additional-commission-tbl {
+		width: 100%;
+		font-size: 13px;
+		border-collapse: collapse;
+	}
+
+	#additional-commission-tbl thead th {
+		background: var(--bs-primary-bg-subtle);
+		color: var(--bs-primary);
+		font-weight: 500;
+		padding: 12px 15px;
+		border: none;
+	}
+
+	#additional-commission-tbl thead th:nth-child(2),
+	#additional-commission-tbl thead th:nth-child(3) {
+		text-align: left;
+		padding-left: 20px;
+	}
+
+	#additional-commission-tbl thead th:nth-child(5) {
+		text-align: center;
+	}
+
+	#additional-commission-tbl thead th:nth-child(4) {
+		text-align: right;
+		padding-right: 20px;
+	}
+
+	#additional-commission-tbl tbody tr {
+		border-bottom: 1px solid #eee;
+	}
+
+	#additional-commission-tbl td {
+		padding: 12px 15px;
+		color: #666;
+		vertical-align: middle;
+	}
+
+	#additional-commission-tbl tbody td:nth-child(2),
+	#additional-commission-tbl tbody td:nth-child(3) {
+		text-align: left;
+		padding-left: 20px;
+	}
+
+	#additional-commission-tbl tbody td:nth-child(5) {
+		text-align: center;
+	}
+
+	#additional-commission-tbl tbody td:nth-child(4) {
+		text-align: right;
+		padding-right: 20px;
+	}
+
+	#additional-commission-tbl tbody tr:hover {
+		background-color: #f5f5f5 !important;
+	}
+
+	#modal-additional-commission .select2-container--default .select2-selection--single {
+		height: 44px;
+		min-height: 44px;
+		border: 1px solid #dbe2f3;
+		border-radius: 0.375rem;
+		display: flex;
+		align-items: center;
+	}
+
+	#modal-additional-commission .select2-container--default .select2-selection--single .select2-selection__rendered {
+		line-height: 44px;
+		padding-left: 12px;
+		padding-right: 36px;
+	}
+
+	#modal-additional-commission .select2-container--default .select2-selection--single .select2-selection__arrow {
+		height: 44px;
+	}
+
+	@media (max-width: 768px) {
+		#additional-commission-tbl {
+			font-size: 10px;
+		}
+
+		#additional-commission-tbl th,
+		#additional-commission-tbl td {
+			padding: 5px;
+		}
+	}
+</style>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		const tableBody = document.querySelector('#additional-commission-tbl tbody');
+		const addButton = document.getElementById('btn-add-additional-commission');
+		const form = document.getElementById('additional-commission-form');
+		const agentSelect = document.getElementById('additional-commission-agent');
+		const cashOutInput = document.getElementById('additional-commission-cash-out');
+		const remarksInput = document.getElementById('additional-commission-remarks');
+		const saveButton = document.getElementById('additional-commission-save-btn');
+		let agents = [];
+
+		function escapeHtml(value) {
+			return String(value ?? '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function formatDateTime(value) {
+			if (!value) return '';
+
+			const date = new Date(value);
+			if (Number.isNaN(date.getTime())) return escapeHtml(value);
+
+			const pad = (num) => String(num).padStart(2, '0');
+			const month = date.toLocaleString('en-US', { month: 'long' });
+			return `${month} ${pad(date.getDate())}, ${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+		}
+
+		function formatAmount(value) {
+			const amount = Number(value) || 0;
+			const formatted = Math.abs(amount).toLocaleString('en-US', {
+				minimumFractionDigits: 0,
+				maximumFractionDigits: 2
+			});
+			return `(${formatted})`;
+		}
+
+		function sanitizeAmountInput(value) {
+			return String(value || '').replace(/[^\d.]/g, '');
+		}
+
+		function formatAmountInput(value) {
+			const cleaned = sanitizeAmountInput(value);
+			if (!cleaned) return '';
+			const parts = cleaned.split('.');
+			const integerPart = parts[0] || '0';
+			const decimalPart = parts.length > 1 ? parts[1].slice(0, 2) : '';
+			const formattedInteger = Number(integerPart).toLocaleString('en-US');
+			return decimalPart !== '' ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+		}
+
+		function initAccountSelect2() {
+			const $agentSelect = $('#additional-commission-agent');
+			if (typeof $agentSelect.select2 !== 'function') return;
+
+			if ($agentSelect.data('select2')) {
+				try {
+					$agentSelect.select2('destroy');
+				} catch (error) {
+					console.error(error);
+				}
+			}
+
+			$agentSelect.select2({
+				placeholder: $agentSelect.attr('data-placeholder') || 'Select account',
+				allowClear: false,
+				dropdownParent: $('#modal-additional-commission'),
+				width: '100%'
+			});
+		}
+
+		function renderRows(rows) {
+			if (!rows.length) {
+				tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No additional commission records found.</td></tr>';
+				return;
+			}
+
+			tableBody.innerHTML = rows.map((row) => `
+				<tr>
+					<td>${formatDateTime(row.ENCODED_DT)}</td>
+					<td>${escapeHtml(row.account)}</td>
+					<td>${escapeHtml(row.name)}</td>
+					<td class="text-end text-danger">${formatAmount(row.CASH_OUT)}</td>
+					<td>${escapeHtml(row.REMARKS)}</td>
+				</tr>
+			`).join('');
+		}
+
+		function loadAdditionalCommissionData() {
+			return fetch('/additional_commission_data')
+				.then((response) => {
+					if (!response.ok) throw new Error('Failed to load additional commission records.');
+					return response.json();
+				})
+				.then(renderRows)
+				.catch((error) => {
+					console.error(error);
+					tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load records.</td></tr>';
+				});
+		}
+
+		function loadAgents() {
+			return fetch('/additional_commission_agents')
+				.then((response) => {
+					if (!response.ok) throw new Error('Failed to load accounts.');
+					return response.json();
+				})
+				.then((rows) => {
+					agents = rows || [];
+					const $agentSelect = $('#additional-commission-agent');
+					if ($agentSelect.data('select2')) {
+						try {
+							$agentSelect.select2('destroy');
+						} catch (error) {
+							console.error(error);
+						}
+					}
+					agentSelect.innerHTML = '<option value="">Select account</option>' + agents.map((agent) => (
+						`<option value="${escapeHtml(agent.agent_id)}">${escapeHtml(agent.account)} - ${escapeHtml(agent.name)}</option>`
+					)).join('');
+					initAccountSelect2();
+				});
+		}
+
+		function resetAdditionalCommissionForm() {
+			form.reset();
+			$('#additional-commission-agent').val('').trigger('change');
+		}
+
+		function openAdditionalCommissionModal() {
+			resetAdditionalCommissionForm();
+			loadAgents()
+				.catch((error) => {
+					console.error(error);
+					if (typeof Swal !== 'undefined') {
+						Swal.fire('Error', 'Failed to load accounts.', 'error');
+					}
+				})
+				.finally(() => {
+					$('#modal-additional-commission').modal('show');
+				});
+		}
+
+		loadAdditionalCommissionData();
+
+		addButton.addEventListener('click', openAdditionalCommissionModal);
+
+		agentSelect.addEventListener('change', function() {
+			// Select2 label already shows the account and name.
+		});
+
+		cashOutInput.addEventListener('input', function() {
+			cashOutInput.value = formatAmountInput(cashOutInput.value);
+		});
+
+		form.addEventListener('submit', function(e) {
+			e.preventDefault();
+
+			const selectedAgent = agents.find((agent) => String(agent.agent_id) === String(agentSelect.value));
+			const payload = {
+				agentId: agentSelect.value,
+				agentName: selectedAgent ? String(selectedAgent.name || '').trim() : '',
+				cashOut: sanitizeAmountInput(cashOutInput.value),
+				remarks: remarksInput.value.trim()
+			};
+
+			if (!payload.agentId || !payload.cashOut) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire('Validation', 'Please select an account and enter cash-out.', 'warning');
+				}
+				return;
+			}
+
+			saveButton.disabled = true;
+			fetch('/add_additional_commission', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			})
+			.then((response) => {
+				if (!response.ok) throw new Error('Failed to save record.');
+				return response.json().catch(() => ({}));
+			})
+			.then(() => {
+				$('#modal-additional-commission').modal('hide');
+				resetAdditionalCommissionForm();
+				loadAdditionalCommissionData();
+				if (typeof Swal !== 'undefined') {
+					Swal.fire('Success', 'Record saved successfully.', 'success');
+				}
+			})
+			.catch((error) => {
+				console.error(error);
+				if (typeof Swal !== 'undefined') {
+					Swal.fire('Error', 'Failed to save record.', 'error');
+				}
+			})
+			.finally(() => {
+				saveButton.disabled = false;
+			});
+		});
+	});
+</script>
