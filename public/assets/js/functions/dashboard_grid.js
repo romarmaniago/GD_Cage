@@ -332,6 +332,48 @@
     renderOnGameDetails(og.games || []);
   }
 
+  function setGuestSummaryValue(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const n = Number(value) || 0;
+    el.textContent = formatAmount(n);
+    el.classList.toggle('text-dash-neg', n < 0);
+  }
+
+  function renderGuestSummaryStats(stats) {
+    const payload = stats || {};
+    setGuestSummaryValue('dash-guest-summary-total-guest', payload.total_guest);
+    setGuestSummaryValue('dash-guest-summary-total-balance', payload.total_balance);
+    setGuestSummaryValue('dash-guest-summary-total-credit', payload.total_credit);
+    setGuestSummaryValue('dash-guest-summary-total-winloss', payload.total_winloss);
+    setGuestSummaryValue('dash-guest-summary-total-rolling', payload.total_rolling);
+    setGuestSummaryValue('dash-guest-summary-total-commission', payload.total_commission);
+  }
+
+  async function loadGuestSummaryStats() {
+    const status = document.getElementById('dash-guest-summary-status');
+    if (status) {
+      status.textContent = 'Loading...';
+      status.classList.remove('text-danger');
+    }
+
+    try {
+      const res = await fetch('/agency_line_stats', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load guest summary.');
+      renderGuestSummaryStats(data);
+      if (status) status.textContent = '';
+    } catch (err) {
+      console.error('agency_line_stats:', err);
+      renderGuestSummaryStats({});
+      if (status) {
+        status.textContent = 'Failed to load guest summary.';
+        status.classList.add('text-danger');
+      }
+    }
+  }
+
   function renderOnGameDetails(games) {
     const body = document.getElementById('dash-on-game-modal-body');
     if (!body) return;
@@ -431,6 +473,12 @@
     initMatrixPanelHeightSync();
     bindDualMatrixScrollSync();
     loadGridData();
+
+    const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
+    if (guestSummaryModal) {
+      guestSummaryModal.addEventListener('show.bs.modal', loadGuestSummaryStats);
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') loadGridData();
     });

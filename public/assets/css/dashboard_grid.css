@@ -266,6 +266,44 @@
   max-width: min(1320px, calc(100vw - 2rem));
 }
 
+.dash-guest-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: #fff;
+  border: 1px solid #111827;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-guest-summary-table td {
+  width: 33.333%;
+  height: 52px;
+  padding: 4px 6px 5px;
+  vertical-align: top;
+  border: 1px solid #111827;
+}
+
+.dash-guest-summary-label {
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.dash-guest-summary-value {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.dash-guest-summary-value.text-dash-neg {
+  color: #dc3545;
+}
+
 #dash-on-game-details-tbl {
   width: 100%;
   font-size: 13px;

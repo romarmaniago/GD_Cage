@@ -231,8 +231,8 @@
                   <div class="dash-kv-group-title">Deposit Of Guests</div>
                   <div class="dash-kv"><span class="dash-kv-label">Line</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-guestAccount" data-view-only-disable class="dash-card-link"><%- fmtAmt(guestBalance) %></a></span></div>
                   <div class="dash-card-actions">
-                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-cash-balance-history" class="btn btn-sm btn-primary-subtle">Quick View</a>
-                     <a href="/agent" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
+                     <a href="#" data-bs-toggle="modal" data-bs-target="#modal-guest-summary-quick-view" class="btn btn-sm btn-primary-subtle">Quick View</a>
+                     <a href="/agency" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
                   </div>
                </div>
             </div>
@@ -399,6 +399,54 @@
          </div>
       </div>
    </form>
+</div>
+
+<div class="modal fade" id="modal-guest-summary-quick-view" tabindex="-1" aria-labelledby="modal-guest-summary-quick-view-label" aria-hidden="true">
+   <div class="modal-dialog modal-md modal-dialog-centered">
+      <div class="modal-content">
+         <div class="modal-header bg-primary">
+            <h5 class="modal-title text-white" id="modal-guest-summary-quick-view-label">Line</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+         </div>
+         <div class="modal-body">
+            <div class="dash-guest-summary-status text-muted small mb-2" id="dash-guest-summary-status">Loading...</div>
+            <div class="table-responsive">
+               <table class="dash-guest-summary-table">
+                  <tbody>
+                     <tr>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Guest</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-guest">—</div>
+                        </td>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Balance</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-balance">—</div>
+                        </td>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Credit</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-credit">—</div>
+                        </td>
+                     </tr>
+                     <tr>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Win / Loss</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-winloss">—</div>
+                        </td>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Rolling</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-rolling">—</div>
+                        </td>
+                        <td>
+                           <div class="dash-guest-summary-label">Total Commission</div>
+                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-commission">—</div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+         </div>
+      </div>
+   </div>
 </div>
 
 <div class="modal fade" id="modal-on-game-details" tabindex="-1" aria-labelledby="modal-on-game-details-label" aria-hidden="true">
