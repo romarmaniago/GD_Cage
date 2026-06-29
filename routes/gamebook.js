@@ -278,11 +278,21 @@ function buildInGameSplitBuyInLegs(body) {
 	].filter((leg) => leg.nn + leg.cc > 0);
 }
 
+function buildInGameCommissionBuyInLeg(payment) {
+	const total = Math.max(0, parseChipAmount(payment));
+	if (total <= 0) {
+		return null;
+	}
+	const nn = Math.floor(total / 1000) * 1000;
+	const cc = total - nn;
+	return { nn, cc, transType: 1 };
+}
+
 function buildInGameNewGameBuyInLegs(body, parentTransType, commissionPayment) {
 	const legs = buildInGameParentCashoutLegs(body, parentTransType);
-	const payment = Math.max(0, parseChipAmount(commissionPayment));
-	if (payment > 0) {
-		legs.push({ nn: payment, cc: 0, transType: 1 });
+	const commissionLeg = buildInGameCommissionBuyInLeg(commissionPayment);
+	if (commissionLeg) {
+		legs.push(commissionLeg);
 	}
 	legs.push(...buildInGameSplitBuyInLegs(body));
 	return legs;
