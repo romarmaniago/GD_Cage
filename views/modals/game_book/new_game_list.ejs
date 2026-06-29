@@ -113,16 +113,16 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                   </div>
               </div>
               <hr style="border: 1px solid">
-               <!-- ROLLER CHIPS Section -->
+               <!-- ROLLING CHIPS Section -->
                <div class="row mb-2">
                 <div class="col-sm-12">
-                    <label class="form-label"><strong>Roller Chips</strong></label>
+                    <label class="form-label" for="txtRollerNN"><strong>Rolling Chips</strong></label>
                
                 </div>
             </div>
             <div class="row mb-2 align-items-center">
                 <div class="col-sm-6">
-                    <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerNN" id="txtRollerNN" placeholder="Roller NN Chips" />
+                    <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerNN" id="txtRollerNN" placeholder="Rolling Chips" required />
                 </div>
                 <div class="col-sm-6 d-flex align-items-center new-game-type-radios flex-wrap gap-3 gap-sm-4">
                     <div class="form-check mb-0">
@@ -135,7 +135,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                     </div>
                 </div>
                 <div class="col-sm-6" style="display: none;">
-                    <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerCC" id="txtRollerCC" placeholder="Roller CC Chips" />
+                    <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtRollerCC" id="txtRollerCC" placeholder="Rolling CC Chips" />
                 </div>
             </div>
 
@@ -1214,8 +1214,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const extractAccountCode = function (raw) {
         const s = String(raw || '').trim();
         if (!s) return '';
-        const match = s.match(/\(([^)]+)\)\s*$/);
-        if (match) return match[1].trim();
+        const codeFirstMatch = s.match(/^([^(]+?)\s*\(/);
+        if (codeFirstMatch) return codeFirstMatch[1].trim();
+        const codeInParensMatch = s.match(/\(([^)]+)\)\s*$/);
+        if (codeInParensMatch) return codeInParensMatch[1].trim();
         return s;
     };
 

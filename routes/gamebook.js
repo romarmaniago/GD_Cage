@@ -258,21 +258,44 @@ function isInGameSplitEnabled(body) {
 	);
 }
 
-function buildInGameSettlementLegs(body, parentTransType) {
-	if (isInGameSplitEnabled(body)) {
-		return [
-			{ nn: parseChipAmount(body.txtInGameCashNN), cc: parseChipAmount(body.txtInGameCashCC), transType: 1 },
-			{ nn: parseChipAmount(body.txtInGameDepNN), cc: parseChipAmount(body.txtInGameDepCC), transType: 2 },
-			{ nn: parseChipAmount(body.txtInGameCreditNN), cc: parseChipAmount(body.txtInGameCreditCC), transType: 4 }
-		].filter((leg) => leg.nn + leg.cc > 0);
-	}
-
-	const nn = parseChipAmount(body.txtInGameRemainingNN);
-	const cc = parseChipAmount(body.txtInGameRemainingCC);
+function buildInGameParentCashoutLegs(body, parentTransType) {
+	const nn = parseChipAmount(body.txtInGameRemainingNN || body.txtInGameBuyInNN);
+	const cc = parseChipAmount(body.txtInGameRemainingCC || body.txtInGameBuyInCC);
 	if (nn + cc <= 0) {
 		return [];
 	}
 	return [{ nn, cc, transType: parentTransType }];
+}
+
+function buildInGameSplitBuyInLegs(body) {
+	if (!isInGameSplitEnabled(body)) {
+		return [];
+	}
+	return [
+		{ nn: parseChipAmount(body.txtInGameCashNN), cc: parseChipAmount(body.txtInGameCashCC), transType: 1 },
+		{ nn: parseChipAmount(body.txtInGameDepNN), cc: parseChipAmount(body.txtInGameDepCC), transType: 2 },
+		{ nn: parseChipAmount(body.txtInGameCreditNN), cc: parseChipAmount(body.txtInGameCreditCC), transType: 4 }
+	].filter((leg) => leg.nn + leg.cc > 0);
+}
+
+function buildInGameCommissionBuyInLeg(payment) {
+	const total = Math.max(0, parseChipAmount(payment));
+	if (total <= 0) {
+		return null;
+	}
+	const nn = Math.floor(total / 1000) * 1000;
+	const cc = total - nn;
+	return { nn, cc, transType: 1 };
+}
+
+function buildInGameNewGameBuyInLegs(body, parentTransType, commissionPayment) {
+	const legs = buildInGameParentCashoutLegs(body, parentTransType);
+	const commissionLeg = buildInGameCommissionBuyInLeg(commissionPayment);
+	if (commissionLeg) {
+		legs.push(commissionLeg);
+	}
+	legs.push(...buildInGameSplitBuyInLegs(body));
+	return legs;
 }
 
 function parseInGameTips(body) {
@@ -281,6 +304,31 @@ function parseInGameTips(body) {
 		rollerCc: parseChipAmount(body.txtInGameTipRollerCc),
 		dealerNn: parseChipAmount(body.txtInGameTipDealerNn),
 		dealerCc: parseChipAmount(body.txtInGameTipDealerCc)
+	};
+}
+
+function projectInGameSettlementMetrics({ rolling, winLoss, commissionType, commissionRate, servicesTotal }, body) {
+	const tips = parseInGameTips(body || {});
+	const remainingNn = parseChipAmount(body?.txtInGameRemainingNN || body?.txtInGameBuyInNN);
+	const remainingCc = parseChipAmount(body?.txtInGameRemainingCC || body?.txtInGameBuyInCC);
+	const lastRolling = parseChipAmount(body?.txtInGameLastRolling);
+
+	const additionalCashoutNn = remainingNn + tips.rollerNn + tips.dealerNn;
+	const additionalCashoutCc = remainingCc + tips.rollerCc + tips.dealerCc;
+	const projectedRolling = rolling - additionalCashoutNn + lastRolling;
+	const projectedWinLoss = winLoss - additionalCashoutNn - additionalCashoutCc;
+	const commissionGross = computeReceiptCommission(
+		{ COMMISSION_TYPE: commissionType, COMMISSION_PERCENTAGE: commissionRate },
+		projectedWinLoss,
+		projectedRolling
+	);
+	const payment = commissionGross - (servicesTotal || 0);
+
+	return {
+		commissionGross,
+		payment,
+		projectedRolling,
+		projectedWinLoss
 	};
 }
 
@@ -790,47 +838,63 @@ async function performGameCutoff(db, params) {
 }
 
 /**
- * In-game settlement: record chip movements on the active game, then mark provisional settlement slip.
- * Game stays ON GAME (ACTIVE = 2).
+ * IN-GAME SETTLEMENT: end + auto-settle parent game, cashout remaining + last rolling,
+ * create new ON GAME with buy-in = remaining chips + commission (+ split additional).
  */
 async function performInGameSettlement(db, params) {
 	const {
-		gameId,
+		parentGameId,
 		encodedBy,
 		dateNow,
 		programDate,
-		remainingLegs,
+		cashoutLegs,
+		buyInLegs,
+		settlementFigures,
 		lastRollingCC,
 		tips
 	} = params;
 
-	const [gameRows] = await db.execute(
-		`SELECT ACCOUNT_ID, ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
-		[gameId]
+	const [parentRows] = await db.execute(
+		`SELECT ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE, SETTLED
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[parentGameId]
 	);
-	if (!gameRows.length) {
+	if (!parentRows.length) {
 		const err = new Error('Game not found.');
 		err.statusCode = 404;
 		throw err;
 	}
-	const game = gameRows[0];
-	if (parseInt(game.ACTIVE, 10) !== 2) {
+	const parent = parentRows[0];
+	if (parseInt(parent.ACTIVE, 10) !== 2) {
 		const err = new Error('Only ON GAME games can use in-game settlement.');
 		err.statusCode = 400;
 		throw err;
 	}
+	if (Number(parent.SETTLED) === 1) {
+		const err = new Error('This game is already settled.');
+		err.statusCode = 400;
+		throw err;
+	}
 
-	const accountId = parseInt(game.ACCOUNT_ID, 10);
-	const legs = Array.isArray(remainingLegs) && remainingLegs.length ? remainingLegs : [];
+	const parentAccountId = parseInt(parent.ACCOUNT_ID, 10);
+	const transType = await resolveParentTransType(db, parentGameId, parent.INITIAL_MOP);
+	const parentCashoutLegs = Array.isArray(cashoutLegs) && cashoutLegs.length ? cashoutLegs : [];
+	const newGameBuyInLegs = Array.isArray(buyInLegs) && buyInLegs.length ? buyInLegs : [];
 	const settlementTips = tips || { rollerNn: 0, rollerCc: 0, dealerNn: 0, dealerCc: 0 };
-	const rollerTotals = await getRollerTotalsForGame(db, gameId);
+	const figures = settlementFigures || { payment: 0, servicesTotal: 0, settlementTransType: 1 };
+	const rollerTotals = await getRollerTotalsForGame(db, parentGameId);
 	const totalRollerBalance = Math.max(0, rollerTotals.combinedNet || 0);
 	const parentNetNN = Math.max(0, rollerTotals.netNNRaw || 0);
+	const parentNetCC = Math.max(0, rollerTotals.netCCRaw || 0);
+	const transferRollerNN = computeCutoffTransferRollerNN(rollerTotals);
 	const lastRolling = Math.max(0, lastRollingCC);
 	const lastRollingNnReturn = Math.min(lastRolling, parentNetNN);
 	const lastRollingCcReturn = Math.max(0, lastRolling - lastRollingNnReturn);
+	const remainingNnReturnOnParent = Math.max(0, parentNetNN - lastRollingNnReturn);
+	const remainingCcReturnOnParent = Math.max(0, parentNetCC - lastRollingCcReturn);
 
-	for (const leg of legs) {
+	const allNnLegs = [...parentCashoutLegs, ...newGameBuyInLegs];
+	for (const leg of allNnLegs) {
 		if (leg.nn > 0 && leg.nn % 1000 !== 0) {
 			const err = new Error('Remaining NN Chips must be in thousands.');
 			err.statusCode = 400;
@@ -855,7 +919,9 @@ async function performInGameSettlement(db, params) {
 		throw err;
 	}
 
-	const tradingDate = parseProgramDateAsDateTime(programDate) || dateNow;
+	const tradingDateNew = parseProgramDateAsDateTime(programDate);
+	const initialMOP = { 1: 'CASH', 2: 'DEPOSIT', 3: 'IOU' }[transType] || parent.INITIAL_MOP;
+
 	const rollerChipsSQL = `
 		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -872,17 +938,32 @@ async function performInGameSettlement(db, params) {
 	`;
 
 	await insertCutoffTipRecords(db, {
-		parentGameId: gameId,
-		parentAccountId: accountId,
+		parentGameId,
+		parentAccountId,
 		encodedBy,
 		dateNow,
 		tips: settlementTips
 	});
 
-	for (const leg of legs) {
+	await db.execute(
+		`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+		[dateNow, encodedBy, dateNow, parentGameId]
+	);
+
+	await autoSettleEndedGame(db, {
+		gameId: parentGameId,
+		accountId: parentAccountId,
+		encodedBy,
+		dateNow,
+		payment: figures.payment,
+		fnb: figures.servicesTotal,
+		transType: figures.settlementTransType
+	});
+
+	for (const leg of parentCashoutLegs) {
 		await insertCutoffCashoutLeg(db, {
-			parentGameId: gameId,
-			parentAccountId: accountId,
+			parentGameId,
+			parentAccountId,
 			leg,
 			encodedBy,
 			dateNow,
@@ -892,7 +973,7 @@ async function performInGameSettlement(db, params) {
 
 	if (lastRollingNnReturn > 0) {
 		await db.execute(rollingRecordSQL, [
-			gameId,
+			parentGameId,
 			dateNow,
 			4,
 			0,
@@ -901,7 +982,7 @@ async function performInGameSettlement(db, params) {
 			dateNow
 		]);
 		await db.execute(rollerChipsSQL, [
-			gameId,
+			parentGameId,
 			dateNow,
 			5,
 			0,
@@ -916,7 +997,7 @@ async function performInGameSettlement(db, params) {
 	}
 	if (lastRollingCcReturn > 0) {
 		await db.execute(rollerChipsSQL, [
-			gameId,
+			parentGameId,
 			dateNow,
 			5,
 			0,
@@ -930,27 +1011,90 @@ async function performInGameSettlement(db, params) {
 		]);
 	}
 
-	for (const leg of legs) {
+	let newGameId;
+	const [newGameResult] = await db.execute(
+		`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+		[
+			parentAccountId,
+			parent.GUEST_ID,
+			parent.GAME_TYPE,
+			initialMOP,
+			parent.COMMISSION_TYPE,
+			parent.COMMISSION_PERCENTAGE,
+			encodedBy,
+			dateNow,
+			programDate
+		]
+	);
+	newGameId = newGameResult.insertId;
+
+	for (const leg of newGameBuyInLegs) {
 		await insertCutoffBuyinLeg(db, {
-			newGameId: gameId,
-			parentAccountId: accountId,
+			newGameId,
+			parentAccountId,
 			leg,
 			encodedBy,
 			dateNow,
-			tradingDateNew: tradingDate,
+			tradingDateNew,
 			agentQuery
 		});
 	}
 
-	await db.execute(
-		`UPDATE game_list SET FAKE_SETTLE = 1, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 2`,
-		[encodedBy, dateNow, gameId]
-	);
+	if (remainingNnReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			remainingNnReturnOnParent,
+			0,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (remainingCcReturnOnParent > 0) {
+		await db.execute(rollerChipsSQL, [
+			parentGameId,
+			dateNow,
+			5,
+			0,
+			0,
+			0,
+			0,
+			remainingCcReturnOnParent,
+			2,
+			encodedBy,
+			dateNow
+		]);
+	}
+	if (transferRollerNN > 0) {
+		await db.execute(rollerChipsSQL, [
+			newGameId,
+			tradingDateNew,
+			5,
+			0,
+			0,
+			0,
+			transferRollerNN,
+			0,
+			1,
+			encodedBy,
+			dateNow
+		]);
+	}
 
-	return { gameId, lastRollingCC };
+	return {
+		newGameId,
+		parentGameId,
+		lastRollingCC,
+		settlementPayment: figures.payment
+	};
 }
 
-/** Auto roller RETURN on pending game when fault is resolved (guest buy-in / junket new game). */
 /** Soft-delete junket_loss row(s) linked to a game (JUNKET_LOSS_ID and/or GAME_ID). */
 async function softDeleteJunketLossLinkedToGame(db, gameId, junketLossId, editedBy, dateNow) {
 	if (!gameId || !editedBy) return;
@@ -3698,6 +3842,89 @@ function computeReceiptCommission(game, winLoss, rolling) {
 	return 0;
 }
 
+async function computeInGameSettlementFigures(db, gameId, body) {
+	const [gameRows] = await db.execute(
+		`SELECT COMMISSION_TYPE, COMMISSION_PERCENTAGE, SETTLED
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[gameId]
+	);
+	if (!gameRows.length) {
+		const err = new Error('Game not found.');
+		err.statusCode = 404;
+		throw err;
+	}
+	if (Number(gameRows[0].SETTLED) === 1) {
+		const err = new Error('This game is already settled.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	const [recordRows] = await db.execute(
+		`SELECT CAGE_TYPE, NN_CHIPS, CC_CHIPS, AMOUNT, ENCODED_DT, ROLLER_TRANSACTION, ROLLER_CC_CHIPS
+		 FROM game_record WHERE GAME_ID = ? AND ACTIVE != 0 ORDER BY IDNo ASC`,
+		[gameId]
+	);
+	const [serviceRows] = await db.execute(
+		`SELECT COALESCE(SUM(AMOUNT), 0) AS services_total
+		 FROM game_services WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID = 3`,
+		[gameId]
+	);
+
+	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
+	const servicesTotal = parseFloat(serviceRows[0]?.services_total) || 0;
+	const commissionType = parseInt(gameRows[0].COMMISSION_TYPE, 10);
+	const commissionRate = parseFloat(gameRows[0].COMMISSION_PERCENTAGE) || 0;
+	const projected = projectInGameSettlementMetrics({
+		rolling,
+		winLoss,
+		commissionType,
+		commissionRate,
+		servicesTotal
+	}, body);
+
+	if ((commissionType === 1 || commissionType === 3) && servicesTotal > projected.commissionGross + 0.001) {
+		const err = new Error('Services cannot exceed the computed settlement/commission amount.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	return {
+		commissionGross: projected.commissionGross,
+		servicesTotal,
+		payment: projected.payment,
+		settlementTransType: 1,
+		projectedRolling: projected.projectedRolling,
+		projectedWinLoss: projected.projectedWinLoss
+	};
+}
+
+async function autoSettleEndedGame(db, {
+	gameId,
+	accountId,
+	encodedBy,
+	dateNow,
+	payment,
+	fnb,
+	transType
+}) {
+	const paymentValue = parseFloat(payment) || 0;
+	const fnbValue = parseFloat(fnb) || 0;
+	const ledgerTransType = parseInt(transType, 10) || 1;
+
+	if (paymentValue !== 0) {
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, 5, 'COMMISSION', ?, ?, ?)`,
+			[accountId, gameId, ledgerTransType, paymentValue, encodedBy, dateNow]
+		);
+	}
+
+	await db.execute(
+		`UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+		[fnbValue, paymentValue, encodedBy, dateNow, gameId]
+	);
+}
+
 async function buildGameReceipts(gameId) {
 	if (!gameId || Number.isNaN(gameId)) return null;
 
@@ -4260,21 +4487,26 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				);
 				const initialMop = gameMetaRows.length ? gameMetaRows[0].INITIAL_MOP : null;
 				const parentTransType = await resolveParentTransType(connection, id, initialMop);
-				const remainingLegs = buildInGameSettlementLegs(req.body, parentTransType);
+				const settlementFigures = await computeInGameSettlementFigures(connection, id, req.body);
+				const cashoutLegs = buildInGameParentCashoutLegs(req.body, parentTransType);
+				const buyInLegs = buildInGameNewGameBuyInLegs(req.body, parentTransType, settlementFigures.payment);
 
-				await performInGameSettlement(connection, {
-					gameId: id,
+				const settleResult = await performInGameSettlement(connection, {
+					parentGameId: id,
 					encodedBy: editedBy,
 					dateNow: date_now,
 					programDate,
-					remainingLegs,
+					cashoutLegs,
+					buyInLegs,
+					settlementFigures,
 					lastRollingCC,
 					tips
 				});
 				await connection.commit();
 				return res.json({
 					success: true,
-					message: 'In-game settlement recorded.'
+					message: 'In-game settlement recorded.',
+					new_game_id: settleResult.newGameId
 				});
 			} catch (settleErr) {
 				try {

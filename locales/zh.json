@@ -1252,6 +1252,7 @@
 		"on_game_option": "游戏中",
 		"end_game_option": "游戏结束",
 		"cutoff_option": "CUT OFF",
+		"ingame_settlement_option": "In-Game Settlement",
 		"cutoff_date_label": "节目日期",
 		"cutoff_buyin_label": "买入",
 		"cutoff_last_rolling_label": "最后滚动",
