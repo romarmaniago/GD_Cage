@@ -24,6 +24,7 @@
 						<!-- <option value="3">FINISH</option> -->
 						<option value="1"><%= __('modal_change_status.end_game_option') %></option>
 						<option value="4"><%= __('modal_change_status.cutoff_option') %></option>
+						<option value="5"><%= __('modal_change_status.ingame_settlement_option') %></option>
 					</select>
 				</div>
 			</div>
@@ -165,135 +166,94 @@
 			<div id="ingame-settlement-section" style="display: none;" class="mt-3 pt-3 border-top">
 				<div class="ingame-settlement-title mb-2"><strong><%= __('modal_change_status.ingame_settlement_title') %></strong></div>
 				<input type="hidden" name="txtInGameUseSplit" id="txtInGameUseSplit" value="0" />
+				<input type="hidden" name="txtInGameBuyInNN" id="txtInGameBuyInNN" value="" />
+				<input type="hidden" name="txtInGameBuyInCC" id="txtInGameBuyInCC" value="" />
 
-				<table class="cutoff-excel-grid cutoff-excel-meta mb-2">
-					<tbody>
-						<tr>
-							<td class="cutoff-excel-label"><%= __('modal_change_status.cutoff_date_label') %></td>
-							<td class="cutoff-excel-input" colspan="2">
-								<input type="text" class="cutoff-excel-field" name="txtInGameProgramDate" id="txtInGameProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
-							</td>
-						</tr>
-					</tbody>
-				</table>
+				<div class="ingame-input-sheet">
+					<div class="ingame-field-grid">
+						<label class="form-label mb-0" for="txtInGameProgramDate"><%= __('modal_change_status.cutoff_date_label') %></label>
+						<input type="text" class="form-control text-center ingame-settlement-input ingame-field-span-2" name="txtInGameProgramDate" id="txtInGameProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+					</div>
 
-				<table class="cutoff-excel-grid cutoff-excel-chips">
-					<thead>
-						<tr>
-							<th class="cutoff-excel-label cutoff-excel-head-spacer"></th>
-							<th class="cutoff-excel-head cutoff-excel-head-nn"><span class="cutoff-chip-indicator cutoff-chip-indicator-nn" aria-hidden="true"></span><%= __('modal_new_game_list.nn_placeholder') %></th>
-							<th class="cutoff-excel-head cutoff-excel-head-cc"><span class="cutoff-chip-indicator cutoff-chip-indicator-cc" aria-hidden="true"></span><%= __('modal_new_game_list.cc_placeholder') %></th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr id="ingame-remaining-row">
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameRemainingNN"><%= __('modal_change_status.cutoff_remaining_chips') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input" name="txtInGameRemainingNN" id="txtInGameRemainingNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtInGameRemainingCC" id="txtInGameRemainingCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-					</tbody>
-					<tbody id="ingame-split-rows" style="display: none;">
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameCashNN"><%= __('modal_change_status.cutoff_cash') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input ingame-split-input" name="txtInGameCashNN" id="txtInGameCashNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-split-input" name="txtInGameCashCC" id="txtInGameCashCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameDepNN"><%= __('modal_change_status.cutoff_deposit') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input ingame-split-input" name="txtInGameDepNN" id="txtInGameDepNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-split-input" name="txtInGameDepCC" id="txtInGameDepCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameCreditNN"><%= __('modal_change_status.cutoff_credit') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input ingame-split-input" name="txtInGameCreditNN" id="txtInGameCreditNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-split-input" name="txtInGameCreditCC" id="txtInGameCreditCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-					</tbody>
-					<tbody>
-						<tr class="cutoff-excel-split-row">
-							<td class="cutoff-excel-label cutoff-excel-split-cell">
-								<div class="form-check mb-0">
-									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="chkInGameSplit" />
-									<label class="form-check-label" for="chkInGameSplit"><%= __('modal_change_status.cutoff_split') %></label>
-								</div>
-							</td>
-							<td class="cutoff-excel-input"></td>
-							<td class="cutoff-excel-input"></td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input" name="txtInGameTipRollerNn" id="txtInGameTipRollerNn"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtInGameTipRollerCc" id="txtInGameTipRollerCc"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center ingame-nn-input" name="txtInGameTipDealerNn" id="txtInGameTipDealerNn"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtInGameTipDealerCc" id="txtInGameTipDealerCc"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtInGameLastRolling"><%= __('modal_change_status.cutoff_last_rolling_label') %></label></td>
-							<td class="cutoff-excel-input cutoff-excel-last-input" colspan="2">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtInGameLastRolling" id="txtInGameLastRolling"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr class="cutoff-excel-last-row ingame-expected-settlement-row">
-							<td class="cutoff-excel-label"><%= __('modal_change_status.ingame_expected_settlement') %></td>
-							<td class="cutoff-excel-input cutoff-excel-last-input" colspan="2">
-								<div id="txtInGameExpectedSettlement" class="cutoff-excel-field text-center ingame-expected-settlement">—</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
+					<div class="ingame-section ingame-section-chips" id="ingame-remaining-row">
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtInGameRemainingNN"><%= __('modal_change_status.cutoff_remaining_chips') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input" name="txtInGameRemainingNN" id="txtInGameRemainingNN"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameRemainingCC" id="txtInGameRemainingCC"
+								placeholder="CC Chips" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-section" id="ingame-split-rows" style="display: none;">
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtInGameCashNN"><%= __('modal_change_status.cutoff_cash') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input ingame-split-input" name="txtInGameCashNN" id="txtInGameCashNN"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-split-input" name="txtInGameCashCC" id="txtInGameCashCC"
+								placeholder="CC Chips" autocomplete="off" />
+						</div>
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtInGameDepNN"><%= __('modal_change_status.cutoff_deposit') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input ingame-split-input" name="txtInGameDepNN" id="txtInGameDepNN"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-split-input" name="txtInGameDepCC" id="txtInGameDepCC"
+								placeholder="CC Chips" autocomplete="off" />
+						</div>
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtInGameCreditNN"><%= __('modal_change_status.cutoff_credit') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input ingame-split-input" name="txtInGameCreditNN" id="txtInGameCreditNN"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-split-input" name="txtInGameCreditCC" id="txtInGameCreditCC"
+								placeholder="CC Chips" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-split-toggle">
+						<div class="form-check mb-0">
+							<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="chkInGameSplit" />
+							<label class="form-check-label" for="chkInGameSplit"><%= __('modal_change_status.cutoff_split') %></label>
+						</div>
+					</div>
+
+					<div class="ingame-section ingame-section-tips">
+						<div class="ingame-tips-grid">
+							<label class="form-label mb-0" for="txtInGameTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input" name="txtInGameTipRollerNn" id="txtInGameTipRollerNn"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameTipRollerCc" id="txtInGameTipRollerCc"
+								placeholder="CC Chips" autocomplete="off" />
+							<label class="form-label mb-0" for="txtInGameTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input ingame-nn-input" name="txtInGameTipDealerNn" id="txtInGameTipDealerNn"
+								placeholder="NN Chips" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameTipDealerCc" id="txtInGameTipDealerCc"
+								placeholder="CC Chips" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-section ingame-section-meta">
+						<div class="ingame-meta-grid">
+							<label class="form-label mb-0" for="txtInGameLastRolling"><%= __('modal_change_status.cutoff_last_rolling_label') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameLastRolling" id="txtInGameLastRolling"
+								placeholder="CC Chips" autocomplete="off" />
+							<label class="form-label mb-0"><%= __('modal_change_status.ingame_expected_settlement') %></label>
+							<div id="txtInGameExpectedSettlement" class="form-control text-center ingame-settlement-input ingame-expected-settlement">—</div>
+						</div>
+					</div>
+				</div>
 			</div>
 			
 			<!-- Roller Chips Return Section (END GAME only) -->
@@ -612,18 +572,101 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	color: #343a40;
 }
 
-#modal-change_status .ingame-expected-settlement-row td {
-	background: #cfe2ff;
+#modal-change_status .ingame-input-sheet {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+#modal-change_status .ingame-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+#modal-change_status .ingame-section-chips,
+#modal-change_status .ingame-section-tips {
+	margin-top: 0.25rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #dee2e6;
+}
+
+#modal-change_status .ingame-section-meta {
+	margin-top: 0.25rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid #dee2e6;
+}
+
+#modal-change_status #ingame-settlement-section {
+	--ingame-label-width: 8.75rem;
+}
+
+#modal-change_status .ingame-field-grid {
+	display: grid;
+	grid-template-columns: var(--ingame-label-width, 8.75rem) minmax(7.25rem, 1.35fr) minmax(7.25rem, 1.35fr);
+	column-gap: 0.5rem;
+	align-items: center;
+}
+
+#modal-change_status .ingame-field-grid .form-control {
+	width: 100%;
+	min-width: 0;
+}
+
+#modal-change_status .ingame-field-grid label {
+	white-space: nowrap;
+	font-weight: 500;
+	font-size: 0.8125rem;
+	padding-right: 0.15rem;
+}
+
+#modal-change_status .ingame-field-span-2 {
+	grid-column: 2 / -1;
+}
+
+#modal-change_status .ingame-tips-grid,
+#modal-change_status .ingame-meta-grid {
+	display: grid;
+	grid-template-columns: var(--ingame-label-width, 8.75rem) minmax(7.25rem, 1.35fr) minmax(7.25rem, 1.35fr);
+	column-gap: 0.5rem;
+	row-gap: 0.5rem;
+	align-items: center;
+}
+
+#modal-change_status .ingame-tips-grid label,
+#modal-change_status .ingame-meta-grid label {
+	white-space: nowrap;
+	font-weight: 500;
+	font-size: 0.8125rem;
+	padding-right: 0.15rem;
+	grid-column: 1;
+}
+
+#modal-change_status .ingame-tips-grid .form-control {
+	width: 100%;
+	min-width: 0;
+}
+
+#modal-change_status .ingame-meta-grid #txtInGameLastRolling,
+#modal-change_status .ingame-meta-grid #txtInGameExpectedSettlement {
+	grid-column: 2 / -1;
+	width: 100%;
+}
+
+#modal-change_status .ingame-split-toggle {
+	padding: 0.1rem 0 0.15rem;
+}
+
+#modal-change_status .ingame-split-toggle .form-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	min-height: 1.5rem;
 }
 
 #modal-change_status .ingame-expected-settlement {
-	font-weight: 700;
-	color: #084298;
-	min-height: 2rem;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: transparent;
+	background-color: #e9ecef;
+	pointer-events: none;
 }
 
 #modal-change_status.show,
@@ -655,7 +698,7 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 }
 
 #modal-change_status.change-status-ingame-wide .change-status-main-content {
-	width: 28rem;
+	width: 32rem;
 }
 
 #modal-change_status .change-status-side-panels {

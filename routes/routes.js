@@ -6045,7 +6045,12 @@ pageRouter.post('/delete-test-data', async (req, res) => {
 		'junket_return_money',
 		'junket_total_chips',
 		'money_exchange_transaction',
-		'manual_balancing'
+		'manual_balancing',
+		'tip',
+		'tip_settlement',
+		'multipurpose_ledger_exchange',
+		'additional_commission'
+
 	];
 
 	let dbConnection;
