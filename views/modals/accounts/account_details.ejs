@@ -396,8 +396,14 @@
                     </div>
                     <div class="col-12 col-md-7">
                         <label class="form-label small text-muted mb-1">New image (drag & drop or click)</label>
-                        <div id="change-photo-dropzone" class="change-photo-dropzone rounded border border-2 border-dashed text-center p-4">
+                        <div id="change-photo-dropzone" class="change-photo-dropzone rounded border border-2 border-dashed text-center p-4 position-relative">
                             <input type="file" id="change-photo-file-input" accept="image/*" class="d-none">
+                            <div id="change-photo-loading" class="change-photo-loading d-none" aria-live="polite" aria-busy="true">
+                                <div class="spinner-border text-primary mb-2" role="status" style="width: 2.5rem; height: 2.5rem;">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="small text-muted mb-0 fw-medium">Scanning passport and cropping face…</p>
+                            </div>
                             <div id="change-photo-placeholder">
                                 <i class="fa fa-cloud-upload fa-2x text-secondary mb-2"></i>
                                 <p class="small text-muted mb-0">Drag image here or click to browse</p>
@@ -422,7 +428,8 @@ body.guest-portal-child-open #modal-account-details.guest-portal-parent-hidden {
 }
 body.guest-portal-child-open #modal-game-history.show,
 body.guest-portal-child-open #modal-credit-details.show,
-body.guest-portal-child-open #modal-passport-details.show {
+body.guest-portal-child-open #modal-passport-details.show,
+body.guest-portal-child-open #modal-change-photo.show {
     z-index: 1065 !important;
 }
 body.guest-portal-child-open #modal-credit-return.show {
@@ -647,6 +654,24 @@ body.guest-portal-child-open .modal-backdrop.show {
     min-height: 160px;
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s;
+}
+.change-photo-dropzone.is-scanning {
+    cursor: wait;
+    pointer-events: none;
+    background-color: rgba(var(--bs-primary-rgb), 0.04);
+    border-color: var(--bs-primary) !important;
+}
+.change-photo-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: inherit;
 }
 .change-photo-dropzone.drag-over {
     background-color: rgba(var(--bs-primary-rgb), 0.08);
@@ -936,10 +961,129 @@ body.guest-portal-child-open .modal-backdrop.show {
     const dropzone = document.getElementById('change-photo-dropzone');
     const fileInput = document.getElementById('change-photo-file-input');
     const placeholder = document.getElementById('change-photo-placeholder');
+    const changePhotoLoading = document.getElementById('change-photo-loading');
     const newPreview = document.getElementById('change-photo-new-preview');
     const saveBtn = document.getElementById('change-photo-save-btn');
 
-    var changePhotoFile = null;
+    var changePhotoFaceFile = null;
+    var changePhotoPassportFile = null;
+    var changePhotoExtract = null;
+    var changePhotoScanning = false;
+
+    function resetChangePhotoPending() {
+        changePhotoFaceFile = null;
+        changePhotoPassportFile = null;
+        changePhotoExtract = null;
+        changePhotoScanning = false;
+    }
+
+    function setChangePhotoScanningUI(isScanning) {
+        changePhotoScanning = !!isScanning;
+        if (dropzone) dropzone.classList.toggle('is-scanning', !!isScanning);
+        if (changePhotoLoading) changePhotoLoading.classList.toggle('d-none', !isScanning);
+        if (placeholder && isScanning) placeholder.classList.add('d-none');
+        if (isScanning && newPreview) {
+            newPreview.classList.add('d-none');
+            newPreview.src = '';
+        }
+    }
+
+    function showChangePhotoPreview(previewSrc, faceFile) {
+        setChangePhotoScanningUI(false);
+        changePhotoFaceFile = faceFile;
+        newPreview.src = previewSrc;
+        newPreview.classList.remove('d-none');
+        placeholder.classList.add('d-none');
+        if (saveBtn) saveBtn.disabled = !changePhotoFaceFile;
+    }
+
+    function appendPassportFieldsToFormData(formData, extract) {
+        if (!extract || !changePhotoPassportFile) return;
+        formData.append('passportImage', changePhotoPassportFile);
+        formData.append('txtDocumentType', extract.document_type || '');
+        formData.append('txtCountryCode', extract.country_code || '');
+        formData.append('txtPassportNo', extract.passport_number || '');
+        formData.append('txtFullName', extract.full_name || '');
+        formData.append('txtNationality', extract.nationality || '');
+        formData.append('txtDateOfBirth', extract.date_of_birth || '');
+        formData.append('txtExpiryDate', extract.expiry_date || '');
+        formData.append('txtGender', extract.gender || '');
+        formData.append('txtMrzLine', extract.mrz_line || '');
+    }
+
+    function runChangePhotoScan(file) {
+        resetChangePhotoPending();
+        if (saveBtn) saveBtn.disabled = true;
+        setChangePhotoScanningUI(true);
+
+        function finishWithFaceOnly(dataUrl) {
+            if (typeof window.cropFaceFromDataUrl !== 'function') {
+                changePhotoFaceFile = file;
+                showChangePhotoPreview(dataUrl, file);
+                return Promise.resolve();
+            }
+            return window.cropFaceFromDataUrl(dataUrl).then(function (face) {
+                showChangePhotoPreview(face.previewDataUrl || dataUrl, face.file);
+            }).catch(function () {
+                changePhotoFaceFile = file;
+                showChangePhotoPreview(dataUrl, file);
+            });
+        }
+
+        var scanPromise;
+        if (typeof window.extractPassportFromFile === 'function') {
+            scanPromise = window.extractPassportFromFile(file).then(function (r) {
+                var extract = r.extract;
+                if (!extract || extract.is_passport === false) {
+                    return finishWithFaceOnly(r.dataUrl || '');
+                }
+                changePhotoExtract = extract;
+                changePhotoPassportFile = file;
+                if (typeof window.cropFaceFromDataUrl !== 'function') {
+                    throw new Error('Face crop is not available. Please refresh the page.');
+                }
+                return window.cropFaceFromDataUrl(r.dataUrl).then(function (face) {
+                    showChangePhotoPreview(face.previewDataUrl || r.dataUrl, face.file);
+                });
+            }).catch(function (err) {
+                return new Promise(function (resolve, reject) {
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var dataUrl = e.target && e.target.result ? String(e.target.result) : '';
+                        finishWithFaceOnly(dataUrl).then(resolve).catch(reject);
+                    };
+                    reader.onerror = function () { reject(err); };
+                    reader.readAsDataURL(file);
+                });
+            });
+        } else {
+            scanPromise = new Promise(function (resolve, reject) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var dataUrl = e.target && e.target.result ? String(e.target.result) : '';
+                    finishWithFaceOnly(dataUrl).then(resolve).catch(reject);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        return scanPromise
+            .catch(function (err) {
+                resetChangePhotoPending();
+                setChangePhotoScanningUI(false);
+                if (placeholder) placeholder.classList.remove('d-none');
+                var msg = (err && err.message) ? err.message : 'Failed to process image.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Image processing failed', text: msg });
+                } else {
+                    alert(msg);
+                }
+            })
+            .finally(function () {
+                if (changePhotoScanning) setChangePhotoScanningUI(false);
+            });
+    }
 
     // Zoom preview on hover
     accountPhoto.addEventListener('mouseover', function () {
@@ -1064,6 +1208,9 @@ body.guest-portal-child-open .modal-backdrop.show {
     var btnOpenChangePhoto = document.getElementById('btn-open-change-photo');
     if (btnOpenChangePhoto && modalChangePhoto) {
         btnOpenChangePhoto.addEventListener('click', function () {
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($(modalChangePhoto));
+            }
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
             if (Modal) {
                 Modal.getOrCreateInstance(modalChangePhoto).show();
@@ -1078,9 +1225,10 @@ body.guest-portal-child-open .modal-backdrop.show {
         modalChangePhoto.addEventListener('show.bs.modal', function () {
             prevImg.src = accountPhoto.src || '';
             prevImg.alt = 'Current';
-            changePhotoFile = null;
+            resetChangePhotoPending();
             if (fileInput) fileInput.value = '';
-            placeholder.classList.remove('d-none');
+            setChangePhotoScanningUI(false);
+            if (placeholder) placeholder.classList.remove('d-none');
             newPreview.classList.add('d-none');
             newPreview.src = '';
             if (saveBtn) saveBtn.disabled = true;
@@ -1089,15 +1237,7 @@ body.guest-portal-child-open .modal-backdrop.show {
 
     function setNewFile(file) {
         if (!file || !file.type.startsWith('image/')) return;
-        changePhotoFile = file;
-        var reader = new FileReader();
-        reader.onload = function (e) {
-            newPreview.src = e.target.result;
-            newPreview.classList.remove('d-none');
-            placeholder.classList.add('d-none');
-            if (saveBtn) saveBtn.disabled = false;
-        };
-        reader.readAsDataURL(file);
+        runChangePhotoScan(file);
     }
 
     // Click dropzone = open file picker
@@ -1131,7 +1271,13 @@ body.guest-portal-child-open .modal-backdrop.show {
     // Save button
     if (saveBtn) {
         saveBtn.addEventListener('click', function () {
-            if (!changePhotoFile) return;
+            if (changePhotoScanning) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'info', title: 'Please wait', text: 'Still processing the image.' });
+                }
+                return;
+            }
+            if (!changePhotoFaceFile) return;
             var accountIdEl = document.getElementById('account_id_add');
             var accountId = accountIdEl && accountIdEl.value && accountIdEl.value.trim();
             if (!accountId) {
@@ -1141,16 +1287,26 @@ body.guest-portal-child-open .modal-backdrop.show {
             }
             saveBtn.disabled = true;
             var formData = new FormData();
-            formData.append('photo', changePhotoFile);
+            formData.append('photo', changePhotoFaceFile);
+            appendPassportFieldsToFormData(formData, changePhotoExtract);
             fetch('/account/' + accountId + '/update_photo', { method: 'POST', body: formData })
                 .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
                 .then(function (result) {
                     if (result.ok && result.data.success) {
-                        accountPhoto.src = newPreview.src;
-                        zoomedImage.src = newPreview.src;
+                        var savedPhoto = result.data.photo
+                            ? '/PassportUpload/' + result.data.photo
+                            : newPreview.src;
+                        accountPhoto.src = savedPhoto;
+                        zoomedImage.src = savedPhoto;
+                        prevImg.src = savedPhoto;
                         var modal = bootstrap.Modal.getInstance(modalChangePhoto);
                         if (modal) modal.hide();
-                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Photo saved', timer: 1500, showConfirmButton: false });
+                        var successText = result.data.passportUpdated
+                            ? 'Profile photo and passport details were updated.'
+                            : 'Profile photo saved.';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({ icon: 'success', title: 'Photo saved', text: successText, timer: 2200, showConfirmButton: false });
+                        }
                     } else {
                         var msg = (result.data && result.data.error) ? result.data.error : 'Failed to save photo';
                         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });

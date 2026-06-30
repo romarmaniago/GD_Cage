@@ -88,6 +88,7 @@ window.__pendingPassportImageDataUrl = null;
 window.__pendingPassportFile = null;
 window.__pendingFaceFile = null;
 window.__pendingFacePreviewDataUrl = null;
+window.__passportScanInProgress = false;
 window.__suppressLedgerReopen = false;
 window.__returnToLedgerOnClose = false;
 window.__returnToLedgerOnEditClose = false;
@@ -295,10 +296,54 @@ function renderNewGuestPassportPreview(extract, facePreviewDataUrl) {
 	wrap.classList.remove('d-none');
 }
 
+function setGuestSubmitButtonsDisabled(disabled) {
+	$('#submit-new-agent-btn, #submit-edit-agent-btn').prop('disabled', !!disabled);
+}
+
+/** Ensure profile photo is cropped face, not the full passport scan. */
+function prepareGuestPhotoFormData(formData) {
+	if (window.__passportScanInProgress) {
+		return { ok: false, message: 'Passport scan is still in progress. Please wait.' };
+	}
+
+	var hasPassportScan = !!(window.__pendingPassportExtract || window.__pendingPassportFile);
+	if (hasPassportScan) {
+		if (!window.__pendingFaceFile) {
+			return {
+				ok: false,
+				message: 'Face photo is not ready. Wait for passport processing to finish or re-upload the passport.'
+			};
+		}
+		formData.delete('photo');
+		formData.append('photo', window.__pendingFaceFile);
+		if (window.__pendingPassportFile) {
+			formData.append('passportImage', window.__pendingPassportFile);
+		}
+		return { ok: true };
+	}
+
+	if (window.__pendingFaceFile) {
+		formData.delete('photo');
+		formData.append('photo', window.__pendingFaceFile);
+	}
+
+	return { ok: true };
+}
+
+function showGuestFormError(message) {
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({ icon: 'warning', title: 'Cannot save', text: message });
+	} else {
+		alert(message);
+	}
+}
+
 async function runPassportScanForNewGuest(file, options) {
 	options = options || {};
 	var showBusy = options.showBusy !== false;
 
+	window.__passportScanInProgress = true;
+	setGuestSubmitButtonsDisabled(true);
 	try {
 		if (showBusy && typeof Swal !== 'undefined') {
 			Swal.fire({
@@ -326,6 +371,8 @@ async function runPassportScanForNewGuest(file, options) {
 
 		renderNewGuestPassportPreview(extract, window.__pendingFacePreviewDataUrl);
 	} finally {
+		window.__passportScanInProgress = false;
+		setGuestSubmitButtonsDisabled(false);
 		if (showBusy && typeof Swal !== 'undefined') Swal.close();
 	}
 }
@@ -417,6 +464,7 @@ async function cropFaceFromDataUrl(dataUrl) {
 		previewDataUrl: previewDataUrl
 	};
 }
+window.cropFaceFromDataUrl = cropFaceFromDataUrl;
 
 var __faceModelsLoaded = false;
 
@@ -610,6 +658,7 @@ async function extractPassportFromFile(file) {
 	}
 	return { extract: json && json.data ? json.data : null, dataUrl: dataUrl };
 }
+window.extractPassportFromFile = extractPassportFromFile;
 
 // Function to fetch Telegram username from chat ID
 function fetchTelegramUsername(chatId, userType) {
@@ -832,15 +881,10 @@ $(document).ready(function () {
 		var $btn = $('#submit-new-agent-btn'); // Reference to the button
 		var savedAgencyLine = Number(formData.get('txtAgencyLine') || $('#txtAgencyLine').val() || 0);
 
-		// Replace "photo" with cropped face (guest picture), and send full passport as passportImage.
-		if (window.__pendingFaceFile) {
-			formData.delete('photo');
-			formData.append('photo', window.__pendingFaceFile);
-		}
-
-		// If we extracted from the chosen image, send it also as passportImage for agent_passport insert.
-		if (window.__pendingPassportFile) {
-			formData.append('passportImage', window.__pendingPassportFile);
+		var photoPrep = prepareGuestPhotoFormData(formData);
+		if (!photoPrep.ok) {
+			showGuestFormError(photoPrep.message);
+			return;
 		}
 	
 		// Show spinner loading
@@ -906,6 +950,12 @@ $(document).ready(function () {
 	
 		var $btn = $('#submit-edit-agent-btn'); // button reference
 		var formData = new FormData(this);
+
+		var photoPrep = prepareGuestPhotoFormData(formData);
+		if (!photoPrep.ok) {
+			showGuestFormError(photoPrep.message);
+			return;
+		}
 	
 		// Show spinner while processing
 		$btn.prop('disabled', true).html(`
@@ -1030,6 +1080,9 @@ $(document).ready(function () {
 			return;
 		}
 
+		window.__passportScanInProgress = true;
+		setGuestSubmitButtonsDisabled(true);
+
 		if (typeof Swal !== 'undefined') {
 			Swal.fire({
 				title: 'Scanning passport…',
@@ -1066,6 +1119,10 @@ $(document).ready(function () {
 				} else {
 					alert((err && err.message) ? err.message : 'Failed to scan passport.');
 				}
+			})
+			.finally(function () {
+				window.__passportScanInProgress = false;
+				setGuestSubmitButtonsDisabled(false);
 			});
 	});
 

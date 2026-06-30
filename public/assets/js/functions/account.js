@@ -1003,7 +1003,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	});
 });
 
-var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details';
+var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo';
 
 $(guestPortalChildModalSelectors).on('shown.bs.modal', function () {
 	if ($('body').hasClass('guest-portal-child-open')) {
