@@ -2,17 +2,12 @@
 	data-keyboard="false" data-bs-backdrop="static">
 	<div class="modal-dialog modal-dialog-centered" role="document">
 		<div class="modal-content">
-
-
 			<div class="modal-header bg-primary">
-
 				<h5 class="block-title text-white"><%= __('modal_edit_user_account.edit_account') %></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
-
-
-			<div class="modal-body">
-				<form id="edit_user">
+			<form id="edit_user">
+				<div class="modal-body">
 					<div class="row mb-2">
 						<div class="col-sm-12">
 							<input type="text" class="form-control" name="txtFirstName" placeholder="<%= __('modal_edit_user_account.first_name_placeholder') %>" id="firstname">
@@ -28,18 +23,17 @@
 							<input type="text" class="form-control" name="txtUserName" placeholder="<%= __('modal_edit_user_account.username_placeholder') %>" id="username">
 						</div>
 					</div>
-					
-					<div class ="mb-3">
-                        <select class="form-select edit_user_role" name="user_role" style="width: 100%;"
-                            data-placeholder="Choose one..">
-                            <option></option>
-                        </select>
-                    </div>    
-			</div>
-					<div class="modal-footer">
-						<button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal"><%= __('modal_edit_user_account.save') %></button>
-						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_edit_user_account.close') %></button>
+					<div class="mb-3">
+						<select class="form-select edit_user_role" name="user_role" style="width: 100%;"
+							data-placeholder="Choose one..">
+							<option></option>
+						</select>
 					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-primary"><%= __('modal_edit_user_account.save') %></button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_edit_user_account.close') %></button>
+				</div>
 			</form>
 		</div>
 	</div>

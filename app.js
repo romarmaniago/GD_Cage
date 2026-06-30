@@ -142,6 +142,9 @@ app.use(session({
 app.use(flash());
 app.use((req, res, next) => {
   res.locals.messages = req.flash();
+  if (req.session && req.session.permissions != null) {
+    res.locals.permissions = req.session.permissions;
+  }
   next();
 });
 

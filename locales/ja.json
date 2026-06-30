@@ -1184,6 +1184,14 @@
 		"save": "保存",
 		"close": "閉じる"
 	},
+	"modal_change_user_password": {
+		"change_password": "パスワード変更",
+		"user": "ユーザー",
+		"password_placeholder": "新しいパスワード",
+		"confirm_password_placeholder": "確認パスワード",
+		"save": "保存",
+		"close": "閉じる"
+	},
 	"modal_new_user_role": {
 		"new_role": "新規ロール",
 		"role_name_placeholder": "ロール名",

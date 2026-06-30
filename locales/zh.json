@@ -1184,6 +1184,14 @@
 		"save": "保存",
 		"close": "关闭"
 	},
+	"modal_change_user_password": {
+		"change_password": "更改密码",
+		"user": "用户",
+		"password_placeholder": "新密码",
+		"confirm_password_placeholder": "确认密码",
+		"save": "保存",
+		"close": "关闭"
+	},
 	"modal_new_user_role": {
 		"new_role": "新角色",
 		"role_name_placeholder": "角色名称",

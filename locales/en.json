@@ -1147,6 +1147,14 @@
 		"save": "Save",
 		"close": "Close"
 	},
+	"modal_change_user_password": {
+		"change_password": "Change Password",
+		"user": "User",
+		"password_placeholder": "New Password",
+		"confirm_password_placeholder": "Confirm Password",
+		"save": "Save",
+		"close": "Close"
+	},
 	"modal_new_user_role": {
 		"new_role": "New Role",
 		"role_name_placeholder": "Role Name",

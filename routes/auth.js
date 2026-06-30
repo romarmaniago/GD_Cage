@@ -443,9 +443,10 @@ router.put('/user_role/remove/:id', async (req, res) => {
 router.get('/users', async (req, res) => {
 	try {
 		const query = `
-			SELECT *, user_role.ROLE AS role, user_info.IDNo AS user_id 
-			FROM user_info 
-			JOIN user_role ON user_role.IDno = user_info.PERMISSIONS 
+			SELECT user_info.*, user_info.IDNo AS user_id,
+				COALESCE(user_role.ROLE, IF(user_info.PERMISSIONS = 0, 'SuperAdmin', NULL)) AS role
+			FROM user_info
+			LEFT JOIN user_role ON user_role.IDNo = user_info.PERMISSIONS
 			WHERE user_info.ACTIVE = 1
 		`;
 		const [results] = await pool.execute(query);
@@ -510,6 +511,42 @@ router.post('/add_user', async (req, res) => {
 	}
 });
 
+// CHANGE USER PASSWORD
+router.put('/user/password/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const { txtPassword, txtPassword2 } = req.body;
+
+		if (!id) {
+			return res.status(400).json({ error: 'invalid_user' });
+		}
+		if (!txtPassword || !txtPassword2) {
+			return res.status(400).json({ error: 'required' });
+		}
+		if (txtPassword !== txtPassword2) {
+			return res.status(400).json({ error: 'password' });
+		}
+
+		const newHash = await argon2.hash(txtPassword);
+		const date_now = new Date();
+		const editedBy = req.session && req.session.user_id != null ? req.session.user_id : null;
+
+		const [result] = await pool.execute(
+			`UPDATE user_info SET PASSWORD = ?, SALT = NULL, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[newHash, editedBy, date_now, id]
+		);
+
+		if (!result || result.affectedRows === 0) {
+			return res.status(404).json({ error: 'user_not_found' });
+		}
+
+		res.json({ success: true, message: 'Password changed successfully' });
+	} catch (err) {
+		console.error('Error changing user password:', err);
+		res.status(500).json({ error: 'server_error' });
+	}
+});
+
 // UPDATE USER
 router.put('/user/:id', async (req, res) => {
 	try {
@@ -551,6 +588,17 @@ router.put('/user/remove/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
+
+		const [rows] = await pool.execute(
+			'SELECT PERMISSIONS FROM user_info WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!rows || rows.length === 0) {
+			return res.status(404).json({ error: 'user_not_found' });
+		}
+		if (Number(rows[0].PERMISSIONS) === 0) {
+			return res.status(403).json({ error: 'cannot_delete_superadmin' });
+		}
 
 		const query = `
 			UPDATE user_info 

@@ -1184,6 +1184,14 @@
 		"save": "저장",
 		"close": "닫기"
 	},
+	"modal_change_user_password": {
+		"change_password": "비밀번호 변경",
+		"user": "사용자",
+		"password_placeholder": "새 비밀번호",
+		"confirm_password_placeholder": "비밀번호 확인",
+		"save": "저장",
+		"close": "닫기"
+	},
 	"modal_new_user_role": {
 		"new_role": "새 역할",
 		"role_name_placeholder": "역할 이름",

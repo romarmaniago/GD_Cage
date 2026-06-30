@@ -333,6 +333,7 @@ aside.sidebar .sidebar-list {
           
              
               
+              <% if (typeof permissions !== 'undefined' && Number(permissions) === 0) { %>
               <li><hr class="hr-horizontal"></li>
               <li class="nav-item static-item">
                   <a class="nav-link static-item disabled" href="#" tabindex="-1">
@@ -427,7 +428,6 @@ aside.sidebar .sidebar-list {
                               <span class="item-name">Delete Data</span>
                           </a>
                       </li>
-                      <% if (typeof permissions !== 'undefined' && permissions === 0) { %>
                       <li class="nav-item">
                           <a class="nav-link <%= currentPage === 'net_profit' ? 'active bg-gradient-primary text-white' : '' %>" href="/net_profit">
                               <i class="icon">
@@ -458,9 +458,9 @@ aside.sidebar .sidebar-list {
                               <span class="item-name"><%= __('sidebar.reset_history') %></span>
                           </a>
                       </li>
-                      <% } %>
                   </ul>
               </li>
+              <% } %>
            
           <!-- Sidebar Menu End -->        </div>
   </div>

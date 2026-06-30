@@ -1598,7 +1598,13 @@ pageRouter.put('/user_role/remove/:id', (req, res) => {
 
 //Get Users
 pageRouter.get('/users', (req, res) => {
-	connection.query('SELECT *, user_role.ROLE AS role, user_info.IDNo AS user_id FROM user_info JOIN user_role ON user_role.IDno = user_info.PERMISSIONS WHERE user_info.ACTIVE = 1', (error, results, fields) => {
+	connection.query(`
+		SELECT user_info.*, user_info.IDNo AS user_id,
+			COALESCE(user_role.ROLE, IF(user_info.PERMISSIONS = 0, 'SuperAdmin', NULL)) AS role
+		FROM user_info
+		LEFT JOIN user_role ON user_role.IDNo = user_info.PERMISSIONS
+		WHERE user_info.ACTIVE = 1
+	`, (error, results, fields) => {
 		if (error) {
 			console.error('Error fetching data:', error);
 			res.status(500).send('Error fetching data');
