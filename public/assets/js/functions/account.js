@@ -1190,11 +1190,9 @@ $(document).off('input', '#credit-return-amount').on('input', '#credit-return-am
 
 
 function archive_account(id) {
-    Swal.fire({
+    SwalConfirm.fire({
         title: 'Are you sure?',
-        text: 'This will delete the account.',
-        icon: 'warning',
-        showCancelButton: true,
+        message: 'This will delete the account.',
         confirmButtonText: 'Yes, Delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
@@ -2078,12 +2076,8 @@ function get_account() {
 
 
 function archive_account_details(id) {
-	Swal.fire({
+	SwalConfirm.fire({
 		title: 'Are you sure you want to delete this?',
-		icon: 'warning',
-		showCancelButton: true,
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
 		confirmButtonText: 'Yes'
 	}).then((result) => {
 		if (result.isConfirmed) {

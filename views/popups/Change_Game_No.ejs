@@ -221,13 +221,10 @@
                                     return;
                                 }
 
-                                Swal.fire({
+                                SwalConfirm.fire({
                                     title: "Are you sure?",
-                                    text: `You are about to set the game number to ${newGameNo}. This action cannot be undone.`,
-                                    icon: "warning",
-                                    showCancelButton: true,
+                                    message: `You are about to set the game number to ${newGameNo}. This action cannot be undone.`,
                                     confirmButtonColor: "#28a745",
-                                    cancelButtonColor: "#d33",
                                     confirmButtonText: "Yes, update it!"
                                 }).then((result) => {
                                     if (result.isConfirmed) {

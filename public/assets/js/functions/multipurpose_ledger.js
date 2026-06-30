@@ -548,13 +548,10 @@ function fetchJflData() {
 }
 
 function removeJfl(id) {
-	Swal.fire({
+	SwalConfirm.fire({
 		title: 'Delete this record?',
-		text: 'This cannot be undone.',
-		icon: 'warning',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, delete',
-		cancelButtonText: 'Cancel'
+		message: 'This cannot be undone.',
+		confirmButtonText: 'Yes, delete'
 	}).then(function (result) {
 		if (!result.isConfirmed) return;
 		$.ajax({

@@ -160,12 +160,8 @@ function edit_credit(id, amount, remarks, status ) {
 }
 
 function archive_credit(id){
-  Swal.fire({
+  SwalConfirm.fire({
     title: 'Are you sure you want to delete this?',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
     confirmButtonText: 'Yes'
 }).then((result) => {
     if (result.isConfirmed) {

@@ -248,13 +248,10 @@
 
                         $('#dashboardhistory-tbl').on('click', '.undo-month-settle-btn', async function () {
                             const monthSettleId = $(this).data('id');
-                            const confirmRes = await Swal.fire({
-                                icon: 'warning',
+                            const confirmRes = await SwalConfirm.fire({
                                 title: 'Undo monthly settle?',
-                                text: 'This will delete the selected settle.',
-                                showCancelButton: true,
-                                confirmButtonText: 'Yes, undo',
-                                cancelButtonText: 'Cancel'
+                                message: 'This will delete the selected settle.',
+                                confirmButtonText: 'Yes, undo'
                             });
                             if (!confirmRes.isConfirmed) return;
 

@@ -692,16 +692,13 @@ $(document).ready(function() {
     const value = $('input[name="optBuyinReturn"]:checked').val() || '1';
     const chosen = labelMap[value] || labelMap['1'];
 
-    Swal.fire({
-      icon: 'question',
+    SwalConfirm.fire({
       title: 'Confirm transaction',
-      html: `
-        <p>Type: ${chosen.text}</p>
-        <p>Amount: ₱ ${totalAmount}</p>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Yes, save',
-      cancelButtonText: 'Cancel'
+      rows: [
+        ['Type', chosen.text],
+        ['Amount', '₱ ' + totalAmount, 'right']
+      ],
+      confirmButtonText: 'Yes, save'
     }).then((result) => {
       if (!result.isConfirmed) {
         return;

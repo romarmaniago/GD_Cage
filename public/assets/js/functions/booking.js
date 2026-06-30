@@ -365,12 +365,8 @@ function editBooking(id, confirmNum, checkIn, checkOut, guestName, hotelFee, add
 
 //ARCHIVE BOOKING
 function archiveBooking(id) {
-  Swal.fire({
+  SwalConfirm.fire({
       title: window.bookingTranslations?.archive_confirmation || 'Are you sure you want to archive this booking?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
       confirmButtonText: window.bookingTranslations?.yes_archive || 'Yes, archive it!'
   }).then((result) => {
       if (result.isConfirmed) {
@@ -402,11 +398,9 @@ function archiveBooking(id) {
 
 //CHECK IN CONFIRMATION
 function checkIn(bookingId) {
-  Swal.fire({
+  SwalConfirm.fire({
       title: window.bookingTranslations?.check_in_confirmation || 'Are you sure?',
-      text: window.bookingTranslations?.check_in_question || 'Do you want to check in this booking?',
-      icon: 'warning',
-      showCancelButton: true,
+      message: window.bookingTranslations?.check_in_question || 'Do you want to check in this booking?',
       confirmButtonText: window.bookingTranslations?.yes_check_in || 'Yes, check in!',
       cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
   }).then((result) => {
@@ -434,11 +428,9 @@ function checkIn(bookingId) {
 }
 //CHECK OUT CONFIRMATION
 function checkOut(bookingId) {
-  Swal.fire({
+  SwalConfirm.fire({
       title: window.bookingTranslations?.check_in_confirmation || 'Are you sure?',
-      text: window.bookingTranslations?.check_out_question || 'Do you want to check out this booking?',
-      icon: 'warning',
-      showCancelButton: true,
+      message: window.bookingTranslations?.check_out_question || 'Do you want to check out this booking?',
       confirmButtonText: window.bookingTranslations?.yes_check_out || 'Yes, check out!',
       cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
   }).then((result) => {
@@ -473,11 +465,9 @@ function togglePaymentStatus(bookingId, currentStatus) {
     const unpaidText = window.bookingTranslations?.unpaid || 'Unpaid';
     const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
     const newStatusText = newStatus === 'Paid' ? paidText : unpaidText;
-    Swal.fire({
+    SwalConfirm.fire({
       title: window.bookingTranslations?.update_payment_status || 'Update Payment Status',
-      text: (window.bookingTranslations?.mark_booking_as || 'Do you want to mark this booking as ${newStatus}?').replace('${newStatus}', newStatusText),
-      icon: 'warning',
-      showCancelButton: true,
+      message: (window.bookingTranslations?.mark_booking_as || 'Do you want to mark this booking as ${newStatus}?').replace('${newStatus}', newStatusText),
       confirmButtonText: (window.bookingTranslations?.yes_mark_as || `Yes, mark as ${newStatus}`).replace('${newStatus}', newStatusText),
       cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
     }).then((result) => {

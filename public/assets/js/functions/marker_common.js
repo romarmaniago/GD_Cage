@@ -352,11 +352,9 @@
             var confirmTitle = (window.markerTranslations && window.markerTranslations.delete) || 'Delete';
 
             if (window.Swal) {
-                window.Swal.fire({
-                    icon: 'warning',
+                window.SwalConfirm.fire({
                     title: confirmTitle,
-                    text: confirmMsg,
-                    showCancelButton: true,
+                    message: confirmMsg,
                     confirmButtonColor: '#d33',
                     cancelButtonColor: '#6c757d',
                     confirmButtonText: (window.markerTranslations && window.markerTranslations.yes_delete) || 'Yes, delete'
@@ -1027,20 +1025,16 @@
                                 return;
                             }
                             if (window.Swal) {
-                                Swal.fire({
-                                    icon: 'question',
+                                SwalConfirm.fire({
                                     title: 'Confirm Marker Return',
-                                    html: '<div style="text-align:center;margin-bottom:20px">' +
-                                        '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
-                                        '<p style="margin-top:15px">Are you sure you want to proceed with this marker return?</p></div>',
-                                    showCancelButton: true,
-                                    confirmButtonColor: '#3085d6',
-                                    cancelButtonColor: '#d33',
-                                    confirmButtonText: 'Yes, Save',
-                                    cancelButtonText: 'Cancel'
+                                    rows: [
+                                        ['Account', accountMarker || 'N/A'],
+                                        ['Amount', markerReturnFormatted || '0', 'right'],
+                                        ['Transaction', transTypeLabel || 'N/A'],
+                                        ['Deduct From', returnSourceLabel || 'N/A']
+                                    ],
+                                    message: 'Are you sure you want to proceed with this marker return?',
+                                    confirmButtonText: 'Yes, Save'
                                 }).then(function (result) {
                                     if (result.isConfirmed) showConfirmAndSubmit();
                                 });
@@ -1054,20 +1048,16 @@
                     });
                 } else {
                     if (window.Swal) {
-                        Swal.fire({
-                            icon: 'question',
+                        SwalConfirm.fire({
                             title: 'Confirm Credit Return',
-                            html: '<div style="text-align:center;margin-bottom:20px">' +
-                                '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
-                                '<p style="margin-top:15px">Are you sure you want to proceed with this credit return?</p></div>',
-                            showCancelButton: true,
-                            confirmButtonColor: '#3085d6',
-                            cancelButtonColor: '#d33',
-                            confirmButtonText: 'Yes, Save',
-                            cancelButtonText: 'Cancel'
+                            rows: [
+                                ['Account', accountMarker || 'N/A'],
+                                ['Amount', markerReturnFormatted || '0', 'right'],
+                                ['Transaction', transTypeLabel || 'N/A'],
+                                ['Deduct From', returnSourceLabel || 'N/A']
+                            ],
+                            message: 'Are you sure you want to proceed with this credit return?',
+                            confirmButtonText: 'Yes, Save'
                         }).then(function (result) {
                             if (result.isConfirmed) showConfirmAndSubmit();
                         });

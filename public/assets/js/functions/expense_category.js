@@ -148,12 +148,8 @@ function editCreditStatus(id, category, typeValue, parentId) {
 }
 
 function archive_category(id){
-    Swal.fire({
+    SwalConfirm.fire({
       title: 'Are you sure you want to delete this?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
       confirmButtonText: 'Yes'
   }).then((result) => {
       if (result.isConfirmed) {

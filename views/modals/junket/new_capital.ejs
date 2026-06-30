@@ -281,13 +281,14 @@ border-top: 2px solid #dee2e6;
 			const typeLabel = isCashOutSelected ? 'Cash-out' : 'Cash-in';
 			const amountStr = formatNumberWithCommas(txtAmount);
 
-			Swal.fire({
-				icon: 'question',
+			SwalConfirm.fire({
 				title: 'Confirm transaction',
-				html: '<p>Type: <strong>' + typeLabel + '</strong></p><p>Amount: <strong>' + amountStr + '</strong></p><p class="mb-0 small text-muted">Save this house balance record?</p>',
-				showCancelButton: true,
-				confirmButtonText: 'Yes',
-				cancelButtonText: 'Cancel'
+				rows: [
+					['Type', typeLabel],
+					['Amount', amountStr, 'right']
+				],
+				message: 'Save this house balance record?',
+				confirmButtonText: 'Yes'
 			}).then(function(result) {
 				if (!result.isConfirmed) {
 					return;

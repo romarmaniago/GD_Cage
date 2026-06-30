@@ -2644,14 +2644,11 @@ function returnMoney() {
 function approveHouseExpense(id) {
     var t = window.houseExpenseTranslations || {};
     if (typeof Swal === 'undefined') return;
-    Swal.fire({
+    SwalConfirm.fire({
         title: t.approve || 'Approve',
-        text: t.approve_confirm || 'Approve this expense?',
-        icon: 'question',
-        showCancelButton: true,
+        message: t.approve_confirm || 'Approve this expense?',
         confirmButtonText: t.yes || 'Yes',
-        confirmButtonColor: '#198754',
-        cancelButtonText: 'Cancel'
+        confirmButtonColor: '#198754'
     }).then(function (result) {
         if (!result.isConfirmed) return;
         $.ajax({
@@ -2673,14 +2670,11 @@ function approveHouseExpense(id) {
 function rejectHouseExpense(id) {
     var t = window.houseExpenseTranslations || {};
     if (typeof Swal === 'undefined') return;
-    Swal.fire({
+    SwalConfirm.fire({
         title: t.reject || 'Reject',
-        text: t.reject_confirm || 'Reject this expense?',
-        icon: 'warning',
-        showCancelButton: true,
+        message: t.reject_confirm || 'Reject this expense?',
         confirmButtonText: t.yes || 'Yes',
-        confirmButtonColor: '#dc3545',
-        cancelButtonText: 'Cancel'
+        confirmButtonColor: '#dc3545'
     }).then(function (result) {
         if (!result.isConfirmed) return;
         $.ajax({
@@ -2736,12 +2730,8 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
 
 
 function archive_expense(id) {
-    Swal.fire({
+    SwalConfirm.fire({
         title: window.houseExpenseTranslations?.delete_confirmation || 'Are you sure you want to delete this?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
         confirmButtonText: window.houseExpenseTranslations?.yes || 'Yes'
     }).then((result) => {
         if (result.isConfirmed) {
@@ -2788,12 +2778,8 @@ function edit_return_money(id, description, amount) {
 }
 
 function archive_return_money(id) {
-    Swal.fire({
+    SwalConfirm.fire({
         title: window.houseExpenseTranslations?.delete_confirmation || 'Are you sure you want to delete this?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
         confirmButtonText: window.houseExpenseTranslations?.yes || 'Yes'
     }).then((result) => {
         if (result.isConfirmed) {

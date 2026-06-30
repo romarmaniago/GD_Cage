@@ -5101,48 +5101,28 @@ $('#add_game_list').submit(function (event) {
         var commissionTypeText = $('#commissionType option:selected').text() || '';
         var commissionRate = $('#commissionRate').val() || '0';
 
-        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-        var buildRow = function (label, value) {
-            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-        };
-        var rows = '';
-        rows += buildRow('Program date:', programDateVal || '-');
-        rows += buildRow('Game Type:', gameType || '-');
-        rows += buildRow('Account:', accountText || '-');
+        var confirmRows = [
+            ['Program date', programDateVal || '-'],
+            ['Game Type', gameType || '-'],
+            ['Account', accountText || '-']
+        ];
         if (guestIdSelected) {
-            rows += buildRow('Guest:', guestText || '-');
+            confirmRows.push(['Guest', guestText || '-']);
         }
-        if (splitCashNN > 0) rows += buildRow('Cash (NN):', splitCashNN.toLocaleString('en-US'));
-        if (splitCashCC > 0) rows += buildRow('Cash (CC):', splitCashCC.toLocaleString('en-US'));
-        if (splitDepNN > 0) rows += buildRow('Deposit (NN):', splitDepNN.toLocaleString('en-US'));
-        if (splitDepCC > 0) rows += buildRow('Deposit (CC):', splitDepCC.toLocaleString('en-US'));
-        if (splitCreditNN > 0) rows += buildRow('Credit (NN):', splitCreditNN.toLocaleString('en-US'));
-        if (splitCreditCC > 0) rows += buildRow('Credit (CC):', splitCreditCC.toLocaleString('en-US'));
-        rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
-        rows += buildRow('Commission Type:', commissionTypeText || '-');
-        if (parseFloat(commissionRate) > 0) rows += buildRow('Commission Rate:', `${commissionRate}%`);
+        if (splitCashNN > 0) confirmRows.push(['Cash (NN)', splitCashNN.toLocaleString('en-US')]);
+        if (splitCashCC > 0) confirmRows.push(['Cash (CC)', splitCashCC.toLocaleString('en-US')]);
+        if (splitDepNN > 0) confirmRows.push(['Deposit (NN)', splitDepNN.toLocaleString('en-US')]);
+        if (splitDepCC > 0) confirmRows.push(['Deposit (CC)', splitDepCC.toLocaleString('en-US')]);
+        if (splitCreditNN > 0) confirmRows.push(['Credit (NN)', splitCreditNN.toLocaleString('en-US')]);
+        if (splitCreditCC > 0) confirmRows.push(['Credit (CC)', splitCreditCC.toLocaleString('en-US')]);
+        confirmRows.push(['Total Amount', splitTotal.toLocaleString('en-US')]);
+        confirmRows.push(['Commission Type', commissionTypeText || '-']);
+        if (parseFloat(commissionRate) > 0) confirmRows.push(['Commission Rate', parseFloat(commissionRate).toFixed(2) + '%']);
 
-        var splitConfirmation = `
-            <div style="max-width:420px;margin:0 auto;text-align:center;">
-                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-                    ${rows}
-                </table>
-            </div>
-        `;
-
-        Swal.fire({
-            icon: 'question',
+        SwalConfirm.fire({
             title: 'Confirm New Game',
-            html: splitConfirmation + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Confirm',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            width: '500px'
+            rows: confirmRows,
+            message: 'Are you sure you want to proceed?'
         }).then(function (result) {
             if (!result.isConfirmed) {
                 $btn.prop('disabled', false).text('Submit');
@@ -5253,31 +5233,20 @@ $('#add_buyin').submit(function (event) {
 		return;
 	}
 
-	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-	var buildRow = function (label, value) {
-		return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-	};
-	var rows = '';
-	if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString('en-US'));
-	if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString('en-US'));
-	if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString('en-US'));
-	if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString('en-US'));
-	if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString('en-US'));
-	if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString('en-US'));
-	rows += buildRow('Total Amount:', splitTotal.toLocaleString('en-US'));
+	var buyinRows = [];
+	if (cashNN > 0) buyinRows.push(['Cash (NN)', cashNN.toLocaleString('en-US')]);
+	if (cashCC > 0) buyinRows.push(['Cash (CC)', cashCC.toLocaleString('en-US')]);
+	if (depNN > 0) buyinRows.push(['Deposit (NN)', depNN.toLocaleString('en-US')]);
+	if (depCC > 0) buyinRows.push(['Deposit (CC)', depCC.toLocaleString('en-US')]);
+	if (creditNN > 0) buyinRows.push(['Credit (NN)', creditNN.toLocaleString('en-US')]);
+	if (creditCC > 0) buyinRows.push(['Credit (CC)', creditCC.toLocaleString('en-US')]);
+	buyinRows.push(['Total Amount', splitTotal.toLocaleString('en-US')]);
 
-	Swal.fire({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: 'Confirm Transaction',
-		html: `<div style="max-width:420px;margin:0 auto;text-align:left;"><div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div><table style="margin:0 auto;border-collapse:collapse;min-width:260px;">${rows}</table></div><div style="margin-top:12px;">Are you sure you want to proceed?</div>`,
-		showCancelButton: true,
-		confirmButtonText: 'Yes, Confirm',
-		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
-		allowOutsideClick: false,
-		allowEscapeKey: false
+		subtitle: 'Confirm Buy In Transaction:',
+		rows: buyinRows,
+		message: 'Are you sure you want to proceed?'
 	}).then(function (result) {
 		if (!result.isConfirmed) {
 			$btn.prop('disabled', false).text('Save');
@@ -5909,37 +5878,20 @@ $('#add_buyin').submit(function (event) {
 			var requiredReturnTotal = Math.max(0, totalAddAll - (totalReturnNN + totalReturnCC));
 
 			if (totalReturnAll > requiredReturnTotal) {
-				var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;';
-				var valueStyle = 'padding:4px 0 4px 0;text-align:left;font-weight:400;';
-				var buildValidationRow = function (label, value) {
-					return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-				};
-
-				var validationRows = '';
-				var totalAddValue = `NN: ${parseFloat(totalAddNN).toLocaleString('en-US')}<br>CC: ${parseFloat(totalAddCC).toLocaleString('en-US')}`;
-				var totalReturnValue = `NN: ${parseFloat(totalReturnNN).toLocaleString('en-US')}<br>CC: ${parseFloat(totalReturnCC).toLocaleString('en-US')}`;
-				validationRows += buildValidationRow('Total ADD:', totalAddValue);
-				validationRows += buildValidationRow('Total RETURN:', totalReturnValue);
-				validationRows += buildValidationRow('<span style="color:red;">Total Required RETURN (NN+CC):</span>', `<span style="color:red;font-weight:bold;">${parseFloat(requiredReturnTotal).toLocaleString('en-US')}</span>`);
-
-				var validationMessage = `
-					<div style="max-width:420px;margin:0 auto;text-align:left;">
-						<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-							${validationRows}
-						</table>
-						<div style="margin-top:12px;font-weight:600;text-align:center;">
-							Total RETURN (${parseFloat(totalReturnAll).toLocaleString('en-US')}) cannot exceed required return total (${parseFloat(requiredReturnTotal).toLocaleString('en-US')})!
-						</div>
-					</div>
-				`;
+				var validationMessage = SwalConfirm.buildTableHtml([
+					['Total ADD', 'NN: ' + parseFloat(totalAddNN).toLocaleString('en-US') + '<br>CC: ' + parseFloat(totalAddCC).toLocaleString('en-US')],
+					['Total RETURN', 'NN: ' + parseFloat(totalReturnNN).toLocaleString('en-US') + '<br>CC: ' + parseFloat(totalReturnCC).toLocaleString('en-US')],
+					['<span style="color:red;">Total Required RETURN (NN+CC)</span>', '<span style="color:red;font-weight:bold;">' + parseFloat(requiredReturnTotal).toLocaleString('en-US') + '</span>']
+				]) + '<div style="margin-top:12px;font-weight:600;text-align:center;">' +
+					'Total RETURN (' + parseFloat(totalReturnAll).toLocaleString('en-US') + ') cannot exceed required return total (' + parseFloat(requiredReturnTotal).toLocaleString('en-US') + ')!' +
+					'</div>';
 
 				Swal.fire({
 					icon: 'error',
 					title: 'Validation Error',
 					html: validationMessage,
 					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
+					showCancelButton: false
 				}).then(() => $('#modal-add-roller-chips').modal('show'));
 
 				$btn.prop('disabled', false).text('Save');
@@ -5950,43 +5902,17 @@ $('#add_buyin').submit(function (event) {
 		// Show confirmation dialog before proceeding
 		var transTypeText = (transType == 1) ? 'ADD' : 'RETURN';
 
-		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-		var buildRow = function (label, value) {
-			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-		};
+		var rollerConfirmRows = [['Transaction Type', transTypeText || '-']];
+		if (nnAmount > 0) rollerConfirmRows.push(['NN Chips', parseFloat(nnAmount).toLocaleString('en-US')]);
+		if (ccAmount > 0) rollerConfirmRows.push(['CC Chips', parseFloat(ccAmount).toLocaleString('en-US')]);
 
-		var confirmationRows = '';
-		confirmationRows += buildRow('Transaction Type:', transTypeText || '-');
-		if (nnAmount > 0) {
-			confirmationRows += buildRow('NN Chips:', parseFloat(nnAmount).toLocaleString('en-US'));
-		}
-		if (ccAmount > 0) {
-			confirmationRows += buildRow('CC Chips:', parseFloat(ccAmount).toLocaleString('en-US'));
-		}
-
-		var confirmationMessage = `
-			<div style="max-width:420px;margin:0 auto;text-align:left;">
-				<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Roller Chips Transaction:</div>
-				<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-					${confirmationRows}
-				</table>
-			</div>
-		`;
-		
 		var $form = $(this); // Store form reference
 		
-		Swal.fire({
-			icon: 'question',
+		SwalConfirm.fire({
 			title: 'Confirm Transaction',
-			html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-			showCancelButton: true,
-			confirmButtonText: 'Yes, Confirm',
-			cancelButtonText: 'Cancel',
-			confirmButtonColor: '#3085d6',
-			cancelButtonColor: '#d33',
-			allowOutsideClick: false,
-			allowEscapeKey: false
+			subtitle: 'Confirm Roller Chips Transaction:',
+			rows: rollerConfirmRows,
+			message: 'Are you sure you want to proceed?'
 		}).then((result) => {
 			if (result.isConfirmed) {
 				// User confirmed, proceed with transaction
@@ -6451,55 +6377,48 @@ $('#edit_status').submit(function (event) {
 		: (status == '2') ? (translations.on_game || 'ON GAME')
 		: (status == '3') ? 'PENDING' : status;
 
-	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-	var buildRow = function (label, value) {
-		return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+	var statusConfirmRows = [];
+	var pushChipPair = function (label, nnValue, ccValue) {
+		var parts = [];
+		if (nnValue > 0) parts.push('NN: ' + nnValue.toLocaleString('en-US'));
+		if (ccValue > 0) parts.push('CC: ' + ccValue.toLocaleString('en-US'));
+		if (parts.length) statusConfirmRows.push([label, parts.join(', ')]);
 	};
 
-	var confirmationRows = '';
 	if (isInGameSettlement) {
-		confirmationRows += buildRow('Action:', statusText);
+		statusConfirmRows.push(['Action', statusText]);
 	} else {
-		confirmationRows += buildRow('New Status:', statusText);
+		statusConfirmRows.push(['New Status', statusText]);
 	}
 
 	if (isCutoff) {
 		var cutoffDateDisplay = getChangeStatusCutoffProgramDateValue() || getCutoffDefaultProgramDateYmd();
 		if (cutoffDateDisplay) {
-			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(cutoffDateDisplay));
+			statusConfirmRows.push(['Program Date', formatChangeStatusCutoffDateDisplay(cutoffDateDisplay)]);
 		}
 
 		var confirmCutoffData = collectChangeStatusCutoffChipData();
-		var buildChipPairRow = function (label, nnValue, ccValue) {
-			var parts = [];
-			if (nnValue > 0) parts.push('NN: ' + nnValue.toLocaleString('en-US'));
-			if (ccValue > 0) parts.push('CC: ' + ccValue.toLocaleString('en-US'));
-			if (!parts.length) return;
-			confirmationRows += buildRow(label, parts.join(', '));
-		};
-
 		if (confirmCutoffData.useSplit) {
-			buildChipPairRow('Cash:', confirmCutoffData.cashNn, confirmCutoffData.cashCc);
-			buildChipPairRow('Deposit:', confirmCutoffData.depNn, confirmCutoffData.depCc);
-			buildChipPairRow('Credit:', confirmCutoffData.creditNn, confirmCutoffData.creditCc);
+			pushChipPair('Cash', confirmCutoffData.cashNn, confirmCutoffData.cashCc);
+			pushChipPair('Deposit', confirmCutoffData.depNn, confirmCutoffData.depCc);
+			pushChipPair('Credit', confirmCutoffData.creditNn, confirmCutoffData.creditCc);
 		} else {
-			buildChipPairRow('Remaining Chips:', confirmCutoffData.remainingNn, confirmCutoffData.remainingCc);
+			pushChipPair('Remaining Chips', confirmCutoffData.remainingNn, confirmCutoffData.remainingCc);
 		}
 
-		buildChipPairRow('Tip (Roller):', confirmCutoffData.tipRollerNn, confirmCutoffData.tipRollerCc);
-		buildChipPairRow('Tip (Dealer):', confirmCutoffData.tipDealerNn, confirmCutoffData.tipDealerCc);
+		pushChipPair('Tip (Roller)', confirmCutoffData.tipRollerNn, confirmCutoffData.tipRollerCc);
+		pushChipPair('Tip (Dealer)', confirmCutoffData.tipDealerNn, confirmCutoffData.tipDealerCc);
 
 		var lastRollingDisplay = ($('#txtCutoffLastRolling').val() || '').trim();
 		if (lastRollingDisplay) {
-			confirmationRows += buildRow('Last Rolling:', lastRollingDisplay);
+			statusConfirmRows.push(['Last Rolling', lastRollingDisplay]);
 		}
 		var cutoffRollerTotals = {
 			combinedNet: parseFloat($('#modal-change_status').data('combinedNet')) || 0
 		};
 		var transferRollerNN = computeCutoffTransferRollerNN(cutoffRollerTotals);
 		if (transferRollerNN > 0) {
-			confirmationRows += buildRow('Roller Chips:', transferRollerNN.toLocaleString('en-US'));
+			statusConfirmRows.push(['Roller Chips', transferRollerNN.toLocaleString('en-US')]);
 		}
 	}
 
@@ -6509,42 +6428,31 @@ $('#edit_status').submit(function (event) {
 			ingameDateDisplay = ($('#modal-change_status').data('gameProgramDate') || '').trim();
 		}
 		if (ingameDateDisplay) {
-			confirmationRows += buildRow('Program Date:', formatChangeStatusCutoffDateDisplay(ingameDateDisplay));
+			statusConfirmRows.push(['Program Date', formatChangeStatusCutoffDateDisplay(ingameDateDisplay)]);
 		}
 
 		var confirmInGameData = collectChangeStatusInGameChipData();
-		var buildInGameChipPairRow = function (label, nnValue, ccValue) {
-			var parts = [];
-			if (nnValue > 0) parts.push('NN: ' + nnValue.toLocaleString('en-US'));
-			if (ccValue > 0) parts.push('CC: ' + ccValue.toLocaleString('en-US'));
-			if (!parts.length) return;
-			confirmationRows += buildRow(label, parts.join(', '));
-		};
-
-		buildInGameChipPairRow('Remaining Chips:', confirmInGameData.remainingNn, confirmInGameData.remainingCc);
+		pushChipPair('Remaining Chips', confirmInGameData.remainingNn, confirmInGameData.remainingCc);
 		if (confirmInGameData.useSplit) {
-			buildInGameChipPairRow('Cash (Additional):', confirmInGameData.cashNn, confirmInGameData.cashCc);
-			buildInGameChipPairRow('Deposit (Additional):', confirmInGameData.depNn, confirmInGameData.depCc);
-			buildInGameChipPairRow('Credit (Additional):', confirmInGameData.creditNn, confirmInGameData.creditCc);
+			pushChipPair('Cash (Additional)', confirmInGameData.cashNn, confirmInGameData.cashCc);
+			pushChipPair('Deposit (Additional)', confirmInGameData.depNn, confirmInGameData.depCc);
+			pushChipPair('Credit (Additional)', confirmInGameData.creditNn, confirmInGameData.creditCc);
 		}
 
-		buildInGameChipPairRow('Tip (Roller):', confirmInGameData.tipRollerNn, confirmInGameData.tipRollerCc);
-		buildInGameChipPairRow('Tip (Dealer):', confirmInGameData.tipDealerNn, confirmInGameData.tipDealerCc);
+		pushChipPair('Tip (Roller)', confirmInGameData.tipRollerNn, confirmInGameData.tipRollerCc);
+		pushChipPair('Tip (Dealer)', confirmInGameData.tipDealerNn, confirmInGameData.tipDealerCc);
 
 		var ingameLastRollingDisplay = ($('#txtInGameLastRolling').val() || '').trim();
 		if (ingameLastRollingDisplay) {
-			confirmationRows += buildRow('Last Rolling:', ingameLastRollingDisplay);
+			statusConfirmRows.push(['Last Rolling', ingameLastRollingDisplay]);
 		}
 		var expectedSettlementText = ($('#txtInGameExpectedSettlement').text() || '').trim();
 		if (expectedSettlementText && expectedSettlementText !== '—') {
-			confirmationRows += buildRow('Expected Settlement:', expectedSettlementText);
+			statusConfirmRows.push(['Expected Settlement', expectedSettlementText]);
 		}
 	}
 
-	// Add roller chips return info if END GAME and has required returns
 	if (isEndGameStatus(status)) {
-		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
-		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 
 		if (requiredReturnTotal > 0 && !isPendingFaultSettled()) {
@@ -6555,27 +6463,18 @@ $('#edit_status').submit(function (event) {
 
 			var rollerText = '';
 			if (returnNNAmount > 0) {
-				rollerText += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString('en-US')}`;
+				rollerText += 'NN Chips: ' + parseFloat(returnNNAmount).toLocaleString('en-US');
 			}
 			if (returnCCAmount > 0) {
 				if (rollerText) rollerText += '<br>';
-				rollerText += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString('en-US')}`;
+				rollerText += 'CC Chips: ' + parseFloat(returnCCAmount).toLocaleString('en-US');
 			}
 
 			if (rollerText) {
-				confirmationRows += buildRow('Roller Chips Return:', rollerText);
+				statusConfirmRows.push(['Roller Chips Return', rollerText]);
 			}
 		}
 	}
-
-	var confirmationMessage = `
-		<div style="max-width:420px;margin:0 auto;text-align:left;">
-			
-			<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-				${confirmationRows}
-			</table>
-		</div>
-	`;
 
 	if (isCutoff) {
 		closeChangeStatusCutoffDatePicker();
@@ -6584,18 +6483,10 @@ $('#edit_status').submit(function (event) {
 		closeChangeStatusInGameDatePicker();
 	}
 
-	Swal.fire({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: isInGameSettlement ? 'Confirm In-Game Settlement' : 'Confirm Status Change',
-		html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-		showCancelButton: true,
-		confirmButtonText: 'Yes, Confirm',
-		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
-		allowOutsideClick: false,
-		allowEscapeKey: false,
-		width: '500px'
+		rows: statusConfirmRows,
+		message: 'Are you sure you want to proceed?'
 	}).then((result) => {
 		if (result.isConfirmed) {
 			// User confirmed, proceed with transaction
@@ -10450,56 +10341,34 @@ function settlement_history(record_id, acc_id) {
             return;
         }
         
-        // Build confirmation table-style message
-        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
-        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
-        var buildRow = function (label, value) {
-            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
-        };
-
-        var confirmationRows = '';
-        confirmationRows += buildRow('Buy-In:', parseFloat(buyIn).toLocaleString('en-US'));
-        confirmationRows += buildRow('Chips Return:', parseFloat(chipsReturn).toLocaleString('en-US'));
-        confirmationRows += buildRow('Win/Loss:', parseFloat(winLoss).toLocaleString('en-US'));
-        confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString('en-US'));
-        confirmationRows += buildRow('Rate:', `${parseFloat(rollingRate).toFixed(2)}%`);
-        confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString('en-US'));
+        var settlementRows = [
+            ['Buy-In', parseFloat(buyIn).toLocaleString('en-US')],
+            ['Chips Return', parseFloat(chipsReturn).toLocaleString('en-US')],
+            ['Win/Loss', parseFloat(winLoss).toLocaleString('en-US')],
+            ['Rolling', parseFloat(rolling).toLocaleString('en-US')],
+            ['Rate', parseFloat(rollingRate).toFixed(2) + '%'],
+            ['Settlement', parseFloat(rollingSettlement).toLocaleString('en-US')]
+        ];
         $settlementModal.find('.settlement-service-row').each(function () {
             var label = $(this).find('.settlement-service-label').text().trim();
             var amount = parseFloat(($(this).find('.settlement-service-amount').val() || '').replace(/,/g, '')) || 0;
             if (amount > 0 && label) {
-                confirmationRows += buildRow(label + ':', amount.toLocaleString('en-US'));
+                settlementRows.push([label, amount.toLocaleString('en-US')]);
             }
         });
-        confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString('en-US'));
+        settlementRows.push(['Payment', parseFloat(payment).toLocaleString('en-US')]);
         if (transTypeText) {
-            confirmationRows += buildRow('Transaction Type:', transTypeText);
+            settlementRows.push(['Transaction Type', transTypeText]);
         }
 
-        var confirmationMessage = `
-            <div style="max-width:420px;margin:0 auto;text-align:center;">
-                <div style="font-weight:600;margin-bottom:8px;">Confirm Settlement:</div>
-                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
-                    ${confirmationRows}
-                </table>
-            </div>
-        `;
-        
         var $btn = $('#submit-settlement-btn');
         var defaultSettleLabel = 'Settle';
         
-        Swal.fire({
-            icon: 'question',
+        SwalConfirm.fire({
             title: 'Confirm Settlement',
-            html: confirmationMessage + '<br>Are you sure you want to proceed?',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Confirm',
-            cancelButtonText: 'Cancel',
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            width: '500px'
+            subtitle: 'Confirm Settlement:',
+            rows: settlementRows,
+            message: 'Are you sure you want to proceed?'
         }).then((result) => {
             if (result.isConfirmed) {
                 // User confirmed, proceed with transaction

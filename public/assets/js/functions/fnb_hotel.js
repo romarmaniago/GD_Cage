@@ -501,13 +501,10 @@ $(document).ready(function() {
 	// Delete service button handlers
 	$(document).on('click', '.delete-service-btn', function() {
 		const id = $(this).data('id');
-		Swal.fire({
+		SwalConfirm.fire({
 			title: 'Delete Service Record?',
-			text: 'This action cannot be undone.',
-			icon: 'warning',
-			showCancelButton: true,
+			message: 'This action cannot be undone.',
 			confirmButtonText: 'Yes, delete',
-			cancelButtonText: 'Cancel',
 			confirmButtonColor: '#d33'
 		}).then((result) => {
 			if (result.isConfirmed) {

@@ -1936,17 +1936,14 @@ function promptDeleteAgentsWithTransferOption(ids) {
   const card = onlyOne ? $(`.agency-card[data-id="${singleId}"]`) : null;
   const agencyName = card && card.length ? card.find('.agency-name').text().trim() : '';
 
-  Swal.fire({
+  SwalConfirm.fire({
     title: 'Are you sure you want to delete this agent?',
-    html: onlyOne
+    message: onlyOne
       ? 'You can <strong>transfer guest accounts</strong> to another agent first, or delete this agent now.'
       : 'You are about to delete <strong>' + count + ' agents</strong>. To move accounts first, select <strong>one</strong> agent and use <strong>Transfer accounts…</strong>.',
-    icon: 'warning',
-    showCancelButton: true,
     showDenyButton: onlyOne,
     confirmButtonText: onlyOne ? 'Delete now' : 'Yes, delete all',
     denyButtonText: 'Transfer accounts…',
-    cancelButtonText: 'Cancel',
     confirmButtonColor: '#d33',
     denyButtonColor: '#3085d6'
   }).then(function (result) {

@@ -75,10 +75,8 @@ function fetchJunketLossData() {
 }
 
 function removeJunketLoss(id) {
-    Swal.fire({
+    SwalConfirm.fire({
         title: 'Archive this record?',
-        icon: 'warning',
-        showCancelButton: true,
         confirmButtonText: 'Yes',
         cancelButtonText: 'No'
     }).then(function (result) {

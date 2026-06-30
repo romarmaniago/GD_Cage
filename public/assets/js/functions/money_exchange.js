@@ -805,11 +805,9 @@
 
 	$(document).on('click', '.btn-currency-deactivate', function () {
 		const id = $(this).data('id');
-		Swal.fire({
+		SwalConfirm.fire({
 			title: 'Deactivate?',
-			text: 'This currency will be hidden from deposit/return dropdowns.',
-			icon: 'warning',
-			showCancelButton: true,
+			message: 'This currency will be hidden from deposit/return dropdowns.',
 			confirmButtonText: 'Yes',
 		}).then((r) => {
 			if (!r.isConfirmed) return;
@@ -892,11 +890,9 @@
 		const id = $(this).data('id');
 		const kind = $(this).data('kind');
 		if (!id) return;
-		Swal.fire({
+		SwalConfirm.fire({
 			title: 'Delete transaction?',
-			text: 'This removes the row from history.',
-			icon: 'warning',
-			showCancelButton: true,
+			message: 'This removes the row from history.',
 			confirmButtonText: 'Yes, delete',
 		}).then(function (r) {
 			if (!r.isConfirmed) return;

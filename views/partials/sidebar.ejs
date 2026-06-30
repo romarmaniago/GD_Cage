@@ -505,18 +505,15 @@ aside.sidebar .sidebar-list {
         sidebarDeleteTestData.addEventListener('click', async function(e) {
           e.preventDefault();
 
-          const confirmDelete = await Swal.fire({
+          const confirmDelete = await SwalConfirm.fire({
             title: 'Delete Test Data',
-            html: `
+            message: `
               <p>This is for testing only.</p>
               <p class="text-muted small">Current data will be reset to 0.</p>
             `,
-            icon: 'warning',
-            showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, delete data',
-            cancelButtonText: 'Cancel'
+            confirmButtonText: 'Yes, delete data'
           });
 
           if (!confirmDelete.isConfirmed) return;

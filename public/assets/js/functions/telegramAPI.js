@@ -450,11 +450,9 @@ $(document).ready(function () {
         if (isNaN(i) || i < 0 || i >= data.chatIds.length) return;
         
         const tr = translations();
-        Swal.fire({
+        SwalConfirm.fire({
             title: tr.delete_chat_id || 'Delete Chat ID?',
-            text: tr.delete_chat_id_confirm || 'This chat will no longer receive notifications.',
-            icon: 'warning',
-            showCancelButton: true,
+            message: tr.delete_chat_id_confirm || 'This chat will no longer receive notifications.',
             confirmButtonText: tr.delete || 'Delete',
             cancelButtonText: tr.cancel || 'Cancel'
         }).then(function (result) {
@@ -665,11 +663,9 @@ $(document).ready(function () {
         if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
         
         var t = window.telegramAPITranslations || {};
-        Swal.fire({
+        SwalConfirm.fire({
             title: t.delete_agent_chat_id || 'Delete Agent Chat ID?',
-            text: t.delete_agent_chat_id_confirm || 'This chat will no longer receive notifications for agents INF501-INF599.',
-            icon: 'warning',
-            showCancelButton: true,
+            message: t.delete_agent_chat_id_confirm || 'This chat will no longer receive notifications for agents INF501-INF599.',
             confirmButtonText: t.delete || 'Delete',
             cancelButtonText: t.cancel || 'Cancel'
         }).then(function (result) {

@@ -1061,13 +1061,10 @@
   }
 
   async function removeTable(id, name) {
-    const confirm = await Swal.fire({
-      icon: 'warning',
+    const confirm = await SwalConfirm.fire({
       title: 'Delete table?',
-      text: `Remove "${name}" from active list?`,
-      showCancelButton: true,
+      message: `Remove "${name}" from active list?`,
       confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
       confirmButtonColor: '#d33'
     });
     if (!confirm.isConfirmed) return;
