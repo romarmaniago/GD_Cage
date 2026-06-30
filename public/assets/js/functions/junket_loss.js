@@ -156,8 +156,16 @@ $(document).ready(function () {
 
     junketLossTable = $('#junket-loss-tbl').DataTable({
         pageLength: 25,
-        order: [[4, 'desc']],
+        order: [[0, 'desc']],
         columns: [
+            {
+                data: 'ENCODED_DT',
+                render: function (data, type) {
+                    if (!data) return '';
+                    if (type === 'sort') return data;
+                    return moment(data).format('YYYY-MM-DD HH:mm');
+                }
+            },
             { data: 'DESCRIPTION', defaultContent: '' },
             {
                 data: 'AMOUNT',
@@ -170,14 +178,6 @@ $(document).ready(function () {
             },
             { data: 'IN_CHARGE', defaultContent: '' },
             { data: 'ENCODED_BY_NAME', defaultContent: '' },
-            {
-                data: 'ENCODED_DT',
-                render: function (data, type) {
-                    if (!data) return '';
-                    if (type === 'sort') return data;
-                    return moment(data).format('YYYY-MM-DD HH:mm');
-                }
-            },
             {
                 data: null,
                 orderable: false,

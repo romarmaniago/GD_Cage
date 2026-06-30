@@ -573,18 +573,18 @@ function removeJfl(id) {
 
 $(document).ready(function () {
 	const t = window.jflTranslations || {};
-	const actionColIndex = 9;
+	const actionColIndex = 8;
 
 	jflTable = $('#jfl-tbl').DataTable({
 		pageLength: 25,
-		order: [[8, 'desc']],
+		order: [[0, 'desc']],
 		columns: [
 			{
 				data: 'ENCODED_DT',
 				render: function (data, type) {
 					if (!data) return '';
 					if (type === 'sort') return data;
-					return moment(data).format('DD/MM/YYYY');
+					return moment(data).format('YYYY-MM-DD HH:mm');
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },
@@ -611,14 +611,6 @@ $(document).ready(function () {
 						source: 'junket_funds_ledger',
 						recordId: row.IDNo
 					});
-				}
-			},
-			{
-				data: 'ENCODED_DT',
-				render: function (data, type) {
-					if (!data) return '';
-					if (type === 'sort') return data;
-					return moment(data).format('YYYY-MM-DD HH:mm');
 				}
 			},
 			{

@@ -62,7 +62,7 @@ $(document).ready(function() {
 	$.fn.dataTable.ext.search.push(function (settings, data) {
 		if (!settings || !settings.nTable || settings.nTable.id !== 'fnb-hotel-table') return true;
 		if (!fnbHotelDateStart || !fnbHotelDateEnd) return true;
-		const rawDate = data && data[8] && data[8].display !== undefined ? data[8].display : data[8];
+		const rawDate = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
 		const rowDate = parseFnbHotelDate(cellText(rawDate));
 		if (!rowDate) return true;
 		const start = new Date(fnbHotelDateStart.getFullYear(), fnbHotelDateStart.getMonth(), fnbHotelDateStart.getDate(), 0, 0, 0, 0);
@@ -85,7 +85,7 @@ $(document).ready(function() {
 			ordering: true,
 			info: true,
 			paging: true,
-			order: [[8, 'desc']], // Sort by Date column (descending)
+			order: [[0, 'desc']], // Sort by Date column (descending)
 			columnDefs: [
 				{
 					createdCell: function (cell) {
@@ -93,7 +93,7 @@ $(document).ready(function() {
 					}
 				},
 				{
-					targets: [8], // Date column: sort by data-order / @data-order (timestamp)
+					targets: [0], // Date column: sort by data-order / @data-order (timestamp)
 					render: function (data) {
 						if (typeof data === 'object' && data && data.display !== undefined) return data.display;
 						return data;
@@ -131,7 +131,7 @@ $(document).ready(function() {
 
 		currentFilter = filter;
 
-		const serviceTypeColumnIndex = 3; // 0-based index for \"Service Type\"
+		const serviceTypeColumnIndex = 4; // 0-based index for "Service Type"
 
 		if (filter === 'all') {
 			// Clear column filter
@@ -247,6 +247,7 @@ $(document).ready(function() {
 					}
 
 					dataTable.row.add([
+						dateCellData,
 						sourceHtml,
 						agentHtml,
 						gameIdHtml,
@@ -255,7 +256,6 @@ $(document).ready(function() {
 						paymentHtml,
 						remarksHtml,
 						encodedByHtml,
-						dateCellData,
 						actionHtml
 					]);
 				});
@@ -283,7 +283,7 @@ $(document).ready(function() {
 	function getFnbHotelTablePayload(includeEncodedBy) {
 		const dt = $('#fnb-hotel-table').DataTable();
 		const actionColIndex = 9;
-		const encodedByColIndex = 7;
+		const encodedByColIndex = 8;
 		const headers = [];
 		$('#fnb-hotel-table thead tr:first th').each(function (i) {
 			if (i === actionColIndex) return;
@@ -315,7 +315,7 @@ $(document).ready(function() {
 			'table{width:100%;border-collapse:collapse;font-size:10px;}',
 			'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
 			'th{background:#d9e1f2;font-weight:700;}',
-			'th:nth-child(5),td:nth-child(5){text-align:right;padding-right:14px;}'
+			'th:nth-child(6),td:nth-child(6){text-align:right;padding-right:14px;}'
 		].join('');
 	}
 
