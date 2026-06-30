@@ -1459,6 +1459,23 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 		return row.account_details_id || row.IDNo || '';
 	}
 
+function accountDetailsDateRender(data, type) {
+	if (window.DateTimeFormat && typeof window.DateTimeFormat.dataTableDateTimeRender === 'function') {
+		return window.DateTimeFormat.dataTableDateTimeRender(data, type, { utcOffset: 8 });
+	}
+	if (type === 'sort' || type === 'type') {
+		var sortM = moment.utc(data);
+		if (!sortM.isValid()) sortM = moment(data);
+		return sortM.isValid() ? sortM.valueOf() : 0;
+	}
+	var m = moment.utc(data);
+	if (!m.isValid()) {
+		m = moment(data, ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm', 'MMMM DD, YYYY HH:mm:ss', moment.ISO_8601], true);
+	}
+	if (!m.isValid()) m = moment(data);
+	return m.isValid() ? m.utcOffset(8).format('YYYY-MM-DD HH:mm') : 'Invalid Date';
+}
+
 function getOrInitAccountDetailsAltDataTable() {
 	var $tbl = $('#accountDetailsAlt');
 	if ($.fn.DataTable.isDataTable($tbl[0])) {
@@ -1468,14 +1485,7 @@ function getOrInitAccountDetailsAltDataTable() {
 		order: [[0, 'desc']],
 		columnDefs: [{
 			targets: 0,
-			render: function (data, type) {
-				const fmt = 'MMMM DD, YYYY HH:mm:ss';
-				if (type === 'sort') {
-					return moment.utc(data, fmt, true).format('YYYY-MM-DD HH:mm:ss');
-				}
-				const m = moment(data, fmt, true);
-				return m.isValid() ? m.local().format('YYYY-MM-DD HH:mm') : 'Invalid Date';
-			},
+			render: accountDetailsDateRender,
 			createdCell: function (c) { $(c).addClass('text-center'); }
 		}].concat(accountDetailsRemarksColumnDefs())
 	});
@@ -1491,17 +1501,7 @@ function getOrInitAccountDetailsDataTable() {
 		columnDefs: [
 			{
 				targets: 0,
-				render: function (data, type) {
-					var inputFormat = 'MMMM DD, YYYY HH:mm:ss';
-					if (type === 'sort') {
-						return moment.utc(data, inputFormat, true).format('YYYY-MM-DD HH:mm:ss');
-					}
-					const dateMoment = moment(data, inputFormat, true);
-					if (dateMoment.isValid()) {
-						return dateMoment.local().format('YYYY-MM-DD HH:mm');
-					}
-					return 'Invalid Date';
-				},
+				render: accountDetailsDateRender,
 				createdCell: function (cell) {
 					$(cell).addClass('text-center');
 				}
@@ -1573,7 +1573,7 @@ function accountDetailsRemarksColumnDefs() {
 					if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 
 					const transactionDesc = row.TRANSACTION_DESC || '';
-					const dateFormat = moment(row.encoded_date).format('YYYY-MM-DD HH:mm');
+					const encodedDate = row.encoded_date || row.ENCODED_DT || '';
 
 					if (row.TRANSFER === 1) {
 						$.ajax({
@@ -1588,7 +1588,7 @@ function accountDetailsRemarksColumnDefs() {
 									: `WITHDRAW ( <strong>Transferred to ${agentCode} - ${transferAgentName} </strong> )`;
 
 								rowsToAdd.push([
-									dateFormat,
+									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
 									row.REMARKS || '',
@@ -1602,7 +1602,7 @@ function accountDetailsRemarksColumnDefs() {
 									: `WITHDRAW ( <strong>Transferred to Error fetching name</strong> )`;
 
 								rowsToAdd.push([
-									dateFormat,
+									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION),
 									row.REMARKS || '',
@@ -1615,7 +1615,7 @@ function accountDetailsRemarksColumnDefs() {
 						const transactionCell = formatAccountLedgerTransactionCell(row.TRANSACTION, transactionDesc);
 
 						rowsToAdd.push([
-							dateFormat,
+							encodedDate,
 							transactionCell,
 							formatAccountLedgerAmount(amount, row.TRANSACTION),
 							row.REMARKS || '',
@@ -1720,7 +1720,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 		  rows.forEach(r=>{
 			const amt = parseFloat(r.AMOUNT)||0;
 			const rowApi = dt.row.add([
-			  moment(r.encoded_date).format('YYYY-MM-DD HH:mm'),
+			  r.encoded_date || r.ENCODED_DT || '',
 			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
 			  `₱${amt.toLocaleString('en-US')}`,
 			  r.REMARKS || '',
