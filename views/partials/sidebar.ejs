@@ -6,7 +6,17 @@ aside.sidebar {
     flex-direction: column;
     height: 100vh;
     min-height: 100vh;
-    overflow: hidden;
+    overflow: visible;
+}
+
+aside.sidebar .sidebar-header {
+    position: relative;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+aside.sidebar .sidebar-toggle {
+    z-index: 1001;
 }
 
 aside.sidebar .sidebar-body {
