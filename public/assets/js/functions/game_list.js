@@ -2922,6 +2922,14 @@ function appendAssignGameGuestOption($guestSelect, guest) {
 	$guestSelect.append($opt);
 }
 
+function updateAssignGameGuestMembershipDisplay() {
+	var $display = $('#assign_game_guest_membership_display');
+	if (!$display.length) return;
+	var $option = $('#assign_game_guest_select option:selected');
+	var membership = String($option.attr('data-membership-no') || '').trim();
+	$display.text(membership || '—');
+}
+
 function updateAssignGameGuestSaveState() {
 	var guestVal = $('#assign_game_guest_select').val();
 	var hasGuest = guestVal !== '' && guestVal != null && (parseInt(guestVal, 10) || 0) > 0;
@@ -2929,6 +2937,7 @@ function updateAssignGameGuestSaveState() {
 	$('#btn-assign-guest-game-history').prop('disabled', !hasGuest);
 	$('#btn-assign-game-guest-edit').prop('disabled', !hasGuest);
 	$('#assign_game_guest_select').toggleClass('is-invalid', !hasGuest);
+	updateAssignGameGuestMembershipDisplay();
 }
 
 function resetAssignGameGuestModal() {
@@ -2943,6 +2952,7 @@ function resetAssignGameGuestModal() {
 	$('#btn-assign-game-guest-edit').prop('disabled', true);
 	$('#assign-game-guest-history-tbody').empty();
 	$('#assign-game-guest-history-wrap').addClass('d-none');
+	$('#assign_game_guest_membership_display').text('—');
 	if ($('#assign_game_guest_form')[0]) {
 		$('#assign_game_guest_form')[0].reset();
 	}
@@ -3614,6 +3624,7 @@ $(document).ready(function () {
 			{ targets: 9, className: 'col-total-rolling', width: '130px' },
 			{ targets: 10, className: 'text-center col-game-rate' },
 			{ targets: 11, className: 'text-center col-commission' },
+			{ targets: 13, className: 'text-center col-total-settle' },
 			{ targets: 14, className: 'text-center col-game-end' },
 			{ targets: 15, className: 'col-roller-chips' },
 			{ targets: 16, className: 'text-center col-action' },
@@ -3932,9 +3943,9 @@ $(document).ready(function () {
 				parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
 				parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
 				'-',
-				parseFloat(acc.total_commission || 0).toLocaleString('en-US'),
+				formatListAmount(acc.total_commission || 0, 'out'),
 				parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
-				parseFloat(acc.total_settle || 0).toLocaleString('en-US'),
+				formatListAmount(acc.total_settle || 0, 'out'),
 				'-',
 				parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
 				'-'
@@ -3954,9 +3965,9 @@ $(document).ready(function () {
 		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(grandRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_COMMISSION').text(grandCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+		$('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'out'));
 		$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(grandTotalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+		$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'out'));
 		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
 	};
 
@@ -4090,9 +4101,9 @@ $(document).ready(function () {
                             parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
                             parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
                             '-',
-                            parseFloat(acc.total_commission || 0).toLocaleString('en-US'),
+                            formatListAmount(acc.total_commission || 0, 'out'),
                             parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
-                            parseFloat(acc.total_settle || 0).toLocaleString('en-US'),
+                            formatListAmount(acc.total_settle || 0, 'out'),
                             '-',
                             parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
                             '-'
@@ -4112,9 +4123,9 @@ $(document).ready(function () {
                     $('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(grandRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_COMMISSION').text(grandCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+                    $('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'out'));
                     $('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(grandTotalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+                    $('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'out'));
                     $('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
                 }
 
@@ -4376,7 +4387,8 @@ $(document).ready(function () {
 								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								
 									// Format net value as an integer
-									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+									var formattedNet = formatListAmount(net, 'out');
+									var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCellOg = buildGameStartCell(game_start);
 								
@@ -4415,7 +4427,7 @@ $(document).ready(function () {
                                     buildGameRateCell(row, userPermissions, isSettled),
                                     formattedNet,
                                     add_chg_td,
-                                    totalSettleValue.toLocaleString('en-US'),
+                                    formattedTotalSettle,
                                     status,
                                     roller_chips_td,
                                     actionButtons
@@ -4506,7 +4518,8 @@ $(document).ready(function () {
 						   </div>`;
 								
 								// Format net value as an integer
-								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedNet = formatListAmount(net, 'out');
+								var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCell = buildGameStartCell(game_start);
 								
@@ -4531,7 +4544,7 @@ $(document).ready(function () {
 									buildGameRateCell(row, userPermissions, isSettled),
 									formattedNet,
 									add_chg_td,
-									totalSettleValue.toLocaleString('en-US'),
+									formattedTotalSettle,
 									status,
 									roller_chips_td,
 									actionButtons
@@ -4617,7 +4630,8 @@ $(document).ready(function () {
 								</button>
 						   </div>`;
 						   // Format net value as an integer
-						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+						   var formattedNet = formatListAmount(net, 'out');
+						   var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 						   var gameStartCellEnd = buildGameStartCell(game_start);
@@ -4627,7 +4641,7 @@ $(document).ready(function () {
 						   }
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
-						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, totalSettleValue.toLocaleString('en-US'), status, roller_chips_td, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).draw().node();
 						   
 						   
 							}

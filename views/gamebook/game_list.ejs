@@ -154,7 +154,7 @@
 											<th class="col-game-rate"></th>
 											<th class="d-none d-sm-table-cell text-center col-commission" id="GRAND_COMMISSION">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_ADD_CHG">0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_TOTAL_SETTLE">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-total-settle" id="GRAND_TOTAL_SETTLE">0.00</th>
 											<th class="col-game-end"></th>
 											<th class="d-none d-sm-table-cell text-center col-roller-chips" id="GRAND_ROLLER_CHIPS">0.00</th>
 											<th class="col-action"></th>
@@ -698,7 +698,9 @@ th.col-winloss {
 }
 
 #game_list-tbl td.col-cashout span[style*="dc3545"],
-#game_list-tbl td.col-winloss span[style*="dc3545"] {
+#game_list-tbl td.col-winloss span[style*="dc3545"],
+#game_list-tbl td.col-commission span[style*="dc3545"],
+#game_list-tbl td.col-total-settle span[style*="dc3545"] {
 	color: #dc3545 !important;
 }
 
@@ -1372,9 +1374,13 @@ table.dataTable tbody tr.highlight-row {
 								var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedRollerChips = totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedCommission = window.formatListAmount
+									? window.formatListAmount(totalCommission, 'out')
+									: totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedAddChg = totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedTotalSettle = totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedTotalSettle = window.formatListAmount
+									? window.formatListAmount(totalSettle, 'out')
+									: totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedWinLoss = window.formatListAmount
 									? window.formatListAmount(totalWinLoss, 'signed')
 									: totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -1383,18 +1389,16 @@ table.dataTable tbody tr.highlight-row {
 								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
 								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
 								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
-								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
+								$('#game_list-tbl tfoot #GRAND_COMMISSION').html(formattedCommission);
 								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(formattedAddChg);
-								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').text(formattedTotalSettle);
+								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formattedTotalSettle);
 								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formattedWinLoss);
 
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
 								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
 								applyNegativeStyle('#GRAND_ROLLER_CHIPS', totalRollerChips);
 								applyNegativeStyle('#GRAND_CHIPS_RETURN', totalChipsReturn);
-								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
 								applyNegativeStyle('#GRAND_ADD_CHG', totalAddChg);
-								applyNegativeStyle('#GRAND_TOTAL_SETTLE', totalSettle);
 								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
 
