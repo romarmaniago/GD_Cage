@@ -8,7 +8,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { computeCashBalance } = require('../utils/dashboardQueries');
 const argon2 = require('argon2');
-const crypto = require('crypto');
+const { formatDateTimeDisplay } = require('../utils/formatDateTime');
 
 // --- Helper: compute total rolling per game using same formula as game list ---
 // Formula: total_rolling_nn + total_roller_return_cc + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -1250,7 +1250,7 @@ async function runServerNotificationJob() {
       const p = prev.get(g.game_id);
       if (!p || g.buyin <= p.buyin) continue;
       const added = Number(g.buyin) - p.buyin;
-      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const nowStr = formatDateTimeDisplay(new Date());
       const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
       const msg = `${account} added ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.buyin)} (${g.game_type || ''})`;
       await createServerNotification({ title: 'Buy-in added', message: msg, type: 'buy_in' });
@@ -1261,7 +1261,7 @@ async function runServerNotificationJob() {
       const p = prev.get(g.game_id);
       if (!p || g.cashout <= p.cashout) continue;
       const added = Number(g.cashout) - p.cashout;
-      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const nowStr = formatDateTimeDisplay(new Date());
       const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
       const msg = `${account} cashed out ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.cashout)} (${g.game_type || ''})`;
       await createServerNotification({ title: 'Cash-out added', message: msg, type: 'cash_out' });
@@ -1272,7 +1272,7 @@ async function runServerNotificationJob() {
       if (currentIds.has(id)) continue;
       const p = prev.get(id);
       if (!p) continue;
-      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const nowStr = formatDateTimeDisplay(new Date());
       const winLoss = p.buyin - p.cashout;
       const msg = `${p.account} – game ended at ${nowStr} (${p.game_type}) – Win/Loss: ${fmtPeso(winLoss)}`;
       await createServerNotification({ title: 'Game has ended', message: msg, type: 'game_ended' });

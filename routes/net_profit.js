@@ -79,19 +79,9 @@ function serverTodayStr() {
 
 function currentMonthRangeStr() {
 
-	const now = new Date();
+	const range = require('../utils/monthEndCutoffRange').getMonthEndCutoffRange();
 
-	const year = now.getFullYear();
-
-	const month = now.getMonth();
-
-	const start = `${year}-${pad2(month + 1)}-01`;
-
-	const lastDay = new Date(year, month + 1, 0).getDate();
-
-	const end = `${year}-${pad2(month + 1)}-${pad2(lastDay)}`;
-
-	return { start, end };
+	return { start: range.startDate, end: range.endDateApi || range.endDate };
 
 }
 
@@ -174,9 +164,7 @@ function formatMonthLabel(monthKey) {
 
 	if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return monthKey;
 
-	const dt = new Date(y, m - 1, 1);
-
-	return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+	return `${y}-${String(m).padStart(2, '0')}`;
 
 }
 

@@ -29,12 +29,32 @@ $(document).ready(function () {
 	const dateRange = $('#daterange').val();
 	let start_date, end_date;
 
-	// If no date range is selected, set default to start of the month to today
+	// If no date range is selected, use month-end cut-off defaults
 	if (!dateRange) {
-		start_date = moment().startOf('month').format('YYYY-MM-DD');
-		end_date = moment().format('YYYY-MM-DD');
+		const cutoff = (window.MonthEndCutoffRange && window.MonthEndCutoffRange.getMonthEndCutoffRange())
+			|| (typeof window.getMonthEndCutoffRange === 'function' ? window.getMonthEndCutoffRange() : null);
+		start_date = cutoff ? cutoff.startDate : (function () {
+			const now = new Date();
+			const y = now.getFullYear();
+			const m = now.getMonth();
+			return moment(new Date(y, m + 1, 0)).format('YYYY-MM-DD');
+		})();
+		end_date = cutoff ? (cutoff.endDateApi || cutoff.endDate) : (function () {
+			const now = new Date();
+			const y = now.getFullYear();
+			const m = now.getMonth();
+			const endAt = new Date(y, m + 2, 0);
+			endAt.setDate(endAt.getDate() - 1);
+			return moment(endAt).format('YYYY-MM-DD');
+		})();
 	} else {
-		[start_date, end_date] = dateRange.split(' to ');
+		if (window.MonthEndCutoffRange) {
+			const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
+			start_date = apiRange.start;
+			end_date = apiRange.end;
+		} else {
+			[start_date, end_date] = dateRange.split(' to ');
+		}
 	}
 	$('#modal-new-capital .loading-overlay').show();
     $('#modal-new-capital .progress-bar').css('width', '0%');

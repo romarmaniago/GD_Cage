@@ -116,6 +116,12 @@ $(document).ready(function () {
         if (!$mount.length || !$length.length) return;
         if ($mount.data('placed')) return;
         $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+            var el = document.getElementById('commission-panel-daterange');
+            if (el && el._flatpickr) {
+                window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
+            }
+        }
     }
 
     function getCommissionPanelDateRangeValue() {
@@ -826,7 +832,7 @@ $(document).ready(function () {
                             settlement: settlement,
                             fnb: fnb,
                             payment: payment,
-                            dateTime: moment.utc(game.GAME_ENDED).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss')
+                            dateTime: moment.utc(game.GAME_ENDED).utcOffset(8).format('YYYY-MM-DD HH:mm')
                         }
                     };
                 });
@@ -965,15 +971,8 @@ $(document).ready(function () {
         loadRankingData();
     }
 
-    var panelDefaultStart = compareStartFromUrl || moment().startOf('month').format('YYYY-MM-DD');
-    var panelDefaultEnd = compareEndFromUrl || moment().endOf('month').format('YYYY-MM-DD');
-
-    flatpickr('#commission-panel-daterange', {
+    var commissionPanelRangeConfig = {
         mode: 'range',
-        altInput: true,
-        altFormat: 'M d, Y',
-        dateFormat: 'Y-m-d',
-        defaultDate: [panelDefaultStart, panelDefaultEnd],
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             commissionPanelSkipMonthRange = true;
@@ -1001,7 +1000,19 @@ $(document).ready(function () {
         onClose: function (selectedDates) {
             if (selectedDates.length === 2) loadRankingData();
         }
-    });
+    };
+    if (compareStartFromUrl && compareEndFromUrl) {
+        commissionPanelRangeConfig.defaultDate = [compareStartFromUrl, compareEndFromUrl];
+    }
+    flatpickr('#commission-panel-daterange', commissionPanelRangeConfig);
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+        var panelDr = document.getElementById('commission-panel-daterange');
+        if (panelDr && panelDr._flatpickr) {
+            setTimeout(function () {
+                window.MonthEndCutoffRange.fitRangePickerInstance(panelDr._flatpickr);
+            }, 0);
+        }
+    }
 
     updateCompareModeBanner();
     loadRankingData();

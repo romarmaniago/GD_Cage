@@ -88,21 +88,21 @@ function addBooking() {
           data.forEach(function (row) {
             // Format ng booking date (kasama ang oras)
             var bookingDate = row.BOOKING_DATE ?
-              moment(row.BOOKING_DATE).utcOffset(8).format('MMMM DD HH:mm') :
-              moment().format('MMMM DD, HH:mm');
+              moment(row.BOOKING_DATE).utcOffset(8).format('YYYY-MM-DD HH:mm') :
+              moment().format('YYYY-MM-DD HH:mm');
   
             // Format ng check-in at check-out dates
             const checkInText = window.bookingTranslations?.check_in || 'Check-In';
             const checkOutText = window.bookingTranslations?.check_out || 'Check-Out';
             var checkInDateFormatted = (row.CHECK_IN && moment(row.CHECK_IN, moment.ISO_8601, true).isValid()) ?
             `<div style="text-align: center;">
-                <div style="color: #00563F;">${moment(row.CHECK_IN).utcOffset(8).format('MMM DD, YYYY')}</div>
+                <div style="color: #00563F;">${moment(row.CHECK_IN).utcOffset(8).format('YYYY-MM-DD')}</div>
                 <span class="badge" style="background-color: #00563F;">${checkInText}</span>
              </div>` : '-';
           
           var checkOutDateFormatted = (row.CHECK_OUT && moment(row.CHECK_OUT, moment.ISO_8601, true).isValid()) ?
             `<div style="text-align: center;">
-                <div style="color: orange;">${moment(row.CHECK_OUT).utcOffset(8).format('MMM DD, YYYY')}</div>
+                <div style="color: orange;">${moment(row.CHECK_OUT).utcOffset(8).format('YYYY-MM-DD')}</div>
                 <span class="badge bg-warning">${checkOutText}</span>
              </div>` : '-';
           

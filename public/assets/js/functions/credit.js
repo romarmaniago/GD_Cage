@@ -44,7 +44,7 @@ $(document).ready(function() {
               <i class="fa fa-trash-alt"></i>
             </button>
           </div>`;
-             var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+             var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
             var amountCell = window.fmtAmt ? window.fmtAmt(row.AMOUNT) : Number(row.AMOUNT || 0).toLocaleString('en-US');
             var remarksCell = window.RemarksEditor && row.credit_id
               ? window.RemarksEditor.renderCell(row.REMARKS || '', { source: 'junket_credit', recordId: row.credit_id })

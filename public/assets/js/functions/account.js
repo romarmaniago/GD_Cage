@@ -964,7 +964,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				var dateDisplay = encoded;
 				if (window.moment && encoded) {
 					var m = moment(encoded);
-					if (m.isValid()) dateDisplay = m.format('DD MMM, YYYY HH:mm');
+					if (m.isValid()) dateDisplay = m.format('YYYY-MM-DD HH:mm');
 				}
 				var remarks = row.REMARKS || '';
 				var remarksCell = window.RemarksEditor && row.IDNo
@@ -1474,7 +1474,7 @@ function getOrInitAccountDetailsAltDataTable() {
 					return moment.utc(data, fmt, true).format('YYYY-MM-DD HH:mm:ss');
 				}
 				const m = moment(data, fmt, true);
-				return m.isValid() ? m.local().format('DD MMM, YYYY HH:mm:ss') : 'Invalid Date';
+				return m.isValid() ? m.local().format('YYYY-MM-DD HH:mm') : 'Invalid Date';
 			},
 			createdCell: function (c) { $(c).addClass('text-center'); }
 		}].concat(accountDetailsRemarksColumnDefs())
@@ -1498,7 +1498,7 @@ function getOrInitAccountDetailsDataTable() {
 					}
 					const dateMoment = moment(data, inputFormat, true);
 					if (dateMoment.isValid()) {
-						return dateMoment.local().format('DD MMM, YYYY HH:mm:ss');
+						return dateMoment.local().format('YYYY-MM-DD HH:mm');
 					}
 					return 'Invalid Date';
 				},
@@ -1573,7 +1573,7 @@ function accountDetailsRemarksColumnDefs() {
 					if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 
 					const transactionDesc = row.TRANSACTION_DESC || '';
-					const dateFormat = moment(row.encoded_date).format('MMMM DD, YYYY HH:mm:ss');
+					const dateFormat = moment(row.encoded_date).format('YYYY-MM-DD HH:mm');
 
 					if (row.TRANSFER === 1) {
 						$.ajax({
@@ -1720,7 +1720,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 		  rows.forEach(r=>{
 			const amt = parseFloat(r.AMOUNT)||0;
 			const rowApi = dt.row.add([
-			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
+			  moment(r.encoded_date).format('YYYY-MM-DD HH:mm'),
 			  formatAccountLedgerTransactionCell(r.TRANSACTION, r.TRANSACTION_DESC),
 			  `₱${amt.toLocaleString('en-US')}`,
 			  r.REMARKS || '',

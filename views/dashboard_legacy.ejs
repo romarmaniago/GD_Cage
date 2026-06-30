@@ -1497,8 +1497,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          const end = new Date(start);
                                                          end.setDate(start.getDate() + 6);
 
-                                                         const options = { month: 'short', day: 'numeric' };
-                                                         return `${start.toLocaleDateString('en-US', options)} – ${end.toLocaleDateString('en-US', options)}`;
+                                                        const pad2 = (n) => String(n).padStart(2, '0');
+                                                        const fmtDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+                                                        return `${fmtDay(start)} – ${fmtDay(end)}`;
                                                       }
 
                                                       // Dropdown

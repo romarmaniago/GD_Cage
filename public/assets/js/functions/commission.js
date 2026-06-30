@@ -23,14 +23,14 @@ $(document).ready(function() {
     function formatCommissionProgramDate(row) {
         var raw = row.PROGRAM_DATE || row.GAME_DATE_START;
         if (!raw) return '-';
-        return moment.utc(raw).utcOffset(8).format('MMMM DD, YYYY');
+        return moment.utc(raw).utcOffset(8).format('YYYY-MM-DD');
     }
 
     function formatCommissionGameStart(row) {
         if (!row.GAME_DATE_START) return '-';
         var m = moment.utc(row.GAME_DATE_START);
         if (!m.isValid()) return '-';
-        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+        return m.utcOffset(8).format('YYYY-MM-DD HH:mm');
     }
 
     function formatCommissionGameType(row) {
@@ -44,6 +44,7 @@ $(document).ready(function() {
         var raw = String(value == null ? '' : value).trim();
         if (!raw || raw === '-') return null;
         var formats = [
+            'YYYY-MM-DD HH:mm',
             'DD MMM, YYYY HH:mm:ss',
             'DD MMM YY HH:mm',
             'MM/DD HH:mm',
@@ -64,7 +65,7 @@ $(document).ready(function() {
         if (!row.GAME_ENDED) return '-';
         var m = moment.utc(row.GAME_ENDED);
         if (!m.isValid()) return '-';
-        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+        return m.utcOffset(8).format('YYYY-MM-DD HH:mm');
     }
 
     function formatCommissionDateTimeDisplay(value) {
@@ -73,7 +74,7 @@ $(document).ready(function() {
             var raw = String(value == null ? '' : value).trim();
             return raw && raw !== '-' ? raw : '-';
         }
-        return m.utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+        return m.utcOffset(8).format('YYYY-MM-DD HH:mm');
     }
 
     function formatCommissionGameEndDisplay(value) {
@@ -675,6 +676,12 @@ $(document).ready(function() {
         if (!$mount.length || !$length.length) return;
         if ($mount.data('placed')) return;
         $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+            var el = document.getElementById('daterange');
+            if (el && el._flatpickr) {
+                window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
+            }
+        }
     }
 
     function placeCommissionCompareToolbar() {
@@ -722,13 +729,6 @@ $(document).ready(function() {
     // Initialize Flatpickr for date range
     var flatpickrInstance = flatpickr("#daterange", {
         mode: "range",
-        altInput: true,
-        altFormat: "M d, Y",
-        dateFormat: "Y-m-d",
-        defaultDate: [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().endOf('month').format('YYYY-MM-DD')
-        ],
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             jumpCommissionRangeToCurrentThreeMonths(instance);
@@ -872,11 +872,16 @@ $(document).ready(function() {
         // Split by ' to ' (with spaces)
         let start, end;
         if (dateRange.includes(' to ')) {
-            [start, end] = dateRange.split(' to ');
+            if (window.MonthEndCutoffRange) {
+                var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
+                start = apiRange.start;
+                end = apiRange.end;
+            } else {
+                [start, end] = dateRange.split(' to ');
+            }
         } else {
-            // If only one date, use it for both start and end
-            start = dateRange;
-            end = dateRange;
+            start = window.MonthEndCutoffRange ? window.MonthEndCutoffRange.toApiDate(dateRange) : dateRange;
+            end = start;
         }
         
         // Ensure both dates are valid
@@ -1390,7 +1395,7 @@ $(document).ready(function() {
             $modal.find('#txtAccountIDMergeSettle').val(accountIds.join(','));
             $modal.find('#accNoMerge').text(nameText);
             $modal.find('#gameNoMerge').text(selectedIds.join(', '));
-            $modal.find('#dateMerge').text(now.format('MMMM DD, YYYY'));
+            $modal.find('#dateMerge').text(now.format('YYYY-MM-DD'));
             $modal.find('#timeMerge').text(now.format('HH:mm'));
             $modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
             $modal.find('#chipsReturnMerge').val(formatMergeNumeric(totalChipsReturn));

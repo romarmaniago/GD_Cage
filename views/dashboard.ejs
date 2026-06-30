@@ -176,6 +176,7 @@
       var monthStart = new Date(nowStamp.getFullYear(), nowStamp.getMonth(), 1);
       var monthEnd = new Date(nowStamp.getFullYear(), nowStamp.getMonth() + 1, 0);
       var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
+      var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
       var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
    %>
@@ -198,7 +199,7 @@
             <div class="card dash-card dash-panel-narrow">
                <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center">
                   <a href="/activity_log">Cage Balance</a>
-                  <span class="dash-card-meta"><%= nowStamp.toLocaleString('en-US', { year:'numeric', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) %></span>
+                  <span class="dash-card-meta"><%= nowStampDisplay %></span>
                </div>
                <div class="card-body">
                   <div class="dash-kv-group-title">Cash</div>

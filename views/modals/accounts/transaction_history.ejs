@@ -44,12 +44,10 @@
         if (!val) return '';
         if (typeof moment !== 'undefined') {
             const m = moment(val);
-            if (m.isValid()) return m.format('MMM D, HH:mm');
+            if (m.isValid()) return m.format('YYYY-MM-DD HH:mm');
         }
-        const d = new Date(val);
-        return isNaN(d.getTime())
-            ? ''
-            : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+        if (typeof window.fmtDt === 'function') return window.fmtDt(val, '');
+        return '';
     };
 
     const formatAmount = (val) => Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

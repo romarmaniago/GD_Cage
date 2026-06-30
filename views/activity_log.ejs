@@ -117,7 +117,7 @@
     function formatDate(dateString) {
         if (!dateString) return '—';
         if (typeof moment !== 'undefined') {
-            return moment(dateString).utcOffset(8).format('YYYY-M-D HH:mm');
+            return moment(dateString).utcOffset(8).format('YYYY-MM-DD HH:mm');
         }
         const d = new Date(dateString);
         if (isNaN(d.getTime())) return '—';
@@ -284,23 +284,28 @@
     // Load activity logs on page load and initialize DataTables
     $(document).ready(function() {
         // Initialize Flatpickr date range picker
-        const defaultDates = [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
-        ];
+        const defaultRange = window.MonthEndCutoffRange
+            ? window.MonthEndCutoffRange.getMonthEndCutoffRange()
+            : null;
+        const defaultDates = defaultRange
+            ? defaultRange.defaultDate
+            : (function () {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = now.getMonth();
+                const startAt = new Date(y, m + 1, 0);
+                const endAt = new Date(y, m + 2, 0);
+                endAt.setDate(endAt.getDate() - 1);
+                return [startAt, endAt];
+            })();
         
         // Initialize Flatpickr only if element exists
         if ($('#daterange').length > 0) {
             const fp = flatpickr("#daterange", {
                 mode: "range",
-                altInput: true,
-                altFormat: "M d, Y",
-                dateFormat: "Y-m-d",
-                defaultDate: defaultDates,
                 showMonths: 2,
                 onReady: function (selectedDates, dateStr, instance) {
                     instance.setDate(defaultDates, true);
-                    instance.changeMonth(-1, true);
                     // Load data after picker is ready (with a small delay to ensure DOM is ready)
                     setTimeout(function() {
                         reloadData();
@@ -332,9 +337,14 @@
                 end = dateRange;
             }
             
-            // Add time to end date to include the full day
-            end = end + ' 23:59:59';
-            start = start + ' 00:00:00';
+            if (window.MonthEndCutoffRange) {
+                const normalized = window.MonthEndCutoffRange.normalizeRangeForApi(start, end);
+                start = normalized.start;
+                end = normalized.end;
+            } else {
+                end = end + ' 23:59:59';
+                start = start + ' 00:00:00';
+            }
 
             // Destroy existing DataTable if it exists
             if ($.fn.DataTable.isDataTable('#activity-logs-table')) {

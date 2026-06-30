@@ -14,6 +14,37 @@ function fmtCapitalSigned(value) {
     return n.toLocaleString('en-US');
 }
 
+function getHouseBalanceTypeDesc(row) {
+    return row.capital_description || row.chips_description || '';
+}
+
+function isHouseCashInOutRow(row) {
+    const desc = getHouseBalanceTypeDesc(row);
+    return desc === '<span class="css-blue">Cash-in</span>' ||
+        desc === '<span class="css-blue">Cash-out</span>' ||
+        desc === 'Cash-in' ||
+        desc === 'Cash-out';
+}
+
+function getDefaultMonthEndRange() {
+    if (window.MonthEndCutoffRange) {
+        const r = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+        return { start: r.startDate, end: r.endDate, startDisplay: r.start, endDisplay: r.end };
+    }
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const startAt = new Date(y, m + 1, 0);
+    const endAt = new Date(y, m + 2, 0);
+    endAt.setDate(endAt.getDate() - 1);
+    return {
+        start: moment(startAt).format('YYYY-MM-DD'),
+        end: moment(endAt).format('YYYY-MM-DD'),
+        startDisplay: moment(startAt).format('MMM D, YYYY'),
+        endDisplay: moment(endAt).format('MMM D, YYYY')
+    };
+}
+
 function inferCapitalRemarksSource(row) {
     if (row.REMARKS_SOURCE) return row.REMARKS_SOURCE;
     if (row.CATEGORY_ID > 0 && row.expense_description != null) return 'junket_house_expense';
@@ -38,22 +69,44 @@ function renderCapitalRemarksCell(row, displayText, suffixHtml) {
 }
 
 function reloadData() {
-    // Kunin ang value ng date range mula sa Flatpickr
-    const dateRange = $('#main-daterange').val();
+    const fpEl = document.getElementById('main-daterange');
+    const fp = fpEl && fpEl._flatpickr;
+    let dateRange = $('#main-daterange').val();
+
+    if ((!dateRange || !/\s+to\s+/i.test(dateRange)) && fp && fp.selectedDates.length === 2) {
+        const fmt = window.MonthEndCutoffRange && window.MonthEndCutoffRange.formatDisplayDate
+            ? window.MonthEndCutoffRange.formatDisplayDate
+            : (d) => moment(d).format('MMM D, YYYY');
+        dateRange = `${fmt(fp.selectedDates[0])} to ${fmt(fp.selectedDates[1])}`;
+    }
 
     if (!dateRange) {
-        alert('Please select a date range.');
-        return;
+        const fallback = getDefaultMonthEndRange();
+        dateRange = `${fallback.startDisplay} to ${fallback.endDisplay}`;
     }
 
     // Kung walang " to ", ibig sabihin iisang petsa lang ang napili
     let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
+    if (fp && fp.selectedDates.length === 2) {
+        startDate = moment(fp.selectedDates[0]).format('YYYY-MM-DD');
+        endDate = moment(fp.selectedDates[1]).format('YYYY-MM-DD');
+        if (window.MonthEndCutoffRange) {
+            endDate = window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endDate);
+        }
+    } else if (window.MonthEndCutoffRange) {
+        const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
+        startDate = apiRange.start;
+        endDate = apiRange.end;
+    } else if (dateRange.indexOf(" to ") > -1) {
         [startDate, endDate] = dateRange.split(" to ");
     } else {
-        // Kung walang end date, gagamitin natin ang start date para sa parehong filter
         startDate = dateRange;
         endDate = dateRange;
+    }
+
+    if (!startDate || !endDate) {
+        alert('Please select a valid date range.');
+        return;
     }
 
     // Ipakita ang loading overlay at simulate progress...
@@ -81,6 +134,16 @@ function reloadData() {
             var total_out = 0;
 
             data.forEach(function (row) {
+                if (!isHouseCashInOutRow(row)) {
+                    return;
+                }
+
+                const typeDesc = getHouseBalanceTypeDesc(row);
+                const cbal = row.capital_amount !== null ? row.capital_amount : 0;
+                if (cbal <= 0) {
+                    return;
+                }
+
                 total_in += row.capital_amount || 0; // Ensure AMOUNT is handled even if null
                 var combinedDescription = [];
                 var combinedChipsText = ''; // Declare combinedChipsText here
@@ -134,11 +197,12 @@ function reloadData() {
                 combinedDescription = combinedDescription.filter(Boolean).join(' | ');
 
                 // Determine if this row represents a Cash Balance entry
-                const cbal = row.capital_amount !== null ? row.capital_amount : 0;
                 const isCashBalance =
                     cbal > 0 &&
-                    (row.capital_description === '<span class="css-blue">Cash-in</span>' ||
-                     row.capital_description === '<span class="css-blue">Cash-out</span>');
+                    (typeDesc === '<span class="css-blue">Cash-in</span>' ||
+                     typeDesc === '<span class="css-blue">Cash-out</span>' ||
+                     typeDesc === 'Cash-in' ||
+                     typeDesc === 'Cash-out');
 
                 // Show delete button ONLY for Cash Balance rows (and if permissions allow)
                 let btn = '';
@@ -157,7 +221,7 @@ function reloadData() {
                     }
                 }
 
-                var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
 
                  // Prepare REMARKS with GAME_ID if applicable
                  var remarksText = row.REMARKS || '';
@@ -187,9 +251,9 @@ function reloadData() {
                     combinedChipsText = `Credit Cash :\n${window.fmtAmt ? window.fmtAmt(IOU) : IOU.toLocaleString('en-US')}`;
                 } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) {
                     combinedChipsText = `Junket Expense : ${fmtCapitalAmount(row.capital_amount, 'out')}`;
-                } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-in</span>') {
+                } else if (cbal > 0 && (typeDesc === '<span class="css-blue">Cash-in</span>' || typeDesc === 'Cash-in')) {
                     combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'in')}`;
-                } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-out</span>') {
+                } else if (cbal > 0 && (typeDesc === '<span class="css-blue">Cash-out</span>' || typeDesc === 'Cash-out')) {
                     combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'out')}`;
                 } else {
                     combinedChipsText = ''; // Empty string if no valid data to display
@@ -227,26 +291,27 @@ function reloadData() {
 }
 
 $(document).ready(function () {
-        // Calculate the start and end dates for this month
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD'); // Start of the current month
-        const currentDate = moment().format('YYYY-MM-DD'); // Current date
-    // Initialize Flatpickr for Date Range
-    flatpickr("#main-daterange", {
-        mode: "range", // Enable range mode
-        altInput: true, // Show a user-friendly date format in the input
-        altFormat: "M d, Y", // User-friendly format: e.g., Jan 01, 2025
-        dateFormat: "Y-m-d", // Format used in the backend: YYYY-MM-DD
-        defaultDate: [startOfMonth, currentDate], // Default range: start of the current month to today
-        showMonths: 3,
+    const mainDatePickerConfig = {
+        mode: "range",
+        showMonths: 2,
         onReady: function (selectedDates, dateStr, instance) {
             const current = new Date();
-            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth(), 1), false);
         },
         onOpen: function (selectedDates, dateStr, instance) {
             const current = new Date();
-            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth(), 1), false);
         },
-    });
+    };
+    if (window.MonthEndCutoffRange) {
+        flatpickr("#main-daterange", window.MonthEndCutoffRange.patchRangePickerConfig(mainDatePickerConfig));
+    } else {
+        const rangeDefaults = getDefaultMonthEndRange();
+        flatpickr("#main-daterange", Object.assign(mainDatePickerConfig, {
+            defaultDate: [rangeDefaults.start, rangeDefaults.end]
+        }));
+        $('#main-daterange').val(`${rangeDefaults.startDisplay} to ${rangeDefaults.endDisplay}`);
+    }
     // Ensure DataTable remains initialized with the required configuration
     if ($.fn.DataTable.isDataTable('#capital-tbl')) {
         $('#capital-tbl').DataTable().destroy();
@@ -259,11 +324,16 @@ $(document).ready(function () {
                 "targets": 4, // Column index for the ENCODED_DT
                 "render": function (data, type, row) {
                     if (type === 'sort') {
-                        return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Raw date for sorting
+                        var sortMoment = moment.utc(data);
+                        if (!sortMoment.isValid()) sortMoment = moment(data);
+                        return sortMoment.isValid() ? sortMoment.format('YYYY-MM-DD HH:mm:ss') : data;
                     }
-                    const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
+                    var dateMoment = moment(data);
+                    if (!dateMoment.isValid()) {
+                        dateMoment = moment(data, ['MMMM DD, YYYY HH:mm:ss', 'YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm', moment.ISO_8601]);
+                    }
                     if (dateMoment.isValid()) {
-                        return dateMoment.local().format('DD MMM, YYYY HH:mm:ss'); // Display formatted date
+                        return dateMoment.local().format('YYYY-MM-DD HH:mm'); // Display formatted date
                     } else {
                         return 'Invalid Date';
                     }
@@ -390,8 +460,9 @@ const totalComputationCount = 3; // Cash-In, Cash-Out, Chips Transaction
 
 function computeTotalCashIn() {
     // Use current month as the default date range
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate  = moment().format('YYYY-MM-DD');
+    const rangeDefaults = getDefaultMonthEndRange();
+    const startOfMonth = rangeDefaults.start;
+    const currentDate = rangeDefaults.end;
 
     $.ajax({
         url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),
@@ -430,8 +501,9 @@ function computeTotalCashIn() {
 
 function computeTotalCashOut() {
     // Use current month as the default date range
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate  = moment().format('YYYY-MM-DD');
+    const rangeDefaults = getDefaultMonthEndRange();
+    const startOfMonth = rangeDefaults.start;
+    const currentDate = rangeDefaults.end;
 
     $.ajax({
         url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),
@@ -555,7 +627,7 @@ function loadCashInData() {
                         const remarksDisplay = row.REMARKS || '';
                         const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
-                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
                         const serviceTransactionId = row.SERVICE_TRANSACTION_ID != null
                             ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
                             : null;
@@ -683,7 +755,7 @@ function loadCashOutData() {
                         const remarksDisplay = row.REMARKS || '';
                         const remarksEdit = row.REMARKS_EDIT != null ? row.REMARKS_EDIT : remarksDisplay;
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
-                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
 
                         return [
                             typeText,
@@ -752,8 +824,9 @@ $('#cash-in-filter').on('change', function () {
 
 function chipsTransactionComputation() {
     // Use current month as the default date range
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate  = moment().format('YYYY-MM-DD');
+    const rangeDefaults = getDefaultMonthEndRange();
+    const startOfMonth = rangeDefaults.start;
+    const currentDate = rangeDefaults.end;
 
     $.ajax({
         url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),
@@ -950,7 +1023,7 @@ function loadChipsTransaction() {
                         amount,
                         type,
                         renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
-                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm'),
                         getActionButton(row.IDNo)
                     ];
                     const sortMoment = moment.utc(row.ENCODED_DT);
@@ -981,8 +1054,9 @@ $(document).ready(function() {
         console.log('Modal shown'); // Debug log
         
         // Set default dates using moment.js
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-        const currentDate  = moment().format('YYYY-MM-DD');
+        const rangeDefaults = getDefaultMonthEndRange();
+        const startOfMonth = rangeDefaults.start;
+        const currentDate = rangeDefaults.end;
         
         // Check if the transaction-daterange element exists
         if ($('#transaction-daterange').length > 0) {
@@ -990,10 +1064,6 @@ $(document).ready(function() {
             if (!chipsTransactionPicker || !$('#transaction-daterange').hasClass('flatpickr-input')) {
                 chipsTransactionPicker = flatpickr("#transaction-daterange", {
                     mode: "range",
-                    altInput: true,
-                    altFormat: "M d, Y",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [startOfMonth, currentDate],
                     showMonths: 2,
                     onChange: function(selectedDates, dateStr) {
                         console.log('Date changed:', dateStr); // Debug log
@@ -1022,18 +1092,15 @@ $(document).ready(function() {
         console.log('Modal shown'); // Debug log
         
         // Initialize Flatpickr only if not already initialized
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-        const currentDate = moment().format('YYYY-MM-DD');
+        const rangeDefaults = getDefaultMonthEndRange();
+        const startOfMonth = rangeDefaults.start;
+        const currentDate = rangeDefaults.end;
         
         if ($('#daterange').length > 0) {
             // Check if Flatpickr is already initialized
             if (!cashInPicker || !$('#daterange').hasClass('flatpickr-input')) {
                 cashInPicker = flatpickr("#daterange", {
                     mode: "range",
-                    altInput: true,
-                    altFormat: "M d, Y",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [startOfMonth, currentDate],
                     showMonths: 2,
                     onChange: function(selectedDates, dateStr) {
                         console.log('Date changed:', dateStr); // Debug log
@@ -1130,7 +1197,7 @@ function loadNNChipsHistory() {
                         amount,
                         type,
                         renderCapitalRemarksCell(row, row.REMARKS || '', row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''),
-                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm'),
                         getActionButton(row.IDNo)
                     ];
                     const sortMoment = moment.utc(row.ENCODED_DT);
@@ -1249,7 +1316,7 @@ function loadCCChipsHistory() {
                             row.REMARKS || '',
                             row.GAME_ID ? ` GAME-${row.GAME_ID}` : ''
                         ),
-                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm'),
                         getActionButton(row.IDNo)
                     ];
                     const sortMoment = moment.utc(row.ENCODED_DT);
@@ -1308,18 +1375,15 @@ $(document).ready(function() {
         console.log('Cash-Out Modal shown'); // Debug log
         
         // Initialize Flatpickr only if not already initialized
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-        const currentDate = moment().format('YYYY-MM-DD');
+        const rangeDefaults = getDefaultMonthEndRange();
+        const startOfMonth = rangeDefaults.start;
+        const currentDate = rangeDefaults.end;
         
         if ($('#cashout-daterange').length > 0) {
             // Check if Flatpickr is already initialized
             if (!cashOutPicker || !$('#cashout-daterange').hasClass('flatpickr-input')) {
                 cashOutPicker = flatpickr("#cashout-daterange", {
                     mode: "range",
-                    altInput: true,
-                    altFormat: "M d, Y",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [startOfMonth, currentDate],
                     showMonths: 2,
                     onChange: function(selectedDates, dateStr) {
                         console.log('Cash-Out Date changed:', dateStr); // Debug log
@@ -1390,7 +1454,7 @@ function loadJunketExpenseData() {
                         fmtCapitalAmount(row.capital_amount, 'out'),
                         description,
                         renderCapitalRemarksCell(row, row.REMARKS || ''),
-                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm'),
                         getActionButton(row.IDNo)
                     ];
                 });
@@ -1421,16 +1485,13 @@ function loadJunketExpenseData() {
 // Initialize Flatpickr and load data when document is ready
 $(document).ready(function() {
     // Initialize Flatpickr for Junket Expense
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate = moment().format('YYYY-MM-DD');
+    const rangeDefaults = getDefaultMonthEndRange();
+    const startOfMonth = rangeDefaults.start;
+    const currentDate = rangeDefaults.end;
     
     if ($('#junket-daterange').length > 0) {
         flatpickr("#junket-daterange", {
             mode: "range",
-            altInput: true,
-            altFormat: "M d, Y",
-            dateFormat: "Y-m-d",
-            defaultDate: [startOfMonth, currentDate],
             showMonths: 2,
             onChange: function(selectedDates, dateStr) {
                 console.log('Junket Expense Date changed:', dateStr);
@@ -1450,7 +1511,8 @@ $(document).ready(function() {
     $('#modal-Expenses').on('shown.bs.modal', function () {
         console.log('Expenses Modal shown');
         if (!$('#junket-daterange').val()) {
-            $('#junket-daterange').val(`${startOfMonth} to ${currentDate}`);
+            const displayRange = getDefaultMonthEndRange();
+            $('#junket-daterange').val(`${displayRange.startDisplay} to ${displayRange.endDisplay}`);
         }
         loadJunketExpenseData();
     });
@@ -1539,8 +1601,9 @@ $(document).ready(function() {
         console.log('NN Chips History Modal shown'); // Debug log
         
         // Initialize Flatpickr only if not already initialized
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-        const currentDate = moment().format('YYYY-MM-DD');
+        const rangeDefaults = getDefaultMonthEndRange();
+        const startOfMonth = rangeDefaults.start;
+        const currentDate = rangeDefaults.end;
         const jumpNnChipsRangeToCurrentThreeMonths = function(instance) {
             if (!instance) return;
             const current = new Date();
@@ -1552,10 +1615,6 @@ $(document).ready(function() {
             if (!nnChipsPicker || !$('#nnchips-daterange').hasClass('flatpickr-input')) {
                 nnChipsPicker = flatpickr("#nnchips-daterange", {
                     mode: "range",
-                    altInput: true,
-                    altFormat: "M d, Y",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [startOfMonth, currentDate],
                     showMonths: 3,
                     onReady: function(selectedDates, dateStr, instance) {
                         jumpNnChipsRangeToCurrentThreeMonths(instance);
@@ -1588,8 +1647,9 @@ $(document).ready(function() {
         console.log('CC Chips History Modal shown'); // Debug log
         
         // Initialize Flatpickr only if not already initialized
-        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-        const currentDate = moment().format('YYYY-MM-DD');
+        const rangeDefaults = getDefaultMonthEndRange();
+        const startOfMonth = rangeDefaults.start;
+        const currentDate = rangeDefaults.end;
         const jumpCcChipsRangeToCurrentThreeMonths = function(instance) {
             if (!instance) return;
             const current = new Date();
@@ -1601,10 +1661,6 @@ $(document).ready(function() {
             if (!ccChipsPicker || !$('#ccchips-daterange').hasClass('flatpickr-input')) {
                 ccChipsPicker = flatpickr("#ccchips-daterange", {
                     mode: "range",
-                    altInput: true,
-                    altFormat: "M d, Y",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [startOfMonth, currentDate],
                     showMonths: 3,
                     onReady: function(selectedDates, dateStr, instance) {
                         jumpCcChipsRangeToCurrentThreeMonths(instance);
@@ -1632,8 +1688,9 @@ $(document).ready(function() {
 
 
 function fetchTotalJunketExpense() {
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate = moment().format('YYYY-MM-DD');
+    const rangeDefaults = getDefaultMonthEndRange();
+    const startOfMonth = rangeDefaults.start;
+    const currentDate = rangeDefaults.end;
 
     $.ajax({
         url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),

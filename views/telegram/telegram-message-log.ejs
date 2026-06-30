@@ -1450,11 +1450,7 @@
 					var t0 = todayStartDate();
 					logDateFp = flatpickr(el, {
 						mode: 'range',
-						dateFormat: 'Y-m-d',
-						altInput: true,
-						altFormat: 'M j, Y',
 						showMonths: 2,
-						defaultDate: [t0, t0],
 						onChange: function (dates) {
 							if (dates.length === 2) {
 								offset = 0;

@@ -430,17 +430,13 @@
 
             const m = moment.utc(val).utcOffset(8);
 
-            if (m.isValid()) return m.format('MMM DD, YYYY');
+            if (m.isValid()) return m.format('YYYY-MM-DD');
 
         }
 
+        if (typeof window.fmtDate === 'function') return window.fmtDate(val, '-');
         const d = new Date(val);
-
-        return isNaN(d.getTime())
-
-            ? '-'
-
-            : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        return isNaN(d.getTime()) ? '-' : window.fmtDate ? window.fmtDate(d, '-') : '-';
 
     };
 
@@ -454,17 +450,13 @@
 
             const m = moment.utc(val).utcOffset(8);
 
-            if (m.isValid()) return m.format('MMMM DD, HH:mm');
+            if (m.isValid()) return m.format('YYYY-MM-DD HH:mm');
 
         }
 
+        if (typeof window.fmtDtUtc8 === 'function') return window.fmtDtUtc8(val, '');
         const d = new Date(val);
-
-        return isNaN(d.getTime())
-
-            ? ''
-
-            : d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+        return isNaN(d.getTime()) ? '' : '';
 
     };
 
@@ -887,13 +879,14 @@
 
                                 if (typeof moment !== 'undefined') {
 
-                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, HH:mm');
+                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('YYYY-MM-DD HH:mm');
 
                                 }
 
-                                const d = new Date(row.GAME_ENDED);
-
-                                return d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                                if (typeof window.fmtDtUtc8 === 'function') {
+                                    return window.fmtDtUtc8(row.GAME_ENDED, '-');
+                                }
+                                return '-';
 
                             }
 

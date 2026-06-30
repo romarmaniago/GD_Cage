@@ -48,10 +48,14 @@
   }
 
   function getCurrentMonthRange() {
+    if (window.MonthEndCutoffRange) {
+      const r = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+      return { from: r.startDate, to: r.endDate, fromAt: r.startAt, toAt: r.endAt };
+    }
     const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { from: toIsoDate(first), to: toIsoDate(last) };
+    const prevLast = new Date(now.getFullYear(), now.getMonth(), 0);
+    const currLast = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { from: toIsoDate(prevLast), to: toIsoDate(currLast), fromAt: prevLast, toAt: currLast };
   }
 
   function initDailyReportDatePicker() {
@@ -527,6 +531,12 @@
     const $length = $('#daily-report-view-table').closest('.dataTables_wrapper').find('.dataTables_length').first();
     if (!$mount.length || !$length.length || $mount.data('placed')) return;
     $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+      const el = document.getElementById('daily-report-list-daterange');
+      if (el && el._flatpickr) {
+        window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
+      }
+    }
   }
 
   function destroyMatrixDataTable() {
@@ -670,7 +680,6 @@
 
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
-    const monthRange = getCurrentMonthRange();
     const jumpToCurrentThreeMonths = (instance) => {
       if (!instance) return;
       const current = new Date();
@@ -678,12 +687,8 @@
     };
     reportListDateRangePicker = flatpickr(reportListDateRange, {
       mode: 'range',
-      dateFormat: 'Y-m-d',
-      altInput: true,
-      altFormat: 'M d, Y',
       conjunction: ' to ',
       allowInput: false,
-      defaultDate: [monthRange.from, monthRange.to],
       showMonths: 3,
       onReady: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);

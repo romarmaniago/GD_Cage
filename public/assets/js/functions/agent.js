@@ -730,6 +730,7 @@ $(document).ready(function () {
 			{ targets: 8, className: 'text-center agent-action-cell', orderable: false, searchable: false }
 		],
 		columns: [
+			{ data: 'agency_name' },
 			{
 				data: 'agent_code',
 				render: function (data, type, row) {
@@ -748,7 +749,6 @@ $(document).ready(function () {
 				}
 			},
 			{ data: 'agent_name' },
-			{ data: 'agency_name' },
 			{ data: 'agent_contact' },
 			{
 				data: 'agent_telegram',
@@ -786,7 +786,7 @@ $(document).ready(function () {
 					}
 					if (!data) return '';
 					return moment(data).isValid()
-						? moment(data).format('MMMM D, HH:mm')
+						? moment(data).format('YYYY-MM-DD HH:mm')
 						: '';
 				}
 			},

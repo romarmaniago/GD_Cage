@@ -62,7 +62,7 @@ $(document).ready(function() {
               total_withdraw_rolling = total_withdraw_rolling + row.AMOUNT;
             }
 
-            var dateFormat = moment(row.DATE_TIME).format('MMMM DD, YYYY');
+            var dateFormat = moment(row.DATE_TIME).format('YYYY-MM-DD');
             var dateFormatEdit = moment(row.DATE_TIME).format('YYYY-MM-DD');
 
             var btn = `<div class="btn-group">

@@ -34,8 +34,8 @@ $(document).ready(function() {
 
 		
 
-			var trading = moment(row.TRADING_DATE).format('MMMM DD, YYYY');
-			// var record_date = moment(row.RECORD_DATE).format('MMMM DD, YYYY');
+			var trading = moment(row.TRADING_DATE).format('YYYY-MM-DD');
+			// var record_date = moment(row.RECORD_DATE).format('YYYY-MM-DD');
 
 			var buy_in = 0;
 			var cash_out = 0;

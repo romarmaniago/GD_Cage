@@ -1163,8 +1163,12 @@ body.guest-portal-child-open .modal-backdrop.show {
                     document.getElementById('p-passport-no').textContent = hasPassport ? (data.PASSPORT_NO || '—') : '—';
                     document.getElementById('p-full-name').textContent = hasPassport ? (data.FULL_NAME || '—') : '—';
                     document.getElementById('p-nationality').textContent = hasPassport ? (data.NATIONALITY || '—') : '—';
-                    document.getElementById('p-dob').textContent = hasPassport && data.DATE_OF_BIRTH ? new Date(data.DATE_OF_BIRTH).toLocaleDateString() : '—';
-                    document.getElementById('p-expiry').textContent = hasPassport && data.EXPIRY_DATE ? new Date(data.EXPIRY_DATE).toLocaleDateString() : '—';
+                    document.getElementById('p-dob').textContent = hasPassport && data.DATE_OF_BIRTH
+                        ? (window.fmtDate ? window.fmtDate(data.DATE_OF_BIRTH, '—') : String(data.DATE_OF_BIRTH).slice(0, 10))
+                        : '—';
+                    document.getElementById('p-expiry').textContent = hasPassport && data.EXPIRY_DATE
+                        ? (window.fmtDate ? window.fmtDate(data.EXPIRY_DATE, '—') : String(data.EXPIRY_DATE).slice(0, 10))
+                        : '—';
                     document.getElementById('p-gender').textContent = hasPassport ? (data.GENDER || '—') : '—';
                     document.getElementById('p-contact').textContent = accountInfo && accountInfo.agent_contact ? accountInfo.agent_contact : '—';
                     document.getElementById('p-telegram').textContent = accountInfo && accountInfo.agent_telegram ? accountInfo.agent_telegram : '—';

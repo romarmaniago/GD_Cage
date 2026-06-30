@@ -132,11 +132,14 @@ function transTypeTelegramHeadline(action, transType) {
 	return `* 멀티목적 장부 Multipurpose Ledger — ${typeLabel} *`;
 }
 
+const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
+
 function formatTelegramDateTime(dateObj) {
 	const d = dateObj instanceof Date ? dateObj : new Date();
+	const full = formatDateTimeDisplay(d);
 	return {
-		date: d.toLocaleDateString('en-US'),
-		time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+		date: formatDateDisplay(d),
+		time: full.length >= 16 ? full.slice(11) : ''
 	};
 }
 

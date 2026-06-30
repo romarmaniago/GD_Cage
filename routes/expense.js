@@ -5,6 +5,8 @@ const { checkSession, sessions } = require('./auth');
 const multer = require('multer');
 const { sendTelegramToEmployees } = require('../utils/telegram');
 const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
+const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
+const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
 async function insertCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
 	await pool.execute(
@@ -27,15 +29,8 @@ async function sendNewHouseExpenseTelegram(pool, payload) {
 	} = payload;
 	const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
 	const encodedByName = userRows.length > 0 ? userRows[0].FIRSTNAME || 'Unknown' : 'Unknown';
-	const dateFormatted = dateNow.toLocaleDateString('en-US', {
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit'
-	});
-	const timeFormatted = dateNow.toLocaleTimeString('en-US', {
-		hour: '2-digit',
-		minute: '2-digit'
-	});
+	const dateFormatted = formatDateDisplay(dateNow);
+	const timeFormatted = formatDateTimeDisplay(dateNow).slice(11);
 	const telegramMessage =
 		`Demo Cage\n\n* Junket Expense${statusLabel ? ' (' + statusLabel + ')' : ''} *\n\n` +
 		`Category: ${categoryName}\n` +
@@ -172,6 +167,8 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			maxSettlementDate: maxSettlementDate,
 			settledDatesForMonth: settledDatesForMonth,
 			todayStr: todayStr,
+			monthEndCutoffStart: getMonthEndCutoffRange().start,
+			monthEndCutoffEnd: getMonthEndCutoffRange().end,
 			expenseCategoryCatalog: expenseCategoryCatalog,
 			expenseCategoryRows: expenseCategoryRows
 		});
@@ -1172,7 +1169,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			const typeLabel = (typeRow[0] && typeRow[0].TYPE === 2) ? 'Non-goods / Services' : 'Goods / Services';
 			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
 			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
-			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const dateFormatted = formatDateDisplay(date_now);
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString('en-US')}\n` : '';
 			const editMsg =
@@ -1232,7 +1229,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
 		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
 		// Use actual delete time (date_now) instead of stored DATE_TIME
-		const deleteDateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+		const deleteDateFormatted = formatDateDisplay(date_now);
 		const deleteTimeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 		const deleteDateTimeStr = `${deleteDateFormatted} ${deleteTimeFormatted}`;
 
@@ -1340,7 +1337,7 @@ router.post('/add_return_money', async (req, res) => {
 		try {
 			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
 			const encodedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
-			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const dateFormatted = formatDateDisplay(date_now);
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const addReturnMsg =
 				'Demo Cage\n\n💸 * Return Money (ADDED) *\n\n' +
@@ -1398,7 +1395,7 @@ router.put('/edit_return_money/:id', async (req, res) => {
 		try {
 			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
 			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
-			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const dateFormatted = formatDateDisplay(date_now);
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString('en-US')}\n` : '';
 			const editReturnMsg =
@@ -1444,7 +1441,7 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		let dateTimeStr = 'N/A';
 		if (rm && rm.ENCODED_DT) {
 			const d = rm.ENCODED_DT instanceof Date ? rm.ENCODED_DT : new Date(rm.ENCODED_DT);
-			dateTimeStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			dateTimeStr = formatDateTimeDisplay(d);
 		}
 
 		const query = `

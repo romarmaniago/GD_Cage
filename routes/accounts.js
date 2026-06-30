@@ -839,10 +839,11 @@ router.get('/agent_data/:id', async (req, res) => {
 	}
 });
 
-function aggregateGuestDataRows(guestRows, gameRows) {
+function aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap) {
 	const resultMap = {};
 	(guestRows || []).forEach((g) => {
 		const key = String(g.guest_id);
+		const balanceCredit = (balanceCreditMap && balanceCreditMap[key]) || {};
 		resultMap[key] = {
 			guest_id: g.guest_id,
 			agent_id: g.agent_id,
@@ -853,6 +854,8 @@ function aggregateGuestDataRows(guestRows, gameRows) {
 			agent_name: g.agent_name || null,
 			agency_id: g.agency_id || null,
 			agency_name: g.agency_name || null,
+			total_balance: Number(balanceCredit.total_balance) || 0,
+			total_credit: Number(balanceCredit.total_credit) || 0,
 			total_games: 0,
 			total_rolling: 0,
 			total_winloss: 0,
@@ -892,6 +895,73 @@ function aggregateGuestDataRows(guestRows, gameRows) {
 	});
 
 	return Object.values(resultMap);
+}
+
+async function fetchGuestBalanceCreditMap(guestIds) {
+	const map = {};
+	if (!Array.isArray(guestIds) || guestIds.length === 0) {
+		return map;
+	}
+
+	const placeholders = guestIds.map(() => '?').join(',');
+	const params = guestIds;
+
+	const [balanceRows] = await pool.execute(
+		`SELECT gl.GUEST_ID AS guest_id,
+			COALESCE(SUM(
+				CASE
+					WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+					WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+					ELSE 0
+				END
+			), 0) AS total_balance
+		 FROM game_list gl
+		 INNER JOIN account_ledger al ON al.GAME_ID = gl.IDNo
+		   AND al.ACCOUNT_ID = gl.ACCOUNT_ID
+		   AND al.ACTIVE = 1
+		 INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+		 WHERE gl.GUEST_ID IN (${placeholders})
+		   AND al.TRANSACTION_TYPE IN (2, 3, 5)
+		 GROUP BY gl.GUEST_ID`,
+		params
+	);
+
+	const [creditRows] = await pool.execute(
+		`SELECT guest_id,
+			COALESCE(SUM(game_credit_balance), 0) AS total_credit
+		 FROM (
+			SELECT gl.GUEST_ID AS guest_id,
+				GREATEST(
+					0,
+					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END), 0) -
+					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END), 0)
+				) AS game_credit_balance
+			FROM game_list gl
+			LEFT JOIN account_ledger al ON al.GAME_ID = gl.IDNo
+			  AND al.ACCOUNT_ID = gl.ACCOUNT_ID
+			  AND al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (3, 4)
+			  AND (al.TRANSACTION_ID IN (3, 10, 11, 12, 1) OR al.TRANSACTION_TYPE = 4)
+			WHERE gl.GUEST_ID IN (${placeholders})
+			GROUP BY gl.IDNo, gl.GUEST_ID
+		 ) AS game_credit
+		 GROUP BY guest_id`,
+		params
+	);
+
+	(balanceRows || []).forEach((row) => {
+		const key = String(row.guest_id);
+		if (!map[key]) map[key] = { total_balance: 0, total_credit: 0 };
+		map[key].total_balance = Number(row.total_balance) || 0;
+	});
+
+	(creditRows || []).forEach((row) => {
+		const key = String(row.guest_id);
+		if (!map[key]) map[key] = { total_balance: 0, total_credit: 0 };
+		map[key].total_credit = Number(row.total_credit) || 0;
+	});
+
+	return map;
 }
 
 const GUEST_DATA_GAME_QUERY = `
@@ -997,8 +1067,10 @@ router.get('/guest_data', async (req, res) => {
 		}
 
 		const [gameRows] = await pool.execute(gameQuery, gameParams);
+		const guestIds = guestRows.map((row) => row.guest_id).filter(Boolean);
+		const balanceCreditMap = await fetchGuestBalanceCreditMap(guestIds);
 
-		return res.json(aggregateGuestDataRows(guestRows, gameRows));
+		return res.json(aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap));
 	} catch (err) {
 		console.error('Error fetching guest_data:', err);
 		return res.status(500).json({ error: 'Failed to load guest data.' });

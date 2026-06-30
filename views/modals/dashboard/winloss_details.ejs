@@ -104,14 +104,7 @@ $(document).ready(function() {
   }
 
   const picker = flatpickr("#winloss-daterange", {
-    altInput: true,
-    altFormat: "M d, Y",
-    dateFormat: "Y-m-d",
     mode: "range",
-    defaultDate: [
-      moment().startOf('month').format('YYYY-MM-DD'),
-      moment().endOf('month').format('YYYY-MM-DD')
-    ],
     showMonths: 3,
     onReady: function(selectedDates, dateStr, instance) {
       jumpWinlossRangeToCurrentThreeMonths(instance);
@@ -160,8 +153,15 @@ $(document).ready(function() {
     
     const t = window.winlossDetailsTranslations || {};
     
-    let [start, end] = range.split(" to ");
-    if (!end) end = start;
+    const apiRange = window.MonthEndCutoffRange
+      ? window.MonthEndCutoffRange.parseRangeToApiDates(range)
+      : (() => {
+          let [start, end] = range.split(' to ');
+          if (!end) end = start;
+          return { start, end };
+        })();
+    const start = apiRange.start;
+    const end = apiRange.end;
 
     if (winlossDataTable) {
       winlossDataTable.destroy();
@@ -194,7 +194,7 @@ $(document).ready(function() {
             if (programDate) {
               const date = new Date(programDate);
               if (!isNaN(date.getTime())) {
-                formattedDate = moment(date).format('MMMM D, YYYY');
+                formattedDate = moment(date).format('YYYY-MM-DD');
                 const y = date.getFullYear();
                 const m = String(date.getMonth() + 1).padStart(2, '0');
                 const d = String(date.getDate()).padStart(2, '0');

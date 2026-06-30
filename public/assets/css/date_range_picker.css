@@ -1,0 +1,62 @@
+/**
+ * Month-end range pickers — auto width, full date always visible
+ */
+.commission-daterange-mount,
+.commission-panel-daterange-mount,
+.daily-report-daterange-mount,
+.hb-field-daterange-wrap {
+	flex-shrink: 0;
+}
+
+.commission-daterange-wrap,
+.commission-panel-daterange-wrap,
+.daily-report-list-daterange-wrap,
+.hb-field-daterange-wrap {
+	width: auto;
+	min-width: 0;
+	max-width: none;
+	flex: 0 0 auto;
+	display: inline-block;
+}
+
+.commission-daterange-wrap .flatpickr-wrapper,
+.commission-panel-daterange-wrap .flatpickr-wrapper,
+.daily-report-list-daterange-wrap .flatpickr-wrapper,
+.hb-field-daterange-wrap .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+.commission-daterange-wrap input.form-control,
+.commission-daterange-wrap .flatpickr-input.form-control,
+.commission-panel-daterange-wrap input.form-control,
+.commission-panel-daterange-wrap .flatpickr-input.form-control,
+.daily-report-list-daterange-wrap .form-control,
+.daily-report-list-daterange-wrap input.flatpickr-alt-input,
+.daily-report-list-daterange-wrap .flatpickr-input.form-control,
+.hb-field-daterange-wrap input.form-control,
+.hb-field-daterange-wrap .flatpickr-input.form-control,
+#modal-new-capital .hb-field-daterange-wrap input,
+input.fp-auto-range-width,
+input.flatpickr-input.fp-auto-range-width {
+	display: inline-block !important;
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+	width: auto !important;
+	min-width: 10rem;
+	max-width: none !important;
+	box-sizing: border-box;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	field-sizing: content;
+}
+
+input.flatpickr-input[type="hidden"] {
+	width: 0 !important;
+	min-width: 0 !important;
+	padding: 0 !important;
+	border: 0 !important;
+}

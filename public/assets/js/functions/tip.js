@@ -230,7 +230,7 @@ $(document).ready(function () {
 				render: function (data, type) {
 					if (!data) return '';
 					if (type === 'sort' || type === 'filter') return data;
-					return moment(data).format('DD MMM YYYY HH:mm');
+					return moment(data).format('YYYY-MM-DD HH:mm');
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },

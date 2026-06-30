@@ -83,14 +83,7 @@ $(document).ready(function() {
   }
 
   const picker = flatpickr("#cash-balance-daterange", {
-    altInput: true,
-    altFormat: "M d, Y",
-    dateFormat: "Y-m-d",
     mode: "range",
-    defaultDate: [
-      moment().startOf('month').format('YYYY-MM-DD'),
-      moment().format('YYYY-MM-DD')
-    ],
     showMonths: 3,
     onReady: function(selectedDates, dateStr, instance) {
       jumpCashBalanceRangeToCurrentThreeMonths(instance);
@@ -140,8 +133,15 @@ $(document).ready(function() {
   function loadCashBalanceHistory(type) {
     const range = $('#cash-balance-daterange').val();
     if (!range) return;
-    let [start, end] = range.split(" to ");
-    if (!end) end = start;
+    const apiRange = window.MonthEndCutoffRange
+      ? window.MonthEndCutoffRange.parseRangeToApiDates(range)
+      : (() => {
+          let [start, end] = range.split(' to ');
+          if (!end) end = start;
+          return { start, end };
+        })();
+    const start = apiRange.start;
+    const end = apiRange.end;
     if ($.fn.DataTable.isDataTable('#cash-balance-history-tbl')) {
       $('#cash-balance-history-tbl').DataTable().destroy();
     }
@@ -194,7 +194,7 @@ $(document).ready(function() {
               remarksSource: row.REMARKS_SOURCE || '',
               recordId: row.IDNo,
               encodedBy: row.ENCODED_BY_NAME || 'N/A',
-              date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+              date: moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm'),
               sortDate: row.ENCODED_DT ? moment.utc(row.ENCODED_DT).valueOf() : 0,
               typeValue: parseInt(row.TYPE, 10),
               serviceTransactionId: row.SERVICE_TRANSACTION_ID != null

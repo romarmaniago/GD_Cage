@@ -50,6 +50,8 @@
     }
 
     var MARKER_HISTORY_DATE_PARSE_FORMATS = [
+        'YYYY-MM-DD HH:mm',
+        'YYYY-MM-DD HH:mm:ss',
         'MMMM DD, YYYY HH:mm:ss',
         'MMMM DD, YYYY HH:mm',
         'DD MMM, YYYY HH:mm:ss',
@@ -153,7 +155,7 @@
                         try {
                             return data.map(function (row) {
                                 if (row.ENCODED_DT) {
-                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm');
+                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
                                 }
                                 return row;
                             });
@@ -197,7 +199,7 @@
                         }
                         if (!window.moment) return data;
                         var dateMoment = parseMarkerHistoryDateString(data);
-                        return dateMoment ? dateMoment.local().format('DD MMM, YYYY HH:mm') : (data || '');
+                        return dateMoment ? dateMoment.local().format('YYYY-MM-DD HH:mm') : (data || '');
                     }
                 },
                 {
@@ -551,7 +553,7 @@
         var dateCell = row.ENCODED_DT || '';
         if (dateCell && window.moment) {
             var md = parseMarkerHistoryDateString(dateCell);
-            if (md) dateCell = md.format('DD MMM, YYYY HH:mm');
+            if (md) dateCell = md.format('YYYY-MM-DD HH:mm');
         }
         var amt = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
         if (isNaN(amt)) amt = 0;

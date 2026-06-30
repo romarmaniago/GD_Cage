@@ -1,9 +1,9 @@
 $(document).ready(function() {
 	let dataTable;
 	let currentFilter = 'all';
-	const defaultDateRange = getCurrentMonthRange();
-	let fnbHotelDateStart = defaultDateRange.start;
-	let fnbHotelDateEnd = defaultDateRange.end;
+	const defaultDateRange = (window.MonthEndCutoffRange && window.MonthEndCutoffRange.getMonthEndCutoffRange()) || getCurrentMonthRange();
+	let fnbHotelDateStart = defaultDateRange.startAt || defaultDateRange.start;
+	let fnbHotelDateEnd = defaultDateRange.endAt || defaultDateRange.end;
 
 	// Helpers (mirror the EJS helpers)
 	function formatDateForDisplay(value) {
@@ -47,11 +47,16 @@ $(document).ready(function() {
 	}
 
 	function getCurrentMonthRange() {
+		if (window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.getMonthEndCutoffRange();
+		}
 		const now = new Date();
-		return {
-			start: new Date(now.getFullYear(), now.getMonth(), 1),
-			end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
-		};
+		const y = now.getFullYear();
+		const m = now.getMonth();
+		const startAt = new Date(y, m + 1, 0);
+		const endAt = new Date(y, m + 2, 0);
+		endAt.setDate(endAt.getDate() - 1);
+		return { startAt, endAt };
 	}
 
 	$.fn.dataTable.ext.search.push(function (settings, data) {
@@ -444,10 +449,6 @@ $(document).ready(function() {
 	if (typeof flatpickr === 'function') {
 		flatpickr('#fnb-hotel-daterange', {
 			mode: 'range',
-			dateFormat: 'Y-m-d',
-			altInput: true,
-			altFormat: 'M d, Y',
-			defaultDate: [fnbHotelDateStart, fnbHotelDateEnd],
 			showMonths: 3,
 			onReady: function (_selectedDates, _dateStr, instance) {
 				instance.changeMonth(-2, true);

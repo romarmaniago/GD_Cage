@@ -30,8 +30,22 @@ $(document).ready(function () {
 
 	const agency = getQueryParam('agency');
     const guest = getQueryParam('guest');
-    const start_date = getQueryParam('start_date') || moment().startOf('month').format('YYYY-MM-DD');
-    const end_date = getQueryParam('end_date') || moment().format('YYYY-MM-DD');
+    const cutoff = (window.MonthEndCutoffRange && window.MonthEndCutoffRange.getMonthEndCutoffRange())
+        || (typeof window.getMonthEndCutoffRange === 'function' ? window.getMonthEndCutoffRange() : null);
+    const start_date = getQueryParam('start_date') || (cutoff ? cutoff.startDate : (function () {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        return moment(new Date(y, m + 1, 0)).format('YYYY-MM-DD');
+    })());
+    const end_date = getQueryParam('end_date') || (cutoff ? (cutoff.endDateApi || cutoff.endDate) : (function () {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const endAt = new Date(y, m + 2, 0);
+        endAt.setDate(endAt.getDate() - 1);
+        return moment(endAt).format('YYYY-MM-DD');
+    })());
 
     console.log(`Agency: ${agency}, Guest: ${guest}, Date Range: ${start_date} to ${end_date}`);
 

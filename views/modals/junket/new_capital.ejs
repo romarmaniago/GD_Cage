@@ -8,8 +8,35 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <style>
-	.modal-lg {
-		max-width: 65% !important; /* Adjust percentage as needed */
+	#modal-new-capital .modal-dialog {
+		max-width: 920px;
+		width: calc(100% - 2rem);
+	}
+
+	#modal-new-capital .modal-body {
+		padding: 0.75rem 1rem;
+	}
+
+	#modal-new-capital .house-balance-form-row {
+		margin-bottom: 0.5rem;
+	}
+
+	#modal-new-capital .hb-field-amount {
+		width: 12.5rem;
+		min-width: 12.5rem;
+		max-width: 16rem;
+		font-size: 0.875rem;
+	}
+
+	#modal-new-capital .hb-field-daterange-wrap input {
+		width: auto;
+		min-width: 10rem;
+		max-width: none;
+		font-size: 0.875rem;
+		overflow: visible;
+		text-overflow: clip;
+		white-space: nowrap;
+		box-sizing: border-box;
 	}
 
 	#capital-tbl {
@@ -105,7 +132,7 @@ border-top: 2px solid #dee2e6;
 
 	<div class="modal fade" id="modal-new-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
 		data-keyboard="false" data-bs-backdrop="static">
-		<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable  modal-lg">
+		<div class="modal-dialog modal-dialog-centered">
 			<div class="modal-content">
 				
 					<div class="modal-header bg-primary ">
@@ -122,19 +149,19 @@ border-top: 2px solid #dee2e6;
 					
 					<div class="modal-body">
 						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
-							<div class="row">
-								<div class="col-4">
-									<input type="text" id="txtAmount" name="txtAmount" class="form-control" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+							<div class="row g-2 align-items-center house-balance-form-row">
+								<div class="col-auto">
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
 								</div>
-								<div class="col-sm-4">
-									<input type="text" id="main-daterange" name="daterange" class="input-daterange input-group" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+								<div class="col-auto hb-field-daterange-wrap">
+									<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
 								</div>
-								<div class="col-sm-12 mt-2">
-									<textarea class="form-control" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" cols="10" rows="2"></textarea>
+								<div class="col-12">
+									<textarea class="form-control form-control-sm" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
 								</div>
 							</div>
 							
-							<div class="row mb-2 align-items-center mt-3 justify-content-end">
+							<div class="row mb-2 align-items-center mt-2 justify-content-end g-2">
 								<div class="col-auto">
 									<div class="form-check">
 										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
@@ -159,7 +186,7 @@ border-top: 2px solid #dee2e6;
 							
 							<input type="hidden" name="description" id="description" value="Cash-in">
 							
-							<hr style="border: none; border-top: 0.2rem solid black;">
+							<hr class="my-2" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
 							<table
 								id="capital-tbl"
@@ -277,10 +304,9 @@ border-top: 2px solid #dee2e6;
 			});
 		});
 		
-		// Initialize Flatpickr for the date range picker
+		// Initialize Flatpickr for the date range picker (month-end cut-off defaults)
 		flatpickr("#daterange", {
-			mode: "range",
-			dateFormat: "Y-m-d"
+			mode: "range"
 		});
 	});
 

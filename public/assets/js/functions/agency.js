@@ -17,17 +17,28 @@ function formatLineStatNumber(value) {
   });
 }
 
+function updateScopeStatCard(isSingleLineScope, lineCount, agentCount) {
+  if (isSingleLineScope) {
+    $('#line-stat-scope-label').text('Total Agent');
+    $('#line-stat-scope-value').text(formatLineStatNumber(agentCount));
+    return;
+  }
+  $('#line-stat-scope-label').text('Total Line');
+  $('#line-stat-scope-value').text(formatLineStatNumber(lineCount));
+}
+
 function renderLineStats(stats, isSingleLineScope) {
   const payload = stats || {};
-  $('#line-stat-total-line').text(formatLineStatNumber(payload.total_line));
-  $('#line-stat-total-agent').text(formatLineStatNumber(payload.total_agent));
+  updateScopeStatCard(
+    isSingleLineScope,
+    payload.total_line,
+    payload.total_agent
+  );
   $('#line-stat-total-rolling').text(formatLineStatNumber(payload.total_rolling));
   $('#line-stat-total-winloss').text(formatLineStatNumber(payload.total_winloss));
   $('#line-stat-total-commission').text(formatLineStatNumber(payload.total_commission));
   $('#line-stat-total-balance').text(formatLineStatNumber(payload.total_balance));
   $('#line-stat-total-credit').text(formatLineStatNumber(payload.total_credit));
-  $('#line-stat-card-line').toggleClass('d-none', isSingleLineScope);
-  $('#line-stat-card-agent').toggleClass('d-none', !isSingleLineScope);
 }
 
 function loadLineStats(agencyId) {
@@ -780,6 +791,9 @@ function renderAgentPanel(accounts, options) {
     $empty.removeClass('d-none').text(
       searching ? 'No LINE matched your search.' : 'No LINE under this agency.'
     );
+    if (selectedAgencyId && !searching) {
+      updateScopeStatCard(true, 0, 0);
+    }
     return;
   }
 
@@ -836,6 +850,10 @@ function renderAgentPanel(accounts, options) {
 
   $list.html(html).removeClass('d-none');
   $empty.addClass('d-none');
+
+  if (selectedAgencyId && !searching) {
+    updateScopeStatCard(true, 0, agents.length);
+  }
 }
 
 function selectAgentInPanel(agentId, anchorEl) {
@@ -1269,14 +1287,13 @@ function renderGuestPanel(guests, options) {
   const htmlRows = rows.map(function (row) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
-    const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
     const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
-    const games = formatLineStatNumber(row.total_games || row.games || 0);
+    const balance = formatLineStatNumber(row.total_balance || row.balance || 0);
+    const credit = formatLineStatNumber(row.total_credit || row.credit || 0);
     const rolling = formatLineStatNumber(row.total_rolling || row.rolling || 0);
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
-    const displayMembershipNo = membershipNo || '—';
     const agentCode = String(row.agent_code || '').trim().toUpperCase();
     const agentName = String(row.agent_name || '').trim().toUpperCase();
     const agentLineLabel = agentCode && agentName
@@ -1322,10 +1339,10 @@ function renderGuestPanel(guests, options) {
     return `
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
-        <td class="agency-guest-membership-col">${displayMembershipNo}</td>
-        <td>${games}</td>
-        <td>${rolling}</td>
+        <td>${balance}</td>
+        <td>${credit}</td>
         <td>${winloss}</td>
+        <td>${rolling}</td>
         <td>${commission}</td>
         <td>
           <button
@@ -1353,14 +1370,13 @@ function renderGuestPanel(guests, options) {
       <table class="table table-sm mb-0 agency-guest-table">
         <thead>
           <tr>
-          
             <th class="agency-guest-col">Guest</th>
-            <th class="agency-guest-membership-col">Membership #</th>
-            <th>Games</th>
-            <th>Rolling</th>
+            <th>Balance</th>
+            <th>Credit</th>
             <th>Winloss</th>
+            <th>Rolling</th>
             <th>Commission</th>
-              <th style="width: 96px;"></th>
+            <th style="width: 96px;"></th>
           </tr>
         </thead>
         <tbody>

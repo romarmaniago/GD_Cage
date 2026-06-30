@@ -39,11 +39,22 @@ function formatYmd(dateObj) {
     return y + '-' + m + '-' + d;
 }
 
-function getFirstAndLastOfMonth() {
+function getMonthEndCutoffRangeLocal() {
+    if (window.MonthEndCutoffRange) {
+        return window.MonthEndCutoffRange.getMonthEndCutoffRange();
+    }
     const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { first, last };
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const startAt = new Date(y, m + 1, 0);
+    const endAt = new Date(y, m + 2, 0);
+    endAt.setDate(endAt.getDate() - 1);
+    return { startAt: startAt, endAt: endAt, startDate: formatYmd(startAt), endDate: formatYmd(endAt) };
+}
+
+function getFirstAndLastOfMonth() {
+    const range = getMonthEndCutoffRangeLocal();
+    return { first: range.startAt, last: range.endAt };
 }
 
 function jumpJunketLossRangeToCurrentThreeMonths(instance) {
@@ -95,10 +106,6 @@ $(document).ready(function () {
     if (typeof flatpickr === 'function') {
         flatpickr('#junket-loss-daterange', {
             mode: 'range',
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'M d, Y',
-            defaultDate: [monthRange.first, monthRange.last],
             showMonths: 3,
             onReady: function (_selectedDates, _dateStr, instance) {
                 jumpJunketLossRangeToCurrentThreeMonths(instance);
@@ -170,7 +177,7 @@ $(document).ready(function () {
                 render: function (data, type) {
                     if (!data) return '';
                     if (type === 'sort') return data;
-                    return moment(data).format('DD MMM YYYY HH:mm:ss');
+                    return moment(data).format('YYYY-MM-DD HH:mm');
                 }
             },
             {

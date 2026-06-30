@@ -490,12 +490,13 @@ function formatChangeStatusCutoffDateDisplay(ymd) {
 	if (typeof moment !== 'undefined' && moment) {
 		var m = moment(raw, 'YYYY-MM-DD', true);
 		if (m.isValid()) {
-			return m.format('MMMM D, YYYY');
+			return m.format('YYYY-MM-DD');
 		}
 	}
 	var d = new Date(raw + 'T12:00:00');
 	if (!isNaN(d.getTime())) {
-		return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+		if (typeof window.fmtDate === 'function') return window.fmtDate(d, raw);
+		return raw;
 	}
 	return raw;
 }
@@ -1202,7 +1203,7 @@ function buildPendingGameEndStatusHtml(row, changeStatusOnclick, opts) {
 			displayDt = row.PENDING_ROLLER_RESOLVED_DT || row.EDITED_DT;
 		}
 		if (displayDt && typeof moment !== 'undefined') {
-			mainText = moment(displayDt).format('MMMM DD, HH:mm');
+			mainText = moment(displayDt).format('YYYY-MM-DD HH:mm');
 		}
 		if (resolve === 1) {
 			tooltip = gameStatus === 1
@@ -2145,14 +2146,14 @@ function getProgramDateYmd(row) {
 function formatProgramDateLabel(ymdOrDate) {
 	if (ymdOrDate == null || ymdOrDate === '') return '-';
 	if (ymdOrDate instanceof Date) {
-		return moment(ymdOrDate).format('MMM DD, YYYY');
+		return moment(ymdOrDate).format('YYYY-MM-DD');
 	}
 	var s = String(ymdOrDate).trim();
 	if (!s) return '-';
 	var m = moment(s, ['YYYY-MM-DD', 'Y-MM-DD'], true);
 	if (!m.isValid()) m = moment(s, 'MMM DD, YYYY', true);
 	if (!m.isValid()) m = moment(s);
-	return m.isValid() ? m.format('MMM DD, YYYY') : s;
+	return m.isValid() ? m.format('YYYY-MM-DD') : s;
 }
 
 function parseProgramDateToYmd(raw) {
@@ -2423,7 +2424,7 @@ function formatGameStartReceiptDateTime(encodedDt) {
 	if (!encodedDt) return '';
 	var m = moment.utc(encodedDt).utcOffset(8);
 	if (!m.isValid()) return '';
-	return m.format('M/D/YYYY HH:mm');
+	return m.format('YYYY-MM-DD HH:mm');
 }
 
 function buildGameReceiptSlipHtml(data, isLatest) {
@@ -3449,7 +3450,7 @@ $(document).ready(function () {
 			$modal.find('#mergeGameIds').val(selectedIds.join(','));
 			$modal.find('#accNoMerge').text(nameText);
 			$modal.find('#gameNoMerge').text(gameNumberText);
-			$modal.find('#dateMerge').text(now.format('MMMM DD, YYYY'));
+			$modal.find('#dateMerge').text(now.format('YYYY-MM-DD'));
 			$modal.find('#timeMerge').text(now.format('HH:mm'));
 
 			$modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
@@ -4169,7 +4170,7 @@ $(document).ready(function () {
                         acct_code = `${row.CODE}-${row.AGENT_CODE}`;
                     }
 
-                    var dateFormat = moment(row.GAME_DATE).format('MMMM DD, YYYY');
+                    var dateFormat = moment(row.GAME_DATE).format('YYYY-MM-DD');
 
                     $.ajax({
                         url: '/game_list/' + row.game_list_id + '/record',
@@ -4376,7 +4377,7 @@ $(document).ready(function () {
 								
 									// Format net value as an integer
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCellOg = buildGameStartCell(game_start);
 								
 								// const highlightId = getQueryParam('highlight_id');
@@ -4506,7 +4507,7 @@ $(document).ready(function () {
 								
 								// Format net value as an integer
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCell = buildGameStartCell(game_start);
 								
 								var actionButtons = btn_remarks + btn_receipts + btn_settle;
@@ -4574,12 +4575,12 @@ $(document).ready(function () {
 									}
 								} else if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
 									if (isSettled && userPermissions !== 0) {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 									} else {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 									}
 								} else {
-									status = `<a href="#" onclick="showEndGameAlert()">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+									status = `<a href="#" onclick="showEndGameAlert()">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 								}
 	
 								// No add when settled (all users). When not settled, Super admin can add Buy-in, Cash-out, Rolling
@@ -4618,7 +4619,7 @@ $(document).ready(function () {
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
-						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMM DD, HH:mm');
+						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 						   var gameStartCellEnd = buildGameStartCell(game_start);
 						   var actionButtons = btn_remarks + btn_receipts + btn_settle;
 						   if (userPermissions === 0) {
@@ -4741,7 +4742,7 @@ $(document).ready(function () {
             navigateToDate(previousDate);
         } else {
             var earliestDate = getEarliestProgramDate();
-            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest date';
+            var formattedEarliest = earliestDate ? (typeof window.fmtDate === 'function' ? window.fmtDate(new Date(earliestDate + 'T12:00:00'), earliestDate) : earliestDate) : 'earliest date';
             Swal.fire({
                 icon: 'info',
                 title: 'No Previous Date',
@@ -4828,6 +4829,8 @@ $(document).ready(function () {
 
         programDatePicker = flatpickr('#program-date-range-picker', {
             mode: 'range',
+            enableTime: false,
+            skipMonthEndCutoff: true,
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
@@ -4893,6 +4896,8 @@ $(document).ready(function () {
             (dateRangeElInit && dateRangeElInit.getAttribute('placeholder')) || 'Select Date';
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
+            enableTime: false,
+            skipMonthEndCutoff: true,
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
@@ -7335,8 +7340,8 @@ function showHistory(record_id) {
 //             		}
 
 
-// 					var trading = moment(row.record_date).format('MMMM DD, YYYY HH:mm:ss');
-// 					// var record_date = moment(row.RECORD_DATE).format('MMMM DD, YYYY');
+// 					var trading = moment(row.record_date).format('YYYY-MM-DD HH:mm');
+// 					// var record_date = moment(row.RECORD_DATE).format('YYYY-MM-DD');
 
 // 					var buy_in = 0;
 // 					var cash_out = 0;
@@ -7410,7 +7415,7 @@ function reloadDataRecord() {
             // Pagsamahin ang data
             const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
             data.forEach(function (row) {
-                const dateKey = moment(row.record_date).format('MMM DD, YYYY HH:mm:ss');
+                const dateKey = moment(row.record_date).format('YYYY-MM-DD HH:mm');
                 // Keep split entries visible as separate rows:
                 // - Cash-out split: key by game_record row
                 // - Buy-in split: key by transaction type (1 cash / 2 deposit / 3 credit) so each leg gets its own row
@@ -8094,7 +8099,7 @@ function renderServicesList(list, opts) {
 		const remarks = item.REMARKS || item.remarks || '';
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
-		const formattedDt = dtRaw ? moment(dtRaw).format('MMM DD, HH:mm') : '';
+		const formattedDt = dtRaw ? moment(dtRaw).format('YYYY-MM-DD HH:mm') : '';
 		const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id || 1, 10);
 		const transactionLabel = formatServiceTransactionLabel(transactionId);
 		const serviceLabel = formatServiceDisplayLabel(service) || service;
@@ -9359,7 +9364,7 @@ $(document).ready(function () {
 						acct_code = `${row.CODE}-${row.AGENT_CODE}`;
 					}
 
-					var dateFormat = moment(row.GAME_DATE).format('MMMM DD, YYYY');
+					var dateFormat = moment(row.GAME_DATE).format('YYYY-MM-DD');
 
 					$.ajax({
 						url: '/game_list/' + row.game_list_id + '/record',
@@ -9504,7 +9509,7 @@ $(document).ready(function () {
 								if (isPendingRollerOrangeRow(row)) {
 									status = buildPendingGameEndStatusHtml(row, statsEndOnclick);
 								} else {
-									status = `<a href="#" value="${statsEndOnclick}">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
+									status = `<a href="#" value="${statsEndOnclick}">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 								}
 
 								buyin_td = formatBuyinPlainStats(total_amount);
@@ -10163,7 +10168,7 @@ function settlement_history(record_id, acc_id) {
                 if (viewMetrics.meta && viewMetrics.meta.GAME_ENDED) {
                     var viewEnded = moment(viewMetrics.meta.GAME_ENDED);
                     $('#date').text(viewEnded.format('YYYY-MM-DD'));
-                    $('#time').text(viewEnded.format('HH:mm:ss'));
+                    $('#time').text(viewEnded.format('HH:mm'));
                 }
             }
             loadServicesTotal([viewGameId]);
@@ -10274,7 +10279,7 @@ function settlement_history(record_id, acc_id) {
 
                 var currentDateTime = moment(primaryData[0].GAME_ENDED);
                 var dateStr = currentDateTime.format('YYYY-MM-DD');
-                var timeStr = currentDateTime.format('HH:mm:ss');
+                var timeStr = currentDateTime.format('HH:mm');
                 $('#date').text(dateStr);
                 $('#time').text(timeStr);
                 $settlementModal.data('settlementPrimaryDateTime', { date: dateStr, time: timeStr });

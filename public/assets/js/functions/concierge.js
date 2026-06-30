@@ -57,7 +57,7 @@ $(document).ready(function() {
             var amountCell = parseInt(row.TRANSACTION_ID, 10) === 2
               ? (window.fmtOut ? window.fmtOut(row.AMOUNT) : row.AMOUNT)
               : (window.fmtAmt ? window.fmtAmt(row.AMOUNT) : Number(row.AMOUNT || 0).toLocaleString('en-US'));
-            dataTable.row.add([`${moment(row.DATE_TIME).format('MMMM DD, YYYY')}`, `${row.CATEGORY}`, `${row.DESCRIPTION}`, `${row.TRANSACTION}`, amountCell, status, btn]).draw();
+            dataTable.row.add([`${moment(row.DATE_TIME).format('YYYY-MM-DD')}`, `${row.CATEGORY}`, `${row.DESCRIPTION}`, `${row.TRANSACTION}`, amountCell, status, btn]).draw();
           });
 
           $('.total_deposit').text(`P${total_in.toLocaleString('en-US')}`);

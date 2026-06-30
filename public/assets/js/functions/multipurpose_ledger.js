@@ -621,7 +621,7 @@ $(document).ready(function () {
 				render: function (data, type) {
 					if (!data) return '';
 					if (type === 'sort') return data;
-					return moment(data).format('DD MMM YYYY HH:mm:ss');
+					return moment(data).format('YYYY-MM-DD HH:mm');
 				}
 			},
 			{

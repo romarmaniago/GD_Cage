@@ -60,7 +60,7 @@ function getHouseExpenseDateRangeLabel() {
         if (el._flatpickr.selectedDates && el._flatpickr.selectedDates.length === 2) {
             var a = el._flatpickr.selectedDates[0];
             var b = el._flatpickr.selectedDates[1];
-            return moment(a).format('MMM D, YYYY') + ' – ' + moment(b).format('MMM D, YYYY');
+            return moment(a).format('YYYY-MM-DD') + ' – ' + moment(b).format('YYYY-MM-DD');
         }
     }
     return 'Select date range';
@@ -616,7 +616,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
             .map(function (row) {
                 var amount = parseFloat(row.AMOUNT) || 0;
                 var formattedDate = row.ENCODED_DT
-                    ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss')
+                    ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
                     : '-';
                 var formattedAmount = amount.toLocaleString('en-US', {
                     minimumFractionDigits: 0,
@@ -1257,7 +1257,7 @@ window.showHouseExpenseEditHistory = function (expenseId) {
                                   ? 'User ' + e.EDITED_BY
                                   : '—';
                         var text = String(e.CHANGES_TEXT != null ? e.CHANGES_TEXT : e.changes_text || '');
-                        var dtStr = dt ? moment(dt).format('DD MMM YYYY, HH:mm:ss') : '—';
+                        var dtStr = dt ? moment(dt).format('YYYY-MM-DD HH:mm') : '—';
                         return (
                             '<div class="house-expense-history-card card border-0 shadow-sm mb-3 bg-white">' +
                                 '<div class="house-expense-history-card-head px-3 py-3">' +
@@ -1821,7 +1821,7 @@ function renderExpenseBreakdownModalRows() {
         var amount = Number(row.AMOUNT) || 0;
         total += amount;
         var displayDate = row.ENCODED_DT
-            ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM YYYY, HH:mm:ss')
+            ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
             : '-';
         var isReturnMoney = row.record_type === 'return_money';
         var descriptionText = houseExpenseItemDescriptionColumnText(row);
@@ -1993,9 +1993,15 @@ $(document).ready(function () {
 
         var wrapper = document.getElementById('daterange-wrapper');
         if (wrapper) {
-            var fromDate = wrapper.getAttribute('data-month-start');
-            var toDate = wrapper.getAttribute('data-today');
+            var fromDate = wrapper.getAttribute('data-range-start') || wrapper.getAttribute('data-month-start');
+            var toDate = wrapper.getAttribute('data-range-end') || wrapper.getAttribute('data-today');
             if (fromDate && toDate) {
+                if (window.MonthEndCutoffRange) {
+                    return {
+                        fromDate: window.MonthEndCutoffRange.toApiDate(fromDate),
+                        toDate: window.MonthEndCutoffRange.toApiDate(toDate)
+                    };
+                }
                 return { fromDate: fromDate, toDate: toDate };
             }
         }
@@ -2195,7 +2201,7 @@ $(document).ready(function () {
             var amount = parseFloat(row.AMOUNT) || 0;
             var formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             var enc = row.ENCODED_DT
-                ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss')
+                ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
                 : '';
             return [
                 row.expense_category || 'N/A',
@@ -2257,8 +2263,6 @@ $(document).ready(function () {
         var now = new Date();
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var rangeWrapper = document.getElementById('daterange-wrapper');
-        var todayStr = (rangeWrapper && rangeWrapper.getAttribute('data-today')) || (now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()));
-        var monthStart = (rangeWrapper && rangeWrapper.getAttribute('data-month-start')) || (now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-01');
 
         var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
         var earliestSettlementDate =
@@ -2271,10 +2275,6 @@ $(document).ready(function () {
 
         dateRangePicker = flatpickr('#daterange-picker', {
             mode: 'range',
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'M d, Y',
-            defaultDate: [monthStart, todayStr],
             showMonths: 3,
             minDate: earliestSettlementDate,
             onReady: function (selectedDates, dateStr, instance) {

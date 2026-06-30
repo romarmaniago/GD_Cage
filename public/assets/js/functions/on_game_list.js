@@ -3,21 +3,10 @@ var record_id;
 var game_id;
 
 $(document).ready(function () {
-    // Initialize Flatpickr for date range
+    // Initialize Flatpickr for date range (month-end cut-off defaults via month_end_cutoff_range.js)
     flatpickr("#daterange", {
         mode: "range",
-        altInput: true,
-        altFormat: "M d, Y",
-        dateFormat: "Y-m-d",
-        defaultDate: [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
-        ],
         showMonths: 2,
-        onReady: function (selectedDates, dateStr, instance) {
-            const today = new Date();
-            instance.changeMonth(-1, true);
-        },
     });
 
     // Function to reload data into the table
@@ -28,12 +17,15 @@ $(document).ready(function () {
             return;
         }
 
-        const [start, end] = dateRange.split(' to ');
+        const [startRaw, endRaw] = dateRange.split(' to ');
+        const apiRange = window.MonthEndCutoffRange
+            ? window.MonthEndCutoffRange.parseRangeToApiDates(dateRange)
+            : { start: startRaw, end: endRaw || startRaw };
 
         $.ajax({
             url: '/on_game_list_data',
             method: 'GET',
-            data: { start, end },
+            data: { start: apiRange.start, end: apiRange.end },
             success: function (data) {
                 // Clear the table before inserting new data
                 $("#on_game-tbl tbody").empty();

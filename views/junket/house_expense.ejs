@@ -42,7 +42,10 @@
                                 const now = new Date();
                                 const pad = value => value.toString().padStart(2, '0');
                                 const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-                                const monthStartValue = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+                                const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                const formatRangeDisplayDate = (d) => `${monthAbbr[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+                                const monthEndCutoffStartValue = typeof monthEndCutoffStart !== 'undefined' ? monthEndCutoffStart : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth(), 0));
+                                const monthEndCutoffEndValue = typeof monthEndCutoffEnd !== 'undefined' ? monthEndCutoffEnd : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
                             %>
 
                             <div id="house-expense-dashboard" class="mb-3 house-expense-dashboard-shell">
@@ -90,7 +93,7 @@
                             </div>
 
                             <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
-                                <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-month-start="<%= monthStartValue %>">
+                                <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
                                     <div class="input-group">
                                         <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
                                     </div>

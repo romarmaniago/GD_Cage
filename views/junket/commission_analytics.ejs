@@ -172,6 +172,7 @@
 	align-items: center;
 	margin-left: 12px;
 	vertical-align: middle;
+	flex-shrink: 0;
 }
 
 .commission-panel-daterange-mount.is-placed {
@@ -180,25 +181,33 @@
 
 .commission-panel-daterange-wrap {
 	width: auto;
-	min-width: 220px;
-	max-width: 320px;
+	min-width: 0;
+	max-width: none;
+	flex: 0 0 auto;
+	flex-shrink: 0;
 }
 
 .commission-panel-daterange-wrap .flatpickr-wrapper {
-	display: block;
-	width: 100%;
+	display: inline-block;
+	width: auto;
+	min-width: 0;
 }
 
 .commission-panel-daterange-wrap input.form-control,
 .commission-panel-daterange-wrap .flatpickr-input.form-control {
-	display: block !important;
+	display: inline-block !important;
 	position: static !important;
 	left: auto !important;
 	top: auto !important;
-	width: 100% !important;
-	max-width: 100%;
+	width: auto !important;
+	min-width: 10rem;
+	max-width: none !important;
 	margin: 0;
 	cursor: pointer;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
 }
 
 #commission-panel-tbl_wrapper .dataTables_length {
@@ -315,7 +324,6 @@
 
 @media (max-width: 768px) {
 	.commission-panel-daterange-wrap {
-		min-width: 180px;
 		max-width: 100%;
 	}
 

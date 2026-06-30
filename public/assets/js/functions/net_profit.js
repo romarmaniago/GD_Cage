@@ -57,17 +57,12 @@
 		return d.innerHTML;
 	}
 
-	/** YYYY-MM-DD → e.g. Apr 01, 2026 (en-US) */
+	/** YYYY-MM-DD display (pass-through when already ISO date). */
 	function formatDisplayDate(iso) {
 		if (iso == null || iso === '') return '';
 		const s = String(iso).trim();
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return escapeHtml(s);
-		const y = parseInt(s.slice(0, 4), 10);
-		const mo = parseInt(s.slice(5, 7), 10) - 1;
-		const day = parseInt(s.slice(8, 10), 10);
-		const dt = new Date(y, mo, day);
-		if (Number.isNaN(dt.getTime())) return escapeHtml(s);
-		return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+		return escapeHtml(s);
 	}
 
 	function buildQuery() {
@@ -223,24 +218,22 @@
 	function formatDisplayDatePlain(iso) {
 		if (iso == null || iso === '') return '';
 		const s = String(iso).trim();
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return String(s).slice(0, 128);
-		const y = parseInt(s.slice(0, 4), 10);
-		const mo = parseInt(s.slice(5, 7), 10) - 1;
-		const day = parseInt(s.slice(8, 10), 10);
-		const dt = new Date(y, mo, day);
-		if (Number.isNaN(dt.getTime())) return s;
-		return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+		if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+			if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.formatDisplayDate === 'function') {
+				const parts = s.split('-');
+				const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+				if (!isNaN(d.getTime())) return window.MonthEndCutoffRange.formatDisplayDate(d);
+			}
+			return s;
+		}
+		return String(s).slice(0, 128);
 	}
 
 	function formatDisplayMonthPlain(isoOrLabel) {
 		if (isoOrLabel == null || isoOrLabel === '') return '';
 		const s = String(isoOrLabel).trim();
 		if (!/^\d{4}-\d{2}/.test(s)) return s.slice(0, 128);
-		const y = parseInt(s.slice(0, 4), 10);
-		const mo = parseInt(s.slice(5, 7), 10) - 1;
-		const dt = new Date(y, mo, 1);
-		if (Number.isNaN(dt.getTime())) return s;
-		return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+		return s.slice(0, 7);
 	}
 
 	function formatPeriodLabel(row, monthly) {
@@ -585,12 +578,8 @@
 		if (typeof flatpickr !== 'undefined' && $rangeInput) {
 			fpInstance = flatpickr($rangeInput, {
 				mode: 'range',
-				dateFormat: 'Y-m-d',
-				altInput: true,
-				altFormat: 'M d, Y',
 				altInputClass: 'form-control',
 				locale: { rangeSeparator: ' to ' },
-				defaultDate: [defaultStart, defaultEnd],
 				showMonths: 3,
 				allowInput: false,
 				onReady: function (_selectedDates, _dateStr, instance) {
@@ -601,8 +590,11 @@
 				},
 				onChange: function (selectedDates, _dateStr, instance) {
 					if (selectedDates.length === 2) {
-						rangeStart = instance.formatDate(selectedDates[0], 'Y-m-d');
-						rangeEnd = instance.formatDate(selectedDates[1], 'Y-m-d');
+						var fmt = instance.config.dateFormat || 'Y-m-d';
+						var startVal = instance.formatDate(selectedDates[0], fmt);
+						var endVal = instance.formatDate(selectedDates[1], fmt);
+						rangeStart = window.MonthEndCutoffRange ? window.MonthEndCutoffRange.toApiDate(startVal) : startVal;
+						rangeEnd = window.MonthEndCutoffRange ? window.MonthEndCutoffRange.toApiDate(endVal) : endVal;
 						dailyRangeStart = rangeStart;
 						dailyRangeEnd = rangeEnd;
 						loadData();
