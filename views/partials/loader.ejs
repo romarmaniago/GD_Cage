@@ -1,13 +1,19 @@
 <style>
-  /* Loader CSS */
   #loader-container {
     position: fixed;
-    top: 0; 
+    top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: 9999; /* Para matakpan lahat */
-    transition: opacity 0.8s ease;
+    z-index: 9999;
+    transition: opacity 0.8s ease, filter 0.8s ease, transform 0.8s ease;
+  }
+
+  #loader-container.loader-exit {
+    opacity: 0;
+    filter: blur(6px);
+    transform: scale(0.98);
+    pointer-events: none;
   }
 
   #loader-container .nav {
@@ -16,64 +22,90 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    background-color: #0b0b0b;
+    background: linear-gradient(180deg, #0f0d0a 0%, #0b0b0b 45%, #000000 100%);
     text-align: center;
     padding: 0 2em;
     position: relative;
+    overflow: hidden;
+  }
+
+  #loader-container .loader-stage {
+    position: relative;
     z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   #loader-container .loader-logo {
-    width: min(70vw, 520px);
+    display: block;
+    width: min(38vw, 168px);
     height: auto;
     object-fit: contain;
-    z-index: 4;
+    position: relative;
+    z-index: 2;
+    animation: gdLogoZoom 2s ease-in-out infinite alternate;
   }
 
-  @keyframes loading {
-  to {
-    text-shadow: 20px 0 70px var(--bs-primary);
-    color: var(--bs-primary);
-  }
-}
-
-@-webkit-keyframes loading {
-  to {
-    text-shadow: 20px 0 70px var(--bs-primary);
-    color: var(--bs-primary);
-  }
-}
-
-
-  #loader-container .loader-logo {
-    animation: logoPulse 1.6s ease-in-out infinite alternate;
+  @keyframes gdLogoZoom {
+    from { transform: scale(0.92); }
+    to   { transform: scale(1.05); }
   }
 
-  @keyframes logoPulse {
-    to {
-      filter: drop-shadow(0 0 24px rgba(0, 0, 0, 0.35));
-      transform: scale(1.02);
-    }
+  #loader-container .loader-text {
+    margin: 1.75rem 0 0;
+    color: #c8a24c;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    opacity: 0.85;
   }
 
-  
+  #loader-container .loader-progress {
+    width: min(55vw, 200px);
+    height: 2px;
+    margin-top: 1.25rem;
+    background: rgba(200, 162, 76, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #loader-container .loader-progress-bar {
+    height: 100%;
+    width: 45%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #6b4a12, #c8a24c, #f1d48a, #c8a24c);
+    animation: gdProgressSlide 1.6s ease-in-out infinite;
+  }
+
+  @keyframes gdProgressSlide {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(260%); }
+  }
 </style>
 
 <div id="loader-container">
   <section class="nav">
-    <img src="/assets/images/GD-logo.png" alt="Golden Dragon" class="loader-logo">
+    <div class="loader-stage">
+      <img src="/assets/images/GD-logo.png" alt="Golden Dragon" class="loader-logo">
+      <p class="loader-text">Loading CageX</p>
+      <div class="loader-progress" aria-hidden="true">
+        <div class="loader-progress-bar"></div>
+      </div>
+    </div>
   </section>
 </div>
 
 <script>
-  // Loader fade-out effect
-  window.addEventListener('load', function() {
-    setTimeout(function(){
+  window.addEventListener('load', function () {
+    setTimeout(function () {
       var loader = document.getElementById('loader-container');
-      loader.style.opacity = '0';
-      setTimeout(function(){
+      if (!loader) return;
+      loader.classList.add('loader-exit');
+      setTimeout(function () {
         loader.style.display = 'none';
-      }, 800); // fade-out duration
-    }, 500); // delay for loader animation
+      }, 800);
+    }, 600);
   });
 </script>
