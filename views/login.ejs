@@ -1,135 +1,214 @@
-
-
 <%- include('./partials/header') %>
-<body>
-<section class="login-content">
-    <div class="row m-0 align-items-center bg-white vh-100">
-      <div class="col-md-6">
-        <div class="row justify-content-center">
-          <div class="col-md-10">
-            <div class="card card-transparent shadow-none d-flex justify-content-center mb-0 auth-card">
-              <div class="card-body z-3 px-md-0 px-lg-4">
-                <a href="/dashboard/index.html" class="navbar-brand d-flex align-items-center mb-3">
-                  <!--Logo start-->
-                  <div class="logo-main">
-                    <!-- <div class="logo-normal">
-                      <svg class="text-primary icon-30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="-0.757324" y="19.2427" width="28" height="4" rx="2" transform="rotate(-45 -0.757324 19.2427)" fill="currentColor"/>
-                        <rect x="7.72803" y="27.728" width="28" height="4" rx="2" transform="rotate(-45 7.72803 27.728)" fill="currentColor"/>
-                        <rect x="10.5366" y="16.3945" width="16" height="4" rx="2" transform="rotate(45 10.5366 16.3945)" fill="currentColor"/>
-                        <rect x="10.5562" y="-0.556152" width="28" height="4" rx="2" transform="rotate(45 10.5562 -0.556152)" fill="currentColor"/>
-                      </svg>
-                    </div>
-                    <div class="logo-mini">
-                      <svg class="text-primary icon-30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="-0.757324" y="19.2427" width="28" height="4" rx="2" transform="rotate(-45 -0.757324 19.2427)" fill="currentColor"/>
-                        <rect x="7.72803" y="27.728" width="28" height="4" rx="2" transform="rotate(-45 7.72803 27.728)" fill="currentColor"/>
-                        <rect x="10.5366" y="16.3945" width="16" height="4" rx="2" transform="rotate(45 10.5366 16.3945)" fill="currentColor"/>
-                        <rect x="10.5562" y="-0.556152" width="28" height="4" rx="2" transform="rotate(45 10.5562 -0.556152)" fill="currentColor"/>
-                      </svg>
-                    </div> -->
-                  </div>
-                  <!--logo End-->
-                  <!-- <h4 class="logo-title ms-3">3COREDEMO</h4> -->
-                </a>
-                <h2 class="mb-2 text-center">Sign In</h2>
-                <p class="text-center">Login to stay connected.</p>
-                <!-- Login form with proper id and input fields -->
-                <% 
-                  var hasError = messages.error && messages.error.length > 0;
-                  var errorMsg = hasError ? messages.error[0] : null;
-                %>
-                <% if (hasError && errorMsg !== 'ACCOUNT_CONFLICT' && errorMsg !== 'KICKED') { %>
-                  <div class="alert alert-danger text-center mb-4 d-flex align-items-center justify-content-center gap-2" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span><%= errorMsg %></span>
-                  </div>
-                <% } %>
-
-                <% if ((hasError && errorMsg === 'KICKED') || (typeof showKickedMessage !== 'undefined' && showKickedMessage)) { %>
-                  <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                      if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                          title: 'Session disconnected',
-                          text: 'Your account was logged in from another device. This session has been disconnected.',
-                          icon: 'info',
-                          confirmButtonText: 'OK'
-                        });
-                      }
-                    });
-                  </script>
-                <% } %>
-                
-                <form class="login100-form validate-form" id="login" action="/login" method="POST">
-                  <div class="row">
-                    <div class="col-lg-12">
-                      <div class="form-group">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" placeholder=" ">
-                      </div>
-                    </div>
-                    <div class="col-lg-12">
-                      <div class="form-group">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder=" ">
-                      </div>
-                    </div>
-                    <div class="col-lg-12 d-flex justify-content-between align-items-center">
-                      <div class="form-check mb-3">
-                        <input type="checkbox" class="form-check-input" id="rememberMe" name="remember-me">
-                        <label class="form-check-label" for="rememberMe">Remember Me</label>
-                      </div>
-                      <a href="#">Forgot Password?</a>
-                    </div>
-                  </div>
-                  <div class="d-flex justify-content-center">
-                    <button type="submit" class="btn btn-primary">Sign In</button>
-                  </div>
-                  <p class="text-center my-3">or sign in with other accounts?</p>
-                  <div class="d-flex justify-content-center">
-                    <ul class="list-group list-group-horizontal list-group-flush">
-                      <li class="list-group-item border-0 pb-0">
-                        <a href="#"><img src="../../assets/images/brands/fb.svg" alt="fb"></a>
-                      </li>
-                      <li class="list-group-item border-0 pb-0">
-                        <a href="#"><img src="../../assets/images/brands/gm.svg" alt="gm"></a>
-                      </li>
-                      <li class="list-group-item border-0 pb-0">
-                        <a href="#"><img src="../../assets/images/brands/im.svg" alt="im"></a>
-                      </li>
-                      <li class="list-group-item border-0 pb-0">
-                        <a href="#"><img src="../../assets/images/brands/li.svg" alt="li"></a>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                </form>
-              </div>
+<body class="gd-login-page">
+<section class="login-content gd-login-content">
+    <div class="gd-login-center-wrap">
+      <div class="gd-login-card">
+            <div class="text-center mb-4">
+              <img src="/assets/images/GD-logo.png" alt="Golden Dragon" class="gd-login-logo mb-3">
+              <h2 class="gd-login-title mb-1">Sign In</h2>
+              <p class="gd-login-subtitle mb-0">Golden Dragon CageX</p>
             </div>
-          </div>
-        </div>
-        <div class="sign-bg">
-         
-          <!-- <svg width="280" height="230" viewBox="0 0 431 398" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g  transform="translate(0.000000,64.000000) scale(0.100000,-0.100000)"
-            fill="#000000" stroke="none">
-            <path d="M64 566 c-37 -32 -39 -36 -36 -80 l4 -47 149 3 c82 2 149 0 149 -3 0
-            -3 -29 -29 -65 -59 -36 -30 -65 -56 -65 -59 0 -3 19 -19 41 -36 l41 -30 -99
-            -3 c-95 -3 -99 -4 -130 -34 -31 -30 -33 -36 -33 -100 l0 -68 248 0 c180 0 251
-            3 260 12 8 8 12 46 12 104 l0 91 -46 43 -47 43 47 41 46 41 3 80 c2 44 4 -40
-            5 -187 l2 -268 206 0 205 0 39 33 c37 30 40 36 40 84 0 87 7 83 -161 83 l-150
-            0 3 98 3 97 153 3 152 3 0 74 0 75 -468 0 -469 0 -39 -34z"/>
-            </g>
-         </svg> -->
-          
-        </div>
-      </div>
-      <div class="col-md-6 d-md-block d-none bg-primary p-0 mt-n1 vh-100 overflow-hidden">
-        <img src="../../assets/images/auth/demo.jpg" class="img-fluid gradient-main animated-scaleX" alt="images">
+
+            <% 
+              var hasError = messages.error && messages.error.length > 0;
+              var errorMsg = hasError ? messages.error[0] : null;
+            %>
+            <% if (hasError && errorMsg !== 'ACCOUNT_CONFLICT' && errorMsg !== 'KICKED') { %>
+              <div class="alert alert-danger text-center mb-4 d-flex align-items-center justify-content-center gap-2" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <span><%= errorMsg %></span>
+              </div>
+            <% } %>
+
+            <% if ((hasError && errorMsg === 'KICKED') || (typeof showKickedMessage !== 'undefined' && showKickedMessage)) { %>
+              <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                  if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                      title: 'Session disconnected',
+                      text: 'Your account was logged in from another device. This session has been disconnected.',
+                      icon: 'info',
+                      confirmButtonText: 'OK'
+                    });
+                  }
+                });
+              </script>
+            <% } %>
+
+            <form class="login100-form validate-form" id="login" action="/login" method="POST">
+              <div class="mb-3">
+                <label for="username" class="form-label gd-form-label">Username</label>
+                <input type="text" class="form-control gd-form-control" id="username" name="username" placeholder="Enter username" autocomplete="username">
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label gd-form-label">Password</label>
+                <input type="password" class="form-control gd-form-control" id="password" name="password" placeholder="Enter password" autocomplete="current-password">
+              </div>
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input gd-form-check" id="rememberMe" name="remember-me">
+                  <label class="form-check-label gd-form-label" for="rememberMe">Remember Me</label>
+                </div>
+                <a href="#" class="gd-login-link">Forgot Password?</a>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-lg bg-gradient-gold gd-login-btn">Sign In</button>
+              </div>
+            </form>
       </div>
     </div>
-  </section>
+</section>
+
+<style>
+  .btn-setting {
+    display: none !important;
+  }
+
+  .gd-login-page {
+    background: #0b0b0b;
+  }
+
+  .gd-login-content {
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0f0d0a 0%, #0b0b0b 45%, #000000 100%);
+  }
+
+  .gd-login-content::before {
+    content: "";
+    position: absolute;
+    right: 26%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: min(72vw, 650px);
+    height: min(72vw, 650px);
+    background: url("/assets/images/gd-background-logo.png") center center / contain no-repeat;
+    opacity: 0.08;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, transparent 50%, #000 50%, #000 100%);
+    mask-image: linear-gradient(to right, transparent 0%, transparent 50%, #000 50%, #000 100%);
+  }
+
+  .gd-login-center-wrap {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  .gd-login-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 2.25rem 2rem;
+    border-radius: 1rem;
+    background: linear-gradient(160deg, #121212 0%, #0a0a0a 100%);
+    border: 1px solid rgba(200, 162, 76, 0.35);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  }
+
+  .gd-login-logo {
+    width: min(72vw, 180px);
+    height: auto;
+    object-fit: contain;
+  }
+
+  .gd-login-title {
+    color: #f5f0e6;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .gd-login-subtitle {
+    color: #c8a24c;
+    font-size: 0.9rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .gd-form-label {
+    color: #d8d0c0;
+    font-size: 0.9rem;
+  }
+
+  .gd-form-control {
+    background: #161616;
+    border: 1px solid rgba(200, 162, 76, 0.25);
+    color: #f5f0e6;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.9rem;
+    color-scheme: dark;
+  }
+
+  .gd-form-control:-webkit-autofill,
+  .gd-form-control:-webkit-autofill:hover,
+  .gd-form-control:-webkit-autofill:focus,
+  .gd-form-control:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #161616 inset !important;
+    box-shadow: 0 0 0 1000px #161616 inset !important;
+    -webkit-text-fill-color: #f5f0e6 !important;
+    caret-color: #f5f0e6;
+    border: 1px solid rgba(200, 162, 76, 0.25);
+    transition: background-color 9999s ease-out 0s;
+  }
+
+  .gd-form-control:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #1a1a1a inset, 0 0 0 0.2rem rgba(200, 162, 76, 0.2) !important;
+    box-shadow: 0 0 0 1000px #1a1a1a inset, 0 0 0 0.2rem rgba(200, 162, 76, 0.2) !important;
+    border-color: #c8a24c;
+  }
+
+  .gd-form-control::placeholder {
+    color: #7a7268;
+  }
+
+  .gd-form-control:focus {
+    background: #1a1a1a;
+    border-color: #c8a24c;
+    color: #fff;
+    box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.2);
+  }
+
+  .gd-form-check {
+    background-color: #161616;
+    border-color: rgba(200, 162, 76, 0.45);
+  }
+
+  .gd-form-check:checked {
+    background-color: #c8a24c;
+    border-color: #c8a24c;
+  }
+
+  .gd-login-link {
+    color: #eacc90;
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .gd-login-link:hover {
+    color: #f1d48a;
+    text-decoration: underline;
+  }
+
+  .gd-login-btn {
+    color: #1a1205 !important;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border: none;
+    box-shadow: 0 8px 20px rgba(200, 162, 76, 0.25);
+  }
+
+  .gd-login-btn:hover,
+  .gd-login-btn:focus {
+    color: #0f0a02 !important;
+    transform: translateY(-1px);
+  }
+</style>
 </body>
   <script src="/assets/js/core/libs.min.js"></script>
   <script src="/assets/js/core/external.min.js"></script>
@@ -141,6 +220,5 @@
   <script src="/assets/js/plugins/slider-tabs.js"></script>
   <script src="/assets/js/plugins/form-wizard.js"></script>
   <script src="/assets/vendor/aos/dist/aos.js"></script>
-  <!-- SweetAlert2 for login conflict confirmation -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/assets/js/hope-ui.js" defer></script>
