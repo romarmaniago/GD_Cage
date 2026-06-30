@@ -10,7 +10,7 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
-const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION } = require('../utils/saveCashoutTips');
+const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
 
 /** Junket/house account used when resolving pending via New Game (account.IDNo). */
 const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
@@ -336,25 +336,35 @@ function buyinTransTypeForCutoffLeg(transType) {
 	return transType === 4 ? 3 : transType;
 }
 
-async function insertCutoffTipRecords(db, { parentGameId, parentAccountId, encodedBy, dateNow, tips }) {
+async function insertCutoffTipRecords(db, { parentGameId, parentAccountId, encodedBy, dateNow, tips, rollerName, tipStatus }) {
 	const rollerLeg = tips.rollerNn + tips.rollerCc;
 	const dealerLeg = tips.dealerNn + tips.dealerCc;
 	if (rollerLeg <= 0 && dealerLeg <= 0) {
 		return;
 	}
 
+	let resolvedRollerName = parseRollerName(rollerName);
+	if (!resolvedRollerName) {
+		const [nameRows] = await db.execute(
+			`SELECT COALESCE(NULLIF(TRIM(g.NAME), ''), agent.NAME, '-') AS tip_name
+			 FROM game_list gl
+			 JOIN account ON account.IDNo = gl.ACCOUNT_ID
+			 JOIN agent ON agent.IDNo = account.AGENT_ID
+			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
+			 WHERE gl.IDNo = ? LIMIT 1`,
+			[parentGameId]
+		);
+		resolvedRollerName = parseRollerName(nameRows[0]?.tip_name) || '-';
+	}
+	const resolvedTipStatus = parseTipStatus(tipStatus) || 'Roller';
+
 	const gameRecordSQL = `
 		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`;
-	const ledgerSQL = `
-		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`;
-	const CashOutDESC = 'Chips Returned';
 
 	if (rollerLeg > 0) {
-		await db.execute(gameRecordSQL, [
+		const [rollerResult] = await db.execute(gameRecordSQL, [
 			parentGameId,
 			dateNow,
 			2,
@@ -365,20 +375,21 @@ async function insertCutoffTipRecords(db, { parentGameId, parentAccountId, encod
 			encodedBy,
 			dateNow
 		]);
-		await db.execute(ledgerSQL, [
-			parentAccountId,
-			parentGameId,
-			1,
-			CASHOUT_TRANSACTION.TIP_ROLLER,
-			CashOutDESC,
-			rollerLeg,
-			encodedBy,
+		await saveCashoutTips(db, {
+			gameId: parentGameId,
+			accountId: parentAccountId,
+			cashoutId: rollerResult.insertId,
+			rollerAmount: rollerLeg,
+			dealerAmount: 0,
+			rollerName: resolvedRollerName,
+			tipStatus: resolvedTipStatus,
+			userId: encodedBy,
 			dateNow
-		]);
+		});
 	}
 
 	if (dealerLeg > 0) {
-		await db.execute(gameRecordSQL, [
+		const [dealerResult] = await db.execute(gameRecordSQL, [
 			parentGameId,
 			dateNow,
 			2,
@@ -389,16 +400,17 @@ async function insertCutoffTipRecords(db, { parentGameId, parentAccountId, encod
 			encodedBy,
 			dateNow
 		]);
-		await db.execute(ledgerSQL, [
-			parentAccountId,
-			parentGameId,
-			1,
-			CASHOUT_TRANSACTION.TIP_DEALER,
-			CashOutDESC,
-			dealerLeg,
-			encodedBy,
+		await saveCashoutTips(db, {
+			gameId: parentGameId,
+			accountId: parentAccountId,
+			cashoutId: dealerResult.insertId,
+			rollerAmount: 0,
+			dealerAmount: dealerLeg,
+			rollerName: resolvedRollerName,
+			tipStatus: resolvedTipStatus,
+			userId: encodedBy,
 			dateNow
-		]);
+		});
 	}
 }
 
@@ -957,7 +969,8 @@ async function performInGameSettlement(db, params) {
 		dateNow,
 		payment: figures.payment,
 		fnb: figures.servicesTotal,
-		transType: figures.settlementTransType
+		transType: figures.settlementTransType,
+		skipLedger: true
 	});
 
 	for (const leg of parentCashoutLegs) {
@@ -2471,45 +2484,6 @@ router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
 			PERSON_NAME: row.PERSON_NAME || '—'
 		}));
 
-		if (tipType === TIP_TYPE_ROLLER) {
-			const [settlementRows] = await pool.execute(
-				`SELECT
-					gl.IDNo,
-					gl.GAME_ENDED,
-					COALESCE(gl.PAYMENT, gl.FNB, 0) AS SETTLEMENT_AMOUNT,
-					COALESCE(NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''), '-') AS PERSON_NAME
-				FROM game_list gl
-				LEFT JOIN user_info ui ON ui.IDNo = gl.EDITED_BY
-				WHERE gl.ACCOUNT_ID = ?
-					AND gl.ACTIVE != 0
-					AND gl.SETTLED = 1
-					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0
-				ORDER BY gl.GAME_ENDED DESC, gl.IDNo DESC
-				LIMIT 25`,
-				[accountId]
-			);
-
-			(settlementRows || []).forEach((row) => {
-				const amount = parseFloat(row.SETTLEMENT_AMOUNT) || 0;
-				if (amount <= 0) return;
-				history.push({
-					IDNo: 'S-' + row.IDNo,
-					AMOUNT: -amount,
-					TIP_DATETIME: row.GAME_ENDED,
-					TRANSACTION: 'Settlement',
-					STATUS: 'GM',
-					PERSON_NAME: row.PERSON_NAME || '—'
-				});
-			});
-
-			history.sort((a, b) => {
-				const da = new Date(a.TIP_DATETIME).getTime() || 0;
-				const db = new Date(b.TIP_DATETIME).getTime() || 0;
-				if (db !== da) return db - da;
-				return String(b.IDNo).localeCompare(String(a.IDNo));
-			});
-		}
-
 		const [[balanceRow]] = await pool.execute(
 			`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TIP_TOTAL
 			FROM tip t
@@ -2517,20 +2491,7 @@ router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
 			[accountId, tipType]
 		);
 
-		let balance = parseFloat(balanceRow && balanceRow.TIP_TOTAL) || 0;
-
-		if (tipType === TIP_TYPE_ROLLER) {
-			const [[settlementTotalRow]] = await pool.execute(
-				`SELECT COALESCE(SUM(COALESCE(gl.PAYMENT, gl.FNB, 0)), 0) AS SETTLEMENT_TOTAL
-				FROM game_list gl
-				WHERE gl.ACCOUNT_ID = ?
-					AND gl.ACTIVE != 0
-					AND gl.SETTLED = 1
-					AND COALESCE(gl.PAYMENT, gl.FNB, 0) > 0`,
-				[accountId]
-			);
-			balance -= parseFloat(settlementTotalRow && settlementTotalRow.SETTLEMENT_TOTAL) || 0;
-		}
+		const balance = parseFloat(balanceRow && balanceRow.TIP_TOTAL) || 0;
 
 		return { balance, history };
 	};
@@ -3905,13 +3866,14 @@ async function autoSettleEndedGame(db, {
 	dateNow,
 	payment,
 	fnb,
-	transType
+	transType,
+	skipLedger
 }) {
 	const paymentValue = parseFloat(payment) || 0;
 	const fnbValue = parseFloat(fnb) || 0;
 	const ledgerTransType = parseInt(transType, 10) || 1;
 
-	if (paymentValue !== 0) {
+	if (!skipLedger && paymentValue !== 0) {
 		await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, 5, 'COMMISSION', ?, ?, ?)`,
@@ -6363,16 +6325,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				userId,
 				date_now
 			]);
-			await connection.execute(query2, [
-				txtAccountCode,
-				game_id,
-				1,
-				CASHOUT_TRANSACTION.TIP_ROLLER,
-				CashOutDESC,
-				tipRollerLeg,
-				userId,
-				date_now
-			]);
 			await saveCashoutTips(connection, {
 				gameId: game_id,
 				accountId: txtAccountCode,
@@ -6395,16 +6347,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				tipDealerNn,
 				tipDealerCc,
 				CASHOUT_TRANSACTION.TIP_DEALER,
-				userId,
-				date_now
-			]);
-			await connection.execute(query2, [
-				txtAccountCode,
-				game_id,
-				1,
-				CASHOUT_TRANSACTION.TIP_DEALER,
-				CashOutDESC,
-				tipDealerLeg,
 				userId,
 				date_now
 			]);

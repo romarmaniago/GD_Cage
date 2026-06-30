@@ -3,7 +3,7 @@ const TIP_TYPE = {
 	DEALER: 2
 };
 
-/** game_record / account_ledger TRANSACTION values for cash-out (CAGE_TYPE = 2) */
+/** game_record TRANSACTION values for cash-out (CAGE_TYPE = 2). Tips are not posted to account_ledger. */
 const CASHOUT_TRANSACTION = {
 	CASH: 1,
 	DEPOSIT: 2,
