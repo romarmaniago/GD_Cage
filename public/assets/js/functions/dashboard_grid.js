@@ -1,4 +1,105 @@
 (() => {
+  let goldTableId = null;
+
+  const beyondChipsEls = {};
+
+  function cacheBeyondChipsEls() {
+    beyondChipsEls.modal = document.getElementById('modal-dash-beyond-chips');
+    beyondChipsEls.form = document.getElementById('dash-beyond-chips-form');
+    beyondChipsEls.dateLabel = document.getElementById('dash-beyond-chips-date');
+    beyondChipsEls.dateIso = document.getElementById('dash-beyond-chips-date-iso');
+    beyondChipsEls.amount = document.getElementById('dash-beyond-chips-amount');
+  }
+
+  function parseBeyondChipsInput(raw) {
+    const cleaned = String(raw ?? '').replace(/,/g, '').trim();
+    if (cleaned === '' || cleaned === '-') return 0;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function openBeyondChipsModal(date, amount) {
+    const { modal, dateLabel, dateIso, amount: amountInput } = beyondChipsEls;
+    if (!modal || !dateLabel || !dateIso || !amountInput || typeof bootstrap === 'undefined') return;
+
+    dateLabel.textContent = toDisplayDate(date);
+    dateIso.value = date;
+    const n = Number(amount) || 0;
+    amountInput.value = n === 0 ? '' : String(Math.round(n));
+
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+    modal.addEventListener('shown.bs.modal', () => {
+      amountInput.focus();
+      amountInput.select();
+    }, { once: true });
+  }
+
+  async function saveBeyondChips(date, amount) {
+    if (!goldTableId) throw new Error('Gold Dragon table not found.');
+
+    const res = await fetch('/add_daily_table_report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        report_date: date,
+        report_mode: 'rolling',
+        reports: [{ junket_table_id: goldTableId, rolling: amount, winloss: 0 }]
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Unable to save Beyond Chips.');
+  }
+
+  function initBeyondChips() {
+    cacheBeyondChipsEls();
+    const root = document.getElementById('dash-rolling-root');
+    if (!root || !beyondChipsEls.form) return;
+
+    root.addEventListener('click', (e) => {
+      const row = e.target.closest('.dash-rolling-row');
+      if (!row || !root.contains(row)) return;
+      const date = row.dataset.date;
+      if (!date) return;
+      openBeyondChipsModal(date, row.dataset.beyondChips || '0');
+    });
+
+    beyondChipsEls.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = beyondChipsEls.dateIso?.value || '';
+      const amount = parseBeyondChipsInput(beyondChipsEls.amount?.value);
+      const saveBtn = beyondChipsEls.form.querySelector('[type="submit"]');
+
+      if (!date) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+        return;
+      }
+      if (Number.isNaN(amount)) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+      try {
+        await saveBeyondChips(date, amount);
+        if (beyondChipsEls.modal && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(beyondChipsEls.modal).hide();
+        }
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'success', title: 'Saved', text: 'Beyond Chips saved successfully.', timer: 1300, showConfirmButton: false });
+        }
+        await loadGridData();
+      } catch (err) {
+        console.error('saveBeyondChips:', err);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save Beyond Chips.' });
+        }
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    });
+  }
+
   function formatAmount(value) {
     const n = Number(value);
     if (!Number.isFinite(n) || n === 0) return '0';
@@ -111,7 +212,7 @@
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-rolling-row is-today' : 'dash-rolling-row';
-      return `<div class="${cls}" data-date="${escapeAttr(row.date)}">
+      return `<div class="${cls}" data-date="${escapeAttr(row.date)}" data-beyond-chips="${escapeAttr(row.beyond_chips ?? 0)}" title="Click to edit Beyond Chips">
         <span class="dash-rolling-body-cell is-date">${toDisplayDate(row.date)}</span>
         <span class="dash-rolling-body-cell is-col-casino">${escapeHtml(formatCell(row.buy_in))}</span>
         <span class="dash-rolling-body-cell is-col-casino text-dash-neg">${escapeHtml(formatCashOutCell(row.cash_out))}</span>
@@ -479,6 +580,7 @@
       const res = await fetch(`/dashboard_grid_data?${q}`, { credentials: 'same-origin' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to load grid data');
+      goldTableId = Number(data.gold_table_id) || null;
       renderRollingTable(data);
       renderWlTable(data);
       updateOnGameSummary(data);
@@ -492,6 +594,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     initMatrixPanelHeightSync();
     bindDualMatrixScrollSync();
+    initBeyondChips();
     loadGridData();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');

@@ -3628,6 +3628,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 
 		const goldTable = (tableRows || []).find((t) => /gold\s*dragon/i.test(t.table_name))
 			|| (tableRows && tableRows.length > 1 ? tableRows[1] : null);
+		const goldTableId = goldTable ? Number(goldTable.id) || null : null;
 
 		const sumDayWinlossTotal = (dayTables) => Object.values(dayTables || {})
 			.reduce((sum, row) => sum + (Number(row.winloss_amt) || 0), 0);
@@ -3819,6 +3820,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			date_from: dateFrom,
 			date_to: dateTo,
 			tables: tableRows || [],
+			gold_table_id: goldTableId,
 			rolling_rows: rollingRows,
 			wl_rows: wlRows,
 			totals: {

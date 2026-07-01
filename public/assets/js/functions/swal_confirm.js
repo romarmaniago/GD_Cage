@@ -48,7 +48,7 @@
     }
 
     function buildSpacerRow() {
-        return '<tr aria-hidden="true"><td colspan="2" style="padding:6px 0;border:none;line-height:0;font-size:0;">&nbsp;</td></tr>';
+        return '<span style="grid-column:1 / -1;height:10px;line-height:0;font-size:0;">&nbsp;</span>';
     }
 
     function isSpacerRow(row) {

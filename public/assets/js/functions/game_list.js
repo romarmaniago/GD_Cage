@@ -5910,7 +5910,7 @@ $('#add_buyin').submit(function (event) {
 
 			var pushCashoutLegRow = function (rows, name, chipType, amount) {
 				if (amount > 0) {
-					rows.push([name + ' ' + chipType, amount.toLocaleString('en-US')]);
+					rows.push([name + ' (' + chipType + ')', amount.toLocaleString('en-US')]);
 				}
 			};
 

@@ -902,8 +902,12 @@
   margin: 0;
 }
 
-.dash-rolling-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-rolling-body-cell {
-  background: #f8fafc;
+#dash-rolling-root .dash-rolling-row {
+  cursor: pointer;
+}
+
+#dash-rolling-root .dash-rolling-row:hover .dash-rolling-body-cell {
+  background: #fef9c3;
 }
 
 .dash-rolling-body-cell,
