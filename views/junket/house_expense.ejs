@@ -195,6 +195,7 @@
         <%- include ('../modals/junket/house_expense_edit_history') %>
         <%- include ('../modals/junket/house_expense_category_modals') %>
         <%- include ('../modals/junket/house_expense_vehicle_modals') %>
+        <%- include ('../modals/junket/house_expense_receipt') %>
         <div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
@@ -322,6 +323,7 @@
                 select_expense_category: "<%= __('house_expense.select_expense_category') %>",
                 select_officer_in_charge: "<%= __('house_expense.select_officer_in_charge') %>",
                 view_receipt: "<%= __('house_expense.view_receipt') %>",
+                expense_slip_receipt: "<%= __('house_expense.expense_slip_receipt') || 'Expense Receipt' %>",
                 edit_expense: "<%= __('house_expense.edit_expense') %>",
                 download_receipt: "<%= __('house_expense.download_receipt') %>",
                 archive_expense: "<%= __('house_expense.archive_expense') %>",

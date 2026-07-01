@@ -301,6 +301,294 @@ function syncHouseExpenseItemTableSortHeaders() {
     });
 }
 
+function buildHouseExpenseSlipReceiptBtn(expenseId) {
+    var title =
+        (window.houseExpenseTranslations && window.houseExpenseTranslations.expense_slip_receipt) ||
+        'Expense Receipt';
+    return (
+        '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseReceipt(' +
+        expenseId +
+        ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        houseExpenseHtmlEscape(title) +
+        '"><i class="fa fa-receipt"></i></button>'
+    );
+}
+
+function formatHouseExpenseReceiptAmount(value) {
+    return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatHouseExpenseReceiptDateTime(encodedDt) {
+    if (!encodedDt) return '';
+    var m = moment.utc(encodedDt).utcOffset(8);
+    if (!m.isValid()) return '';
+    return m.format('YYYY-MM-DD HH:mm');
+}
+
+function hasHouseExpenseReceiptField(value) {
+    if (value == null) return false;
+    if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+    return String(value).trim() !== '';
+}
+
+function buildHouseExpenseReceiptLegRow(label, value, isTotal) {
+    if (!hasHouseExpenseReceiptField(value)) return '';
+    var valueClass = 'her-value' + (isTotal ? ' her-total-value' : '');
+    var labelClass = 'her-label' + (isTotal ? ' her-total-label' : '');
+    var rowClass = isTotal ? ' class="her-total-row"' : '';
+    return (
+        '<tr' +
+        rowClass +
+        '><td class="' +
+        labelClass +
+        '">' +
+        label +
+        '</td><td class="' +
+        valueClass +
+        '">' +
+        formatHouseExpenseReceiptAmount(value) +
+        '</td></tr>'
+    );
+}
+
+function buildHouseExpenseReceiptTextLegRow(label, value) {
+    if (!hasHouseExpenseReceiptField(value)) return '';
+    return (
+        '<tr><td class="her-label">' +
+        label +
+        '</td><td class="her-value">' +
+        houseExpenseHtmlEscape(String(value)) +
+        '</td></tr>'
+    );
+}
+
+function buildHouseExpenseReceiptSlipHtml(data) {
+    var kmDisplay = '';
+    if (data.km_l != null && Number.isFinite(Number(data.km_l))) {
+        kmDisplay = houseExpenseFormatKmDisplay(data.km_l);
+    }
+
+    var detailsRows =
+        buildHouseExpenseReceiptTextLegRow('- RECEIPT NO', data.receipt_no) +
+        buildHouseExpenseReceiptTextLegRow('- IN-CHARGE', data.description) +
+        buildHouseExpenseReceiptTextLegRow('- RECEIVER', data.receiver) +
+        buildHouseExpenseReceiptTextLegRow('- VEHICLE', data.vehicle) +
+        (kmDisplay ? buildHouseExpenseReceiptTextLegRow('- KM/L', kmDisplay) : '') +
+        buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by);
+
+    var amountRows =
+        buildHouseExpenseReceiptSectionTable(
+            'her-section-amount',
+            buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true)
+        ) || '';
+
+    var detailsTable = detailsRows
+        ? '<table class="her-table her-section-details"><tbody>' + detailsRows + '</tbody></table>'
+        : '';
+
+    return (
+        '<div class="house-expense-receipt-slip">' +
+        '<div class="house-expense-receipt-slip-body">' +
+        '<p class="her-brand">GOLDEN DRAGON</p>' +
+        '<p class="her-datetime">' +
+        formatHouseExpenseReceiptDateTime(data.encoded_dt) +
+        '</p>' +
+        '<p class="her-title">' +
+        (data.title || '* HOUSE EXPENSE *') +
+        '</p>' +
+        '<p class="her-category">' +
+        houseExpenseHtmlEscape(data.category || '') +
+        '</p>' +
+        detailsTable +
+        amountRows +
+        '</div>' +
+        '<button type="button" class="btn btn-sm btn-primary w-100 mt-2 js-copy-house-expense-receipt-slip">' +
+        '<i class="fa fa-copy me-1"></i>Copy</button>' +
+        '</div>'
+    );
+}
+
+function buildHouseExpenseReceiptSectionTable(sectionClass, bodyRows) {
+    if (!bodyRows) return '';
+    return '<table class="her-table ' + sectionClass + '"><tbody>' + bodyRows + '</tbody></table>';
+}
+
+function populateHouseExpenseReceipt(data) {
+    var $container = $('#house-expense-receipt-container');
+    if (!$container.length) return;
+    $container.html(buildHouseExpenseReceiptSlipHtml(data || {}));
+}
+
+function showHouseExpenseReceiptModal() {
+    var modalEl = document.getElementById('modal-house-expense-receipt');
+    if (!modalEl) return;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    } else if ($('#modal-house-expense-receipt').modal) {
+        $('#modal-house-expense-receipt').modal('show');
+    }
+}
+
+function setHouseExpenseReceiptBackdrop(active) {
+    if (active) {
+        $('body').addClass('house-expense-receipt-open');
+    } else {
+        $('body').removeClass('house-expense-receipt-open');
+    }
+}
+
+function showHouseExpenseReceipt(expenseId) {
+    if (!expenseId) return;
+    $.ajax({
+        url: '/junket_house_expense/' + expenseId + '/receipt',
+        method: 'GET',
+        success: function (data) {
+            populateHouseExpenseReceipt(data);
+            showHouseExpenseReceiptModal();
+        },
+        error: function (xhr) {
+            var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Unable to load expense receipt.';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+            } else {
+                alert(msg);
+            }
+        }
+    });
+}
+window.showHouseExpenseReceipt = showHouseExpenseReceipt;
+
+var houseExpenseReceiptHtml2CanvasPromise = null;
+
+function loadHouseExpenseReceiptHtml2Canvas() {
+    if (typeof html2canvas !== 'undefined') {
+        return Promise.resolve();
+    }
+    if (houseExpenseReceiptHtml2CanvasPromise) {
+        return houseExpenseReceiptHtml2CanvasPromise;
+    }
+    houseExpenseReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = function () {
+            resolve();
+        };
+        script.onerror = function () {
+            houseExpenseReceiptHtml2CanvasPromise = null;
+            reject(new Error('Failed to load image copy library.'));
+        };
+        document.body.appendChild(script);
+    });
+    return houseExpenseReceiptHtml2CanvasPromise;
+}
+
+function buildHouseExpenseReceiptSlipImageBlob(slipBodyEl) {
+    return loadHouseExpenseReceiptHtml2Canvas()
+        .then(function () {
+            return html2canvas(slipBodyEl, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false
+            });
+        })
+        .then(function (canvas) {
+            return new Promise(function (resolve, reject) {
+                canvas.toBlob(function (blob) {
+                    if (!blob) {
+                        reject(new Error('Failed to create receipt image.'));
+                        return;
+                    }
+                    resolve(blob);
+                }, 'image/png');
+            });
+        });
+}
+
+function copyHouseExpenseReceiptSlipText(slipBodyEl) {
+    var text = slipBodyEl && slipBodyEl.innerText ? slipBodyEl.innerText.trim() : '';
+    if (!text) {
+        return Promise.reject(new Error('Receipt has no text to copy.'));
+    }
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        return Promise.reject(new Error('Clipboard is not supported in this browser.'));
+    }
+    return navigator.clipboard.writeText(text);
+}
+
+function copyHouseExpenseReceiptSlipImage(slipBodyEl, $btn) {
+    if (!slipBodyEl || !$btn || !$btn.length) return;
+
+    var originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+    var showCopySuccess = function (message) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Copied!',
+                text: message,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    };
+
+    var showCopyError = function (msg) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+        } else {
+            alert(msg);
+        }
+    };
+
+    var restoreBtn = function () {
+        $btn.prop('disabled', false).html(originalHtml);
+    };
+
+    var imageBlobPromise = buildHouseExpenseReceiptSlipImageBlob(slipBodyEl);
+
+    if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        navigator.clipboard
+            .write([new ClipboardItem({ 'image/png': imageBlobPromise })])
+            .then(function () {
+                showCopySuccess('Receipt image copied. You can paste it anywhere.');
+            })
+            .catch(function () {
+                return copyHouseExpenseReceiptSlipText(slipBodyEl).then(function () {
+                    showCopySuccess('Receipt text copied. You can paste it anywhere.');
+                });
+            })
+            .catch(function (err) {
+                var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
+                showCopyError(msg);
+            })
+            .finally(restoreBtn);
+        return;
+    }
+
+    imageBlobPromise
+        .then(function (blob) {
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'expense-receipt.png';
+            link.click();
+            URL.revokeObjectURL(url);
+            showCopySuccess('Receipt image downloaded.');
+        })
+        .catch(function () {
+            return copyHouseExpenseReceiptSlipText(slipBodyEl).then(function () {
+                showCopySuccess('Receipt text copied. You can paste it anywhere.');
+            });
+        })
+        .catch(function (err) {
+            var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
+            showCopyError(msg);
+        })
+        .finally(restoreBtn);
+}
+
 function buildHouseExpenseActionButtons(row, amount) {
     var permissions = parseInt($('#user-role').data('permissions'), 10);
     var approvalStatus = houseExpenseGetApprovalStatus(row);
@@ -358,6 +646,7 @@ function buildHouseExpenseActionButtons(row, amount) {
         return (
             '<div class="house-expense-actions">' +
             pendingApprovalBtnsHtml +
+            buildHouseExpenseSlipReceiptBtn(row.expense_id) +
             '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="viewReceipt(\'' +
             houseExpenseJsQuote(row.photoUrl || '') +
             '\')" ' +
@@ -410,6 +699,7 @@ function buildHouseExpenseActionButtons(row, amount) {
     }
     return (
         '<div class="house-expense-actions">' +
+        buildHouseExpenseSlipReceiptBtn(row.expense_id) +
         '<button type="button" class="btn btn-sm btn-primary" onclick="viewReceipt(\'' +
         houseExpenseJsQuote(row.photoUrl || '') +
         '\')" ' +
@@ -2417,6 +2707,28 @@ $(document).ready(function () {
         document.body.removeChild(a);
     };
 
+    $(document)
+        .off('click', '.js-copy-house-expense-receipt-slip')
+        .on('click', '.js-copy-house-expense-receipt-slip', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
+            copyHouseExpenseReceiptSlipImage(slipBody, $btn);
+        });
+
+    $(document)
+        .off('shown.bs.modal.houseExpenseReceipt', '#modal-house-expense-receipt')
+        .on('shown.bs.modal.houseExpenseReceipt', '#modal-house-expense-receipt', function () {
+            setHouseExpenseReceiptBackdrop(true);
+            loadHouseExpenseReceiptHtml2Canvas().catch(function () {});
+        });
+
+    $(document)
+        .off('hidden.bs.modal.houseExpenseReceipt', '#modal-house-expense-receipt')
+        .on('hidden.bs.modal.houseExpenseReceipt', '#modal-house-expense-receipt', function () {
+            setHouseExpenseReceiptBackdrop(false);
+        });
+
 
     // Kapag sine-submit ang form para sa pag-edit
     $('#edit_junket_house_expense').submit(function (event) {
@@ -3508,16 +3820,20 @@ $(document).ready(function () {
             processData: false,
             contentType: false,
             success: function (response) {
-                houseExpenseFinishSaveSuccess({
-                    resetSubmitting: function () {
-                        isSubmittingNewExpense = false;
-                    },
-                    $modal: $('#modal-new-house-expense'),
-                    $btn: $submitBtn,
-                    originalHtml: originalText,
-                    title: 'Added successfully',
-                    confirmButtonText: 'OK'
-                });
+                isSubmittingNewExpense = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                $('#modal-new-house-expense').modal('hide');
+                $form[0].reset();
+                if (typeof window.reloadData === 'function') window.reloadData();
+                if (response && response.id) {
+                    showHouseExpenseReceipt(response.id);
+                } else if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Added successfully',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+                    });
+                }
             },
             error: function (xhr, status, error) {
                 isSubmittingNewExpense = false;

@@ -3763,20 +3763,67 @@ router.get('/game_list/:id/start_receipt', async (req, res) => {
 	return res.json(gameStart);
 });
 
+function receiptEncodedDtMs(dt) {
+	if (dt == null) return null;
+	if (dt instanceof Date) {
+		const ms = dt.getTime();
+		return Number.isFinite(ms) ? ms : null;
+	}
+	const ms = new Date(dt).getTime();
+	return Number.isFinite(ms) ? ms : null;
+}
+
+function isSameReceiptEncodedDt(a, b) {
+	const aMs = receiptEncodedDtMs(a);
+	const bMs = receiptEncodedDtMs(b);
+	if (aMs == null || bMs == null) return aMs === bMs;
+	return aMs === bMs;
+}
+
 function sumChipsByTransaction(records, cageType, encodedDt) {
 	let cash = 0;
 	let deposit = 0;
 	let credit = 0;
 	(records || []).forEach((row) => {
 		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return;
-		if (encodedDt != null && row.ENCODED_DT !== encodedDt) return;
+		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return;
 		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
 		const trans = parseInt(row.TRANSACTION, 10);
 		if (trans === 1) cash += amt;
 		else if (trans === 2) deposit += amt;
-		else if (trans === 3) credit += amt;
+		else if (trans === 3 || trans === CASHOUT_TRANSACTION.CREDIT) credit += amt;
 	});
 	return { cash, deposit, credit, total: cash + deposit + credit };
+}
+
+function sumTipsFromRecords(records, encodedDt) {
+	let roller = 0;
+	let dealer = 0;
+	(records || []).forEach((row) => {
+		if (parseInt(row.CAGE_TYPE, 10) !== 2) return;
+		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return;
+		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
+		const trans = parseInt(row.TRANSACTION, 10);
+		if (trans === CASHOUT_TRANSACTION.TIP_ROLLER) roller += amt;
+		else if (trans === CASHOUT_TRANSACTION.TIP_DEALER) dealer += amt;
+	});
+	return { roller, dealer, total: roller + dealer };
+}
+
+function attachReceiptTips(receipt, tips) {
+	if (!tips || tips.total <= 0) return receipt;
+	return {
+		...receipt,
+		show_tip: true,
+		tip_roller: tips.roller,
+		tip_dealer: tips.dealer,
+		total_tip: tips.total
+	};
+}
+
+function isReceiptCashoutTransaction(trans) {
+	const t = parseInt(trans, 10);
+	return t === 1 || t === 2 || t === 3 || t === CASHOUT_TRANSACTION.CREDIT;
 }
 
 function computeReceiptWinLossRolling(records) {
@@ -3800,7 +3847,7 @@ function computeReceiptWinLossRolling(records) {
 		const chips = nn + cc;
 
 		if (cageType === 1) {
-			if (row.ENCODED_DT === initialDt) totalInitial += chips;
+			if (isSameReceiptEncodedDt(row.ENCODED_DT, initialDt)) totalInitial += chips;
 			else totalAdditional += chips;
 		} else if (cageType === 2) {
 			totalCashOutNn += nn;
@@ -3971,13 +4018,14 @@ async function buildGameReceipts(gameId) {
 	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
 	const additionalDts = [];
 	buyinRecords.forEach((r) => {
-		if (r.ENCODED_DT !== initialDt && !additionalDts.includes(r.ENCODED_DT)) {
+		if (!isSameReceiptEncodedDt(r.ENCODED_DT, initialDt) && !additionalDts.some((dt) => isSameReceiptEncodedDt(dt, r.ENCODED_DT))) {
 			additionalDts.push(r.ENCODED_DT);
 		}
 	});
 
 	const totalBuyin = sumChipsByTransaction(recordRows, 1, null);
 	const totalCashout = sumChipsByTransaction(recordRows, 2, null);
+	const totalTips = sumTipsFromRecords(recordRows, null);
 	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
 	const receipts = [];
 
@@ -4002,7 +4050,7 @@ async function buildGameReceipts(gameId) {
 	if (additionalDts.length > 0) {
 		const latestAddDt = additionalDts[additionalDts.length - 1];
 		const latestAdd = sumChipsByTransaction(recordRows, 1, latestAddDt);
-		receipts.push({
+		receipts.push(attachReceiptTips({
 			...base,
 			type: 'add_buyin',
 			title: '* ADD *',
@@ -4021,14 +4069,15 @@ async function buildGameReceipts(gameId) {
 			total_cashout: totalCashout.total,
 			win_loss: winLoss,
 			rolling
-		});
+		}, totalTips));
 	}
 
-	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2);
+	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2 && isReceiptCashoutTransaction(r.TRANSACTION));
 	if (cashoutRecords.length > 0) {
 		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
 		const latestCashout = sumChipsByTransaction(recordRows, 2, latestCashoutDt);
-		receipts.push({
+		const latestCashoutTips = sumTipsFromRecords(recordRows, latestCashoutDt);
+		receipts.push(attachReceiptTips({
 			...base,
 			type: 'cashout',
 			title: '* CASH OUT *',
@@ -4044,10 +4093,10 @@ async function buildGameReceipts(gameId) {
 			cashout_cash: latestCashout.cash,
 			cashout_deposit: latestCashout.deposit,
 			cashout_credit: latestCashout.credit,
-			total_cashout: totalCashout.total,
+			total_cashout: latestCashout.total,
 			win_loss: winLoss,
 			rolling
-		});
+		}, latestCashoutTips));
 	}
 
 	const activeStatus = parseInt(game.ACTIVE, 10);
@@ -4056,7 +4105,7 @@ async function buildGameReceipts(gameId) {
 		const addChg = parseFloat(game.ADD_CHG) || 0;
 		const settlement = net;
 		const actSettlement = settlement - addChg;
-		receipts.push({
+		receipts.push(attachReceiptTips({
 			...base,
 			type: 'game_finish',
 			title: '* Game FINISH *',
@@ -4080,7 +4129,7 @@ async function buildGameReceipts(gameId) {
 			settlement,
 			add_charge: addChg,
 			act_settlement: actSettlement
-		});
+		}, totalTips));
 	}
 
 	return { game_id: gameId, receipts };

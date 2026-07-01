@@ -2818,6 +2818,27 @@ function formatGameStartReceiptDateTime(encodedDt) {
 	return m.format('YYYY-MM-DD HH:mm');
 }
 
+function hasGameReceiptAmount(value) {
+	return Number(value || 0) !== 0;
+}
+
+function buildGameReceiptLegRow(label, value, options) {
+	if (!hasGameReceiptAmount(value)) return '';
+	options = options || {};
+	var formatted = options.negative
+		? formatGameReceiptCashoutAmount(value)
+		: formatGameStartReceiptAmount(value);
+	var valueClass = 'gsr-value' + (options.negative ? ' gsr-negative' : '') + (options.total ? ' gsr-total-value' : '');
+	var labelClass = 'gsr-label' + (options.total ? ' gsr-total-label' : '');
+	var rowClass = options.total ? ' class="gsr-total-row"' : '';
+	return '<tr' + rowClass + '><td class="' + labelClass + '">' + label + '</td><td class="' + valueClass + '">' + formatted + '</td></tr>';
+}
+
+function buildGameReceiptSectionTable(sectionClass, bodyRows) {
+	if (!bodyRows) return '';
+	return '<table class="gsr-table ' + sectionClass + '"><tbody>' + bodyRows + '</tbody></table>';
+}
+
 function buildGameReceiptSlipHtml(data, isLatest) {
 	var accountLine = [data.agent_code, data.agent_name].filter(Boolean).join(' - ');
 	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
@@ -2827,17 +2848,25 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 	var showCashout = !!data.show_cashout;
 	var showSummary = !!data.show_summary;
 	var showSettlement = !!data.show_settlement;
+	var showTip = !!data.show_tip;
 
 	var cashoutRows = '';
-	if (showCashout) {
-		cashoutRows =
-			'<table class="gsr-table gsr-section-cashout">' +
-			'<tbody>' +
-			'<tr><td class="gsr-label">- CASH</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_cash) + '</td></tr>' +
-			'<tr><td class="gsr-label">- DEPOSIT</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_deposit) + '</td></tr>' +
-			'<tr><td class="gsr-label">- CREDIT</td><td class="gsr-value gsr-negative">' + formatGameReceiptCashoutAmount(data.cashout_credit) + '</td></tr>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + cashoutLabel + '</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.total_cashout) + '</td></tr>' +
-			'</tbody></table>';
+	if (showCashout && hasGameReceiptAmount(data.total_cashout)) {
+		cashoutRows = buildGameReceiptSectionTable('gsr-section-cashout',
+			buildGameReceiptLegRow('- CASH', data.cashout_cash, { negative: true }) +
+			buildGameReceiptLegRow('- DEPOSIT', data.cashout_deposit, { negative: true }) +
+			buildGameReceiptLegRow('- CREDIT', data.cashout_credit, { negative: true }) +
+			buildGameReceiptLegRow(cashoutLabel, data.total_cashout, { negative: true, total: true })
+		);
+	}
+
+	var tipRows = '';
+	if (showTip && hasGameReceiptAmount(data.total_tip)) {
+		tipRows = buildGameReceiptSectionTable('gsr-section-tip',
+			buildGameReceiptLegRow('- ROLLER', data.tip_roller, { negative: true }) +
+			buildGameReceiptLegRow('- DEALER', data.tip_dealer, { negative: true }) +
+			buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { negative: true, total: true })
+		);
 	}
 
 	var summaryRows = '';
@@ -2852,25 +2881,21 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 
 	var settlementRows = '';
 	if (showSettlement) {
-		settlementRows =
-			'<table class="gsr-table gsr-section-settlement">' +
-			'<tbody>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* SETTLEMENT</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.settlement) + '</td></tr>' +
-			'<tr><td class="gsr-label">- ADD CHARGE</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.add_charge) + '</td></tr>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* ACT SETTLMENT</td><td class="gsr-value gsr-total-value gsr-negative">' + formatGameReceiptCashoutAmount(data.act_settlement) + '</td></tr>' +
-			'</tbody></table>';
+		settlementRows = buildGameReceiptSectionTable('gsr-section-settlement',
+			buildGameReceiptLegRow('* SETTLEMENT', data.settlement, { negative: true, total: true }) +
+			buildGameReceiptLegRow('- ADD CHARGE', data.add_charge) +
+			buildGameReceiptLegRow('* ACT SETTLMENT', data.act_settlement, { negative: true, total: true })
+		);
 	}
 
 	var buyinTable = '';
-	if (showBuyin) {
-		buyinTable =
-			'<table class="gsr-table gsr-section-buyin">' +
-			'<tbody>' +
-			'<tr><td class="gsr-label">- CASH</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.cash) + '</td></tr>' +
-			'<tr><td class="gsr-label">- DEPOSIT</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.deposit) + '</td></tr>' +
-			'<tr><td class="gsr-label">- CREDIT</td><td class="gsr-value">' + formatGameStartReceiptAmount(data.credit) + '</td></tr>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + buyinLabel + '</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.buy_in) + '</td></tr>' +
-			'</tbody></table>';
+	if (showBuyin && hasGameReceiptAmount(data.buy_in)) {
+		buyinTable = buildGameReceiptSectionTable('gsr-section-buyin',
+			buildGameReceiptLegRow('- CASH', data.cash) +
+			buildGameReceiptLegRow('- DEPOSIT', data.deposit) +
+			buildGameReceiptLegRow('- CREDIT', data.credit) +
+			buildGameReceiptLegRow(buyinLabel, data.buy_in, { total: true })
+		);
 	}
 
 	return (
@@ -2883,6 +2908,7 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 		'<p class="gsr-game-no">' + gameNoLine + '</p>' +
 		buyinTable +
 		cashoutRows +
+		tipRows +
 		summaryRows +
 		settlementRows +
 		'</div>' +
@@ -3073,13 +3099,8 @@ function loadGameStartReceiptHtml2Canvas() {
 	return gameStartReceiptHtml2CanvasPromise;
 }
 
-function copyGameReceiptSlipImage(slipBodyEl, $btn) {
-	if (!slipBodyEl || !$btn || !$btn.length) return;
-
-	var originalHtml = $btn.html();
-	$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-
-	loadGameStartReceiptHtml2Canvas()
+function buildGameReceiptSlipImageBlob(slipBodyEl) {
+	return loadGameStartReceiptHtml2Canvas()
 		.then(function () {
 			return html2canvas(slipBodyEl, {
 				backgroundColor: '#ffffff',
@@ -3098,37 +3119,95 @@ function copyGameReceiptSlipImage(slipBodyEl, $btn) {
 					resolve(blob);
 				}, 'image/png');
 			});
-		})
+		});
+}
+
+function copyGameReceiptSlipText(slipBodyEl) {
+	var text = (slipBodyEl && slipBodyEl.innerText) ? slipBodyEl.innerText.trim() : '';
+	if (!text) {
+		return Promise.reject(new Error('Receipt has no text to copy.'));
+	}
+	if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+		return Promise.reject(new Error('Clipboard is not supported in this browser.'));
+	}
+	return navigator.clipboard.writeText(text);
+}
+
+function copyGameReceiptSlipImage(slipBodyEl, $btn) {
+	if (!slipBodyEl || !$btn || !$btn.length) return;
+
+	var originalHtml = $btn.html();
+	$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+	var showCopySuccess = function (message) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({
+				icon: 'success',
+				title: 'Copied!',
+				text: message,
+				timer: 2000,
+				showConfirmButton: false
+			});
+		}
+	};
+
+	var showCopyError = function (msg) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+		} else {
+			alert(msg);
+		}
+	};
+
+	var restoreBtn = function () {
+		$btn.prop('disabled', false).html(originalHtml);
+	};
+
+	var imageBlobPromise = buildGameReceiptSlipImageBlob(slipBodyEl);
+
+	if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+		// clipboard.write must start during the click gesture; the blob may resolve later.
+		navigator.clipboard.write([
+			new ClipboardItem({ 'image/png': imageBlobPromise })
+		])
+			.then(function () {
+				showCopySuccess('Receipt image copied. You can paste it anywhere.');
+			})
+			.catch(function () {
+				return copyGameReceiptSlipText(slipBodyEl)
+					.then(function () {
+						showCopySuccess('Receipt text copied. You can paste it anywhere.');
+					});
+			})
+			.catch(function (err) {
+				var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
+				showCopyError(msg);
+			})
+			.finally(restoreBtn);
+		return;
+	}
+
+	imageBlobPromise
 		.then(function (blob) {
-			if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
-				throw new Error('Image clipboard is not supported in this browser.');
-			}
-			return navigator.clipboard.write([
-				new ClipboardItem({ 'image/png': Promise.resolve(blob) })
-			]);
+			var url = URL.createObjectURL(blob);
+			var link = document.createElement('a');
+			link.href = url;
+			link.download = 'receipt.png';
+			link.click();
+			URL.revokeObjectURL(url);
+			showCopySuccess('Receipt image downloaded.');
 		})
-		.then(function () {
-			if (typeof Swal !== 'undefined') {
-				Swal.fire({
-					icon: 'success',
-					title: 'Copied!',
-					text: 'Receipt image copied. You can paste it anywhere.',
-					timer: 2000,
-					showConfirmButton: false
+		.catch(function () {
+			return copyGameReceiptSlipText(slipBodyEl)
+				.then(function () {
+					showCopySuccess('Receipt text copied. You can paste it anywhere.');
 				});
-			}
 		})
 		.catch(function (err) {
-			var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
-			if (typeof Swal !== 'undefined') {
-				Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
-			} else {
-				alert(msg);
-			}
+			var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
+			showCopyError(msg);
 		})
-		.finally(function () {
-			$btn.prop('disabled', false).html(originalHtml);
-		});
+		.finally(restoreBtn);
 }
 window.copyGameReceiptSlipImage = copyGameReceiptSlipImage;
 
@@ -3156,6 +3235,7 @@ function setGameStartReceiptBackdrop(active) {
 $(document).off('shown.bs.modal.gameReceiptScroll', '#modal-game-start-receipt').on('shown.bs.modal.gameReceiptScroll', '#modal-game-start-receipt', function () {
 	setGameStartReceiptBackdrop(true);
 	scrollGameReceiptLatestIntoView(true);
+	loadGameStartReceiptHtml2Canvas().catch(function () {});
 });
 
 $(document).off('hidden.bs.modal.gameReceiptBackdrop', '#modal-game-start-receipt').on('hidden.bs.modal.gameReceiptBackdrop', '#modal-game-start-receipt', function () {

@@ -1,0 +1,152 @@
+<div class="modal fade" id="modal-house-expense-receipt" tabindex="-1" aria-labelledby="modalHouseExpenseReceiptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered house-expense-receipt-dialog">
+        <div class="modal-content house-expense-receipt-content position-relative">
+            <button type="button" class="btn-close house-expense-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-body p-0">
+                <div id="house-expense-receipt-container" class="house-expense-receipt-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#modal-house-expense-receipt .house-expense-receipt-dialog {
+    --bs-modal-width: min(98vw, 360px);
+    width: min(98vw, 360px) !important;
+    max-width: min(98vw, 360px) !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#modal-house-expense-receipt .house-expense-receipt-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+}
+
+#modal-house-expense-receipt .modal-body {
+    background: transparent;
+    width: 100%;
+}
+
+#modal-house-expense-receipt .house-expense-receipt-close-btn {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    z-index: 10;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    margin: 0;
+    opacity: 1;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    background-size: 1.35rem;
+    filter: none;
+    --bs-btn-close-opacity: 1;
+}
+
+#modal-house-expense-receipt .house-expense-receipt-close-btn:hover {
+    opacity: 1;
+    background-color: #f8f9fa;
+    transform: scale(1.05);
+}
+
+#modal-house-expense-receipt .house-expense-receipt-container {
+    width: 100%;
+    padding: 2.5rem 0.5rem 0.75rem;
+    background: transparent;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+}
+
+#modal-house-expense-receipt .house-expense-receipt-slip {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.75rem 0.65rem;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+#modal-house-expense-receipt .house-expense-receipt-slip-body {
+    flex: 1 1 auto;
+    padding: 0.5rem 0.25rem 0;
+}
+
+#modal-house-expense-receipt .her-brand {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+
+#modal-house-expense-receipt .her-datetime {
+    text-align: center;
+    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+}
+
+#modal-house-expense-receipt .her-title {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+
+#modal-house-expense-receipt .her-category {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+    text-transform: uppercase;
+}
+
+#modal-house-expense-receipt .her-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+}
+
+#modal-house-expense-receipt .her-table td {
+    border: 1px solid #adb5bd;
+    padding: 0.3rem 0.5rem;
+}
+
+#modal-house-expense-receipt .her-label {
+    text-align: left;
+}
+
+#modal-house-expense-receipt .her-value {
+    text-align: right;
+    white-space: nowrap;
+}
+
+#modal-house-expense-receipt .her-total-row td {
+    font-weight: 700;
+}
+
+#modal-house-expense-receipt .her-section-details {
+    border-top: 2px solid #000;
+}
+
+#modal-house-expense-receipt .her-section-amount {
+    border-top: 2px solid #000;
+}
+
+body.house-expense-receipt-open .modal-backdrop.show {
+    --bs-backdrop-opacity: 0.38;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+</style>

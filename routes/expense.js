@@ -822,6 +822,70 @@ router.get('/junket_house_expense_data', async (req, res) => {
 	}
 });
 
+async function buildHouseExpenseReceipt(expenseId) {
+	const [rows] = await pool.execute(
+		`SELECT
+			e.IDNo,
+			e.RECEIPT_NO,
+			e.DATE_TIME,
+			e.DESCRIPTION,
+			e.RECEIVER,
+			e.AMOUNT,
+			e.KM_L,
+			e.ENCODED_DT,
+			e.APPROVAL_STATUS,
+			ec.CATEGORY AS category_name,
+			hv.PLATE_NO AS vehicle_plate,
+			hv.MODEL AS vehicle_model,
+			u.FIRSTNAME AS encoded_by_name
+		FROM junket_house_expense e
+		JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+		JOIN user_info u ON u.IDNo = e.ENCODED_BY
+		LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
+		WHERE e.IDNo = ? AND e.ACTIVE = 1
+		LIMIT 1`,
+		[expenseId]
+	);
+	if (!rows.length) return null;
+
+	const row = rows[0];
+	const vehicleParts = [row.vehicle_plate, row.vehicle_model].filter((v) => v != null && String(v).trim() !== '');
+	const kmL = row.KM_L != null && row.KM_L !== '' ? parseFloat(row.KM_L) : null;
+
+	return {
+		expense_id: row.IDNo,
+		title: '* HOUSE EXPENSE *',
+		encoded_dt: row.DATE_TIME || row.ENCODED_DT,
+		category: row.category_name || '',
+		receipt_no: row.RECEIPT_NO || '',
+		description: row.DESCRIPTION || '',
+		receiver: row.RECEIVER || '',
+		vehicle: vehicleParts.join(' - '),
+		km_l: Number.isFinite(kmL) ? kmL : null,
+		amount: parseFloat(row.AMOUNT) || 0,
+		encoded_by: row.encoded_by_name || '',
+		approval_status: Number(row.APPROVAL_STATUS)
+	};
+}
+
+// GET printable expense receipt slip (same style as gamebook receipts)
+router.get('/junket_house_expense/:id/receipt', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id || Number.isNaN(id)) {
+			return res.status(400).json({ error: 'Invalid expense ID' });
+		}
+		const receipt = await buildHouseExpenseReceipt(id);
+		if (!receipt) {
+			return res.status(404).json({ error: 'Expense not found' });
+		}
+		return res.json(receipt);
+	} catch (err) {
+		console.error('junket_house_expense receipt:', err);
+		return res.status(500).json({ error: 'Error fetching expense receipt' });
+	}
+});
+
 // GET junket house expense edit history (junket_house_expense_edit_log)
 router.get('/junket_house_expense/:id/edit_log', async (req, res) => {
 	try {
