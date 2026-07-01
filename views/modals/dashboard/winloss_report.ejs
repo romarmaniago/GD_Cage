@@ -1,146 +1,23 @@
 <div class="modal fade" id="modal-dash-winloss-report" tabindex="-1" aria-labelledby="modal-dash-winloss-report-label" aria-hidden="true" data-bs-backdrop="static" data-report-mode="winloss">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-centered dash-winloss-report-dialog">
     <div class="modal-content">
-      <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="modal-dash-winloss-report-label">Winloss Report</h5>
-        <div class="d-flex align-items-center gap-2 ms-auto me-2">
-          <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="btn-print-daily-report-matrix">
-            <i class="fa fa-print opacity-90"></i><span>Print</span>
-          </button>
-          <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="btn-export-daily-report-matrix">
-            <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
-          </button>
-        </div>
+      <div class="modal-header bg-primary py-2">
+        <h5 class="modal-title text-white mb-0" id="modal-dash-winloss-report-label">Winloss Report</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body pt-2">
-        <div id="daily-report-daterange-mount" class="daily-report-daterange-mount">
-          <div class="daily-report-list-daterange-wrap">
-            <input type="text" class="form-control form-control-sm" id="daily-report-list-daterange" placeholder="Select date range" autocomplete="off">
+      <div class="modal-body p-0">
+        <div class="daily-report-winloss-panel">
+          <div class="daily-report-winloss-toolbar border-bottom px-3 py-2 d-flex justify-content-end align-items-center flex-wrap gap-2">
+            <%- include('../../partials/daily_report_winloss_toolbar') %>
+          </div>
+          <div class="daily-report-winloss-body card-body pt-2 pb-3">
+            <%- include('../../partials/daily_report_winloss_body') %>
           </div>
         </div>
-        <div class="daily-report-table-wrap">
-          <table id="daily-report-view-table" class="table small-text mb-0" style="width:100%">
-            <thead id="daily-report-list-thead">
-              <tr><th class="daily-report-date-col">Date</th><th class="daily-report-total-col">Total</th></tr>
-            </thead>
-            <tbody id="daily-report-list-tbody">
-              <tr>
-                <td colspan="2" class="text-center text-muted py-3">Loading reports...</td>
-              </tr>
-            </tbody>
-            <tfoot id="daily-report-list-tfoot"></tfoot>
-          </table>
-        </div>
       </div>
-      <div class="modal-footer">
-        <a href="/table_daily_report_winloss" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
+      <div class="modal-footer py-2">
         <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
 </div>
-
-<style>
-  #modal-dash-winloss-report .daily-report-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table {
-    width: 100% !important;
-    max-width: 100%;
-    font-size: 12px;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
-    font-weight: 500;
-    padding: 8px 4px;
-    text-align: center;
-    border: none;
-    white-space: normal;
-    word-break: keep-all;
-    vertical-align: middle;
-    text-transform: uppercase;
-    font-size: 10px;
-    line-height: 1.2;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-date-col {
-    text-align: left;
-    padding-left: 10px;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-amount-col,
-  #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-total-col {
-    text-align: right;
-    padding-right: 6px;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table tbody tr {
-    border-bottom: 1px solid #eee;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table tbody tr:hover {
-    background-color: #f5f5f5 !important;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table td {
-    padding: 8px 4px;
-    color: #666;
-    vertical-align: middle;
-    white-space: nowrap;
-    font-size: 11px;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table td.daily-report-date-col {
-    text-align: left;
-    padding-left: 10px;
-    color: #333;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table td.daily-report-amount-col,
-  #modal-dash-winloss-report #daily-report-view-table td.daily-report-total-col {
-    text-align: right;
-    padding-right: 6px;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table tfoot th {
-    background: #f4f6fa;
-    font-weight: 600;
-    border-top: 2px solid #dee2e6;
-    padding: 8px 4px;
-    font-size: 11px;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table .daily-report-winloss-positive {
-    color: #198754;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table .daily-report-winloss-negative {
-    color: #dc3545;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table td.daily-report-editable-cell {
-    cursor: pointer;
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table td.daily-report-editable-cell:hover {
-    background-color: rgba(13, 110, 253, 0.08);
-  }
-
-  #modal-dash-winloss-report #daily-report-view-table_wrapper .dataTables_length,
-  #modal-dash-winloss-report #daily-report-view-table_wrapper .dataTables_filter {
-    font-size: 12px;
-  }
-
-  #modal-dash-winloss-report .daily-report-daterange-mount {
-    margin-bottom: 12px;
-  }
-</style>

@@ -27,7 +27,7 @@
   const dailyReportModalEl = document.getElementById('daily-report-modal');
   const dashWinlossReportModalEl = document.getElementById('modal-dash-winloss-report');
   const isMatrixView = !!reportMatrixTable;
-  const isFullPage = !!(
+  const isReportManagement = !!(
     tbody
     && btnOpenManage
     && btnOpenForm
@@ -45,8 +45,9 @@
     && formModalEl
     && dailyReportModalEl
   );
+  const isFullPage = isReportManagement && !dashWinlossReportModalEl;
 
-  if (!isMatrixView && !isFullPage) {
+  if (!isMatrixView && !isReportManagement) {
     return;
   }
 
@@ -511,7 +512,7 @@
     if (!$) return;
     const $mount = $('#daily-report-daterange-mount');
     if (!$mount.length) return;
-    const $container = $mount.closest('.card-body, .modal-body');
+    const $container = $mount.closest('.card-body, .modal-body, .daily-report-winloss-body');
     $mount.detach().removeClass('is-placed').removeData('placed');
     const $tableWrap = $container.find('.daily-report-table-wrap, .table-responsive').first();
     if ($tableWrap.length) {
@@ -1266,8 +1267,8 @@
     }
   }
 
-  function initFullPageView() {
-    if (!isFullPage) return;
+  function initReportManagementView() {
+    if (!isReportManagement) return;
 
     btnOpenManage.addEventListener('click', () => {
       manageModal.show();
@@ -1315,7 +1316,7 @@
   }
 
   initMatrixView();
-  initFullPageView();
+  initReportManagementView();
 
   if (dashWinlossReportModalEl) {
     window.openDashboardWinlossReportModal = function (opts = {}) {
@@ -1326,13 +1327,22 @@
       bootstrap.Modal.getOrCreateInstance(dashWinlossReportModalEl).show();
     };
 
-    dashWinlossReportModalEl.addEventListener('shown.bs.modal', () => {
+    dashWinlossReportModalEl.addEventListener('shown.bs.modal', async () => {
       const from = dashWinlossReportModalEl.dataset.pendingDateFrom || document.getElementById('dash-date-from')?.value || '';
       const to = dashWinlossReportModalEl.dataset.pendingDateTo || document.getElementById('dash-date-to')?.value || '';
       if (from && to) {
         setReportListDateRange(from, to);
       }
-      loadSubmittedReports();
+      await loadSubmittedReports();
+      const $ = window.jQuery;
+      if ($ && $.fn.DataTable && $.fn.DataTable.isDataTable('#daily-report-view-table')) {
+        $('#daily-report-view-table').DataTable().columns.adjust().draw(false);
+      }
+      placeDailyReportDateFilter();
+    });
+
+    dashWinlossReportModalEl.addEventListener('hidden.bs.modal', () => {
+      destroyMatrixDataTable();
     });
   }
 })();

@@ -4,6 +4,7 @@
 <%- include('partials/topbar') %>
 
 <link rel="stylesheet" href="/assets/css/dashboard_grid.css">
+<link rel="stylesheet" href="/assets/css/daily_report_winloss.css">
 
 <div class="conatiner-fluid content-inner py-3 dash-grid-wrap">
    <div id="user-role" data-permissions="<%= permissions %>"></div>
@@ -523,6 +524,9 @@
 <%- include ('modals/junket/new_service_record') %>
 <%- include ('modals/dashboard/winloss_details') %>
 <%- include ('modals/dashboard/winloss_report') %>
+<%- include ('modals/daily_reports/manage_table') %>
+<%- include ('modals/daily_reports/add_table') %>
+<%- include ('modals/daily_reports/add_report_winloss') %>
 <%- include ('modals/dashboard/house_expense') %>
 <%- include ('modals/junket/edit_return_money') %>
 <%- include ('modals/junket/new_return_money') %>
