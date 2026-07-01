@@ -10,6 +10,27 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const ExcelJS = require('exceljs');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const {
+	currentMonthKey,
+	loadDashboardWlSharePct,
+	upsertDashboardWlSharePct,
+	normalizeSharePercentage,
+	isValidMonthKey,
+	DEFAULT_DASHBOARD_WL_SHARE_PCT
+} = require('../utils/dashboardWlShare');
+
+function requireSuperAdmin(req, res, next) {
+	const p = req.session.permissions;
+	if (p !== 0 && p !== '0') {
+		if (req.xhr || (req.headers.accept && String(req.headers.accept).includes('application/json'))) {
+			return res.status(403).json({ success: false, error: 'Forbidden' });
+		}
+		return res.status(403).send('Forbidden');
+	}
+	next();
+}
+
+const superAdminOnly = [checkSession, requireSuperAdmin];
 
 router.get("/dashboard", checkSession, async (req, res) => {
 	console.log("Session Data:", req.session);
@@ -848,6 +869,9 @@ let sqlServiceSettle = `
 		const [UnreturnedRollerChipsResult] = await pool.execute(sqlUnreturnedRollerChips);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
+		const dashboardMonthKey = currentMonthKey();
+		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
+
 		res.render('dashboard', {
 
 			username: req.session.username,
@@ -880,7 +904,9 @@ let sqlServiceSettle = `
 			sqlMxPhpDepositOut: MxPhpDepositOutResult,
 			sqlMxCashNet: MxCashNetResult,
 			sqlCurrencyPending: CurrencyPendingResult,
-			dashboardWlSharePct: 65,
+			dashboardWlSharePct,
+			dashboardWlShareDefault: DEFAULT_DASHBOARD_WL_SHARE_PCT,
+			dashboardMonthKey,
 			sqlChipsReturnMarker: ChipsReturnMarkerResult,
 			sqlMArkerReturnDeposit: MArkerReturnDepositResult,
 			sqlMArkerReturnCash: MArkerReturnCashResult,
@@ -3004,6 +3030,32 @@ router.get('/monthly-settle-check', async (req, res) => {
 	} catch (err) {
 		console.error('monthly-settle-check:', err);
 		res.status(500).json({ canSettle: false, message: 'Unable to check settle status.' });
+	}
+});
+
+router.post('/dashboard/wl_share_percentage', superAdminOnly, async (req, res) => {
+	try {
+		const monthKey = String(req.body?.month || '').trim();
+		const sharePercentage = normalizeSharePercentage(req.body?.share_percentage);
+
+		if (!isValidMonthKey(monthKey)) {
+			return res.status(400).json({ success: false, error: 'Invalid month' });
+		}
+		if (sharePercentage == null) {
+			return res.status(400).json({ success: false, error: 'Share percentage must be between 0 and 100' });
+		}
+
+		const userId = req.session.user_id || null;
+		await upsertDashboardWlSharePct(pool, monthKey, sharePercentage, userId);
+
+		res.json({
+			success: true,
+			month: monthKey,
+			share_percentage: sharePercentage
+		});
+	} catch (err) {
+		console.error('dashboard/wl_share_percentage:', err);
+		res.status(500).json({ success: false, error: 'Error saving W/L rate' });
 	}
 });
 

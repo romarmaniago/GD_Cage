@@ -152,9 +152,10 @@
       var hotelDeposit = sumServiceRows(sqlServiceDepositJunket, 'hotel');
       var incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
 
-      var wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : 65;
+      var wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : (dashboardWlShareDefault || 65);
       var wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
       var casinoAnticipatedTotal = wlSettlement - serviceSettleTotal;
+      var canEditWlRate = (permissions === 0 || permissions === '0');
 
       var companyExpenseTotal =
          expenseReset +
@@ -176,6 +177,7 @@
       var monthStart = new Date(nowStamp.getFullYear(), nowStamp.getMonth(), 1);
       var monthEnd = new Date(nowStamp.getFullYear(), nowStamp.getMonth() + 1, 0);
       var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
+      var dashPeriodLabel = (+monthStart.getMonth() + 1) + '/' + monthStart.getDate() + ' \u2013 ' + (+monthEnd.getMonth() + 1) + '/' + monthEnd.getDate();
       var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
       var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
@@ -241,18 +243,33 @@
 
          <!-- Anticipated Profit + Actual Check -->
          <div class="col-xl-2 col-lg-3 align-self-start">
-            <div class="card dash-card dash-panel-narrow" id="dash-anticipated-panel">
+            <div class="card dash-card dash-panel-narrow" id="dash-anticipated-panel"
+               data-win-loss="<%= winLossTotal %>"
+               data-service-settle="<%= serviceSettleTotal %>"
+               data-company-expense="<%= companyExpenseTotal %>"
+               data-month-key="<%= dashboardMonthKey || '' %>"
+               data-wl-rate="<%= wlSharePct %>"
+               data-wl-default="<%= dashboardWlShareDefault || 65 %>">
                <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center flex-wrap gap-1">
                   <span>Anticipated Profit</span>
-                  <span class="dash-card-meta"><%= (+monthStart.getMonth()+1) %>/<%= monthStart.getDate() %> – <%= (+monthEnd.getMonth()+1) %>/<%= monthEnd.getDate() %></span>
+                  <span class="dash-card-meta"><%= dashPeriodLabel %></span>
                </div>
                <div class="card-body">
                   <div class="dash-kv-group-title">Casino</div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-winloss-details">W/L</a></span><span class="dash-kv-value" id="winloss"><%- fmtAmt(winLossTotal) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">W/L Rate</span><span class="dash-kv-value"><%= wlSharePct.toFixed(2) %>%</span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">W/L Settlement</span><span class="dash-kv-value"><%- fmtAmt(wlSettlement) %></span></div>
+                  <div class="dash-kv">
+                     <span class="dash-kv-label">W/L Rate</span>
+                     <span class="dash-kv-value">
+                        <% if (canEditWlRate) { %>
+                        <a href="#" id="dash-wl-rate-link" class="dash-card-link" data-bs-toggle="modal" data-bs-target="#modal-dash-wl-rate"><%= wlSharePct.toFixed(2) %>%</a>
+                        <% } else { %>
+                        <span id="dash-wl-rate-display"><%= wlSharePct.toFixed(2) %>%</span>
+                        <% } %>
+                     </span>
+                  </div>
+                  <div class="dash-kv"><span class="dash-kv-label">W/L Settlement</span><span class="dash-kv-value" id="dash-wl-settlement"><%- fmtAmt(wlSettlement) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">SOA (F&amp;B, Hotel)</span><span class="dash-kv-value"><%- fmtNeg(serviceSettleTotal) %></span></div>
-                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
+                  <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value" id="dash-casino-total"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
                   <div class="dash-kv-group-title is-warn">Company</div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
@@ -262,7 +279,7 @@
                   <div class="dash-kv"><span class="dash-kv-label">Hotel</span><span class="dash-kv-value"><%- fmtAmt(hotelDeposit) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Incidental</span><span class="dash-kv-value"><%- fmtNeg(incidentalDeposit) %></span></div>
                   <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtNeg(companyExpenseTotal) %></span></div>
-                  <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
+                  <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value" id="dash-grand-total"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
 
                   <div class="dash-section-header is-alt">Actual Check</div>
                   <div class="dash-kv-group-title">Current Time W/L</div>
@@ -505,6 +522,7 @@
 <%- include('modals/dashboard/cash_balance_history') %>
 <%- include ('modals/junket/new_service_record') %>
 <%- include ('modals/dashboard/winloss_details') %>
+<% if (canEditWlRate) { %><%- include ('modals/dashboard/wl_rate') %><% } %>
 <%- include('partials/permission_view_only_script') %>
 <%- include ('modals/dashboard/marker') %>
 <%- include ('modals/game_book/new_game_list') %>
@@ -520,6 +538,7 @@
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
 <script src="/assets/js/functions/dashboard_grid.js"></script>
+<script src="/assets/js/functions/dashboard_anticipated.js"></script>
 
 <%- include('partials/footer') %>
 <script>
