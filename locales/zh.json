@@ -404,7 +404,8 @@
 		"rejected": "house_expense.rejected",
 		"pending_approval": "house_expense.pending_approval",
 		"approve_confirm": "house_expense.approve_confirm",
-		"reject_confirm": "house_expense.reject_confirm"
+		"reject_confirm": "house_expense.reject_confirm",
+		"expense_slip_receipt": "house_expense.expense_slip_receipt"
 	},
 	"hotel_booking": {
 		"junket": "接待",

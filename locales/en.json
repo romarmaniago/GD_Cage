@@ -346,6 +346,7 @@
 		"select_expense_category": "--SELECT EXPENSE CATEGORY--",
 		"select_officer_in_charge": "--SELECT OFFICER IN CHARGE--",
 		"view_receipt": "View Receipt",
+		"expense_slip_receipt": "Expense Receipt",
 		"edit_expense": "Edit Expense",
 		"download_receipt": "Download Receipt",
 		"archive_expense": "Archive Expense",
