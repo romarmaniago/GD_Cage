@@ -136,8 +136,18 @@ $(document).ready(function() {
 		if (filter === 'all') {
 			// Clear column filter
 			dataTable.column(serviceTypeColumnIndex).search('').draw();
+		} else if (filter === 'delivery') {
+			dataTable
+				.column(serviceTypeColumnIndex)
+				.search('delivery', true, false)
+				.draw();
+		} else if (filter === 'incidental') {
+			dataTable
+				.column(serviceTypeColumnIndex)
+				.search('incidental', true, false)
+				.draw();
 		} else {
-			// Exact match on service type text (fnb, hotel, delivery)
+			// Exact match on service type text (fnb, hotel)
 			const regex = '^' + filter + '$';
 			dataTable
 				.column(serviceTypeColumnIndex)

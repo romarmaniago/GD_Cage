@@ -1,0 +1,101 @@
+<div class="modal fade" id="modal-dash-tip" tabindex="-1" aria-labelledby="modal-dash-tip-label" aria-hidden="true" data-bs-backdrop="static">
+	<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-dash-tip-label"><%= __('sidebar.tip') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="dash-tip-settlement-bar mb-3">
+					<div>
+						<div class="dash-tip-settlement-title"><%= __('tip.settlement') %></div>
+						<div class="mt-1 small text-muted">
+							<%= __('tip.available_balance') %>:
+							<strong id="dash-tip-available-balance">0</strong>
+						</div>
+					</div>
+					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<input type="text" id="dash-tip-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('tip.date_time') %>" autocomplete="off" readonly>
+						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" class="btn btn-sm btn-primary" id="btn-dash-tip-settlement-open" data-view-only-disable>
+							<%= __('tip.settle') %>
+						</button>
+						<% } %>
+						<a href="/tip" target="_blank" class="btn btn-sm btn-outline-primary"><%= __('sidebar.tip') %></a>
+					</div>
+				</div>
+				<div class="table-responsive">
+					<table id="dash-tip-table" class="table nowrap small-text mb-0" style="width:100%">
+						<thead>
+							<tr>
+								<th rowspan="2"><%= __('tip.date_time') %></th>
+								<th rowspan="2"><%= __('tip.account') %></th>
+								<th rowspan="2"><%= __('tip.guest') %></th>
+								<th rowspan="2"><%= __('tip.game_no') %></th>
+								<th rowspan="2"><%= __('tip.remarks') %></th>
+								<th colspan="4" class="text-center"><%= __('tip.roller') %></th>
+								<th colspan="4" class="text-center"><%= __('tip.dealer') %></th>
+							</tr>
+							<tr>
+								<th><%= __('tip.transaction') %></th>
+								<th><%= __('tip.amount') %></th>
+								<th><%= __('tip.status') %></th>
+								<th><%= __('tip.name') %></th>
+								<th><%= __('tip.transaction') %></th>
+								<th><%= __('tip.amount') %></th>
+								<th><%= __('tip.status') %></th>
+								<th><%= __('tip.name') %></th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('tip.close') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+.dash-tip-settlement-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.85rem 1rem;
+	border: 1px solid #bfdbfe;
+	border-radius: 0.5rem;
+	background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+}
+.dash-tip-settlement-title {
+	font-weight: 600;
+	color: #1d4ed8;
+}
+#dash-tip-available-balance {
+	color: #1d4ed8;
+}
+#dash-tip-table thead th {
+	background: #f4f6fa;
+	color: #495057;
+	font-weight: 600;
+	padding: 8px 10px;
+	border-bottom: 2px solid #dee2e6;
+	text-align: center;
+	vertical-align: middle;
+}
+#dash-tip-table tbody td {
+	padding: 8px 10px;
+	vertical-align: middle;
+	text-align: center;
+}
+#dash-tip-table tbody td:nth-child(7),
+#dash-tip-table tbody td:nth-child(11) {
+	text-align: right;
+}
+#dash-tip-table .tip-amount-negative {
+	color: #dc3545;
+}
+</style>

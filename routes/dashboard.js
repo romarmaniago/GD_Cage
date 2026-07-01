@@ -18,6 +18,7 @@ const {
 	isValidMonthKey,
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
+const { categorizeJunketExpenseTotals } = require('../utils/dashboardServiceBalance');
 
 function requireSuperAdmin(req, res, next) {
 	const p = req.session.permissions;
@@ -429,6 +430,7 @@ ON
 	let sqlTotalCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`;
 	let sqlRollerTipCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS ROLLER_TIP_CASHIN FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 2 ${SQL_ROLLER_TIP_CASHOUT_ONLY}`;
 	let sqlTipSettlement = 'SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1';
+	let sqlRollerTipGross = 'SELECT COALESCE(SUM(AMOUNT), 0) AS ROLLER_TIP_GROSS FROM tip WHERE ACTIVE = 1 AND TIP_TYPE = 1';
 
 	/* money_exchange_transaction — deposit: EXCHANGE_AMOUNT; return: RETURN_AMOUNT + MARGIN_RETURN */
 	let sqlMxDepositExchangeAmount = 'SELECT SUM(EXCHANGE_AMOUNT) AS MX_DEPOSIT_EXCHANGE FROM money_exchange_transaction WHERE ACTIVE = 1 AND TRANS_TYPE = 1';
@@ -649,6 +651,7 @@ let sqlServiceSettle = `
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
 		const [rollerTipCashOut] = await pool.execute(sqlRollerTipCashOut);
 		const [tipSettlementResult] = await pool.execute(sqlTipSettlement);
+		const [rollerTipGrossResult] = await pool.execute(sqlRollerTipGross);
 		const [totalWinLoss] = await pool.execute(sqlWinLoss);
 		const [serviceCashGuestResults] = await pool.execute(sqlServiceCashGuest);
 		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
@@ -952,6 +955,7 @@ let sqlServiceSettle = `
 			sqlTotalCashOut: totalCashOut,
 			sqlRollerTipCashOut: rollerTipCashOut,
 			sqlTipSettlement: tipSettlementResult,
+			sqlRollerTipGross: rollerTipGrossResult,
 			sqlTotalCashOutReset: TotalCashOutResetResult,
 			sqlTotalCashOutRolling: totalCashOutRolling,
 			sqlTotalCashOutRollingReset: TotalCashOutRollingResetResult,
@@ -3578,6 +3582,27 @@ router.get('/dashboard_house_balances', checkSession, async (req, res) => {
 	} catch (err) {
 		console.error('dashboard_house_balances:', err);
 		res.status(500).json({ message: 'Error loading house balances.' });
+	}
+});
+
+router.get('/dashboard/service_expense_balances', checkSession, async (req, res) => {
+	try {
+		const [depositRows] = await pool.execute(`
+			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+			FROM game_services
+			WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+			GROUP BY SERVICE_TYPE
+		`);
+		const [cashRows] = await pool.execute(`
+			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+			FROM game_services
+			WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
+			GROUP BY SERVICE_TYPE
+		`);
+		res.json(categorizeJunketExpenseTotals(cashRows || [], depositRows || []));
+	} catch (err) {
+		console.error('dashboard/service_expense_balances:', err);
+		res.status(500).json({ error: 'Failed to load service expense balances.' });
 	}
 });
 

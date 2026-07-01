@@ -1,11 +1,26 @@
 <%
-function sumServiceRows(rows, match) {
+function matchServiceCategory(serviceType, category) {
+   var raw = String(serviceType || '').trim().toLowerCase();
+   if (!raw) return false;
+   if (category === 'fnb') {
+      if (raw === 'fnb' || raw === 'f & b') return true;
+      var compact = raw.replace(/\s+/g, '').replace(/&/g, '');
+      return compact === 'fb' || compact === 'fnb' || raw.indexOf('f&b') !== -1 || raw.indexOf('f & b') !== -1;
+   }
+   if (category === 'hotel') return raw === 'hotel' || raw.indexOf('hotel') !== -1;
+   if (category === 'delivery') {
+      if (raw === 'incidental' || raw.indexOf('incidental') !== -1) return false;
+      return raw === 'delivery' || raw.indexOf('delivery') !== -1;
+   }
+   if (category === 'incidental') return raw === 'incidental' || raw.indexOf('incidental') !== -1;
+   return raw.indexOf(String(category || '').toLowerCase()) !== -1;
+}
+
+function sumServiceRows(rows, category) {
    if (!rows || !rows.length) return 0;
-   const key = String(match || '').toLowerCase();
-   let total = 0;
-   rows.forEach((row) => {
-      const type = String(row.SERVICE_TYPE || '').toLowerCase();
-      if (type.includes(key)) total += (+row.TOTAL || 0);
+   var total = 0;
+   rows.forEach(function (row) {
+      if (matchServiceCategory(row.SERVICE_TYPE, category)) total += (+row.TOTAL || 0);
    });
    return total;
 }
@@ -118,6 +133,8 @@ const expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
 const junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
 const junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
 const tipSettlementAmount = (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+const tipRollerGross = (+sqlRollerTipGross[0].ROLLER_TIP_GROSS || 0);
+const tipAvailableBalance = Math.max(0, tipRollerGross - tipSettlementAmount);
 const serviceSettleTotal = (+sqlServiceSettle[0]?.TOTAL || 0);
 
 const creditTotal =
@@ -130,7 +147,12 @@ const creditTotal =
 
 const fnbDeposit = sumServiceRows(sqlServiceDepositJunket, 'fnb');
 const hotelDeposit = sumServiceRows(sqlServiceDepositJunket, 'hotel');
-const incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
+const deliveryDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
+const incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'incidental');
+const fnbBalance = fnbDeposit + sumServiceRows(sqlServiceCashJunket, 'fnb');
+const hotelBalance = hotelDeposit + sumServiceRows(sqlServiceCashJunket, 'hotel');
+const deliveryBalance = deliveryDeposit + sumServiceRows(sqlServiceCashJunket, 'delivery');
+const incidentalBalance = incidentalDeposit + sumServiceRows(sqlServiceCashJunket, 'incidental');
 
 const wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : 65;
 const wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
@@ -142,6 +164,7 @@ const companyExpenseTotal =
    commissionSettlement +
    fnbDeposit +
    hotelDeposit +
+   deliveryDeposit +
    incidentalDeposit;
 
 const grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;

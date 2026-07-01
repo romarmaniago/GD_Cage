@@ -1,0 +1,67 @@
+<div class="modal fade" id="modal-dash-incidental" tabindex="-1" aria-labelledby="modal-dash-incidental-label" aria-hidden="true" data-bs-backdrop="static">
+	<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-dash-incidental-label"><%= __('fnb_hotel.incidental') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+					<input type="text" id="dash-incidental-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
+					<div class="d-flex flex-wrap gap-2">
+						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" id="btn-dash-incidental-new-record" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record" data-view-only-disable>
+							<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
+						</button>
+						<% } %>
+						<a href="/fnb-hotel" target="_blank" class="btn btn-sm btn-outline-primary"><%= __('fnb_hotel.all') %></a>
+					</div>
+				</div>
+				<div class="table-responsive">
+					<table id="dash-incidental-table" class="table nowrap small-text mb-0" style="width:100%">
+						<thead>
+							<tr>
+								<th><%= __('fnb_hotel.date') %></th>
+								<th><%= __('fnb_hotel.source') %></th>
+								<th><%= __('fnb_hotel.agent') %></th>
+								<th><%= __('fnb_hotel.game_id') %></th>
+								<th><%= __('fnb_hotel.service_type') %></th>
+								<th><%= __('fnb_hotel.amount') %></th>
+								<th><%= __('fnb_hotel.payment') %></th>
+								<th><%= __('fnb_hotel.remarks') %></th>
+								<th><%= __('fnb_hotel.encoded_by') %></th>
+								<th><%= __('fnb_hotel.action') %></th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('fnb_hotel.close') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+#dash-incidental-table thead th {
+	background: #f4f6fa;
+	color: #495057;
+	font-weight: 600;
+	padding: 10px 12px;
+	border-bottom: 2px solid #dee2e6;
+}
+#dash-incidental-table thead th:nth-child(6),
+#dash-incidental-table tbody td:nth-child(6) {
+	text-align: right !important;
+	padding-right: 16px;
+}
+#dash-incidental-table tbody td {
+	padding: 10px 12px;
+	vertical-align: middle;
+}
+#dash-incidental-table tbody tr:hover {
+	background-color: #f8f9fa;
+}
+</style>
