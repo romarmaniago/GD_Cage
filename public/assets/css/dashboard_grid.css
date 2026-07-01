@@ -1030,6 +1030,11 @@
   font-weight: 600;
 }
 
+.dash-wl-head-cell.is-casino .dash-card-link {
+  color: inherit;
+  font-weight: 600;
+}
+
 .dash-wl-head-cell.is-gold {
   grid-column: 3;
   grid-row: 1 / 3;

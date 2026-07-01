@@ -219,8 +219,8 @@
                   <div class="dash-section-header is-alt">Main</div>
                   <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link"><%- fmtAmt(houseBalance) %></a></span></div>
                   <div class="dash-kv-group-title is-warn">Liabilities</div>
-                  <div class="dash-kv"><span class="dash-kv-label">Utang</span><span class="dash-kv-value"><%- fmtNeg(junketCreditAmount) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Expenses</span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value"><%- fmtNeg(junketCreditAmount) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                   <div class="dash-kv-group-title">Settlement</div>
                   <div class="dash-kv"><span class="dash-kv-label">Commission</span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
@@ -522,6 +522,15 @@
 <%- include('modals/dashboard/cash_balance_history') %>
 <%- include ('modals/junket/new_service_record') %>
 <%- include ('modals/dashboard/winloss_details') %>
+<%- include ('modals/dashboard/winloss_report') %>
+<%- include ('modals/dashboard/house_expense') %>
+<%- include ('modals/junket/edit_return_money') %>
+<%- include ('modals/junket/new_return_money') %>
+<%- include ('modals/junket/edit_house_expense') %>
+<%- include ('modals/junket/new_house_expense') %>
+<%- include ('modals/junket/house_expense_edit_history') %>
+<%- include ('modals/junket/house_expense_category_modals') %>
+<%- include ('modals/junket/house_expense_vehicle_modals') %>
 <% if (canEditWlRate) { %><%- include ('modals/dashboard/wl_rate') %><% } %>
 <%- include('partials/permission_view_only_script') %>
 <%- include ('modals/dashboard/marker') %>
@@ -541,6 +550,8 @@
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
 
 <%- include('partials/footer') %>
+<script src="/assets/js/functions/table_daily_report.js"></script>
+<%- include('partials/house_expense_dashboard_scripts') %>
 <script>
    window.fnbHotelTranslations = {
       missing_fields: "<%= __('fnb_hotel.missing_fields') %>",

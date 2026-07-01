@@ -12,7 +12,8 @@
   const dailyReportDate = document.getElementById('daily-report-date');
   const dailyReportEntriesTbody = document.getElementById('daily-report-entries-tbody');
   const btnSaveDailyReport = document.getElementById('btn-save-daily-report');
-  const reportMode = (dailyReportForm?.dataset?.reportMode || 'both').toLowerCase();
+  const reportModeSource = dailyReportForm || document.getElementById('modal-dash-winloss-report');
+  const reportMode = (reportModeSource?.dataset?.reportMode || 'both').toLowerCase();
   const reportColspan = reportMode === 'both' ? 3 : 2;
   const reportListDateRange = document.getElementById('daily-report-list-daterange');
   const reportListThead = document.getElementById('daily-report-list-thead');
@@ -24,15 +25,36 @@
   const manageModalEl = document.getElementById('junket-table-modal');
   const formModalEl = document.getElementById('junket-table-form-modal');
   const dailyReportModalEl = document.getElementById('daily-report-modal');
+  const dashWinlossReportModalEl = document.getElementById('modal-dash-winloss-report');
+  const isMatrixView = !!reportMatrixTable;
+  const isFullPage = !!(
+    tbody
+    && btnOpenManage
+    && btnOpenForm
+    && btnAddDailyReport
+    && form
+    && fieldId
+    && fieldName
+    && btnSave
+    && formModalTitle
+    && dailyReportForm
+    && dailyReportDate
+    && dailyReportEntriesTbody
+    && btnSaveDailyReport
+    && manageModalEl
+    && formModalEl
+    && dailyReportModalEl
+  );
+
+  if (!isMatrixView && !isFullPage) {
+    return;
+  }
+
   const manageModal = manageModalEl ? new bootstrap.Modal(manageModalEl) : null;
   const formModal = formModalEl ? new bootstrap.Modal(formModalEl) : null;
   const dailyReportModal = dailyReportModalEl ? new bootstrap.Modal(dailyReportModalEl) : null;
   let dailyReportDatePicker = null;
   let reportListDateRangePicker = null;
-
-  if (!tbody || !btnOpenManage || !btnOpenForm || !btnAddDailyReport || !form || !fieldId || !fieldName || !btnSave || !formModalTitle || !dailyReportForm || !dailyReportDate || !dailyReportEntriesTbody || !btnSaveDailyReport || !manageModal || !formModal || !dailyReportModal) {
-    return;
-  }
 
   function toIsoDate(date) {
     const y = date.getFullYear();
@@ -489,13 +511,13 @@
     if (!$) return;
     const $mount = $('#daily-report-daterange-mount');
     if (!$mount.length) return;
-    const $cardBody = $mount.closest('.card-body');
+    const $container = $mount.closest('.card-body, .modal-body');
     $mount.detach().removeClass('is-placed').removeData('placed');
-    const $tableWrap = $cardBody.find('.daily-report-table-wrap, .table-responsive').first();
+    const $tableWrap = $container.find('.daily-report-table-wrap, .table-responsive').first();
     if ($tableWrap.length) {
       $mount.insertBefore($tableWrap);
-    } else if ($cardBody.length) {
-      $cardBody.prepend($mount);
+    } else if ($container.length) {
+      $container.prepend($mount);
     }
   }
 
@@ -1206,62 +1228,111 @@
     }
   }
 
-  btnOpenManage.addEventListener('click', () => {
-    manageModal.show();
-  });
-  btnOpenForm.addEventListener('click', openFormModalForAdd);
-  btnAddDailyReport.addEventListener('click', openDailyReportModal);
-  form.addEventListener('submit', saveTable);
-  dailyReportForm.addEventListener('submit', saveDailyReport);
-  dailyReportDate.addEventListener('change', () => {
-    loadDailyReportTables();
-  });
-  if (reportListDateRange) {
-    initReportListDateRangePicker();
+  function parseIsoDateLocal(value) {
+    const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  function setReportListDateRange(from, to) {
+    if (!from || !to) return;
+    if (!reportListDateRangePicker) {
+      initReportListDateRangePicker();
+    }
+    const start = parseIsoDateLocal(from);
+    const end = parseIsoDateLocal(to);
+    if (!reportListDateRangePicker || !start || !end) return;
+    reportListDateRangePicker.setDate([start, end], false);
+  }
+
+  function initMatrixView() {
+    if (!isMatrixView) return;
+    if (reportListDateRange) {
+      initReportListDateRangePicker();
+    }
     initMatrixCellEditing();
-    loadSubmittedReports();
+    if (!dashWinlossReportModalEl) {
+      loadSubmittedReports();
+    }
+    if (btnExportMatrix) {
+      btnExportMatrix.addEventListener('click', () => {
+        exportDailyReportMatrix();
+      });
+    }
+    if (btnPrintMatrix) {
+      btnPrintMatrix.addEventListener('click', () => {
+        printDailyReportMatrix();
+      });
+    }
   }
-  if (btnExportMatrix) {
-    btnExportMatrix.addEventListener('click', () => {
-      exportDailyReportMatrix();
-    });
-  }
-  if (btnPrintMatrix) {
-    btnPrintMatrix.addEventListener('click', () => {
-      printDailyReportMatrix();
-    });
-  }
-  dailyReportEntriesTbody.addEventListener('input', (event) => {
-    const input = event.target;
-    const isWinloss = input.classList.contains('daily-report-winloss');
-    const isRolling = input.classList.contains('daily-report-rolling');
-    if (!isWinloss && !isRolling) return;
 
-    input.value = formatDailyReportAmountInput(input.value, isWinloss);
-  });
-  formModalEl.addEventListener('hidden.bs.modal', () => {
+  function initFullPageView() {
+    if (!isFullPage) return;
+
+    btnOpenManage.addEventListener('click', () => {
+      manageModal.show();
+    });
+    btnOpenForm.addEventListener('click', openFormModalForAdd);
+    btnAddDailyReport.addEventListener('click', openDailyReportModal);
+    form.addEventListener('submit', saveTable);
+    dailyReportForm.addEventListener('submit', saveDailyReport);
+    dailyReportDate.addEventListener('change', () => {
+      loadDailyReportTables();
+    });
+    dailyReportEntriesTbody.addEventListener('input', (event) => {
+      const input = event.target;
+      const isWinloss = input.classList.contains('daily-report-winloss');
+      const isRolling = input.classList.contains('daily-report-rolling');
+      if (!isWinloss && !isRolling) return;
+
+      input.value = formatDailyReportAmountInput(input.value, isWinloss);
+    });
+    formModalEl.addEventListener('hidden.bs.modal', () => {
+      setFormAsAdd();
+      fieldName.value = '';
+    });
+    dailyReportModalEl.addEventListener('hidden.bs.modal', () => {
+      resetDailyReportForm();
+    });
+    manageModalEl.addEventListener('shown.bs.modal', () => {
+      loadTables();
+    });
+
+    tbody.addEventListener('click', (event) => {
+      const editBtn = event.target.closest('.btn-edit-junket-table');
+      if (editBtn) {
+        openEditModal(editBtn.dataset.id, editBtn.dataset.name);
+        return;
+      }
+
+      const removeBtn = event.target.closest('.btn-remove-junket-table');
+      if (removeBtn) {
+        removeTable(removeBtn.dataset.id, removeBtn.dataset.name);
+      }
+    });
+
     setFormAsAdd();
-    fieldName.value = '';
-  });
-  dailyReportModalEl.addEventListener('hidden.bs.modal', () => {
-    resetDailyReportForm();
-  });
-  manageModalEl.addEventListener('shown.bs.modal', () => {
-    loadTables();
-  });
+  }
 
-  tbody.addEventListener('click', (event) => {
-    const editBtn = event.target.closest('.btn-edit-junket-table');
-    if (editBtn) {
-      openEditModal(editBtn.dataset.id, editBtn.dataset.name);
-      return;
-    }
+  initMatrixView();
+  initFullPageView();
 
-    const removeBtn = event.target.closest('.btn-remove-junket-table');
-    if (removeBtn) {
-      removeTable(removeBtn.dataset.id, removeBtn.dataset.name);
-    }
-  });
+  if (dashWinlossReportModalEl) {
+    window.openDashboardWinlossReportModal = function (opts = {}) {
+      const from = opts.dateFrom || document.getElementById('dash-date-from')?.value || '';
+      const to = opts.dateTo || document.getElementById('dash-date-to')?.value || '';
+      dashWinlossReportModalEl.dataset.pendingDateFrom = from;
+      dashWinlossReportModalEl.dataset.pendingDateTo = to;
+      bootstrap.Modal.getOrCreateInstance(dashWinlossReportModalEl).show();
+    };
 
-  setFormAsAdd();
+    dashWinlossReportModalEl.addEventListener('shown.bs.modal', () => {
+      const from = dashWinlossReportModalEl.dataset.pendingDateFrom || document.getElementById('dash-date-from')?.value || '';
+      const to = dashWinlossReportModalEl.dataset.pendingDateTo || document.getElementById('dash-date-to')?.value || '';
+      if (from && to) {
+        setReportListDateRange(from, to);
+      }
+      loadSubmittedReports();
+    });
+  }
 })();

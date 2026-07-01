@@ -1,0 +1,156 @@
+<%
+  const now = new Date();
+  const pad = value => value.toString().padStart(2, '0');
+  const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatRangeDisplayDate = (d) => `${monthAbbr[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  const monthEndCutoffStartValue = typeof monthEndCutoffStart !== 'undefined' ? monthEndCutoffStart : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth(), 0));
+  const monthEndCutoffEndValue = typeof monthEndCutoffEnd !== 'undefined' ? monthEndCutoffEnd : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+%>
+
+<div id="house-expense-dashboard" class="mb-3 house-expense-dashboard-shell">
+  <div class="row g-3 align-items-stretch" id="house-expense-kpi-row">
+    <div class="col-12 d-flex align-items-stretch" id="expense-kpi-stack-col">
+      <div class="row g-3 flex-grow-1 w-100 mx-0">
+        <div class="col-12 col-md-6" id="expense-kpi-col-grand">
+          <div class="expense-dash-kpi expense-dash-kpi-grand h-100 d-flex align-items-center">
+            <div class="expense-dash-kpi-icon flex-shrink-0"><i class="fa fa-wallet"></i></div>
+            <div class="expense-dash-kpi-text">
+              <div class="expense-dash-kpi-label"><%= __('house_expense.total_expenses') || 'Grand total expenses' %></div>
+              <div class="expense-dash-kpi-value" id="expense-kpi-grand-amount">₱0</div>
+              <div class="expense-dash-kpi-meta small" id="expense-kpi-grand-range">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6" id="expense-kpi-col-selected">
+          <div class="expense-dash-kpi expense-dash-kpi-selected h-100 d-flex align-items-center">
+            <div class="expense-dash-kpi-icon expense-dash-kpi-icon-alt flex-shrink-0"><i class="fa fa-filter"></i></div>
+            <div class="expense-dash-kpi-text">
+              <div class="expense-dash-kpi-label">Selected total</div>
+              <div class="expense-dash-kpi-value" id="expense-kpi-selected-amount">₱0</div>
+              <div class="expense-dash-kpi-meta small" id="expense-kpi-selected-pct-row">
+                <span id="expense-kpi-pct-grand">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-7 col-xl-8 d-none" id="expense-graph-race-column">
+      <div class="expense-dash-graph w-100 h-100 d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-1 flex-shrink-0">
+          <div>
+            <div class="expense-dash-graph-title">Expense breakdown</div>
+            <div class="expense-dash-graph-subtitle text-muted small" id="expense-graph-subtitle">By category</div>
+          </div>
+        </div>
+        <div class="expense-dash-graph-body flex-grow-1 d-flex flex-column" id="expense-graph-race-body">
+          <div class="text-muted small py-2">No expense data yet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
+  <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+    <div class="input-group">
+      <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 expense-explorer-row align-items-stretch">
+  <div class="col-12 col-lg-3 expense-explorer-main-col order-2 order-lg-1 d-flex">
+    <div class="expense-cat-panel w-100 h-100 d-flex flex-column expense-main-cat-panel">
+      <div class="expense-cat-panel-head d-flex justify-content-between align-items-center flex-shrink-0">
+        <span>Main category</span>
+        <button type="button" class="expense-cat-panel-add-btn js-house-expense-add-main-cat" title="Add main category" aria-label="Add main category">
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="expense-cat-panel-body flex-grow-1 expense-cat-panel-body-scroll expense-main-cat-list-scroll" id="expense-main-cat-list">
+        <div class="text-muted small p-2">No data</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-2 expense-explorer-sub-col order-3 order-lg-2 d-flex">
+    <div class="expense-cat-panel w-100 h-100 d-flex flex-column expense-sub-cat-panel" id="expense-sub-cat-panel">
+      <div class="expense-cat-panel-head d-flex justify-content-between align-items-center flex-shrink-0">
+        <span>Sub category</span>
+        <button type="button" class="expense-cat-panel-add-btn js-house-expense-add-sub-cat" title="Add sub category" aria-label="Add sub category" disabled>
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="expense-cat-panel-body flex-grow-1 expense-cat-panel-body-scroll expense-sub-cat-list-scroll" id="expense-sub-cat-list">
+        <div class="text-muted small p-2">Select a main category</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-7 expense-explorer-item-col order-4 order-lg-3 d-flex">
+    <div class="expense-cat-panel h-100 w-100 d-flex flex-column">
+      <div class="expense-cat-panel-head d-flex flex-wrap justify-content-between align-items-center flex-shrink-0 gap-2">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <span>Items</span>
+          <span id="expense-item-panel-subtitle" class="text-muted small text-truncate"></span>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+          <button type="button" class="expense-cat-panel-add-btn js-house-expense-open-vehicle-modal d-none" title="Vehicles" aria-label="Vehicles">
+            <i class="fa fa-car" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="expense-cat-panel-add-btn js-house-expense-add-item" title="Add item" aria-label="Add item" disabled>
+            <i class="fa fa-plus" aria-hidden="true"></i>
+          </button>
+          <div class="expense-item-search-wrap">
+            <input type="search" id="expense-item-search" class="form-control form-control-sm" placeholder="<%= __('house_expense.search') || 'Search' %>..." autocomplete="off" />
+          </div>
+        </div>
+      </div>
+      <div class="expense-cat-panel-body expense-item-panel-body flex-grow-1 d-flex flex-column">
+        <div class="expense-item-table-wrap">
+          <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl mb-0" style="width:100%">
+            <thead>
+              <tr>
+                <th class="sortable-col" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
+                <th class="expense-name-th sortable-col" data-sort-key="name">
+                  <span class="house-expense-select-all-slot">
+                    <input type="checkbox" id="house-expense-select-all" class="house-expense-select-all-cb" title="Select all" />
+                  </span>
+                  <span class="expense-name-th-label"><%= __('house_expense.name') %></span>
+                </th>
+                <th class="sortable-col" data-sort-key="in_charge"><%= __('house_expense.description') %></th>
+                <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
+                <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
+                <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
+                <th class="text-end"><%= __('house_expense.action') %></th>
+              </tr>
+            </thead>
+            <tbody id="expense-item-cat-tbody">
+              <tr><td colspan="7" class="text-muted small text-center py-3">Loading...</td></tr>
+            </tbody>
+          </table>
+          <div class="expense-item-table-separator" role="presentation" aria-hidden="true"></div>
+          <div class="expense-item-totals-wrap">
+            <div class="expense-item-footer-summary" aria-label="<%= __('house_expense.total_expenses') || 'Expense totals' %>">
+              <div class="expense-item-footer-line">
+                <span class="expense-item-footer-label"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></span>
+                <span id="TOTAL_EXPENSE_AMOUNT" class="expense-item-footer-value">₱0</span>
+              </div>
+              <div class="expense-item-footer-line">
+                <span class="expense-item-footer-label"><%= __('house_expense.total_return_money') || 'TOTAL RETURN MONEY' %></span>
+                <span id="TOTAL_RETURN_MONEY_AMOUNT" class="expense-item-footer-value">₱0</span>
+              </div>
+              <div class="expense-item-footer-line">
+                <span class="expense-item-footer-label"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></span>
+                <span id="TOTAL_NET_EXPENSES_AMOUNT" class="expense-item-footer-value">₱0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a href="#" id="btn-daily-settle" class="d-none"><%= __('house_expense.settle') || 'Settle' %></a>
+<a href="#" id="btn-breadcrumb-open-pool" class="d-none">Open</a>

@@ -1,0 +1,127 @@
+<script>
+  window.houseExpenseTranslations = window.houseExpenseTranslations || {
+    no_data_found: "<%= __('house_expense.no_data_found') %>",
+    invalid_date: "<%= __('house_expense.invalid_date') %>",
+    search: "<%= __('house_expense.search') %>",
+    showing_entries: "<%= __('house_expense.showing_entries') %>",
+    previous: "<%= __('house_expense.previous') %>",
+    next: "<%= __('house_expense.next') %>",
+    please_select_date_range: "<%= __('house_expense.please_select_date_range') %>",
+    no_receipt_uploaded: "<%= __('house_expense.no_receipt_uploaded') %>",
+    no_receipt_available: "<%= __('house_expense.no_receipt_available') %>",
+    ok: "<%= __('house_expense.ok') %>",
+    receipt_image: "<%= __('house_expense.receipt_image') %>",
+    saving: "<%= __('house_expense.saving') %>",
+    updated_successfully: "<%= __('house_expense.updated_successfully') %>",
+    expense_updated: "<%= __('house_expense.expense_updated') %>",
+    error: "<%= __('house_expense.error') %>",
+    error_updating_expense: "<%= __('house_expense.error_updating_expense') %>",
+    delete_confirmation: "<%= __('house_expense.delete_confirmation') %>",
+    yes: "<%= __('house_expense.yes') %>",
+    select_expense_category: "<%= __('house_expense.select_expense_category') %>",
+    select_officer_in_charge: "<%= __('house_expense.select_officer_in_charge') %>",
+    view_receipt: "<%= __('house_expense.view_receipt') %>",
+    edit_expense: "<%= __('house_expense.edit_expense') %>",
+    download_receipt: "<%= __('house_expense.download_receipt') %>",
+    archive_expense: "<%= __('house_expense.archive_expense') %>",
+    approve: "<%= __('house_expense.approve') %>",
+    reject: "<%= __('house_expense.reject') %>",
+    rejected: "<%= __('house_expense.rejected') %>",
+    pending_approval: "<%= __('house_expense.pending_approval') %>",
+    approve_confirm: "<%= __('house_expense.approve_confirm') %>",
+    reject_confirm: "<%= __('house_expense.reject_confirm') %>",
+    type: "<%= __('house_expense.type') %>",
+    type_goods: "<%= __('house_expense.type_goods') %>",
+    type_non_goods: "<%= __('house_expense.type_non_goods') %>",
+    edit_history: "<%= __('house_expense.edit_history') %>",
+    edit_history_title: "<%= __('house_expense.edit_history_title') %>",
+    edit_history_error: "<%= __('house_expense.edit_history_error') %>",
+    edit_history_empty: "<%= __('house_expense.edit_history_empty') %>",
+    edit_history_editor: "<%= __('house_expense.edit_history_editor') %>",
+    export_label: "<%= __('house_expense.export') || 'Export' %>",
+    add_main_category: "Add main category",
+    add_sub_category: "Add sub category",
+    category_name_required: "Category name is required",
+    category_saved: "Category saved",
+    select_main_first: "Select a main category first",
+    edit_main_category: "Edit main category",
+    edit_sub_category: "Edit sub category",
+    delete_category_confirm: "Delete this category?",
+    category_deleted: "Category deleted",
+    error_updating_category: "Could not update category",
+    error_deleting_category: "Could not delete category",
+    category_has_items: "Cannot delete: this category has expense item(s) in the list. Remove or reassign them first.",
+    add_item: "Add item",
+    select_sub_for_item: "Select a sub category first",
+    filter_all: "All",
+    filter_all_categories: "All categories",
+    manage_vehicles: "Vehicles",
+    no_vehicles: "No vehicles",
+    vehicle: "Vehicle",
+    select_vehicle: "Select vehicle",
+    add_vehicle: "Add vehicle",
+    edit_vehicle: "Edit vehicle",
+    delete_vehicle: "Delete vehicle",
+    plate_no_required: "Plate no. is required",
+    vehicle_saved: "Vehicle saved",
+    vehicle_deleted: "Vehicle deleted",
+    vehicle_has_expenses: "Cannot delete: this vehicle is used in expense record(s)."
+  };
+</script>
+<script src="/assets/js/functions/house_expense.js"></script>
+<script>
+  $(function () {
+    if (typeof window.houseExpenseInitCategoryAddUi === 'function') {
+      window.houseExpenseInitCategoryAddUi();
+    }
+    if (typeof window.houseExpenseInitVehicleUi === 'function') {
+      window.houseExpenseInitVehicleUi();
+    }
+
+    $(document).on('click', '.js-house-expense-add-main-cat', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof window.addHouseExpenseMainCategory === 'function') {
+        window.addHouseExpenseMainCategory();
+      } else if ($('#modal-house-expense-add-category').length) {
+        window.houseExpenseAddCategoryMode = 'main';
+        $('#modal-house-expense-add-category').appendTo('body').modal('show');
+      }
+    });
+
+    $(document).on('click', '.js-house-expense-add-sub-cat', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if ($(this).prop('disabled')) return;
+      if (typeof window.addHouseExpenseSubCategory === 'function') {
+        window.addHouseExpenseSubCategory();
+      } else if ($('#modal-house-expense-add-category').length) {
+        window.houseExpenseAddCategoryMode = 'sub';
+        $('#modal-house-expense-add-category').appendTo('body').modal('show');
+      }
+    });
+
+    $(document).on('click', '.js-house-expense-add-item', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if ($(this).prop('disabled')) return;
+      if (typeof window.addHouseExpenseFromExplorer === 'function') {
+        window.addHouseExpenseFromExplorer();
+      } else if (typeof window.addHouseExpense === 'function') {
+        window.addHouseExpense();
+      }
+    });
+
+    var dashHouseExpenseModal = document.getElementById('modal-dash-house-expense');
+    if (dashHouseExpenseModal) {
+      window.openDashboardHouseExpenseModal = function () {
+        bootstrap.Modal.getOrCreateInstance(dashHouseExpenseModal).show();
+      };
+      dashHouseExpenseModal.addEventListener('shown.bs.modal', function () {
+        if (typeof window.reloadData === 'function') {
+          window.reloadData();
+        }
+      });
+    }
+  });
+</script>

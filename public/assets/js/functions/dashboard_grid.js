@@ -284,7 +284,9 @@
     root.innerHTML = `
       <div class="dash-wl-head-excel">
         <div class="dash-wl-head-cell is-date">Date</div>
-        <div class="dash-wl-head-cell is-casino">Casino</div>
+        <div class="dash-wl-head-cell is-casino">
+          <a href="#" class="js-dash-wl-casino-header dash-card-link">Casino</a>
+        </div>
         <div class="dash-wl-head-cell is-gold">Gold Dragon</div>
         <div class="dash-wl-head-cell is-diff">The difference</div>
         <div class="dash-wl-head-cell is-remarks">Remarks</div>
@@ -302,7 +304,25 @@
 
     preview.innerHTML = renderWlPreviewRows(previewDates);
 
+    bindWlHeaderClicks(root);
     syncRollingTableLayout();
+  }
+
+  function bindWlHeaderClicks(scope) {
+    const container = scope || document.getElementById('dash-wl-root');
+    if (!container) return;
+    container.querySelectorAll('.js-dash-wl-casino-header').forEach((el) => {
+      if (el.dataset.boundWlCasino === '1') return;
+      el.dataset.boundWlCasino = '1';
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (typeof window.openDashboardWinlossReportModal === 'function') {
+          window.openDashboardWinlossReportModal();
+          return;
+        }
+        window.open('/table_daily_report_winloss', '_blank');
+      });
+    });
   }
 
   function updateActualCheck(payload) {

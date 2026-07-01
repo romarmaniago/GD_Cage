@@ -1,0 +1,101 @@
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css">
+
+<div class="modal fade" id="modal-dash-house-expense" tabindex="-1" aria-labelledby="modal-dash-house-expense-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-dash-house-expense-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary py-2">
+        <h5 class="modal-title text-white" id="modal-dash-house-expense-label"><%= __('house_expense.junket_expenses') %></h5>
+        <div class="d-flex align-items-center gap-2 ms-auto me-2 flex-wrap">
+          <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
+            <i class="fa fa-print" aria-hidden="true"></i> Print
+          </button>
+          <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
+            <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
+          </button>
+          <button type="button" class="btn btn-sm btn-success" onclick="returnMoney()">
+            <i class="fa fa-undo" aria-hidden="true"></i> <%= __('house_expense.return_money') %>
+          </button>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2 modal-dash-house-expense-body">
+        <%- include('../../partials/house_expense_explorer_body') %>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Category Breakdown: <span id="breakdown-modal-category-name">-</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="small text-muted mb-2">Showing expense entries for selected category.</div>
+        <div class="breakdown-modal-table-shell">
+          <table class="table table-sm align-middle mb-0 breakdown-modal-table-fixed" id="breakdown-modal-head-table">
+            <colgroup>
+              <col style="width:28%">
+              <col class="js-breakdown-vehicle-col d-none" style="width:12%">
+              <col class="js-breakdown-vehicle-col d-none" style="width:10%">
+              <col style="width:10%">
+              <col style="width:12%">
+              <col style="width:10%">
+              <col style="width:18%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable-col" data-sort-key="description">Description <span class="sort-indicator">-</span></th>
+                <th class="sortable-col js-breakdown-vehicle-col d-none" data-sort-key="model">Model <span class="sort-indicator">-</span></th>
+                <th class="sortable-col js-breakdown-vehicle-col d-none" data-sort-key="plate_no">Plate # <span class="sort-indicator">-</span></th>
+                <th class="sortable-col" data-sort-key="in_charge">In-Charge <span class="sort-indicator">-</span></th>
+                <th class="sortable-col text-end" data-sort-key="amount">Amount <span class="sort-indicator">-</span></th>
+                <th class="sortable-col" data-sort-key="encoded_by">Encoded By <span class="sort-indicator">-</span></th>
+                <th class="sortable-col" data-sort-key="date_time">Date & Time <span class="sort-indicator">-</span></th>
+              </tr>
+            </thead>
+          </table>
+          <div class="breakdown-modal-table-wrap">
+            <table class="table table-sm table-striped align-middle mb-0" id="breakdown-modal-body-table">
+              <colgroup>
+                <col style="width:28%">
+                <col class="js-breakdown-vehicle-col d-none" style="width:12%">
+                <col class="js-breakdown-vehicle-col d-none" style="width:10%">
+                <col style="width:10%">
+                <col style="width:12%">
+                <col style="width:10%">
+                <col style="width:18%">
+              </colgroup>
+              <tbody id="breakdown-modal-tbody"></tbody>
+            </table>
+          </div>
+          <table class="table table-sm align-middle mb-0 breakdown-modal-table-fixed" id="breakdown-modal-foot-table">
+            <colgroup>
+              <col style="width:28%">
+              <col class="js-breakdown-vehicle-col d-none" style="width:12%">
+              <col class="js-breakdown-vehicle-col d-none" style="width:10%">
+              <col style="width:10%">
+              <col style="width:12%">
+              <col style="width:10%">
+              <col style="width:18%">
+            </colgroup>
+            <tfoot>
+              <tr>
+                <th colspan="2" id="breakdown-modal-foot-grand-label" class="text-end">Grand Total</th>
+                <th id="breakdown-modal-grand-total" class="text-end">0</th>
+                <th colspan="2" id="breakdown-modal-foot-spacer"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
