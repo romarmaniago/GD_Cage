@@ -1,13 +1,23 @@
-﻿# House expense explorer styles (shared: page + dashboard modal)
+# House expense explorer styles (shared: page + dashboard modal)
 
 .modal-dash-house-expense-dialog {
-  max-width: min(96vw, 72rem) !important;
+  max-width: min(98vw, 96rem) !important;
   width: 100%;
+  margin: 0.5rem auto;
+}
+
+.modal-dash-house-expense-dialog .modal-content {
+  max-height: 96vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 #modal-dash-house-expense .modal-dash-house-expense-body {
-  max-height: min(72vh, 42rem);
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -20,18 +30,140 @@
   font-size: clamp(1rem, 2vw, 1.25rem);
 }
 
-#modal-dash-house-expense .expense-explorer-main-col .expense-main-cat-list-scroll,
-#modal-dash-house-expense .expense-explorer-sub-col .expense-sub-cat-list-scroll {
-  max-height: 200px;
-}
-
-#modal-dash-house-expense .expense-item-table-wrap {
-  max-height: 240px;
-  overflow: auto;
-}
-
 #modal-dash-house-expense .expense-explorer-row {
   --bs-gutter-x: 0.65rem;
+  min-width: 0;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+#modal-dash-house-expense .expense-explorer-main-col,
+#modal-dash-house-expense .expense-explorer-sub-col,
+#modal-dash-house-expense .expense-explorer-item-col {
+  min-width: 0;
+}
+
+#modal-dash-house-expense .expense-explorer-main-col .expense-main-cat-list-scroll,
+#modal-dash-house-expense .expense-explorer-sub-col .expense-sub-cat-list-scroll {
+  max-height: none;
+  overflow: visible;
+}
+
+#modal-dash-house-expense .expense-explorer-item-col .expense-cat-panel,
+#modal-dash-house-expense .expense-explorer-item-col .expense-item-panel-body {
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* --- Dashboard modal: expense items table (no horizontal scroll) --- */
+#modal-dash-house-expense .expense-item-table-wrap {
+  max-width: 100%;
+  max-height: none;
+  overflow-x: hidden;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Proportional column distribution (sums to 100%) */
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 12%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 15%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 9%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 9%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 20%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 11%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 24%; }
+
+#modal-dash-house-expense .expense-item-tbl-layout thead th {
+  white-space: nowrap;
+  font-size: 0.68rem;
+  padding: 0.45rem 0.3rem;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td {
+  vertical-align: middle;
+  padding: 0.45rem 0.3rem;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-date-cell {
+  font-size: 0.72rem;
+  letter-spacing: -0.01em;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5) {
+  max-width: 0;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2) .d-inline-flex {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2) .d-inline-flex > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(6) {
+  text-align: right !important;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-action-cell {
+  padding-left: 0.15rem;
+  padding-right: 0.2rem;
+  overflow: hidden;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn {
+  padding: 0.1rem 0.2rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn i.fa {
+  font-size: 0.62rem;
+}
+
+@media (min-width: 992px) {
+  #modal-dash-house-expense .expense-explorer-main-col {
+    flex: 0 0 180px;
+    width: 180px;
+    max-width: 180px;
+  }
+
+  #modal-dash-house-expense .expense-explorer-sub-col {
+    flex: 0 0 165px;
+    width: 165px;
+    max-width: 165px;
+  }
+
+  #modal-dash-house-expense .expense-explorer-item-col {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
 }
 
 @media (max-width: 991.98px) {

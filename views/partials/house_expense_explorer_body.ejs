@@ -108,21 +108,30 @@
       </div>
       <div class="expense-cat-panel-body expense-item-panel-body flex-grow-1 d-flex flex-column">
         <div class="expense-item-table-wrap">
-          <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl mb-0" style="width:100%">
+          <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl expense-item-tbl-layout align-middle mb-0">
+            <colgroup>
+              <col class="expense-col-date-time">
+              <col class="expense-col-name">
+              <col class="expense-col-in-charge">
+              <col class="expense-col-receiver">
+              <col class="expense-col-description">
+              <col class="expense-col-amount">
+              <col class="expense-col-action">
+            </colgroup>
             <thead>
               <tr>
-                <th class="sortable-col" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
-                <th class="expense-name-th sortable-col" data-sort-key="name">
+                <th class="sortable-col text-nowrap" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
+                <th class="expense-name-th sortable-col text-nowrap" data-sort-key="name">
                   <span class="house-expense-select-all-slot">
                     <input type="checkbox" id="house-expense-select-all" class="house-expense-select-all-cb" title="Select all" />
                   </span>
                   <span class="expense-name-th-label"><%= __('house_expense.name') %></span>
                 </th>
-                <th class="sortable-col" data-sort-key="in_charge"><%= __('house_expense.description') %></th>
-                <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
-                <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
-                <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
-                <th class="text-end"><%= __('house_expense.action') %></th>
+                <th class="sortable-col text-nowrap" data-sort-key="in_charge"><%= __('house_expense.description') %></th>
+                <th class="sortable-col text-nowrap" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
+                <th class="sortable-col text-nowrap" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
+                <th class="sortable-col text-end text-nowrap" data-sort-key="amount"><%= __('house_expense.amount') %></th>
+                <th class="text-end text-nowrap"><%= __('house_expense.action') %></th>
               </tr>
             </thead>
             <tbody id="expense-item-cat-tbody">
