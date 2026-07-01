@@ -245,8 +245,8 @@
                   <div class="dash-section-header is-alt">Main</div>
                   <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link"><%- fmtAmt(houseBalance) %></a></span></div>
                   <div class="dash-kv-group-title is-warn">Liabilities</div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value"><%- fmtNeg(junketCreditAmount) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                   <div class="dash-kv-group-title">Settlement</div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
@@ -298,7 +298,7 @@
                   <div class="dash-kv"><span class="dash-kv-label">SOA (F&amp;B, Hotel)</span><span class="dash-kv-value"><%- fmtNeg(serviceSettleTotal) %></span></div>
                   <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value" id="dash-casino-total"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
                   <div class="dash-kv-group-title is-warn">Company</div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total-anticipated"><%- fmtNeg(expenseReset) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value">0</span></div>

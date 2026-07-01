@@ -9,7 +9,16 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const ExcelJS = require('exceljs');
-const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const {
+	getMarkerDataBreakdownSql,
+	getMarkerGrandTotalSql
+} = require('../utils/markerDataBreakdown');
+const {
+	sqlJunketExpenseResetTotal,
+	sqlJunketExpenseTotal,
+	sqlJunketExpenseGoodsTotal,
+	sqlJunketExpenseNonGoodsTotal
+} = require('../utils/houseExpenseQueries');
 const {
 	currentMonthKey,
 	loadDashboardWlSharePct,
@@ -48,7 +57,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlWinlossManual = 'SELECT SUM(AMOUNT) AS WINLOSS FROM winloss WHERE RESET=1';
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
-	let sqlJunketExpenseReset = 'SELECT SUM(AMOUNT) AS RESET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1 AND RESET=1';
+	let sqlJunketExpenseReset = sqlJunketExpenseResetTotal();
 	let sqlHouseRollingReset = `SELECT 
 		(SUM(CASE WHEN TRANSACTION_ID = 1 AND RESET = 1 THEN NN_CHIPS ELSE 0 END) + 
 		 SUM(CASE WHEN TRANSACTION_ID = 3 AND RESET = 1 THEN CC_CHIPS ELSE 0 END) - 
@@ -219,23 +228,11 @@ ON
 
 
 	let sqlAgentCount = 'SELECT COUNT(*) AS TOTAL_AGENT FROM agent WHERE ACTIVE =1';
-	let sqlJunketCredit = 'SELECT SUM(AMOUNT) AS JUNKET_CREDIT FROM junket_credit WHERE ACTIVE =1';
-	let sqlJunketExpense = 'SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1';
+	let sqlJunketCredit = getMarkerGrandTotalSql();
+	let sqlJunketExpense = sqlJunketExpenseTotal();
 	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL';
-	let sqlJunketExpenseGoods = `
-		SELECT SUM(jhe.AMOUNT) AS JUNKET_EXPENSE_GOODS
-		FROM junket_house_expense jhe
-		JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
-		WHERE jhe.ACTIVE = 1
-			AND ec.TYPE = 1
-	`;
-	let sqlJunketExpenseNonGoods = `
-		SELECT SUM(jhe.AMOUNT) AS JUNKET_EXPENSE_NON_GOODS
-		FROM junket_house_expense jhe
-		JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
-		WHERE jhe.ACTIVE = 1
-			AND ec.TYPE = 2
-	`;
+	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
+	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
 	let sqlReturnMoney = `
 		SELECT SUM(rm.AMOUNT) AS RETURN_MONEY
 		FROM junket_return_money rm
@@ -2516,55 +2513,8 @@ router.get('/marker_data', async (req, res) => {
 
 // GET MARKER DATA WITH BREAKDOWN (Credit 3-3 vs Buy-in 10-3 per account, minus returns 11,12,1)
 router.get('/marker_data_breakdown', async (req, res) => {
-	const query = `
-		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
-			inner_sub.BALANCE_CREDIT,
-			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
-			inner_sub.TOTAL_AMOUNT
-		FROM (
-			SELECT sub.ACCOUNT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
-				ROUND(
-					GREATEST(
-						0,
-						sub.CREDIT_ISSUED -
-						sub.RETURNS_TAGGED_CREDIT -
-						COALESCE(sub.RETURNS_UNTAGGED * sub.CREDIT_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
-					),
-					0
-				) AS BALANCE_CREDIT,
-				ROUND(
-					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
-					0
-				) AS TOTAL_AMOUNT
-			FROM (
-				SELECT account.IDNo AS ACCOUNT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
-					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
-					SUM(CASE 
-						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
-							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
-							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
-							AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
-						THEN account_ledger.AMOUNT 
-						ELSE 0 
-					END) AS RETURNS_UNTAGGED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
-				FROM agent
-				JOIN account ON agent.IDNo = account.AGENT_ID
-				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
-				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND account.ACTIVE = 1 AND agent.ACTIVE = 1
-				GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME
-				HAVING (
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END)
-				) <> 0
-			) sub
-		) inner_sub`;
-
 	try {
-		const [results] = await pool.execute(query);
+		const [results] = await pool.execute(getMarkerDataBreakdownSql());
 		res.json(results);
 	} catch (error) {
 		console.error('Error fetching marker data breakdown:', error);

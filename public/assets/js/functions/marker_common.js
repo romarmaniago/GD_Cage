@@ -1157,6 +1157,17 @@
             $tbl.find('tfoot th').each(function () { $(this).text(''); });
         }
 
+        function updateDashboardUtangTotal(amount) {
+            var el = document.getElementById('dash-utang-total');
+            if (!el) return;
+            var v = Math.round(Number(amount) || 0);
+            if (!v) {
+                el.textContent = '0';
+                return;
+            }
+            el.innerHTML = '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
+        }
+
         function updateAccountsBalanceTable() {
             var $creditTbl = $('#marker-accounts-credit-tbl');
             var $buyinTbl = $('#marker-accounts-buyin-tbl');
@@ -1237,6 +1248,7 @@
                     }
                     $('#txtTotalJunketCredit').val(formatMarkerHistoryAmount(totalCredit));
                     $('#txtTotalGameCredit').val(formatMarkerHistoryAmount(totalBuyin));
+                    updateDashboardUtangTotal(grandTotal);
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 },
                 error: function () {
@@ -1247,6 +1259,7 @@
                     }
                     $('#txtTotalJunketCredit').val('0');
                     $('#txtTotalGameCredit').val('0');
+                    updateDashboardUtangTotal(0);
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 }
             });

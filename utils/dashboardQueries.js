@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY } = require('./saveCashoutTips');
+const { sqlJunketExpenseTotal } = require('./houseExpenseQueries');
 
 // Function para kunin ang NN Chips Buyin
 async function getNNChipsBuyin() {
@@ -265,7 +266,7 @@ async function computeCashBalance() {
     pool.execute('SELECT SUM(rm.AMOUNT) AS RETURN_MONEY FROM junket_return_money rm WHERE rm.ACTIVE=1'),
     pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute('SELECT SUM(AMOUNT) AS CASH_WITHDRAW FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
-    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE=1'),
+    pool.execute(sqlJunketExpenseTotal()),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_WITHDRAW FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='ACCOUNT DETAILS' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`),

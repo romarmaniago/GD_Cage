@@ -1303,7 +1303,20 @@ function setHouseExpenseFooterTotals(totalExpense, totalReturnMoney) {
     $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpensePeso(te));
     $('#TOTAL_RETURN_MONEY_AMOUNT').text(formatHouseExpensePeso(tr));
     $('#TOTAL_NET_EXPENSES_AMOUNT').text(formatHouseExpensePeso(te - tr));
+    updateDashboardExpensesTotal(te);
 }
+
+function updateDashboardExpensesTotal(amount) {
+    var v = Math.round(Number(amount) || 0);
+    var html = !v
+        ? '0'
+        : '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
+    ['dash-expenses-total', 'dash-expenses-total-anticipated'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
+}
+window.updateDashboardExpensesTotal = updateDashboardExpensesTotal;
 
 function houseExpenseApplyLoadedData(data) {
     var rows = data || [];
@@ -1316,6 +1329,7 @@ function houseExpenseApplyLoadedData(data) {
     });
     window.houseExpenseLastRows = rows;
     renderHouseExpenseAnalytics(rows, total_expense, total_return_money);
+    updateDashboardExpensesTotal(total_expense);
     houseExpenseReconcileExplorerState();
     if (typeof window.updateSettleButtonState === 'function') {
         window.updateSettleButtonState(rows.length);
