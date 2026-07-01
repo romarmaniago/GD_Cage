@@ -1,5 +1,9 @@
 /* Dashboard v2 — aligned with Hope UI / app primary theme */
 
+body {
+  background-color: #333333;
+}
+
 .dash-grid-wrap {
   font-size: 13px;
   line-height: 1.45;
