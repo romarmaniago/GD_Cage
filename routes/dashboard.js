@@ -27,10 +27,7 @@ const {
 	isValidMonthKey,
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
-<<<<<<< Updated upstream
 const { categorizeJunketExpenseTotals } = require('../utils/dashboardServiceBalance');
-=======
->>>>>>> Stashed changes
 
 function requireSuperAdmin(req, res, next) {
 	const p = req.session.permissions;
