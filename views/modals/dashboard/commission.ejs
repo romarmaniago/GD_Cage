@@ -1,0 +1,27 @@
+<div class="modal fade" id="modal-dash-commission" tabindex="-1" aria-labelledby="modal-dash-commission-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered dash-commission-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary py-2">
+        <h5 class="modal-title text-white mb-0" id="modal-dash-commission-label"><%= __('commission.commission') %></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="commission-panel">
+          <div class="commission-toolbar border-bottom px-3 py-2 d-flex justify-content-end align-items-center flex-wrap gap-2">
+            <%- include('../../partials/commission_toolbar') %>
+          </div>
+          <div class="commission-modal-body commission-panel-body card-body pt-2 pb-3">
+            <%- include('../../partials/commission_table_body') %>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../../partials/commission_compare_modals') %>
+<%- include('../junket/edit_commission') %>
+<%- include('../game_book/merge_settlement') %>

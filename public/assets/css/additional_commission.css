@@ -1,0 +1,106 @@
+.additional-commission-panel-body,
+#modal-dash-additional-commission .additional-commission-modal-body {
+  overflow-x: auto;
+}
+
+#additional-commission-tbl {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+
+#additional-commission-tbl thead th {
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+  font-weight: 500;
+  padding: 12px 15px;
+  border: none;
+}
+
+#additional-commission-tbl thead th:nth-child(2),
+#additional-commission-tbl thead th:nth-child(3) {
+  text-align: left;
+  padding-left: 20px;
+}
+
+#additional-commission-tbl thead th:nth-child(5) {
+  text-align: center;
+}
+
+#additional-commission-tbl thead th:nth-child(4) {
+  text-align: right;
+  padding-right: 20px;
+}
+
+#additional-commission-tbl tbody tr {
+  border-bottom: 1px solid #eee;
+}
+
+#additional-commission-tbl td {
+  padding: 12px 15px;
+  color: #666;
+  vertical-align: middle;
+}
+
+#additional-commission-tbl tbody td:nth-child(2),
+#additional-commission-tbl tbody td:nth-child(3) {
+  text-align: left;
+  padding-left: 20px;
+}
+
+#additional-commission-tbl tbody td:nth-child(5) {
+  text-align: center;
+}
+
+#additional-commission-tbl tbody td:nth-child(4) {
+  text-align: right;
+  padding-right: 20px;
+}
+
+#additional-commission-tbl tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+#modal-additional-commission .select2-container--default .select2-selection--single {
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid #dbe2f3;
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+}
+
+#modal-additional-commission .select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: 44px;
+  padding-left: 12px;
+  padding-right: 36px;
+}
+
+#modal-additional-commission .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 44px;
+}
+
+#modal-dash-additional-commission .dash-additional-commission-dialog {
+  max-width: min(96vw, 72rem) !important;
+  width: 100%;
+}
+
+#modal-dash-additional-commission .additional-commission-modal-body {
+  max-height: min(78vh, 42rem);
+  overflow: auto;
+}
+
+#modal-additional-commission {
+  z-index: 1065 !important;
+}
+
+@media (max-width: 768px) {
+  #additional-commission-tbl {
+    font-size: 10px;
+  }
+
+  #additional-commission-tbl th,
+  #additional-commission-tbl td {
+    padding: 5px;
+  }
+}

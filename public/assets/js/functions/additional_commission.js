@@ -1,0 +1,231 @@
+(function () {
+  function initAdditionalCommission() {
+    const tableBody = document.querySelector('#additional-commission-tbl tbody');
+    const addButton = document.getElementById('btn-add-additional-commission');
+    const form = document.getElementById('additional-commission-form');
+    const agentSelect = document.getElementById('additional-commission-agent');
+    const cashOutInput = document.getElementById('additional-commission-cash-out');
+    const remarksInput = document.getElementById('additional-commission-remarks');
+    const saveButton = document.getElementById('additional-commission-save-btn');
+    const addModalEl = document.getElementById('modal-additional-commission');
+    const dashListModalEl = document.getElementById('modal-dash-additional-commission');
+
+    if (!tableBody || !addButton || !form || !agentSelect || !cashOutInput || !remarksInput || !saveButton || !addModalEl) {
+      return;
+    }
+
+    let agents = [];
+    const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '';
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return escapeHtml(value);
+
+      const pad = (num) => String(num).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function formatAmount(value) {
+      const amount = Number(value) || 0;
+      const formatted = Math.abs(amount).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      });
+      return `(${formatted})`;
+    }
+
+    function sanitizeAmountInput(value) {
+      return String(value || '').replace(/[^\d.]/g, '');
+    }
+
+    function formatAmountInput(value) {
+      const cleaned = sanitizeAmountInput(value);
+      if (!cleaned) return '';
+      const parts = cleaned.split('.');
+      const integerPart = parts[0] || '0';
+      const decimalPart = parts.length > 1 ? parts[1].slice(0, 2) : '';
+      const formattedInteger = Number(integerPart).toLocaleString('en-US');
+      return decimalPart !== '' ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+    }
+
+    function initAccountSelect2() {
+      const $agentSelect = window.jQuery ? window.jQuery('#additional-commission-agent') : null;
+      if (!$agentSelect || typeof $agentSelect.select2 !== 'function') return;
+
+      if ($agentSelect.data('select2')) {
+        try {
+          $agentSelect.select2('destroy');
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      $agentSelect.select2({
+        placeholder: $agentSelect.attr('data-placeholder') || 'Select account',
+        allowClear: false,
+        dropdownParent: window.jQuery(addModalEl),
+        width: '100%'
+      });
+    }
+
+    function renderRows(rows) {
+      if (!rows.length) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No additional commission records found.</td></tr>';
+        return;
+      }
+
+      tableBody.innerHTML = rows.map((row) => `
+        <tr>
+          <td>${formatDateTime(row.ENCODED_DT)}</td>
+          <td>${escapeHtml(row.account)}</td>
+          <td>${escapeHtml(row.name)}</td>
+          <td class="text-end text-danger">${formatAmount(row.CASH_OUT)}</td>
+          <td>${escapeHtml(row.REMARKS)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function loadAdditionalCommissionData() {
+      return fetch('/additional_commission_data')
+        .then((response) => {
+          if (!response.ok) throw new Error('Failed to load additional commission records.');
+          return response.json();
+        })
+        .then(renderRows)
+        .catch((error) => {
+          console.error(error);
+          tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load records.</td></tr>';
+        });
+    }
+
+    function loadAgents() {
+      return fetch('/additional_commission_agents')
+        .then((response) => {
+          if (!response.ok) throw new Error('Failed to load accounts.');
+          return response.json();
+        })
+        .then((rows) => {
+          agents = rows || [];
+          const $agentSelect = window.jQuery ? window.jQuery('#additional-commission-agent') : null;
+          if ($agentSelect && $agentSelect.data('select2')) {
+            try {
+              $agentSelect.select2('destroy');
+            } catch (error) {
+              console.error(error);
+            }
+          }
+          agentSelect.innerHTML = '<option value="">Select account</option>' + agents.map((agent) => (
+            `<option value="${escapeHtml(agent.agent_id)}">${escapeHtml(agent.account)} - ${escapeHtml(agent.name)}</option>`
+          )).join('');
+          initAccountSelect2();
+        });
+    }
+
+    function resetAdditionalCommissionForm() {
+      form.reset();
+      if (window.jQuery) {
+        window.jQuery('#additional-commission-agent').val('').trigger('change');
+      } else {
+        agentSelect.value = '';
+      }
+    }
+
+    function openAdditionalCommissionModal() {
+      resetAdditionalCommissionForm();
+      loadAgents()
+        .catch((error) => {
+          console.error(error);
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', 'Failed to load accounts.', 'error');
+          }
+        })
+        .finally(() => {
+          addModal.show();
+        });
+    }
+
+    window.loadAdditionalCommissionData = loadAdditionalCommissionData;
+
+    if (!dashListModalEl) {
+      loadAdditionalCommissionData();
+    } else {
+      window.openDashboardAdditionalCommissionModal = function () {
+        bootstrap.Modal.getOrCreateInstance(dashListModalEl).show();
+      };
+
+      dashListModalEl.addEventListener('shown.bs.modal', function () {
+        loadAdditionalCommissionData();
+      });
+    }
+
+    addButton.addEventListener('click', openAdditionalCommissionModal);
+
+    cashOutInput.addEventListener('input', function () {
+      cashOutInput.value = formatAmountInput(cashOutInput.value);
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const selectedAgent = agents.find((agent) => String(agent.agent_id) === String(agentSelect.value));
+      const payload = {
+        agentId: agentSelect.value,
+        agentName: selectedAgent ? String(selectedAgent.name || '').trim() : '',
+        cashOut: sanitizeAmountInput(cashOutInput.value),
+        remarks: remarksInput.value.trim()
+      };
+
+      if (!payload.agentId || !payload.cashOut) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire('Validation', 'Please select an account and enter cash-out.', 'warning');
+        }
+        return;
+      }
+
+      saveButton.disabled = true;
+      fetch('/add_additional_commission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error('Failed to save record.');
+          return response.json().catch(() => ({}));
+        })
+        .then(() => {
+          addModal.hide();
+          resetAdditionalCommissionForm();
+          loadAdditionalCommissionData();
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Success', 'Record saved successfully.', 'success');
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', 'Failed to save record.', 'error');
+          }
+        })
+        .finally(() => {
+          saveButton.disabled = false;
+        });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdditionalCommission);
+  } else {
+    initAdditionalCommission();
+  }
+})();

@@ -5,6 +5,8 @@
 
 <link rel="stylesheet" href="/assets/css/dashboard_grid.css">
 <link rel="stylesheet" href="/assets/css/daily_report_winloss.css">
+<link rel="stylesheet" href="/assets/css/commission.css">
+<link rel="stylesheet" href="/assets/css/additional_commission.css">
 
 <div class="conatiner-fluid content-inner py-3 dash-grid-wrap">
    <div id="user-role" data-permissions="<%= permissions %>"></div>
@@ -224,8 +226,8 @@
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value"><%- fmtNeg(expenseReset) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                   <div class="dash-kv-group-title">Settlement</div>
-                  <div class="dash-kv"><span class="dash-kv-label">Commission</span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label">Additional</span><span class="dash-kv-value">0</span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value">0</span></div>
                   <div class="dash-kv-group-title is-muted">Deposit Of Expenses</div>
                   <div class="dash-kv"><span class="dash-kv-label">F&amp;B</span><span class="dash-kv-value"><%- fmtAmt(fnbDeposit) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Hotel</span><span class="dash-kv-value"><%- fmtAmt(hotelDeposit) %></span></div>
@@ -528,6 +530,8 @@
 <%- include ('modals/daily_reports/add_table') %>
 <%- include ('modals/daily_reports/add_report_winloss') %>
 <%- include ('modals/dashboard/house_expense') %>
+<%- include ('modals/dashboard/commission') %>
+<%- include ('modals/dashboard/additional_commission') %>
 <%- include ('modals/junket/edit_return_money') %>
 <%- include ('modals/junket/new_return_money') %>
 <%- include ('modals/junket/edit_house_expense') %>
@@ -556,6 +560,8 @@
 <%- include('partials/footer') %>
 <script src="/assets/js/functions/table_daily_report.js"></script>
 <%- include('partials/house_expense_dashboard_scripts') %>
+<%- include('partials/commission_dashboard_scripts') %>
+<script src="/assets/js/functions/additional_commission.js"></script>
 <script>
    window.fnbHotelTranslations = {
       missing_fields: "<%= __('fnb_hotel.missing_fields') %>",

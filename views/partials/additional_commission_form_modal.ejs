@@ -1,0 +1,32 @@
+<div class="modal fade" id="modal-additional-commission" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white">Add Additional Commission</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="additional-commission-form">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="additional-commission-agent" class="form-label">Account</label>
+            <select id="additional-commission-agent" class="js-select2 form-select" style="width: 100%;" data-placeholder="Select account" required>
+              <option value="">Select account</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="additional-commission-cash-out" class="form-label">Cash-out</label>
+            <input type="text" id="additional-commission-cash-out" class="form-control" inputmode="decimal" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label for="additional-commission-remarks" class="form-label">Remarks</label>
+            <textarea id="additional-commission-remarks" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="additional-commission-save-btn">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

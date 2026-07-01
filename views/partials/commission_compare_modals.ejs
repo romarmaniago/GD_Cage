@@ -1,0 +1,77 @@
+<div class="modal fade" id="modal-commission-compare" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-commission-compare-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title mb-0"><%= __('commission.compare_modal_title') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 commission-compare-modal-toolbar">
+          <div class="small commission-compare-modal-range mb-0" id="commission-compare-modal-range"></div>
+          <button type="button" id="btn-commission-compare-merge-settle" class="btn btn-primary btn-sm flex-shrink-0">
+            <i class="fa fa-compress me-1" aria-hidden="true"></i><%= __('commission.compare_settle') %>
+          </button>
+        </div>
+        <div class="commission-compare-modal-wrap">
+          <table id="commission-compare-modal-tbl" class="table nowrap small-text" style="width:100%">
+            <thead>
+              <tr>
+                <th class="commission-compare-sortable-col text-start" data-sort-key="programDate"><%= __('commission.program_date_col') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col text-start" data-sort-key="gameStart"><%= __('commission.game_start') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" data-sort-key="type"><%= __('commission.type') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" style="width: 75px;" data-sort-key="gameNo"><%= __('commission.game_no') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" data-sort-key="acctNo"><%= __('commission.acct_no') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" data-sort-key="guest"><%= __('commission.guest') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-buyin" data-sort-key="totalBuyIn"><%= __('commission.total_buyin') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-cashout" data-sort-key="chipsReturn"><%= __('commission.chips_return') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-winloss" data-sort-key="winLoss"><%= __('commission.win_loss') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-total-rolling" data-sort-key="totalRolling"><%= __('commission.total_rolling') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-game-rate" data-sort-key="rollingRate"><%= __('commission.rolling_rate') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-commission" data-sort-key="settlement"><%= __('commission.settlement') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" data-sort-key="fnb"><%= __('commission.fb') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col" data-sort-key="payment"><%= __('commission.payment') %> <span class="commission-compare-sort-indicator">-</span></th>
+                <th class="commission-compare-sortable-col col-game-end" data-sort-key="dateTime"><%= __('commission.date_time') %> <span class="commission-compare-sort-indicator">-</span></th>
+              </tr>
+            </thead>
+            <tbody id="commission-compare-modal-body"></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="6"><%= __('commission.grand_total') %></th>
+                <th class="col-buyin" id="commission-compare-total-buyin">0</th>
+                <th class="col-cashout" id="commission-compare-total-return">0</th>
+                <th class="col-winloss" id="commission-compare-total-winloss">0</th>
+                <th class="col-total-rolling" id="commission-compare-total-rolling">0</th>
+                <th class="col-game-rate"></th>
+                <th class="col-commission" id="commission-compare-total-settlement">0</th>
+                <th id="commission-compare-total-fnb">0</th>
+                <th id="commission-compare-total-payment">0</th>
+                <th class="col-game-end"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-commission-rate-preview" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title mb-0"><%= __('commission.rolling_rate') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <input type="text" id="commission-rate-preview-input" class="form-control" inputmode="decimal" autocomplete="off" placeholder="0.00">
+          <span class="input-group-text">%</span>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="btn-commission-rate-preview" class="btn btn-primary btn-sm"><%= __('commission.compare_preview') %></button>
+      </div>
+    </div>
+  </div>
+</div>

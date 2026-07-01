@@ -1,5 +1,11 @@
 $(document).ready(function() {
 
+    if (!$('#commission-tbl').length) {
+        return;
+    }
+
+    var dashCommissionModalEl = document.getElementById('modal-dash-commission');
+
     var compareSelection = new Map();
     var commissionGameMeta = new Map();
     var compareModalRows = [];
@@ -670,6 +676,10 @@ $(document).ready(function() {
         instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
     }
 
+    function getCommissionDateInput() {
+        return document.getElementById('commission-daterange') || document.getElementById('daterange');
+    }
+
     function placeCommissionDateFilter() {
         var $mount = $('#commission-daterange-mount');
         var $length = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
@@ -677,7 +687,7 @@ $(document).ready(function() {
         if ($mount.data('placed')) return;
         $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
         if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
-            var el = document.getElementById('daterange');
+            var el = getCommissionDateInput();
             if (el && el._flatpickr) {
                 window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
             }
@@ -706,7 +716,7 @@ $(document).ready(function() {
     }
 
     function getCommissionDateRangeValue() {
-        var el = document.getElementById('daterange');
+        var el = getCommissionDateInput();
         if (el && el._flatpickr) {
             var fp = el._flatpickr;
             if (fp.selectedDates && fp.selectedDates.length === 2) {
@@ -715,11 +725,11 @@ $(document).ready(function() {
             }
             return (fp.input.value || '').trim();
         }
-        return ($('#daterange').val() || '').trim();
+        return ($('#commission-daterange').val() || $('#daterange').val() || '').trim();
     }
 
     function getCommissionDateRangeLabel() {
-        var el = document.getElementById('daterange');
+        var el = getCommissionDateInput();
         if (el && el._flatpickr && el._flatpickr.altInput && el._flatpickr.altInput.value) {
             return el._flatpickr.altInput.value.trim();
         }
@@ -727,7 +737,8 @@ $(document).ready(function() {
     }
 
     // Initialize Flatpickr for date range
-    var flatpickrInstance = flatpickr("#daterange", {
+    var commissionDateInput = getCommissionDateInput();
+    var flatpickrInstance = commissionDateInput ? flatpickr(commissionDateInput, {
         mode: "range",
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
@@ -747,7 +758,7 @@ $(document).ready(function() {
                 window.styleFlatpickrMonthNameClickable(instance);
             }
         }
-    });
+    }) : null;
 
     // Destroy existing DataTable if already initialized
     if ($.fn.DataTable.isDataTable('#commission-tbl')) {
@@ -1077,18 +1088,71 @@ $(document).ready(function() {
         });
     }
 
-    // Load data initially
-    reloadData();
+    function parseCommissionIsoDateLocal(value) {
+        var m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return null;
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
+
+    function setCommissionDateRange(from, to) {
+        if (!flatpickrInstance) return;
+        var start = parseCommissionIsoDateLocal(from);
+        var end = parseCommissionIsoDateLocal(to);
+        if (!start || !end) return;
+        flatpickrInstance.setDate([start, end], false);
+    }
+
+    function applyCommissionDefaultDateRange() {
+        if (!flatpickrInstance) return;
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+            var range = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+            if (range && range.defaultDate && range.defaultDate.length === 2) {
+                flatpickrInstance.setDate(range.defaultDate, false);
+                return;
+            }
+        }
+        var now = new Date();
+        var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        flatpickrInstance.setDate([monthStart, monthEnd], false);
+    }
+
+    window.setCommissionDateRange = setCommissionDateRange;
+    window.commissionReloadData = reloadData;
+
+    // Load data initially (full page only; dashboard loads on modal open)
+    if (!dashCommissionModalEl) {
+        reloadData();
+    }
+
+    if (dashCommissionModalEl) {
+        window.openDashboardCommissionModal = function () {
+            bootstrap.Modal.getOrCreateInstance(dashCommissionModalEl).show();
+        };
+
+        dashCommissionModalEl.addEventListener('shown.bs.modal', function () {
+            applyCommissionDefaultDateRange();
+            reloadData();
+            if ($.fn.DataTable.isDataTable('#commission-tbl')) {
+                $('#commission-tbl').DataTable().columns.adjust().draw(false);
+            }
+            placeCommissionDateFilter();
+            placeCommissionCompareToolbar();
+            placeCommissionCompareSelection();
+        });
+    }
 
     // Reload data when date range changes (use 'close' event instead of 'change' to avoid multiple triggers)
-    flatpickrInstance.config.onClose.push(function(selectedDates, dateStr, instance) {
-        if (selectedDates.length === 2) {
-            reloadData();
-        }
-    });
+    if (flatpickrInstance && flatpickrInstance.config) {
+        flatpickrInstance.config.onClose.push(function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                reloadData();
+            }
+        });
+    }
 
     function getCommissionExportFilename() {
-        var dr = document.getElementById('daterange');
+        var dr = getCommissionDateInput();
         if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
             var pad = function (n) {
                 return String(n).padStart(2, '0');

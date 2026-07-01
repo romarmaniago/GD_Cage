@@ -1,0 +1,62 @@
+<div id="commission-compare-selection-mount" class="commission-compare-selection-mount d-none">
+  <span class="small text-muted commission-compare-label"><%= __('commission.compare_selected') %>:</span>
+  <div id="commission-compare-chips" class="d-flex flex-wrap gap-1"></div>
+</div>
+<div id="commission-compare-toolbar-mount" class="commission-compare-toolbar-mount">
+  <div id="commission-compare-toolbar-idle">
+    <button type="button" id="btn-commission-compare-start" class="btn btn-sm btn-primary"><%= __('commission.compare_merge') %></button>
+  </div>
+  <div id="commission-compare-toolbar-active" class="d-none commission-compare-toolbar-active">
+    <button type="button" id="btn-commission-compare-clear" class="btn btn-sm btn-outline-secondary"><%= __('commission.compare_clear') %></button>
+    <button type="button" id="btn-commission-compare-confirm" class="btn btn-sm btn-primary" disabled><%= __('commission.compare_merge') %></button>
+  </div>
+</div>
+<div id="commission-daterange-mount" class="commission-daterange-mount">
+  <div class="commission-daterange-wrap">
+    <input type="text" id="commission-daterange" class="form-control form-control-sm" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
+  </div>
+</div>
+<div class="commission-table-wrap">
+  <table id="commission-tbl" class="table small-text commission-fit-table" style="width:100%">
+    <thead>
+      <tr>
+        <th class="commission-compare-col text-center" style="width: 42px;">
+          <span class="commission-compare-col-icon" title="<%= __('commission.compare_hint') %>">
+            <i class="fa fa-check-square-o" aria-hidden="true"></i>
+          </span>
+        </th>
+        <th class="d-none d-sm-table-cell text-start col-program-date"><%= __('commission.program_date_col') %></th>
+        <th class="d-none d-sm-table-cell text-start col-game-start"><%= __('commission.game_start') %></th>
+        <th class="d-none d-sm-table-cell text-center col-type"><%= __('commission.type') %></th>
+        <th class="d-none d-sm-table-cell text-center" style="width: 75px;"><%= __('commission.game_no') %></th>
+        <th class="d-none d-sm-table-cell text-center col-acct-no"><%= __('commission.acct_no') %></th>
+        <th class="d-none d-sm-table-cell text-center col-guest"><%= __('commission.guest') %></th>
+        <th class="d-none d-sm-table-cell text-center col-buyin"><%= __('commission.total_buyin') %></th>
+        <th class="d-none d-sm-table-cell text-center col-cashout"><%= __('commission.chips_return') %></th>
+        <th class="d-none d-sm-table-cell text-center col-winloss"><%= __('commission.win_loss') %></th>
+        <th class="d-none d-sm-table-cell text-center col-total-rolling"><%= __('commission.total_rolling') %></th>
+        <th class="d-none d-sm-table-cell text-center col-game-rate"><%= __('commission.rolling_rate') %></th>
+        <th class="d-none d-sm-table-cell text-center col-commission"><%= __('commission.settlement') %></th>
+        <th class="d-none d-sm-table-cell text-center"><%= __('commission.fb') %></th>
+        <th class="d-none d-sm-table-cell text-center"><%= __('commission.payment') %></th>
+        <th class="d-none d-sm-table-cell text-center commission-date-sort-col col-game-end"><%= __('commission.date_time') %></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr>
+        <th></th>
+        <th colspan="6"><%= __('commission.grand_total') %></th>
+        <th class="col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
+        <th class="col-cashout" id="GRAND_CHIPS_RETURN">0.00</th>
+        <th class="col-winloss" id="GRAND_WIN_LOSS">0.00</th>
+        <th class="col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
+        <th class="col-game-rate"></th>
+        <th class="col-commission" id="GRAND_ROLLING_SETTLEMENT">0.00</th>
+        <th id="GRAND_FNB">0</th>
+        <th id="GRAND_PAYMENT">0.00</th>
+        <th class="col-game-end"></th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
