@@ -1,26 +1,26 @@
 (function () {
 	'use strict';
 
-	function formatAmtHtml(n) {
+	function formatSignedHtml(n) {
 		var v = Math.round(Number(n) || 0);
+		if (!v) return '0';
 		if (v < 0) {
 			return '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
 		}
 		return v.toLocaleString('en-US');
 	}
 
-	function formatNegHtml(n) {
-		var v = Math.round(Number(n) || 0);
-		if (!v) return '0';
-		return '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
-	}
-
-	function updateBalanceDisplay(category, value, format) {
-		var html = format === 'neg' ? formatNegHtml(value) : formatAmtHtml(value);
+	function updateBalanceDisplay(category, value) {
 		document.querySelectorAll('.dash-service-balance[data-category="' + category + '"]').forEach(function (el) {
-			el.innerHTML = html;
+			el.innerHTML = formatSignedHtml(value);
 		});
 	}
+
+	window.isDashJunketExpense = function (service) {
+		if (!service || service.SOURCE_TYPE !== 'JUNKET') return false;
+		var tx = parseInt(service.TRANSACTION_ID, 10);
+		return tx === 1 || tx === 2;
+	};
 
 	window.refreshDashServiceBalances = function () {
 		return fetch('/dashboard/service_expense_balances', { credentials: 'same-origin' })
@@ -29,14 +29,20 @@
 				return res.json();
 			})
 			.then(function (data) {
-				updateBalanceDisplay('fnb', data.fnb, 'amt');
-				updateBalanceDisplay('hotel', data.hotel, 'amt');
-				updateBalanceDisplay('incidental', data.incidental, 'neg');
-				updateBalanceDisplay('delivery', data.delivery, 'neg');
+				updateBalanceDisplay('fnb', data.fnb);
+				updateBalanceDisplay('hotel', data.hotel);
+				updateBalanceDisplay('incidental', data.incidental);
+				updateBalanceDisplay('delivery', data.delivery);
 				return data;
 			})
 			.catch(function (err) {
 				console.error('refreshDashServiceBalances:', err);
 			});
 	};
+
+	document.addEventListener('DOMContentLoaded', function () {
+		if (typeof window.refreshDashServiceBalances === 'function') {
+			window.refreshDashServiceBalances();
+		}
+	});
 })();

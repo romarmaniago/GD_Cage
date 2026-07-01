@@ -61,6 +61,10 @@ $(document).ready(function() {
 
 	$.fn.dataTable.ext.search.push(function (settings, data) {
 		if (!settings || !settings.nTable || settings.nTable.id !== 'fnb-hotel-table') return true;
+		if (currentFilter && currentFilter !== 'all') {
+			var serviceType = cellText(data[4]);
+			if (!window.matchesServiceCategory || !window.matchesServiceCategory(serviceType, currentFilter)) return false;
+		}
 		if (!fnbHotelDateStart || !fnbHotelDateEnd) return true;
 		const rawDate = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
 		const rowDate = parseFnbHotelDate(cellText(rawDate));
@@ -129,31 +133,8 @@ $(document).ready(function() {
 	function updateFilter(filter) {
 		if (!dataTable) return;
 
-		currentFilter = filter;
-
-		const serviceTypeColumnIndex = 4; // 0-based index for "Service Type"
-
-		if (filter === 'all') {
-			// Clear column filter
-			dataTable.column(serviceTypeColumnIndex).search('').draw();
-		} else if (filter === 'delivery') {
-			dataTable
-				.column(serviceTypeColumnIndex)
-				.search('delivery', true, false)
-				.draw();
-		} else if (filter === 'incidental') {
-			dataTable
-				.column(serviceTypeColumnIndex)
-				.search('incidental', true, false)
-				.draw();
-		} else {
-			// Exact match on service type text (fnb, hotel)
-			const regex = '^' + filter + '$';
-			dataTable
-				.column(serviceTypeColumnIndex)
-				.search(regex, true, false) // regex = true, smart = false
-				.draw();
-		}
+		currentFilter = filter || 'all';
+		dataTable.column(4).search('').draw();
 	}
 
 	// Filter link click handlers

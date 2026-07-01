@@ -49,6 +49,16 @@
          return total;
       }
 
+      function signedServiceBalance(category) {
+         var guestIn = sumServiceRows(sqlServiceCashGuest, category) + sumServiceRows(sqlServiceDepositGuest, category);
+         var junketOut = sumServiceRows(sqlServiceCashJunket, category) + sumServiceRows(sqlServiceDepositJunket, category);
+         return guestIn - junketOut;
+      }
+
+      function junketServiceOut(category) {
+         return sumServiceRows(sqlServiceCashJunket, category) + sumServiceRows(sqlServiceDepositJunket, category);
+      }
+
       function sumAllServiceRows(rows) {
          if (!rows || !rows.length) return 0;
          return rows.reduce((sum, row) => sum + (+row.TOTAL || 0), 0);
@@ -168,14 +178,14 @@
          (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
          (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0);
 
-      var fnbDeposit = sumServiceRows(sqlServiceDepositJunket, 'fnb');
-      var hotelDeposit = sumServiceRows(sqlServiceDepositJunket, 'hotel');
-      var deliveryDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
-      var incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'incidental');
-      var fnbBalance = fnbDeposit + sumServiceRows(sqlServiceCashJunket, 'fnb');
-      var hotelBalance = hotelDeposit + sumServiceRows(sqlServiceCashJunket, 'hotel');
-      var deliveryBalance = deliveryDeposit + sumServiceRows(sqlServiceCashJunket, 'delivery');
-      var incidentalBalance = incidentalDeposit + sumServiceRows(sqlServiceCashJunket, 'incidental');
+      var fnbBalance = signedServiceBalance('fnb');
+      var hotelBalance = signedServiceBalance('hotel');
+      var deliveryBalance = signedServiceBalance('delivery');
+      var incidentalBalance = signedServiceBalance('incidental');
+      var fnbJunketOut = junketServiceOut('fnb');
+      var hotelJunketOut = junketServiceOut('hotel');
+      var deliveryJunketOut = junketServiceOut('delivery');
+      var incidentalJunketOut = junketServiceOut('incidental');
 
       var wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : (dashboardWlShareDefault || 65);
       var wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
@@ -186,10 +196,10 @@
          expenseReset +
          junketLossAmount +
          commissionSettlement +
-         fnbDeposit +
-         hotelDeposit +
-         deliveryDeposit +
-         incidentalDeposit;
+         fnbJunketOut +
+         hotelJunketOut +
+         deliveryJunketOut +
+         incidentalJunketOut;
 
       var grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
 
@@ -252,10 +262,10 @@
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value">0</span></div>
                   <div class="dash-kv-group-title is-muted">Deposit Of Expenses</div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb" data-format="amt"><%- fmtAmt(fnbBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel" data-format="amt"><%- fmtAmt(hotelBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental" data-format="neg"><%- fmtNeg(incidentalBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery" data-format="neg"><%- fmtNeg(deliveryBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb"><%- fmtAmt(fnbBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel"><%- fmtAmt(hotelBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental"><%- fmtAmt(incidentalBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery"><%- fmtAmt(deliveryBalance) %></span></div>
                   <div class="dash-kv-group-title">Etc (Tip)</div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-tip">Tip Balance</a></span><span class="dash-kv-value" id="dash-tip-balance-value"><%- fmtAmt(tipAvailableBalance) %></span></div>
                   <div class="dash-kv-group-title">Deposit Of Guests</div>
@@ -302,10 +312,10 @@
                   <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                   <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value">0</span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb" data-format="amt"><%- fmtAmt(fnbBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel" data-format="amt"><%- fmtAmt(hotelBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental" data-format="neg"><%- fmtNeg(incidentalBalance) %></span></div>
-                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery" data-format="neg"><%- fmtNeg(deliveryBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb"><%- fmtAmt(fnbBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel"><%- fmtAmt(hotelBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental"><%- fmtAmt(incidentalBalance) %></span></div>
+                  <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery"><%- fmtAmt(deliveryBalance) %></span></div>
                   <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtNeg(companyExpenseTotal) %></span></div>
                   <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value" id="dash-grand-total"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
 
@@ -588,6 +598,10 @@
 <script src="/assets/js/functions/account.js"></script>
 <script src="/assets/js/functions/dashboard_grid.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
+<<<<<<< Updated upstream
+=======
+<script src="/assets/js/functions/service_category_select.js"></script>
+>>>>>>> Stashed changes
 <script src="/assets/js/functions/dashboard_service_balance.js"></script>
 <script src="/assets/js/functions/dashboard_fnb.js"></script>
 <script src="/assets/js/functions/dashboard_hotel.js"></script>
@@ -646,5 +660,4 @@
       failed_to_delete: "<%= __('fnb_hotel.failed_to_delete') %>"
    };
 </script>
-<script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/new_service_record.js"></script>

@@ -40,6 +40,32 @@ function categorizeDepositTotals(rows) {
 	};
 }
 
+function sumCategoryAcrossRowSets(rowSets, category) {
+	return (rowSets || []).reduce(
+		(total, rows) => total + sumDepositsByCategory(rows || [], category),
+		0
+	);
+}
+
+function signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, category) {
+	const guestIn = sumCategoryAcrossRowSets([guestCashRows, guestDepositRows], category);
+	const junketOut = sumCategoryAcrossRowSets([junketCashRows, junketDepositRows], category);
+	return guestIn - junketOut;
+}
+
+function categorizeSignedServiceTotals(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows) {
+	return {
+		fnb: signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, 'fnb'),
+		hotel: signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, 'hotel'),
+		delivery: signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, 'delivery'),
+		incidental: signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, 'incidental')
+	};
+}
+
+function categorizeDisplayExpenseTotals(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows) {
+	return categorizeSignedServiceTotals(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows);
+}
+
 function categorizeJunketExpenseTotals(cashRows, depositRows) {
 	const deposit = categorizeDepositTotals(depositRows || []);
 	const cash = categorizeDepositTotals(cashRows || []);
@@ -55,5 +81,7 @@ module.exports = {
 	matchesServiceCategory,
 	sumDepositsByCategory,
 	categorizeDepositTotals,
-	categorizeJunketExpenseTotals
+	categorizeJunketExpenseTotals,
+	categorizeDisplayExpenseTotals,
+	categorizeSignedServiceTotals
 };
