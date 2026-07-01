@@ -23,7 +23,13 @@
 
 .dash-panel-narrow .dash-kv-group-title {
   padding: 0.45rem 0.65rem;
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.dash-panel-narrow .dash-kv-group-title:not(.d-flex) {
+  text-align: center;
 }
 
 .dash-panel-narrow .dash-section-header {
@@ -142,6 +148,18 @@
   color: #64748b;
   background: #f8fafc;
   border-bottom-color: #eef2f7;
+}
+
+.dash-kv-group-title.is-center {
+  text-align: center;
+}
+
+.dash-card-header-compact.is-center {
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
 }
 
 .dash-kv {
@@ -525,6 +543,16 @@
 .dash-dual-matrix-col.is-wl {
   flex: 1 1 0;
   border-left: 1px solid #e2e8f0;
+}
+
+.dash-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.dash-card-stack > .card {
+  margin-bottom: 0;
 }
 
 .dash-top-row .dash-dual-matrix-panel-col {
