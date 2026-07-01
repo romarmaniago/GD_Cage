@@ -550,6 +550,7 @@
 <%- include('modals/dashboard/cash_balance_history') %>
 <%- include ('modals/junket/new_service_record') %>
 <%- include ('modals/dashboard/winloss_details') %>
+<<<<<<< Updated upstream
 <%- include ('modals/dashboard/winloss_report') %>
 <%- include ('modals/daily_reports/manage_table') %>
 <%- include ('modals/daily_reports/add_table') %>
@@ -572,6 +573,9 @@
 <%- include ('modals/dashboard/tip_details') %>
 <%- include ('modals/tip/tip_settlement') %>
 <%- include ('modals/junket/edit_service_record') %>
+=======
+<% if (canEditWlRate) { %><%- include ('modals/dashboard/wl_rate') %><% } %>
+>>>>>>> Stashed changes
 <%- include('partials/permission_view_only_script') %>
 <%- include ('modals/dashboard/marker') %>
 <%- include ('modals/game_book/new_game_list') %>
@@ -588,6 +592,7 @@
 <script src="/assets/js/functions/account.js"></script>
 <script src="/assets/js/functions/dashboard_grid.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
+<<<<<<< Updated upstream
 <script src="/assets/js/functions/dashboard_service_balance.js"></script>
 <script src="/assets/js/functions/dashboard_fnb.js"></script>
 <script src="/assets/js/functions/dashboard_hotel.js"></script>
@@ -608,6 +613,8 @@
    })();
 </script>
 <script src="/assets/js/functions/dashboard_tip.js"></script>
+=======
+>>>>>>> Stashed changes
 
 <%- include('partials/footer') %>
 <script src="/assets/js/functions/table_daily_report.js"></script>
