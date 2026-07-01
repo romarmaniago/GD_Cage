@@ -1,8 +1,8 @@
 /* House expense explorer styles (shared: page + dashboard modal) */
 
 .modal-dash-house-expense-dialog {
-  max-width: min(94vw, 92rem) !important;
-  width: min(94vw, 92rem);
+  max-width: min(97vw, 104rem) !important;
+  width: min(97vw, 104rem);
   margin: 0.5rem auto;
 }
 
@@ -156,21 +156,34 @@
 
 @media (min-width: 992px) {
   #modal-dash-house-expense .expense-explorer-main-col {
-    flex: 0 0 180px;
-    width: 180px;
-    max-width: 180px;
+    flex: 0 0 250px;
+    width: 250px;
+    max-width: 250px;
   }
 
   #modal-dash-house-expense .expense-explorer-sub-col {
-    flex: 0 0 165px;
-    width: 165px;
-    max-width: 165px;
+    flex: 0 0 230px;
+    width: 230px;
+    max-width: 230px;
   }
 
   #modal-dash-house-expense .expense-explorer-item-col {
     flex: 1 1 0;
     min-width: 0;
     max-width: none;
+  }
+
+  #modal-dash-house-expense .expense-cat-name {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+
+  #modal-dash-house-expense .expense-cat-item {
+    align-items: flex-start;
   }
 }
 
@@ -623,7 +636,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-cat-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: 0.6rem 0.8rem;
     font-size: 0.95rem;
     cursor: pointer;
@@ -647,9 +660,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-cat-name {
     font-weight: 600;
     color: #334155;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
     flex: 1;
     min-width: 0;
     padding-right: 0.5rem;
@@ -906,14 +922,14 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 @media (min-width: 992px) {
     .expense-explorer-main-col {
-        flex: 0 0 220px;
-        width: 220px;
-        max-width: 220px;
+        flex: 0 0 250px;
+        width: 250px;
+        max-width: 250px;
     }
     .expense-explorer-sub-col {
-        flex: 0 0 210px;
-        width: 210px;
-        max-width: 210px;
+        flex: 0 0 230px;
+        width: 230px;
+        max-width: 230px;
     }
     .expense-explorer-item-col {
         flex: 1 1 0;
