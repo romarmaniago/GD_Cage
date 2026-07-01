@@ -9,7 +9,7 @@
 
 <style>
 	#modal-new-capital .modal-dialog {
-		max-width: 920px;
+		max-width: 1100px;
 		width: calc(100% - 2rem);
 	}
 
@@ -81,11 +81,11 @@ color: #333;
 }
 
 #capital-tbl col.col-encoded {
-	width: 11%;
+	width: 14%;
 }
 
 #capital-tbl col.col-amount {
-	width: 20%;
+	width: 24%;
 }
 
 #capital-tbl col.col-type {
@@ -93,11 +93,11 @@ color: #333;
 }
 
 #capital-tbl col.col-remarks {
-	width: 32%;
+	width: 26%;
 }
 
 #capital-tbl col.col-date {
-	width: 17%;
+	width: 16%;
 }
 
 #capital-tbl col.col-action {
@@ -108,6 +108,15 @@ color: #333;
 #capital-tbl td {
 	overflow: visible;
 	text-overflow: unset;
+}
+
+#capital-tbl th,
+#capital-tbl td:not(:nth-child(4)) {
+	white-space: nowrap;
+	word-break: normal;
+}
+
+#capital-tbl td:nth-child(4) {
 	white-space: normal;
 	word-break: break-word;
 }
@@ -179,10 +188,46 @@ border-top: 2px solid #dee2e6;
 								</div>
 							</div>
 							
-							
-							
-							
-							<input type="hidden" value="<%- Number(typeof cashBalance !== 'undefined' ? cashBalance : 0).toLocaleString('en-US') %>" id="cashbal" name="txtcashbal"/>
+							<%
+								function sumHouseBalanceServiceTotals(rows) {
+									if (!rows || !rows.length) return 0;
+									return rows.reduce(function(sum, row) { return sum + (+row.TOTAL || 0); }, 0);
+								}
+								let refCashBal = (typeof cashBalance !== 'undefined' && cashBalance !== null) ? Number(cashBalance) : 0;
+								if (typeof sqlCashDeposit !== 'undefined' && sqlCashDeposit && sqlCashDeposit[0]) {
+									const refCashInTotal =
+										(+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+										(+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+										(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
+										(+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+										(+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
+										(+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) +
+										sumHouseBalanceServiceTotals(sqlServiceCashGuest) +
+										sumHouseBalanceServiceTotals(sqlServiceDepositGuest) +
+										(+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+										(+sqlReturnMoney[0].RETURN_MONEY || 0) +
+										(+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
+									const refCashOutTotal =
+										(+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+										(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+										(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+										(+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+										(+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+										(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+										(+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+										(+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+										(+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) +
+										sumHouseBalanceServiceTotals(sqlServiceCashJunket) +
+										sumHouseBalanceServiceTotals(sqlServiceDepositJunket) +
+										(+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+										(+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+										(+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+										(+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+									refCashBal = refCashInTotal - refCashOutTotal + (+sqlMxCashNet[0].MX_CASH_NET || 0);
+								}
+								const refCashBalStr = Number(refCashBal || 0).toLocaleString('en-US');
+							%>
+							<input type="hidden" value="<%= refCashBalStr %>" id="cashbal" name="txtcashbal"/>
 							
 							<input type="hidden" name="description" id="description" value="Cash-in">
 							
@@ -236,6 +281,21 @@ border-top: 2px solid #dee2e6;
 		if (permissions === 2) {
 			$('#add_junket_capital button[type="submit"]').prop('disabled', true);
 		}
+
+		function refreshHouseBalanceCashLimit() {
+			fetch('/dashboard_house_balances', { credentials: 'same-origin' })
+				.then(function(res) { return res.json(); })
+				.then(function(data) {
+					if (!data || data.message) return;
+					const cash = Math.round(Number(data.cashBalance) || 0);
+					$('#cashbal').val(cash.toLocaleString('en-US'));
+				})
+				.catch(function(err) {
+					console.error('refreshHouseBalanceCashLimit:', err);
+				});
+		}
+
+		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
 
 		$('#add_junket_capital').on('submit', function(e) {
 			e.preventDefault();

@@ -203,6 +203,20 @@ function validateRollingAgainstRollerChips(rows, ccAmount) {
 	return { ok: true, total_roller_chips: totals.total_roller_chips };
 }
 
+function validateRollingAgainstNnBalance(ccAmount, nnBalance, previousCcAmount) {
+	previousCcAmount = parseFloat(previousCcAmount) || 0;
+	nnBalance = parseFloat(nnBalance) || 0;
+	ccAmount = parseFloat(ccAmount) || 0;
+	var maxAllowed = nnBalance + previousCcAmount;
+	if (ccAmount > maxAllowed) {
+		return {
+			ok: false,
+			message: 'CC rolling cannot exceed the current NN balance of ' + nnBalance.toLocaleString('en-US') + '.'
+		};
+	}
+	return { ok: true };
+}
+
 function formatMergeNumeric(value) {
 	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -5710,17 +5724,38 @@ $('#add_buyin').submit(function (event) {
 			Validating...
 		`);
 
-		$.ajax({
-			url: '/game_list/' + gameId + '/record',
-			method: 'GET',
-			success: function (records) {
-				var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount);
+		var previousCcAmount = parseFloat($('.rolling_prev_cc').val()) || 0;
 
+		$.when(
+			$.ajax({ url: '/game_list/' + gameId + '/record', method: 'GET' }),
+			$.ajax({ url: '/game_list_company_balance', method: 'GET' })
+		).done(function (recordsResp, balanceResp) {
+				var records = recordsResp[0];
+				var balances = balanceResp[0] || {};
+				var nnBalance = parseFloat(balances.nnChipsBalance) || 0;
+
+				var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount);
 				if (!rollingValidation.ok) {
 					Swal.fire({
 						icon: 'error',
 						title: 'Validation Error',
 						text: rollingValidation.message,
+						confirmButtonText: 'OK',
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					}).then(() => {
+						$('#modal-add-rolling').modal('show');
+					});
+					$btn.prop('disabled', false).text(buttonLabel);
+					return;
+				}
+
+				var nnValidation = validateRollingAgainstNnBalance(ccAmount, nnBalance, previousCcAmount);
+				if (!nnValidation.ok) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Exceeds NN balance',
+						text: nnValidation.message,
 						confirmButtonText: 'OK',
 						allowOutsideClick: false,
 						allowEscapeKey: false
@@ -5804,16 +5839,14 @@ $('#add_buyin').submit(function (event) {
 				$btn.prop('disabled', false).text(buttonLabel);
 			}
 		});
-			},
-			error: function () {
-				Swal.fire({
-					icon: 'error',
-					title: 'Error',
-					text: 'Unable to validate rolling against roller chips.',
-					confirmButtonText: 'OK'
-				});
-				$btn.prop('disabled', false).text(buttonLabel);
-			}
+		}).fail(function () {
+			Swal.fire({
+				icon: 'error',
+				title: 'Error',
+				text: 'Unable to validate rolling transaction.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text(buttonLabel);
 		});
 	});
 
@@ -6699,6 +6732,9 @@ function setRollingMode(mode, recordId) {
 
 	$('.rolling_action').val(normalizedMode);
 	$('.rolling_record_id').val(normalizedMode === 'update' ? recordId : '');
+	if (normalizedMode !== 'update') {
+		$('.rolling_prev_cc').val('0');
+	}
 	$('#submit-rolling-btn').text(normalizedMode === 'update' ? 'Update' : 'Save');
 }
 
@@ -6962,6 +6998,7 @@ $(document).on('click', '#load-last-rolling-btn', function () {
 
 			var ccValue = parseFloat(record.CC_CHIPS) || 0;
 			$('.txtCC').val(ccValue ? ccValue.toLocaleString('en-US') : '');
+			$('.rolling_prev_cc').val(ccValue);
 			setRollingMode('update', record.IDNo);
 		},
 		error: function (xhr) {

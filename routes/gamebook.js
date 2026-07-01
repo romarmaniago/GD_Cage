@@ -1735,6 +1735,20 @@ function validateRollingAgainstRollerChips(gameRecords, ccAmount) {
 	return { ok: true };
 }
 
+function validateRollingAgainstNnBalance(ccAmount, nnBalance, previousCcAmount = 0) {
+	const prev = parseFloat(previousCcAmount) || 0;
+	const nnBal = parseFloat(nnBalance) || 0;
+	const cc = parseFloat(ccAmount) || 0;
+	const maxAllowed = nnBal + prev;
+	if (cc > maxAllowed) {
+		return {
+			ok: false,
+			error: `CC rolling cannot exceed the current NN balance of ${nnBal.toLocaleString()}.`
+		};
+	}
+	return { ok: true };
+}
+
 async function fetchSettlementTotalsForGameId(gameId) {
 	const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
 	return computeSettlementTotalsFromRecords(gameRecords);
@@ -6491,6 +6505,12 @@ router.post('/game_list/add/rolling', async (req, res) => {
 			return res.status(400).json({ error: rollingValidation.error });
 		}
 
+		const nnBalance = await dashboardQueries.computeNnChipsBalance();
+		const nnValidation = validateRollingAgainstNnBalance(ccAmount, nnBalance, 0);
+		if (!nnValidation.ok) {
+			return res.status(400).json({ error: nnValidation.error });
+		}
+
 		const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 		await pool.execute(query, [game_id, date_now, 4, txtNNamount, txtCCamount, req.session.user_id, date_now]);
 		return res.json({ success: true });
@@ -6545,7 +6565,7 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 
 	try {
 		const [existingRows] = await pool.execute(
-			'SELECT GAME_ID FROM game_record WHERE IDNo = ? AND CAGE_TYPE = 4 AND ACTIVE != 0',
+			'SELECT GAME_ID, CC_CHIPS FROM game_record WHERE IDNo = ? AND CAGE_TYPE = 4 AND ACTIVE != 0',
 			[recordId]
 		);
 		if (existingRows.length === 0) {
@@ -6553,10 +6573,17 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 		}
 
 		const gameId = existingRows[0].GAME_ID;
+		const oldCcAmount = parseFloat(existingRows[0].CC_CHIPS) || 0;
 		const [gameRecords] = await pool.execute(SETTLEMENT_GAME_RECORD_TOTALS_SQL, [gameId]);
 		const rollingValidation = validateRollingAgainstRollerChips(gameRecords, ccAmount);
 		if (!rollingValidation.ok) {
 			return res.status(400).json({ error: rollingValidation.error });
+		}
+
+		const nnBalance = await dashboardQueries.computeNnChipsBalance();
+		const nnValidation = validateRollingAgainstNnBalance(ccAmount, nnBalance, oldCcAmount);
+		if (!nnValidation.ok) {
+			return res.status(400).json({ error: nnValidation.error });
 		}
 
 		const query = `
