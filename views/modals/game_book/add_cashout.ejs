@@ -818,6 +818,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	let cashEngaged = false;
 	let depositEngaged = false;
 	let creditEngaged = false;
+	let creditGuarantorAutocomplete = null;
+	let tipAutocompleteInstances = [];
 	let tipRollerEngaged = false;
 	let tipDealerEngaged = false;
 	let rollerTipHistory = [];
@@ -825,6 +827,39 @@ document.addEventListener('DOMContentLoaded', function () {
 	let rollerTipBalance = 0;
 	let dealerTipBalance = 0;
 	const HISTORY_VISIBLE_ROWS = 5;
+
+	const initCreditGuarantorAutocomplete = function () {
+		if (!creditGuarantorInput || !window.CreditGuarantorAutocomplete) return;
+		creditGuarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField(creditGuarantorInput, {
+			getHistoryRows: function () { return creditHistory; },
+			parseRemarks: parseCreditRemarks
+		});
+	};
+
+	const initTipAutocompletes = function () {
+		var AC = window.CreditGuarantorAutocomplete;
+		if (!AC) return;
+		tipAutocompleteInstances = [
+			AC.initTipFieldAutocomplete(tipRollerNameInput, {
+				fieldType: 'name',
+				getHistoryRows: function () { return rollerTipHistory; }
+			}),
+			AC.initTipFieldAutocomplete(tipRollerStatusInput, {
+				fieldType: 'status',
+				getHistoryRows: function () { return rollerTipHistory; },
+				defaults: ['Roller', 'GM']
+			}),
+			AC.initTipFieldAutocomplete(tipDealerNameInput, {
+				fieldType: 'name',
+				getHistoryRows: function () { return dealerTipHistory; }
+			}),
+			AC.initTipFieldAutocomplete(tipDealerStatusInput, {
+				fieldType: 'status',
+				getHistoryRows: function () { return dealerTipHistory; },
+				defaults: ['Roller', 'GM', 'Dealer']
+			})
+		].filter(Boolean);
+	};
 
 	const parseAmt = function (raw) {
 		const s = (raw || '').toString().replace(/,/g, '').trim();
@@ -1519,11 +1554,13 @@ document.addEventListener('DOMContentLoaded', function () {
 					agencyName: (data && data.agencyName) || ''
 				};
 				creditHistory = Array.isArray(data && data.history) ? data.history : [];
+				initCreditGuarantorAutocomplete();
 			})
 			.catch(function () {
 				creditHistory = [];
 				creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
 				if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+				initCreditGuarantorAutocomplete();
 			});
 	};
 
@@ -1548,12 +1585,17 @@ document.addEventListener('DOMContentLoaded', function () {
 				dealerTipBalance = Number(data && data.dealerBalance) || 0;
 				rollerTipHistory = Array.isArray(data && data.rollerHistory) ? data.rollerHistory : [];
 				dealerTipHistory = Array.isArray(data && data.dealerHistory) ? data.dealerHistory : [];
+				initTipAutocompletes();
+				if (window.CreditGuarantorAutocomplete) {
+					window.CreditGuarantorAutocomplete.refreshGroup(tipAutocompleteInstances);
+				}
 			})
 			.catch(function () {
 				rollerTipHistory = [];
 				dealerTipHistory = [];
 				rollerTipBalance = 0;
 				dealerTipBalance = 0;
+				initTipAutocompletes();
 			});
 	};
 
@@ -1801,6 +1843,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	wireCreditSideField(creditRemarksInput);
 	wireCreditSideField(creditGuarantorInput);
+	initCreditGuarantorAutocomplete();
+	initTipAutocompletes();
 	wireTipRollerSideField(tipRollerNameInput, 'name');
 	wireTipRollerSideField(tipRollerStatusInput, 'status');
 	wireTipMetaField(tipDealerNameInput, 'dealer', 'name');

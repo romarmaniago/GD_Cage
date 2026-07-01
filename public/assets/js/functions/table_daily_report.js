@@ -54,8 +54,9 @@
     }
     const now = new Date();
     const prevLast = new Date(now.getFullYear(), now.getMonth(), 0);
-    const currLast = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { from: toIsoDate(prevLast), to: toIsoDate(currLast), fromAt: prevLast, toAt: currLast };
+    const endAt = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    endAt.setDate(endAt.getDate() - 1);
+    return { from: toIsoDate(prevLast), to: toIsoDate(endAt), fromAt: prevLast, toAt: endAt };
   }
 
   function initDailyReportDatePicker() {

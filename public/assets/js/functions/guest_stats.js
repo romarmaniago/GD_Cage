@@ -37,13 +37,13 @@ $(document).ready(function () {
 	    const now = new Date();
 	    const y = now.getFullYear();
 	    const m = now.getMonth();
-	    return moment(new Date(y, m + 1, 0)).format('YYYY-MM-DD');
+	    return moment(new Date(y, m, 0)).format('YYYY-MM-DD');
 	  })());
 	  const end_date = getQueryParam('end_date') || (cutoff ? (cutoff.endDateApi || cutoff.endDate) : (function () {
 	    const now = new Date();
 	    const y = now.getFullYear();
 	    const m = now.getMonth();
-	    const endAt = new Date(y, m + 2, 0);
+	    const endAt = new Date(y, m + 1, 0);
 	    endAt.setDate(endAt.getDate() - 1);
 	    return moment(endAt).format('YYYY-MM-DD');
 	  })());

@@ -1158,6 +1158,15 @@ document.addEventListener('DOMContentLoaded', function () {
     let cashEngaged = false;
     let depositEngaged = false;
     let creditEngaged = false;
+    let creditGuarantorAutocomplete = null;
+
+    const initCreditGuarantorAutocomplete = function () {
+        if (!creditGuarantorInput || !window.CreditGuarantorAutocomplete) return;
+        creditGuarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField(creditGuarantorInput, {
+            getHistoryRows: function () { return creditHistory; },
+            parseRemarks: parseCreditRemarks
+        });
+    };
 
     const parseAmt = function (raw) {
         const s = (raw || '').toString().replace(/,/g, '').trim();
@@ -1723,11 +1732,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     agencyName: (data && data.agencyName) || ''
                 };
                 creditHistory = Array.isArray(data && data.history) ? data.history : [];
+                initCreditGuarantorAutocomplete();
             })
             .catch(function () {
                 creditHistory = [];
                 creditMeta = { totalCredit: 0, balanceCredit: 0, balanceBuyin: 0, guestBalances: [], agentCode: '', agentName: '', agencyName: '' };
                 if (creditGuestColsEl) creditGuestColsEl.innerHTML = '';
+                initCreditGuarantorAutocomplete();
             });
     };
 
@@ -1859,6 +1870,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wireSideField(depositRemarksInput, 'deposit');
     wireSideField(creditRemarksInput, 'credit');
     wireSideField(creditGuarantorInput, 'credit');
+    initCreditGuarantorAutocomplete();
 
     modal.querySelectorAll('.new-game-field-grid label[for="splitCashNN"]').forEach(function (labelEl) {
         labelEl.style.cursor = 'pointer';

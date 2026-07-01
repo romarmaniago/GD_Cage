@@ -53,8 +53,8 @@ $(document).ready(function() {
 		const now = new Date();
 		const y = now.getFullYear();
 		const m = now.getMonth();
-		const startAt = new Date(y, m + 1, 0);
-		const endAt = new Date(y, m + 2, 0);
+		const startAt = new Date(y, m, 0);
+		const endAt = new Date(y, m + 1, 0);
 		endAt.setDate(endAt.getDate() - 1);
 		return { startAt, endAt };
 	}
