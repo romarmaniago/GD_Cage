@@ -356,11 +356,13 @@ function resetChangeStatusCutoffFields() {
 	} else {
 		$('#txtCutoffProgramDate').val('');
 	}
+	resetChangeStatusTipPanels();
+	updateChangeStatusSidePanels();
 }
 
 function syncCutoffFieldDisabledState() {
 	var split = $('#chkCutoffSplit').is(':checked');
-	$('#txtCutoffRemainingNN, #txtCutoffRemainingCC').prop('disabled', split);
+	$('#txtCutoffRemainingNN, #txtCutoffRemainingCC').prop('disabled', false);
 	$('#txtCutoffCashNN, #txtCutoffCashCC, #txtCutoffDepNN, #txtCutoffDepCC, #txtCutoffCreditNN, #txtCutoffCreditCC')
 		.prop('disabled', !split);
 }
@@ -368,11 +370,10 @@ function syncCutoffFieldDisabledState() {
 function toggleChangeStatusCutoffSplit() {
 	var split = $('#chkCutoffSplit').is(':checked');
 	$('#txtCutoffUseSplit').val(split ? '1' : '0');
+	$('#cutoff-remaining-row').show();
 	if (split) {
-		$('#cutoff-remaining-row').hide();
 		$('#cutoff-split-rows').show();
 	} else {
-		$('#cutoff-remaining-row').show();
 		$('#cutoff-split-rows').hide();
 	}
 	syncCutoffFieldDisabledState();
@@ -390,6 +391,8 @@ function collectChangeStatusCutoffChipData() {
 	if (useSplit) {
 		return {
 			useSplit: true,
+			remainingNn: parseCutoffFieldAmount($('#txtCutoffRemainingNN').val()),
+			remainingCc: parseCutoffFieldAmount($('#txtCutoffRemainingCC').val()),
 			cashNn: parseCutoffFieldAmount($('#txtCutoffCashNN').val()),
 			cashCc: parseCutoffFieldAmount($('#txtCutoffCashCC').val()),
 			depNn: parseCutoffFieldAmount($('#txtCutoffDepNN').val()),
@@ -414,27 +417,21 @@ function collectChangeStatusCutoffChipData() {
 }
 
 function syncChangeStatusCutoffHiddenBuyIn(data) {
-	var totalNn = 0;
-	var totalCc = 0;
-	if (data.useSplit) {
-		totalNn = (data.cashNn || 0) + (data.depNn || 0) + (data.creditNn || 0);
-		totalCc = (data.cashCc || 0) + (data.depCc || 0) + (data.creditCc || 0);
-	} else {
-		totalNn = data.remainingNn || 0;
-		totalCc = data.remainingCc || 0;
-	}
+	var totalNn = data.remainingNn || 0;
+	var totalCc = data.remainingCc || 0;
 	$('#txtCutoffBuyInNN').val(totalNn > 0 ? String(totalNn) : '');
 	$('#txtCutoffBuyInCC').val(totalCc > 0 ? String(totalCc) : '');
 }
 
 function validateChangeStatusCutoffNnFields(data) {
 	var nnFields = [];
+	if (data.remainingNn > 0) {
+		nnFields.push({ amount: data.remainingNn, selector: '#txtCutoffRemainingNN' });
+	}
 	if (data.useSplit) {
 		if (data.cashNn > 0) nnFields.push({ amount: data.cashNn, selector: '#txtCutoffCashNN' });
 		if (data.depNn > 0) nnFields.push({ amount: data.depNn, selector: '#txtCutoffDepNN' });
 		if (data.creditNn > 0) nnFields.push({ amount: data.creditNn, selector: '#txtCutoffCreditNN' });
-	} else if (data.remainingNn > 0) {
-		nnFields.push({ amount: data.remainingNn, selector: '#txtCutoffRemainingNN' });
 	}
 	if (data.tipRollerNn > 0) nnFields.push({ amount: data.tipRollerNn, selector: '#txtCutoffTipRollerNn' });
 	if (data.tipDealerNn > 0) nnFields.push({ amount: data.tipDealerNn, selector: '#txtCutoffTipDealerNn' });
@@ -517,10 +514,12 @@ function formatChangeStatusCutoffDateDisplay(ymd) {
 
 function updateChangeStatusCutoffSection() {
 	var selectedStatus = $('#status').val();
+	ensureChangeStatusTipPanelsWired();
 	if (isCutoffStatus(selectedStatus)) {
 		$('#cutoff-details-section').show();
 		ensureChangeStatusCutoffDatePicker();
 		syncCutoffFieldDisabledState();
+		loadChangeStatusTipContext(($('.txtAccountCode').val() || '').trim());
 	} else {
 		resetChangeStatusCutoffFields();
 	}
@@ -875,9 +874,424 @@ function renderChangeStatusInGameHistoryTable(settlementAmount, chipsWithdrawal,
 	$body.html(html);
 }
 
+var changeStatusRollerTipHistory = [];
+var changeStatusDealerTipHistory = [];
+var changeStatusRollerTipBalance = 0;
+var changeStatusDealerTipBalance = 0;
+var changeStatusTipRollerEngaged = false;
+var changeStatusTipDealerEngaged = false;
+var changeStatusTipAutocompleteInstances = [];
+var changeStatusTipPanelsWired = false;
+
+function isChangeStatusTipMode() {
+	return isCutoffStatus($('#status').val()) || isInGameSettlementMode();
+}
+
+function getChangeStatusActiveTipPrefix() {
+	if (isInGameSettlementMode()) return 'txtInGame';
+	if (isCutoffStatus($('#status').val())) return 'txtCutoff';
+	return null;
+}
+
+function hasChangeStatusTipRowInput(nnId, ccId) {
+	var nn = ($('#' + nnId).val() || '').toString().replace(/,/g, '').trim();
+	var cc = ($('#' + ccId).val() || '').toString().replace(/,/g, '').trim();
+	return !!(nn || cc);
+}
+
+function hasChangeStatusTipRollerInput() {
+	var prefix = getChangeStatusActiveTipPrefix();
+	if (!prefix) return false;
+	return hasChangeStatusTipRowInput(prefix + 'TipRollerNn', prefix + 'TipRollerCc');
+}
+
+function hasChangeStatusTipDealerInput() {
+	var prefix = getChangeStatusActiveTipPrefix();
+	if (!prefix) return false;
+	return hasChangeStatusTipRowInput(prefix + 'TipDealerNn', prefix + 'TipDealerCc');
+}
+
+function computeChangeStatusTipRollerProcessing() {
+	var prefix = getChangeStatusActiveTipPrefix();
+	if (!prefix) return 0;
+	return parseCutoffFieldAmount($('#' + prefix + 'TipRollerNn').val()) +
+		parseCutoffFieldAmount($('#' + prefix + 'TipRollerCc').val());
+}
+
+function computeChangeStatusTipDealerProcessing() {
+	var prefix = getChangeStatusActiveTipPrefix();
+	if (!prefix) return 0;
+	return parseCutoffFieldAmount($('#' + prefix + 'TipDealerNn').val()) +
+		parseCutoffFieldAmount($('#' + prefix + 'TipDealerCc').val());
+}
+
+function getChangeStatusTipRollerName() {
+	return ($('#change-status-tip-roller-name').val() || '').trim();
+}
+
+function getChangeStatusTipStatus() {
+	return ($('#change-status-tip-roller-status').val() || '').trim();
+}
+
+function syncChangeStatusTipMetaFields(sourceType, fieldType) {
+	if (fieldType === 'name') {
+		if (sourceType === 'roller') {
+			$('#change-status-tip-dealer-name').val($('#change-status-tip-roller-name').val());
+		} else {
+			$('#change-status-tip-roller-name').val($('#change-status-tip-dealer-name').val());
+		}
+	} else if (sourceType === 'roller') {
+		$('#change-status-tip-dealer-status').val($('#change-status-tip-roller-status').val());
+	} else {
+		$('#change-status-tip-roller-status').val($('#change-status-tip-dealer-status').val());
+	}
+}
+
+function formatChangeStatusTipHistoryDate(raw) {
+	if (!raw) return '—';
+	var d = new Date(raw);
+	if (Number.isNaN(d.getTime())) return String(raw);
+	return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+}
+
+function renderChangeStatusTipHistoryTable(bodyEl, rows, pendingAmount, pendingStatus, pendingName, pendingTransaction) {
+	if (!bodyEl || !bodyEl.length) return;
+	var html = '';
+
+	rows.forEach(function (row) {
+		var amount = parseCutoffFieldAmount(row.AMOUNT);
+		var amtClass = amount < 0 ? 'text-end text-amount-negative' : 'text-end';
+		var displayAmt = amount < 0
+			? '(' + Math.round(Math.abs(amount)).toLocaleString('en-US') + ')'
+			: Math.round(amount).toLocaleString('en-US');
+		html += '<tr>' +
+			'<td>' + formatChangeStatusTipHistoryDate(row.TIP_DATETIME || row.ENCODED_DT) + '</td>' +
+			'<td>' + (row.TRANSACTION || '—') + '</td>' +
+			'<td class="' + amtClass + '">' + displayAmt + '</td>' +
+			'<td>' + (row.STATUS || '—') + '</td>' +
+			'<td>' + (row.PERSON_NAME || '—') + '</td>' +
+			'</tr>';
+	});
+
+	if (pendingAmount > 0) {
+		html += '<tr class="is-pending">' +
+			'<td>' + formatChangeStatusTipHistoryDate(new Date()) + '</td>' +
+			'<td>' + (pendingTransaction || 'Tip') + '</td>' +
+			'<td class="text-end">' + Math.round(pendingAmount).toLocaleString('en-US') + '</td>' +
+			'<td>' + (pendingStatus || 'Roller') + '</td>' +
+			'<td>' + (pendingName || '—') + '</td>' +
+			'</tr>';
+	}
+
+	if (!html) {
+		html = '<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>';
+	}
+
+	bodyEl.html(html);
+}
+
+function toggleChangeStatusSidePanel($panel, visible) {
+	if (!$panel || !$panel.length) return;
+	$panel.toggleClass('d-none', !visible).attr('aria-hidden', visible ? 'false' : 'true');
+}
+
+function setChangeStatusTipProcessingDisplay($wrap, $el, processing) {
+	if (!$wrap || !$wrap.length || !$el || !$el.length) return;
+	$el.text(Math.round(processing).toLocaleString('en-US'));
+	$wrap.toggleClass('is-positive', processing > 0);
+}
+
+function updateChangeStatusTipRollerPanel() {
+	var $panel = $('#change-status-tip-roller-panel');
+	var show = isChangeStatusTipMode() && (changeStatusTipRollerEngaged || hasChangeStatusTipRollerInput());
+	if (!show) {
+		toggleChangeStatusSidePanel($panel, false);
+		return;
+	}
+
+	var base = changeStatusRollerTipBalance || 0;
+	var processing = computeChangeStatusTipRollerProcessing();
+	var hasInput = hasChangeStatusTipRollerInput();
+	var rollerName = getChangeStatusTipRollerName() || '—';
+	var tipStatus = getChangeStatusTipStatus() || '—';
+
+	$('#change-status-tip-roller-current').text(Math.round(base).toLocaleString('en-US'));
+	$('#change-status-tip-roller-anticipated').text(hasInput ? Math.round(base + processing).toLocaleString('en-US') : '—');
+	setChangeStatusTipProcessingDisplay(
+		$('#change-status-tip-roller-processing-wrap'),
+		$('#change-status-tip-roller-processing'),
+		hasInput ? processing : 0
+	);
+	renderChangeStatusTipHistoryTable(
+		$('#change-status-tip-roller-history-body'),
+		changeStatusRollerTipHistory,
+		hasInput ? processing : 0,
+		tipStatus,
+		rollerName,
+		'Roller Tip'
+	);
+	toggleChangeStatusSidePanel($panel, true);
+}
+
+function updateChangeStatusTipDealerPanel() {
+	var $panel = $('#change-status-tip-dealer-panel');
+	var show = isChangeStatusTipMode() && (changeStatusTipDealerEngaged || hasChangeStatusTipDealerInput());
+	if (!show) {
+		toggleChangeStatusSidePanel($panel, false);
+		return;
+	}
+
+	var base = changeStatusDealerTipBalance || 0;
+	var processing = computeChangeStatusTipDealerProcessing();
+	var hasInput = hasChangeStatusTipDealerInput();
+	var rollerName = getChangeStatusTipRollerName() || '—';
+	var tipStatus = getChangeStatusTipStatus() || '—';
+
+	$('#change-status-tip-dealer-current').text(Math.round(base).toLocaleString('en-US'));
+	$('#change-status-tip-dealer-anticipated').text(hasInput ? Math.round(base + processing).toLocaleString('en-US') : '—');
+	setChangeStatusTipProcessingDisplay(
+		$('#change-status-tip-dealer-processing-wrap'),
+		$('#change-status-tip-dealer-processing'),
+		hasInput ? processing : 0
+	);
+	renderChangeStatusTipHistoryTable(
+		$('#change-status-tip-dealer-history-body'),
+		changeStatusDealerTipHistory,
+		hasInput ? processing : 0,
+		tipStatus,
+		rollerName,
+		'Dealer Tip'
+	);
+	toggleChangeStatusSidePanel($panel, true);
+}
+
+function syncChangeStatusSidePanelsLayout() {
+	var $modal = $('#modal-change_status');
+	var $sidePanels = $('#change-status-side-panels');
+	var ingameVisible = !$('#change-status-ingame-panel').hasClass('d-none');
+	var tipRollerVisible = !$('#change-status-tip-roller-panel').hasClass('d-none');
+	var tipDealerVisible = !$('#change-status-tip-dealer-panel').hasClass('d-none');
+	var anyVisible = ingameVisible || tipRollerVisible || tipDealerVisible;
+
+	$sidePanels.toggleClass('change-status-side-panels-empty', !anyVisible);
+	$modal.toggleClass('change-status-ingame-wide', anyVisible);
+	if (tipRollerVisible || tipDealerVisible) {
+		$sidePanels.css('width', '40rem');
+	} else if (ingameVisible) {
+		$sidePanels.css('width', '24rem');
+	} else {
+		$sidePanels.css('width', '');
+	}
+}
+
+function updateChangeStatusSidePanels() {
+	updateChangeStatusTipRollerPanel();
+	updateChangeStatusTipDealerPanel();
+	syncChangeStatusSidePanelsLayout();
+}
+
+function initChangeStatusTipAutocompletes() {
+	var AC = window.CreditGuarantorAutocomplete;
+	if (!AC) return;
+	changeStatusTipAutocompleteInstances = [
+		AC.initTipFieldAutocomplete(document.getElementById('change-status-tip-roller-name'), {
+			fieldType: 'name',
+			getHistoryRows: function () { return changeStatusRollerTipHistory; }
+		}),
+		AC.initTipFieldAutocomplete(document.getElementById('change-status-tip-roller-status'), {
+			fieldType: 'status',
+			getHistoryRows: function () { return changeStatusRollerTipHistory; },
+			defaults: ['Roller', 'GM']
+		}),
+		AC.initTipFieldAutocomplete(document.getElementById('change-status-tip-dealer-name'), {
+			fieldType: 'name',
+			getHistoryRows: function () { return changeStatusDealerTipHistory; }
+		}),
+		AC.initTipFieldAutocomplete(document.getElementById('change-status-tip-dealer-status'), {
+			fieldType: 'status',
+			getHistoryRows: function () { return changeStatusDealerTipHistory; },
+			defaults: ['Roller', 'GM', 'Dealer']
+		})
+	].filter(Boolean);
+}
+
+function loadChangeStatusTipContext(accountId) {
+	if (!accountId) {
+		changeStatusRollerTipHistory = [];
+		changeStatusDealerTipHistory = [];
+		changeStatusRollerTipBalance = 0;
+		changeStatusDealerTipBalance = 0;
+		initChangeStatusTipAutocompletes();
+		updateChangeStatusSidePanels();
+		return $.Deferred().resolve().promise();
+	}
+
+	return $.getJSON('/game_list_cashout_tips/' + encodeURIComponent(accountId))
+		.done(function (data) {
+			changeStatusRollerTipBalance = Number(data && data.rollerBalance) || 0;
+			changeStatusDealerTipBalance = Number(data && data.dealerBalance) || 0;
+			changeStatusRollerTipHistory = Array.isArray(data && data.rollerHistory) ? data.rollerHistory : [];
+			changeStatusDealerTipHistory = Array.isArray(data && data.dealerHistory) ? data.dealerHistory : [];
+			initChangeStatusTipAutocompletes();
+			if (window.CreditGuarantorAutocomplete) {
+				window.CreditGuarantorAutocomplete.refreshGroup(changeStatusTipAutocompleteInstances);
+			}
+		})
+		.fail(function () {
+			changeStatusRollerTipHistory = [];
+			changeStatusDealerTipHistory = [];
+			changeStatusRollerTipBalance = 0;
+			changeStatusDealerTipBalance = 0;
+			initChangeStatusTipAutocompletes();
+		})
+		.always(function () {
+			updateChangeStatusSidePanels();
+		});
+}
+
+function resetChangeStatusTipPanels() {
+	changeStatusTipRollerEngaged = false;
+	changeStatusTipDealerEngaged = false;
+	changeStatusRollerTipHistory = [];
+	changeStatusDealerTipHistory = [];
+	changeStatusRollerTipBalance = 0;
+	changeStatusDealerTipBalance = 0;
+	$('#change-status-tip-roller-name, #change-status-tip-dealer-name').val('').removeClass('is-invalid');
+	$('#change-status-tip-roller-status, #change-status-tip-dealer-status').val('').removeClass('is-invalid');
+	$('#change-status-tip-roller-current, #change-status-tip-roller-anticipated, #change-status-tip-dealer-current, #change-status-tip-dealer-anticipated').text('—');
+	$('#change-status-tip-roller-processing, #change-status-tip-dealer-processing').text('0');
+	$('#change-status-tip-roller-history-body, #change-status-tip-dealer-history-body').html(
+		'<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>'
+	);
+	toggleChangeStatusSidePanel($('#change-status-tip-roller-panel'), false);
+	toggleChangeStatusSidePanel($('#change-status-tip-dealer-panel'), false);
+}
+
+function isChangeStatusTipMetaFocused(activeEl) {
+	if (!activeEl) return false;
+	var ids = [
+		'change-status-tip-roller-name',
+		'change-status-tip-dealer-name',
+		'change-status-tip-roller-status',
+		'change-status-tip-dealer-status'
+	];
+	return ids.indexOf(activeEl.id) !== -1 ||
+		(activeEl.classList && (
+			activeEl.classList.contains('change-status-tip-roller-input') ||
+			activeEl.classList.contains('change-status-tip-dealer-input')
+		));
+}
+
+function wireChangeStatusTipMetaField(inputEl, panelType, fieldType) {
+	if (!inputEl) return;
+	inputEl.addEventListener('mousedown', function (e) {
+		e.stopPropagation();
+	});
+	inputEl.addEventListener('focus', function () {
+		if (panelType === 'roller') {
+			changeStatusTipRollerEngaged = true;
+			if ($('#change-status-tip-roller-panel').hasClass('d-none')) {
+				updateChangeStatusTipRollerPanel();
+				syncChangeStatusSidePanelsLayout();
+			}
+		} else {
+			changeStatusTipDealerEngaged = true;
+			if ($('#change-status-tip-dealer-panel').hasClass('d-none')) {
+				updateChangeStatusTipDealerPanel();
+				syncChangeStatusSidePanelsLayout();
+			}
+		}
+	});
+	inputEl.addEventListener('input', function () {
+		syncChangeStatusTipMetaFields(panelType, fieldType);
+		updateChangeStatusSidePanels();
+	});
+	inputEl.addEventListener('blur', function () {
+		setTimeout(function () {
+			var active = document.activeElement;
+			if (isChangeStatusTipMetaFocused(active)) return;
+			if (panelType === 'roller' && !hasChangeStatusTipRollerInput()) {
+				changeStatusTipRollerEngaged = false;
+			}
+			if (panelType === 'dealer' && !hasChangeStatusTipDealerInput()) {
+				changeStatusTipDealerEngaged = false;
+			}
+			updateChangeStatusSidePanels();
+		}, 0);
+	});
+}
+
+function wireChangeStatusTipPanelInputs(selector, panelType) {
+	var hasInputFn = panelType === 'tipRoller' ? hasChangeStatusTipRollerInput : hasChangeStatusTipDealerInput;
+	$('#modal-change_status').find(selector).each(function () {
+		var inputEl = this;
+		inputEl.addEventListener('focus', function () {
+			if (panelType === 'tipRoller') changeStatusTipRollerEngaged = true;
+			else changeStatusTipDealerEngaged = true;
+			updateChangeStatusSidePanels();
+		});
+		inputEl.addEventListener('input', function () {
+			updateChangeStatusSidePanels();
+		});
+		inputEl.addEventListener('blur', function () {
+			setTimeout(function () {
+				var active = document.activeElement;
+				var stillFocused = false;
+				$('#modal-change_status').find(selector).each(function () {
+					if (this === active) stillFocused = true;
+				});
+				if (isChangeStatusTipMetaFocused(active)) stillFocused = true;
+				if (!stillFocused && !hasInputFn()) {
+					if (panelType === 'tipRoller') changeStatusTipRollerEngaged = false;
+					else changeStatusTipDealerEngaged = false;
+					updateChangeStatusSidePanels();
+				}
+			}, 0);
+		});
+	});
+}
+
+function ensureChangeStatusTipPanelsWired() {
+	if (changeStatusTipPanelsWired) return;
+	changeStatusTipPanelsWired = true;
+	wireChangeStatusTipPanelInputs('.change-status-tip-roller-input', 'tipRoller');
+	wireChangeStatusTipPanelInputs('.change-status-tip-dealer-input', 'tipDealer');
+	wireChangeStatusTipMetaField(document.getElementById('change-status-tip-roller-name'), 'roller', 'name');
+	wireChangeStatusTipMetaField(document.getElementById('change-status-tip-dealer-name'), 'dealer', 'name');
+	wireChangeStatusTipMetaField(document.getElementById('change-status-tip-roller-status'), 'roller', 'status');
+	wireChangeStatusTipMetaField(document.getElementById('change-status-tip-dealer-status'), 'dealer', 'status');
+}
+
+function validateChangeStatusTipMetaFields(chipData) {
+	var tipRollerTotal = (chipData.tipRollerNn || 0) + (chipData.tipRollerCc || 0);
+	var tipDealerTotal = (chipData.tipDealerNn || 0) + (chipData.tipDealerCc || 0);
+	if (tipRollerTotal <= 0 && tipDealerTotal <= 0) {
+		return true;
+	}
+
+	var $tipName = $('#change-status-tip-roller-name');
+	var $tipStatus = $('#change-status-tip-roller-status');
+	$tipName.removeClass('is-invalid');
+	$tipStatus.removeClass('is-invalid');
+	$('#change-status-tip-dealer-name, #change-status-tip-dealer-status').removeClass('is-invalid');
+
+	var tipNameVal = getChangeStatusTipRollerName();
+	var tipStatusVal = getChangeStatusTipStatus();
+	if (!tipNameVal) {
+		$tipName.addClass('is-invalid');
+		$('#change-status-tip-dealer-name').addClass('is-invalid');
+		return false;
+	}
+	if (!tipStatusVal) {
+		$tipStatus.addClass('is-invalid');
+		$('#change-status-tip-dealer-status').addClass('is-invalid');
+		return false;
+	}
+	return true;
+}
+
 function updateChangeStatusInGameSidePanel() {
 	var $modal = $('#modal-change_status');
-	var $sidePanels = $('#change-status-ingame-side-panels');
 	var $panel = $('#change-status-ingame-panel');
 	var agentCode = ($modal.data('changeStatusAgentCode') || '').trim();
 	var remarks = getChangeStatusInGameGuestRemarks();
@@ -918,14 +1332,11 @@ function updateChangeStatusInGameSidePanel() {
 	var splitActive = $('#chkInGameSplit').is(':checked');
 	if (!isInGameSettlementMode() || !splitActive) {
 		$panel.addClass('d-none').attr('aria-hidden', 'true');
-		$sidePanels.addClass('change-status-side-panels-empty');
-		$modal.removeClass('change-status-ingame-wide');
-		return;
+	} else {
+		$panel.removeClass('d-none').attr('aria-hidden', 'false');
 	}
 
-	$panel.removeClass('d-none').attr('aria-hidden', 'false');
-	$sidePanels.removeClass('change-status-side-panels-empty');
-	$modal.addClass('change-status-ingame-wide');
+	updateChangeStatusSidePanels();
 }
 
 function resetChangeStatusInGameSidePanel() {
@@ -942,8 +1353,8 @@ function resetChangeStatusInGameSidePanel() {
 		'<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>'
 	);
 	$('#change-status-ingame-panel').addClass('d-none').attr('aria-hidden', 'true');
-	$('#change-status-ingame-side-panels').addClass('change-status-side-panels-empty');
-	$modal.removeClass('change-status-ingame-wide');
+	resetChangeStatusTipPanels();
+	syncChangeStatusSidePanelsLayout();
 }
 
 function loadChangeStatusInGameAccountData(accountId) {
@@ -970,11 +1381,13 @@ function loadChangeStatusInGameAccountData(accountId) {
 }
 
 function updateChangeStatusInGameSection() {
+	ensureChangeStatusTipPanelsWired();
 	if (isInGameSettlementMode()) {
 		$('#ingame-settlement-section').show();
 		ensureChangeStatusInGameDatePicker();
 		syncInGameFieldDisabledState();
 		updateInGameExpectedSettlement();
+		loadChangeStatusTipContext(($('.txtAccountCode').val() || '').trim());
 		updateChangeStatusInGameSidePanel();
 	} else {
 		resetChangeStatusInGameFields();
@@ -986,6 +1399,13 @@ $(document).off('input.ingamepreview', '#ingame-settlement-section .ingame-settl
 		if (isInGameSettlementMode()) {
 			updateInGameExpectedSettlement();
 			updateChangeStatusInGameSidePanel();
+		}
+	});
+
+$(document).off('input.cutoffpreview', '#cutoff-details-section .ingame-settlement-input')
+	.on('input.cutoffpreview', '#cutoff-details-section .ingame-settlement-input', function () {
+		if (isCutoffStatus($('#status').val())) {
+			updateChangeStatusSidePanels();
 		}
 	});
 
@@ -6203,12 +6623,18 @@ $('#edit_status').submit(function (event) {
 		var cutoffChipData = collectChangeStatusCutoffChipData();
 		syncChangeStatusCutoffHiddenBuyIn(cutoffChipData);
 
-		var chipAmounts = cutoffChipData.useSplit
-			? [cutoffChipData.cashNn, cutoffChipData.cashCc, cutoffChipData.depNn, cutoffChipData.depCc,
-				cutoffChipData.creditNn, cutoffChipData.creditCc, cutoffChipData.tipRollerNn, cutoffChipData.tipRollerCc,
-				cutoffChipData.tipDealerNn, cutoffChipData.tipDealerCc]
-			: [cutoffChipData.remainingNn, cutoffChipData.remainingCc, cutoffChipData.tipRollerNn, cutoffChipData.tipRollerCc,
-				cutoffChipData.tipDealerNn, cutoffChipData.tipDealerCc];
+		var chipAmounts = [
+			cutoffChipData.remainingNn, cutoffChipData.remainingCc,
+			cutoffChipData.tipRollerNn, cutoffChipData.tipRollerCc,
+			cutoffChipData.tipDealerNn, cutoffChipData.tipDealerCc
+		];
+		if (cutoffChipData.useSplit) {
+			chipAmounts.push(
+				cutoffChipData.cashNn, cutoffChipData.cashCc,
+				cutoffChipData.depNn, cutoffChipData.depCc,
+				cutoffChipData.creditNn, cutoffChipData.creditCc
+			);
+		}
 
 		if (chipAmounts.some(function (amount) { return Number.isNaN(amount) || amount < 0; })) {
 			Swal.fire({
@@ -6225,6 +6651,16 @@ $('#edit_status').submit(function (event) {
 				icon: 'error',
 				title: 'Invalid NN Chips amount',
 				text: 'NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (!validateChangeStatusTipMetaFields(cutoffChipData)) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Tip Details Required',
+				text: 'Please enter the tip name and status (Roller or GM).'
 			});
 			$btn.prop('disabled', false).html('Save');
 			return;
@@ -6317,6 +6753,16 @@ $('#edit_status').submit(function (event) {
 			return;
 		}
 
+		if (!validateChangeStatusTipMetaFields(ingameChipData)) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Tip Details Required',
+				text: 'Please enter the tip name and status (Roller or GM).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
 		var ingameLastRollingRaw = ($('#txtInGameLastRolling').val() || '').toString().replace(/,/g, '').trim();
 		var ingameLastRollingAmount = parseFloat(ingameLastRollingRaw) || 0;
 		var ingameRollerBalance = Math.max(0, parseFloat($ingameModal.data('combinedNet')) || 0);
@@ -6362,12 +6808,11 @@ $('#edit_status').submit(function (event) {
 		}
 
 		var confirmCutoffData = collectChangeStatusCutoffChipData();
+		pushChipPair('Remaining Chips', confirmCutoffData.remainingNn, confirmCutoffData.remainingCc);
 		if (confirmCutoffData.useSplit) {
-			pushChipPair('Cash', confirmCutoffData.cashNn, confirmCutoffData.cashCc);
-			pushChipPair('Deposit', confirmCutoffData.depNn, confirmCutoffData.depCc);
-			pushChipPair('Credit', confirmCutoffData.creditNn, confirmCutoffData.creditCc);
-		} else {
-			pushChipPair('Remaining Chips', confirmCutoffData.remainingNn, confirmCutoffData.remainingCc);
+			pushChipPair('Cash (Additional)', confirmCutoffData.cashNn, confirmCutoffData.cashCc);
+			pushChipPair('Deposit (Additional)', confirmCutoffData.depNn, confirmCutoffData.depCc);
+			pushChipPair('Credit (Additional)', confirmCutoffData.creditNn, confirmCutoffData.creditCc);
 		}
 
 		pushChipPair('Tip (Roller)', confirmCutoffData.tipRollerNn, confirmCutoffData.tipRollerCc);
@@ -7694,6 +8139,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('#roller-chips-return-section').hide();
 	resetChangeStatusCutoffFields();
 	resetChangeStatusInGameFields();
+	ensureChangeStatusTipPanelsWired();
 	$changeStatusModal.data('rollerTotalsLoaded', false);
 	$('#status option[value="5"]').hide();
 	$changeStatusModal.data('changeStatusActiveGame', null);

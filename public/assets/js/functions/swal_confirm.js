@@ -38,6 +38,7 @@
         if (value == null || value === '') return false;
         var plain = String(value).replace(/<[^>]*>/g, '').trim();
         if (plain.endsWith('%')) return false;
+        if (/^NN:\s*[\d,]+(?:\.\d+)?(?:\s*,\s*CC:\s*[\d,]+(?:\.\d+)?)?$/i.test(plain)) return true;
         return /^[₱\s]*[\d,]+(\.\d+)?$/.test(plain);
     }
 

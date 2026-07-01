@@ -224,21 +224,30 @@ function isCutoffSplitEnabled(body) {
 	);
 }
 
-function buildCutoffRemainingLegs(body, parentTransType) {
-	if (isCutoffSplitEnabled(body)) {
-		return [
-			{ nn: parseChipAmount(body.txtCutoffCashNN), cc: parseChipAmount(body.txtCutoffCashCC), transType: 1 },
-			{ nn: parseChipAmount(body.txtCutoffDepNN), cc: parseChipAmount(body.txtCutoffDepCC), transType: 2 },
-			{ nn: parseChipAmount(body.txtCutoffCreditNN), cc: parseChipAmount(body.txtCutoffCreditCC), transType: 4 }
-		].filter((leg) => leg.nn + leg.cc > 0);
-	}
-
+function buildCutoffParentCashoutLegs(body, parentTransType) {
 	const nn = parseChipAmount(body.txtCutoffRemainingNN || body.txtCutoffBuyInNN);
 	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
 	if (nn + cc <= 0) {
 		return [];
 	}
 	return [{ nn, cc, transType: parentTransType }];
+}
+
+function buildCutoffSplitBuyInLegs(body) {
+	if (!isCutoffSplitEnabled(body)) {
+		return [];
+	}
+	return [
+		{ nn: parseChipAmount(body.txtCutoffCashNN), cc: parseChipAmount(body.txtCutoffCashCC), transType: 1 },
+		{ nn: parseChipAmount(body.txtCutoffDepNN), cc: parseChipAmount(body.txtCutoffDepCC), transType: 2 },
+		{ nn: parseChipAmount(body.txtCutoffCreditNN), cc: parseChipAmount(body.txtCutoffCreditCC), transType: 4 }
+	].filter((leg) => leg.nn + leg.cc > 0);
+}
+
+function buildCutoffNewGameBuyInLegs(body, parentTransType) {
+	const legs = buildCutoffParentCashoutLegs(body, parentTransType);
+	legs.push(...buildCutoffSplitBuyInLegs(body));
+	return legs;
 }
 
 function parseCutoffTips(body) {
@@ -574,9 +583,12 @@ async function performGameCutoff(db, params) {
 		encodedBy,
 		dateNow,
 		programDate,
-		remainingLegs,
+		cashoutLegs,
+		buyInLegs,
 		lastRollingCC,
-		tips
+		tips,
+		rollerName,
+		tipStatus
 	} = params;
 
 	const [parentRows] = await db.execute(
@@ -599,9 +611,8 @@ async function performGameCutoff(db, params) {
 
 	const parentAccountId = parseInt(parent.ACCOUNT_ID, 10);
 	const transType = await resolveParentTransType(db, parentGameId, parent.INITIAL_MOP);
-	const legs = Array.isArray(remainingLegs) && remainingLegs.length
-		? remainingLegs
-		: [];
+	const parentCashoutLegs = Array.isArray(cashoutLegs) && cashoutLegs.length ? cashoutLegs : [];
+	const newGameBuyInLegs = Array.isArray(buyInLegs) && buyInLegs.length ? buyInLegs : [];
 	const cutoffTips = tips || { rollerNn: 0, rollerCc: 0, dealerNn: 0, dealerCc: 0 };
 	const rollerTotals = await getRollerTotalsForGame(db, parentGameId);
 	const totalRollerBalance = Math.max(0, rollerTotals.combinedNet || 0);
@@ -613,11 +624,12 @@ async function performGameCutoff(db, params) {
 	const lastRollingCcReturn = Math.max(0, lastRolling - lastRollingNnReturn);
 	const remainingNnReturnOnParent = Math.max(0, parentNetNN - lastRollingNnReturn);
 	const remainingCcReturnOnParent = Math.max(0, parentNetCC - lastRollingCcReturn);
-	const buyInNN = legs.reduce((sum, leg) => sum + leg.nn, 0);
-	const buyInCC = legs.reduce((sum, leg) => sum + leg.cc, 0);
+	const buyInNN = newGameBuyInLegs.reduce((sum, leg) => sum + leg.nn, 0);
+	const buyInCC = newGameBuyInLegs.reduce((sum, leg) => sum + leg.cc, 0);
 	const buyInTotal = buyInNN + buyInCC;
 
-	for (const leg of legs) {
+	const allNnLegs = [...parentCashoutLegs, ...newGameBuyInLegs];
+	for (const leg of allNnLegs) {
 		if (leg.nn > 0 && leg.nn % 1000 !== 0) {
 			const err = new Error('Remaining NN Chips must be in thousands.');
 			err.statusCode = 400;
@@ -661,7 +673,9 @@ async function performGameCutoff(db, params) {
 		parentAccountId,
 		encodedBy,
 		dateNow,
-		tips: cutoffTips
+		tips: cutoffTips,
+		rollerName,
+		tipStatus
 	});
 
 	// 1. End parent game
@@ -671,7 +685,7 @@ async function performGameCutoff(db, params) {
 	);
 
 	// 2. Cashout on parent (remaining chips → chips returned)
-	for (const leg of legs) {
+	for (const leg of parentCashoutLegs) {
 		await insertCutoffCashoutLeg(db, {
 			parentGameId,
 			parentAccountId,
@@ -779,8 +793,8 @@ async function performGameCutoff(db, params) {
 		// CUTOFF_CONTINUED_GAME_ID column may be missing
 	}
 
-	// 5. Buy-in on new game (same amounts as cutoff cashout)
-	for (const leg of legs) {
+	// 5. Buy-in on new game (remaining + optional split additional)
+	for (const leg of newGameBuyInLegs) {
 		await insertCutoffBuyinLeg(db, {
 			newGameId,
 			parentAccountId,
@@ -863,7 +877,9 @@ async function performInGameSettlement(db, params) {
 		buyInLegs,
 		settlementFigures,
 		lastRollingCC,
-		tips
+		tips,
+		rollerName,
+		tipStatus
 	} = params;
 
 	const [parentRows] = await db.execute(
@@ -954,7 +970,9 @@ async function performInGameSettlement(db, params) {
 		parentAccountId,
 		encodedBy,
 		dateNow,
-		tips: settlementTips
+		tips: settlementTips,
+		rollerName,
+		tipStatus
 	});
 
 	await db.execute(
@@ -4409,16 +4427,20 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				);
 				const parentInitialMop = parentMetaRows.length ? parentMetaRows[0].INITIAL_MOP : null;
 				const parentTransType = await resolveParentTransType(connection, id, parentInitialMop);
-				const remainingLegs = buildCutoffRemainingLegs(req.body, parentTransType);
+				const cashoutLegs = buildCutoffParentCashoutLegs(req.body, parentTransType);
+				const buyInLegs = buildCutoffNewGameBuyInLegs(req.body, parentTransType);
 
 				const cutoffResult = await performGameCutoff(connection, {
 					parentGameId: id,
 					encodedBy: editedBy,
 					dateNow: date_now,
 					programDate,
-					remainingLegs,
+					cashoutLegs,
+					buyInLegs,
 					lastRollingCC,
-					tips
+					tips,
+					rollerName: (req.body.txtTipRollerName || '').toString().trim(),
+					tipStatus: (req.body.txtTipStatus || '').toString().trim()
 				});
 				await connection.commit();
 				return res.json({
@@ -4476,7 +4498,9 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 					buyInLegs,
 					settlementFigures,
 					lastRollingCC,
-					tips
+					tips,
+					rollerName: (req.body.txtTipRollerName || '').toString().trim(),
+					tipStatus: (req.body.txtTipStatus || '').toString().trim()
 				});
 				await connection.commit();
 				return res.json({

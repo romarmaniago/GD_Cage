@@ -39,128 +39,89 @@
 				<input type="hidden" name="txtCutoffBuyInNN" id="txtCutoffBuyInNN" value="" />
 				<input type="hidden" name="txtCutoffBuyInCC" id="txtCutoffBuyInCC" value="" />
 
-				<table class="cutoff-excel-grid cutoff-excel-meta mb-2">
-					<tbody>
-						<tr>
-							<td class="cutoff-excel-label"><%= __('modal_change_status.cutoff_date_label') %></td>
-							<td class="cutoff-excel-input" colspan="2">
-								<input type="text" class="cutoff-excel-field" name="txtCutoffProgramDate" id="txtCutoffProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
-							</td>
-						</tr>
-					</tbody>
-				</table>
+				<div class="ingame-input-sheet">
+					<div class="ingame-field-grid">
+						<label class="form-label mb-0" for="txtCutoffProgramDate"><%= __('modal_change_status.cutoff_date_label') %></label>
+						<input type="text" class="form-control text-center ingame-settlement-input ingame-field-span-2" name="txtCutoffProgramDate" id="txtCutoffProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" />
+					</div>
 
-				<table class="cutoff-excel-grid cutoff-excel-chips">
-					<thead>
-						<tr>
-							<th class="cutoff-excel-label cutoff-excel-head-spacer"></th>
-							<th class="cutoff-excel-head cutoff-excel-head-nn"><span class="cutoff-chip-indicator cutoff-chip-indicator-nn" aria-hidden="true"></span><%= __('modal_new_game_list.nn_placeholder') %></th>
-							<th class="cutoff-excel-head cutoff-excel-head-cc"><span class="cutoff-chip-indicator cutoff-chip-indicator-cc" aria-hidden="true"></span><%= __('modal_new_game_list.cc_placeholder') %></th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr id="cutoff-remaining-row">
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffRemainingNN"><%= __('modal_change_status.cutoff_remaining_chips') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffRemainingNN" id="txtCutoffRemainingNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtCutoffRemainingCC" id="txtCutoffRemainingCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-					</tbody>
-					<tbody id="cutoff-split-rows" style="display: none;">
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffCashNN"><%= __('modal_change_status.cutoff_cash') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffCashNN" id="txtCutoffCashNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffCashCC" id="txtCutoffCashCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffDepNN"><%= __('modal_change_status.cutoff_deposit') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffDepNN" id="txtCutoffDepNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffDepCC" id="txtCutoffDepCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffCreditNN"><%= __('modal_change_status.cutoff_credit') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input cutoff-split-input" name="txtCutoffCreditNN" id="txtCutoffCreditNN"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-split-input" name="txtCutoffCreditCC" id="txtCutoffCreditCC"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-					</tbody>
-					<tbody>
-						<tr class="cutoff-excel-split-row">
-							<td class="cutoff-excel-label cutoff-excel-split-cell">
-								<div class="form-check mb-0">
-									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="chkCutoffSplit" />
-									<label class="form-check-label" for="chkCutoffSplit"><%= __('modal_change_status.cutoff_split') %></label>
-								</div>
-							</td>
-							<td class="cutoff-excel-input"></td>
-							<td class="cutoff-excel-input"></td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffTipRollerNn" id="txtCutoffTipRollerNn"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtCutoffTipRollerCc" id="txtCutoffTipRollerCc"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr>
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label></td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center cutoff-nn-input" name="txtCutoffTipDealerNn" id="txtCutoffTipDealerNn"
-									placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
-							</td>
-							<td class="cutoff-excel-input">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtCutoffTipDealerCc" id="txtCutoffTipDealerCc"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-						<tr class="cutoff-excel-last-row">
-							<td class="cutoff-excel-label"><label class="mb-0" for="txtCutoffLastRolling"><%= __('modal_change_status.cutoff_last_rolling_label') %></label></td>
-							<td class="cutoff-excel-input cutoff-excel-last-input" colspan="2">
-								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-									class="cutoff-excel-field text-center" name="txtCutoffLastRolling" id="txtCutoffLastRolling"
-									placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
-							</td>
-						</tr>
-					</tbody>
-				</table>
+					<div class="ingame-section ingame-section-chips" id="cutoff-remaining-row">
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtCutoffRemainingNN"><%= __('modal_change_status.cutoff_remaining_chips') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input" name="txtCutoffRemainingNN" id="txtCutoffRemainingNN"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtCutoffRemainingCC" id="txtCutoffRemainingCC"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-section" id="cutoff-split-rows" style="display: none;">
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtCutoffCashNN"><%= __('modal_change_status.cutoff_cash') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input cutoff-split-input" name="txtCutoffCashNN" id="txtCutoffCashNN"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-split-input" name="txtCutoffCashCC" id="txtCutoffCashCC"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtCutoffDepNN"><%= __('modal_change_status.cutoff_deposit') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input cutoff-split-input" name="txtCutoffDepNN" id="txtCutoffDepNN"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-split-input" name="txtCutoffDepCC" id="txtCutoffDepCC"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+						<div class="ingame-field-grid">
+							<label class="form-label mb-0" for="txtCutoffCreditNN"><%= __('modal_change_status.cutoff_credit') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input cutoff-split-input" name="txtCutoffCreditNN" id="txtCutoffCreditNN"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-split-input" name="txtCutoffCreditCC" id="txtCutoffCreditCC"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-split-toggle">
+						<div class="form-check mb-0">
+							<input class="form-check-input" style="border-color: #8a92a6 !important;" type="checkbox" id="chkCutoffSplit" />
+							<label class="form-check-label" for="chkCutoffSplit"><%= __('modal_change_status.cutoff_split') %></label>
+						</div>
+					</div>
+
+					<div class="ingame-section ingame-section-tips">
+						<div class="ingame-tips-grid">
+							<label class="form-label mb-0" for="txtCutoffTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input change-status-tip-roller-input" name="txtCutoffTipRollerNn" id="txtCutoffTipRollerNn"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input change-status-tip-roller-input" name="txtCutoffTipRollerCc" id="txtCutoffTipRollerCc"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+							<label class="form-label mb-0" for="txtCutoffTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input cutoff-nn-input change-status-tip-dealer-input" name="txtCutoffTipDealerNn" id="txtCutoffTipDealerNn"
+								placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" autocomplete="off" />
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input change-status-tip-dealer-input" name="txtCutoffTipDealerCc" id="txtCutoffTipDealerCc"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+					</div>
+
+					<div class="ingame-section ingame-section-meta">
+						<div class="ingame-meta-grid">
+							<label class="form-label mb-0" for="txtCutoffLastRolling"><%= __('modal_change_status.cutoff_last_rolling_label') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtCutoffLastRolling" id="txtCutoffLastRolling"
+								placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" autocomplete="off" />
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<div id="ingame-settlement-section" style="display: none;" class="mt-3 pt-3 border-top">
@@ -227,17 +188,17 @@
 						<div class="ingame-tips-grid">
 							<label class="form-label mb-0" for="txtInGameTipRollerNn"><%= __('modal_change_status.cutoff_tip_roller') %></label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center ingame-settlement-input ingame-nn-input" name="txtInGameTipRollerNn" id="txtInGameTipRollerNn"
+								class="form-control text-center ingame-settlement-input ingame-nn-input change-status-tip-roller-input" name="txtInGameTipRollerNn" id="txtInGameTipRollerNn"
 								placeholder="NN Chips" autocomplete="off" />
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center ingame-settlement-input" name="txtInGameTipRollerCc" id="txtInGameTipRollerCc"
+								class="form-control text-center ingame-settlement-input change-status-tip-roller-input" name="txtInGameTipRollerCc" id="txtInGameTipRollerCc"
 								placeholder="CC Chips" autocomplete="off" />
 							<label class="form-label mb-0" for="txtInGameTipDealerNn"><%= __('modal_change_status.cutoff_tip_dealer') %></label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center ingame-settlement-input ingame-nn-input" name="txtInGameTipDealerNn" id="txtInGameTipDealerNn"
+								class="form-control text-center ingame-settlement-input ingame-nn-input change-status-tip-dealer-input" name="txtInGameTipDealerNn" id="txtInGameTipDealerNn"
 								placeholder="NN Chips" autocomplete="off" />
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center ingame-settlement-input" name="txtInGameTipDealerCc" id="txtInGameTipDealerCc"
+								class="form-control text-center ingame-settlement-input change-status-tip-dealer-input" name="txtInGameTipDealerCc" id="txtInGameTipDealerCc"
 								placeholder="CC Chips" autocomplete="off" />
 						</div>
 					</div>
@@ -336,7 +297,7 @@
 			</form>
 		</div>
 
-		<div class="change-status-side-panels change-status-side-panels-empty" id="change-status-ingame-side-panels">
+		<div class="change-status-side-panels change-status-side-panels-empty" id="change-status-side-panels">
 			<div class="change-status-side-panel d-none" id="change-status-ingame-panel" aria-hidden="true">
 				<div class="change-status-side-panel-title"><%= __('modal_change_status.ingame_settlement_title') %></div>
 				<div class="change-status-panel-sheet">
@@ -381,6 +342,112 @@
 								</tr>
 							</tbody>
 						</table>
+					</div>
+				</div>
+			</div>
+
+			<div class="change-status-tip-panels-row" id="change-status-tip-panels-row">
+				<div class="change-status-side-panel d-none" id="change-status-tip-roller-panel" aria-hidden="true">
+					<div class="change-status-side-panel-title"><%= __('modal_change_status.cutoff_tip_roller') %></div>
+					<div class="change-status-panel-sheet">
+						<div class="change-status-balance-head">
+							<div class="change-status-balance-head-cell">Current Tip Balance</div>
+							<div class="change-status-balance-head-cell">Anticipated Tip Balance</div>
+						</div>
+						<div class="change-status-balance-values">
+							<div class="change-status-balance-value-cell" id="change-status-tip-roller-current">—</div>
+							<div class="change-status-balance-value-cell" id="change-status-tip-roller-anticipated">—</div>
+						</div>
+						<div class="change-status-tip-processing-row">
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Processing Amount</div>
+								<div class="change-status-tip-processing-body" id="change-status-tip-roller-processing-wrap">
+									<span id="change-status-tip-roller-processing">0</span>
+								</div>
+							</div>
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Status</div>
+								<div class="change-status-tip-meta-body">
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-meta-input" id="change-status-tip-roller-status" name="txtTipStatus" placeholder="Roller / GM" autocomplete="off" form="edit_status" />
+								</div>
+							</div>
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Name</div>
+								<div class="change-status-tip-meta-body">
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-name-input" id="change-status-tip-roller-name" name="txtTipRollerName" placeholder="Name" autocomplete="off" form="edit_status" />
+								</div>
+							</div>
+						</div>
+						<div class="change-status-history-wrap">
+							<table class="table table-bordered table-sm mb-0 change-status-history-tbl change-status-tip-history-tbl">
+								<thead>
+									<tr>
+										<th>Date</th>
+										<th>Transaction</th>
+										<th class="text-end">Amount</th>
+										<th>Status</th>
+										<th>Name</th>
+									</tr>
+								</thead>
+								<tbody id="change-status-tip-roller-history-body">
+									<tr class="text-muted">
+										<td colspan="5" class="text-center small py-2">No history.</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<div class="change-status-side-panel d-none" id="change-status-tip-dealer-panel" aria-hidden="true">
+					<div class="change-status-side-panel-title"><%= __('modal_change_status.cutoff_tip_dealer') %></div>
+					<div class="change-status-panel-sheet">
+						<div class="change-status-balance-head">
+							<div class="change-status-balance-head-cell">Current Tip Balance</div>
+							<div class="change-status-balance-head-cell">Anticipated Tip Balance</div>
+						</div>
+						<div class="change-status-balance-values">
+							<div class="change-status-balance-value-cell" id="change-status-tip-dealer-current">—</div>
+							<div class="change-status-balance-value-cell" id="change-status-tip-dealer-anticipated">—</div>
+						</div>
+						<div class="change-status-tip-processing-row">
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Processing Amount</div>
+								<div class="change-status-tip-processing-body" id="change-status-tip-dealer-processing-wrap">
+									<span id="change-status-tip-dealer-processing">0</span>
+								</div>
+							</div>
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Status</div>
+								<div class="change-status-tip-meta-body">
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-meta-input" id="change-status-tip-dealer-status" placeholder="Roller / GM" autocomplete="off" />
+								</div>
+							</div>
+							<div class="change-status-tip-proc-col">
+								<div class="ingame-processing-head-cell">Name</div>
+								<div class="change-status-tip-meta-body">
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-name-input" id="change-status-tip-dealer-name" placeholder="Name" autocomplete="off" />
+								</div>
+							</div>
+						</div>
+						<div class="change-status-history-wrap">
+							<table class="table table-bordered table-sm mb-0 change-status-history-tbl change-status-tip-history-tbl">
+								<thead>
+									<tr>
+										<th>Date</th>
+										<th>Transaction</th>
+										<th class="text-end">Amount</th>
+										<th>Status</th>
+										<th>Name</th>
+									</tr>
+								</thead>
+								<tbody id="change-status-tip-dealer-history-body">
+									<tr class="text-muted">
+										<td colspan="5" class="text-center small py-2">No history.</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -446,126 +513,6 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	color: #ffffff !important;
 }
 
-#modal-change_status .cutoff-excel-grid {
-	width: 100%;
-	border-collapse: collapse;
-	table-layout: fixed;
-}
-
-#modal-change_status .cutoff-excel-grid th,
-#modal-change_status .cutoff-excel-grid td {
-	border: 1px solid #adb5bd;
-	padding: 0;
-	vertical-align: middle;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-label {
-	width: 34%;
-	padding: 0.45rem 0.55rem;
-	font-weight: 600;
-	font-size: 0.875rem;
-	color: #343a40;
-	text-align: left;
-	background: #fff;
-	white-space: nowrap;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-head {
-	padding: 0.4rem 0.35rem;
-	font-size: 0.875rem;
-	font-weight: 600;
-	color: #1a1a1a;
-	text-align: center;
-	background: #fff;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-head-nn {
-	background: #cfe2ff;
-	color: #084298;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-head-cc {
-	background: #fff3cd;
-	color: #664d03;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator {
-	display: inline-block;
-	width: 0.55rem;
-	height: 0.55rem;
-	margin-right: 0.35rem;
-	border-radius: 0.1rem;
-	vertical-align: middle;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator-nn {
-	background: #0d6efd;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-chip-indicator-cc {
-	background: #ffc107;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-head-spacer {
-	background: #fff;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-input {
-	padding: 0;
-	background: #fff;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-field {
-	display: block;
-	width: 100%;
-	min-height: 2rem;
-	padding: 0.35rem 0.45rem;
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	box-shadow: none;
-	font-size: 0.875rem;
-	line-height: 1.4;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-field:focus {
-	outline: none;
-	box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.35);
-	background: #fff;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-field.is-invalid {
-	box-shadow: inset 0 0 0 1px #dc3545;
-}
-
-#modal-change_status .cutoff-excel-grid .cutoff-excel-field::placeholder {
-	color: #adb5bd;
-}
-
-#modal-change_status .cutoff-excel-split-cell {
-	padding: 0.35rem 0.55rem;
-}
-
-#modal-change_status .cutoff-excel-split-cell .form-check {
-	display: inline-flex;
-	align-items: center;
-	justify-content: flex-start;
-	gap: 0.35rem;
-	min-height: 1.5rem;
-}
-
-#modal-change_status .cutoff-excel-chips {
-	margin-top: 0;
-}
-
-#modal-change_status .cutoff-excel-meta {
-	margin-bottom: 0.65rem;
-}
-
-#modal-change_status .cutoff-excel-meta .cutoff-excel-input {
-	padding: 0;
-}
-
 #modal-change_status .ingame-input-sheet {
 	display: flex;
 	flex-direction: column;
@@ -591,7 +538,8 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	border-top: 1px solid #dee2e6;
 }
 
-#modal-change_status #ingame-settlement-section {
+#modal-change_status #ingame-settlement-section,
+#modal-change_status #cutoff-details-section {
 	--ingame-label-width: 8.75rem;
 }
 
@@ -642,7 +590,8 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 }
 
 #modal-change_status .ingame-meta-grid #txtInGameLastRolling,
-#modal-change_status .ingame-meta-grid #txtInGameExpectedSettlement {
+#modal-change_status .ingame-meta-grid #txtInGameExpectedSettlement,
+#modal-change_status .ingame-meta-grid #txtCutoffLastRolling {
 	grid-column: 2 / -1;
 	width: 100%;
 }
@@ -712,6 +661,68 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	min-width: 0;
 	gap: 0;
 	overflow: hidden;
+}
+
+#modal-change_status .change-status-side-panels:has(#change-status-tip-panels-row .change-status-side-panel:not(.d-none)) {
+	width: 40rem;
+}
+
+#modal-change_status .change-status-tip-panels-row {
+	display: flex;
+	gap: 0.75rem;
+	width: 100%;
+	min-width: 0;
+}
+
+#modal-change_status .change-status-tip-panels-row:not(:has(.change-status-side-panel:not(.d-none))) {
+	display: none;
+}
+
+#modal-change_status .change-status-tip-panels-row .change-status-side-panel {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+#modal-change_status .change-status-tip-processing-row {
+	display: grid;
+	grid-template-columns: 1fr 0.75fr 0.75fr;
+	border-bottom: 1px solid #dee2e6;
+}
+
+#modal-change_status .change-status-tip-proc-col + .change-status-tip-proc-col {
+	border-left: 1px solid #dee2e6;
+}
+
+#modal-change_status .change-status-tip-processing-body {
+	text-align: center;
+	padding: 0.35rem 0.25rem;
+	font-weight: 600;
+	min-height: 2rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#modal-change_status .change-status-tip-processing-body.is-positive {
+	color: #198754;
+}
+
+#modal-change_status .change-status-tip-meta-body {
+	padding: 0.3rem 0.35rem;
+	min-height: 2.35rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#modal-change_status .change-status-tip-name-input,
+#modal-change_status .change-status-tip-meta-input {
+	width: 100%;
+	min-width: 0;
+}
+
+#modal-change_status .change-status-tip-history-tbl th {
+	background: #cfe2ff;
 }
 
 #modal-change_status .change-status-side-panel {
