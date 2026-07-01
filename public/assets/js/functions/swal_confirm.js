@@ -1,13 +1,15 @@
 /**
  * Shared SweetAlert2 confirmation dialog with aligned label/value rows.
- * Labels right-align to the colon; text values left-align; amounts right-align to column end.
+ * Labels right-align; text values left-align; amounts right-align to column end.
  */
 (function (window) {
     'use strict';
 
-    var LABEL_STYLE = 'padding:4px 12px 4px 0;font-weight:600;text-align:right;white-space:nowrap;vertical-align:top;';
-    var VALUE_LEFT_STYLE = 'padding:4px 0 4px 8px;text-align:left;vertical-align:top;white-space:nowrap;';
-    var VALUE_RIGHT_STYLE = 'padding:4px 0 4px 8px;text-align:right;vertical-align:top;white-space:nowrap;font-variant-numeric:tabular-nums;';
+    var GRID_STYLE = 'display:inline-grid;grid-template-columns:auto auto;column-gap:12px;row-gap:4px;justify-content:center;width:100%;';
+    var LABEL_STYLE = 'font-weight:600;text-align:right;white-space:nowrap;padding:2px 0;';
+    var VALUE_BASE = 'white-space:nowrap;padding:2px 0;';
+    var VALUE_LEFT_STYLE = VALUE_BASE + 'text-align:left;';
+    var VALUE_RIGHT_STYLE = VALUE_BASE + 'text-align:right;font-variant-numeric:tabular-nums;';
 
     function escapeHtml(s) {
         if (s == null) return '';
@@ -26,6 +28,10 @@
 
     function containsHtml(s) {
         return /<[a-z][\s\S]*>/i.test(String(s || ''));
+    }
+
+    function safeHtml(value) {
+        return containsHtml(value) ? String(value) : escapeHtml(value);
     }
 
     function isNumericValue(value) {
@@ -49,13 +55,10 @@
     }
 
     function buildRow(label, value, align) {
-        var labelRaw = containsHtml(label);
-        var valueRaw = containsHtml(value);
-        var labelText = labelRaw ? String(formatLabel(label)) : escapeHtml(formatLabel(label));
         var displayValue = value == null || value === '' ? '-' : value;
-        var valueContent = valueRaw ? String(displayValue) : escapeHtml(displayValue);
         var valueStyle = resolveValueAlign(displayValue, align) === 'right' ? VALUE_RIGHT_STYLE : VALUE_LEFT_STYLE;
-        return '<tr><td style="' + LABEL_STYLE + '">' + labelText + '</td><td style="' + valueStyle + '">' + valueContent + '</td></tr>';
+        return '<span style="' + LABEL_STYLE + '">' + safeHtml(formatLabel(label)) + '</span>' +
+            '<span style="' + valueStyle + '">' + safeHtml(displayValue) + '</span>';
     }
 
     function buildTableHtml(rows, options) {
@@ -66,30 +69,23 @@
             return buildRow(row[0], row[1], row[2]);
         }).join('');
         var subtitle = options.subtitle
-            ? '<div style="font-weight:600;margin-bottom:8px;text-align:center;">' + (containsHtml(options.subtitle) ? options.subtitle : escapeHtml(options.subtitle)) + '</div>'
+            ? '<div style="font-weight:600;margin-bottom:8px;text-align:center;">' + safeHtml(options.subtitle) + '</div>'
             : '';
         return '<div style="max-width:420px;margin:0 auto;">' + subtitle +
-            '<table style="margin:0 auto;border-collapse:collapse;">' + body + '</table></div>';
+            '<div style="' + GRID_STYLE + '">' + body + '</div></div>';
     }
 
     function fire(options) {
         options = options || {};
         if (!window.Swal) return Promise.resolve({ isConfirmed: false });
 
-        var html = '';
-        if (options.rows && options.rows.length) {
-            html += buildTableHtml(options.rows, { subtitle: options.subtitle });
-        }
-        if (options.html) {
-            html += options.html;
-        }
+        var hasRows = !!(options.rows && options.rows.length);
+        var html = hasRows ? buildTableHtml(options.rows, { subtitle: options.subtitle }) : '';
+        if (options.html) html += options.html;
         if (options.message) {
-            html += '<div style="margin-top:12px;text-align:center;">' +
-                (containsHtml(options.message) ? options.message : escapeHtml(options.message)) +
-                '</div>';
+            html += '<div style="margin-top:12px;text-align:center;">' + safeHtml(options.message) + '</div>';
         }
 
-        var hasRows = options.rows && options.rows.length;
         return Swal.fire({
             icon: options.icon != null ? options.icon : 'question',
             title: options.title || '',

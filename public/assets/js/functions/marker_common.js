@@ -1005,6 +1005,28 @@
                     });
                 };
 
+                var confirmReturnRows = [
+                    ['Account', accountMarker || 'N/A'],
+                    ['Amount', markerReturnFormatted || '0'],
+                    ['Transaction', transTypeLabel || 'N/A'],
+                    ['Deduct From', returnSourceLabel || 'N/A']
+                ];
+
+                var showReturnConfirmSwal = function (title, message) {
+                    if (window.Swal) {
+                        SwalConfirm.fire({
+                            title: title,
+                            rows: confirmReturnRows,
+                            message: message,
+                            confirmButtonText: 'Yes, Save'
+                        }).then(function (result) {
+                            if (result.isConfirmed) showConfirmAndSubmit();
+                        });
+                    } else {
+                        showConfirmAndSubmit();
+                    }
+                };
+
                 // Deposit (12): check balance BEFORE showing confirm; insufficient = show error immediately
                 if (selectedTransType === '12') {
                     $.ajax({
@@ -1024,46 +1046,14 @@
                                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: 'Insufficient balance for this deposit transaction.' });
                                 return;
                             }
-                            if (window.Swal) {
-                                SwalConfirm.fire({
-                                    title: 'Confirm Marker Return',
-                                    rows: [
-                                        ['Account', accountMarker || 'N/A'],
-                                        ['Amount', markerReturnFormatted || '0', 'right'],
-                                        ['Transaction', transTypeLabel || 'N/A'],
-                                        ['Deduct From', returnSourceLabel || 'N/A']
-                                    ],
-                                    message: 'Are you sure you want to proceed with this marker return?',
-                                    confirmButtonText: 'Yes, Save'
-                                }).then(function (result) {
-                                    if (result.isConfirmed) showConfirmAndSubmit();
-                                });
-                            } else {
-                                showConfirmAndSubmit();
-                            }
+                            showReturnConfirmSwal('Confirm Marker Return', 'Are you sure you want to proceed with this marker return?');
                         },
                         error: function () {
                             if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to check balance.' });
                         }
                     });
                 } else {
-                    if (window.Swal) {
-                        SwalConfirm.fire({
-                            title: 'Confirm Credit Return',
-                            rows: [
-                                ['Account', accountMarker || 'N/A'],
-                                ['Amount', markerReturnFormatted || '0', 'right'],
-                                ['Transaction', transTypeLabel || 'N/A'],
-                                ['Deduct From', returnSourceLabel || 'N/A']
-                            ],
-                            message: 'Are you sure you want to proceed with this credit return?',
-                            confirmButtonText: 'Yes, Save'
-                        }).then(function (result) {
-                            if (result.isConfirmed) showConfirmAndSubmit();
-                        });
-                    } else {
-                        showConfirmAndSubmit();
-                    }
+                    showReturnConfirmSwal('Confirm Credit Return', 'Are you sure you want to proceed with this credit return?');
                 }
             };
 
