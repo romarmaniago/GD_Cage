@@ -53,9 +53,19 @@
 </div>
 
 <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
-  <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
-    <div class="input-group">
-      <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+  <div class="house-expense-filter-toolbar">
+    <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+      <div class="input-group">
+        <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+      </div>
+    </div>
+    <div class="house-expense-filter-actions d-flex flex-wrap align-items-center gap-2">
+      <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
+        <i class="fa fa-print" aria-hidden="true"></i> Print
+      </button>
+      <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
+        <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
+      </button>
     </div>
   </div>
 </div>

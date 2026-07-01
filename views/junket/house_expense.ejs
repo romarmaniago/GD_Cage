@@ -24,14 +24,6 @@
                                     <a href="#" id="btn-breadcrumb-open-pool" class="d-none">Open</a>
                                 </div>
                             </div>
-                            <div class="d-flex flex-wrap gap-2 align-items-center">
-                                <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
-                                    <i class="fa fa-print" aria-hidden="true"></i> Print
-                                </button>
-                                <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
-                                    <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
-                                </button>
-                            </div>
                         </div>
        
                         <div class="card-body">
@@ -90,9 +82,19 @@
                             </div>
 
                             <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
-                                <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
-                                    <div class="input-group">
-                                        <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                <div class="house-expense-filter-toolbar">
+                                    <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+                                        <div class="input-group">
+                                            <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                    <div class="house-expense-filter-actions d-flex flex-wrap align-items-center gap-2">
+                                        <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
+                                            <i class="fa fa-print" aria-hidden="true"></i> Print
+                                        </button>
+                                        <button type="button" id="btn-house-expense-export" class="btn btn-sm btn-warning">
+                                            <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('house_expense.export') || 'Export' %>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -145,7 +147,16 @@
                                         </div>
                                         <div class="expense-cat-panel-body expense-item-panel-body flex-grow-1 d-flex flex-column">
                                             <div class="expense-item-table-wrap">
-                                            <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl mb-0" style="width:100%">
+                                            <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl expense-item-tbl-layout align-middle mb-0" style="width:100%">
+                                                <colgroup>
+                                                    <col class="expense-col-date-time">
+                                                    <col class="expense-col-name">
+                                                    <col class="expense-col-in-charge">
+                                                    <col class="expense-col-receiver">
+                                                    <col class="expense-col-description">
+                                                    <col class="expense-col-amount">
+                                                    <col class="expense-col-action">
+                                                </colgroup>
                                                 <thead>
                                                     <tr>
                                                         <th class="sortable-col" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
@@ -608,6 +619,20 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     gap: 0;
 }
 
+.house-expense-filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    width: 100%;
+}
+
+.house-expense-filter-actions {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
 #daterange-wrapper {
     width: 320px;
     max-width: 100%;
@@ -887,16 +912,18 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 display: inline-flex;
                 flex-wrap: nowrap;
                 align-items: center;
+                justify-content: center;
                 gap: 0.2rem;
                 white-space: nowrap;
+                width: 100%;
             }
             #expense-item-cat-tbl .house-expense-actions .btn i.fa,
             #expense-tbl .house-expense-actions .btn i.fa {
-                font-size: 0.72rem;
+                font-size: 0.85rem;
             }
             #expense-item-cat-tbl .house-expense-actions .btn,
             #expense-tbl .house-expense-actions .btn {
-                padding: 0.18rem 0.32rem;
+                padding: 0.22rem 0.38rem;
                 flex: 0 0 auto;
             }
 
@@ -978,7 +1005,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             #expense-item-cat-tbl td:last-child {
                 min-width: 72px;
                 white-space: nowrap;
-                text-align: right !important;
+                text-align: center !important;
             }
             #expense-tbl th:last-child,
             #expense-tbl td:last-child {
@@ -1624,6 +1651,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 padding: 0.55rem 0.65rem;
                 border: none;
                 white-space: nowrap;
+                text-align: center;
             }
             #expense-item-cat-tbl thead th.sortable-col {
                 cursor: pointer;
@@ -1805,6 +1833,17 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 overflow: visible;
                 max-height: none;
             }
+            .expense-item-tbl-layout {
+                table-layout: fixed;
+                width: 100%;
+            }
+            .expense-item-tbl-layout col.expense-col-date-time { width: 13%; }
+            .expense-item-tbl-layout col.expense-col-name { width: 17%; }
+            .expense-item-tbl-layout col.expense-col-in-charge { width: 10%; }
+            .expense-item-tbl-layout col.expense-col-receiver { width: 10%; }
+            .expense-item-tbl-layout col.expense-col-description { width: 16%; }
+            .expense-item-tbl-layout col.expense-col-amount { width: 10%; }
+            .expense-item-tbl-layout col.expense-col-action { width: 24%; }
             .expense-item-table-wrap {
                 transform: translateY(0);
             }
@@ -1891,38 +1930,44 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 white-space: nowrap;
                 font-variant-numeric: tabular-nums;
             }
-            .expense-item-tbl td.text-end,
-            .expense-item-tbl th.text-end {
-                text-align: right !important;
+            .expense-item-tbl thead th {
+                text-align: center !important;
             }
-            .expense-item-tbl thead th:nth-child(5),
-            .expense-item-tbl thead th:nth-child(6),
-            .expense-item-tbl thead th:nth-child(7),
-            .expense-item-tbl tbody td:nth-child(5),
-            .expense-item-tbl tbody td:nth-child(6),
-            .expense-item-tbl tbody td.expense-item-action-cell {
-                text-align: right !important;
+            .expense-item-tbl thead th:nth-child(3),
+            .expense-item-tbl tbody td:nth-child(3) {
+                padding-right: 0.65rem;
+            }
+            .expense-item-tbl thead th:nth-child(4),
+            .expense-item-tbl tbody td:nth-child(4) {
+                padding-left: 0.65rem;
+            }
+            .expense-item-tbl tbody td,
+            .expense-item-tbl tbody td.text-end {
+                text-align: center !important;
                 vertical-align: middle;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                overflow: visible;
             }
-            .expense-item-tbl tbody td.expense-item-date-cell {
-                white-space: nowrap;
+            .expense-item-tbl tbody td:nth-child(2) .d-inline-flex {
+                justify-content: center;
+                width: 100%;
+                flex-wrap: wrap;
+                max-width: none;
+            }
+            .expense-item-tbl tbody td:nth-child(2) .d-inline-flex > span:last-child {
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
             }
             .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
                 display: flex;
-                justify-content: flex-end;
+                justify-content: center;
+                flex-wrap: wrap;
                 width: 100%;
-            }
-            .expense-item-tbl thead th:nth-child(1),
-            .expense-item-tbl thead th:nth-child(2),
-            .expense-item-tbl thead th:nth-child(3),
-            .expense-item-tbl thead th:nth-child(4),
-            .expense-item-tbl tbody td:nth-child(1),
-            .expense-item-tbl tbody td:nth-child(2),
-            .expense-item-tbl tbody td:nth-child(3),
-            .expense-item-tbl tbody td:nth-child(4),
-            .expense-item-tbl tbody td.expense-item-date-cell {
-                text-align: left !important;
-                vertical-align: middle;
             }
             @media (min-width: 992px) {
                 .expense-explorer-main-col {
