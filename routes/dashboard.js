@@ -3565,8 +3565,9 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			`SELECT
 				DATE_FORMAT(j.ENCODED_DT, '%Y-%m-%d') AS report_date,
 				SUM(CASE WHEN j.TRANSACTION_ID = 1 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS buy_in,
-				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS cash_out,
-				SUM(CASE WHEN j.TRANSACTION_ID = 3 THEN COALESCE(j.CC_CHIPS, 0) ELSE 0 END) AS rolling
+				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.TOTAL_CHIPS, 0) ELSE 0 END) AS cash_out,
+				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS cash_out_nn,
+				SUM(CASE WHEN j.TRANSACTION_ID = 3 THEN COALESCE(j.CC_CHIPS, 0) ELSE 0 END) AS rolling_cc
 			 FROM junket_total_chips j
 			 WHERE j.ACTIVE = 1
 				AND j.ENCODED_DT IS NOT NULL
@@ -3591,6 +3592,22 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			[dateFrom, dateTo]
 		);
 
+		const [gameWlRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(gl.PROGRAM_DATE, '%Y-%m-%d') AS program_date,
+				SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN (gr.NN_CHIPS + gr.CC_CHIPS) ELSE 0 END) AS cashin,
+				SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN (gr.NN_CHIPS + gr.CC_CHIPS) ELSE 0 END) AS cashout
+			 FROM game_list gl
+			 INNER JOIN game_record gr ON gr.GAME_ID = gl.IDNo
+			 WHERE gr.ACTIVE = 1
+				AND gl.ACTIVE != 0
+				AND gl.PROGRAM_DATE IS NOT NULL
+				AND DATE(gl.PROGRAM_DATE) BETWEEN ? AND ?
+			 GROUP BY DATE(gl.PROGRAM_DATE)
+			 ORDER BY DATE(gl.PROGRAM_DATE) ASC`,
+			[dateFrom, dateTo]
+		);
+
 		const chipsByDate = {};
 		(chipsRows || []).forEach((row) => {
 			chipsByDate[row.report_date] = row;
@@ -3602,15 +3619,25 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			dailyByDateTable[row.report_date][row.junket_table_id] = row;
 		});
 
-		const casinoTable = (tableRows || []).find((t) => /casino/i.test(t.table_name)) || tableRows?.[0];
+		const goldWlByDate = {};
+		(gameWlRows || []).forEach((row) => {
+			const cashin = Number(row.cashin) || 0;
+			const cashout = Number(row.cashout) || 0;
+			goldWlByDate[row.program_date] = cashin - cashout;
+		});
+
 		const goldTable = (tableRows || []).find((t) => /gold\s*dragon/i.test(t.table_name))
 			|| (tableRows && tableRows.length > 1 ? tableRows[1] : null);
+
+		const sumDayWinlossTotal = (dayTables) => Object.values(dayTables || {})
+			.reduce((sum, row) => sum + (Number(row.winloss_amt) || 0), 0);
 
 		const rollingRows = [];
 		const wlRows = [];
 		let totalBuyIn = 0;
 		let totalCashOut = 0;
-		let totalRolling = 0;
+		let totalCashOutNn = 0;
+		let totalRollingCc = 0;
 		let totalBeyond = 0;
 		let totalCasinoWl = 0;
 		let totalGoldWl = 0;
@@ -3619,19 +3646,25 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			const chips = chipsByDate[date] || {};
 			const buyIn = Number(chips.buy_in) || 0;
 			const cashOut = Number(chips.cash_out) || 0;
-			const rolling = Number(chips.rolling) || 0;
+			const cashOutNn = Number(chips.cash_out_nn) || 0;
+			const rollingCc = Number(chips.rolling_cc) || 0;
+			// Legacy house rolling: Buy In (NN) + Rolling (CC) - Cash Out (NN only)
+			const rolling = buyIn + rollingCc - cashOutNn;
 
 			const dayTables = dailyByDateTable[date] || {};
 			const goldRow = goldTable ? dayTables[goldTable.id] : null;
 			const beyond = goldRow ? Number(goldRow.rolling_amt) || 0 : 0;
 
-			const casinoWl = buyIn - cashOut;
-			const goldWl = goldRow ? Number(goldRow.winloss_amt) || 0 : casinoWl;
+			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT)
+			const casinoWl = sumDayWinlossTotal(dayTables);
+			// W/L Check — Gold Dragon: game winloss grouped by program date (cash in - cash out)
+			const goldWl = Number(goldWlByDate[date]) || 0;
 
 			rollingRows.push({
 				date,
 				buy_in: buyIn,
 				cash_out: cashOut,
+				rolling_cc: rollingCc,
 				rolling,
 				beyond_chips: beyond
 			});
@@ -3644,7 +3677,8 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 
 			totalBuyIn += buyIn;
 			totalCashOut += cashOut;
-			totalRolling += rolling;
+			totalCashOutNn += cashOutNn;
+			totalRollingCc += rollingCc;
 			totalBeyond += beyond;
 			totalCasinoWl += casinoWl;
 			totalGoldWl += goldWl;
@@ -3790,7 +3824,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			totals: {
 				buy_in: totalBuyIn,
 				cash_out: totalCashOut,
-				rolling: totalRolling,
+				rolling: totalBuyIn + totalRollingCc - totalCashOutNn,
 				beyond_chips: totalBeyond,
 				wl_total: totalCasinoWl,
 				casino_wl: totalCasinoWl,

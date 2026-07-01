@@ -1373,6 +1373,9 @@
 
     dashWinlossReportModalEl.addEventListener('hidden.bs.modal', () => {
       destroyMatrixDataTable();
+      if (typeof window.dashboardGridReload === 'function') {
+        window.dashboardGridReload();
+      }
     });
   }
 })();

@@ -39,7 +39,7 @@
     const tags = [];
     if (Number(row.buy_in) > 0) tags.push('BI');
     if (Number(row.cash_out) > 0) tags.push('CO');
-    if (Number(row.rolling) > 0) tags.push('R');
+    if (Number(row.rolling_cc) > 0) tags.push('R');
     return tags.join(',');
   }
 
