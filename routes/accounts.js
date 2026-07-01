@@ -528,109 +528,16 @@ router.get('/agency_agent_stats', async (req, res) => {
 			[agentId]
 		);
 
-		const [gameRows] = await pool.execute(
-			`SELECT
-					gl.IDNo AS game_id,
-					COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
-					COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
-					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
-			 FROM game_list gl
-			 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
-			 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
-			 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
-			 WHERE gl.ACTIVE IN (1, 2)
-			   AND acc.ACTIVE = 1
-			   AND ag.ACTIVE = 1
-			   AND ag.IDNo = ?
-			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
-			[agentId]
-		);
-		const [[balanceRow]] = await pool.execute(
-			`SELECT
-					COALESCE(SUM(led.total_balance), 0) AS total_balance
-			 FROM account acc
-			 LEFT JOIN (
-				SELECT
-					al.ACCOUNT_ID,
-					SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
-					SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
-					SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
-					SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
-				FROM account_ledger al
-				INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
-				WHERE al.ACTIVE = 1
-				  AND al.TRANSACTION_TYPE IN (2, 5, 3)
-				GROUP BY ACCOUNT_ID
-			 ) AS led ON led.ACCOUNT_ID = acc.IDNo
-			 WHERE acc.ACTIVE = 1
-			   AND acc.AGENT_ID = ?`,
-			[agentId]
-		);
-		const [[creditRow]] = await pool.execute(
-			`SELECT
-					COALESCE(SUM(cred.credit_balance), 0) AS total_credit
-			 FROM account acc
-			 LEFT JOIN (
-				SELECT
-					al.ACCOUNT_ID,
-					SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
-					SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
-				FROM account_ledger al
-				WHERE al.ACTIVE = 1
-				  AND al.TRANSACTION_TYPE IN (3, 4)
-				GROUP BY al.ACCOUNT_ID
-			 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
-			 WHERE acc.ACTIVE = 1
-			   AND acc.AGENT_ID = ?`,
-			[agentId]
-		);
-
-		let totalRolling = 0;
-		let totalWinLoss = 0;
-		let totalCommission = 0;
-
-		for (const row of gameRows) {
-			const totalRollingChips =
-				(Number(row.total_rolling_nn) || 0) +
-				(Number(row.total_roller_return_cc) || 0) +
-				(Number(row.total_rolling_amount) || 0) +
-				(Number(row.total_rolling_real) || 0) +
-				(Number(row.total_rolling_nn_real) || 0) +
-				(Number(row.total_rolling_cc_real) || 0) -
-				(Number(row.total_cash_out_nn) || 0);
-
-			const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
-			const commissionRate = Number(row.commission_percentage) || 0;
-			const commissionType = Number(row.commission_type) || 0;
-			let net = 0;
-
-			if (commissionType === 1 || commissionType === 3) {
-				net = Math.round((totalRollingChips * commissionRate) / 100);
-			} else if (commissionType === 2) {
-				net = Math.round((winLoss * commissionRate) / 100);
-			}
-
-			totalRolling += totalRollingChips;
-			totalWinLoss += winLoss;
-			totalCommission += net;
-		}
+		const agentStats = await fetchAgentFinancialStats(agentId);
 
 		return res.json({
 			total_guest: Number(guestRow?.total_guest ?? 0),
 			total_games: Number(gamesRow?.total_games ?? 0),
-			total_rolling: totalRolling,
-			total_winloss: totalWinLoss,
-			total_commission: totalCommission,
-			total_balance: Number(balanceRow?.total_balance ?? 0),
-			total_credit: Number(creditRow?.total_credit ?? 0)
+			total_rolling: agentStats.total_rolling,
+			total_winloss: agentStats.total_winloss,
+			total_commission: agentStats.total_commission,
+			total_balance: agentStats.total_balance,
+			total_credit: agentStats.total_credit
 		});
 	} catch (err) {
 		console.error('Error in /agency_agent_stats:', err);
@@ -895,6 +802,241 @@ function aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap) {
 	});
 
 	return Object.values(resultMap);
+}
+
+function emptyFinancialStats() {
+	return {
+		total_balance: 0,
+		total_credit: 0,
+		total_rolling: 0,
+		total_winloss: 0,
+		total_commission: 0
+	};
+}
+
+function addFinancialStats(target, source) {
+	target.total_balance += Number(source?.total_balance) || 0;
+	target.total_credit += Number(source?.total_credit) || 0;
+	target.total_rolling += Number(source?.total_rolling) || 0;
+	target.total_winloss += Number(source?.total_winloss) || 0;
+	target.total_commission += Number(source?.total_commission) || 0;
+}
+
+function sumGameRowMetrics(gameRows) {
+	const totals = emptyFinancialStats();
+	for (const row of gameRows || []) {
+		const totalRollingChips =
+			(Number(row.total_rolling_nn) || 0) +
+			(Number(row.total_roller_return_cc) || 0) +
+			(Number(row.total_rolling_amount) || 0) +
+			(Number(row.total_rolling_real) || 0) +
+			(Number(row.total_rolling_nn_real) || 0) +
+			(Number(row.total_rolling_cc_real) || 0) -
+			(Number(row.total_cash_out_nn) || 0);
+
+		const winLoss = (Number(row.total_amount) || 0) - (Number(row.total_cash_out_chips) || 0);
+		const commissionRate = Number(row.commission_percentage) || 0;
+		const commissionType = Number(row.commission_type) || 0;
+		let net = 0;
+
+		if (commissionType === 1 || commissionType === 3) {
+			net = Math.round((totalRollingChips * commissionRate) / 100);
+		} else if (commissionType === 2) {
+			net = Math.round((winLoss * commissionRate) / 100);
+		}
+
+		totals.total_rolling += totalRollingChips;
+		totals.total_winloss += winLoss;
+		totals.total_commission += net;
+	}
+	return totals;
+}
+
+async function fetchAgencyLineFinancialStats(agencyId) {
+	const [gameRows] = await pool.execute(
+		`SELECT
+				gl.IDNo AS game_id,
+				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+		 FROM game_list gl
+		 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+		 WHERE gl.ACTIVE IN (1, 2)
+		   AND acc.ACTIVE = 1
+		   AND ag.ACTIVE = 1
+		   AND ag.AGENCY = ?
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+		[agencyId]
+	);
+	const [[balanceRow]] = await pool.execute(
+		`SELECT
+				COALESCE(SUM(led.total_balance), 0) AS total_balance
+		 FROM account acc
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
+				SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
+			FROM account_ledger al
+			INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (2, 5, 3)
+			GROUP BY ACCOUNT_ID
+		 ) AS led ON led.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1
+		   AND ag.ACTIVE = 1
+		   AND ag.AGENCY = ?`,
+		[agencyId]
+	);
+	const [[creditRow]] = await pool.execute(
+		`SELECT
+				COALESCE(SUM(cred.credit_balance), 0) AS total_credit
+		 FROM account acc
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger al
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (3, 4)
+			GROUP BY al.ACCOUNT_ID
+		 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1
+		   AND ag.ACTIVE = 1
+		   AND ag.AGENCY = ?`,
+		[agencyId]
+	);
+
+	const gameTotals = sumGameRowMetrics(gameRows);
+	return {
+		total_balance: Number(balanceRow?.total_balance ?? 0),
+		total_credit: Number(creditRow?.total_credit ?? 0),
+		total_rolling: gameTotals.total_rolling,
+		total_winloss: gameTotals.total_winloss,
+		total_commission: gameTotals.total_commission
+	};
+}
+
+async function fetchAgentFinancialStats(agentId) {
+	const [gameRows] = await pool.execute(
+		`SELECT
+				gl.IDNo AS game_id,
+				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+		 FROM game_list gl
+		 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+		 WHERE gl.ACTIVE IN (1, 2)
+		   AND acc.ACTIVE = 1
+		   AND ag.ACTIVE = 1
+		   AND ag.IDNo = ?
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+		[agentId]
+	);
+	const [[balanceRow]] = await pool.execute(
+		`SELECT
+				COALESCE(SUM(led.total_balance), 0) AS total_balance
+		 FROM account acc
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
+				SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
+			FROM account_ledger al
+			INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (2, 5, 3)
+			GROUP BY ACCOUNT_ID
+		 ) AS led ON led.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1
+		   AND acc.AGENT_ID = ?`,
+		[agentId]
+	);
+	const [[creditRow]] = await pool.execute(
+		`SELECT
+				COALESCE(SUM(cred.credit_balance), 0) AS total_credit
+		 FROM account acc
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger al
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (3, 4)
+			GROUP BY al.ACCOUNT_ID
+		 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1
+		   AND acc.AGENT_ID = ?`,
+		[agentId]
+	);
+
+	const gameTotals = sumGameRowMetrics(gameRows);
+	return {
+		total_balance: Number(balanceRow?.total_balance ?? 0),
+		total_credit: Number(creditRow?.total_credit ?? 0),
+		total_rolling: gameTotals.total_rolling,
+		total_winloss: gameTotals.total_winloss,
+		total_commission: gameTotals.total_commission
+	};
+}
+
+async function fetchAgencyGuestStatsForExport(agencyId) {
+	const guestSelect = `
+		g.IDNo AS guest_id,
+		g.AGENT_ID AS agent_id,
+		g.NAME AS guest_name,
+		g.MEMBERSHIP_NO AS membership_no,
+		g.REMARKS AS guest_remarks,
+		ag.AGENT_CODE AS agent_code,
+		ag.NAME AS agent_name,
+		ag.AGENCY AS agency_id,
+		ay.AGENCY AS agency_name
+	`;
+	const guestQuery = `
+		SELECT ${guestSelect}
+		FROM guest g
+		INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+		INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+		WHERE ag.AGENCY = ? AND g.ACTIVE = 1
+		ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, g.NAME ASC, g.IDNo ASC
+	`;
+	const gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', 'ag.AGENCY = ?');
+	const [guestRows] = await pool.execute(guestQuery, [agencyId]);
+	if (!Array.isArray(guestRows) || guestRows.length === 0) {
+		return [];
+	}
+	const [gameRows] = await pool.execute(gameQuery, [agencyId]);
+	const guestIds = guestRows.map((row) => row.guest_id).filter(Boolean);
+	const balanceCreditMap = await fetchGuestBalanceCreditMap(guestIds);
+	return aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap);
 }
 
 async function fetchGuestBalanceCreditMap(guestIds) {
@@ -3170,6 +3312,151 @@ router.post('/agency/export_line_agent_matrix_xlsx', checkSession, async functio
 		return res.send(Buffer.from(buffer));
 	} catch (err) {
 		console.error('agency/export_line_agent_matrix_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+/** Excel: LINE totals, then each AGENT with totals, then each GUEST under that agent. */
+router.post('/agency/export_line_stats_xlsx', checkSession, async function (req, res) {
+	try {
+		const agencyId = parseInt(req.body.agencyId, 10);
+		if (!agencyId) {
+			return res.status(400).json({ error: 'Select a LINE first.' });
+		}
+
+		const [agencyNameRows] = await pool.execute(
+			`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
+			[agencyId]
+		);
+		const lineName = String(agencyNameRows[0]?.AGENCY ?? '')
+			.trim()
+			|| 'LINE ' + agencyId;
+
+		const [agentRows] = await pool.execute(
+			`SELECT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			 FROM agent ag
+			 WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
+			 ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, ag.IDNo ASC`,
+			[agencyId]
+		);
+
+		const lineStats = await fetchAgencyLineFinancialStats(agencyId);
+		const guestStats = await fetchAgencyGuestStatsForExport(agencyId);
+		const guestsByAgent = new Map();
+		for (const guest of guestStats) {
+			const agentId = Number(guest.agent_id);
+			if (!guestsByAgent.has(agentId)) guestsByAgent.set(agentId, []);
+			guestsByAgent.get(agentId).push(guest);
+		}
+
+		const workbook = new ExcelJS.Workbook();
+		const ws = workbook.addWorksheet('LINE Stats', {
+			views: [{ state: 'frozen', ySplit: 1 }]
+		});
+		const thinBorder = {
+			top: { style: 'thin', color: { argb: 'FF666666' } },
+			left: { style: 'thin', color: { argb: 'FF666666' } },
+			bottom: { style: 'thin', color: { argb: 'FF666666' } },
+			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+		const headerFill = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFD9E1F2' }
+		};
+		const lineFill = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFC6EFCE' }
+		};
+		const agentFill = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFE2EFDA' }
+		};
+
+		const headers = [
+			'Level',
+			'Name',
+			'Total Balance',
+			'Total Credit',
+			'Total Winloss',
+			'Total Rolling',
+			'Total Commission'
+		];
+		const headerRow = ws.addRow(headers);
+		headerRow.height = 22;
+		headerRow.eachCell((cell) => {
+			cell.font = { bold: true };
+			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+			cell.border = thinBorder;
+			cell.fill = headerFill;
+		});
+
+		function addStatsRow(level, name, stats, fill) {
+			const row = ws.addRow([
+				level,
+				name,
+				Number(stats.total_balance) || 0,
+				Number(stats.total_credit) || 0,
+				Number(stats.total_winloss) || 0,
+				Number(stats.total_rolling) || 0,
+				Number(stats.total_commission) || 0
+			]);
+			row.eachCell((cell, colNumber) => {
+				cell.border = thinBorder;
+				cell.alignment = {
+					vertical: 'middle',
+					horizontal: colNumber <= 2 ? 'left' : 'right',
+					wrapText: true
+				};
+				if (fill) cell.fill = fill;
+				if (colNumber === 1) cell.font = { bold: true };
+			});
+			if (level === 'LINE') row.font = { bold: true };
+		}
+
+		addStatsRow('LINE', lineName.toUpperCase(), lineStats, lineFill);
+
+		for (const agent of agentRows || []) {
+			const agentId = Number(agent.agent_id);
+			const code = String(agent.agent_code != null ? agent.agent_code : '').trim();
+			const name = String(agent.agent_name != null ? agent.agent_name : '').trim();
+			const agentLabel =
+				code && name
+					? code.toUpperCase() + ' · ' + name.toUpperCase()
+					: String(code || name || ('AGENT ' + agentId)).toUpperCase();
+
+			const agentGuests = guestsByAgent.get(agentId) || [];
+			const agentStats = await fetchAgentFinancialStats(agentId);
+
+			addStatsRow('AGENT', agentLabel, agentStats, agentFill);
+
+			for (const guest of agentGuests) {
+				const guestName = String(guest.guest_name || '').trim().toUpperCase() || ('GUEST ' + guest.guest_id);
+				addStatsRow('GUEST', guestName, guest, null);
+			}
+		}
+
+		ws.getColumn(1).width = 10;
+		ws.getColumn(2).width = 36;
+		for (let c = 3; c <= 7; c++) {
+			ws.getColumn(c).width = 16;
+		}
+
+		applyCommaThousandsToNumericCells(ws, { headerRows: 1 });
+
+		const safeLine = lineName.replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const outName = `${safeLine}-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+
+		const buffer = await workbook.xlsx.writeBuffer();
+		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		return res.send(Buffer.from(buffer));
+	} catch (err) {
+		console.error('agency/export_line_stats_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });

@@ -40,6 +40,14 @@
         return isNumericValue(value) ? 'right' : 'left';
     }
 
+    function buildSpacerRow() {
+        return '<tr aria-hidden="true"><td colspan="2" style="padding:6px 0;border:none;line-height:0;font-size:0;">&nbsp;</td></tr>';
+    }
+
+    function isSpacerRow(row) {
+        return row === null || row === 'spacer' || (Array.isArray(row) && row[0] === '__spacer__');
+    }
+
     function buildRow(label, value, align) {
         var labelRaw = containsHtml(label);
         var valueRaw = containsHtml(value);
@@ -54,6 +62,7 @@
         options = options || {};
         if (!rows || !rows.length) return '';
         var body = rows.map(function (row) {
+            if (isSpacerRow(row)) return buildSpacerRow();
             return buildRow(row[0], row[1], row[2]);
         }).join('');
         var subtitle = options.subtitle

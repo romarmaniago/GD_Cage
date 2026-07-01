@@ -246,6 +246,13 @@
 
       applyMatrixCellDisplay(cell, amount);
       recalculateMatrixRowAndFooter();
+      Swal.fire({
+        icon: 'success',
+        title: 'Saved',
+        text: result.message || 'Cell saved successfully.',
+        timer: 1300,
+        showConfirmButton: false
+      });
     } catch (err) {
       console.error('saveMatrixCellValue:', err);
       applyMatrixCellDisplay(cell, originalAmount);
@@ -292,7 +299,9 @@
     }
 
     const currentAmount = Number(cell.dataset.amount) || 0;
-    const rawEdit = currentAmount === 0 ? '' : String(currentAmount);
+    const rawEdit = currentAmount === 0
+      ? ''
+      : formatDailyReportAmountInput(String(currentAmount), reportMode === 'winloss');
 
     cell.classList.add('is-editing');
     const input = document.createElement('input');
@@ -305,6 +314,10 @@
     matrixActiveEditor = { cell, input, originalAmount: currentAmount };
     input.focus();
     input.select();
+
+    input.addEventListener('input', () => {
+      input.value = formatDailyReportAmountInput(input.value, reportMode === 'winloss');
+    });
 
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -578,18 +591,35 @@
     if (!matrixTable || columnCount < 2) return;
     matrixTable.querySelectorAll('colgroup').forEach((el) => el.remove());
     const cg = document.createElement('colgroup');
-    const datePct = 7.5;
-    const totalPct = 7.5;
     const amountCols = columnCount - 2;
-    const amountPct = amountCols > 0 ? (100 - datePct - totalPct) / amountCols : 0;
-    const addCol = (pct) => {
+    const inModal = !!matrixTable.closest('#modal-dash-winloss-report');
+
+    const addCol = (width, unit = '%') => {
       const col = document.createElement('col');
-      col.style.width = `${pct}%`;
+      col.style.width = unit === 'px' ? `${width}px` : `${width}%`;
+      if (unit === 'px') col.style.minWidth = `${width}px`;
       cg.appendChild(col);
     };
-    addCol(datePct);
-    for (let i = 0; i < amountCols; i += 1) addCol(amountPct);
-    addCol(totalPct);
+
+    if (inModal && amountCols > 0) {
+      const datePct = 5;
+      const totalPct = 7;
+      const amountPct = (100 - datePct - totalPct) / amountCols;
+      matrixTable.style.minWidth = '';
+      matrixTable.style.width = '100%';
+      addCol(datePct);
+      for (let i = 0; i < amountCols; i += 1) addCol(amountPct);
+      addCol(totalPct);
+    } else {
+      const datePct = 7.5;
+      const totalPct = 7.5;
+      const amountPct = amountCols > 0 ? (100 - datePct - totalPct) / amountCols : 0;
+      matrixTable.style.minWidth = '';
+      addCol(datePct);
+      for (let i = 0; i < amountCols; i += 1) addCol(amountPct);
+      addCol(totalPct);
+    }
+
     const firstSection = matrixTable.querySelector('thead, tbody, tfoot');
     if (firstSection) {
       matrixTable.insertBefore(cg, firstSection);
@@ -838,7 +868,7 @@
       const grandTotalClass = `daily-report-total-col${getWinlossAmountClass(grandTotal)}`;
       tfoot.innerHTML = `
         <tr>
-          <th class="daily-report-date-col">GRAND TOTAL</th>
+          <th class="daily-report-date-col">TOTAL</th>
           ${totalCols}
           <th class="${grandTotalClass}">${formatMatrixAmountCell(grandTotal) || '0'}</th>
         </tr>

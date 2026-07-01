@@ -159,6 +159,80 @@ function refreshSelectedAgencyPanels() {
   });
 }
 
+function escapeHtmlAttr(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function downloadAgencyExportBlob(blob, filename) {
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+}
+
+function exportLineStatsReport(agencyId, lineName) {
+  var numericAgencyId = parseInt(agencyId, 10);
+  if (!numericAgencyId) return;
+
+  var $btn = $('.btn-export-line-stats[data-agency-id="' + numericAgencyId + '"]');
+  $btn.prop('disabled', true);
+
+  fetch('/agency/export_line_stats_xlsx', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ agencyId: numericAgencyId })
+  })
+    .then(function (res) {
+      var contentType = (res.headers.get('Content-Type') || '').toLowerCase();
+      if (!contentType.includes('spreadsheetml') && !contentType.includes('octet-stream')) {
+        return res.text().then(function (body) {
+          if (body && body.indexOf('<html') !== -1) {
+            throw new Error('Session expired. Please refresh the page and log in again.');
+          }
+          throw new Error('Export failed');
+        });
+      }
+      if (!res.ok) {
+        return res.json().catch(function () { return {}; }).then(function (j) {
+          throw new Error((j && j.error) ? j.error : 'Export failed');
+        });
+      }
+      var cd = res.headers.get('Content-Disposition');
+      var d = new Date();
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      var safeName = String(lineName || 'LINE').replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
+      var filename = safeName + '-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.xlsx';
+      if (cd) {
+        var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
+        if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+      }
+      return res.blob().then(function (blob) {
+        return { blob: blob, filename: filename };
+      });
+    })
+    .then(function (o) {
+      downloadAgencyExportBlob(o.blob, o.filename);
+    })
+    .catch(function (err) {
+      console.error('LINE stats export:', err);
+      Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed.' });
+    })
+    .finally(function () {
+      $btn.prop('disabled', false);
+    });
+}
+
 function syncAgentPanelTransferButton() {
   var per = parseInt($('#user-role').data('permissions'), 10);
   var $btnTransfer = $('#btn-agent-panel-transfer');
@@ -200,6 +274,14 @@ $(document).ready(function() {
 
   $('#btn-agent-panel-transfer').on('click', function () {
     openTransferForSelectedAgency();
+  });
+
+  $('#agency-grid').on('click', '.btn-export-line-stats', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var agencyId = $(this).data('agency-id');
+    var lineName = $(this).attr('data-line-name') || '';
+    exportLineStatsReport(agencyId, lineName);
   });
 
   $('#btn-line-panel-export').on('click', function () {
@@ -645,6 +727,14 @@ function renderPage(data, page = 1, perPage = 30) {
     const permissions = parseInt($('#user-role').data('permissions'));
     const actionsHtml = permissions !== 2 ? `
       <button type="button"
+        class="btn btn-sm agency-icon-btn btn-export-line-stats"
+        data-agency-id="${row.IDNo}"
+        data-line-name="${escapeHtmlAttr(row.AGENCY || '')}"
+        data-bs-toggle="tooltip"
+        title="Export LINE Stats">
+        <i class="fa fa-download"></i>
+      </button>
+      <button type="button"
         class="btn btn-sm agency-icon-btn"
         onclick="handleEditAgencyFromRow(${row.IDNo}, this)"
         data-bs-toggle="tooltip"
@@ -659,6 +749,9 @@ function renderPage(data, page = 1, perPage = 30) {
         <i class="fa fa-trash"></i>
       </button>
     ` : `
+      <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Export">
+        <i class="fa fa-download"></i>
+      </button>
       <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Edit">
         <i class="fa fa-pen"></i>
       </button>

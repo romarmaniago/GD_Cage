@@ -515,17 +515,12 @@ function formatChangeStatusCutoffDateDisplay(ymd) {
 	return raw;
 }
 
-function loadChangeStatusCutoffLastRolling(gameId) {
-	loadChangeStatusLastRollingForField(gameId, '#txtCutoffLastRolling');
-}
-
 function updateChangeStatusCutoffSection() {
 	var selectedStatus = $('#status').val();
 	if (isCutoffStatus(selectedStatus)) {
 		$('#cutoff-details-section').show();
 		ensureChangeStatusCutoffDatePicker();
 		syncCutoffFieldDisabledState();
-		loadChangeStatusCutoffLastRolling(game_id);
 	} else {
 		resetChangeStatusCutoffFields();
 	}
@@ -702,43 +697,6 @@ function getChangeStatusInGameProgramDateValue() {
 	}
 	var raw = (el.value || '').trim();
 	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
-}
-
-function loadChangeStatusInGameLastRolling(gameId) {
-	loadChangeStatusLastRollingForField(gameId, '#txtInGameLastRolling');
-}
-
-function loadChangeStatusLastRollingForField(gameId, fieldSelector) {
-	var $field = $(fieldSelector);
-	if (!$field.length || !gameId) {
-		return;
-	}
-	var currentVal = ($field.val() || '').toString().replace(/,/g, '').trim();
-	if (currentVal && currentVal !== 'Loading...') {
-		return;
-	}
-	$field.val('');
-	$.ajax({
-		url: '/game_list/' + encodeURIComponent(gameId) + '/rolling/last',
-		method: 'GET',
-		dataType: 'json',
-		success: function (response) {
-			if (($field.val() || '').toString().replace(/,/g, '').trim()) {
-				return;
-			}
-			var record = response && response.data;
-			if (!record) {
-				return;
-			}
-			var cc = parseFloat(record.CC_CHIPS) || 0;
-			var nn = parseFloat(record.NN_CHIPS) || 0;
-			if (cc > 0) {
-				$field.val(String(cc));
-			} else if (nn > 0) {
-				$field.val(String(nn));
-			}
-		}
-	});
 }
 
 function updateInGameExpectedSettlement() {
@@ -1016,7 +974,6 @@ function updateChangeStatusInGameSection() {
 		$('#ingame-settlement-section').show();
 		ensureChangeStatusInGameDatePicker();
 		syncInGameFieldDisabledState();
-		loadChangeStatusInGameLastRolling(game_id);
 		updateInGameExpectedSettlement();
 		updateChangeStatusInGameSidePanel();
 	} else {
@@ -5531,73 +5488,39 @@ $('#add_buyin').submit(function (event) {
 				return;
 			}
 
-			var tableCell = 'padding:4px 8px;';
-			var legTitleCell = tableCell + 'font-weight:600;text-align:center;vertical-align:middle;white-space:nowrap;';
-			var rowLabelCell = tableCell + 'font-weight:600;white-space:nowrap;';
-			var rowValueCell = tableCell + 'text-align:right;white-space:nowrap;';
-			var totalTitleCell = tableCell + 'font-weight:700;text-align:center;vertical-align:middle;white-space:nowrap;';
-			var totalMidCell = tableCell;
-			var totalValueCell = tableCell + 'font-weight:700;text-align:right;white-space:nowrap;';
-
-			var buildLegRows = function (legName, nnValue, ccValue) {
-				var parts = [];
-				if (nnValue > 0) parts.push({ label: 'NN', value: nnValue });
-				if (ccValue > 0) parts.push({ label: 'CC', value: ccValue });
-				if (parts.length === 0) return '';
-
-				if (parts.length === 1) {
-					return '<tr>' +
-						'<td style="' + legTitleCell + '">' + legName + '</td>' +
-						'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
-						'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString('en-US') + '<\/td>' +
-						'<\/tr>';
+			var pushCashoutLegRow = function (rows, name, chipType, amount) {
+				if (amount > 0) {
+					rows.push([name + ' ' + chipType, amount.toLocaleString('en-US')]);
 				}
-
-				var rows = '<tr>' +
-					'<td rowspan="' + parts.length + '" style="' + legTitleCell + '">' + legName + '<\/td>' +
-					'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
-					'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString('en-US') + '<\/td>' +
-					'<\/tr>';
-
-				for (var i = 1; i < parts.length; i++) {
-					rows += '<tr>' +
-						'<td style="' + rowLabelCell + '">' + parts[i].label + ':<\/td>' +
-						'<td style="' + rowValueCell + '">' + parts[i].value.toLocaleString('en-US') + '<\/td>' +
-						'<\/tr>';
-				}
-
-				return rows;
 			};
 
-			var splitRows = '';
-			if (totalChips > 0) {
-				splitRows += buildLegRows('Cash', nnCash, ccCash);
-				splitRows += buildLegRows('Deposit', nnDep, ccDep);
-				splitRows += buildLegRows('Credit', nnCredit, ccCredit);
-				splitRows += '<tr>' +
-					'<td style="' + totalTitleCell + '">Cash-out Total:<\/td>' +
-					'<td style="' + totalMidCell + '"><\/td>' +
-					'<td style="' + totalValueCell + '">' + totalChips.toLocaleString('en-US') + '<\/td>' +
-					'<\/tr>';
-			}
-			if (tipRollerTotal > 0) {
-				splitRows += buildLegRows('Tip (Roller)', tipRollerNn, tipRollerCc);
-			}
-			if (tipDealerTotal > 0) {
-				splitRows += buildLegRows('Tip (Dealer)', tipDealerNn, tipDealerCc);
-			}
-			if (tipTotal > 0) {
-				splitRows += '<tr>' +
-					'<td style="' + totalTitleCell + '">Tip Total:<\/td>' +
-					'<td style="' + totalMidCell + '"><\/td>' +
-					'<td style="' + totalValueCell + '">' + tipTotal.toLocaleString('en-US') + '<\/td>' +
-					'<\/tr>';
-			}
+			var cashoutConfirmRows = [];
+			var cashoutDetailRows = [];
+			pushCashoutLegRow(cashoutDetailRows, 'Cash', 'NN', nnCash);
+			pushCashoutLegRow(cashoutDetailRows, 'Cash', 'CC', ccCash);
+			pushCashoutLegRow(cashoutDetailRows, 'Deposit', 'NN', nnDep);
+			pushCashoutLegRow(cashoutDetailRows, 'Deposit', 'CC', ccDep);
+			pushCashoutLegRow(cashoutDetailRows, 'Credit', 'NN', nnCredit);
+			pushCashoutLegRow(cashoutDetailRows, 'Credit', 'CC', ccCredit);
 
-			var splitConfirmHtml =
-				'<div style="max-width:420px;margin:0 auto;text-align:left;">' +
-				'<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm cash-out transaction:</div>' +
-				'<table style="margin:0 auto;border-collapse:collapse;min-width:300px;">' + splitRows + '</table></div>';
+			var tipDetailRows = [];
+			pushCashoutLegRow(tipDetailRows, 'Tip (Roller)', 'NN', tipRollerNn);
+			pushCashoutLegRow(tipDetailRows, 'Tip (Roller)', 'CC', tipRollerCc);
+			pushCashoutLegRow(tipDetailRows, 'Tip (Dealer)', 'NN', tipDealerNn);
+			pushCashoutLegRow(tipDetailRows, 'Tip (Dealer)', 'CC', tipDealerCc);
+
+			cashoutConfirmRows = cashoutDetailRows.slice();
+			if (cashoutDetailRows.length && tipDetailRows.length) {
+				cashoutConfirmRows.push('spacer');
+			}
+			cashoutConfirmRows = cashoutConfirmRows.concat(tipDetailRows);
+			if (cashoutConfirmRows.length) {
+				cashoutConfirmRows.push('spacer');
+			}
+			cashoutConfirmRows.push([
+				'Total',
+				(totalChips + tipTotal).toLocaleString('en-US')
+			]);
 
 			var $formSplit = $(this);
 			var commonPayload = {
@@ -5608,17 +5531,11 @@ $('#add_buyin').submit(function (event) {
 				txtTotalRolling: $('#TotalRollingCashout').val()
 			};
 
-			Swal.fire({
-				icon: 'question',
+			SwalConfirm.fire({
 				title: 'Confirm Transaction',
-				html: splitConfirmHtml + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
-				showCancelButton: true,
-				confirmButtonText: 'Yes, Confirm',
-				cancelButtonText: 'Cancel',
-				confirmButtonColor: '#3085d6',
-				cancelButtonColor: '#d33',
-				allowOutsideClick: false,
-				allowEscapeKey: false
+				subtitle: 'Confirm cash-out transaction:',
+				rows: cashoutConfirmRows,
+				message: 'Are you sure you want to proceed?'
 			}).then(function (result) {
 				if (!result.isConfirmed) {
 					$btn.prop('disabled', false).html('Save');

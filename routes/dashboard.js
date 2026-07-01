@@ -42,7 +42,7 @@ function requireSuperAdmin(req, res, next) {
 
 const superAdminOnly = [checkSession, requireSuperAdmin];
 
-router.get("/dashboard", checkSession, async (req, res) => {
+async function renderDashboardPage(req, res, viewName) {
 	console.log("Session Data:", req.session);
 
 	const permissions = req.session.permissions;
@@ -872,7 +872,7 @@ let sqlServiceSettle = `
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
 
-		res.render('dashboard', {
+		res.render(viewName, {
 
 			username: req.session.username,
 			firstname: req.session.firstname,
@@ -991,7 +991,10 @@ let sqlServiceSettle = `
 		console.error(err);
 		res.status(500).send(err.message);
 	}
-});
+}
+
+router.get("/dashboard", checkSession, (req, res) => renderDashboardPage(req, res, 'dashboard'));
+router.get("/dashboard_legacy", checkSession, (req, res) => renderDashboardPage(req, res, 'dashboard_legacy'));
 
 
 router.get('/account_dashboard', async (req, res) => {
