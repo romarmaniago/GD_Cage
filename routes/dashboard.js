@@ -27,7 +27,7 @@ const {
 	isValidMonthKey,
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
-const { categorizeJunketExpenseTotals } = require('../utils/dashboardServiceBalance');
+const { categorizeDisplayExpenseTotals } = require('../utils/dashboardServiceBalance');
 
 function requireSuperAdmin(req, res, next) {
 	const p = req.session.permissions;
@@ -3537,19 +3537,36 @@ router.get('/dashboard_house_balances', checkSession, async (req, res) => {
 
 router.get('/dashboard/service_expense_balances', checkSession, async (req, res) => {
 	try {
-		const [depositRows] = await pool.execute(`
+		const [junketDepositRows] = await pool.execute(`
 			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 			FROM game_services
 			WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 			GROUP BY SERVICE_TYPE
 		`);
-		const [cashRows] = await pool.execute(`
+		const [junketCashRows] = await pool.execute(`
 			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 			FROM game_services
 			WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
 			GROUP BY SERVICE_TYPE
 		`);
-		res.json(categorizeJunketExpenseTotals(cashRows || [], depositRows || []));
+		const [guestDepositRows] = await pool.execute(`
+			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+			FROM game_services
+			WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+			GROUP BY SERVICE_TYPE
+		`);
+		const [guestCashRows] = await pool.execute(`
+			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+			FROM game_services
+			WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
+			GROUP BY SERVICE_TYPE
+		`);
+		res.json(categorizeDisplayExpenseTotals(
+			junketCashRows || [],
+			junketDepositRows || [],
+			guestCashRows || [],
+			guestDepositRows || []
+		));
 	} catch (err) {
 		console.error('dashboard/service_expense_balances:', err);
 		res.status(500).json({ error: 'Failed to load service expense balances.' });

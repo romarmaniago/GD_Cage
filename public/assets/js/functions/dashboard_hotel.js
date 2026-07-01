@@ -44,8 +44,12 @@ $(document).ready(function () {
 	}
 
 	function isHotelServiceType(serviceType) {
-		var raw = String(serviceType || '').trim().toLowerCase();
-		return raw === 'hotel' || raw.indexOf('hotel') !== -1;
+		return typeof window.matchesServiceCategory === 'function'
+			? window.matchesServiceCategory(serviceType, 'hotel')
+			: (function () {
+				var raw = String(serviceType || '').trim().toLowerCase();
+				return raw === 'hotel' || raw.indexOf('hotel') !== -1;
+			})();
 	}
 
 	function getDefaultDateRange() {

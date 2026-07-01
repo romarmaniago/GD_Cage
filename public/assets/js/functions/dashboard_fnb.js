@@ -44,11 +44,15 @@ $(document).ready(function () {
 	}
 
 	function isFnbServiceType(serviceType) {
-		var raw = String(serviceType || '').trim().toLowerCase();
-		if (!raw) return false;
-		if (raw === 'fnb' || raw === 'f & b') return true;
-		var compact = raw.replace(/\s+/g, '').replace(/&/g, '');
-		return compact === 'fb' || compact === 'fnb' || raw.indexOf('f&b') !== -1 || raw.indexOf('f & b') !== -1;
+		return typeof window.matchesServiceCategory === 'function'
+			? window.matchesServiceCategory(serviceType, 'fnb')
+			: (function () {
+				var raw = String(serviceType || '').trim().toLowerCase();
+				if (!raw) return false;
+				if (raw === 'fnb' || raw === 'f & b') return true;
+				var compact = raw.replace(/\s+/g, '').replace(/&/g, '');
+				return compact === 'fb' || compact === 'fnb' || raw.indexOf('f&b') !== -1 || raw.indexOf('f & b') !== -1;
+			})();
 	}
 
 	function getDefaultDateRange() {

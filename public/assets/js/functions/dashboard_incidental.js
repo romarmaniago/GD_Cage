@@ -44,9 +44,12 @@ $(document).ready(function () {
 	}
 
 	function isIncidentalServiceType(serviceType) {
-		var raw = String(serviceType || '').trim().toLowerCase();
-		if (!raw) return false;
-		return raw === 'incidental' || raw.indexOf('incidental') !== -1;
+		return typeof window.matchesServiceCategory === 'function'
+			? window.matchesServiceCategory(serviceType, 'incidental')
+			: (function () {
+				var raw = String(serviceType || '').trim().toLowerCase();
+				return raw === 'incidental' || raw.indexOf('incidental') !== -1;
+			})();
 	}
 
 	function getDefaultDateRange() {

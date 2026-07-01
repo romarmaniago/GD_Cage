@@ -25,6 +25,16 @@ function sumServiceRows(rows, category) {
    return total;
 }
 
+function signedServiceBalance(category) {
+   var guestIn = sumServiceRows(sqlServiceCashGuest, category) + sumServiceRows(sqlServiceDepositGuest, category);
+   var junketOut = sumServiceRows(sqlServiceCashJunket, category) + sumServiceRows(sqlServiceDepositJunket, category);
+   return guestIn - junketOut;
+}
+
+function junketServiceOut(category) {
+   return sumServiceRows(sqlServiceCashJunket, category) + sumServiceRows(sqlServiceDepositJunket, category);
+}
+
 function sumAllServiceRows(rows) {
    if (!rows || !rows.length) return 0;
    return rows.reduce((sum, row) => sum + (+row.TOTAL || 0), 0);
@@ -145,14 +155,14 @@ const creditTotal =
    (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
    (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0);
 
-const fnbDeposit = sumServiceRows(sqlServiceDepositJunket, 'fnb');
-const hotelDeposit = sumServiceRows(sqlServiceDepositJunket, 'hotel');
-const deliveryDeposit = sumServiceRows(sqlServiceDepositJunket, 'delivery');
-const incidentalDeposit = sumServiceRows(sqlServiceDepositJunket, 'incidental');
-const fnbBalance = fnbDeposit + sumServiceRows(sqlServiceCashJunket, 'fnb');
-const hotelBalance = hotelDeposit + sumServiceRows(sqlServiceCashJunket, 'hotel');
-const deliveryBalance = deliveryDeposit + sumServiceRows(sqlServiceCashJunket, 'delivery');
-const incidentalBalance = incidentalDeposit + sumServiceRows(sqlServiceCashJunket, 'incidental');
+const fnbBalance = signedServiceBalance('fnb');
+const hotelBalance = signedServiceBalance('hotel');
+const deliveryBalance = signedServiceBalance('delivery');
+const incidentalBalance = signedServiceBalance('incidental');
+const fnbJunketOut = junketServiceOut('fnb');
+const hotelJunketOut = junketServiceOut('hotel');
+const deliveryJunketOut = junketServiceOut('delivery');
+const incidentalJunketOut = junketServiceOut('incidental');
 
 const wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : 65;
 const wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
@@ -162,10 +172,10 @@ const companyExpenseTotal =
    expenseReset +
    junketLossAmount +
    commissionSettlement +
-   fnbDeposit +
-   hotelDeposit +
-   deliveryDeposit +
-   incidentalDeposit;
+   fnbJunketOut +
+   hotelJunketOut +
+   deliveryJunketOut +
+   incidentalJunketOut;
 
 const grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
 

@@ -44,10 +44,14 @@ $(document).ready(function () {
 	}
 
 	function isDeliveryServiceType(serviceType) {
-		var raw = String(serviceType || '').trim().toLowerCase();
-		if (!raw) return false;
-		if (raw === 'incidental' || raw.indexOf('incidental') !== -1) return false;
-		return raw === 'delivery' || raw.indexOf('delivery') !== -1;
+		return typeof window.matchesServiceCategory === 'function'
+			? window.matchesServiceCategory(serviceType, 'delivery')
+			: (function () {
+				var raw = String(serviceType || '').trim().toLowerCase();
+				if (!raw) return false;
+				if (raw === 'incidental' || raw.indexOf('incidental') !== -1) return false;
+				return raw === 'delivery' || raw.indexOf('delivery') !== -1;
+			})();
 	}
 
 	function getDefaultDateRange() {

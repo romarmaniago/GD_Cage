@@ -1,7 +1,8 @@
 var SERVICE_CATEGORY_LEGACY_LABELS = {
 	fnb: 'F & B',
 	hotel: 'Hotel',
-	delivery: 'Delivery'
+	delivery: 'Delivery',
+	incidental: 'Incidental'
 };
 
 function escapeServiceCategoryOption(value) {
@@ -16,6 +17,27 @@ function normalizeServiceCategoryLabel(value) {
 	var raw = String(value || '').trim();
 	if (!raw) return '';
 	return SERVICE_CATEGORY_LEGACY_LABELS[raw.toLowerCase()] || raw;
+}
+
+function matchesServiceCategory(serviceType, category) {
+	var raw = String(serviceType || '').trim().toLowerCase();
+	if (!raw || !category) return false;
+
+	switch (String(category).toLowerCase()) {
+		case 'fnb':
+			if (raw === 'fnb' || raw === 'f & b') return true;
+			var compact = raw.replace(/\s+/g, '').replace(/&/g, '');
+			return compact === 'fb' || compact === 'fnb' || raw.indexOf('f&b') !== -1 || raw.indexOf('f & b') !== -1;
+		case 'hotel':
+			return raw === 'hotel' || raw.indexOf('hotel') !== -1;
+		case 'delivery':
+			if (raw === 'incidental' || raw.indexOf('incidental') !== -1) return false;
+			return raw === 'delivery' || raw.indexOf('delivery') !== -1;
+		case 'incidental':
+			return raw === 'incidental' || raw.indexOf('incidental') !== -1;
+		default:
+			return raw.indexOf(String(category).toLowerCase()) !== -1;
+	}
 }
 
 function populateServiceCategorySelect($select, selectedValue) {
@@ -63,6 +85,7 @@ function populateServiceCategorySelect($select, selectedValue) {
 
 window.populateServiceCategorySelect = populateServiceCategorySelect;
 window.populateFnbHotelServiceTypeSelect = populateServiceCategorySelect;
+window.matchesServiceCategory = matchesServiceCategory;
 
 window.refreshServiceCategorySelects = function () {
 	var newVal = $('#new-services-type').val() || '';
