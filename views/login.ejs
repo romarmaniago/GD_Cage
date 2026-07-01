@@ -3,6 +3,9 @@
 <section class="login-content gd-login-content">
     <div class="gd-login-center-wrap">
       <div class="gd-login-card">
+            <div class="gd-login-card-shine" aria-hidden="true"></div>
+            <div class="gd-login-card-frame" aria-hidden="true"></div>
+            <div class="gd-login-card-inner">
             <div class="text-center mb-4">
               <img src="/assets/images/GD-logo.png" alt="Golden Dragon" class="gd-login-logo mb-3">
               <h2 class="gd-login-title mb-1">Sign In</h2>
@@ -55,6 +58,7 @@
                 <button type="submit" class="btn btn-lg bg-gradient-gold gd-login-btn">Sign In</button>
               </div>
             </form>
+            </div>
       </div>
     </div>
 </section>
@@ -65,34 +69,40 @@
   }
 
   .gd-login-page {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
     background: #0b0b0b;
   }
 
   .gd-login-content {
     min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(180deg, #0f0d0a 0%, #0b0b0b 45%, #000000 100%);
+    background: #0b0b0b;
   }
 
   .gd-login-content::before {
     content: "";
     position: absolute;
-    right: 26%;
-    top: 50%;
-    transform: translateY(-50%);
-    width: min(72vw, 650px);
-    height: min(72vw, 650px);
-    background: url("/assets/images/gd-background-logo.png") center center / contain no-repeat;
-    opacity: 0.08;
+    inset: 0;
+    background: url("/assets/images/gd-background-logo.png") center center / cover no-repeat;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, transparent 50%, #000 50%, #000 100%);
-    mask-image: linear-gradient(to right, transparent 0%, transparent 50%, #000 50%, #000 100%);
+  }
+
+  .gd-login-content::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
   }
 
   .gd-login-center-wrap {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -101,15 +111,105 @@
   }
 
   .gd-login-card {
+    position: relative;
     width: 100%;
     max-width: 420px;
-    padding: 2.25rem 2rem;
-    border-radius: 1rem;
-    background: linear-gradient(160deg, #121212 0%, #0a0a0a 100%);
-    border: 1px solid rgba(200, 162, 76, 0.35);
+    padding: 3px;
+    border-radius: 1.35rem;
+    background: linear-gradient(145deg, rgba(241, 212, 138, 0.95) 0%, rgba(138, 109, 47, 0.85) 38%, rgba(212, 175, 90, 0.9) 68%, rgba(90, 68, 24, 0.95) 100%);
     box-shadow:
-      0 20px 50px rgba(0, 0, 0, 0.45),
-      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+      0 28px 60px rgba(0, 0, 0, 0.55),
+      0 0 48px rgba(200, 162, 76, 0.14);
+    overflow: hidden;
+  }
+
+  .gd-login-card-shine {
+    display: none;
+  }
+
+  .gd-login-card-frame {
+    position: absolute;
+    inset: 10px;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(212, 175, 90, 0.22);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .gd-login-card-frame::before,
+  .gd-login-card-frame::after {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: rgba(241, 212, 138, 0.75);
+    border-style: solid;
+    pointer-events: none;
+  }
+
+  .gd-login-card-frame::before {
+    top: -1px;
+    left: -1px;
+    border-width: 2px 0 0 2px;
+    border-radius: 0.55rem 0 0 0;
+  }
+
+  .gd-login-card-frame::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 2px 2px 0;
+    border-radius: 0 0 0.55rem 0;
+  }
+
+  .gd-login-card-inner {
+    position: relative;
+    z-index: 2;
+    padding: 2.35rem 2rem 2.15rem;
+    border-radius: 1.15rem;
+    background: linear-gradient(160deg, #121212 0%, #0a0a0a 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .gd-login-card-inner::before,
+  .gd-login-card-inner::after {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: rgba(241, 212, 138, 0.75);
+    border-style: solid;
+    pointer-events: none;
+  }
+
+  .gd-login-card-inner::before {
+    top: 10px;
+    right: 10px;
+    border-width: 2px 2px 0 0;
+    border-radius: 0 0.55rem 0 0;
+  }
+
+  .gd-login-card-inner::after {
+    bottom: 10px;
+    left: 10px;
+    border-width: 0 0 2px 2px;
+    border-radius: 0 0 0 0.55rem;
+  }
+
+  .gd-login-card-inner > .text-center {
+    position: relative;
+    padding-bottom: 1.35rem;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .gd-login-card-inner > .text-center::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: min(72%, 220px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 90, 0.75), transparent);
   }
 
   .gd-login-logo {
