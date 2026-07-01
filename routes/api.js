@@ -186,7 +186,7 @@ async function getRealtimeData() {
     [rRollerNNSubtract], [rRollerNNAdd], [rRollerCCSubtract], [rRollerCCAdd],
     [rCashDeposit], [rCashWithdraw], [rJunketExpense], [rNNChipsBuyin], [rAccountDeposit], [rSettlementDeposit],
     [rAccountWithdraw], [rNNChipsAccountCash], [rCCChipsBuyinCashOnly], [rTotalCashOut], [rAccountSettlement],
-    [rAccountServicesDeduct], [rAccountTransfer], [rMArkerReturnCash], [rReturnMoney],
+    [rAccountServicesDeduct], [rAccountTransfer], [rMArkerReturnCash],
     [rAccountDeduct], [rMarkerIssueAccount], [rMArkerReturnDeposit]
   ] = await Promise.all([
     pool.execute('SELECT SUM(TOTAL_CHIPS) AS TotalChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
@@ -218,7 +218,6 @@ async function getRealtimeData() {
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT_SERVICES FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='SERVICES' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_TRANSFER FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=1 AND account_ledger.TRANSFER=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=11 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute('SELECT SUM(rm.AMOUNT) AS RETURN_MONEY FROM junket_return_money rm WHERE rm.ACTIVE=1'),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS','SERVICES') AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=3 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=12 AND account.ACTIVE=1 AND agent.ACTIVE=1`)
@@ -269,7 +268,6 @@ async function getRealtimeData() {
   const ServiceDepositJunket = rowVal(rServiceDepositJunket, 'TOTAL');
   const ACCOUNT_TRANSFER = rowVal(rAccountTransfer, 'ACCOUNT_TRANSFER');
   const MARKER_RETURN_CASH = rowVal(rMArkerReturnCash, 'MARKER_RETURN_CASH');
-  const RETURN_MONEY = rowVal(rReturnMoney, 'RETURN_MONEY');
 
   const cash_balance = await computeCashBalance();
 

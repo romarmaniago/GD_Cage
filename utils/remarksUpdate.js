@@ -27,12 +27,6 @@ const REMARKS_TABLES = {
 		activeCol: 'ACTIVE',
 		activeValue: 1
 	},
-	junket_return_money: {
-		table: 'junket_return_money',
-		column: 'DESCRIPTION',
-		activeCol: 'ACTIVE',
-		activeValue: 1
-	},
 	junket_total_chips: {
 		table: 'junket_total_chips',
 		column: 'DESCRIPTION',

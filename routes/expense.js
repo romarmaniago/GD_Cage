@@ -633,40 +633,6 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					WHERE e.ACTIVE = 1
 						AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
 					
-					UNION ALL
-					
-					SELECT 
-						rm.IDNo,
-						NULL AS CATEGORY_ID,
-						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-						NULL AS DATE_TIME,
-						rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
-						1 AS APPROVAL_STATUS,
-						rm.AMOUNT,
-						NULL AS KM_L,
-						NULL AS VEHICLE_ID,
-						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
-						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-						rm.ENCODED_BY,
-						rm.ENCODED_DT,
-						rm.EDITED_BY,
-						rm.EDITED_DT,
-						rm.ACTIVE,
-						NULL AS RESET,
-						0 AS EDIT_LOG_COUNT,
-						rm.IDNo AS expense_id,
-						NULL AS expense_category_id,
-						'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-						0 AS expense_type,
-						COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-						'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-					FROM junket_return_money rm
-					LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-					WHERE rm.ACTIVE = 1
-						AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
-					
 					ORDER BY ENCODED_DT DESC
 				`;
 				const [result] = await pool.execute(query);
@@ -724,42 +690,6 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						WHERE e.ACTIVE = 1
 							AND eds.SETTLEMENT_DATE = ?
 						
-						UNION ALL
-						
-						SELECT 
-							rm.IDNo,
-							NULL AS CATEGORY_ID,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-							NULL AS DATE_TIME,
-							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
-							1 AS APPROVAL_STATUS,
-							rm.AMOUNT,
-							NULL AS KM_L,
-							NULL AS VEHICLE_ID,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-							rm.ENCODED_BY,
-							rm.ENCODED_DT,
-							rm.EDITED_BY,
-							rm.EDITED_DT,
-							rm.ACTIVE,
-							NULL AS RESET,
-							0 AS EDIT_LOG_COUNT,
-							rm.IDNo AS expense_id,
-							NULL AS expense_category_id,
-							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-							0 AS expense_type,
-							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-						FROM junket_return_money rm
-						LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-						JOIN expense_daily_settlement_items edsi2 ON edsi2.EXPENSE_ID = rm.IDNo AND edsi2.EXPENSE_TYPE = 'return_money'
-						JOIN expense_daily_settlement eds2 ON edsi2.DAILY_SETTLEMENT_ID = eds2.IDNo AND eds2.ACTIVE = 1
-						WHERE rm.ACTIVE = 1
-							AND eds2.SETTLEMENT_DATE = ?
-						
 						ORDER BY ENCODED_DT DESC
 					`;
 					const [result] = await pool.execute(query, [date, date]);
@@ -811,40 +741,6 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 						WHERE e.ACTIVE = 1
 							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
-						
-						UNION ALL
-						
-						SELECT 
-							rm.IDNo,
-							NULL AS CATEGORY_ID,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-							NULL AS DATE_TIME,
-							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
-							1 AS APPROVAL_STATUS,
-							rm.AMOUNT,
-							NULL AS KM_L,
-							NULL AS VEHICLE_ID,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
-							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-							rm.ENCODED_BY,
-							rm.ENCODED_DT,
-							rm.EDITED_BY,
-							rm.EDITED_DT,
-							rm.ACTIVE,
-							NULL AS RESET,
-							0 AS EDIT_LOG_COUNT,
-							rm.IDNo AS expense_id,
-							NULL AS expense_category_id,
-							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-							0 AS expense_type,
-							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-						FROM junket_return_money rm
-						LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-						WHERE rm.ACTIVE = 1
-							AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
 						
 						ORDER BY ENCODED_DT DESC
 					`;
@@ -909,44 +805,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			WHERE e.ACTIVE = 1
 				AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
 			
-			UNION ALL
-			
-			SELECT 
-				rm.IDNo,
-				NULL AS CATEGORY_ID,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-				NULL AS DATE_TIME,
-				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIVER,
-				1 AS APPROVAL_STATUS,
-				rm.AMOUNT,
-				NULL AS KM_L,
-				NULL AS VEHICLE_ID,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_plate,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS vehicle_model,
-				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-				rm.ENCODED_BY,
-				rm.ENCODED_DT,
-				rm.EDITED_BY,
-				rm.EDITED_DT,
-				rm.ACTIVE,
-				NULL AS RESET,
-				0 AS EDIT_LOG_COUNT,
-				rm.IDNo AS expense_id,
-				NULL AS expense_category_id,
-				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-				0 AS expense_type,
-				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-			FROM junket_return_money rm
-			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-			WHERE rm.ACTIVE = 1
-				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
-			
 			ORDER BY ENCODED_DT DESC
 		`;
 
-		const [result] = await pool.execute(query, [fromDate, toDate, fromDate, toDate]);
+		const [result] = await pool.execute(query, [fromDate, toDate]);
 
 		const updatedResult = result.map(expense => ({
 			...expense,
@@ -1275,204 +1137,6 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 	}
 });
 
-// ADD RETURN MONEY
-router.post('/add_return_money', async (req, res) => {
-	try {
-		const {
-			txtDescription,
-			txtAmount
-		} = req.body;
-
-		const date_now = new Date();
-		const description = txtDescription || null;
-		// Remove commas and parse to float
-		const amountStr = txtAmount ? String(txtAmount).replace(/,/g, '').trim() : '0';
-		const amount = parseFloat(amountStr) || 0;
-		const encodedBy = req.session?.user_id || null;
-
-		const query = `
-			INSERT INTO junket_return_money
-			(DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT)
-			VALUES (?, ?, ?, ?, ?)
-		`;
-
-		// Determine DAILY_SETTLEMENT status based on latest settlement
-		let dailySettlementStatus = 1; // Default: unsettled
-		try {
-			const todayStr = new Date().toISOString().slice(0, 10);
-			const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-			const [latestSettlement] = await pool.execute(
-				`SELECT RUN_AT FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-				[firstOfMonth, todayStr]
-			);
-			
-			if (latestSettlement.length > 0) {
-				const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
-					? latestSettlement[0].RUN_AT 
-					: new Date(latestSettlement[0].RUN_AT);
-				const returnMoneyCreatedAt = date_now instanceof Date ? date_now : new Date(date_now);
-				
-				// If return money created before settlement run, it's pending
-				// Otherwise, mark as unsettled (will be in next settlement)
-				if (returnMoneyCreatedAt < settlementRunTime) {
-					dailySettlementStatus = 1;
-				} else {
-					dailySettlementStatus = 1;
-				}
-			}
-		} catch (e) {
-			// If error, default to unsettled
-			dailySettlementStatus = 1;
-		}
-
-		const [insertResult] = await pool.execute(query, [
-			description,
-			amount,
-			encodedBy,
-			date_now,
-			dailySettlementStatus
-		]);
-
-		// Telegram to Management: return money added with details
-		try {
-			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
-			const encodedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
-			const dateFormatted = formatDateDisplay(date_now);
-			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-			const addReturnMsg =
-				'Demo Cage\n\n💸 * Return Money (ADDED) *\n\n' +
-				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
-				`Description: ${description || 'N/A'}\n` +
-				`Encoded By: ${encodedByName}\n` +
-				`Date & Time: ${dateFormatted} ${timeFormatted}`;
-			await sendTelegramToEmployees(addReturnMsg);
-		} catch (telegramError) {
-			console.error('Error sending Telegram (return money add):', telegramError);
-		}
-
-		res.json({ success: true, message: 'Return money added successfully' });
-	} catch (err) {
-		console.error('Error inserting return money:', err);
-		res.status(500).json({ error: 'Error inserting return money' });
-	}
-});
-
-// EDIT RETURN MONEY
-router.put('/edit_return_money/:id', async (req, res) => {
-	try {
-		const id = parseInt(req.params.id);
-		const {
-			txtDescription,
-			txtAmount
-		} = req.body;
-
-		const date_now = new Date();
-		const description = txtDescription || null;
-		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
-
-		// Get previous amount before updating (for Telegram \"before amount\")
-		const [oldRmRows] = await pool.execute(
-			'SELECT AMOUNT FROM junket_return_money WHERE IDNo = ? LIMIT 1',
-			[id]
-		);
-		const oldReturnAmount = oldRmRows.length > 0 ? Number(oldRmRows[0].AMOUNT) : null;
-
-		const query = `
-			UPDATE junket_return_money 
-			SET DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
-			WHERE IDNo = ?
-		`;
-
-		await pool.execute(query, [
-			description,
-			amount,
-			req.session.user_id,
-			date_now,
-			id
-		]);
-
-		// Telegram to Management: return money edited with details
-		try {
-			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
-			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
-			const dateFormatted = formatDateDisplay(date_now);
-			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString('en-US')}\n` : '';
-			const editReturnMsg =
-				'Demo Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
-				beforeAmountLabel +
-				`New Amount: ₱${amount.toLocaleString('en-US')}\n` +
-				`Description: ${description || 'N/A'}\n` +
-				`Edited By: ${editedByName}\n` +
-				`Date & Time: ${dateFormatted} ${timeFormatted}`;
-			await sendTelegramToEmployees(editReturnMsg);
-		} catch (telegramError) {
-			console.error('Error sending Telegram (return money edit):', telegramError);
-		}
-
-		res.json({ success: true, message: 'Return money updated successfully' });
-	} catch (err) {
-		console.error('Error updating return money:', err);
-		res.status(500).json({ error: 'Error updating return money' });
-	}
-});
-
-// DELETE RETURN MONEY
-router.put('/remove_return_money/:id', async (req, res) => {
-	try {
-		const id = parseInt(req.params.id);
-		const date_now = new Date();
-
-		// Fetch return money details before delete for Telegram
-		const [rmRows] = await pool.execute(
-			'SELECT DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT FROM junket_return_money WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
-			[id]
-		);
-		const rm = rmRows[0];
-		const desc = rm ? (rm.DESCRIPTION || 'N/A') : 'N/A';
-		const amount = rm ? Number(rm.AMOUNT) : 0;
-		let encodedByName = 'N/A';
-		if (rm && rm.ENCODED_BY) {
-			const [u] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [rm.ENCODED_BY]);
-			encodedByName = u.length > 0 ? (u[0].FIRSTNAME || 'N/A') : 'N/A';
-		}
-		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
-		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
-		let dateTimeStr = 'N/A';
-		if (rm && rm.ENCODED_DT) {
-			const d = rm.ENCODED_DT instanceof Date ? rm.ENCODED_DT : new Date(rm.ENCODED_DT);
-			dateTimeStr = formatDateTimeDisplay(d);
-		}
-
-		const query = `
-			UPDATE junket_return_money 
-			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
-			WHERE IDNo = ?
-		`;
-
-		await pool.execute(query, [0, req.session.user_id, date_now, id]);
-
-		// Telegram to Management: return money deleted with details
-		try {
-			const deleteReturnMsg =
-				'Demo Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
-				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
-				`Description: ${desc}\n` +
-				`Encoded By: ${encodedByName}\n` +
-				`Date & Time: ${dateTimeStr}\n` +
-				`Deleted By: ${editedByName}`;
-			await sendTelegramToEmployees(deleteReturnMsg);
-		} catch (telegramError) {
-			console.error('Error sending Telegram (return money delete):', telegramError);
-		}
-
-		res.json({ success: true, message: 'Return money deleted successfully' });
-	} catch (err) {
-		console.error('Error deleting return money:', err);
-		res.status(500).json({ error: 'Error deleting return money' });
-	}
-});
-
 // ======================= EXPENSE DAILY SETTLEMENT ==================
 
 // GET expense settlement info (default date and settled dates)
@@ -1535,7 +1199,7 @@ function normalizeExpenseSettlementItems(body) {
 
 	if (Array.isArray(body?.items)) {
 		body.items.forEach((item) => {
-			const type = item?.type === 'return_money' ? 'return_money' : 'expense';
+			const type = 'expense';
 			const id = parseInt(item?.id, 10);
 			if (!Number.isInteger(id) || id <= 0) return;
 			const key = `${type}:${id}`;
@@ -1558,7 +1222,6 @@ function normalizeExpenseSettlementItems(body) {
 	};
 
 	addIds(body?.expense_ids, 'expense');
-	addIds(body?.return_money_ids, 'return_money');
 
 	return items;
 }
@@ -1580,7 +1243,7 @@ async function cleanupEmptyExpenseSettlements(connection, settlementIds) {
 	}
 }
 
-// POST assign expenses/return money to settlement date (Game Book-style transfer)
+// POST assign expenses to settlement date (Game Book-style transfer)
 router.post('/expense_daily_settlement/transfer', checkSession, async (req, res) => {
 	const encodedBy = req.session?.user_id;
 	if (!encodedBy) {
@@ -1589,7 +1252,7 @@ router.post('/expense_daily_settlement/transfer', checkSession, async (req, res)
 
 	const requestedItems = normalizeExpenseSettlementItems(req.body);
 	if (requestedItems.length === 0) {
-		return res.status(400).json({ error: 'At least one expense or return money record is required.' });
+		return res.status(400).json({ error: 'At least one expense record is required.' });
 	}
 
 	const settlementDate = req.body && req.body.settlement_date ? String(req.body.settlement_date).slice(0, 10) : null;
@@ -1605,7 +1268,6 @@ router.post('/expense_daily_settlement/transfer', checkSession, async (req, res)
 		await connection.beginTransaction();
 
 		const requestedExpenseIds = requestedItems.filter((item) => item.type === 'expense').map((item) => item.id);
-		const requestedReturnMoneyIds = requestedItems.filter((item) => item.type === 'return_money').map((item) => item.id);
 		const okItems = [];
 
 		if (requestedExpenseIds.length > 0) {
@@ -1617,19 +1279,11 @@ router.post('/expense_daily_settlement/transfer', checkSession, async (req, res)
 			(expenseRows || []).forEach((row) => okItems.push({ type: 'expense', id: row.IDNo }));
 		}
 
-		if (requestedReturnMoneyIds.length > 0) {
-			const placeholders = requestedReturnMoneyIds.map(() => '?').join(',');
-			const [returnMoneyRows] = await connection.execute(
-				`SELECT IDNo FROM junket_return_money WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
-				requestedReturnMoneyIds
-			);
-			(returnMoneyRows || []).forEach((row) => okItems.push({ type: 'return_money', id: row.IDNo }));
-		}
 
 		if (okItems.length === 0) {
 			await connection.rollback();
 			connection.release();
-			return res.status(400).json({ error: 'No matching active expense or return money records found.' });
+			return res.status(400).json({ error: 'No matching active expense records found.' });
 		}
 
 		const affectedSettlementIds = [];
@@ -1701,14 +1355,6 @@ router.post('/expense_daily_settlement/transfer', checkSession, async (req, res)
 			);
 		}
 
-		const okReturnMoneyIds = okItems.filter((item) => item.type === 'return_money').map((item) => item.id);
-		if (okReturnMoneyIds.length > 0) {
-			const placeholders = okReturnMoneyIds.map(() => '?').join(',');
-			await connection.execute(
-				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 2 WHERE IDNo IN (${placeholders})`,
-				okReturnMoneyIds
-			);
-		}
 
 		await connection.execute(
 			`UPDATE expense_daily_settlement SET ENCODED_BY = ?, STATUS = 'finalized' WHERE IDNo = ?`,
@@ -1723,7 +1369,6 @@ router.post('/expense_daily_settlement/transfer', checkSession, async (req, res)
 			settlement_date: settlementDate,
 			settlement_id: settlementId,
 			expense_count: okExpenseIds.length,
-			return_money_count: okReturnMoneyIds.length,
 			total_count: okItems.length
 		});
 	} catch (err) {
@@ -1744,7 +1389,7 @@ router.post('/expense_daily_settlement/release', checkSession, async (req, res) 
 
 	const requestedItems = normalizeExpenseSettlementItems(req.body);
 	if (requestedItems.length === 0) {
-		return res.status(400).json({ error: 'At least one expense or return money record is required.' });
+		return res.status(400).json({ error: 'At least one expense record is required.' });
 	}
 
 	const nowForToday = new Date();
@@ -1757,7 +1402,6 @@ router.post('/expense_daily_settlement/release', checkSession, async (req, res) 
 		await connection.beginTransaction();
 
 		const requestedExpenseIds = requestedItems.filter((item) => item.type === 'expense').map((item) => item.id);
-		const requestedReturnMoneyIds = requestedItems.filter((item) => item.type === 'return_money').map((item) => item.id);
 		const okItems = [];
 
 		if (requestedExpenseIds.length > 0) {
@@ -1769,19 +1413,11 @@ router.post('/expense_daily_settlement/release', checkSession, async (req, res) 
 			(expenseRows || []).forEach((row) => okItems.push({ type: 'expense', id: row.IDNo }));
 		}
 
-		if (requestedReturnMoneyIds.length > 0) {
-			const placeholders = requestedReturnMoneyIds.map(() => '?').join(',');
-			const [returnMoneyRows] = await connection.execute(
-				`SELECT IDNo FROM junket_return_money WHERE IDNo IN (${placeholders}) AND ACTIVE = 1 FOR UPDATE`,
-				requestedReturnMoneyIds
-			);
-			(returnMoneyRows || []).forEach((row) => okItems.push({ type: 'return_money', id: row.IDNo }));
-		}
 
 		if (okItems.length === 0) {
 			await connection.rollback();
 			connection.release();
-			return res.status(400).json({ error: 'No matching active expense or return money records found.' });
+			return res.status(400).json({ error: 'No matching active expense records found.' });
 		}
 
 		const linkedParams = [];
@@ -1839,14 +1475,6 @@ router.post('/expense_daily_settlement/release', checkSession, async (req, res) 
 			);
 		}
 
-		const okReturnMoneyIds = okItems.filter((item) => item.type === 'return_money').map((item) => item.id);
-		if (okReturnMoneyIds.length > 0) {
-			const placeholders = okReturnMoneyIds.map(() => '?').join(',');
-			await connection.execute(
-				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo IN (${placeholders})`,
-				[encodedBy, ...okReturnMoneyIds]
-			);
-		}
 
 		await cleanupEmptyExpenseSettlements(connection, affectedSettlementIds);
 
@@ -1855,7 +1483,6 @@ router.post('/expense_daily_settlement/release', checkSession, async (req, res) 
 		return res.json({
 			success: true,
 			expense_count: okExpenseIds.length,
-			return_money_count: okReturnMoneyIds.length,
 			total_count: okItems.length
 		});
 	} catch (err) {

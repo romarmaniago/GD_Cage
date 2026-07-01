@@ -111,7 +111,6 @@
          sumAllServiceRows(sqlServiceCashGuest) +
          sumAllServiceRows(sqlServiceDepositGuest) +
          (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-         (+sqlReturnMoney[0].RETURN_MONEY || 0) +
          (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
 
       var cashOutTotal =
@@ -162,6 +161,7 @@
 
       var houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
       var commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
+      var additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0);
       var expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
       var junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
       var junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
@@ -196,6 +196,7 @@
          expenseReset +
          junketLossAmount +
          commissionSettlement +
+         additionalCommissionSettlement +
          fnbJunketOut +
          hotelJunketOut +
          deliveryJunketOut +
@@ -266,8 +267,8 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                      <div class="dash-kv-group-title">Settlement</div>
-                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtAmt(commissionSettlement) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value">0</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value" id="dash-additional-commission-total"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
                      <div class="dash-kv-group-title is-muted">Deposit Of Expenses</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb"><%- fmtAmt(fnbBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel"><%- fmtAmt(hotelBalance) %></span></div>
@@ -292,6 +293,7 @@
                data-win-loss="<%= winLossTotal %>"
                data-service-settle="<%= serviceSettleTotal %>"
                data-company-expense="<%= companyExpenseTotal %>"
+               data-additional-commission="<%= additionalCommissionSettlement %>"
                data-month-key="<%= dashboardMonthKey || '' %>"
                data-wl-rate="<%= wlSharePct %>"
                data-wl-default="<%= dashboardWlShareDefault || 65 %>">
@@ -320,7 +322,7 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total-anticipated"><%- fmtNeg(expenseReset) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value">0</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value" id="dash-additional-commission-anticipated"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb"><%- fmtAmt(fnbBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel"><%- fmtAmt(hotelBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental"><%- fmtAmt(incidentalBalance) %></span></div>
@@ -418,7 +420,7 @@
                      </div>
                      <div class="dash-stat-card">
                         <div class="dash-stat-label"><%= __('dashboard.commission') %></div>
-                        <div class="dash-stat-value" id="comms">₱ <%- commissionSettlement.toLocaleString() %></div>
+                        <div class="dash-stat-value" id="comms">₱ <%- commissionSettlement ? '(' + commissionSettlement.toLocaleString() + ')' : '0' %></div>
                      </div>
                      <div class="dash-stat-card">
                         <div class="dash-stat-label"><%= __('dashboard.credit') %></div>
@@ -583,8 +585,6 @@
 <%- include ('modals/dashboard/house_expense') %>
 <%- include ('modals/dashboard/commission') %>
 <%- include ('modals/dashboard/additional_commission') %>
-<%- include ('modals/junket/edit_return_money') %>
-<%- include ('modals/junket/new_return_money') %>
 <%- include ('modals/junket/edit_house_expense') %>
 <%- include ('modals/junket/new_house_expense') %>
 <%- include ('modals/junket/house_expense_edit_history') %>

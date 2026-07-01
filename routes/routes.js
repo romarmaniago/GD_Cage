@@ -3124,48 +3124,20 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
         WHERE e.ACTIVE = 1
           AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
         
-        UNION ALL
-        
-        SELECT 
-            rm.IDNo,
-            NULL AS CATEGORY_ID,
-            CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
-            NULL AS DATE_TIME,
-            rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
-            rm.AMOUNT,
-            CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
-            rm.ENCODED_BY,
-            rm.ENCODED_DT,
-            rm.EDITED_BY,
-            rm.EDITED_DT,
-            rm.ACTIVE,
-            NULL AS RESET,
-            0 AS EDIT_LOG_COUNT,
-            rm.IDNo AS expense_id,
-            NULL AS expense_category_id,
-            'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-            0 AS expense_type,
-            COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
-            'return_money' COLLATE utf8mb4_unicode_ci AS record_type
-        FROM junket_return_money rm
-        LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
-        WHERE rm.ACTIVE = 1
-          AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
-        
         ORDER BY ENCODED_DT DESC
     `;
 
 
 
-	connection.query(query, [fromDate, toDate, fromDate, toDate], (error, result) => {
+	connection.query(query, [fromDate, toDate], (error, result) => {
 		if (error) {
 			console.error('Error executing query:', error);
 			console.error('Query:', query);
-			console.error('Parameters:', [fromDate, toDate, fromDate, toDate]);
+			console.error('Parameters:', [fromDate, toDate]);
 			return res.status(500).json({ error: 'Internal Server Error', details: error.message });
 		}
 
-		console.log(`[junket_house_expense_data] Found ${result.length} total records (expenses + return money)`);
+		console.log(`[junket_house_expense_data] Found ${result.length} total records`);
 
 		const updatedResult = result.map(expense => ({
 			...expense,
@@ -6048,7 +6020,6 @@ pageRouter.post('/delete-test-data', async (req, res) => {
 		'game_services',
 		'junket_capital',
 		'junket_house_expense',
-		'junket_return_money',
 		'junket_total_chips',
 		'money_exchange_transaction',
 		'manual_balancing',

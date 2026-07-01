@@ -24,7 +24,6 @@
                                 <option value="Account Transaction">Account Transaction</option>
                                 <option value="Junket Expense">Junket Expense</option>
                                 <option value="Services">Services</option>
-                                <option value="Junket Return Money">Junket Return Money</option>
                                 <option value="Junket Total Chips">Junket Total Chips</option>
                                 <option value="Junket Capital">Junket Capital</option>
                                 <option value="Daily Settlement">Daily Settlement</option>
@@ -159,7 +158,6 @@
         }
         if (action === 'junket_chips_added') return 'Game Book';
         if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
-        if (['return_added', 'return_edited'].includes(action)) return 'Return Money';
         if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
         if (action === 'settlement_added') return 'Game Book';
         if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
@@ -174,7 +172,6 @@
         'Account Transaction': 'Credit',
         'Junket Expense': 'Expense',
         'Services': 'Game Book',
-        'Junket Return Money': 'Line',
         'Junket Total Chips': 'Dashboard',
         'Junket Capital': 'Capital',
         'Daily Settlement': 'Dashboard',
@@ -253,7 +250,7 @@
         // Translate the text first
         const translatedText = translateText(fullText);
         
-        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer From:", "Transfer To:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "New Game:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:"];
+        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer From:", "Transfer To:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "New Game:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Junket Capital:"];
         let pfx = prefixes.find(p => translatedText.startsWith(p));
         // Junket Expense: dynamic prefix (Category: description)
         if (!pfx && sourceTable === 'Junket Expense' && translatedText.includes(': ')) {

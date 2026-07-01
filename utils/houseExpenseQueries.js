@@ -1,4 +1,4 @@
-/** Match house_expense.js houseExpenseIsApprovedForTotals: status 1 only (return money handled separately). */
+/** Match house_expense.js houseExpenseIsApprovedForTotals: status 1 only. */
 const SQL_HOUSE_EXPENSE_APPROVED_ONLY = 'COALESCE(APPROVAL_STATUS, 1) = 1';
 
 function sqlJunketExpenseResetTotal() {

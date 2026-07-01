@@ -88,7 +88,6 @@ const cashInTotal =
    sumAllServiceRows(sqlServiceCashGuest) +
    sumAllServiceRows(sqlServiceDepositGuest) +
    (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-   (+sqlReturnMoney[0].RETURN_MONEY || 0) +
    (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
 
 const cashOutTotal =
@@ -139,6 +138,7 @@ const totalRollingAmount =
 
 const houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
 const commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
+const additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0);
 const expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
 const junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
 const junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
@@ -172,6 +172,7 @@ const companyExpenseTotal =
    expenseReset +
    junketLossAmount +
    commissionSettlement +
+   additionalCommissionSettlement +
    fnbJunketOut +
    hotelJunketOut +
    deliveryJunketOut +

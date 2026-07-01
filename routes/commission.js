@@ -100,7 +100,16 @@ router.post('/add_additional_commission', checkSession, async (req, res) => {
             ]
         );
 
-        res.json({ message: 'Saved successfully' });
+        const [totalRows] = await pool.execute(
+            `SELECT COALESCE(SUM(CASH_OUT), 0) AS total
+             FROM additional_commission
+             WHERE ACTIVE = 1`
+        );
+
+        res.json({
+            message: 'Saved successfully',
+            total: Math.round(Number(totalRows[0]?.total || 0))
+        });
     } catch (error) {
         console.error('Error saving additional commission:', error);
         res.status(500).json({ message: 'Failed to save additional commission' });

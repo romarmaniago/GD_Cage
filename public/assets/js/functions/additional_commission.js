@@ -59,6 +59,48 @@
       return decimalPart !== '' ? `${formattedInteger}.${decimalPart}` : formattedInteger;
     }
 
+    function formatDashboardAmount(value) {
+      const amount = Math.round(Number(value) || 0);
+      return amount.toLocaleString('en-US');
+    }
+
+    function formatDashboardNegHtml(value) {
+      const amount = Math.round(Number(value) || 0);
+      if (!amount) return '0';
+      return `<span class="text-dash-neg">(${Math.abs(amount).toLocaleString('en-US')})</span>`;
+    }
+
+    function updateDashboardAdditionalCommissionTotal(total) {
+      const mainTotalEl = document.getElementById('dash-additional-commission-total');
+      const anticipatedEl = document.getElementById('dash-additional-commission-anticipated');
+      const anticipatedPanel = document.getElementById('dash-anticipated-panel');
+      const companyExpenseEl = document.querySelector('#dash-anticipated-panel .dash-kv.is-total .dash-kv-value');
+      const grandTotalEl = document.getElementById('dash-grand-total');
+
+      if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
+      if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
+
+      if (!anticipatedPanel) return;
+
+      const winLoss = Number(anticipatedPanel.dataset.winLoss) || 0;
+      const serviceSettle = Number(anticipatedPanel.dataset.serviceSettle) || 0;
+      const previousAdditional = Number(anticipatedPanel.dataset.additionalCommission) || 0;
+      const nextAdditional = Math.round(Number(total) || 0);
+      const previousCompanyExpense = Number(anticipatedPanel.dataset.companyExpense) || 0;
+      const nextCompanyExpense = previousCompanyExpense - previousAdditional + nextAdditional;
+
+      anticipatedPanel.dataset.additionalCommission = String(nextAdditional);
+      anticipatedPanel.dataset.companyExpense = String(nextCompanyExpense);
+
+      const rate = Number(anticipatedPanel.dataset.wlRate) || Number(anticipatedPanel.dataset.wlDefault) || 65;
+      const wlSettlement = Math.round(winLoss * (rate / 100));
+      const casinoTotal = wlSettlement - serviceSettle;
+      const grandTotal = casinoTotal - nextCompanyExpense;
+
+      if (companyExpenseEl) companyExpenseEl.innerHTML = formatDashboardNegHtml(nextCompanyExpense);
+      if (grandTotalEl) grandTotalEl.textContent = formatDashboardAmount(grandTotal);
+    }
+
     function initAccountSelect2() {
       const $agentSelect = window.jQuery ? window.jQuery('#additional-commission-agent') : null;
       if (!$agentSelect || typeof $agentSelect.select2 !== 'function') return;
@@ -203,10 +245,13 @@
           if (!response.ok) throw new Error('Failed to save record.');
           return response.json().catch(() => ({}));
         })
-        .then(() => {
+        .then((payload) => {
           addModal.hide();
           resetAdditionalCommissionForm();
           loadAdditionalCommissionData();
+          if (payload && payload.total != null) {
+            updateDashboardAdditionalCommissionTotal(payload.total);
+          }
           if (typeof Swal !== 'undefined') {
             Swal.fire('Success', 'Record saved successfully.', 'success');
           }

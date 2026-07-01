@@ -230,11 +230,6 @@ ON
 	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
-	let sqlReturnMoney = `
-		SELECT SUM(rm.AMOUNT) AS RETURN_MONEY
-		FROM junket_return_money rm
-		WHERE rm.ACTIVE = 1
-	`;
 
 	
 	let sqlNNChipsReturnDeposit = 'SELECT SUM(NN_CHIPS) AS NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 2';
@@ -588,7 +583,6 @@ let sqlServiceSettle = `
 		const [JunketLossResult] = await pool.execute(sqlJunketLoss);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
-		const [ReturnMoneyResult] = await pool.execute(sqlReturnMoney);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
 		const [HouseRollingResetResult] = await pool.execute(sqlHouseRollingReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
@@ -835,6 +829,19 @@ let sqlServiceSettle = `
 			totalCommissionSettlement = 0;
 		}
 
+		let totalAdditionalCommission = 0;
+		try {
+			const [additionalRows] = await pool.execute(
+				`SELECT COALESCE(SUM(CASH_OUT), 0) AS total
+				 FROM additional_commission
+				 WHERE ACTIVE = 1`
+			);
+			totalAdditionalCommission = Math.round(Number(additionalRows[0]?.total || 0));
+		} catch (err) {
+			console.error('Error computing additional commission total:', err);
+			totalAdditionalCommission = 0;
+		}
+
 		// Kunin ang resulta ng win-loss queries:
 		const [winLossLiveResults] = await pool.execute(sqlWinLossLive);
 		let totalWinLossLiveCalc = 0;
@@ -891,7 +898,6 @@ let sqlServiceSettle = `
 			sqlJunketLoss: JunketLossResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
 			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
-			sqlReturnMoney: ReturnMoneyResult,
 			sqlJunketExpenseReset: ResetExpenseResult,
 
 			sqlAccountTransfer: AccountTransferResult,
@@ -984,6 +990,7 @@ let sqlServiceSettle = `
 			sqlServiceSettle: serviceSettleResults,
 			// Dashboard Commission card should show Settlement (NET commission)
 			sqlCommissionSettlement: totalCommissionSettlement || 0,
+			sqlAdditionalCommission: totalAdditionalCommission || 0,
 			sqlManualBalancing: manualBalancingResult || 0
 		});
 
@@ -1685,40 +1692,6 @@ router.get('/cash_in_details', async (req, res) => {
 			REMARKS_SOURCE: 'account_ledger'
 		}));
 
-		// 8. Return money (RETURN_MONEY)
-		const [returnMoneyRaw] = await pool.execute(
-			`
-			SELECT
-				rm.IDNo,
-				rm.AMOUNT,
-				rm.DESCRIPTION AS REMARKS,
-				rm.ENCODED_BY,
-				rm.ENCODED_DT,
-				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
-			FROM junket_return_money rm
-			LEFT JOIN user_info u ON rm.ENCODED_BY = u.IDNo
-			WHERE rm.ACTIVE = 1
-				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
-			`,
-			dateParams
-		);
-
-		const returnMoneyRows = returnMoneyRaw.map((row) => ({
-			IDNo: row.IDNo,
-			TRANSACTION_ID: row.IDNo,
-			AMOUNT: row.AMOUNT,
-			CATEGORY: 'Return Money',
-			TYPE: 1,
-			REMARKS: row.REMARKS || '',
-			ENCODED_BY: row.ENCODED_BY,
-			ENCODED_DT: row.ENCODED_DT,
-			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
-			AGENT_NAME: '-',
-			SERVICE_TRANSACTION_ID: null,
-			SERVICE_SOURCE_TYPE: null,
-			REMARKS_SOURCE: 'junket_return_money'
-		}));
-
 		const allRows = [
 			...capitalRows,
 			...accountDepositRows,
@@ -1726,8 +1699,7 @@ router.get('/cash_in_details', async (req, res) => {
 			...chipsCashoutRows,
 			...gameBuyinRows,
 			...guestServiceRows,
-			...markerReturnRows,
-			...returnMoneyRows
+			...markerReturnRows
 		];
 
 		allRows.sort((a, b) => {

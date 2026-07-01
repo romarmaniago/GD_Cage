@@ -241,22 +241,6 @@ router.get('/activity_logs', async (req, res) => {
 		  FROM junket_total_chips j
 		  LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 		  WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
-		-- JUNKET_RETURN_MONEY (add)
-		UNION ALL
-		(SELECT rm.IDNo AS related_id, COALESCE(rm.DESCRIPTION,'') COLLATE utf8mb4_unicode_ci AS name, 'return_added' COLLATE utf8mb4_unicode_ci AS action_type, rm.ENCODED_DT AS action_time,
-		  NULL AS guest_name, NULL AS account_name, rm.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
-		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Return Money' COLLATE utf8mb4_unicode_ci AS source_table
-		  FROM junket_return_money rm
-		  LEFT JOIN user_info u ON rm.ENCODED_BY = u.IDNo
-		  WHERE rm.ACTIVE = 1 AND rm.ENCODED_DT IS NOT NULL)
-		-- JUNKET_RETURN_MONEY (edit)
-		UNION ALL
-		(SELECT rm.IDNo AS related_id, COALESCE(rm.DESCRIPTION,'') COLLATE utf8mb4_unicode_ci AS name, 'return_edited' COLLATE utf8mb4_unicode_ci AS action_type, rm.EDITED_DT AS action_time,
-		  NULL AS guest_name, NULL AS account_name, rm.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
-		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Return Money' COLLATE utf8mb4_unicode_ci AS source_table
-		  FROM junket_return_money rm
-		  LEFT JOIN user_info u ON rm.EDITED_BY = u.IDNo
-		  WHERE rm.ACTIVE = 1 AND rm.EDITED_DT IS NOT NULL)
 		-- JUNKET_CAPITAL (add)
 		UNION ALL
 		(SELECT jc.IDNo AS related_id, CONCAT(CONCAT_WS(' - ', CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Capital' END, NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci AS name, 'capital_added' COLLATE utf8mb4_unicode_ci AS action_type, jc.ENCODED_DT AS action_time,
@@ -285,7 +269,7 @@ router.get('/activity_logs', async (req, res) => {
 	    results = rows;
 	  } catch (queryError) {
 	    const errMsg = queryError.sqlMessage || queryError.message || String(queryError);
-	    console.warn("🔥 Activity logs main query failed:", errMsg, "- retrying without junket_return_money/junket_capital");
+	    console.warn("🔥 Activity logs main query failed:", errMsg, "- retrying without junket_capital");
 	    try {
 	      const fallbackLimitClause = hasDateFilter ? '' : (req.query.all === '1' ? 'LIMIT 10000' : 'LIMIT 5');
 	      const fallbackQueryParams = hasDateFilter ? [fromDate, toDate] : [];
