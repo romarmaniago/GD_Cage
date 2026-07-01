@@ -3796,29 +3796,84 @@ function sumChipsByTransaction(records, cageType, encodedDt) {
 	return { cash, deposit, credit, total: cash + deposit + credit };
 }
 
-function sumTipsFromRecords(records, encodedDt) {
-	let roller = 0;
-	let dealer = 0;
-	(records || []).forEach((row) => {
-		if (parseInt(row.CAGE_TYPE, 10) !== 2) return;
-		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return;
-		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
-		const trans = parseInt(row.TRANSACTION, 10);
-		if (trans === CASHOUT_TRANSACTION.TIP_ROLLER) roller += amt;
-		else if (trans === CASHOUT_TRANSACTION.TIP_DEALER) dealer += amt;
-	});
-	return { roller, dealer, total: roller + dealer };
+function formatTipReceiptLineLabel(typeLabel, personName, statusLabel) {
+	const label = `- ${typeLabel} - ${personName}`;
+	const status = (statusLabel || '').trim();
+	if (!status) return label;
+	if (status.toLowerCase() === typeLabel.toLowerCase()) return label;
+	return `${label} (${status})`;
 }
 
-function attachReceiptTips(receipt, tips) {
-	if (!tips || tips.total <= 0) return receipt;
+function buildConsolidatedTipReceipt(base, tipRows) {
+	const rows = (tipRows || []).filter((row) => (parseFloat(row.AMOUNT) || 0) > 0);
+	if (!rows.length) return null;
+
+	let totalRoller = 0;
+	let totalDealer = 0;
+	const tipLines = rows.map((row) => {
+		const amount = parseFloat(row.AMOUNT) || 0;
+		const tipType = parseInt(row.TIP_TYPE, 10);
+		const isDealer = tipType === 2;
+		if (isDealer) totalDealer += amount;
+		else totalRoller += amount;
+
+		const personName = (
+			row.person_name ||
+			row.ROLLER_NAME ||
+			row.REMARKS ||
+			'-'
+		).toString().trim() || '-';
+		const statusLabel = (row.tip_status_label || row.TIP_STATUS || 'Roller').toString().trim() || 'Roller';
+		const typeLabel = isDealer ? 'DEALER' : 'ROLLER';
+
+		return {
+			label: formatTipReceiptLineLabel(typeLabel, personName, statusLabel),
+			amount
+		};
+	});
+
+	const totalTip = totalRoller + totalDealer;
+	const latestDt = rows.reduce((latest, row) => {
+		const candidate = row.TIP_DATETIME || row.ENCODED_DT;
+		if (!candidate) return latest;
+		if (!latest) return candidate;
+		const candidateMs = receiptEncodedDtMs(candidate) ?? 0;
+		const latestMs = receiptEncodedDtMs(latest) ?? 0;
+		return candidateMs >= latestMs ? candidate : latest;
+	}, null);
+
 	return {
-		...receipt,
+		...base,
+		type: 'tip',
+		title: '* TIP *',
+		encoded_dt: latestDt || rows[rows.length - 1].TIP_DATETIME || rows[rows.length - 1].ENCODED_DT,
+		show_buyin: false,
+		show_cashout: false,
+		show_summary: false,
+		show_settlement: false,
 		show_tip: true,
-		tip_roller: tips.roller,
-		tip_dealer: tips.dealer,
-		total_tip: tips.total
+		tip_lines: tipLines,
+		tip_roller: totalRoller,
+		tip_dealer: totalDealer,
+		total_tip: totalTip
 	};
+}
+
+const RECEIPT_TYPE_SORT_ORDER = {
+	game_start: 1,
+	add_buyin: 2,
+	cashout: 3,
+	tip: 4,
+	game_finish: 5
+};
+
+function sortGameReceipts(receipts) {
+	return (receipts || []).slice().sort((a, b) => {
+		const aMs = receiptEncodedDtMs(a.encoded_dt) ?? 0;
+		const bMs = receiptEncodedDtMs(b.encoded_dt) ?? 0;
+		if (aMs !== bMs) return aMs - bMs;
+		return (RECEIPT_TYPE_SORT_ORDER[a.type] || 99) - (RECEIPT_TYPE_SORT_ORDER[b.type] || 99);
+	});
 }
 
 function isReceiptCashoutTransaction(trans) {
@@ -4007,6 +4062,24 @@ async function buildGameReceipts(gameId) {
 		[gameId]
 	);
 
+	const [tipRows] = await pool.execute(`
+		SELECT
+			t.IDNo,
+			t.AMOUNT,
+			t.TIP_TYPE,
+			t.TIP_DATETIME,
+			t.ENCODED_DT,
+			t.ROLLER_NAME,
+			t.TIP_STATUS,
+			t.REMARKS,
+			COALESCE(NULLIF(TRIM(t.ROLLER_NAME), ''), NULLIF(TRIM(t.REMARKS), ''), '-') AS person_name,
+			COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS tip_status_label
+		FROM tip t
+		WHERE t.GAME_ID = ? AND t.ACTIVE = 1
+		ORDER BY t.TIP_DATETIME ASC, t.IDNo ASC`,
+		[gameId]
+	);
+
 	const base = {
 		game_id: game.game_list_id,
 		game_type: game.GAME_TYPE || '',
@@ -4025,7 +4098,6 @@ async function buildGameReceipts(gameId) {
 
 	const totalBuyin = sumChipsByTransaction(recordRows, 1, null);
 	const totalCashout = sumChipsByTransaction(recordRows, 2, null);
-	const totalTips = sumTipsFromRecords(recordRows, null);
 	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
 	const receipts = [];
 
@@ -4050,7 +4122,7 @@ async function buildGameReceipts(gameId) {
 	if (additionalDts.length > 0) {
 		const latestAddDt = additionalDts[additionalDts.length - 1];
 		const latestAdd = sumChipsByTransaction(recordRows, 1, latestAddDt);
-		receipts.push(attachReceiptTips({
+		receipts.push({
 			...base,
 			type: 'add_buyin',
 			title: '* ADD *',
@@ -4069,15 +4141,14 @@ async function buildGameReceipts(gameId) {
 			total_cashout: totalCashout.total,
 			win_loss: winLoss,
 			rolling
-		}, totalTips));
+		});
 	}
 
 	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2 && isReceiptCashoutTransaction(r.TRANSACTION));
 	if (cashoutRecords.length > 0) {
 		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
 		const latestCashout = sumChipsByTransaction(recordRows, 2, latestCashoutDt);
-		const latestCashoutTips = sumTipsFromRecords(recordRows, latestCashoutDt);
-		receipts.push(attachReceiptTips({
+		receipts.push({
 			...base,
 			type: 'cashout',
 			title: '* CASH OUT *',
@@ -4096,7 +4167,7 @@ async function buildGameReceipts(gameId) {
 			total_cashout: latestCashout.total,
 			win_loss: winLoss,
 			rolling
-		}, latestCashoutTips));
+		});
 	}
 
 	const activeStatus = parseInt(game.ACTIVE, 10);
@@ -4105,7 +4176,7 @@ async function buildGameReceipts(gameId) {
 		const addChg = parseFloat(game.ADD_CHG) || 0;
 		const settlement = net;
 		const actSettlement = settlement - addChg;
-		receipts.push(attachReceiptTips({
+		receipts.push({
 			...base,
 			type: 'game_finish',
 			title: '* Game FINISH *',
@@ -4129,10 +4200,13 @@ async function buildGameReceipts(gameId) {
 			settlement,
 			add_charge: addChg,
 			act_settlement: actSettlement
-		}, totalTips));
+		});
 	}
 
-	return { game_id: gameId, receipts };
+	const tipReceipt = buildConsolidatedTipReceipt(base, tipRows);
+	if (tipReceipt) receipts.push(tipReceipt);
+
+	return { game_id: gameId, receipts: sortGameReceipts(receipts) };
 }
 
 // GET all transaction receipts for sequential display

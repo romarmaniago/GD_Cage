@@ -2839,16 +2839,35 @@ function buildGameReceiptSectionTable(sectionClass, bodyRows) {
 	return '<table class="gsr-table ' + sectionClass + '"><tbody>' + bodyRows + '</tbody></table>';
 }
 
+function buildGameReceiptTipSection(data) {
+	if (!hasGameReceiptAmount(data.total_tip)) return '';
+
+	var bodyRows = '';
+	if (Array.isArray(data.tip_lines) && data.tip_lines.length) {
+		bodyRows = data.tip_lines.map(function (line) {
+			return buildGameReceiptLegRow(line.label, line.amount, { negative: true });
+		}).join('');
+	} else {
+		bodyRows =
+			buildGameReceiptLegRow('- ROLLER', data.tip_roller, { negative: true }) +
+			buildGameReceiptLegRow('- DEALER', data.tip_dealer, { negative: true });
+	}
+
+	bodyRows += buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { negative: true, total: true });
+	return buildGameReceiptSectionTable('gsr-section-tip', bodyRows);
+}
+
 function buildGameReceiptSlipHtml(data, isLatest) {
 	var accountLine = [data.agent_code, data.agent_name].filter(Boolean).join(' - ');
 	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
+	var isTipReceipt = data.type === 'tip';
 	var buyinLabel = data.buyin_label || '* BUY IN';
 	var cashoutLabel = data.cashout_label || '* TOTAL CASH OUT';
-	var showBuyin = data.show_buyin !== false;
-	var showCashout = !!data.show_cashout;
-	var showSummary = !!data.show_summary;
-	var showSettlement = !!data.show_settlement;
-	var showTip = !!data.show_tip;
+	var showBuyin = !isTipReceipt && data.show_buyin !== false;
+	var showCashout = !isTipReceipt && !!data.show_cashout;
+	var showSummary = !isTipReceipt && !!data.show_summary;
+	var showSettlement = !isTipReceipt && !!data.show_settlement;
+	var showTip = isTipReceipt || !!data.show_tip;
 
 	var cashoutRows = '';
 	if (showCashout && hasGameReceiptAmount(data.total_cashout)) {
@@ -2861,12 +2880,8 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 	}
 
 	var tipRows = '';
-	if (showTip && hasGameReceiptAmount(data.total_tip)) {
-		tipRows = buildGameReceiptSectionTable('gsr-section-tip',
-			buildGameReceiptLegRow('- ROLLER', data.tip_roller, { negative: true }) +
-			buildGameReceiptLegRow('- DEALER', data.tip_dealer, { negative: true }) +
-			buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { negative: true, total: true })
-		);
+	if (showTip) {
+		tipRows = buildGameReceiptTipSection(data);
 	}
 
 	var summaryRows = '';
@@ -3027,7 +3042,8 @@ function showGameReceiptByType(gameId, type) {
 		url: '/game_list/' + gameId + '/receipts',
 		method: 'GET',
 		success: function (data) {
-			var receipt = ((data && data.receipts) || []).find(function (r) { return r.type === type; });
+			var matches = ((data && data.receipts) || []).filter(function (r) { return r.type === type; });
+			var receipt = matches.length ? matches[matches.length - 1] : null;
 			if (!receipt) {
 				if (typeof Swal !== 'undefined') {
 					Swal.fire({ icon: 'info', title: 'No receipt', text: 'No receipt available for this transaction.', confirmButtonText: 'OK' });
@@ -3051,6 +3067,7 @@ function getTransactionReceiptSuccessMessage(receiptType) {
 	var messages = {
 		add_buyin: { title: 'Success!', text: 'Buy-in transaction saved successfully.' },
 		cashout: { title: 'Success!', text: 'Cash-out transaction saved successfully.' },
+		tip: { title: 'Success!', text: 'Tip transaction saved successfully.' },
 		game_start: { title: 'Success!', text: 'Game created successfully.' },
 		game_finish: { title: 'Success!', text: 'Game finished successfully.' }
 	};

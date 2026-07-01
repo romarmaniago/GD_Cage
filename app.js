@@ -88,7 +88,7 @@ const sessionStore = new MySQLStore({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   createDatabaseTable: true, // Automatically create sessions table if it doesn't exist
-  expiration: 86400000, // 24 hours in milliseconds (matches cookie maxAge)
+  expiration: 86400000 * 30, // 30 days — supports Remember Me sessions
   clearExpired: true, // Automatically clear expired sessions
   checkExpirationInterval: 900000, // Check for expired sessions every 15 minutes
   schema: {

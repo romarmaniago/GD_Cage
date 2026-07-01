@@ -1,8 +1,10 @@
 <%- include('./partials/header') %>
 <body class="gd-login-page">
 <section class="login-content gd-login-content">
-    <div class="gd-login-center-wrap">
-      <div class="gd-login-card">
+    <div class="gd-login-layout">
+      <aside class="gd-login-panel-left">
+        <div class="gd-login-form-wrap">
+          <div class="gd-login-card">
             <div class="gd-login-card-shine" aria-hidden="true"></div>
             <div class="gd-login-card-frame" aria-hidden="true"></div>
             <div class="gd-login-card-inner">
@@ -59,6 +61,18 @@
               </div>
             </form>
             </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="gd-login-panel-right">
+        <div class="gd-login-brand">
+          <p class="gd-login-hero-sub">developed by <strong>3Core Leaderstech</strong></p>
+          <h1 class="gd-login-hero-title">
+            <span class="gd-login-hero-line">Cage Management</span>
+            <span class="gd-login-hero-line">System</span>
+          </h1>
+        </div>
       </div>
     </div>
 </section>
@@ -100,20 +114,132 @@
     pointer-events: none;
   }
 
-  .gd-login-center-wrap {
+  .gd-login-layout {
     position: relative;
     z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
     min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem clamp(1.5rem, 5vw, 4rem);
+    box-sizing: border-box;
+  }
+
+  .gd-login-panel-left {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
+    justify-content: flex-end;
+    padding: 0;
+  }
+
+  .gd-login-form-wrap {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .gd-login-panel-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    position: relative;
+  }
+
+  .gd-login-panel-right::before {
+    content: "";
+    position: absolute;
+    left: calc(clamp(2rem, 5vw, 5rem) / -2);
+    top: 8%;
+    height: 84%;
+    width: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, transparent, rgba(200, 162, 76, 0.35), transparent);
+  }
+
+  .gd-login-brand {
+    max-width: min(520px, 100%);
+    transform: translateY(clamp(-6.25rem, -13vh, -10rem));
+  }
+
+  .gd-login-hero-sub {
+    margin: 0 0 0.85rem;
+    font-size: clamp(0.7rem, 1.2vw, 0.85rem);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0.04em;
+    color: rgba(245, 240, 230, 0.78);
+  }
+
+  .gd-login-hero-sub strong {
+    color: #eacc90;
+    font-weight: 600;
+  }
+
+  .gd-login-hero-title {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.08em;
+    font-size: clamp(2.75rem, 4.8vw, 4rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: #faf6ee;
+    text-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .gd-login-hero-line {
+    display: block;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 991.98px) {
+    .gd-login-layout {
+      grid-template-columns: 1fr;
+      gap: 1.75rem;
+      padding: 2rem 1.5rem 2.5rem;
+    }
+
+    .gd-login-panel-left,
+    .gd-login-panel-right {
+      justify-content: center;
+      width: 100%;
+    }
+
+    .gd-login-panel-right {
+      order: -1;
+    }
+
+    .gd-login-panel-right::before {
+      display: none;
+    }
+
+    .gd-login-brand {
+      max-width: 100%;
+      text-align: center;
+      transform: none;
+    }
+
+    .gd-login-hero-title {
+      font-size: clamp(2rem, 8vw, 2.75rem);
+      align-items: center;
+    }
+
+    .gd-login-form-wrap {
+      max-width: 440px;
+      margin: 0 auto;
+    }
   }
 
   .gd-login-card {
     position: relative;
     width: 100%;
-    max-width: 420px;
+    min-width: 0;
     padding: 3px;
     border-radius: 1.35rem;
     background: linear-gradient(145deg, rgba(241, 212, 138, 0.95) 0%, rgba(138, 109, 47, 0.85) 38%, rgba(212, 175, 90, 0.9) 68%, rgba(90, 68, 24, 0.95) 100%);
@@ -309,6 +435,57 @@
     transform: translateY(-1px);
   }
 </style>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var REMEMBER_KEY = 'gd_cage_remember_login';
+    var LEGACY_USERNAME_KEY = 'gd_cage_remember_username';
+    var usernameInput = document.getElementById('username');
+    var passwordInput = document.getElementById('password');
+    var rememberCheckbox = document.getElementById('rememberMe');
+    var loginForm = document.getElementById('login');
+
+    if (!usernameInput || !passwordInput || !rememberCheckbox || !loginForm) return;
+
+    function loadRememberedLogin() {
+      var saved = localStorage.getItem(REMEMBER_KEY);
+      if (saved) {
+        try {
+          var data = JSON.parse(saved);
+          if (data.username) usernameInput.value = data.username;
+          if (data.password) passwordInput.value = data.password;
+          rememberCheckbox.checked = true;
+          return;
+        } catch (e) {
+          localStorage.removeItem(REMEMBER_KEY);
+        }
+      }
+
+      var legacyUsername = localStorage.getItem(LEGACY_USERNAME_KEY);
+      if (legacyUsername) {
+        usernameInput.value = legacyUsername;
+        rememberCheckbox.checked = true;
+        localStorage.removeItem(LEGACY_USERNAME_KEY);
+      }
+    }
+
+    loadRememberedLogin();
+
+    loginForm.addEventListener('submit', function () {
+      var username = usernameInput.value.trim();
+      var password = passwordInput.value;
+
+      if (rememberCheckbox.checked && username) {
+        localStorage.setItem(REMEMBER_KEY, JSON.stringify({
+          username: username,
+          password: password
+        }));
+      } else {
+        localStorage.removeItem(REMEMBER_KEY);
+        localStorage.removeItem(LEGACY_USERNAME_KEY);
+      }
+    });
+  });
+</script>
 </body>
   <script src="/assets/js/core/libs.min.js"></script>
   <script src="/assets/js/core/external.min.js"></script>

@@ -555,6 +555,292 @@
   margin-bottom: 0;
 }
 
+/* Golden Dragon dashboard panels — Cage Balance, Main, Anticipated Profit, Actual Check */
+.dash-card.gd-dash-panel {
+  --gd-dash-gold: #c8a24c;
+  --gd-dash-gold-light: #f1d48a;
+  --gd-dash-gold-muted: #eacc90;
+  --gd-dash-text: #f5f0e6;
+  --gd-dash-text-muted: #d8d0c0;
+  --gd-dash-text-subtle: #8a8278;
+  --gd-dash-border: rgba(200, 162, 76, 0.22);
+  --gd-dash-surface: linear-gradient(160deg, #121212 0%, #0a0a0a 100%);
+  --gd-dash-header: linear-gradient(160deg, #1a1a1a 0%, #121212 100%);
+  padding: 2px;
+  border: 0;
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(241, 212, 138, 0.95) 0%, rgba(138, 109, 47, 0.85) 38%, rgba(212, 175, 90, 0.9) 68%, rgba(90, 68, 24, 0.95) 100%);
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.35),
+    0 0 24px rgba(200, 162, 76, 0.1);
+  overflow: hidden;
+}
+
+.dash-card.gd-dash-panel > .card-header {
+  background: var(--gd-dash-header);
+  border-bottom: 1px solid var(--gd-dash-border);
+  color: var(--gd-dash-gold-light);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.dash-card.gd-dash-panel > .card-header a {
+  color: var(--gd-dash-gold-light);
+  text-decoration: none;
+}
+
+.dash-card.gd-dash-panel > .card-header a:hover {
+  color: var(--gd-dash-text);
+  text-decoration: underline;
+}
+
+.dash-card.gd-dash-panel > .card-header .dash-card-meta {
+  color: var(--gd-dash-text-subtle);
+  font-weight: 500;
+}
+
+.dash-card.gd-dash-panel > .card-body {
+  background: var(--gd-dash-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.dash-card.gd-dash-panel .dash-kv-group-title {
+  color: var(--gd-dash-gold);
+  background: rgba(200, 162, 76, 0.1);
+  border-bottom: 1px solid var(--gd-dash-border);
+}
+
+.dash-card.gd-dash-panel .dash-kv-group-title.is-warn {
+  color: #f0c674;
+  background: rgba(200, 162, 76, 0.14);
+  border-bottom-color: rgba(200, 162, 76, 0.28);
+}
+
+.dash-card.gd-dash-panel .dash-kv-group-title.is-muted {
+  color: var(--gd-dash-text-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.dash-card.gd-dash-panel .dash-kv {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dash-card.gd-dash-panel .dash-kv .dash-kv-label {
+  color: var(--gd-dash-text-muted);
+}
+
+.dash-card.gd-dash-panel .dash-kv .dash-kv-label a,
+.dash-card.gd-dash-panel .dash-card-link {
+  color: var(--gd-dash-gold-muted);
+  font-weight: 500;
+}
+
+.dash-card.gd-dash-panel .dash-kv .dash-kv-label a:hover,
+.dash-card.gd-dash-panel .dash-card-link:hover {
+  color: var(--gd-dash-gold-light);
+}
+
+.dash-card.gd-dash-panel .dash-kv .dash-kv-value {
+  color: var(--gd-dash-text);
+}
+
+.dash-card.gd-dash-panel .dash-kv.is-total {
+  background: rgba(200, 162, 76, 0.08);
+}
+
+.dash-card.gd-dash-panel .dash-kv.is-total .dash-kv-label,
+.dash-card.gd-dash-panel .dash-kv.is-total .dash-kv-value {
+  color: var(--gd-dash-gold-light);
+}
+
+.dash-card.gd-dash-panel .dash-kv.is-grand {
+  background: linear-gradient(135deg, rgba(107, 74, 18, 0.55) 0%, rgba(200, 162, 76, 0.28) 50%, rgba(241, 212, 138, 0.18) 100%);
+  border-top: 1px solid var(--gd-dash-border);
+}
+
+.dash-card.gd-dash-panel .dash-kv.is-grand .dash-kv-label,
+.dash-card.gd-dash-panel .dash-kv.is-grand .dash-kv-value {
+  color: var(--gd-dash-gold-light);
+}
+
+.dash-card.gd-dash-panel .text-dash-neg {
+  color: #f87171 !important;
+}
+
+.dash-card.gd-dash-panel .dash-card-actions {
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid var(--gd-dash-border);
+}
+
+.dash-card.gd-dash-panel .dash-card-actions .btn-primary-subtle {
+  color: #1a1205;
+  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  border: none;
+  font-weight: 600;
+}
+
+.dash-card.gd-dash-panel .dash-card-actions .btn-primary-subtle:hover {
+  color: #0f0a02;
+  filter: brightness(1.05);
+}
+
+.dash-card.gd-dash-panel .dash-card-actions .btn-outline-primary {
+  color: var(--gd-dash-gold-light);
+  border-color: rgba(200, 162, 76, 0.45);
+  background: transparent;
+}
+
+.dash-card.gd-dash-panel .dash-card-actions .btn-outline-primary:hover {
+  color: #1a1205;
+  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  border-color: transparent;
+}
+
+/* Golden Dragon — Main Cage Rolling Check & W/L Check matrix panel */
+.dash-card.gd-dash-panel.dash-dual-matrix-panel > .card-body {
+  background: linear-gradient(180deg, #faf6ee 0%, #f3ecde 100%);
+  box-shadow: none;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix {
+  --gd-dash-matrix-body: #faf6ee;
+  --gd-dash-matrix-body-alt: #f5efe3;
+  --rolling-excel-date: rgba(200, 162, 76, 0.38);
+  --rolling-excel-casino: rgba(72, 110, 72, 0.22);
+  --rolling-excel-gold: rgba(200, 162, 76, 0.45);
+  --rolling-excel-diff: rgba(168, 102, 44, 0.24);
+  --rolling-excel-remarks: rgba(44, 36, 24, 0.07);
+  --rolling-excel-today: rgba(241, 212, 138, 0.58);
+  --rolling-total-text: #2c2418;
+  --dash-row-line: rgba(44, 36, 24, 0.1);
+  --dash-header-line: rgba(200, 162, 76, 0.42);
+  --dash-col-line: rgba(44, 36, 24, 0.12);
+  --dash-excel-grid-line: rgba(200, 162, 76, 0.48);
+  --dash-excel-total-top: rgba(200, 162, 76, 0.58);
+  --dash-excel-total-bottom: rgba(200, 162, 76, 0.42);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-section-header {
+  color: var(--gd-dash-gold-light);
+  background: var(--gd-dash-header);
+  border-bottom: 1px solid var(--gd-dash-border);
+  border-top: 0;
+  letter-spacing: 0.02em;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix-col.is-wl {
+  border-left: 1px solid var(--gd-dash-border);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-foot,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-preview,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-foot,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-foot,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-preview,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-preview,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-scroll,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-scroll {
+  background: var(--gd-dash-matrix-body);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .text-muted {
+  color: #7a7268 !important;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-head-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-head-cell {
+  color: #2c2418;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-head-cell .dash-card-link,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-head-cell .dash-card-link {
+  color: #5c4a1a;
+  text-decoration-color: rgba(92, 74, 26, 0.35);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-head-cell .dash-card-link:hover,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-head-cell .dash-card-link:hover {
+  color: #8a6d24;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-body-cell {
+  background: var(--gd-dash-matrix-body);
+  color: #2c2418;
+  border-bottom-color: var(--dash-row-line);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell.is-date,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-body-cell.is-date {
+  color: #5c5348;
+  background: var(--gd-dash-matrix-body-alt);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell.is-col-casino,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell.is-col-gold,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell.is-col-remarks,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-body-cell.is-col-remarks {
+  background: var(--gd-dash-matrix-body);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel #dash-rolling-root .dash-rolling-row:hover .dash-rolling-body-cell {
+  background: rgba(241, 212, 138, 0.42);
+  color: #2c2418;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-wl-body-cell {
+  background: rgba(241, 212, 138, 0.42);
+  color: #2c2418;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-today .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-today .dash-wl-body-cell {
+  background: var(--rolling-excel-today);
+  color: #2c2418;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-preview .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-preview .dash-wl-body-cell {
+  background: #ebe4d6;
+  color: #8a8278;
+  border-bottom-color: rgba(44, 36, 24, 0.08);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-preview .dash-rolling-body-cell.is-date,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-preview .dash-wl-body-cell.is-date {
+  color: #8a8278;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-preview:hover .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-preview:hover .dash-wl-body-cell {
+  background: #ebe4d6;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-body-cell .text-dash-neg,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-body-cell .text-dash-neg {
+  color: #b91c1c !important;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-total .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-total .dash-wl-body-cell {
+  background: #d4bc82;
+  color: #2c2418;
+  font-weight: 700;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-total .text-dash-neg,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-total .text-dash-neg {
+  color: #b91c1c !important;
+}
+
+@media (max-width: 991.98px) {
+  .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix-col.is-wl {
+    border-left: 0;
+    border-top: 1px solid var(--gd-dash-border);
+  }
+}
+
 .dash-top-row .dash-dual-matrix-panel-col {
   display: flex;
   flex-direction: column;

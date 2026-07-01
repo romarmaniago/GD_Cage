@@ -1,25 +1,48 @@
 
 <style>
-
-aside.sidebar {
+/* Golden Dragon sidebar — matches login page palette */
+aside.sidebar.gd-sidebar {
+    --gd-sidebar-bg: #0a0a0a;
+    --gd-sidebar-surface: #121212;
+    --gd-sidebar-gold: #c8a24c;
+    --gd-sidebar-gold-light: #f1d48a;
+    --gd-sidebar-gold-muted: #eacc90;
+    --gd-sidebar-text: #f5f0e6;
+    --gd-sidebar-text-muted: #d8d0c0;
+    --gd-sidebar-text-subtle: #8a8278;
+    --gd-sidebar-border: rgba(200, 162, 76, 0.22);
+    --gd-sidebar-gold-gradient: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+    --gd-sidebar-hover-bg: rgba(200, 162, 76, 0.12);
     display: flex;
     flex-direction: column;
     height: 100vh;
     min-height: 100vh;
     overflow: visible;
+    background: linear-gradient(180deg, #121212 0%, var(--gd-sidebar-bg) 100%) !important;
+    border-right: 1px solid var(--gd-sidebar-border);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    color: var(--gd-sidebar-text-muted);
 }
 
-aside.sidebar .sidebar-header {
+aside.sidebar.gd-sidebar .sidebar-header {
     position: relative;
     overflow: visible;
     flex-shrink: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--gd-sidebar-border);
 }
 
-aside.sidebar .sidebar-toggle {
+aside.sidebar.gd-sidebar .sidebar-toggle {
     z-index: 1001;
+    color: var(--gd-sidebar-gold-light) !important;
 }
 
-aside.sidebar .sidebar-body {
+aside.sidebar.gd-sidebar .sidebar-toggle:hover {
+    color: var(--gd-sidebar-text) !important;
+    background: var(--gd-sidebar-hover-bg) !important;
+}
+
+aside.sidebar.gd-sidebar .sidebar-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: hidden;
@@ -27,51 +50,115 @@ aside.sidebar .sidebar-body {
     max-height: none !important;
 }
 
-aside.sidebar .sidebar-footer {
-    margin-top: auto;
-    flex-shrink: 0;
+aside.sidebar.gd-sidebar .sidebar-body::-webkit-scrollbar {
+    width: 6px;
 }
 
-aside.sidebar .sidebar-list {
+aside.sidebar.gd-sidebar .sidebar-body::-webkit-scrollbar-thumb {
+    background: rgba(200, 162, 76, 0.35);
+    border-radius: 999px;
+}
+
+aside.sidebar.gd-sidebar .sidebar-footer {
+    margin-top: auto;
+    flex-shrink: 0;
+    border-top: 1px solid var(--gd-sidebar-border);
+    color: var(--gd-sidebar-text-subtle) !important;
+}
+
+aside.sidebar.gd-sidebar .sidebar-footer .text-muted {
+    color: var(--gd-sidebar-gold) !important;
+    letter-spacing: 0.08em;
+}
+
+aside.sidebar.gd-sidebar .sidebar-list {
     padding-bottom: 1rem;
 }
 
-.sidebar.sidebar-white {
-    background-color: #ffffff; 
+aside.sidebar.gd-sidebar .hr-horizontal {
+    border: 0;
+    height: 1px;
+    margin: 0.75rem 1rem;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 90, 0.55), transparent);
+    opacity: 1;
 }
 
-.sidebar .nav-link:hover,
-.sidebar .nav-link:focus {
-    color: #ffffff !important;
-    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+aside.sidebar.gd-sidebar .nav-link {
+    color: var(--gd-sidebar-text-muted) !important;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.sidebar .nav-link.active {
-    color: #ffffff !important;
-    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+aside.sidebar.gd-sidebar .nav-link .icon,
+aside.sidebar.gd-sidebar .nav-link .right-icon {
+    color: inherit;
 }
 
+aside.sidebar.gd-sidebar .nav-link .item-name,
+aside.sidebar.gd-sidebar .nav-link.static-item .default-icon {
+    color: inherit;
+}
 
+aside.sidebar.gd-sidebar .nav-item.static-item .nav-link.static-item {
+    color: var(--gd-sidebar-gold) !important;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.95;
+}
 
-.sidebar .nav-link.open,
-.sidebar .nav-link[aria-expanded="true"] {
-    color: #ffffff !important;
-    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+aside.sidebar.gd-sidebar .nav-link:hover,
+aside.sidebar.gd-sidebar .nav-link:focus {
+    color: var(--gd-sidebar-gold-light) !important;
+    background: var(--gd-sidebar-hover-bg) !important;
+    box-shadow: inset 3px 0 0 rgba(200, 162, 76, 0.75) !important;
+}
+
+aside.sidebar.gd-sidebar .nav-link.active,
+aside.sidebar.gd-sidebar .nav-link.open,
+aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"],
+aside.sidebar.gd-sidebar .nav-link.bg-gradient-primary {
+    color: #1a1205 !important;
+    background: var(--gd-sidebar-gold-gradient) !important;
+    box-shadow: 0 4px 12px rgba(200, 162, 76, 0.22) !important;
+}
+
+aside.sidebar.gd-sidebar .nav-link.active .icon,
+aside.sidebar.gd-sidebar .nav-link.open .icon,
+aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"] .icon,
+aside.sidebar.gd-sidebar .nav-link.bg-gradient-primary .icon,
+aside.sidebar.gd-sidebar .nav-link.active .right-icon,
+aside.sidebar.gd-sidebar .nav-link.open .right-icon,
+aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"] .right-icon {
+    color: #1a1205 !important;
+}
+
+aside.sidebar.gd-sidebar .sub-nav .nav-link {
+    color: var(--gd-sidebar-text-subtle) !important;
+}
+
+aside.sidebar.gd-sidebar .sub-nav .nav-link:hover,
+aside.sidebar.gd-sidebar .sub-nav .nav-link:focus {
+    color: var(--gd-sidebar-gold-light) !important;
+    background: rgba(200, 162, 76, 0.08) !important;
+    box-shadow: inset 3px 0 0 rgba(200, 162, 76, 0.45) !important;
+}
+
+aside.sidebar.gd-sidebar .sub-nav .nav-link.active,
+aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary {
+    color: #1a1205 !important;
+    background: var(--gd-sidebar-gold-gradient) !important;
+    box-shadow: 0 2px 8px rgba(200, 162, 76, 0.18) !important;
 }
 
 /* Pag nasa History page, hindi i-highlight ang Monthly Settle parent */
-.sidebar .nav-item.monthly-settle-parent > .nav-link {
+aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
     background: transparent !important;
-    color: inherit !important;
+    color: var(--gd-sidebar-text-muted) !important;
     box-shadow: none !important;
 }
 </style>
 
-<aside class="sidebar sidebar-default sidebar-white sidebar-base navs-rounded-all " >
-  <div class="sidebar-header d-flex align-items-center justify-content-start">
+<aside class="sidebar sidebar-default gd-sidebar sidebar-base navs-rounded-all " >  <div class="sidebar-header d-flex align-items-center justify-content-start">
       <!-- <a href="/dashboard" class="navbar-brand">
           
           Logo start

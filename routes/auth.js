@@ -28,6 +28,17 @@ function getClientIp(req) {
     return rawIp;
 }
 
+const SESSION_ONE_DAY = 1000 * 60 * 60 * 24;
+const SESSION_THIRTY_DAYS = SESSION_ONE_DAY * 30;
+
+function isRememberMeChecked(body) {
+    return body && (body['remember-me'] === 'on' || body.rememberMe === 'on' || body.rememberMe === true);
+}
+
+function applySessionDuration(req, rememberMe) {
+    req.session.cookie.maxAge = rememberMe ? SESSION_THIRTY_DAYS : SESSION_ONE_DAY;
+}
+
 // Middleware to check session, enforce single-login, and update activity
 const checkSession = async (req, res, next) => {
     if (!req.session || !req.session.username || !req.session.user_id) {
@@ -172,6 +183,7 @@ router.post('/login', async (req, res) => {
           req.session.user_id = user.IDNo;
           req.session.permissions = user.PERMISSIONS;
           req.session.sessionToken = newSessionToken;
+          applySessionDuration(req, isRememberMeChecked(req.body));
   
           req.session.save(err => {
             if (err) {
