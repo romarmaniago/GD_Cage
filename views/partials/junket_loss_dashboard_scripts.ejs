@@ -1,0 +1,36 @@
+<script>
+  window.junketLossTranslations = {
+    export_label: "<%= __('junket_loss.export') || 'Export' %>",
+    no_data: "<%= __('junket_loss.no_data_export') || 'No data to export for the current filter.' %>",
+    error: "<%= __('junket_loss.export_error') || 'Export failed' %>"
+  };
+</script>
+<script src="/assets/js/functions/junket_loss.js"></script>
+<script>
+  $(function () {
+    var dashJunketLossModal = document.getElementById('modal-dash-junket-loss');
+    if (!dashJunketLossModal) return;
+
+    window.openDashboardJunketLossModal = function () {
+      if (typeof window.ensureDashboardJunketLossReady === 'function') {
+        window.ensureDashboardJunketLossReady();
+      }
+      bootstrap.Modal.getOrCreateInstance(dashJunketLossModal).show();
+    };
+
+    $(document).on('click', '.js-open-dash-junket-loss', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.openDashboardJunketLossModal();
+    });
+
+    dashJunketLossModal.addEventListener('shown.bs.modal', function () {
+      if (typeof window.ensureDashboardJunketLossReady === 'function') {
+        window.ensureDashboardJunketLossReady();
+      }
+      if (typeof window.refreshJunketLossTableLayout === 'function') {
+        window.refreshJunketLossTableLayout();
+      }
+    });
+  });
+</script>

@@ -25,6 +25,18 @@ router.get('/junket_loss', checkSession, function (req, res) {
 	res.render('junket/junket_loss', data);
 });
 
+router.get('/junket_loss_total', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			'SELECT COALESCE(SUM(AMOUNT), 0) AS TOTAL FROM junket_loss WHERE ACTIVE = 1 AND GAME_ID IS NULL'
+		);
+		res.json({ total: Number(rows[0] && rows[0].TOTAL) || 0 });
+	} catch (error) {
+		console.error('Error fetching junket loss total:', error);
+		res.status(500).json({ message: 'Failed to fetch junket loss total' });
+	}
+});
+
 router.get('/junket_loss_data', async (req, res) => {
 	try {
 		let { fromDate, toDate } = req.query;

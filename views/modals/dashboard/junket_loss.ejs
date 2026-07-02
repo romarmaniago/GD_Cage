@@ -1,0 +1,107 @@
+<div class="modal fade" id="modal-dash-junket-loss" tabindex="-1" aria-labelledby="modal-dash-junket-loss-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-dash-junket-loss-label"><%= __('junket_loss.title') %></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <input type="text" id="junket-loss-daterange" class="form-control form-control-sm dash-junket-loss-daterange" placeholder="Select date range" autocomplete="off" readonly>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" id="btn-junket-loss-print" class="btn btn-sm btn-alt-success">
+              <i class="fa fa-print" aria-hidden="true"></i> Print
+            </button>
+            <button type="button" id="btn-junket-loss-export" class="btn btn-sm btn-success">
+              <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('junket_loss.export') || 'Export' %>
+            </button>
+            <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-add-junket-loss" data-view-only-disable>
+              <i class="fa fa-plus me-1"></i> <%= __('junket_loss.add') || 'Add Junket Loss' %>
+            </button>
+            <% } %>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table id="junket-loss-tbl" class="table nowrap small-text mb-0" style="width:100%">
+            <thead>
+              <tr>
+                <th>Date &amp; Time</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>In-charge</th>
+                <th>Encoded By</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-junket-loss" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Junket Expense</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="junket-loss-form">
+        <div class="modal-body">
+          <input type="hidden" id="junket-loss-id" />
+          <div class="mb-3">
+            <label for="junket-loss-description" class="form-label">Description</label>
+            <textarea id="junket-loss-description" class="form-control" rows="3" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="junket-loss-amount" class="form-label">Amount</label>
+            <input type="text" id="junket-loss-amount" class="form-control" inputmode="decimal" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label for="junket-loss-incharge" class="form-label">In-charge</label>
+            <input type="text" id="junket-loss-incharge" class="form-control" maxlength="150" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="junket-loss-save-btn" data-view-only-disable>Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  #modal-dash-junket-loss .dash-junket-loss-daterange {
+    max-width: 260px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl thead th {
+    background: #f4f6fa;
+    color: #495057;
+    font-weight: 600;
+    padding: 10px 12px;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(3),
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(3) {
+    text-align: right !important;
+    padding-right: 16px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl td:last-child {
+    text-align: center;
+  }
+</style>

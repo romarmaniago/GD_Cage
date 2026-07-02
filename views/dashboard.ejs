@@ -265,7 +265,7 @@
                      <div class="dash-kv-group-title is-warn">Liabilities</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" class="dash-card-link js-open-dash-junket-loss">Etc (Miss Bet)</a></span><span class="dash-kv-value"><a href="#" class="dash-card-link js-open-dash-junket-loss" id="dash-junket-loss-total"><%- fmtNeg(junketLossAmount) %></a></span></div>
                      <div class="dash-kv-group-title">Settlement</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value" id="dash-additional-commission-total"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
@@ -320,7 +320,7 @@
                      <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value" id="dash-casino-total"><%- fmtAmt(casinoAnticipatedTotal) %></span></div>
                      <div class="dash-kv-group-title is-warn">Company</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total-anticipated"><%- fmtNeg(expenseReset) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Etc (Miss Bet)</span><span class="dash-kv-value"><%- fmtNeg(junketLossAmount) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" class="dash-card-link js-open-dash-junket-loss">Etc (Miss Bet)</a></span><span class="dash-kv-value"><a href="#" class="dash-card-link js-open-dash-junket-loss" id="dash-junket-loss-total-anticipated"><%- fmtNeg(junketLossAmount) %></a></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value" id="dash-additional-commission-anticipated"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-fnb">F&amp;B</a></span><span class="dash-kv-value dash-service-balance" data-category="fnb"><%- fmtAmt(fnbBalance) %></span></div>
@@ -597,6 +597,7 @@
 <%- include ('modals/dashboard/incidental_details') %>
 <%- include ('modals/dashboard/delivery_details') %>
 <%- include ('modals/dashboard/tip_details') %>
+<%- include ('modals/dashboard/junket_loss') %>
 <%- include ('modals/tip/tip_settlement') %>
 <%- include ('modals/junket/edit_service_record') %>
 <%- include('partials/permission_view_only_script') %>
@@ -642,6 +643,7 @@
 <%- include('partials/house_expense_dashboard_scripts') %>
 <%- include('partials/commission_dashboard_scripts') %>
 <script src="/assets/js/functions/additional_commission.js"></script>
+<%- include('partials/junket_loss_dashboard_scripts') %>
 <script>
    window.fnbHotelTranslations = {
       missing_fields: "<%= __('fnb_hotel.missing_fields') %>",

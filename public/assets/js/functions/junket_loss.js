@@ -16,6 +16,33 @@ function formatAmountInput(value) {
     return decimalPart !== '' ? formattedInteger + '.' + decimalPart : formattedInteger;
 }
 
+function getJunketLossFormModalEl() {
+    return document.getElementById('modal-junket-loss');
+}
+
+function showJunketLossFormModal() {
+    const el = getJunketLossFormModalEl();
+    if (!el) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(el).show();
+        return;
+    }
+    $('#modal-junket-loss').modal('show');
+}
+
+function hideJunketLossFormModal() {
+    const el = getJunketLossFormModalEl();
+    if (!el) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        const instance = bootstrap.Modal.getInstance(el);
+        if (instance) {
+            instance.hide();
+            return;
+        }
+    }
+    $('#modal-junket-loss').modal('hide');
+}
+
 function openJunketLossModal(data) {
     const id = data && data.IDNo ? data.IDNo : '';
     $('#junket-loss-id').val(id);
@@ -23,13 +50,14 @@ function openJunketLossModal(data) {
     $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT || '') : '');
     $('#junket-loss-incharge').val(data ? (data.IN_CHARGE || '') : '');
     $('#junket-loss-modal-title').text(id ? 'Edit Junket Expense' : 'Add Junket Expense');
-    $('#modal-junket-loss').modal('show');
+    showJunketLossFormModal();
 }
 
 function closeJunketLossModal() {
-    $('#junket-loss-form')[0].reset();
+    const form = document.getElementById('junket-loss-form');
+    if (form) form.reset();
     $('#junket-loss-id').val('');
-    $('#modal-junket-loss').modal('hide');
+    hideJunketLossFormModal();
 }
 
 function formatYmd(dateObj) {
@@ -64,13 +92,30 @@ function jumpJunketLossRangeToCurrentThreeMonths(instance) {
 }
 
 function fetchJunketLossData() {
+    const table = ensureJunketLossTable();
+    if (!table) return;
+
     $.get('/junket_loss_data', {
         fromDate: junketLossFromDate,
         toDate: junketLossToDate
     }, function (rows) {
-        junketLossTable.clear().rows.add(rows || []).draw();
+        table.clear().rows.add(rows || []).draw();
     }).fail(function () {
         Swal.fire('Error', 'Failed to load junket expenses.', 'error');
+    });
+}
+
+function refreshDashboardJunketLossTotal() {
+    if (!document.getElementById('modal-dash-junket-loss')) return;
+    $.get('/junket_loss_total', function (data) {
+        const total = Number(data && data.total) || 0;
+        const formatted = total
+            ? '(' + Math.abs(total).toLocaleString('en-US') + ')'
+            : '0';
+        const html = total
+            ? '<span class="text-dash-neg">' + formatted + '</span>'
+            : formatted;
+        $('#dash-junket-loss-total, #dash-junket-loss-total-anticipated').html(html);
     });
 }
 
@@ -87,6 +132,7 @@ function removeJunketLoss(id) {
             method: 'PUT',
             success: function () {
                 fetchJunketLossData();
+                refreshDashboardJunketLossTotal();
                 Swal.fire('Success', 'Record archived successfully.', 'success');
             },
             error: function () {
@@ -96,7 +142,73 @@ function removeJunketLoss(id) {
     });
 }
 
+function ensureJunketLossTable() {
+    if (junketLossTable) return junketLossTable;
+    if (!$('#junket-loss-tbl').length || !$.fn.DataTable) return null;
+
+    if ($.fn.DataTable.isDataTable('#junket-loss-tbl')) {
+        junketLossTable = $('#junket-loss-tbl').DataTable();
+        return junketLossTable;
+    }
+
+    junketLossTable = $('#junket-loss-tbl').DataTable({
+        pageLength: 25,
+        order: [[0, 'desc']],
+        columns: [
+            {
+                data: 'ENCODED_DT',
+                render: function (data, type) {
+                    if (!data) return '';
+                    if (type === 'sort') return data;
+                    return moment(data).format('YYYY-MM-DD HH:mm');
+                }
+            },
+            { data: 'DESCRIPTION', defaultContent: '' },
+            {
+                data: 'AMOUNT',
+                render: function (data) {
+                    return (Number(data) || 0).toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                }
+            },
+            { data: 'IN_CHARGE', defaultContent: '' },
+            { data: 'ENCODED_BY_NAME', defaultContent: '' },
+            {
+                data: null,
+                orderable: false,
+                searchable: false,
+                render: function (row) {
+                    return '' +
+                        '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-junket-loss-edit" data-id="' + row.IDNo + '">' +
+                        '<i class="fa fa-pencil-alt"></i></button>' +
+                        '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-remove" data-id="' + row.IDNo + '">' +
+                        '<i class="fa fa-trash-alt"></i></button>';
+                }
+            }
+        ]
+    });
+
+    return junketLossTable;
+}
+
+window.refreshJunketLossTableLayout = function () {
+    fetchJunketLossData();
+    if (junketLossTable) {
+        junketLossTable.columns.adjust().draw(false);
+    }
+};
+
+window.ensureDashboardJunketLossReady = function () {
+    ensureJunketLossTable();
+    fetchJunketLossData();
+};
+
 $(document).ready(function () {
+    if (!$('#junket-loss-tbl').length) return;
+
+    const isDashboard = !!document.getElementById('modal-dash-junket-loss');
     const monthRange = getFirstAndLastOfMonth();
     junketLossFromDate = formatYmd(monthRange.first);
     junketLossToDate = formatYmd(monthRange.last);
@@ -154,46 +266,10 @@ $(document).ready(function () {
             .replace(/'/g, '&#39;');
     }
 
-    junketLossTable = $('#junket-loss-tbl').DataTable({
-        pageLength: 25,
-        order: [[0, 'desc']],
-        columns: [
-            {
-                data: 'ENCODED_DT',
-                render: function (data, type) {
-                    if (!data) return '';
-                    if (type === 'sort') return data;
-                    return moment(data).format('YYYY-MM-DD HH:mm');
-                }
-            },
-            { data: 'DESCRIPTION', defaultContent: '' },
-            {
-                data: 'AMOUNT',
-                render: function (data) {
-                    return (Number(data) || 0).toLocaleString('en-US', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
-                }
-            },
-            { data: 'IN_CHARGE', defaultContent: '' },
-            { data: 'ENCODED_BY_NAME', defaultContent: '' },
-            {
-                data: null,
-                orderable: false,
-                searchable: false,
-                render: function (row) {
-                    return '' +
-                        '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-junket-loss-edit" data-id="' + row.IDNo + '">' +
-                        '<i class="fa fa-pencil-alt"></i></button>' +
-                        '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-remove" data-id="' + row.IDNo + '">' +
-                        '<i class="fa fa-trash-alt"></i></button>';
-                }
-            }
-        ]
-    });
-
-    fetchJunketLossData();
+    if (!isDashboard) {
+        junketLossTable = ensureJunketLossTable();
+        fetchJunketLossData();
+    }
 
     var actionColIndex = 5;
 
@@ -394,6 +470,7 @@ $(document).ready(function () {
             success: function () {
                 closeJunketLossModal();
                 fetchJunketLossData();
+                refreshDashboardJunketLossTotal();
                 Swal.fire('Success', 'Record saved successfully.', 'success');
             },
             error: function () {
