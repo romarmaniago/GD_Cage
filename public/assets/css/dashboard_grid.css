@@ -788,7 +788,12 @@ body {
   background: var(--gd-dash-matrix-body);
 }
 
-.dash-card.gd-dash-panel.dash-dual-matrix-panel #dash-rolling-root .dash-rolling-row:hover .dash-rolling-body-cell {
+.dash-card.gd-dash-panel.dash-dual-matrix-panel #dash-rolling-root .js-beyond-chips-cell:hover {
+  background: rgba(241, 212, 138, 0.42);
+  color: #2c2418;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel #dash-rolling-root .js-rolling-remarks-cell:hover {
   background: rgba(241, 212, 138, 0.42);
   color: #2c2418;
 }
@@ -1192,12 +1197,43 @@ body {
   margin: 0;
 }
 
-#dash-rolling-root .dash-rolling-row {
+#dash-rolling-root .js-beyond-chips-cell {
   cursor: pointer;
 }
 
-#dash-rolling-root .dash-rolling-row:hover .dash-rolling-body-cell {
+#dash-rolling-root .js-beyond-chips-cell:hover {
   background: #fef9c3;
+}
+
+#dash-rolling-root .js-rolling-remarks-cell {
+  cursor: pointer;
+}
+
+#dash-rolling-root .js-rolling-remarks-cell:hover {
+  background: #fef9c3;
+}
+
+.dash-wl-remarks-date-display {
+  background-color: #fff;
+  font-weight: 600;
+}
+
+#dash-wl-root .js-wl-remarks-cell {
+  cursor: pointer;
+}
+
+#dash-wl-root .js-wl-remarks-cell:hover {
+  background: #fef9c3;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel #dash-wl-root .js-wl-remarks-cell:hover {
+  background: rgba(241, 212, 138, 0.42);
+  color: #2c2418;
+}
+
+.dash-rolling-remarks-date-display {
+  background-color: #fff;
+  font-weight: 600;
 }
 
 .dash-rolling-body-cell,
@@ -1434,4 +1470,50 @@ body {
   .dash-stat-grid {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+#modal-dash-beyond-chips-edit {
+  z-index: 1060;
+}
+
+#modal-dash-beyond-chips-edit ~ .modal-backdrop {
+  z-index: 1055;
+}
+
+.dash-beyond-chips-date-col {
+  min-width: 8.5rem;
+}
+
+.dash-beyond-chips-date-display {
+  background-color: #fff;
+  font-weight: 600;
+}
+
+.dash-beyond-chips-input-row .form-label {
+  line-height: 1.2;
+}
+
+.dash-beyond-chips-history-wrap {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.dash-beyond-chips-history-tbl {
+  font-size: 12px;
+}
+
+.dash-beyond-chips-history-tbl th,
+.dash-beyond-chips-history-tbl td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.dash-beyond-chips-history-tbl .dash-beyond-chips-actions {
+  white-space: nowrap;
+}
+
+.dash-beyond-chips-history-tbl .dash-beyond-chips-actions .btn,
+.dash-beyond-chips-history-tbl .js-beyond-chips-actions .btn {
+  padding: 0.1rem 0.35rem;
+  line-height: 1.2;
 }

@@ -1,27 +1,131 @@
-<div class="modal fade" id="modal-dash-beyond-chips" tabindex="-1" aria-labelledby="modal-dash-beyond-chips-label" aria-hidden="true" data-bs-backdrop="static">
-   <div class="modal-dialog modal-dialog-centered modal-sm">
+<div class="modal fade" id="modal-dash-beyond-chips" tabindex="-1" aria-labelledby="modal-dash-beyond-chips-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+
+   <div class="modal-dialog modal-dialog-centered modal-md">
+
       <div class="modal-content">
+
          <div class="modal-header bg-primary py-2">
+
             <h5 class="modal-title text-white mb-0" id="modal-dash-beyond-chips-label">Beyond Chips</h5>
+
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
          </div>
+
          <form id="dash-beyond-chips-form">
-            <div class="modal-body">
-               <div class="mb-3">
-                  <label class="form-label text-muted small mb-1">Date</label>
-                  <div class="form-control-plaintext fw-semibold py-0" id="dash-beyond-chips-date">—</div>
-                  <input type="hidden" id="dash-beyond-chips-date-iso">
+
+            <div class="modal-body py-3">
+
+               <input type="hidden" id="dash-beyond-chips-date-iso">
+
+               <div class="row g-2 align-items-end mb-3 dash-beyond-chips-input-row">
+
+                  <div class="col-auto dash-beyond-chips-date-col">
+
+                     <label for="dash-beyond-chips-date" class="form-label small text-muted mb-1">Date</label>
+
+                     <input type="text" class="form-control form-control-sm dash-beyond-chips-date-display" id="dash-beyond-chips-date" readonly tabindex="-1" value="—">
+
+                  </div>
+
+                  <div class="col">
+
+                     <label for="dash-beyond-chips-amount" class="form-label small text-muted mb-1">Add Beyond Chips</label>
+
+                     <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+
+                  </div>
+
                </div>
-               <div class="mb-0">
-                  <label for="dash-beyond-chips-amount" class="form-label">Beyond Chips Amount</label>
-                  <input type="text" class="form-control" id="dash-beyond-chips-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+
+               <div class="table-responsive dash-beyond-chips-history-wrap">
+
+                  <table class="table table-sm table-bordered table-striped mb-0 dash-beyond-chips-history-tbl" id="dash-beyond-chips-history-tbl">
+
+                     <thead>
+
+                        <tr>
+
+                           <th>Date</th>
+
+                           <th class="text-end">Amount</th>
+
+                           <th class="text-center">Action</th>
+
+                        </tr>
+
+                     </thead>
+
+                     <tbody id="dash-beyond-chips-history-body">
+
+                        <tr>
+
+                           <td colspan="3" class="text-muted text-center py-3">Loading...</td>
+
+                        </tr>
+
+                     </tbody>
+
+                  </table>
+
                </div>
+
             </div>
+
             <div class="modal-footer py-2">
+
                <button type="submit" class="btn btn-sm btn-primary">Save</button>
+
                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+
             </div>
+
          </form>
+
       </div>
+
    </div>
+
+</div>
+
+<div class="modal fade" id="modal-dash-beyond-chips-edit" tabindex="-1" aria-labelledby="modal-dash-beyond-chips-edit-label" aria-hidden="true" data-bs-backdrop="static">
+
+   <div class="modal-dialog modal-dialog-centered modal-sm">
+
+      <div class="modal-content">
+
+         <div class="modal-header bg-primary py-2">
+
+            <h5 class="modal-title text-white mb-0" id="modal-dash-beyond-chips-edit-label">Edit Amount</h5>
+
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+         </div>
+
+         <form id="dash-beyond-chips-edit-form">
+
+            <div class="modal-body py-3">
+
+               <input type="hidden" id="dash-beyond-chips-edit-id">
+
+               <label for="dash-beyond-chips-edit-amount" class="form-label small text-muted mb-1">Amount</label>
+
+               <input type="text" class="form-control form-control-sm" id="dash-beyond-chips-edit-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+
+            </div>
+
+            <div class="modal-footer py-2">
+
+               <button type="submit" class="btn btn-sm btn-primary">Save</button>
+
+               <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+
+            </div>
+
+         </form>
+
+      </div>
+
+   </div>
+
 </div>

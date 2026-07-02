@@ -1,0 +1,31 @@
+<div class="modal fade" id="modal-dash-rolling-remarks" tabindex="-1" aria-labelledby="modal-dash-rolling-remarks-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+   <div class="modal-dialog modal-dialog-centered modal-md">
+      <div class="modal-content">
+         <div class="modal-header bg-primary py-2">
+            <h5 class="modal-title text-white mb-0" id="modal-dash-rolling-remarks-label">Rolling Remarks</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+         </div>
+         <form id="dash-rolling-remarks-form">
+            <div class="modal-body py-3">
+               <input type="hidden" id="dash-rolling-remarks-date-iso">
+               <div class="mb-3">
+                  <label for="dash-rolling-remarks-date" class="form-label small text-muted mb-1">Date</label>
+                  <input type="text" class="form-control form-control-sm dash-rolling-remarks-date-display" id="dash-rolling-remarks-date" readonly tabindex="-1" value="—">
+               </div>
+               <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Auto Tags</label>
+                  <div class="form-control-plaintext small py-0 text-muted" id="dash-rolling-remarks-auto-tags">—</div>
+               </div>
+               <div class="mb-0">
+                  <label for="dash-rolling-remarks-text" class="form-label small text-muted mb-1">Remarks</label>
+                  <textarea class="form-control form-control-sm" id="dash-rolling-remarks-text" rows="3" maxlength="500" placeholder="Enter remarks..."></textarea>
+               </div>
+            </div>
+            <div class="modal-footer py-2">
+               <button type="submit" class="btn btn-sm btn-primary">Save</button>
+               <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+         </form>
+      </div>
+   </div>
+</div>

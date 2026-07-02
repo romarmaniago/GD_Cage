@@ -6027,7 +6027,8 @@ pageRouter.post('/delete-test-data', async (req, res) => {
 		'tip_settlement',
 		'multipurpose_ledger_exchange',
 		'additional_commission',
-		'junket_funds_ledger'
+		'junket_funds_ledger',
+		'beyond_chips'
 
 	];
 

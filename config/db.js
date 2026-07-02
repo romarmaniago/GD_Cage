@@ -13,6 +13,8 @@ const { ensureNetProfitShareProgramDateSchema } = require('../utils/ensureNetPro
 const { ensureDashboardWlShareSchema } = require('../utils/ensureDashboardWlShareSchema');
 const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettlementCleanup');
 const { ensureAdditionalCommissionSchema } = require('../utils/ensureAdditionalCommissionSchema');
+const { ensureBeyondChipsSchema } = require('../utils/ensureBeyondChipsSchema');
+const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardCheckRemarksSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -43,6 +45,8 @@ const pool = mysql.createPool({
 		await ensureNetProfitShareProgramDateSchema(pool);
 		await ensureDashboardWlShareSchema(pool);
 		await ensureAdditionalCommissionSchema(pool);
+		await ensureBeyondChipsSchema(pool);
+		await ensureDashboardCheckRemarksSchema(pool);
 		await dropGameDailySettlementSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);

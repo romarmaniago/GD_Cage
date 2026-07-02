@@ -207,7 +207,7 @@
       var usdBalance = pickCurrency(sqlCurrencyPending, 'USD');
       var gcashBalance = pickCurrency(sqlCurrencyPending, 'GCASH');
       var phpBalance = cashBalance;
-      var cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance + rcChipsBalance;
+      var cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance;
       var cageBalanceDiff = houseBalance - cageBalanceTotal;
 
       var nowStamp = new Date();
@@ -573,6 +573,8 @@
 <%- include ('modals/junket/new_capital') %>
 <%- include ('modals/dashboard/new_total_chips') %>
 <%- include ('modals/dashboard/beyond_chips') %>
+<%- include ('modals/dashboard/rolling_remarks') %>
+<%- include ('modals/dashboard/wl_remarks') %>
 <%- include ('modals/dashboard/nnchips') %>
 <%- include ('modals/dashboard/ccchips') %>
 <%- include('modals/accounts/account_details_alt') %>

@@ -3548,6 +3548,162 @@ router.get('/dashboard/service_expense_balances', checkSession, async (req, res)
 	}
 });
 
+router.post('/save_dashboard_check_remarks', checkSession, async (req, res) => {
+	try {
+		const reportDate = String(req.body.report_date || '').trim();
+		const checkType = String(req.body.check_type || '').trim().toLowerCase();
+		let remarks = req.body.remarks != null ? String(req.body.remarks).trim() : '';
+		if (remarks.length > 500) remarks = remarks.slice(0, 500);
+
+		if (!reportDate) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+		if (!['rolling', 'wl'].includes(checkType)) {
+			return res.status(400).json({ message: 'Invalid check type.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO dashboard_check_remarks
+				(REPORT_DATE, CHECK_TYPE, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, 1)
+			 ON DUPLICATE KEY UPDATE
+				REMARKS = VALUES(REMARKS),
+				EDITED_BY = VALUES(ENCODED_BY),
+				EDITED_DT = VALUES(ENCODED_DT),
+				ACTIVE = 1`,
+			[reportDate, checkType, remarks || null, userId, now]
+		);
+
+		res.json({ success: true, message: 'Remarks saved successfully.', remarks });
+	} catch (error) {
+		console.error('save_dashboard_check_remarks:', error);
+		res.status(500).json({ message: 'Error saving remarks.' });
+	}
+});
+
+router.get('/beyond_chips_history', checkSession, async (req, res) => {
+	try {
+		const reportDate = String(req.query.report_date || '').trim();
+		if (!reportDate) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+
+		const [rows] = await pool.execute(
+			`SELECT
+				bc.IDNo AS id,
+				bc.AMOUNT AS amount,
+				DATE_FORMAT(bc.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
+			 FROM beyond_chips bc
+			 WHERE bc.ACTIVE = 1
+				AND bc.REPORT_DATE = ?
+			 ORDER BY bc.ENCODED_DT DESC, bc.IDNo DESC`,
+			[reportDate]
+		);
+
+		const entries = rows || [];
+		const total = entries.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+
+		res.json({ entries, total });
+	} catch (error) {
+		console.error('beyond_chips_history:', error);
+		res.status(500).json({ message: 'Error loading Beyond Chips history.' });
+	}
+});
+
+router.post('/add_beyond_chips', checkSession, async (req, res) => {
+	try {
+		const reportDate = String(req.body.report_date || '').trim();
+		const parsedAmount = Number(req.body.amount);
+
+		if (!reportDate) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO beyond_chips
+				(REPORT_DATE, AMOUNT, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, 1)`,
+			[reportDate, parsedAmount, userId, now]
+		);
+
+		res.json({ success: true, message: 'Beyond Chips saved successfully.' });
+	} catch (error) {
+		console.error('add_beyond_chips:', error);
+		res.status(500).json({ message: 'Error saving Beyond Chips.' });
+	}
+});
+
+router.put('/update_beyond_chips', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+		const parsedAmount = Number(req.body.amount);
+
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		const [result] = await pool.execute(
+			`UPDATE beyond_chips
+			 SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[parsedAmount, userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'Beyond Chips updated successfully.' });
+	} catch (error) {
+		console.error('update_beyond_chips:', error);
+		res.status(500).json({ message: 'Error updating Beyond Chips.' });
+	}
+});
+
+router.delete('/delete_beyond_chips', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		const [result] = await pool.execute(
+			`UPDATE beyond_chips
+			 SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'Beyond Chips deleted successfully.' });
+	} catch (error) {
+		console.error('delete_beyond_chips:', error);
+		res.status(500).json({ message: 'Error deleting Beyond Chips.' });
+	}
+});
+
 router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 	try {
 		const now = new Date();
@@ -3592,6 +3748,30 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			[dateFrom, dateTo]
 		);
 
+		const [beyondRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(bc.REPORT_DATE, '%Y-%m-%d') AS report_date,
+				SUM(COALESCE(bc.AMOUNT, 0)) AS beyond_chips
+			 FROM beyond_chips bc
+			 WHERE bc.ACTIVE = 1
+				AND bc.REPORT_DATE BETWEEN ? AND ?
+			 GROUP BY bc.REPORT_DATE
+			 ORDER BY bc.REPORT_DATE ASC`,
+			[dateFrom, dateTo]
+		);
+
+		const [checkRemarksRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(dcr.REPORT_DATE, '%Y-%m-%d') AS report_date,
+				dcr.CHECK_TYPE AS check_type,
+				dcr.REMARKS AS remarks
+			 FROM dashboard_check_remarks dcr
+			 WHERE dcr.ACTIVE = 1
+				AND dcr.REPORT_DATE BETWEEN ? AND ?
+			 ORDER BY dcr.REPORT_DATE ASC, dcr.CHECK_TYPE ASC`,
+			[dateFrom, dateTo]
+		);
+
 		const [gameWlRows] = await pool.execute(
 			`SELECT
 				DATE_FORMAT(gl.PROGRAM_DATE, '%Y-%m-%d') AS program_date,
@@ -3619,16 +3799,29 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			dailyByDateTable[row.report_date][row.junket_table_id] = row;
 		});
 
+		const beyondByDate = {};
+		(beyondRows || []).forEach((row) => {
+			beyondByDate[row.report_date] = Number(row.beyond_chips) || 0;
+		});
+
+		const remarksByDate = {};
+		const wlRemarksByDate = {};
+		(checkRemarksRows || []).forEach((row) => {
+			const text = row.remarks != null ? String(row.remarks).trim() : '';
+			if (!text) return;
+			if (row.check_type === 'wl') {
+				wlRemarksByDate[row.report_date] = text;
+			} else {
+				remarksByDate[row.report_date] = text;
+			}
+		});
+
 		const goldWlByDate = {};
 		(gameWlRows || []).forEach((row) => {
 			const cashin = Number(row.cashin) || 0;
 			const cashout = Number(row.cashout) || 0;
 			goldWlByDate[row.program_date] = cashin - cashout;
 		});
-
-		const goldTable = (tableRows || []).find((t) => /gold\s*dragon/i.test(t.table_name))
-			|| (tableRows && tableRows.length > 1 ? tableRows[1] : null);
-		const goldTableId = goldTable ? Number(goldTable.id) || null : null;
 
 		const sumDayWinlossTotal = (dayTables) => Object.values(dayTables || {})
 			.reduce((sum, row) => sum + (Number(row.winloss_amt) || 0), 0);
@@ -3653,8 +3846,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			const rolling = buyIn + rollingCc - cashOutNn;
 
 			const dayTables = dailyByDateTable[date] || {};
-			const goldRow = goldTable ? dayTables[goldTable.id] : null;
-			const beyond = goldRow ? Number(goldRow.rolling_amt) || 0 : 0;
+			const beyond = Number(beyondByDate[date]) || 0;
 
 			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT)
 			const casinoWl = sumDayWinlossTotal(dayTables);
@@ -3667,13 +3859,15 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				cash_out: cashOut,
 				rolling_cc: rollingCc,
 				rolling,
-				beyond_chips: beyond
+				beyond_chips: beyond,
+				remarks_saved: remarksByDate[date] || ''
 			});
 
 			wlRows.push({
 				date,
 				casino: casinoWl,
-				gold_dragon: goldWl
+				gold_dragon: goldWl,
+				remarks_saved: wlRemarksByDate[date] || ''
 			});
 
 			totalBuyIn += buyIn;
@@ -3820,7 +4014,6 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			date_from: dateFrom,
 			date_to: dateTo,
 			tables: tableRows || [],
-			gold_table_id: goldTableId,
 			rolling_rows: rollingRows,
 			wl_rows: wlRows,
 			totals: {

@@ -1,6 +1,4 @@
 (() => {
-  let goldTableId = null;
-
   const beyondChipsEls = {};
 
   function cacheBeyondChipsEls() {
@@ -9,6 +7,192 @@
     beyondChipsEls.dateLabel = document.getElementById('dash-beyond-chips-date');
     beyondChipsEls.dateIso = document.getElementById('dash-beyond-chips-date-iso');
     beyondChipsEls.amount = document.getElementById('dash-beyond-chips-amount');
+    beyondChipsEls.historyBody = document.getElementById('dash-beyond-chips-history-body');
+    beyondChipsEls.historyTable = document.getElementById('dash-beyond-chips-history-tbl');
+    beyondChipsEls.editModal = document.getElementById('modal-dash-beyond-chips-edit');
+    beyondChipsEls.editForm = document.getElementById('dash-beyond-chips-edit-form');
+    beyondChipsEls.editId = document.getElementById('dash-beyond-chips-edit-id');
+    beyondChipsEls.editAmount = document.getElementById('dash-beyond-chips-edit-amount');
+  }
+
+  function releaseBeyondChipsParentFocusTrap() {
+    const instance = getBeyondChipsModalInstance();
+    if (instance?._focustrap && typeof instance._focustrap.deactivate === 'function') {
+      instance._focustrap.deactivate();
+    }
+  }
+
+  function openBeyondChipsEditModal(id, amount) {
+    const { editModal, editId, editAmount } = beyondChipsEls;
+    if (!editModal || !editId || !editAmount || typeof bootstrap === 'undefined') return;
+
+    editId.value = String(id);
+    editAmount.value = formatBeyondChipsAmountInput(Math.round(Number(amount) || 0));
+    releaseBeyondChipsParentFocusTrap();
+
+    const editInstance = bootstrap.Modal.getOrCreateInstance(editModal);
+    editModal.addEventListener('shown.bs.modal', () => {
+      editAmount.focus();
+    }, { once: true });
+    editInstance.show();
+  }
+
+  function renderBeyondChipsActionCell(id, amount) {
+    return `<div class="dash-beyond-chips-actions text-center">
+      <button type="button" class="btn btn-sm btn-outline-primary js-beyond-chips-edit me-1" data-id="${escapeAttr(id)}" data-amount="${escapeAttr(amount)}" title="Edit" aria-label="Edit">
+        <i class="fa fa-pencil-alt" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-danger js-beyond-chips-delete" data-id="${escapeAttr(id)}" title="Delete" aria-label="Delete">
+        <i class="fa fa-trash-alt" aria-hidden="true"></i>
+      </button>
+    </div>`;
+  }
+
+  async function updateBeyondChipsEntry(id, amount) {
+    const res = await fetch('/update_beyond_chips', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ id, amount })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Unable to update Beyond Chips.');
+  }
+
+  async function deleteBeyondChipsEntry(id) {
+    const res = await fetch('/delete_beyond_chips', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Unable to delete Beyond Chips.');
+  }
+
+  function getBeyondChipsModalInstance() {
+    if (!beyondChipsEls.modal || typeof bootstrap === 'undefined') return null;
+    const instance = bootstrap.Modal.getOrCreateInstance(beyondChipsEls.modal, { focus: false });
+    if (instance._config) instance._config.focus = false;
+    return instance;
+  }
+
+  async function promptDeleteBeyondChipsEntry(id) {
+    if (typeof Swal === 'undefined') return;
+
+    const result = await Swal.fire({
+      title: 'Delete entry?',
+      text: 'This entry will be removed from Beyond Chips.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#dc3545',
+      focusConfirm: false
+    });
+
+    if (!result.isConfirmed) return;
+
+    const date = beyondChipsEls.dateIso?.value || '';
+
+    try {
+      await deleteBeyondChipsEntry(id);
+      await Promise.all([
+        loadBeyondChipsHistory(date),
+        loadGridData()
+      ]);
+      Swal.fire({ icon: 'success', title: 'Deleted', text: 'Beyond Chips deleted successfully.', timer: 1300, showConfirmButton: false });
+    } catch (err) {
+      console.error('promptDeleteBeyondChipsEntry:', err);
+      Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to delete Beyond Chips.' });
+    }
+  }
+
+  async function refreshBeyondChipsViews(date) {
+    await Promise.all([
+      loadBeyondChipsHistory(date),
+      loadGridData()
+    ]);
+  }
+
+  function formatBeyondChipsReportDate(iso) {
+    if (!iso) return '—';
+    const parts = String(iso).split('-');
+    if (parts.length !== 3) return iso;
+    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatBeyondChipsAmountInput(value) {
+    const cleaned = String(value ?? '').replace(/[^\d]/g, '');
+    if (!cleaned) return '';
+    return Number(cleaned).toLocaleString('en-US');
+  }
+
+  function formatBeyondChipsDateTime(value) {
+    if (!value) return '—';
+    const raw = String(value).trim();
+    const d = /^\d{4}-\d{2}-\d{2}/.test(raw)
+      ? new Date(raw.replace(' ', 'T'))
+      : new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${datePart} ${h}:${min}`;
+  }
+
+  function renderBeyondChipsHistory(payload) {
+    const { historyBody } = beyondChipsEls;
+    if (!historyBody) return;
+
+    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+
+    if (!entries.length) {
+      historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">No entries for this date</td></tr>';
+      return;
+    }
+
+    historyBody.innerHTML = entries.map((row) => `
+      <tr>
+        <td>${escapeHtml(formatBeyondChipsDateTime(row.encoded_dt))}</td>
+        <td class="text-end">${escapeHtml(formatAmount(row.amount))}</td>
+        <td class="text-center js-beyond-chips-actions">${renderBeyondChipsActionCell(row.id, row.amount)}</td>
+      </tr>`).join('');
+  }
+
+  async function loadBeyondChipsHistory(date) {
+    const { historyBody } = beyondChipsEls;
+    if (!date || !historyBody) return;
+
+    historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Loading...</td></tr>';
+
+    try {
+      const q = new URLSearchParams({ report_date: date });
+      const res = await fetch(`/beyond_chips_history?${q}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Unable to load history.');
+      renderBeyondChipsHistory(data);
+    } catch (err) {
+      console.error('loadBeyondChipsHistory:', err);
+      historyBody.innerHTML = '<tr><td colspan="3" class="text-danger text-center py-3">Unable to load history</td></tr>';
+    }
+  }
+
+  function openBeyondChipsModal(date) {
+    const { modal, dateLabel, dateIso, amount: amountInput } = beyondChipsEls;
+    if (!modal || !dateLabel || !dateIso || !amountInput || typeof bootstrap === 'undefined') return;
+
+    dateLabel.value = formatBeyondChipsReportDate(date);
+    dateIso.value = date;
+    amountInput.value = '';
+
+    getBeyondChipsModalInstance()?.show();
+    loadBeyondChipsHistory(date);
+    modal.addEventListener('shown.bs.modal', () => {
+      amountInput.focus();
+    }, { once: true });
   }
 
   function parseBeyondChipsInput(raw) {
@@ -18,33 +202,14 @@
     return Number.isFinite(n) ? n : NaN;
   }
 
-  function openBeyondChipsModal(date, amount) {
-    const { modal, dateLabel, dateIso, amount: amountInput } = beyondChipsEls;
-    if (!modal || !dateLabel || !dateIso || !amountInput || typeof bootstrap === 'undefined') return;
-
-    dateLabel.textContent = toDisplayDate(date);
-    dateIso.value = date;
-    const n = Number(amount) || 0;
-    amountInput.value = n === 0 ? '' : String(Math.round(n));
-
-    bootstrap.Modal.getOrCreateInstance(modal).show();
-    modal.addEventListener('shown.bs.modal', () => {
-      amountInput.focus();
-      amountInput.select();
-    }, { once: true });
-  }
-
   async function saveBeyondChips(date, amount) {
-    if (!goldTableId) throw new Error('Gold Dragon table not found.');
-
-    const res = await fetch('/add_daily_table_report', {
+    const res = await fetch('/add_beyond_chips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({
         report_date: date,
-        report_mode: 'rolling',
-        reports: [{ junket_table_id: goldTableId, rolling: amount, winloss: 0 }]
+        amount
       })
     });
     const data = await res.json().catch(() => ({}));
@@ -57,38 +222,104 @@
     if (!root || !beyondChipsEls.form) return;
 
     root.addEventListener('click', (e) => {
-      const row = e.target.closest('.dash-rolling-row');
-      if (!row || !root.contains(row)) return;
-      const date = row.dataset.date;
+      const cell = e.target.closest('.js-beyond-chips-cell');
+      if (!cell || !root.contains(cell)) return;
+      const date = cell.dataset.date;
       if (!date) return;
-      openBeyondChipsModal(date, row.dataset.beyondChips || '0');
+      e.preventDefault();
+      openBeyondChipsModal(date);
     });
 
-    beyondChipsEls.form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const date = beyondChipsEls.dateIso?.value || '';
-      const amount = parseBeyondChipsInput(beyondChipsEls.amount?.value);
-      const saveBtn = beyondChipsEls.form.querySelector('[type="submit"]');
+    beyondChipsEls.historyTable?.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.js-beyond-chips-edit');
+      if (editBtn) {
+        e.preventDefault();
+        openBeyondChipsEditModal(editBtn.dataset.id, editBtn.dataset.amount);
+        return;
+      }
 
-      if (!date) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+      const deleteBtn = e.target.closest('.js-beyond-chips-delete');
+      if (deleteBtn) {
+        e.preventDefault();
+        promptDeleteBeyondChipsEntry(deleteBtn.dataset.id);
+      }
+    });
+
+    beyondChipsEls.editAmount?.addEventListener('input', (e) => {
+      e.target.value = formatBeyondChipsAmountInput(e.target.value);
+    });
+
+    beyondChipsEls.editForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = beyondChipsEls.editId?.value || '';
+      const amount = parseBeyondChipsInput(beyondChipsEls.editAmount?.value);
+      const saveBtn = beyondChipsEls.editForm?.querySelector('[type="submit"]');
+      const date = beyondChipsEls.dateIso?.value || '';
+
+      if (!id) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Entry is missing.' });
         return;
       }
       if (Number.isNaN(amount)) {
         if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
         return;
       }
+      if (amount === 0) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Amount cannot be zero.' });
+        return;
+      }
 
       if (saveBtn) saveBtn.disabled = true;
       try {
-        await saveBeyondChips(date, amount);
-        if (beyondChipsEls.modal && typeof bootstrap !== 'undefined') {
-          bootstrap.Modal.getOrCreateInstance(beyondChipsEls.modal).hide();
+        await updateBeyondChipsEntry(id, amount);
+        if (beyondChipsEls.editModal && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(beyondChipsEls.editModal).hide();
         }
+        await refreshBeyondChipsViews(date);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'success', title: 'Updated', text: 'Beyond Chips updated successfully.', timer: 1300, showConfirmButton: false });
+        }
+      } catch (err) {
+        console.error('beyondChipsEditForm:', err);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to update Beyond Chips.' });
+        }
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    });
+
+    beyondChipsEls.amount?.addEventListener('input', (e) => {
+      e.target.value = formatBeyondChipsAmountInput(e.target.value);
+    });
+
+    beyondChipsEls.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = beyondChipsEls.dateIso?.value || '';
+      const addAmount = parseBeyondChipsInput(beyondChipsEls.amount?.value);
+      const saveBtn = beyondChipsEls.form.querySelector('[type="submit"]');
+
+      if (!date) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+        return;
+      }
+      if (Number.isNaN(addAmount)) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+        return;
+      }
+      if (addAmount === 0) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter an amount to add.' });
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+      try {
+        await saveBeyondChips(date, addAmount);
+        beyondChipsEls.amount.value = '';
+        await refreshBeyondChipsViews(date);
         if (typeof Swal !== 'undefined') {
           Swal.fire({ icon: 'success', title: 'Saved', text: 'Beyond Chips saved successfully.', timer: 1300, showConfirmButton: false });
         }
-        await loadGridData();
       } catch (err) {
         console.error('saveBeyondChips:', err);
         if (typeof Swal !== 'undefined') {
@@ -136,12 +367,191 @@
     return Number.isFinite(n) && n < 0 ? ' text-dash-neg' : '';
   }
 
-  function buildRollingRemarks(row) {
+  function buildRollingAutoRemarks(row) {
     const tags = [];
     if (Number(row.buy_in) > 0) tags.push('BI');
     if (Number(row.cash_out) > 0) tags.push('CO');
     if (Number(row.rolling_cc) > 0) tags.push('R');
     return tags.join(',');
+  }
+
+  function formatRollingRemarksDisplay(row) {
+    const auto = buildRollingAutoRemarks(row);
+    const saved = String(row.remarks_saved || '').trim();
+    if (auto && saved) return `${auto} | ${saved}`;
+    if (saved) return saved;
+    return auto;
+  }
+
+  const rollingRemarksEls = {};
+
+  function cacheRollingRemarksEls() {
+    rollingRemarksEls.modal = document.getElementById('modal-dash-rolling-remarks');
+    rollingRemarksEls.form = document.getElementById('dash-rolling-remarks-form');
+    rollingRemarksEls.dateLabel = document.getElementById('dash-rolling-remarks-date');
+    rollingRemarksEls.dateIso = document.getElementById('dash-rolling-remarks-date-iso');
+    rollingRemarksEls.autoTags = document.getElementById('dash-rolling-remarks-auto-tags');
+    rollingRemarksEls.text = document.getElementById('dash-rolling-remarks-text');
+  }
+
+  function openRollingRemarksModal(cell) {
+    const { modal, dateLabel, dateIso, autoTags, text } = rollingRemarksEls;
+    if (!modal || !dateLabel || !dateIso || !autoTags || !text || typeof bootstrap === 'undefined') return;
+
+    const date = cell.dataset.date || '';
+    const saved = cell.dataset.remarksSaved || '';
+    const row = {
+      buy_in: cell.dataset.buyIn,
+      cash_out: cell.dataset.cashOut,
+      rolling_cc: cell.dataset.rollingCc
+    };
+
+    dateLabel.value = formatBeyondChipsReportDate(date);
+    dateIso.value = date;
+    autoTags.textContent = buildRollingAutoRemarks(row) || '—';
+    text.value = saved;
+
+    bootstrap.Modal.getOrCreateInstance(modal, { focus: true }).show();
+    modal.addEventListener('shown.bs.modal', () => {
+      text.focus();
+    }, { once: true });
+  }
+
+  async function saveDashboardCheckRemarks(date, checkType, remarks) {
+    const res = await fetch('/save_dashboard_check_remarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ report_date: date, check_type: checkType, remarks })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Unable to save remarks.');
+  }
+
+  async function saveRollingRemarks(date, remarks) {
+    return saveDashboardCheckRemarks(date, 'rolling', remarks);
+  }
+
+  function initRollingRemarks() {
+    cacheRollingRemarksEls();
+    const root = document.getElementById('dash-rolling-root');
+    if (!root || !rollingRemarksEls.form) return;
+
+    root.addEventListener('click', (e) => {
+      const cell = e.target.closest('.js-rolling-remarks-cell');
+      if (!cell || !root.contains(cell)) return;
+      e.preventDefault();
+      openRollingRemarksModal(cell);
+    });
+
+    rollingRemarksEls.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = rollingRemarksEls.dateIso?.value || '';
+      const remarks = rollingRemarksEls.text?.value?.trim() || '';
+      const saveBtn = rollingRemarksEls.form.querySelector('[type="submit"]');
+
+      if (!date) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+      try {
+        await saveRollingRemarks(date, remarks);
+        if (rollingRemarksEls.modal && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(rollingRemarksEls.modal).hide();
+        }
+        await loadGridData();
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'success', title: 'Saved', text: 'Remarks saved successfully.', timer: 1300, showConfirmButton: false });
+        }
+      } catch (err) {
+        console.error('saveRollingRemarks:', err);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save remarks.' });
+        }
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    });
+  }
+
+  const wlRemarksEls = {};
+
+  function cacheWlRemarksEls() {
+    wlRemarksEls.modal = document.getElementById('modal-dash-wl-remarks');
+    wlRemarksEls.form = document.getElementById('dash-wl-remarks-form');
+    wlRemarksEls.dateLabel = document.getElementById('dash-wl-remarks-date');
+    wlRemarksEls.dateIso = document.getElementById('dash-wl-remarks-date-iso');
+    wlRemarksEls.text = document.getElementById('dash-wl-remarks-text');
+  }
+
+  function formatWlRemarksDisplay(row) {
+    return String(row.remarks_saved || '').trim();
+  }
+
+  function openWlRemarksModal(cell) {
+    const { modal, dateLabel, dateIso, text } = wlRemarksEls;
+    if (!modal || !dateLabel || !dateIso || !text || typeof bootstrap === 'undefined') return;
+
+    const date = cell.dataset.date || '';
+
+    dateLabel.value = formatBeyondChipsReportDate(date);
+    dateIso.value = date;
+    text.value = cell.dataset.remarksSaved || '';
+
+    bootstrap.Modal.getOrCreateInstance(modal, { focus: true }).show();
+    modal.addEventListener('shown.bs.modal', () => {
+      text.focus();
+    }, { once: true });
+  }
+
+  async function saveWlRemarks(date, remarks) {
+    return saveDashboardCheckRemarks(date, 'wl', remarks);
+  }
+
+  function initWlRemarks() {
+    cacheWlRemarksEls();
+    const root = document.getElementById('dash-wl-root');
+    if (!root || !wlRemarksEls.form) return;
+
+    root.addEventListener('click', (e) => {
+      const cell = e.target.closest('.js-wl-remarks-cell');
+      if (!cell || !root.contains(cell)) return;
+      e.preventDefault();
+      openWlRemarksModal(cell);
+    });
+
+    wlRemarksEls.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = wlRemarksEls.dateIso?.value || '';
+      const remarks = wlRemarksEls.text?.value?.trim() || '';
+      const saveBtn = wlRemarksEls.form.querySelector('[type="submit"]');
+
+      if (!date) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Date is missing.' });
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+      try {
+        await saveWlRemarks(date, remarks);
+        if (wlRemarksEls.modal && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(wlRemarksEls.modal).hide();
+        }
+        await loadGridData();
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'success', title: 'Saved', text: 'Remarks saved successfully.', timer: 1300, showConfirmButton: false });
+        }
+      } catch (err) {
+        console.error('saveWlRemarks:', err);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save remarks.' });
+        }
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    });
   }
 
   function toDisplayDate(iso) {
@@ -212,13 +622,13 @@
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-rolling-row is-today' : 'dash-rolling-row';
-      return `<div class="${cls}" data-date="${escapeAttr(row.date)}" data-beyond-chips="${escapeAttr(row.beyond_chips ?? 0)}" title="Click to edit Beyond Chips">
+      return `<div class="${cls}" data-date="${escapeAttr(row.date)}">
         <span class="dash-rolling-body-cell is-date">${toDisplayDate(row.date)}</span>
         <span class="dash-rolling-body-cell is-col-casino">${escapeHtml(formatCell(row.buy_in))}</span>
         <span class="dash-rolling-body-cell is-col-casino text-dash-neg">${escapeHtml(formatCashOutCell(row.cash_out))}</span>
         <span class="dash-rolling-body-cell is-col-casino">${escapeHtml(formatCell(row.rolling))}</span>
-        <span class="dash-rolling-body-cell is-col-gold">${escapeHtml(formatCell(row.beyond_chips))}</span>
-        <span class="dash-rolling-body-cell is-col-remarks">${escapeHtml(buildRollingRemarks(row))}</span>
+        <span class="dash-rolling-body-cell is-col-gold js-beyond-chips-cell" data-date="${escapeAttr(row.date)}" title="Click to add Beyond Chips">${escapeHtml(formatCell(row.beyond_chips))}</span>
+        <span class="dash-rolling-body-cell is-col-remarks js-rolling-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" data-buy-in="${escapeAttr(row.buy_in ?? 0)}" data-cash-out="${escapeAttr(row.cash_out ?? 0)}" data-rolling-cc="${escapeAttr(row.rolling_cc ?? 0)}" title="Click to edit remarks">${escapeHtml(formatRollingRemarksDisplay(row))}</span>
       </div>`;
     }).join('');
 
@@ -375,7 +785,7 @@
         <span class="dash-wl-body-cell is-col-casino${casino.neg ? ' text-dash-neg' : ''}">${escapeHtml(casino.text)}</span>
         <span class="dash-wl-body-cell is-col-gold${gold.neg ? ' text-dash-neg' : ''}">${escapeHtml(gold.text)}</span>
         <span class="dash-wl-body-cell is-col-diff${diffCell.neg ? ' text-dash-neg' : ''}">${escapeHtml(diffCell.text)}</span>
-        <span class="dash-wl-body-cell is-col-remarks"></span>
+        <span class="dash-wl-body-cell is-col-remarks js-wl-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" title="Click to edit remarks">${escapeHtml(formatWlRemarksDisplay(row))}</span>
       </div>`;
     }).join('');
 
@@ -580,7 +990,6 @@
       const res = await fetch(`/dashboard_grid_data?${q}`, { credentials: 'same-origin' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to load grid data');
-      goldTableId = Number(data.gold_table_id) || null;
       renderRollingTable(data);
       renderWlTable(data);
       updateOnGameSummary(data);
@@ -595,6 +1004,8 @@
     initMatrixPanelHeightSync();
     bindDualMatrixScrollSync();
     initBeyondChips();
+    initRollingRemarks();
+    initWlRemarks();
     loadGridData();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
