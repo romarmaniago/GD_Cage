@@ -620,6 +620,10 @@ body {
   border-bottom-color: rgba(200, 162, 76, 0.28);
 }
 
+.dash-card.gd-dash-panel .dash-kv-group-title.is-warn #dash-on-game-count {
+  color: inherit;
+}
+
 .dash-card.gd-dash-panel .dash-kv-group-title.is-muted {
   color: var(--gd-dash-text-subtle);
   background: rgba(255, 255, 255, 0.03);

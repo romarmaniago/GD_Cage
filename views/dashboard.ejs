@@ -211,13 +211,18 @@
       var cageBalanceDiff = houseBalance - cageBalanceTotal;
 
       var nowStamp = new Date();
-      var monthStart = new Date(nowStamp.getFullYear(), nowStamp.getMonth(), 1);
-      var monthEnd = new Date(nowStamp.getFullYear(), nowStamp.getMonth() + 1, 0);
       var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
-      var dashPeriodLabel = (+monthStart.getMonth() + 1) + '/' + monthStart.getDate() + ' \u2013 ' + (+monthEnd.getMonth() + 1) + '/' + monthEnd.getDate();
+      var fmtMd = function(d) { return (d.getMonth() + 1) + '/' + d.getDate(); };
+      var cutoffY = nowStamp.getFullYear();
+      var cutoffM = nowStamp.getMonth();
+      var monthStart = new Date(cutoffY, cutoffM, 0);
+      var monthEnd = new Date(cutoffY, cutoffM + 1, 0);
+      monthEnd.setDate(monthEnd.getDate() - 1);
+      var monthEndApi = new Date(cutoffY, cutoffM + 1, 0);
+      var dashPeriodLabel = fmtMd(monthStart) + ' \u2013 ' + fmtMd(monthEnd);
       var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
-      var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
+      var dashboardDateTo = monthEndApi.getFullYear() + '-' + pad2(monthEndApi.getMonth() + 1) + '-' + pad2(monthEndApi.getDate());
    %>
 
    <form id="expense-form" action="/insert-dash-history" method="POST">
@@ -242,15 +247,15 @@
                      <span class="dash-card-meta"><%= nowStampDisplay %></span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv-group-title">Cash</div>
+                     <div class="dash-kv-group-title is-warn">Cash</div>
                      <div class="dash-kv"><span class="dash-kv-label">USD $</span><span class="dash-kv-value"><%- fmtAmt(usdBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">GCASH</span><span class="dash-kv-value"><%- fmtAmt(gcashBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">PHP ₱</span><span class="dash-kv-value"><%- fmtAmt(phpBalance) %></span></div>
-                     <div class="dash-kv-group-title">Chips</div>
+                     <div class="dash-kv-group-title is-warn">Chips</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-nn-chips" data-bs-toggle="modal" data-view-only-disable>NN</a></span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>CC</a></span><span class="dash-kv-value"><%- fmtAmt(ccChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">RC</span><span class="dash-kv-value"><%- fmtAmt(rcChipsBalance) %></span></div>
-                     <div class="dash-kv-group-title">Balance</div>
+                     <div class="dash-kv-group-title is-warn">Balance</div>
                      <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(houseBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">The difference</span><span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span></div>
                   </div>
@@ -266,7 +271,7 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" class="dash-card-link js-open-dash-junket-loss">Etc (Miss Bet)</a></span><span class="dash-kv-value"><a href="#" class="dash-card-link js-open-dash-junket-loss" id="dash-junket-loss-total"><%- fmtNeg(junketLossAmount) %></a></span></div>
-                     <div class="dash-kv-group-title">Settlement</div>
+                     <div class="dash-kv-group-title is-warn">Settlement</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value" id="dash-additional-commission-total"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
                      <div class="dash-kv-group-title is-muted">Deposit Of Expenses</div>
@@ -274,9 +279,9 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-hotel">Hotel</a></span><span class="dash-kv-value dash-service-balance" data-category="hotel"><%- fmtAmt(hotelBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-incidental">Incidental</a></span><span class="dash-kv-value dash-service-balance" data-category="incidental"><%- fmtAmt(incidentalBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery"><%- fmtAmt(deliveryBalance) %></span></div>
-                     <div class="dash-kv-group-title">Etc (Tip)</div>
+                     <div class="dash-kv-group-title is-warn">Etc (Tip)</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-tip">Tip Balance</a></span><span class="dash-kv-value" id="dash-tip-balance-value"><%- fmtAmt(tipAvailableBalance) %></span></div>
-                     <div class="dash-kv-group-title">Deposit Of Guests</div>
+                     <div class="dash-kv-group-title is-warn">Deposit Of Guests</div>
                      <div class="dash-kv"><span class="dash-kv-label">Line</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-guestAccount" data-view-only-disable class="dash-card-link"><%- fmtAmt(guestBalance) %></a></span></div>
                      <div class="dash-card-actions">
                         <a href="#" data-bs-toggle="modal" data-bs-target="#modal-guest-summary-quick-view" class="btn btn-sm btn-primary-subtle">Quick View</a>
@@ -303,7 +308,7 @@
                      <span class="dash-card-meta"><%= dashPeriodLabel %></span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv-group-title">Casino</div>
+                     <div class="dash-kv-group-title is-warn">Casino</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-winloss-details">W/L</a></span><span class="dash-kv-value" id="winloss"><%- fmtAmt(winLossTotal) %></span></div>
                      <div class="dash-kv">
                         <span class="dash-kv-label">W/L Rate</span>
@@ -337,7 +342,7 @@
                      <span>Actual Check</span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv-group-title is-center">Current Time W/L</div>
+                     <div class="dash-kv-group-title is-warn is-center">Current Time W/L</div>
                      <div class="dash-kv"><span class="dash-kv-label">Buy In</span><span class="dash-kv-value" id="dash-actual-buyin">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Cash Out</span><span class="dash-kv-value text-dash-neg" id="dash-actual-cashout">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Chips</span><span class="dash-kv-value"><%- fmtAmt(totalChipsBalance) %></span></div>
@@ -345,12 +350,12 @@
                      <div class="dash-kv-group-title is-muted">Win / Lose</div>
                      <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-wl">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Difference</span><span class="dash-kv-value">0</span></div>
-                     <div class="dash-kv-group-title is-center">Current Time Rolling</div>
+                     <div class="dash-kv-group-title is-warn is-center">Current Time Rolling</div>
                      <div class="dash-kv"><span class="dash-kv-label">Main Cage</span><span class="dash-kv-value" id="dash-actual-rolling">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value"><%- fmtAmt(totalRollingAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
-                     <div class="dash-kv-group-title d-flex justify-content-between align-items-center">
+                     <div class="dash-kv-group-title is-warn d-flex justify-content-between align-items-center">
                         <span>On Game</span>
                         <span id="dash-on-game-count">—</span>
                      </div>
