@@ -422,6 +422,10 @@ function populateHouseExpenseReceipt(data) {
 function showHouseExpenseReceiptModal() {
     var modalEl = document.getElementById('modal-house-expense-receipt');
     if (!modalEl) return;
+    var $modal = $('#modal-house-expense-receipt');
+    if ($modal.length) {
+        $modal.appendTo('body');
+    }
     if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
     } else if ($('#modal-house-expense-receipt').modal) {
