@@ -285,6 +285,18 @@ ON
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
 	`;
+	let sqlAccountDepositCashIn = `
+	  SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT
+	  FROM account_ledger
+	  JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+	  JOIN agent ON agent.IDNo = account.AGENT_ID
+	  WHERE account_ledger.ACTIVE = 1 
+		AND account_ledger.TRANSACTION_TYPE = 2 
+		AND account_ledger.TRANSACTION_ID = 1 
+		AND COALESCE(account_ledger.TRANSACTION_DESC, '') <> 'ADDITIONAL COMMISSION'
+		AND account.ACTIVE = 1 
+		AND agent.ACTIVE = 1
+	`;
 
 	let sqlAccountDeduct = `
 	  SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT
@@ -631,6 +643,7 @@ let sqlServiceSettle = `
 		const [cashDepositResult] = await pool.execute(sqlCashDeposit);
 		const [cashWithdrawResult] = await pool.execute(sqlCashWithdraw);
 		const [accountDepositResult] = await pool.execute(sqlAccountDeposit);
+		const [accountDepositCashInResult] = await pool.execute(sqlAccountDepositCashIn);
 		const [accountCCChips] = await pool.execute(sqlAccountCCChips);
 		const [accountNNChips] = await pool.execute(sqlAccountNNChips);
 		const [markerIssueGame] = await pool.execute(sqlMarkerIssueGame);
@@ -832,7 +845,7 @@ let sqlServiceSettle = `
 		let totalAdditionalCommission = 0;
 		try {
 			const [additionalRows] = await pool.execute(
-				`SELECT COALESCE(SUM(CASH_OUT), 0) AS total
+				`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 				 FROM additional_commission
 				 WHERE ACTIVE = 1`
 			);
@@ -945,6 +958,7 @@ let sqlServiceSettle = `
 			sqlCashDeposit: cashDepositResult,
 			sqlCashWithdraw: cashWithdrawResult,
 			sqlAccountDeposit: accountDepositResult,
+			sqlAccountDepositCashIn: accountDepositCashInResult,
 			sqlAccountWithdraw: accountWithdrawResult,
 			sqlAccountDeduct: accountDeductResult,
 			sqlAccountServicesDeduct: accountServicesDeductResult,

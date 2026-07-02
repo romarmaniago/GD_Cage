@@ -94,6 +94,10 @@
   z-index: 1065 !important;
 }
 
+.swal2-container {
+  z-index: 1080 !important;
+}
+
 @media (max-width: 768px) {
   #additional-commission-tbl {
     font-size: 10px;

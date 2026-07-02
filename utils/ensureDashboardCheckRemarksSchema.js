@@ -26,7 +26,6 @@ async function migrateLegacyRemarksTables(pool, tableName) {
 				EDITED_DT = VALUES(EDITED_DT),
 				ACTIVE = VALUES(ACTIVE)`
 		);
-		console.log('[dashboard_check_remarks] Migrated rolling_check_remarks');
 	}
 
 	if (await tableExists(pool, 'wl_check_remarks')) {
@@ -40,7 +39,6 @@ async function migrateLegacyRemarksTables(pool, tableName) {
 				EDITED_DT = VALUES(EDITED_DT),
 				ACTIVE = VALUES(ACTIVE)`
 		);
-		console.log('[dashboard_check_remarks] Migrated wl_check_remarks');
 	}
 }
 

@@ -1,20 +1,28 @@
 (function () {
+  const TYPE_DEPOSIT = 1;
+  const TYPE_CASHOUT = 2;
+
   function initAdditionalCommission() {
     const tableBody = document.querySelector('#additional-commission-tbl tbody');
     const addButton = document.getElementById('btn-add-additional-commission');
     const form = document.getElementById('additional-commission-form');
+    const recordIdInput = document.getElementById('additional-commission-id');
+    const modalTitle = document.getElementById('additional-commission-modal-title');
     const agentSelect = document.getElementById('additional-commission-agent');
-    const cashOutInput = document.getElementById('additional-commission-cash-out');
+    const typeCashOut = document.getElementById('additional-commission-type-cashout');
+    const typeDeposit = document.getElementById('additional-commission-type-deposit');
+    const amountInput = document.getElementById('additional-commission-amount');
     const remarksInput = document.getElementById('additional-commission-remarks');
     const saveButton = document.getElementById('additional-commission-save-btn');
     const addModalEl = document.getElementById('modal-additional-commission');
     const dashListModalEl = document.getElementById('modal-dash-additional-commission');
 
-    if (!tableBody || !addButton || !form || !agentSelect || !cashOutInput || !remarksInput || !saveButton || !addModalEl) {
+    if (!tableBody || !addButton || !form || !recordIdInput || !modalTitle || !agentSelect || !typeCashOut || !typeDeposit || !amountInput || !remarksInput || !saveButton || !addModalEl) {
       return;
     }
 
     let agents = [];
+    let records = [];
     const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
 
     function escapeHtml(value) {
@@ -70,12 +78,18 @@
       return `<span class="text-dash-neg">(${Math.abs(amount).toLocaleString('en-US')})</span>`;
     }
 
+    function parseDashboardAmount(value) {
+      return Math.round(Number(String(value || '').replace(/,/g, '')) || 0);
+    }
+
     function updateDashboardAdditionalCommissionTotal(total) {
       const mainTotalEl = document.getElementById('dash-additional-commission-total');
       const anticipatedEl = document.getElementById('dash-additional-commission-anticipated');
       const anticipatedPanel = document.getElementById('dash-anticipated-panel');
       const companyExpenseEl = document.querySelector('#dash-anticipated-panel .dash-kv.is-total .dash-kv-value');
       const grandTotalEl = document.getElementById('dash-grand-total');
+      const cageBalanceTotalEl = document.getElementById('dash-cage-balance-total');
+      const companyBalanceTotalEl = document.getElementById('dash-company-balance-total');
 
       if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
       if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
@@ -88,6 +102,7 @@
       const nextAdditional = Math.round(Number(total) || 0);
       const previousCompanyExpense = Number(anticipatedPanel.dataset.companyExpense) || 0;
       const nextCompanyExpense = previousCompanyExpense - previousAdditional + nextAdditional;
+      const additionalDelta = nextAdditional - previousAdditional;
 
       anticipatedPanel.dataset.additionalCommission = String(nextAdditional);
       anticipatedPanel.dataset.companyExpense = String(nextCompanyExpense);
@@ -99,6 +114,15 @@
 
       if (companyExpenseEl) companyExpenseEl.innerHTML = formatDashboardNegHtml(nextCompanyExpense);
       if (grandTotalEl) grandTotalEl.textContent = formatDashboardAmount(grandTotal);
+
+      if (additionalDelta && cageBalanceTotalEl) {
+        const nextCageBalance = parseDashboardAmount(cageBalanceTotalEl.textContent) - additionalDelta;
+        cageBalanceTotalEl.textContent = formatDashboardAmount(nextCageBalance);
+      }
+      if (additionalDelta && companyBalanceTotalEl) {
+        const nextCompanyBalance = parseDashboardAmount(companyBalanceTotalEl.textContent) - additionalDelta;
+        companyBalanceTotalEl.textContent = formatDashboardAmount(nextCompanyBalance);
+      }
     }
 
     function initAccountSelect2() {
@@ -121,21 +145,55 @@
       });
     }
 
+    function getRowType(row) {
+      return Number(row.TYPE) === TYPE_DEPOSIT ? 'deposit' : (Number(row.TYPE) === TYPE_CASHOUT ? 'cashout' : '');
+    }
+
+    function getTypeLabel(type) {
+      if (type === 'deposit') return 'Deposit';
+      if (type === 'cashout') return 'Cash-out';
+      return '';
+    }
+
+    function formatRowAmount(row) {
+      const amount = Number(row.AMOUNT) || 0;
+      if (!amount) return '';
+      return formatAmount(amount);
+    }
+
     function renderRows(rows) {
-      if (!rows.length) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No additional commission records found.</td></tr>';
+      records = rows || [];
+
+      if (!records.length) {
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
         return;
       }
 
-      tableBody.innerHTML = rows.map((row) => `
+      tableBody.innerHTML = records.map((row) => {
+        const type = getRowType(row);
+        const typeLabel = getTypeLabel(type);
+        const amount = Number(row.AMOUNT) || 0;
+        const amountClass = amount ? 'text-danger' : '';
+
+        return `
         <tr>
           <td>${formatDateTime(row.ENCODED_DT)}</td>
           <td>${escapeHtml(row.account)}</td>
           <td>${escapeHtml(row.name)}</td>
-          <td class="text-end text-danger">${formatAmount(row.CASH_OUT)}</td>
+          <td class="text-end ${amountClass}">${formatRowAmount(row)}</td>
+          <td>${escapeHtml(typeLabel)}</td>
           <td>${escapeHtml(row.REMARKS)}</td>
+          <td class="text-center text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
+              <i class="fa fa-pencil-alt"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
+              <i class="fa fa-trash"></i>
+            </button>
+          </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     function loadAdditionalCommissionData() {
@@ -147,11 +205,11 @@
         .then(renderRows)
         .catch((error) => {
           console.error(error);
-          tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load records.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load records.</td></tr>';
         });
     }
 
-    function loadAgents() {
+    function loadAgents(selectedAgentId) {
       return fetch('/additional_commission_agents')
         .then((response) => {
           if (!response.ok) throw new Error('Failed to load accounts.');
@@ -171,11 +229,38 @@
             `<option value="${escapeHtml(agent.agent_id)}">${escapeHtml(agent.account)} - ${escapeHtml(agent.name)}</option>`
           )).join('');
           initAccountSelect2();
+          if (selectedAgentId) {
+            if (window.jQuery) {
+              window.jQuery('#additional-commission-agent').val(String(selectedAgentId)).trigger('change');
+            } else {
+              agentSelect.value = String(selectedAgentId);
+            }
+          }
         });
     }
 
+    function getSelectedType() {
+      if (typeDeposit.checked) return TYPE_DEPOSIT;
+      if (typeCashOut.checked) return TYPE_CASHOUT;
+      return null;
+    }
+
+    function setSelectedType(typeValue) {
+      typeCashOut.checked = Number(typeValue) === TYPE_CASHOUT;
+      typeDeposit.checked = Number(typeValue) === TYPE_DEPOSIT;
+    }
+
+    function clearTypeSelection() {
+      typeCashOut.checked = false;
+      typeDeposit.checked = false;
+    }
+
     function resetAdditionalCommissionForm() {
+      recordIdInput.value = '';
+      modalTitle.textContent = 'Add Additional Commission';
       form.reset();
+      clearTypeSelection();
+      amountInput.value = '';
       if (window.jQuery) {
         window.jQuery('#additional-commission-agent').val('').trigger('change');
       } else {
@@ -197,6 +282,76 @@
         });
     }
 
+    function openEditAdditionalCommissionModal(recordId) {
+      const row = records.find((item) => String(item.IDNo) === String(recordId));
+      if (!row) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire('Error', 'Record not found.', 'error');
+        }
+        return;
+      }
+
+      recordIdInput.value = String(row.IDNo);
+      modalTitle.textContent = 'Edit Additional Commission';
+      setSelectedType(row.TYPE);
+      amountInput.value = formatAmountInput(String(row.AMOUNT || ''));
+      remarksInput.value = row.REMARKS || '';
+
+      loadAgents(row.AGENT_ID)
+        .catch((error) => {
+          console.error(error);
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', 'Failed to load accounts.', 'error');
+          }
+        })
+        .finally(() => {
+          addModal.show();
+        });
+    }
+
+    function deleteAdditionalCommission(recordId) {
+      const confirmDelete = () => fetch(`/additional_commission/${encodeURIComponent(recordId)}`, {
+        method: 'DELETE'
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error('Failed to delete record.');
+          return response.json().catch(() => ({}));
+        })
+        .then((payload) => {
+          loadAdditionalCommissionData();
+          if (payload && payload.total != null) {
+            updateDashboardAdditionalCommissionTotal(payload.total);
+          }
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Deleted', 'Record deleted successfully.', 'success');
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+          if (typeof Swal !== 'undefined') {
+            Swal.fire('Error', 'Failed to delete record.', 'error');
+          }
+        });
+
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: 'Delete record?',
+          text: 'This action cannot be undone.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Delete',
+          confirmButtonColor: '#d33'
+        }).then((result) => {
+          if (result.isConfirmed) confirmDelete();
+        });
+        return;
+      }
+
+      if (window.confirm('Delete this record?')) {
+        confirmDelete();
+      }
+    }
+
     window.loadAdditionalCommissionData = loadAdditionalCommissionData;
 
     if (!dashListModalEl) {
@@ -213,31 +368,73 @@
 
     addButton.addEventListener('click', openAdditionalCommissionModal);
 
-    cashOutInput.addEventListener('input', function () {
-      cashOutInput.value = formatAmountInput(cashOutInput.value);
+    tableBody.addEventListener('click', function (event) {
+      const editBtn = event.target.closest('.btn-edit-additional-commission');
+      const deleteBtn = event.target.closest('.btn-delete-additional-commission');
+
+      if (editBtn) {
+        openEditAdditionalCommissionModal(editBtn.dataset.id);
+        return;
+      }
+
+      if (deleteBtn) {
+        deleteAdditionalCommission(deleteBtn.dataset.id);
+      }
+    });
+
+    typeCashOut.addEventListener('change', function () {
+      amountInput.value = '';
+    });
+    typeDeposit.addEventListener('change', function () {
+      amountInput.value = '';
+    });
+
+    amountInput.addEventListener('input', function () {
+      amountInput.value = formatAmountInput(amountInput.value);
     });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
 
       const selectedAgent = agents.find((agent) => String(agent.agent_id) === String(agentSelect.value));
+      const selectedType = getSelectedType();
+      const parsedAmount = Number(sanitizeAmountInput(amountInput.value)) || 0;
+      const editingId = String(recordIdInput.value || '').trim();
       const payload = {
         agentId: agentSelect.value,
         agentName: selectedAgent ? String(selectedAgent.name || '').trim() : '',
-        cashOut: sanitizeAmountInput(cashOutInput.value),
+        type: selectedType,
+        amount: String(parsedAmount),
         remarks: remarksInput.value.trim()
       };
 
-      if (!payload.agentId || !payload.cashOut) {
+      if (!payload.agentId) {
         if (typeof Swal !== 'undefined') {
-          Swal.fire('Validation', 'Please select an account and enter cash-out.', 'warning');
+          Swal.fire('Validation', 'Please select an account.', 'warning');
         }
         return;
       }
 
+      if (selectedType !== TYPE_DEPOSIT && selectedType !== TYPE_CASHOUT) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire('Validation', 'Please select type (Deposit or Cash-out).', 'warning');
+        }
+        return;
+      }
+
+      if (!parsedAmount) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire('Validation', 'Please enter amount.', 'warning');
+        }
+        return;
+      }
+
+      const url = editingId ? `/additional_commission/${encodeURIComponent(editingId)}` : '/add_additional_commission';
+      const method = editingId ? 'PUT' : 'POST';
+
       saveButton.disabled = true;
-      fetch('/add_additional_commission', {
-        method: 'POST',
+      fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
@@ -253,7 +450,7 @@
             updateDashboardAdditionalCommissionTotal(payload.total);
           }
           if (typeof Swal !== 'undefined') {
-            Swal.fire('Success', 'Record saved successfully.', 'success');
+            Swal.fire('Success', editingId ? 'Record updated successfully.' : 'Record saved successfully.', 'success');
           }
         })
         .catch((error) => {

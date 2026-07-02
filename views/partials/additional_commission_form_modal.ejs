@@ -2,10 +2,11 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white">Add Additional Commission</h5>
+        <h5 class="modal-title text-white" id="additional-commission-modal-title">Add Additional Commission</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="additional-commission-form">
+        <input type="hidden" id="additional-commission-id" value="" />
         <div class="modal-body">
           <div class="mb-3">
             <label for="additional-commission-agent" class="form-label">Account</label>
@@ -14,8 +15,21 @@
             </select>
           </div>
           <div class="mb-3">
-            <label for="additional-commission-cash-out" class="form-label">Cash-out</label>
-            <input type="text" id="additional-commission-cash-out" class="form-control" inputmode="decimal" autocomplete="off" required />
+            <label class="form-label d-block">Type</label>
+            <div class="d-flex flex-wrap gap-3">
+              <div class="form-check">
+                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="additional-commission-type-cashout" name="additional-commission-type" />
+                <label class="form-check-label" for="additional-commission-type-cashout">Cash-out</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="additional-commission-type-deposit" name="additional-commission-type" />
+                <label class="form-check-label" for="additional-commission-type-deposit">Deposit</label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="additional-commission-amount" class="form-label">Amount</label>
+            <input type="text" id="additional-commission-amount" class="form-control" inputmode="decimal" autocomplete="off" />
           </div>
           <div class="mb-3">
             <label for="additional-commission-remarks" class="form-label">Remarks</label>

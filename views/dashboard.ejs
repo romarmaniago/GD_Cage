@@ -100,10 +100,11 @@
 
       var totalChipsBalance = nnChipsBalance + ccChipsBalance;
       var rcChipsBalance = (+sqlUnreturnedRollerChips[0].TOTAL_UNRETURNED || 0);
+      var additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0);
 
       var cashInTotal =
          (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-         (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+         (+sqlAccountDepositCashIn[0].ACCOUNT_DEPOSIT || 0) +
          (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
          (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
          (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
@@ -128,7 +129,8 @@
          (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
          (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
          (+sqlJunketLoss[0].JUNKET_LOSS || 0) +
-         (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
+         (+sqlTipSettlement[0].TIP_SETTLEMENT || 0) +
+         additionalCommissionSettlement;
 
       var mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
       var cashBalance = cashInTotal - cashOutTotal + mxCashNet;
@@ -161,7 +163,6 @@
 
       var houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
       var commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
-      var additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0);
       var expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
       var junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
       var junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
@@ -256,7 +257,7 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>CC</a></span><span class="dash-kv-value"><%- fmtAmt(ccChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">RC</span><span class="dash-kv-value"><%- fmtAmt(rcChipsBalance) %></span></div>
                      <div class="dash-kv-group-title is-warn">Balance</div>
-                     <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtAmt(houseBalance) %></span></div>
+                     <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value" id="dash-cage-balance-total"><%- fmtAmt(houseBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">The difference</span><span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span></div>
                   </div>
                </div>
@@ -266,7 +267,7 @@
                      <span>Main</span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link"><%- fmtAmt(houseBalance) %></a></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link" id="dash-company-balance-total"><%- fmtAmt(houseBalance) %></a></span></div>
                      <div class="dash-kv-group-title is-warn">Liabilities</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Utang</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
