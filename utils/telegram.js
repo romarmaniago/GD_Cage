@@ -760,7 +760,7 @@ async function startGuestBot() {
 
       // If no agent found, send generic welcome message
       if (accountResults.length === 0) {
-        bot.sendMessage(chatId, "Welcome to Demo Cage!", {
+        bot.sendMessage(chatId, "Welcome to Golden Dragon!", {
           reply_markup: {
             keyboard: [[{ text: "💰 Check Balance" }]],
             resize_keyboard: true,
@@ -773,7 +773,7 @@ async function startGuestBot() {
       // Agent found, send Korean welcome message with agent code
       const agentCode = accountResults[0].AGENT_CODE;
 
-      const welcomeMessage = `Welcome to Demo Cage!`;
+      const welcomeMessage = `Welcome to Golden Dragon!`;
 
       bot.sendMessage(chatId, welcomeMessage, {
         reply_markup: {
@@ -784,7 +784,7 @@ async function startGuestBot() {
       });
     } catch (err) {
       console.error('❌ Error sending welcome message:', err);
-      bot.sendMessage(chatId, "Welcome to Demo Cage!", {
+      bot.sendMessage(chatId, "Welcome to Golden Dragon!", {
         reply_markup: {
           keyboard: [[{ text: "💰 Check Balance" }]],
           resize_keyboard: true,
