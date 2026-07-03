@@ -984,7 +984,10 @@
 
   async function loadGridData() {
     const from = document.getElementById('dash-date-from')?.value || '';
-    const to = document.getElementById('dash-date-to')?.value || '';
+    let to = document.getElementById('dash-date-to')?.value || '';
+    if (window.MonthEndCutoffRange && to) {
+      to = window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(to);
+    }
     const q = new URLSearchParams({ date_from: from, date_to: to });
     try {
       const res = await fetch(`/dashboard_grid_data?${q}`, { credentials: 'same-origin' });

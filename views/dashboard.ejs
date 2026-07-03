@@ -219,11 +219,10 @@
       var monthStart = new Date(cutoffY, cutoffM, 0);
       var monthEnd = new Date(cutoffY, cutoffM + 1, 0);
       monthEnd.setDate(monthEnd.getDate() - 1);
-      var monthEndApi = new Date(cutoffY, cutoffM + 1, 0);
       var dashPeriodLabel = fmtMd(monthStart) + ' \u2013 ' + fmtMd(monthEnd);
       var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
-      var dashboardDateTo = monthEndApi.getFullYear() + '-' + pad2(monthEndApi.getMonth() + 1) + '-' + pad2(monthEndApi.getDate());
+      var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
    %>
 
    <form id="expense-form" action="/insert-dash-history" method="POST">

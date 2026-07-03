@@ -732,8 +732,15 @@
     });
   }
 
+  function resolveReportListRange(from, to) {
+    if (from && to) return { from, to };
+    const range = getCurrentMonthRange();
+    return { from: range.from, to: range.to };
+  }
+
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
+    const monthRange = getCurrentMonthRange();
     const jumpToCurrentThreeMonths = (instance) => {
       if (!instance) return;
       const current = new Date();
@@ -744,6 +751,7 @@
       conjunction: ' to ',
       allowInput: false,
       showMonths: 3,
+      defaultDate: [monthRange.fromAt, monthRange.toAt],
       onReady: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);
         if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
@@ -1358,11 +1366,15 @@
     };
 
     dashWinlossReportModalEl.addEventListener('shown.bs.modal', async () => {
-      const from = dashWinlossReportModalEl.dataset.pendingDateFrom || document.getElementById('dash-date-from')?.value || '';
-      const to = dashWinlossReportModalEl.dataset.pendingDateTo || document.getElementById('dash-date-to')?.value || '';
-      if (from && to) {
-        setReportListDateRange(from, to);
-      }
+      const pendingFrom = dashWinlossReportModalEl.dataset.pendingDateFrom || '';
+      const pendingTo = dashWinlossReportModalEl.dataset.pendingDateTo || '';
+      const dashFrom = document.getElementById('dash-date-from')?.value || '';
+      const dashTo = document.getElementById('dash-date-to')?.value || '';
+      const { from, to } = resolveReportListRange(
+        pendingFrom || dashFrom,
+        pendingTo || dashTo
+      );
+      setReportListDateRange(from, to);
       await loadSubmittedReports();
       const $ = window.jQuery;
       if ($ && $.fn.DataTable && $.fn.DataTable.isDataTable('#daily-report-view-table')) {
