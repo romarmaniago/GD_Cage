@@ -955,7 +955,17 @@
 		"balance_from_credit": "Credit (3)",
 		"balance_from_buyin": "Buy-in (10)",
 		"total": "Total",
-		"game_start": "Game Start"
+		"game_start": "Game Start",
+		"form_mode_return": "Return Credit",
+		"form_mode_issue": "Add Credit",
+		"credits_add": "Credits Add",
+		"current_balance": "Current Balance",
+		"confirm_add_credit": "Confirm Add Credit",
+		"confirm_add_credit_msg": "Are you sure you want to add this credit?",
+		"credit_added_success": "Credit added successfully!",
+		"game_credit_use_game_start": "Use Game Start to add Game Credit.",
+		"return_auto_split": "Cash Credit first, then Game Credit",
+		"select_form_mode": "Please select Add Credit or Return Credit."
 	},
 	"modal_new_agent": {
 		"new_guest": "Add Agent",

@@ -992,7 +992,17 @@
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"remarks_updated": "dashboard_marker.remarks_updated",
 		"error_update_remarks": "dashboard_marker.error_update_remarks",
-		"game_start": "dashboard_marker.game_start"
+		"game_start": "比赛开始",
+		"form_mode_return": "信用返回",
+		"form_mode_issue": "添加信用",
+		"credits_add": "信用添加金额",
+		"current_balance": "当前余额",
+		"confirm_add_credit": "确认添加信用",
+		"confirm_add_credit_msg": "确定要添加此信用吗？",
+		"credit_added_success": "信用添加成功！",
+		"game_credit_use_game_start": "请使用比赛开始来添加游戏信用。",
+		"return_auto_split": "dashboard_marker.return_auto_split",
+		"select_form_mode": "dashboard_marker.select_form_mode"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",

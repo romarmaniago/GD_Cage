@@ -992,7 +992,17 @@
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"remarks_updated": "dashboard_marker.remarks_updated",
 		"error_update_remarks": "dashboard_marker.error_update_remarks",
-		"game_start": "dashboard_marker.game_start"
+		"game_start": "ゲームスタート",
+		"form_mode_return": "クレジット返却",
+		"form_mode_issue": "クレジット追加",
+		"credits_add": "クレジット追加金額",
+		"current_balance": "現在の残高",
+		"confirm_add_credit": "クレジット追加の確認",
+		"confirm_add_credit_msg": "このクレジットを追加しますか？",
+		"credit_added_success": "クレジットが正常に追加されました！",
+		"game_credit_use_game_start": "ゲームクレジットの追加はゲームスタートを使用してください。",
+		"return_auto_split": "dashboard_marker.return_auto_split",
+		"select_form_mode": "dashboard_marker.select_form_mode"
 	},
 	"modal_new_agent": {
 		"new_guest": "新規ゲスト",

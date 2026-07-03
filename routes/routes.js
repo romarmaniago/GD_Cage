@@ -20,6 +20,7 @@ const compression = require('compression');
 const TelegramBot = require('node-telegram-bot-api');
 const { sendTelegramToAdditionalChats, sendTelegramMessage } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
+const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 
 
 app.use(bodyParser.urlencoded({
@@ -5465,7 +5466,7 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 		if (!['11', '12'].includes(transType)) {
 			return res.status(400).json({ error: 'Please select a valid transaction type (Cash or Deposit).' });
 		}
-		if (!['credit', 'buyin'].includes(returnSource)) {
+		if (!['credit', 'buyin', 'auto'].includes(returnSource)) {
 			return res.status(400).json({ error: 'Please select where to deduct the return.' });
 		}
 		if (!Number.isFinite(markerReturn) || markerReturn <= 0) {
@@ -5486,14 +5487,23 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 			}
 
 			const sourceBalances = await getSourceBalances(conn, accountId);
-			const selectedSourceBalance = returnSource === 'credit'
-				? sourceBalances.balanceCredit
-				: sourceBalances.balanceBuyin;
 
-			if (markerReturn > selectedSourceBalance) {
-				const sourceBalanceLabel = returnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
-				await conn.rollback();
-				return res.status(400).json({ error: `Return amount exceeded the ${sourceBalanceLabel}.` });
+			if (returnSource === 'auto') {
+				const totalSourceBalance = sourceBalances.balanceCredit + sourceBalances.balanceBuyin;
+				if (markerReturn > totalSourceBalance) {
+					await conn.rollback();
+					return res.status(400).json({ error: 'Return amount exceeded the total credit balance.' });
+				}
+			} else {
+				const selectedSourceBalance = returnSource === 'credit'
+					? sourceBalances.balanceCredit
+					: sourceBalances.balanceBuyin;
+
+				if (markerReturn > selectedSourceBalance) {
+					const sourceBalanceLabel = returnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
+					await conn.rollback();
+					return res.status(400).json({ error: `Return amount exceeded the ${sourceBalanceLabel}.` });
+				}
 			}
 
 			if (transType === '12') {
@@ -5519,7 +5529,11 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 				}
 			}
 
-			await insertSettlementRecord(conn);
+			if (returnSource === 'auto') {
+				await insertAutoSettlementRecords(conn, sourceBalances);
+			} else {
+				await insertSettlementRecord(conn);
+			}
 			await conn.commit();
 		} catch (txnErr) {
 			try { await conn.rollback(); } catch (rollbackErr) { }
@@ -5577,49 +5591,30 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 	}
 
 	async function getSourceBalances(conn, selectedAccountId) {
-		const breakdownQuery = `
-			SELECT
-				SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
-				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
-				SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
-				SUM(CASE
-					WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
-						AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
-						AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
-						AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
-					THEN account_ledger.AMOUNT
-					ELSE 0
-				END) AS RETURNS_UNTAGGED,
-				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
-			FROM account_ledger
-			WHERE account_ledger.ACCOUNT_ID = ?
-				AND account_ledger.TRANSACTION_TYPE IN (3, 4)
-				AND account_ledger.ACTIVE = 1
-		`;
-
-		const [rows] = await conn.query(breakdownQuery, [selectedAccountId]);
-		const data = rows[0] || {};
-		const creditIssued = Number(data.CREDIT_ISSUED) || 0;
-		const returnsTaggedCredit = Number(data.RETURNS_TAGGED_CREDIT) || 0;
-		const returnsTaggedBuyin = Number(data.RETURNS_TAGGED_BUYIN) || 0;
-		const returnsUntagged = Number(data.RETURNS_UNTAGGED) || 0;
-		const totalIssued = Number(data.TOTAL_ISSUED) || 0;
-		const proportionalUntaggedCredit = totalIssued > 0 ? (returnsUntagged * creditIssued / totalIssued) : 0;
-		const balanceCredit = Math.round(Math.max(0, creditIssued - returnsTaggedCredit - proportionalUntaggedCredit));
-		const totalAmount = Math.round(totalIssued - returnsTaggedCredit - returnsTaggedBuyin - returnsUntagged);
-		const balanceBuyin = Math.max(0, totalAmount - balanceCredit);
-
-		return { balanceCredit, balanceBuyin };
+		return getMarkerSourceBalances(conn, selectedAccountId);
 	}
 
-	async function insertSettlementRecord(conn) {
-		const returnSourceDesc = returnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
+	async function insertSettlementRecord(conn, sourceOverride, amountOverride) {
+		const source = sourceOverride || returnSource;
+		const amount = amountOverride != null ? amountOverride : markerReturn;
+		const returnSourceDesc = getMarkerReturnSourceDesc(source);
 		const insertQuery = `
             INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-		await conn.query(insertQuery, [accountId, transType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		await conn.query(insertQuery, [accountId, transType, 3, amount, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+	}
+
+	async function insertAutoSettlementRecords(conn, sourceBalances) {
+		const allocations = allocateMarkerReturn(
+			sourceBalances.balanceCredit,
+			sourceBalances.balanceBuyin,
+			markerReturn
+		);
+		for (const allocation of allocations) {
+			await insertSettlementRecord(conn, allocation.source, allocation.amount);
+		}
 	}
 });
 
