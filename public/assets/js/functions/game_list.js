@@ -9111,9 +9111,16 @@ $(document).ready(function () {
 		e.preventDefault();
 		var guestId = parseInt($('#edit_guest_id').val(), 10);
 		var agentId = parseInt($('#assign_guest_agent_id').val(), 10);
+		var membershipError = typeof window.validateGuestMembershipNo === 'function'
+			? window.validateGuestMembershipNo($('#edit_guest_membership_input').val())
+			: '';
 		var $btn = $('#btn-update-guest-table');
 		if (!guestId) {
 			Swal.fire({ icon: 'warning', title: 'Invalid guest', text: 'Unable to update this guest.' });
+			return;
+		}
+		if (membershipError) {
+			Swal.fire({ icon: 'warning', title: 'Invalid Membership No', text: membershipError });
 			return;
 		}
 		$btn.prop('disabled', true).text('Updating...');

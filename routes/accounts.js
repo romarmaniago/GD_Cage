@@ -1300,6 +1300,7 @@ router.put('/guest/:id', async (req, res) => {
 	try {
 		const guestId = parseInt(req.params.id, 10);
 		const guestName = String(req.body.txtGuestName || '').trim();
+		const membershipNo = String(req.body.txtMembershipNo || '').trim();
 		const remarks = String(req.body.txtRemarks || '').trim();
 		const editedBy = req.session?.user_id || 1;
 		const now = new Date();
@@ -1310,19 +1311,41 @@ router.put('/guest/:id', async (req, res) => {
 		if (!guestName) {
 			return res.status(400).json({ error: 'Guest name is required.' });
 		}
+		if (!/^\d+$/.test(membershipNo)) {
+			return res.status(400).json({ error: 'Membership No must contain digits only.' });
+		}
+
+		const [duplicateRows] = await pool.execute(
+			`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? AND IDNo <> ? LIMIT 1`,
+			[membershipNo, guestId]
+		);
+		if (duplicateRows.length) {
+			const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
+			return res.status(400).json({
+				error: `Membership No ${membershipNo} is already used by "${existingName}".`
+			});
+		}
 
 		const updateQuery = `
 			UPDATE guest
-			SET NAME = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+			SET NAME = ?, MEMBERSHIP_NO = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
 			WHERE IDNo = ? AND ACTIVE = 1
 		`;
-		const [result] = await pool.execute(updateQuery, [guestName, remarks || null, editedBy, now, guestId]);
+		const [result] = await pool.execute(updateQuery, [guestName, membershipNo, remarks || null, editedBy, now, guestId]);
 
 		if (!result.affectedRows) {
 			return res.status(404).json({ error: 'Guest not found.' });
 		}
 		return res.json({ success: true });
 	} catch (err) {
+		if (err && err.code === 'ER_DUP_ENTRY') {
+			const sqlMsg = String(err.sqlMessage || '');
+			if (sqlMsg.includes('idx_guest_membership_no') || sqlMsg.includes('MEMBERSHIP_NO')) {
+				return res.status(400).json({
+					error: `Membership No ${String(req.body.txtMembershipNo || '').trim()} is already used.`
+				});
+			}
+		}
 		console.error('Error updating guest:', err);
 		return res.status(500).json({ error: 'Failed to update guest.' });
 	}

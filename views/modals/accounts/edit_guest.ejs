@@ -17,12 +17,12 @@ body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
 				<div class="modal-body">
 					<input type="hidden" id="edit_guest_id" name="txtGuestId">
 					<div class="mb-0">
-						<label for="edit_guest_membership_input" class="form-label">Membership No</label>
-						<input type="text" class="form-control" id="edit_guest_membership_input" readonly disabled>
-					</div>
-					<div class="mt-2 mb-0">
 						<label for="edit_guest_name_input" class="form-label">Guest Name</label>
 						<input type="text" class="form-control" id="edit_guest_name_input" name="txtGuestName" required maxlength="150">
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="edit_guest_membership_input" class="form-label">Membership No</label>
+						<input type="text" class="form-control" id="edit_guest_membership_input" name="txtMembershipNo" required inputmode="numeric" autocomplete="off" placeholder="8–10 digits">
 					</div>
 					<div class="mt-2 mb-0">
 						<label for="edit_guest_remarks_input" class="form-label">Remarks</label>

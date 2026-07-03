@@ -566,6 +566,9 @@ $(document).ready(function() {
   $('#edit_guest_form').on('submit', function (e) {
     e.preventDefault();
     const guestId = parseInt($('#edit_guest_id').val(), 10);
+    const membershipError = typeof window.validateGuestMembershipNo === 'function'
+      ? window.validateGuestMembershipNo($('#edit_guest_membership_input').val())
+      : '';
     const payload = $(this).serialize();
     const $btn = $('#btn-update-guest-table');
 
@@ -574,6 +577,15 @@ $(document).ready(function() {
         icon: 'warning',
         title: 'Invalid guest',
         text: 'Unable to update this guest.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    if (membershipError) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Invalid Membership No',
+        text: membershipError,
         confirmButtonText: 'OK'
       });
       return;
@@ -1395,6 +1407,8 @@ function renderGuestPanel(guests, options) {
     const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
+    const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
+    const membershipDisplay = membershipNo || '-';
     const agentCode = String(row.agent_code || '').trim().toUpperCase();
     const agentName = String(row.agent_name || '').trim().toUpperCase();
     const agentLineLabel = agentCode && agentName
@@ -1440,6 +1454,7 @@ function renderGuestPanel(guests, options) {
     return `
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
+        <td class="agency-guest-membership-col">${membershipDisplay}</td>
         <td>${balance}</td>
         <td>${credit}</td>
         <td>${winloss}</td>
@@ -1472,6 +1487,7 @@ function renderGuestPanel(guests, options) {
         <thead>
           <tr>
             <th class="agency-guest-col">Guest</th>
+            <th class="agency-guest-membership-col">Membership No</th>
             <th>Balance</th>
             <th>Credit</th>
             <th>Winloss</th>
