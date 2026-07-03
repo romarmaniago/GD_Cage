@@ -45,6 +45,7 @@
               </div>
             </div>
             <div class="tip-settlement-actions">
+              <button type="button" class="btn btn-success btn-sm" id="btn-tip-in-open"><%= __('tip.in') %></button>
               <button type="button" class="btn btn-primary btn-sm" id="btn-tip-settlement-open"><%= __('tip.settle') %></button>
             </div>
           </div>
@@ -125,6 +126,7 @@
 
 
 
+<%- include('../modals/tip/tip_in') %>
 <%- include('../modals/tip/tip_settlement') %>
 
 <%- include ('../partials/permission_view_only_script') %>
@@ -133,6 +135,12 @@
 
 
 
+<script type="application/json" id="tip-in-i18n"><%- JSON.stringify({
+  invalidAmount: __('tip.in_invalid_amount'),
+  missingStatus: __('tip.settlement_missing_status'),
+  missingName: __('tip.settlement_missing_name'),
+  saved: __('tip.in_saved')
+}) %></script>
 <script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
   invalidAmount: __('tip.settlement_invalid_amount'),
   exceedsBalance: __('tip.settlement_exceeds_balance'),
@@ -140,6 +148,7 @@
   missingName: __('tip.settlement_missing_name'),
   saved: __('tip.settlement_saved')
 }) %></script>
+<script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
 <script src="/assets/js/functions/tip.js"></script>
 
 
@@ -177,10 +186,47 @@
   .tip-settlement-actions {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
   }
 
   #modal-tip-settlement .form-control.is-invalid {
     border-color: #dc3545;
+  }
+
+  #modal-tip-in .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  #modal-tip-in .select2-container .select2-search--inline .select2-search__field {
+    margin-top: 0;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    height: 1.375rem;
+    line-height: 1.375rem;
+  }
+
+  #modal-tip-in .select2-container--default .select2-selection--single {
+    border-color: #eee;
+  }
+
+  #modal-tip-in .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: flex;
+    align-items: center;
+    padding-left: 0.75rem;
+    height: calc(1.5em + 0.75rem + 6px);
+    line-height: 1.5;
+  }
+
+  #modal-tip-in .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  #modal-tip-in .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
+
+  #modal-tip-in #tip-in-modal-guest + .select2-container .select2-selection--single,
+  #modal-tip-in #tip-in-modal-account + .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 6px);
   }
 
 

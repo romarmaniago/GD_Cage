@@ -3,7 +3,7 @@ const path = require('path');
 const router = express.Router();
 const pool = require('../config/db');
 const dashboardQueries = require('../utils/dashboardQueries');
-const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY } = require('../utils/saveCashoutTips');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
@@ -92,7 +92,8 @@ async function renderDashboardPage(req, res, viewName) {
 		WHERE balances.net_balance > 0
 	`;
 
-	let sqlTotalCashOutReset = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
+	// Dealer tip cash-out included in W/L for now (exclusion kept on rolling/cash-balance queries only).
+	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
 	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
@@ -434,6 +435,7 @@ ON
 	let sqlTotalCashOutRolling = `SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
 	let sqlTotalCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`;
 	let sqlRollerTipCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS ROLLER_TIP_CASHIN FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 2 ${SQL_ROLLER_TIP_CASHOUT_ONLY}`;
+	let sqlRollerTipIn = `SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_IN_CASHIN FROM tip WHERE ACTIVE = 1 ${SQL_ROLLER_TIP_IN_CASHIN_ONLY}`;
 	let sqlTipSettlement = 'SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1';
 	let sqlRollerTipGross = 'SELECT COALESCE(SUM(AMOUNT), 0) AS ROLLER_TIP_GROSS FROM tip WHERE ACTIVE = 1 AND TIP_TYPE = 1';
 
@@ -655,6 +657,7 @@ let sqlServiceSettle = `
 		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
 		const [rollerTipCashOut] = await pool.execute(sqlRollerTipCashOut);
+		const [rollerTipIn] = await pool.execute(sqlRollerTipIn);
 		const [tipSettlementResult] = await pool.execute(sqlTipSettlement);
 		const [rollerTipGrossResult] = await pool.execute(sqlRollerTipGross);
 		const [totalWinLoss] = await pool.execute(sqlWinLoss);
@@ -972,6 +975,7 @@ let sqlServiceSettle = `
 			sqlTotalRollingReset: TotalRollingResetResult,
 			sqlTotalCashOut: totalCashOut,
 			sqlRollerTipCashOut: rollerTipCashOut,
+			sqlRollerTipIn: rollerTipIn,
 			sqlTipSettlement: tipSettlementResult,
 			sqlRollerTipGross: rollerTipGrossResult,
 			sqlTotalCashOutReset: TotalCashOutResetResult,

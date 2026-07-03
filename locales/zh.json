@@ -167,7 +167,16 @@
 		"settlement_saved": "tip.settlement_saved",
 		"settlement_missing_status": "tip.settlement_missing_status",
 		"settlement_missing_name": "tip.settlement_missing_name",
-		"remarks": "tip.remarks"
+		"remarks": "tip.remarks",
+		"in": "tip.in",
+		"tip_in": "tip.tip_in",
+		"account_optional": "tip.account_optional",
+		"choose_account_optional": "tip.choose_account_optional",
+		"in_invalid_amount": "tip.in_invalid_amount",
+		"in_saved": "tip.in_saved",
+		"guest_optional": "tip.guest_optional",
+		"choose_guest_optional": "tip.choose_guest_optional",
+		"choose_guest": "tip.choose_guest"
 	},
 	"footer": {
 		"privacy_policy": "隐私政策",

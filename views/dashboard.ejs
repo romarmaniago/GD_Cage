@@ -112,7 +112,8 @@
          sumAllServiceRows(sqlServiceCashGuest) +
          sumAllServiceRows(sqlServiceDepositGuest) +
          (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-         (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0);
+         (+sqlRollerTipCashOut[0].ROLLER_TIP_CASHIN || 0) +
+         (+sqlRollerTipIn[0].TIP_IN_CASHIN || 0);
 
       var cashOutTotal =
          (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +

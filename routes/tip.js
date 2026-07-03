@@ -26,6 +26,12 @@ function parseAccountId(raw) {
 	return !Number.isNaN(n) && n > 0 ? n : null;
 }
 
+function parseGuestId(raw) {
+	if (raw === undefined || raw === null || raw === '') return null;
+	const n = parseInt(raw, 10);
+	return !Number.isNaN(n) && n > 0 ? n : null;
+}
+
 function parseGameId(raw) {
 	if (raw === undefined || raw === null || raw === '') return null;
 	const n = parseInt(raw, 10);
@@ -68,12 +74,24 @@ function tipTypeLabel(tipType) {
 
 async function validateActiveAccount(accountId) {
 	const [rows] = await pool.execute(
-		`SELECT acc.IDNo, ag.AGENT_CODE, ag.NAME
+		`SELECT acc.IDNo, acc.AGENT_ID, ag.AGENT_CODE, ag.NAME
 		 FROM account acc
 		 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 		 WHERE acc.IDNo = ? AND acc.ACTIVE = 1 AND ag.ACTIVE = 1
 		 LIMIT 1`,
 		[accountId]
+	);
+	return rows && rows[0] ? rows[0] : null;
+}
+
+async function validateActiveGuest(guestId) {
+	const [rows] = await pool.execute(
+		`SELECT g.IDNo, g.AGENT_ID, g.NAME
+		 FROM guest g
+		 JOIN agent ag ON ag.IDNo = g.AGENT_ID
+		 WHERE g.IDNo = ? AND g.ACTIVE = 1 AND ag.ACTIVE = 1
+		 LIMIT 1`,
+		[guestId]
 	);
 	return rows && rows[0] ? rows[0] : null;
 }
@@ -130,6 +148,71 @@ router.get('/tip_roller_balance', checkSession, async (req, res) => {
 	}
 });
 
+router.get('/tip_roller_history', checkSession, async (req, res) => {
+	try {
+		const accountId = parseAccountId(req.query.accountId);
+		const tipParams = [TIP_TYPE.ROLLER];
+		let tipSql = `
+			SELECT
+				t.ROLLER_NAME,
+				t.TIP_STATUS,
+				COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS TIP_STATUS_LABEL,
+				COALESCE(NULLIF(TRIM(t.ROLLER_NAME), ''), NULLIF(TRIM(t.REMARKS), ''), '—') AS PERSON_NAME
+			FROM tip t
+			WHERE t.ACTIVE = 1 AND t.TIP_TYPE = ?
+		`;
+		if (accountId) {
+			tipSql += ' AND t.ACCOUNT_ID = ?';
+			tipParams.push(accountId);
+		}
+		tipSql += ' ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC LIMIT 50';
+
+		const [tipRows] = await pool.execute(tipSql, tipParams);
+		const [settlementRows] = await pool.execute(
+			`SELECT
+				ts.ROLLER_NAME,
+				ts.TIP_STATUS,
+				COALESCE(NULLIF(TRIM(ts.TIP_STATUS), ''), 'GM') AS TIP_STATUS_LABEL,
+				COALESCE(
+					NULLIF(TRIM(ts.ROLLER_NAME), ''),
+					NULLIF(TRIM(CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME)), ''),
+					'—'
+				) AS PERSON_NAME
+			 FROM tip_settlement ts
+			 LEFT JOIN user_info ui ON ui.IDNo = ts.ENCODED_BY
+			 WHERE ts.ACTIVE = 1
+			 ORDER BY ts.SETTLEMENT_DATETIME DESC, ts.IDNo DESC
+			 LIMIT 50`
+		);
+
+		const history = [];
+		const seen = new Set();
+		const pushHistory = function (row) {
+			const personName = (row && row.PERSON_NAME && String(row.PERSON_NAME).trim()) || '';
+			const status = (row && row.TIP_STATUS_LABEL && String(row.TIP_STATUS_LABEL).trim()) ||
+				(row && row.TIP_STATUS && String(row.TIP_STATUS).trim()) || '';
+			const key = `${personName.toLowerCase()}|${status.toLowerCase()}`;
+			if (seen.has(key)) return;
+			seen.add(key);
+			history.push({
+				PERSON_NAME: personName || '—',
+				ROLLER_NAME: row && row.ROLLER_NAME ? String(row.ROLLER_NAME).trim() : '',
+				STATUS: status || 'Roller',
+				TIP_STATUS: row && row.TIP_STATUS ? String(row.TIP_STATUS).trim() : '',
+				TIP_STATUS_LABEL: status || 'Roller'
+			});
+		};
+
+		(tipRows || []).forEach(pushHistory);
+		(settlementRows || []).forEach(pushHistory);
+
+		res.json({ history });
+	} catch (err) {
+		console.error('tip_roller_history:', err);
+		res.status(500).json({ message: 'Failed to load roller tip history.' });
+	}
+});
+
 router.get('/tip_games', checkSession, async (req, res) => {
 	try {
 		const [rows] = await pool.execute(
@@ -161,18 +244,21 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				t.AMOUNT,
 				t.GAME_ID,
 				t.ACCOUNT_ID,
+				t.GUEST_ID,
 				t.TIP_TYPE,
 				t.TIP_DATETIME,
 				t.ROLLER_NAME,
 				t.TIP_STATUS,
 				t.REMARKS,
+				t.CASHOUT_ID,
 				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(t.GAME_ID AS CHAR)) AS GAME_NO,
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
-				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME
+				COALESCE(NULLIF(TRIM(g_direct.NAME), ''), NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME
 			 FROM tip t
 			 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
 			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
+			 LEFT JOIN guest g_direct ON g_direct.IDNo = t.GUEST_ID
 			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
 			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			 WHERE t.ACTIVE = 1
@@ -224,7 +310,9 @@ router.get('/tip_data', checkSession, async (req, res) => {
 		const groups = new Map();
 		(tipRows || []).forEach(function (row) {
 			const dtMs = row.TIP_DATETIME ? new Date(row.TIP_DATETIME).getTime() : 0;
-			const key = `${row.GAME_ID}|${row.ACCOUNT_ID}|${dtMs}`;
+			const key = row.GAME_ID != null
+				? `${row.GAME_ID}|${row.ACCOUNT_ID}|${dtMs}`
+				: `standalone-${row.IDNo}`;
 			if (!groups.has(key)) {
 				groups.set(key, {
 					TIP_DATETIME: row.TIP_DATETIME,
@@ -344,6 +432,66 @@ router.get('/tip_data', checkSession, async (req, res) => {
 	} catch (err) {
 		console.error('tip_data:', err);
 		res.status(500).json({ message: 'Failed to load tip data' });
+	}
+});
+
+router.post('/tip_in', checkSession, async (req, res) => {
+	try {
+		const amount = parseAmount(req.body.txtAmount);
+		const accountId = parseAccountId(req.body.txtAccountId);
+		const guestId = parseGuestId(req.body.txtGuestId);
+		const tipStatus = parseTipStatus(req.body.txtTipStatus);
+		const rollerName = parseRollerName(req.body.txtRollerName);
+		const remarks = parseRemarks(req.body.txtRemarks);
+		const userId = req.session.user_id || null;
+		const dateNow = new Date();
+
+		if (Number.isNaN(amount)) {
+			return res.status(400).json({ message: 'Enter a valid amount greater than zero.' });
+		}
+		if (!tipStatus) {
+			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
+		}
+		if (!rollerName) {
+			return res.status(400).json({ message: 'Please enter the name.' });
+		}
+
+		let account = null;
+		if (accountId) {
+			account = await validateActiveAccount(accountId);
+			if (!account) {
+				return res.status(400).json({ message: 'Invalid or inactive account.' });
+			}
+		}
+
+		let guest = null;
+		if (guestId) {
+			guest = await validateActiveGuest(guestId);
+			if (!guest) {
+				return res.status(400).json({ message: 'Invalid or inactive guest.' });
+			}
+		}
+
+		if (account && guest && parseInt(account.AGENT_ID, 10) !== parseInt(guest.AGENT_ID, 10)) {
+			return res.status(400).json({ message: 'Selected guest does not belong to the selected account.' });
+		}
+
+		await pool.execute(
+			`INSERT INTO tip (
+				AMOUNT, GAME_ID, ACCOUNT_ID, GUEST_ID, TIP_TYPE, TIP_DATETIME, REMARKS,
+				ROLLER_NAME, TIP_STATUS, ENCODED_BY, ENCODED_DT, ACTIVE
+			) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			[amount, accountId, guestId, TIP_TYPE.ROLLER, dateNow, remarks, rollerName, tipStatus, userId, dateNow]
+		);
+
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({
+			message: 'Roller tip saved successfully.',
+			availableBalance: updatedBalance.available
+		});
+	} catch (err) {
+		console.error('tip_in:', err);
+		res.status(500).json({ message: 'Failed to save roller tip.' });
 	}
 });
 

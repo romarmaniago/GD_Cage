@@ -34,6 +34,7 @@ async function ensureTipSchema(pool) {
 				AMOUNT DECIMAL(18, 2) NOT NULL,
 				GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo',
 				ACCOUNT_ID INT NULL DEFAULT NULL COMMENT 'account.IDNo',
+				GUEST_ID INT NULL DEFAULT NULL COMMENT 'guest.IDNo',
 				TIP_TYPE TINYINT NOT NULL COMMENT '1=Roller, 2=Dealer',
 				TIP_DATETIME DATETIME NOT NULL,
 				CASHOUT_ID INT NULL DEFAULT NULL COMMENT 'game_record.IDNo',
@@ -86,6 +87,15 @@ async function ensureTipSchema(pool) {
 			 ADD COLUMN TIP_STATUS VARCHAR(50) NULL DEFAULT NULL AFTER ROLLER_NAME`
 		);
 		console.log('[tip] Added column TIP_STATUS');
+	}
+
+	if (!(await columnExists(pool, 'tip', 'GUEST_ID'))) {
+		await pool.execute(
+			`ALTER TABLE tip
+			 ADD COLUMN GUEST_ID INT NULL DEFAULT NULL COMMENT 'guest.IDNo' AFTER ACCOUNT_ID,
+			 ADD KEY idx_tip_guest_id (GUEST_ID)`
+		);
+		console.log('[tip] Added column GUEST_ID');
 	}
 
 	if (!(await tableExists(pool, 'tip_settlement'))) {

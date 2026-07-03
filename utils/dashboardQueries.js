@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY } = require('./saveCashoutTips');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('./saveCashoutTips');
 const { sqlJunketExpenseTotal } = require('./houseExpenseQueries');
 
 // Function para kunin ang NN Chips Buyin
@@ -279,7 +279,8 @@ async function computeCashBalance() {
     pool.execute('SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing'),
     pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1'),
     pool.execute(SQL_MX_CASH_NET),
-    pool.execute('SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1')
+    pool.execute('SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1'),
+    pool.execute(`SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_IN_CASHIN FROM tip WHERE ACTIVE = 1 ${SQL_ROLLER_TIP_IN_CASHIN_ONLY}`)
   ]);
 
   const cashIn =
@@ -292,7 +293,8 @@ async function computeCashBalance() {
     rowNum(results[6][0], 'TOTAL') +
     rowNum(results[7][0], 'TOTAL') +
     rowNum(results[8][0], 'MARKER_RETURN_CASH') +
-    rowNum(results[15][0], 'ROLLER_TIP_CASHIN');
+    rowNum(results[15][0], 'ROLLER_TIP_CASHIN') +
+    rowNum(results[26][0], 'TIP_IN_CASHIN');
 
   const cashOut =
     rowNum(results[9][0], 'CCChipsBuyin') +

@@ -1,0 +1,50 @@
+<div class="modal fade" id="modal-tip-in" tabindex="-1" aria-labelledby="modal-tip-in-label" aria-hidden="true" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-tip-in-label"><%= __('tip.tip_in') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="form-tip-in" autocomplete="off">
+				<div class="modal-body">
+					<div class="row mb-3">
+						<div class="col-sm-6">
+							<label class="form-label" for="tip-in-modal-account"><%= __('tip.account') %></label>
+							<select class="js-select2 form-select" id="tip-in-modal-account" name="txtAccountId" style="width: 100%;" data-placeholder="<%= __('tip.choose_account') %>">
+								<option value=""><%= __('tip.choose_account') %></option>
+							</select>
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label" for="tip-in-modal-guest"><%= __('tip.guest') %></label>
+							<select class="js-select2 form-select" id="tip-in-modal-guest" name="txtGuestId" style="width: 100%;" data-placeholder="<%= __('tip.choose_guest') %>">
+								<option value=""><%= __('tip.choose_guest') %></option>
+							</select>
+						</div>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="tip-in-modal-amount"><%= __('tip.amount') %></label>
+						<input type="text" class="form-control text-end" id="tip-in-modal-amount" name="txtAmount" inputmode="numeric" autocomplete="off" required>
+					</div>
+					<div class="row mb-3">
+						<div class="col-sm-6">
+							<label class="form-label" for="tip-in-modal-status"><%= __('tip.status') %></label>
+							<input type="text" class="form-control" id="tip-in-modal-status" name="txtTipStatus" autocomplete="off" required>
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label" for="tip-in-modal-name"><%= __('tip.name') %></label>
+							<input type="text" class="form-control" id="tip-in-modal-name" name="txtRollerName" autocomplete="off" required>
+						</div>
+					</div>
+					<div class="mb-0">
+						<label class="form-label" for="tip-in-modal-remarks"><%= __('tip.remarks_optional') %></label>
+						<textarea class="form-control" id="tip-in-modal-remarks" name="txtRemarks" rows="2" autocomplete="off"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary btn-sm" id="btn-tip-in-save"><%= __('tip.save') %></button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('tip.close') %></button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
