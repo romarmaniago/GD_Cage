@@ -1962,6 +1962,48 @@ function resetAssignGameGuestChildModalStack($childModal) {
 	});
 }
 
+function isGameRecordHistoryModalOpen() {
+	var $modal = $('#modal-show-history');
+	return $modal.length && $modal.hasClass('show');
+}
+
+function setGameRecordEditChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('game-record-edit-child-open');
+	} else {
+		$('body').removeClass('game-record-edit-child-open');
+	}
+}
+
+function bumpGameRecordEditChildModalStack($childModal) {
+	var $parentModal = $('#modal-show-history');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetGameRecordEditChildModalStack($childModal) {
+	$('#modal-show-history').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.style.zIndex = '';
+	});
+}
+
 function openPendingJunketNewGameModal() {
 	var ctx = getPendingResolveContext();
 	if (!ctx.gameId || ctx.balance <= 0) {
@@ -8106,9 +8148,24 @@ function reloadDataRecord() {
 }
 
 $(document).on('hidden.bs.modal', '#modal-show-history', function () {
+	setGameRecordEditChildModalOpen(false);
+	resetGameRecordEditChildModalStack($('#modal-edit-game-record'));
 	destroyServicesListTable('#history-services-list-tbl');
 	$('#history-services-list-body').html('<tr class="text-muted"><td colspan="7" class="text-center small">No services availed.</td></tr>');
 	$('#history-services-total').text('0');
+});
+
+$(document).on('shown.bs.modal', '#modal-edit-game-record', function () {
+	if ($('body').hasClass('game-record-edit-child-open')) {
+		bumpGameRecordEditChildModalStack($(this));
+	}
+});
+
+$(document).on('hidden.bs.modal', '#modal-edit-game-record', function () {
+	if (isGameRecordHistoryModalOpen()) {
+		setGameRecordEditChildModalOpen(false);
+		resetGameRecordEditChildModalStack($(this));
+	}
 });
 
 function checkPermissionToDeleteHistory(id) {
@@ -9538,6 +9595,10 @@ function edit_game_record_row(btnEl) {
 						}
 					});
 					$('#modal-edit-game-record').data('editIds', editIds);
+					ensureModalAppendedToBody($('#modal-edit-game-record'));
+					if (isGameRecordHistoryModalOpen()) {
+						setGameRecordEditChildModalOpen(true);
+					}
 					$('#modal-edit-game-record').modal('show');
 				}
 			});

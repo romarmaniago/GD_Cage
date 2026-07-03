@@ -38,8 +38,7 @@
 
           <div class="tip-settlement-bar mb-3" id="tip-settlement-bar">
             <div class="tip-settlement-info">
-              <div class="tip-settlement-title"><%= __('tip.settlement') %></div>
-              <div class="tip-settlement-balance mt-2">
+              <div class="tip-settlement-balance">
                 <%= __('tip.available_balance') %>:
                 <strong id="tip-roller-available-balance">0</strong>
               </div>
@@ -173,12 +172,8 @@
     background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
   }
 
-  .tip-settlement-title {
+  .tip-settlement-balance {
     font-weight: 600;
-    color: #1d4ed8;
-  }
-
-  .tip-settlement-balance strong {
     color: #1d4ed8;
     font-size: 1.05rem;
   }
