@@ -908,6 +908,8 @@ $(document).ready(function () {
 			data: formData,
 			processData: false,
 			contentType: false,
+			dataType: 'json',
+			headers: { Accept: 'application/json' },
 			success: function(response) {
 				// Prevent auto-reopening Records/ledger modal after a successful save.
 				window.__suppressLedgerReopen = true;
@@ -926,7 +928,15 @@ $(document).ready(function () {
 
 				// Refresh table (stay on same screen).
 				if (typeof window.reloadAgentTable === 'function') window.reloadAgentTable();
-				$(document).trigger('guest:created', [{ agencyId: savedAgencyLine }]);
+				var newAgentId = response && response.agent_id ? parseInt(response.agent_id, 10) : null;
+				var agentCode = formData.get('txtAgenctCode') || (response && response.agent_code) || '';
+				var agentName = formData.get('txtName') || (response && response.agent_name) || '';
+				$(document).trigger('guest:created', [{
+					agencyId: savedAgencyLine,
+					agentId: newAgentId,
+					agentCode: agentCode,
+					agentName: agentName
+				}]);
 
 				if (typeof Swal !== 'undefined') {
 					Swal.fire({

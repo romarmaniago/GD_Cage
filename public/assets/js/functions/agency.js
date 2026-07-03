@@ -138,15 +138,26 @@ function setSelectedAgentLabel(agentCode, agentName) {
   renderSelectionSummary();
 }
 
-function refreshSelectedAgencyPanels() {
+function refreshSelectedAgencyPanels(selectAgentId) {
   if (!selectedAgencyId) return;
+  if (selectAgentId) {
+    selectedAgentId = parseInt(selectAgentId, 10);
+  }
   $.ajax({
-    url: '/account_data?agencyId=' + encodeURIComponent(selectedAgencyId),
+    url: '/account_data?agencyId=' + encodeURIComponent(selectedAgencyId) + '&_=' + Date.now(),
     method: 'GET',
+    cache: false,
+    dataType: 'json',
     success: function (rows) {
       currentAgencyAccounts = Array.isArray(rows) ? rows : [];
       renderAgentPanel(currentAgencyAccounts);
       refreshGuestPanels();
+      if (selectAgentId && selectedAgentId) {
+        var $link = $('#agent-list .panel-list-item[data-agent-id="' + selectedAgentId + '"] .panel-list-agent-link');
+        if ($link.length) {
+          selectAgentInPanel(selectedAgentId, $link[0]);
+        }
+      }
     },
     error: function () {
       currentAgencyAccounts = [];
@@ -395,7 +406,9 @@ $(document).ready(function() {
         text: 'Select an AGENCY/LINE first.',
         confirmButtonText: 'OK'
       });
+      return;
     }
+    $('#txtAgencyLine').val(selectedAgencyId);
   });
 
   $('#btn-guest-panel-add').on('click', function () {
@@ -622,12 +635,35 @@ $(document).ready(function() {
 
   $(document).on('guest:created', function (_e, payload) {
     var agencyFromSave = payload && payload.agencyId ? parseInt(payload.agencyId, 10) : null;
+    var newAgentId = payload && payload.agentId ? parseInt(payload.agentId, 10) : null;
     if (!selectedAgencyId) return;
     if (agencyFromSave && agencyFromSave !== selectedAgencyId) return;
-    refreshSelectedAgencyPanels();
+
+    if (newAgentId && payload.agentCode !== undefined) {
+      var agentExists = currentAgencyAccounts.some(function (row) {
+        return String(row.agent_id) === String(newAgentId);
+      });
+      if (!agentExists) {
+        currentAgencyAccounts.push({
+          agent_id: newAgentId,
+          agent_code: payload.agentCode || '',
+          agent_name: payload.agentName || '',
+          agency_id: selectedAgencyId,
+          agency_name: $('#selected-line-name').text().trim() || ''
+        });
+      }
+      selectedAgentId = newAgentId;
+      renderAgentPanel(currentAgencyAccounts);
+      var $link = $('#agent-list .panel-list-item[data-agent-id="' + newAgentId + '"] .panel-list-agent-link');
+      if ($link.length) {
+        selectAgentInPanel(newAgentId, $link[0]);
+      }
+    }
+
+    refreshSelectedAgencyPanels(newAgentId || null);
   });
 
-  $('#modal-new-agency form').on('submit', function (e) {
+  $('#add_new_agency').on('submit', function (e) {
     e.preventDefault();
   
     const $form = $(this);
@@ -643,16 +679,34 @@ $(document).ready(function() {
       url: '/add_agency',
       type: 'POST',
       data: formData,
+      dataType: 'json',
+      headers: { Accept: 'application/json' },
       success: function (res) {
+        var newAgencyId = res && res.agency_id ? parseInt(res.agency_id, 10) : null;
+        var agencyName = res && res.agency_name ? String(res.agency_name).trim() : '';
+        $('#modal-new-agency').modal('hide');
+        $form[0].reset();
+
+        if (newAgencyId && agencyName) {
+          var exists = allAgents.some(function (row) {
+            return String(row.IDNo) === String(newAgencyId);
+          });
+          if (!exists) {
+            allAgents.push({ IDNo: newAgencyId, AGENCY: agencyName, REMARKS: '', ACTIVE: 1 });
+            allAgents.sort(function (a, b) {
+              return String(a.AGENCY || '').localeCompare(String(b.AGENCY || ''), undefined, { sensitivity: 'base' });
+            });
+          }
+          renderAgencyGrid(newAgencyId);
+        } else {
+          reloadData(newAgencyId);
+        }
+
         Swal.fire({
           icon: 'success',
           title: 'Success!',
-          text: 'Agency has been added.',
+          text: (res && res.message) ? res.message : 'Agency has been added.',
           confirmButtonText: 'OK'
-        }).then(() => {
-          $('#modal-new-agency').modal('hide');
-          $form[0].reset();
-          reloadData(); // Refresh the agency list
         });
       },
       error: function (xhr) {
@@ -707,19 +761,50 @@ $(document).ready(function() {
 });
 
 // I-re-render ang data bilang grid
-function reloadData() {
+function bindAgencyPagination() {
+  $('#pagination-container').off('click').on('click', '.page-link', function (e) {
+    e.preventDefault();
+    const page = parseInt($(this).data('page'));
+    renderPage(allAgents, page);
+  });
+}
+
+function renderAgencyGrid(selectAgencyId) {
+  if (!Array.isArray(allAgents)) {
+    allAgents = [];
+  }
+
+  var pageToRender = 1;
+  if (selectAgencyId) {
+    var index = allAgents.findIndex(function (row) {
+      return String(row.IDNo) === String(selectAgencyId);
+    });
+    if (index >= 0) {
+      pageToRender = Math.floor(index / 30) + 1;
+    }
+  }
+
+  renderPage(allAgents, pageToRender);
+  bindAgencyPagination();
+
+  if (selectAgencyId) {
+    var $link = $('.agency-card[data-id="' + selectAgencyId + '"] .agency-name');
+    if ($link.length) {
+      selectAgencyLine(selectAgencyId, $link[0]);
+    }
+  }
+}
+
+function reloadData(selectAgencyId) {
   $.ajax({
     url: '/agency_data',
     method: 'GET',
+    cache: false,
+    dataType: 'json',
+    data: { _: Date.now() },
     success: function(data) {
-      allAgents = data; // save globally
-      renderPage(allAgents); // show first load
-
-      $('#pagination-container').off('click').on('click', '.page-link', function (e) {
-        e.preventDefault();
-        const page = parseInt($(this).data('page'));
-        renderPage(allAgents, page);
-      });
+      allAgents = Array.isArray(data) ? data : [];
+      renderAgencyGrid(selectAgencyId);
     },
     error: function(xhr, status, error) {
       console.error('Error fetching data:', error);

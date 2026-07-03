@@ -50,6 +50,19 @@ async function indexExists(pool, tableName, indexName) {
 	return Number(rows[0]?.cnt || 0) > 0;
 }
 
+async function indexIsUnique(pool, tableName, indexName) {
+	const [rows] = await pool.execute(
+		`SELECT NON_UNIQUE
+		 FROM information_schema.STATISTICS
+		 WHERE TABLE_SCHEMA = DATABASE()
+		   AND TABLE_NAME = ?
+		   AND INDEX_NAME = ?
+		 LIMIT 1`,
+		[tableName, indexName]
+	);
+	return rows[0] != null && Number(rows[0].NON_UNIQUE) === 0;
+}
+
 async function ensureGuestMembershipSchema(pool) {
 	if (!(await tableExists(pool, 'guest'))) return false;
 
@@ -69,11 +82,19 @@ async function ensureGuestMembershipSchema(pool) {
 		}
 	}
 
-	if (!(await indexExists(pool, 'guest', 'idx_guest_membership_no'))) {
+	if (await indexExists(pool, 'guest', 'idx_guest_membership_no')) {
+		if (await indexIsUnique(pool, 'guest', 'idx_guest_membership_no')) {
+			await pool.execute(`DROP INDEX idx_guest_membership_no ON guest`);
+			await pool.execute(
+				`CREATE INDEX idx_guest_membership_no ON guest (MEMBERSHIP_NO)`
+			);
+			console.log('[guest] Replaced unique idx_guest_membership_no with non-unique index');
+		}
+	} else {
 		await pool.execute(
-			`CREATE UNIQUE INDEX idx_guest_membership_no ON guest (MEMBERSHIP_NO)`
+			`CREATE INDEX idx_guest_membership_no ON guest (MEMBERSHIP_NO)`
 		);
-		console.log('[guest] Added unique index idx_guest_membership_no');
+		console.log('[guest] Added index idx_guest_membership_no');
 	}
 
 	return false;

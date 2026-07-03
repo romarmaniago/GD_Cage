@@ -307,11 +307,25 @@ router.post('/add_agency', async (req, res) => {
 		const date_now = new Date();
 
 		const query = `INSERT INTO agency (AGENCY, ENCODED_BY, ENCODED_DT, ACTIVE) VALUES (?, ?, ?, ?)`;
-		await pool.execute(query, [txtAgency, req.session.user_id, date_now, 1]);
+		const [result] = await pool.execute(query, [txtAgency, req.session.user_id, date_now, 1]);
+		const agency_id = result.insertId;
 
+		const wantsJson = req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest'
+			|| (req.headers.accept && req.headers.accept.includes('application/json'));
+		if (wantsJson) {
+			return res.status(200).json({
+				success: true,
+				agency_id,
+				agency_name: txtAgency,
+				message: 'Agency added successfully.'
+			});
+		}
 		res.redirect('/agency');
 	} catch (err) {
 		console.error('Error inserting agency:', err);
+		if (req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+			return res.status(500).json({ error: 'Error inserting agency' });
+		}
 		res.status(500).send('Error inserting agency');
 	}
 });
@@ -684,12 +698,23 @@ router.post(
 		}
 
 		const isApiRequest = req.headers['x-api-key'] || req.headers['content-type']?.includes('multipart/form-data') && !req.session?.user_id;
-		if (isApiRequest && !req.session?.user_id) {
-		  return res.status(200).json({ success: true, agent_id });
+		const wantsJson = req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest'
+			|| (req.headers.accept && req.headers.accept.includes('application/json'));
+		if (wantsJson || (isApiRequest && !req.session?.user_id)) {
+		  return res.status(200).json({
+			success: true,
+			agent_id,
+			agent_code: txtAgenctCode ?? '',
+			agent_name: txtName ?? '',
+			message: 'Agent added successfully.'
+		  });
 		}
 		res.redirect('/agent');
 	} catch (err) {
 		console.error('Error adding agent:', err);
+		if (req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+			return res.status(500).json({ error: 'Error adding agent' });
+		}
 		res.status(500).send('Error adding agent');
 	}
 });
@@ -1245,19 +1270,6 @@ router.post('/add_guest', async (req, res) => {
 			return res.status(400).json({ error: 'Guest name is required.' });
 		}
 
-		if (membershipNo) {
-			const [duplicateRows] = await pool.execute(
-				`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? LIMIT 1`,
-				[membershipNo]
-			);
-			if (duplicateRows.length) {
-				const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
-				return res.status(400).json({
-					error: `Membership No ${membershipNo} is already used by "${existingName}".`
-				});
-			}
-		}
-
 		const insertQuery = `
 			INSERT INTO guest (AGENT_ID, NAME, MEMBERSHIP_NO, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, 1, ?, ?)
@@ -1265,16 +1277,6 @@ router.post('/add_guest', async (req, res) => {
 		const [result] = await pool.execute(insertQuery, [agentId, guestName, membershipNo, remarks || null, encodedBy, now]);
 		return res.json({ success: true, guest_id: result.insertId });
 	} catch (err) {
-		if (err && err.code === 'ER_DUP_ENTRY') {
-			const sqlMsg = String(err.sqlMessage || '');
-			if (sqlMsg.includes('idx_guest_membership_no') || sqlMsg.includes('MEMBERSHIP_NO')) {
-				return res.status(400).json({
-					error: membershipNo
-						? `Membership No ${membershipNo} is already used.`
-						: 'Membership No is already used.'
-				});
-			}
-		}
 		console.error('Error adding guest:', err);
 		return res.status(500).json({ error: 'Failed to add guest.' });
 	}
@@ -1321,19 +1323,6 @@ router.put('/guest/:id', async (req, res) => {
 			return res.status(400).json({ error: 'Membership No must contain digits only.' });
 		}
 
-		if (membershipNo) {
-			const [duplicateRows] = await pool.execute(
-				`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? AND IDNo <> ? LIMIT 1`,
-				[membershipNo, guestId]
-			);
-			if (duplicateRows.length) {
-				const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
-				return res.status(400).json({
-					error: `Membership No ${membershipNo} is already used by "${existingName}".`
-				});
-			}
-		}
-
 		const updateQuery = `
 			UPDATE guest
 			SET NAME = ?, MEMBERSHIP_NO = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
@@ -1346,14 +1335,6 @@ router.put('/guest/:id', async (req, res) => {
 		}
 		return res.json({ success: true });
 	} catch (err) {
-		if (err && err.code === 'ER_DUP_ENTRY') {
-			const sqlMsg = String(err.sqlMessage || '');
-			if (sqlMsg.includes('idx_guest_membership_no') || sqlMsg.includes('MEMBERSHIP_NO')) {
-				return res.status(400).json({
-					error: `Membership No ${String(req.body.txtMembershipNo || '').trim()} is already used.`
-				});
-			}
-		}
 		console.error('Error updating guest:', err);
 		return res.status(500).json({ error: 'Failed to update guest.' });
 	}
