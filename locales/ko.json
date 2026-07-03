@@ -992,7 +992,17 @@
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"remarks_updated": "dashboard_marker.remarks_updated",
 		"error_update_remarks": "dashboard_marker.error_update_remarks",
-		"game_start": "dashboard_marker.game_start"
+		"game_start": "게임 시작",
+		"form_mode_return": "크레딧 반환",
+		"form_mode_issue": "크레딧 추가",
+		"credits_add": "크레딧 추가 금액",
+		"current_balance": "현재 잔액",
+		"confirm_add_credit": "크레딧 추가 확인",
+		"confirm_add_credit_msg": "이 크레딧을 추가하시겠습니까?",
+		"credit_added_success": "크레딧이 성공적으로 추가되었습니다!",
+		"game_credit_use_game_start": "게임 크레딧 추가는 게임 시작을 사용하세요.",
+		"return_auto_split": "dashboard_marker.return_auto_split",
+		"select_form_mode": "dashboard_marker.select_form_mode"
 	},
 	"modal_new_agent": {
 		"new_guest": "새 게스트",

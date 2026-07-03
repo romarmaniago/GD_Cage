@@ -32,92 +32,97 @@
                     </div>
                 </div>
 
-                <div class="row d-flex justify-content-center mb-2">
-                    
-                    <div class="col-sm-3 d-flex justify-content-center">
-                        <div class="form-check">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-credit" name="optReturnSource" value="credit">
-                            <label class="form-check-label" for="return-source-credit"><%= __('dashboard_marker.tab_credit') %></label>
+                <input type="hidden" id="txtTotalBalanceGuest" name="totalBalanceGuest" />
+                <div class="row mb-3 align-items-center">
+                    <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="form-mode-issue-modal" name="optFormMode" value="issue" />
+                            <label class="form-check-label" for="form-mode-issue-modal"><%= __('dashboard_marker.form_mode_issue') %></label>
+                        </div>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="form-mode-return-modal" name="optFormMode" value="return" />
+                            <label class="form-check-label" for="form-mode-return-modal"><%= __('dashboard_marker.form_mode_return') %></label>
                         </div>
                     </div>
-                    <div class="col-sm-3 d-flex justify-content-center">
-                        <div class="form-check">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin" name="optReturnSource" value="buyin">
+                </div>
+                <div id="marker-form-fields-wrap" style="display: none;">
+                <div id="marker-return-source-wrap" class="row mb-3 align-items-center">
+                    <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-credit" name="optReturnSource" value="credit" />
+                            <label class="form-check-label" for="return-source-credit"><%= __('dashboard_marker.tab_credit') %></label>
+                        </div>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin" name="optReturnSource" value="buyin" />
                             <label class="form-check-label" for="return-source-buyin"><%= __('dashboard_marker.tab_buyin') %></label>
                         </div>
                     </div>
                 </div>
-
-                <!-- Account # -->
-                <div class="row justify-content-center mb-2">
+                <div class="row mb-2">
                     <div class="col-sm-6">
-                      
-                            <select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.please_select') %>">
-                                <option value=""><%= __('dashboard_marker.please_select') %></option>
-                            </select>
-                       
+                        <label class="form-label text-muted small"><%= __('dashboard_marker.account') %></label>
+                        <select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.choose_account') %>">
+                            <option value=""><%= __('dashboard_marker.choose_account') %></option>
+                        </select>
                     </div>
-                    <div class="col-sm-6">
-                      
-                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.credits_issue') %>" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
-                           
-                      
+                    <div class="col-sm-6" id="marker-issue-field-wrap">
+                        <label class="form-label text-muted small" id="lbl-marker-issue"><%= __('dashboard_marker.credits_issue') %></label>
+                        <input type="text" class="form-control" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
                     </div>
                 </div>
-                <div class="row d-flex justify-content-center mb-2">
+                <div class="row mb-2">
                     <div class="col-sm-6">
-                    
-                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.credits_return') %>" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
-                      
-                       
+                        <label class="form-label text-muted small" id="lbl-marker-amount"><%= __('dashboard_marker.amount') %></label>
+                        <input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
                     </div>
                     <div class="col-sm-6">
-                       
-                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.balance') %>" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;"/>
-                           
-                       
+                        <label class="form-label text-muted small" id="lbl-marker-balance"><%= __('dashboard_marker.balance') %></label>
+                        <input type="text" class="form-control" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;" />
                     </div>
                 </div>
-            </div>
-                
-                <div class="row d-flex justify-content-center mb-2">
+                <div class="row mb-2">
                     <div class="col-sm-12">
-                        <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.remarks_optional') %>" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
+                        <label class="form-label text-muted small"><%= __('dashboard_marker.remarks_optional') %></label>
+                        <input type="text" class="form-control" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
                     </div>
                 </div>
-
-                <!-- Radio Buttons -->
-                <div class="row d-flex justify-content-center ">
-                    <div class="col-sm-3 d-flex justify-content-center">
-                        <div class="form-check">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash" name="optTransType" value="11">
-                            <label class="form-check-label" for="cash"><%= __('dashboard_marker.cash') %></label>
+                <div id="marker-return-trans-type-wrap">
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <label class="form-label text-muted small"><%= __('dashboard_marker.transaction_type') %></label>
                         </div>
                     </div>
-                    <div class="col-sm-3 d-flex justify-content-center">
-                        <div class="form-check">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optTransType" value="12">
-                            <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash" name="optTransType" value="11" />
+                                <label class="form-check-label" for="cash"><%= __('dashboard_marker.cash') %></label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optTransType" value="12" />
+                                <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Save / Close buttons positioned near the form -->
                 <div class="row d-flex justify-content-between align-items-center mt-3 mb-2">
-                    <div class="col-auto">
+                    <div class="col-auto d-flex justify-content-start align-items-center gap-2">
                         <button type="button" class="btn btn-sm btn-success d-none" id="btn-credits-game-start">
                             <%= __('dashboard_marker.game_start') %>
                         </button>
-                    </div>
-                    <div class="col-auto d-flex gap-2">
                         <button id="submit_marker_settlement" type="submit" class="btn btn-sm btn-primary">
                             <%= __('dashboard_marker.save') %>
                         </button>
+                    </div>
+                    <div class="col-auto">
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
                             <%= __('dashboard_marker.close') %>
                         </button>
                     </div>
                 </div>
+                </div>
+            </div>
+
             <hr style="border: none; border-top: 0.2rem solid black;">
 
             <!-- 4 Tabs: Total Credit (default), Cash Credit, Game Credit, History -->
@@ -880,7 +885,19 @@ window.markerTranslations = window.markerTranslations || {
 	next: "<%= __('dashboard_marker.next') %>",
 	search: "<%= __('dashboard_marker.search') %>",
 	no_data_available: "<%= __('dashboard_marker.no_data_available') %>",
-	total: "<%= __('dashboard_marker.total') %>"
+	total: "<%= __('dashboard_marker.total') %>",
+	form_mode_return: "<%= __('dashboard_marker.form_mode_return') %>",
+	form_mode_issue: "<%= __('dashboard_marker.form_mode_issue') %>",
+	credits_add: "<%= __('dashboard_marker.credits_add') %>",
+	credits_return: "<%= __('dashboard_marker.credits_return') %>",
+	credits_issue: "<%= __('dashboard_marker.credits_issue') %>",
+	current_balance: "<%= __('dashboard_marker.current_balance') %>",
+	confirm_add_credit: "<%= __('dashboard_marker.confirm_add_credit') %>",
+	confirm_add_credit_msg: "<%= __('dashboard_marker.confirm_add_credit_msg') %>",
+	credit_added_success: "<%= __('dashboard_marker.credit_added_success') %>",
+	game_credit_use_game_start: "<%= __('dashboard_marker.game_credit_use_game_start') %>",
+	return_auto_split: "<%= __('dashboard_marker.return_auto_split') %>",
+	select_form_mode: "<%= __('dashboard_marker.select_form_mode') %>"
 };
 </script>
 <!-- Marker init runs from footer (after jQuery + marker_common.js) -->
@@ -902,8 +919,18 @@ window.__markerModalInit = function() {
             agentBalanceSelector: '#AgentBalance',
             optTransTypeName: 'optTransType',
             optReturnSourceName: 'optReturnSource',
-            selectPlaceholder: '<%= __("dashboard_marker.select_account") %>',
+            returnSourceWrapSelector: '#marker-return-source-wrap',
+            selectPlaceholder: '<%= __("dashboard_marker.choose_account") %>',
             dropdownParent: '#modal-new-marker',
+            populateAccountsOnInit: false,
+            supportAddCredit: true,
+            optFormModeName: 'optFormMode',
+            formFieldsWrapSelector: '#marker-form-fields-wrap',
+            returnTransTypeWrapSelector: '#marker-return-trans-type-wrap',
+            amountLabelSelector: '#lbl-marker-amount',
+            issueFieldWrapSelector: '#marker-issue-field-wrap',
+            balanceLabelSelector: '#lbl-marker-balance',
+            totalBalanceGuestSelector: '#txtTotalBalanceGuest',
             onSuccess: function() {
                 if (typeof window.reloadData === "function") window.reloadData();
             }

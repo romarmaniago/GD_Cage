@@ -46,13 +46,29 @@ async function migrateLegacyAmountColumns(pool, tableName) {
 	const hasCashOut = await columnExists(pool, tableName, 'CASH_OUT');
 	if (!hasDeposit && !hasCashOut) return;
 
+	const depositExpr = hasDeposit ? 'COALESCE(DEPOSIT, 0)' : '0';
+	const cashOutExpr = hasCashOut ? 'COALESCE(CASH_OUT, 0)' : '0';
+	const typeCase = hasDeposit
+		? `CASE WHEN ${depositExpr} > 0 THEN 1 ELSE 2 END`
+		: '2';
+	const amountCase = hasDeposit && hasCashOut
+		? `CASE WHEN ${depositExpr} > 0 THEN ${depositExpr} ELSE ${cashOutExpr} END`
+		: hasDeposit
+			? depositExpr
+			: cashOutExpr;
+	const legacyFilter = hasDeposit && hasCashOut
+		? `(${depositExpr} > 0 OR ${cashOutExpr} > 0)`
+		: hasDeposit
+			? `(${depositExpr} > 0)`
+			: `(${cashOutExpr} > 0)`;
+
 	await pool.execute(`
 		UPDATE ${tableName}
-		SET TYPE = CASE WHEN COALESCE(DEPOSIT, 0) > 0 THEN 1 ELSE 2 END,
-		    AMOUNT = CASE WHEN COALESCE(DEPOSIT, 0) > 0 THEN COALESCE(DEPOSIT, 0) ELSE COALESCE(CASH_OUT, 0) END
+		SET TYPE = ${typeCase},
+		    AMOUNT = ${amountCase}
 		WHERE ACTIVE = 1
 		  AND (COALESCE(AMOUNT, 0) = 0 OR TYPE IS NULL)
-		  AND (COALESCE(DEPOSIT, 0) > 0 OR COALESCE(CASH_OUT, 0) > 0)
+		  AND ${legacyFilter}
 	`);
 }
 

@@ -687,11 +687,22 @@
         var hideModalOnGameStartSelector = opts.hideModalOnGameStartSelector || '#modal-new-marker';
         var optTransTypeName = opts.optTransTypeName || 'optTransType';
         var optReturnSourceName = opts.optReturnSourceName || 'optReturnSource';
+        var supportAddCredit = opts.supportAddCredit === true;
+        var optFormModeName = opts.optFormModeName || 'optFormMode';
+        var returnTransTypeWrapSelector = opts.returnTransTypeWrapSelector || '#marker-return-trans-type-wrap';
+        var amountLabelSelector = opts.amountLabelSelector || '#lbl-marker-amount';
+        var issueFieldWrapSelector = opts.issueFieldWrapSelector || '#marker-issue-field-wrap';
+        var balanceLabelSelector = opts.balanceLabelSelector || '#lbl-marker-balance';
+        var returnSourceWrapSelector = opts.returnSourceWrapSelector || '#marker-return-source-wrap';
+        var formFieldsWrapSelector = opts.formFieldsWrapSelector || '#marker-form-fields-wrap';
+        var totalBalanceGuestSelector = opts.totalBalanceGuestSelector || '#txtTotalBalanceGuest';
+        var unifiedReturn = opts.unifiedReturn !== false;
         var selectPlaceholder = opts.selectPlaceholder || 'Select account';
         var dropdownParent = opts.dropdownParent || 'body';
         var isSubmitting = false;
         var markerData = [];
         var markerBreakdownData = [];
+        var allAccountsData = [];
 
         var $form = $(formSelector);
         var $accountSelect = $(accountSelectSelector);
@@ -715,6 +726,74 @@
             return $('input[name="' + optReturnSourceName + '"]:checked').val();
         }
 
+        function getFormMode() {
+            if (!supportAddCredit) return 'return';
+            return $('input[name="' + optFormModeName + '"]:checked').val() || null;
+        }
+
+        function hasFormModeSelected() {
+            return !!getFormMode();
+        }
+
+        function usesUnifiedReturn() {
+            return unifiedReturn && getFormMode() === 'return';
+        }
+
+        function buildMarkerSettlementData() {
+            var payload = $form.serializeArray().filter(function (item) {
+                return !(usesUnifiedReturn() && item.name === optReturnSourceName);
+            });
+            if (usesUnifiedReturn()) {
+                payload.push({ name: optReturnSourceName, value: 'auto' });
+            }
+            return $.param(payload);
+        }
+
+        function updateFormModeUI() {
+            var mode = getFormMode();
+            var hasMode = !!mode;
+            var isIssue = mode === 'issue';
+            var unified = usesUnifiedReturn();
+            var t = window.markerTranslations || {};
+            var $returnWrap = $(returnTransTypeWrapSelector);
+            var $amountLabel = $(amountLabelSelector);
+            var $balanceLabel = $(balanceLabelSelector);
+            var $issueWrap = $(issueFieldWrapSelector);
+            var $sourceWrap = $(returnSourceWrapSelector);
+            var $formFieldsWrap = $(formFieldsWrapSelector);
+
+            if ($formFieldsWrap.length) $formFieldsWrap.toggle(hasMode);
+            var perms = $('#user-role').length ? parseInt($('#user-role').data('permissions'), 10) : null;
+            var viewOnly = perms === 2;
+            $submitBtn.prop('disabled', !hasMode || viewOnly);
+            if (!hasMode) {
+                $accountSelect.val('').trigger('change');
+                $(markerReturnSelector).val('');
+                $(markerIssueSelector).val('');
+                $(markerBalanceSelector).val('');
+                $('input[name="' + optTransTypeName + '"]').prop('checked', false);
+                return;
+            }
+
+            if ($sourceWrap.length) $sourceWrap.toggle(!unified && !isIssue);
+            if ($returnWrap.length) $returnWrap.toggle(!isIssue);
+            if ($amountLabel.length) {
+                $amountLabel.text(t.amount || 'Amount');
+            }
+            if ($balanceLabel.length) {
+                $balanceLabel.text(isIssue ? (t.current_balance || 'Current Balance') : (t.balance || 'Balance'));
+            }
+            if ($issueWrap.length) $issueWrap.toggle(!isIssue);
+            if (unified || isIssue) {
+                $('input[name="' + optReturnSourceName + '"]').prop('checked', false);
+            }
+            updateCreditsGameStartButton();
+        }
+
+        function applyFormModeUI() {
+            updateFormModeUI();
+        }
+
         function findBreakdownAccount(accountId) {
             return (markerBreakdownData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(accountId); })[0];
         }
@@ -734,7 +813,25 @@
             $accountSelect.empty().append('<option value="">' + selectPlaceholder + '</option>');
 
             var sourceList = [];
-            if (selectedSource) {
+            if (getFormMode() === 'issue') {
+                sourceList = (allAccountsData || []).map(function (acc) {
+                    return {
+                        ACCOUNT_ID: acc.account_id,
+                        AGENT_CODE: acc.agent_code,
+                        AGENT_NAME: acc.agent_name
+                    };
+                });
+            } else if (usesUnifiedReturn()) {
+                sourceList = (markerBreakdownData || []).filter(function (row) {
+                    return getSourceAmountByRow(row, null) > 0;
+                }).map(function (row) {
+                    return {
+                        ACCOUNT_ID: row.ACCOUNT_ID,
+                        AGENT_CODE: row.AGENT_CODE,
+                        AGENT_NAME: row.AGENT_NAME
+                    };
+                });
+            } else if (selectedSource) {
                 sourceList = (markerBreakdownData || []).filter(function (row) {
                     return getSourceAmountByRow(row, selectedSource) > 0;
                 }).map(function (row) {
@@ -744,8 +841,6 @@
                         AGENT_NAME: row.AGENT_NAME
                     };
                 });
-            } else {
-                sourceList = [];
             }
 
             sourceList.forEach(function (account) {
@@ -759,9 +854,8 @@
         function updateCreditsGameStartButton() {
             var $btn = $(gameStartBtnSelector);
             if (!$btn.length) return;
-            var hasAccount = !!String($accountSelect.val() || '').trim();
-            var hasSource = !!getSelectedReturnSource();
-            $btn.toggleClass('d-none', !(hasAccount && hasSource));
+            $btn.addClass('d-none');
+            $submitBtn.removeClass('d-none');
         }
 
         function openCreditsGameStart() {
@@ -811,12 +905,38 @@
             if (!selectedAccountId) {
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
+                $(totalBalanceGuestSelector).val('');
                 updateCreditsGameStartButton();
                 return;
             }
             var selectedSource = getSelectedReturnSource();
+            if (getFormMode() === 'issue') {
+                var breakdownAccIssue = findBreakdownAccount(selectedAccountId);
+                var issueAcc = (allAccountsData || []).filter(function (a) {
+                    return String(a.account_id) === String(selectedAccountId);
+                })[0];
+                var totalCreditBalance = breakdownAccIssue
+                    ? getSourceAmountByRow(breakdownAccIssue, null)
+                    : (issueAcc ? (parseFloat(issueAcc.credit_balance) || 0) : 0);
+                $(markerBalanceSelector).val(formatWithCommas(totalCreditBalance));
+                $(totalBalanceGuestSelector).val(String(totalCreditBalance));
+                updateCreditsGameStartButton();
+                return;
+            }
+            var breakdownAcc = findBreakdownAccount(selectedAccountId);
+            if (usesUnifiedReturn()) {
+                var totalIssue = breakdownAcc ? getSourceAmountByRow(breakdownAcc, null) : 0;
+                if (!totalIssue) {
+                    var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
+                    totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
+                }
+                $(markerIssueSelector).val(formatWithCommas(totalIssue));
+                var currentReturn = parseFloat(String($(markerReturnSelector).val() || '').replace(/,/g, '')) || 0;
+                $(markerBalanceSelector).val(formatWithCommas(Math.max(0, totalIssue - currentReturn)));
+                updateCreditsGameStartButton();
+                return;
+            }
             if (selectedSource) {
-                var breakdownAcc = findBreakdownAccount(selectedAccountId);
                 var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
                 $(markerIssueSelector).val(formatWithCommas(sourceAmount));
                 $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
@@ -824,14 +944,33 @@
                 return;
             }
             var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
-            var totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
-            $(markerIssueSelector).val(formatWithCommas(totalIssue));
-            $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            var totalIssueFallback = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
+            $(markerIssueSelector).val(formatWithCommas(totalIssueFallback));
+            $(markerBalanceSelector).val(formatWithCommas(totalIssueFallback));
             updateCreditsGameStartButton();
         }
 
         // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
         function populateAccounts(callback) {
+            if (getFormMode() === 'issue') {
+                $.when(
+                    $.ajax({ url: '/account_data', method: 'GET' }),
+                    $.ajax({ url: '/marker_data_breakdown', method: 'GET' })
+                ).done(function (accountRes, breakdownRes) {
+                    allAccountsData = accountRes && accountRes[0] ? accountRes[0] : [];
+                    markerBreakdownData = breakdownRes && breakdownRes[0] ? breakdownRes[0] : [];
+                    refreshAccountOptionsBySource();
+                    updateIssueAndBalanceBySelectedAccount();
+                    if (typeof callback === 'function') callback(allAccountsData);
+                }).fail(function (err) {
+                    console.error('Error fetching account data:', err);
+                    allAccountsData = [];
+                    markerBreakdownData = [];
+                    refreshAccountOptionsBySource();
+                    if (typeof callback === 'function') callback([]);
+                });
+                return;
+            }
             $.when(
                 $.ajax({ url: '/marker_data', method: 'GET' }),
                 $.ajax({ url: '/marker_data_breakdown', method: 'GET' })
@@ -854,6 +993,8 @@
             populateAccounts();
         }
 
+        updateFormModeUI();
+
         $accountSelect.off('change.markerForm').on('change.markerForm', function () {
             updateIssueAndBalanceBySelectedAccount();
         });
@@ -869,6 +1010,14 @@
                 $(markerBalanceSelector).val('');
             }
             updateCreditsGameStartButton();
+        });
+
+        $(document).off('change.markerFormMode', 'input[name="' + optFormModeName + '"]').on('change.markerFormMode', 'input[name="' + optFormModeName + '"]', function () {
+            $accountSelect.val('').trigger('change');
+            $(markerReturnSelector).val('');
+            $('input[name="' + optTransTypeName + '"]').prop('checked', false);
+            populateAccounts();
+            applyFormModeUI();
         });
 
         $(document).off('click.markerGameStart', gameStartBtnSelector).on('click.markerGameStart', gameStartBtnSelector, function (e) {
@@ -899,16 +1048,18 @@
             });
         });
 
-        // Format marker return input and balance
+        // Format marker return/add input and balance
         $(markerReturnSelector).off('input.markerForm focusout.markerForm').on('input.markerForm', function () {
-            var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
             var raw = $(this).val().replace(/,/g, '');
             var markerReturn = parseFloat(raw) || 0;
-            if (markerReturn > markerIssue) {
-                $(this).val(formatWithCommas(markerIssue));
-                $(markerBalanceSelector).val(formatWithCommas(0));
-            } else {
-                $(markerBalanceSelector).val(formatWithCommas(markerIssue - markerReturn));
+            if (getFormMode() === 'return') {
+                var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
+                if (markerReturn > markerIssue) {
+                    $(this).val(formatWithCommas(markerIssue));
+                    $(markerBalanceSelector).val(formatWithCommas(0));
+                } else {
+                    $(markerBalanceSelector).val(formatWithCommas(markerIssue - markerReturn));
+                }
             }
             $(this).val(formatWithCommas(raw));
         }).on('focusout.markerForm', function () {
@@ -921,26 +1072,118 @@
             if (isSubmitting) return;
 
             var selectedAccount = $(accountSelectSelector).val();
-            var selectedTransType = $('input[name="' + optTransTypeName + '"]:checked').val();
-            var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
             var markerReturnRaw = $(markerReturnSelector).val().replace(/,/g, '');
             var markerReturn = parseFloat(markerReturnRaw) || 0;
             var selectedReturnSource = $('input[name="' + optReturnSourceName + '"]:checked').val();
+            var formMode = getFormMode();
+            var t = window.markerTranslations || {};
+
+            if (!formMode) {
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Missing Information',
+                        text: (t.select_form_mode || 'Please select Add Credit or Return Credit.')
+                    });
+                }
+                return;
+            }
 
             if (!selectedAccount) {
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select an account.' });
                 return;
             }
+            if (!markerReturnRaw || markerReturn <= 0) {
+                var amountLabel = formMode === 'issue' ? 'Credit amount' : 'Credit Return';
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: amountLabel + ' must be greater than zero.' });
+                return;
+            }
+
+            if (formMode === 'issue') {
+                var accountMarkerIssue = $accountSelect.find('option:selected').text();
+                var markerAddFormatted = $(markerReturnSelector).val();
+                var currentCreditBalance = parseFloat(String($(totalBalanceGuestSelector).val() || '0').replace(/,/g, '')) || 0;
+                var cashCreditLabel = (t.export_sheet_junket_credit || t.tab_credit || 'Cash Credit');
+                var confirmIssueRows = [
+                    ['Account', accountMarkerIssue || 'N/A'],
+                    ['Amount', markerAddFormatted || '0'],
+                    ['Credit Type', cashCreditLabel]
+                ];
+
+                var submitAddCredit = function () {
+                    isSubmitting = true;
+                    var origHtml = $submitBtn.html();
+                    $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Loading...');
+                    $.ajax({
+                        url: '/add_account_details',
+                        method: 'POST',
+                        data: {
+                            txtAccountId: selectedAccount,
+                            txtTrans: '3',
+                            txtAmount: markerAddFormatted,
+                            txtRemarks: $(remarksSelector).val() || '',
+                            totalBalanceGuest: currentCreditBalance
+                        },
+                        success: function (response) {
+                            var hasTelegramWarning = typeof response === 'object' && response.success && response.error;
+                            $form[0].reset();
+                            if (table && table.ajax) table.ajax.reload();
+                            $.getJSON('/marker_total_credits_issue', function (data) {
+                                var total = (data && data.total != null) ? data.total : 0;
+                                var numStr = Number(total).toLocaleString('en-US');
+                                $('#txtTotalMarkerIssue').val(numStr);
+                                $('#dashboard-credit-value').html('₱ ' + numStr);
+                            });
+                            populateAccounts();
+                            if (window.Swal) {
+                                if (hasTelegramWarning) {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Saved',
+                                        html: '<strong>' + (response.message || 'Credit added.') + '</strong><br><br>' + response.error
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'Success',
+                                        text: t.credit_added_success || 'Credit added successfully!'
+                                    });
+                                }
+                            }
+                            if (opts.onSuccess) opts.onSuccess();
+                        },
+                        error: function (xhr) {
+                            var msg = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || xhr.responseText || 'Error processing your request.';
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                        },
+                        complete: function () {
+                            isSubmitting = false;
+                            $submitBtn.prop('disabled', false).html(origHtml);
+                            if (supportAddCredit) applyFormModeUI();
+                        }
+                    });
+                };
+
+                if (window.Swal && window.SwalConfirm) {
+                    SwalConfirm.fire({
+                        title: t.confirm_add_credit || 'Confirm Add Credit',
+                        rows: confirmIssueRows,
+                        message: t.confirm_add_credit_msg || 'Are you sure you want to add this credit?',
+                        confirmButtonText: 'Yes, Save'
+                    }).then(function (result) {
+                        if (result.isConfirmed) submitAddCredit();
+                    });
+                } else {
+                    submitAddCredit();
+                }
+                return;
+            }
+
+            var selectedTransType = $('input[name="' + optTransTypeName + '"]:checked').val();
+            var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
+
             if (!selectedTransType) {
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select a transaction type (Cash or Deposit).' });
-                return;
-            }
-            if (!selectedReturnSource) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select where to deduct the return (Junket Credit or Game Credit).' });
-                return;
-            }
-            if (!markerReturnRaw || markerReturn <= 0) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Credit Return must be greater than zero.' });
                 return;
             }
             if (markerReturn > markerIssue) {
@@ -951,7 +1194,9 @@
             var accountMarker = $accountSelect.find('option:selected').text();
             var markerReturnFormatted = $(markerReturnSelector).val();
             var transTypeLabel = $('input[name="' + optTransTypeName + '"]:checked').next('label').text();
-            var returnSourceLabel = $('input[name="' + optReturnSourceName + '"]:checked').next('label').text();
+            var returnSourceLabel = usesUnifiedReturn()
+                ? ((window.markerTranslations && window.markerTranslations.return_auto_split) || 'Cash Credit first, then Game Credit')
+                : $('input[name="' + optReturnSourceName + '"]:checked').next('label').text();
 
             var proceedSubmitFlow = function () {
                 var showConfirmAndSubmit = function () {
@@ -962,10 +1207,11 @@
                     $.ajax({
                         url: '/add_marker_settlement',
                         method: 'POST',
-                        data: $form.serialize(),
+                        data: buildMarkerSettlementData(),
                         success: function (response) {
                             if (response.success) {
                                 $form[0].reset();
+                                if (supportAddCredit) applyFormModeUI();
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
@@ -1001,6 +1247,7 @@
                         complete: function () {
                             isSubmitting = false;
                             $submitBtn.prop('disabled', false).html(origHtml);
+                            if (supportAddCredit) applyFormModeUI();
                         }
                     });
                 };
@@ -1065,13 +1312,20 @@
                     var sourceRow = list.filter(function (r) { return String(r.ACCOUNT_ID) === String(selectedAccount); })[0];
                     var sourceBalance = 0;
                     if (sourceRow) {
-                        sourceBalance = selectedReturnSource === 'credit'
-                            ? (sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0)
-                            : (sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0);
+                        if (usesUnifiedReturn()) {
+                            sourceBalance = sourceRow.TOTAL_AMOUNT != null
+                                ? Number(sourceRow.TOTAL_AMOUNT)
+                                : getSourceAmountByRow(sourceRow, null);
+                        } else {
+                            sourceBalance = selectedReturnSource === 'credit'
+                                ? (sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0)
+                                : (sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0);
+                        }
                     }
                     if (markerReturn > sourceBalance) {
-                        var sourceBalanceLabel = selectedReturnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
-                        var sourceBalanceMsg = 'Return amount exceeded the ' + sourceBalanceLabel + '.';
+                        var sourceBalanceMsg = usesUnifiedReturn()
+                            ? 'Return amount exceeded the total credit balance.'
+                            : ('Return amount exceeded the ' + (selectedReturnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance') + '.');
                         if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: sourceBalanceMsg });
                         else alert(sourceBalanceMsg);
                         return;

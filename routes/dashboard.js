@@ -8,6 +8,7 @@ const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_R
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
+const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 const ExcelJS = require('exceljs');
 const {
 	getMarkerDataBreakdownSql,
@@ -2517,12 +2518,37 @@ router.post('/add_marker_settlement', async (req, res) => {
 	time_now.setHours(time_now.getHours());
 	let updated_time = time_now.toLocaleTimeString();
 	let date_nowTG = date_now.toLocaleDateString();
-	let markerReturn = parseFloat(txtMarkerReturn.replace(/,/g, '')) || 0;
+	const accountId = parseInt(txtAccountMarker, 10);
+	const returnSource = String(optReturnSource || '');
+	let markerReturn = parseFloat(String(txtMarkerReturn || '').replace(/,/g, '')) || 0;
 
 	try {
-		if (!['credit', 'buyin'].includes(String(optReturnSource || ''))) {
+		if (!Number.isInteger(accountId) || accountId <= 0) {
+			return res.status(400).json({ error: 'Please select a valid account.' });
+		}
+		if (!['credit', 'buyin', 'auto'].includes(returnSource)) {
 			return res.status(400).json({ error: 'Please select where to deduct the return.' });
 		}
+		if (markerReturn <= 0) {
+			return res.status(400).json({ error: 'Credit Return must be greater than zero.' });
+		}
+
+		const sourceBalances = await getMarkerSourceBalances(pool, accountId);
+		if (returnSource === 'auto') {
+			const totalSourceBalance = sourceBalances.balanceCredit + sourceBalances.balanceBuyin;
+			if (markerReturn > totalSourceBalance) {
+				return res.status(400).json({ error: 'Return amount exceeded the total credit balance.' });
+			}
+		} else {
+			const selectedSourceBalance = returnSource === 'credit'
+				? sourceBalances.balanceCredit
+				: sourceBalances.balanceBuyin;
+			if (markerReturn > selectedSourceBalance) {
+				const sourceBalanceLabel = returnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
+				return res.status(400).json({ error: `Return amount exceeded the ${sourceBalanceLabel}.` });
+			}
+		}
+
 		if (optTransType === '12') {
 			// Total balance excludes Credit/IOU (IOU CASH / CREDIT CASH)
 			const checkBalanceQuery = `
@@ -2536,19 +2562,19 @@ router.post('/add_marker_settlement', async (req, res) => {
                 AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
                 AND account_ledger.ACTIVE = 1`;
 
-			const [balanceResults] = await pool.execute(checkBalanceQuery, [txtAccountMarker]);
+			const [balanceResults] = await pool.execute(checkBalanceQuery, [accountId]);
 			const balance = balanceResults[0]?.balance || 0;
 
 			if (balance < markerReturn) {
 				return res.status(400).json({ error: 'Insufficient balance for this deposit transaction.' });
 			}
-		} else {
-			if (markerReturn <= 0) {
-				return res.status(400).json({ error: 'Marker return must be greater than zero for non-deposit transactions.' });
-			}
 		}
 
-		await insertSettlementRecord();
+		if (returnSource === 'auto') {
+			await insertAutoSettlementRecords(sourceBalances);
+		} else {
+			await insertSettlementRecord();
+		}
 
 		const agentQuery = `
             SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
@@ -2556,7 +2582,7 @@ router.post('/add_marker_settlement', async (req, res) => {
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?`;
 
-		const [agentResults] = await pool.execute(agentQuery, [txtAccountMarker]);
+		const [agentResults] = await pool.execute(agentQuery, [accountId]);
 
 		if (agentResults.length > 0) {
 			const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
@@ -2608,13 +2634,26 @@ router.post('/add_marker_settlement', async (req, res) => {
 		res.status(500).json({ success: false, message: 'Error processing the transaction' });
 	}
 
-	async function insertSettlementRecord() {
-		const returnSourceDesc = optReturnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
+	async function insertSettlementRecord(sourceOverride, amountOverride) {
+		const source = sourceOverride || returnSource;
+		const amount = amountOverride != null ? amountOverride : markerReturn;
+		const returnSourceDesc = getMarkerReturnSourceDesc(source);
 		const insertQuery = `
             INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-		await pool.execute(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		await pool.execute(insertQuery, [accountId, optTransType, 3, amount, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+	}
+
+	async function insertAutoSettlementRecords(balances) {
+		const allocations = allocateMarkerReturn(
+			balances.balanceCredit,
+			balances.balanceBuyin,
+			markerReturn
+		);
+		for (const allocation of allocations) {
+			await insertSettlementRecord(allocation.source, allocation.amount);
+		}
 	}
 });
 
