@@ -767,5 +767,50 @@ opacity: 0.95;
     }
 }
 
+/* Golden Dragon — browser scrollbar (matches sidebar + dashboard palette) */
+:root {
+    --gd-scroll-track: #121212;
+    --gd-scroll-track-edge: #1a1a1a;
+    --gd-scroll-thumb: rgba(200, 162, 76, 0.42);
+    --gd-scroll-thumb-hover: rgba(241, 212, 138, 0.72);
+    --gd-scroll-thumb-active: #c8a24c;
+}
 
+html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gd-scroll-thumb) var(--gd-scroll-track);
+}
+
+body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gd-scroll-thumb) var(--gd-scroll-track);
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, var(--gd-scroll-track-edge) 0%, var(--gd-scroll-track) 100%);
+    border-left: 1px solid rgba(200, 162, 76, 0.12);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(241, 212, 138, 0.55) 0%, var(--gd-scroll-thumb) 45%, rgba(107, 74, 18, 0.5) 100%);
+    border-radius: 999px;
+    border: 2px solid var(--gd-scroll-track);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--gd-scroll-thumb-hover) 0%, var(--gd-scroll-thumb-active) 55%, #6b4a12 100%);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #f1d48a 0%, #c8a24c 50%, #6b4a12 100%);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--gd-scroll-track);
+}
 

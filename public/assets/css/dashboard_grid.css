@@ -9,6 +9,14 @@ body {
   line-height: 1.45;
 }
 
+/* Sidebar → first card: slightly wider than inter-card g-3, but tighter than default content-inner */
+.main-content .conatiner-fluid.content-inner.dash-grid-wrap,
+.main-content .container-fluid.content-inner.dash-grid-wrap {
+  --dash-page-gutter: 1rem;
+  padding-left: calc(var(--dash-page-gutter) * 0.875);
+  padding-right: calc(var(--dash-page-gutter) * 0.875);
+}
+
 .dash-panel-narrow {
   font-size: 12px;
 }
