@@ -307,7 +307,7 @@ router.post('/verify-password', async (req, res) => {
 
 // Check Permission route
 router.post('/check-permission', (req, res) => {
-    if (!req.session.permissions) {
+    if (req.session.permissions === undefined || req.session.permissions === null) {
         return res.status(401).json({ message: 'Not logged in' });
     }
     if (req.session.permissions === 11) {

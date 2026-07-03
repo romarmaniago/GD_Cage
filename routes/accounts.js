@@ -598,9 +598,14 @@ router.put('/agency/:id', async (req, res) => {
 	}
 });
 
-// ARCHIVE AGENCY
+// ARCHIVE AGENCY (Super Admin only)
 router.put('/agency/remove/:id', async (req, res) => {
 	try {
+		const permissions = req.session?.permissions;
+		if (permissions !== 0) {
+			return res.status(403).json({ success: false, message: 'Only Super Admin can delete agencies.' });
+		}
+
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 

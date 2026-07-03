@@ -724,8 +724,21 @@ function renderPage(data, page = 1, perPage = 30) {
   const currentPageData = data.slice(start, end);
 
   currentPageData.forEach(function(row) {
-    const permissions = parseInt($('#user-role').data('permissions'));
-    const actionsHtml = permissions !== 2 ? `
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
+    const isSuperAdmin = permissions === 0;
+    const canEdit = permissions !== 2;
+    const deleteBtnHtml = isSuperAdmin
+      ? `<button type="button"
+        class="btn btn-sm agency-icon-btn agency-icon-btn-danger"
+        onclick="checkPermissionToDeleteAgency(${row.IDNo})"
+        data-bs-toggle="tooltip"
+        title="Archive">
+        <i class="fa fa-trash"></i>
+      </button>`
+      : `<button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive">
+        <i class="fa fa-trash"></i>
+      </button>`;
+    const actionsHtml = canEdit ? `
       <button type="button"
         class="btn btn-sm agency-icon-btn btn-export-line-stats"
         data-agency-id="${row.IDNo}"
@@ -741,13 +754,7 @@ function renderPage(data, page = 1, perPage = 30) {
         title="Edit LINE">
         <i class="fa fa-pen"></i>
       </button>
-      <button type="button"
-        class="btn btn-sm agency-icon-btn agency-icon-btn-danger"
-        onclick="checkPermissionToDeleteAgency(${row.IDNo})"
-        data-bs-toggle="tooltip"
-        title="Archive">
-        <i class="fa fa-trash"></i>
-      </button>
+      ${deleteBtnHtml}
     ` : `
       <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Export">
         <i class="fa fa-download"></i>
@@ -755,9 +762,7 @@ function renderPage(data, page = 1, perPage = 30) {
       <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Edit">
         <i class="fa fa-pen"></i>
       </button>
-      <button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive">
-        <i class="fa fa-trash"></i>
-      </button>
+      ${deleteBtnHtml}
     `;
 
     const cardHtml = `
@@ -1963,32 +1968,18 @@ function edit_agency(id, agency, memo) {
 }
 // Tingnan muna kung may permission bago mag-delete
 function checkPermissionToDeleteAgency(id) {
-  $.ajax({
-    url: '/check-permission',
-    type: 'POST',
-    success: function(response) {
-      if (response.permissions === 11) {
-        archive_agency(id);
-      } else {
-        Swal.fire({
-          title: 'Access Denied',
-          text: 'Not allowed to delete this data.',
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#6f9c40'
-        });
-      }
-    },
-    error: function() {
-      Swal.fire({
-        title: 'Error',
-        text: 'Unable to check permissions at this time.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#6f9c40'
-      });
-    }
-  });
+  const permissions = parseInt($('#user-role').data('permissions'), 10);
+  if (permissions === 0) {
+    archive_agency(id);
+  } else {
+    Swal.fire({
+      title: 'Access Denied',
+      text: 'Not allowed to delete this data.',
+      icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#6f9c40'
+    });
+  }
 }
 
 function performAgencyArchiveRemove(ids) {

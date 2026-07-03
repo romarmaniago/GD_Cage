@@ -51,7 +51,7 @@ function renderAgentTelegramToggle(row, readOnly) {
 	);
 }
 
-function renderAgentActionCell(row, readOnly) {
+function renderAgentActionCell(row, readOnly, isSuperAdmin) {
 	const toggleSlot = row.agent_telegram ? renderAgentTelegramToggle(row, readOnly) : '';
 	const editAttrs = readOnly
 		? ' disabled'
@@ -68,6 +68,14 @@ function renderAgentActionCell(row, readOnly) {
 			"', '" +
 			escapeJsString(row.agent_remarks) +
 			"')\"";
+	const deleteSlot = isSuperAdmin
+		? '<span class="agent-action-delete-slot">' +
+			'<button type="button" class="btn btn-link text-danger p-0 border-0 shadow-none btn-delete-agent-icon js-bs-tooltip-enabled"' +
+			' onclick="checkPermissionToDeleteAgent(' +
+			row.agent_id +
+			')" aria-label="Archive" data-bs-toggle="tooltip" title="Archive">' +
+			'<i class="fa fa-trash-alt"></i></button></span>'
+		: '';
 	return (
 		'<div class="agent-action-wrap">' +
 		'<span class="agent-action-toggle-slot">' +
@@ -78,6 +86,7 @@ function renderAgentActionCell(row, readOnly) {
 		editAttrs +
 		' aria-label="Edit"><i class="fa fa-pencil-alt"></i></button>' +
 		'</span>' +
+		deleteSlot +
 		'</div>'
 	);
 }
@@ -804,7 +813,7 @@ $(document).ready(function () {
 				data: null,
 				render: function (data, type, row) {
 					if (type !== 'display') return '';
-					return renderAgentActionCell(row, permissions === 2);
+					return renderAgentActionCell(row, permissions === 2, permissions === 0);
 				}
 			}
 		],
@@ -1185,35 +1194,18 @@ function edit_agent(id, agent_code, agentName, contact, telegram, remarks) {
 
 
 function checkPermissionToDeleteAgent(id) {
-    // Check if the user has the necessary permission before proceeding
-    $.ajax({
-        url: '/check-permission',
-        type: 'POST',
-        success: function (response) {
-            if (response.permissions === 11) {
-                // Proceed with deletion if permission is valid
-                archive_agent(id);
-            } else {
-                // Show an error SweetAlert if permission is not sufficient
-                Swal.fire({
-                    title: 'Access Denied',
-                    text: 'Not allowed to delete this data.',
-                    icon: 'error',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#6f9c40'
-                });
-            }
-        },
-        error: function () {
-            Swal.fire({
-                title: 'Error',
-                text: 'Unable to check permissions at this time.',
-                icon: 'error',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#6f9c40'
-            });
-        }
-    });
+	const permissions = parseInt($('#user-role').data('permissions'), 10);
+	if (permissions === 0) {
+		archive_agent(id);
+	} else {
+		Swal.fire({
+			title: 'Access Denied',
+			text: 'Not allowed to delete this data.',
+			icon: 'error',
+			confirmButtonText: 'OK',
+			confirmButtonColor: '#6f9c40'
+		});
+	}
 }
 
 
@@ -1233,8 +1225,17 @@ function archive_agent(id) {
 				success: function (response) {
 					window.location.reload();
 				},
-				error: function (error) {
-					console.error('Error deleting user role:', error);
+				error: function (xhr) {
+					const message = xhr.status === 403
+						? 'Only Super Admin can delete agents.'
+						: 'Something went wrong while archiving.';
+					Swal.fire({
+						title: 'Error',
+						text: message,
+						icon: 'error',
+						confirmButtonText: 'OK'
+					});
+					console.error('Error deleting agent:', xhr.responseText);
 				}
 			});
 		}

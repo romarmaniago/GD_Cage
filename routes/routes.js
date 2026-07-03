@@ -1346,7 +1346,7 @@ pageRouter.post('/verify-password', (req, res) => {
 });
 
 pageRouter.post('/check-permission', (req, res) => {
-	if (!req.session.permissions) {
+	if (req.session.permissions === undefined || req.session.permissions === null) {
 		return res.status(401).json({ message: 'Not logged in' });
 	}
 
