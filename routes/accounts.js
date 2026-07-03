@@ -1237,8 +1237,8 @@ router.post('/add_guest', async (req, res) => {
 		if (!agentId) {
 			return res.status(400).json({ error: 'Agent is required.' });
 		}
-		if (!/^\d{8,10}$/.test(membershipNo)) {
-			return res.status(400).json({ error: 'Membership No must be 8 to 10 digits only.' });
+		if (!/^\d+$/.test(membershipNo)) {
+			return res.status(400).json({ error: 'Membership No must contain digits only.' });
 		}
 		if (!guestName) {
 			return res.status(400).json({ error: 'Guest name is required.' });

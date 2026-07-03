@@ -454,6 +454,9 @@ $(document).ready(function() {
   });
 
   $('#add_guest_form').on('submit', function (e) {
+    if ($('#assign_guest_agent_id').length) {
+      return;
+    }
     e.preventDefault();
     const $form = $(this);
     const $btn = $('#btn-save-guest-table');

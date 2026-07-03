@@ -9150,6 +9150,9 @@ $(document).ready(function () {
 	});
 
 	$('#add_guest_form').on('submit', function (e) {
+		if (!$('#assign_guest_agent_id').length) {
+			return;
+		}
 		e.preventDefault();
 		var $form = $(this);
 		var $btn = $('#btn-save-guest-table');
