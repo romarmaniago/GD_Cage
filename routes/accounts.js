@@ -1226,7 +1226,8 @@ router.get('/guest_data', async (req, res) => {
 
 // ADD GUEST
 router.post('/add_guest', async (req, res) => {
-	const membershipNo = String(req.body.txtMembershipNo || '').trim();
+	const membershipRaw = String(req.body.txtMembershipNo || '').trim();
+	const membershipNo = membershipRaw || null;
 	try {
 		const agentId = parseInt(req.body.txtAgentId, 10);
 		const guestName = String(req.body.txtGuestName || '').trim();
@@ -1237,22 +1238,24 @@ router.post('/add_guest', async (req, res) => {
 		if (!agentId) {
 			return res.status(400).json({ error: 'Agent is required.' });
 		}
-		if (!/^\d+$/.test(membershipNo)) {
+		if (membershipRaw && !/^\d+$/.test(membershipRaw)) {
 			return res.status(400).json({ error: 'Membership No must contain digits only.' });
 		}
 		if (!guestName) {
 			return res.status(400).json({ error: 'Guest name is required.' });
 		}
 
-		const [duplicateRows] = await pool.execute(
-			`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? LIMIT 1`,
-			[membershipNo]
-		);
-		if (duplicateRows.length) {
-			const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
-			return res.status(400).json({
-				error: `Membership No ${membershipNo} is already used by "${existingName}".`
-			});
+		if (membershipNo) {
+			const [duplicateRows] = await pool.execute(
+				`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? LIMIT 1`,
+				[membershipNo]
+			);
+			if (duplicateRows.length) {
+				const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
+				return res.status(400).json({
+					error: `Membership No ${membershipNo} is already used by "${existingName}".`
+				});
+			}
 		}
 
 		const insertQuery = `
@@ -1266,7 +1269,9 @@ router.post('/add_guest', async (req, res) => {
 			const sqlMsg = String(err.sqlMessage || '');
 			if (sqlMsg.includes('idx_guest_membership_no') || sqlMsg.includes('MEMBERSHIP_NO')) {
 				return res.status(400).json({
-					error: `Membership No ${membershipNo} is already used.`
+					error: membershipNo
+						? `Membership No ${membershipNo} is already used.`
+						: 'Membership No is already used.'
 				});
 			}
 		}
@@ -1300,7 +1305,8 @@ router.put('/guest/:id', async (req, res) => {
 	try {
 		const guestId = parseInt(req.params.id, 10);
 		const guestName = String(req.body.txtGuestName || '').trim();
-		const membershipNo = String(req.body.txtMembershipNo || '').trim();
+		const membershipRaw = String(req.body.txtMembershipNo || '').trim();
+		const membershipNo = membershipRaw || null;
 		const remarks = String(req.body.txtRemarks || '').trim();
 		const editedBy = req.session?.user_id || 1;
 		const now = new Date();
@@ -1311,19 +1317,21 @@ router.put('/guest/:id', async (req, res) => {
 		if (!guestName) {
 			return res.status(400).json({ error: 'Guest name is required.' });
 		}
-		if (!/^\d+$/.test(membershipNo)) {
+		if (membershipRaw && !/^\d+$/.test(membershipRaw)) {
 			return res.status(400).json({ error: 'Membership No must contain digits only.' });
 		}
 
-		const [duplicateRows] = await pool.execute(
-			`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? AND IDNo <> ? LIMIT 1`,
-			[membershipNo, guestId]
-		);
-		if (duplicateRows.length) {
-			const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
-			return res.status(400).json({
-				error: `Membership No ${membershipNo} is already used by "${existingName}".`
-			});
+		if (membershipNo) {
+			const [duplicateRows] = await pool.execute(
+				`SELECT IDNo, NAME FROM guest WHERE MEMBERSHIP_NO = ? AND IDNo <> ? LIMIT 1`,
+				[membershipNo, guestId]
+			);
+			if (duplicateRows.length) {
+				const existingName = String(duplicateRows[0].NAME || '').trim() || 'another guest';
+				return res.status(400).json({
+					error: `Membership No ${membershipNo} is already used by "${existingName}".`
+				});
+			}
 		}
 
 		const updateQuery = `

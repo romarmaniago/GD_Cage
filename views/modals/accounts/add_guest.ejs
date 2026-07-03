@@ -28,7 +28,7 @@ body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
 					</div>
 					<div class="mt-2 mb-0">
 						<label for="guest_membership_input" class="form-label">Membership No</label>
-						<input type="text" class="form-control" id="guest_membership_input" name="txtMembershipNo" required inputmode="numeric" autocomplete="off" placeholder="8–10 digits">
+						<input type="text" class="form-control" id="guest_membership_input" name="txtMembershipNo" inputmode="numeric" autocomplete="off" placeholder="8–10 digits">
 					</div>
 					<div class="mt-2 mb-0">
 						<label for="guest_remarks_input" class="form-label">Remarks</label>
@@ -52,6 +52,7 @@ body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
 
 	window.validateGuestMembershipNo = function (value) {
 		var v = String(value || '').trim();
+		if (!v) return '';
 		if (!/^\d+$/.test(v)) {
 			return 'Membership No must contain digits only.';
 		}
