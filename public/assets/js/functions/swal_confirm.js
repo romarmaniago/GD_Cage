@@ -1,15 +1,19 @@
 /**
- * Shared SweetAlert2 confirmation dialog with aligned label/value rows.
- * Labels right-align; text values left-align; amounts right-align to column end.
+ * Shared SweetAlert2 confirmation dialog with two-column CSS Grid layout.
+ * Text values left-align from the value column start. Amounts right-align inside
+ * a shared fixed-width box so trailing digits and commas line up evenly.
  */
 (function (window) {
     'use strict';
 
-    var GRID_STYLE = 'display:inline-grid;grid-template-columns:auto auto;column-gap:12px;row-gap:4px;justify-content:center;width:100%;';
-    var LABEL_STYLE = 'font-weight:600;text-align:right;white-space:nowrap;padding:2px 0;';
-    var VALUE_BASE = 'white-space:nowrap;padding:2px 0;';
-    var VALUE_LEFT_STYLE = VALUE_BASE + 'text-align:left;';
-    var VALUE_RIGHT_STYLE = VALUE_BASE + 'text-align:right;font-variant-numeric:tabular-nums;';
+    var COL_WIDTH = '180px';
+    var VALUE_PAD = 'white-space:nowrap;padding:2px 0;overflow:visible;';
+    var GRID_STYLE = 'display:inline-grid;grid-template-columns:' + COL_WIDTH + ' ' + COL_WIDTH +
+        ';column-gap:12px;row-gap:4px;justify-content:center;justify-items:start;align-items:baseline;';
+    var LABEL_STYLE = 'font-weight:600;text-align:left;' + VALUE_PAD;
+    var VALUE_TEXT_STYLE = 'text-align:left;' + VALUE_PAD;
+    var VALUE_AMOUNT_BASE = 'display:inline-block;text-align:right;font-variant-numeric:tabular-nums;' + VALUE_PAD;
+    var SEPARATOR_WIDTH_CH = 0.45;
 
     function escapeHtml(s) {
         if (s == null) return '';
@@ -34,45 +38,76 @@
         return containsHtml(value) ? String(value) : escapeHtml(value);
     }
 
+    function plainValueText(value) {
+        return String(value == null ? '' : value).replace(/<[^>]*>/g, '').trim();
+    }
+
+    function displayValue(value) {
+        return value == null || value === '' ? '-' : value;
+    }
+
     function isNumericValue(value) {
         if (value == null || value === '') return false;
-        var plain = String(value).replace(/<[^>]*>/g, '').trim();
+        var plain = plainValueText(value);
         if (plain.endsWith('%')) return false;
-        if (/^NN:\s*[\d,]+(?:\.\d+)?(?:\s*,\s*CC:\s*[\d,]+(?:\.\d+)?)?$/i.test(plain)) return true;
+        if (/^NN:\s*[\d,]+/i.test(plain)) return false;
         return /^[₱\s]*[\d,]+(\.\d+)?$/.test(plain);
     }
 
-    function resolveValueAlign(value, align) {
-        if (align === 'right' || align === 'left') return align;
-        return isNumericValue(value) ? 'right' : 'left';
+    function isAmountValue(value, align) {
+        if (align === 'left') return false;
+        return align === 'right' || isNumericValue(value);
+    }
+
+    function amountWidthCh(value) {
+        var plain = plainValueText(value);
+        var digits = plain.replace(/\D/g, '').length;
+        return digits + ((plain.length - digits) * SEPARATOR_WIDTH_CH);
+    }
+
+    function getMaxAmountWidthCh(rows) {
+        var maxWidth = 0;
+        rows.forEach(function (row) {
+            if (isSpacerRow(row)) return;
+            var value = displayValue(row[1]);
+            if (!isAmountValue(value, row[2])) return;
+            var width = amountWidthCh(value);
+            if (width > maxWidth) maxWidth = width;
+        });
+        return maxWidth;
+    }
+
+    function buildValueStyle(value, align, maxAmountWidthCh) {
+        if (!isAmountValue(value, align)) return VALUE_TEXT_STYLE;
+        return VALUE_AMOUNT_BASE + 'width:' + maxAmountWidthCh.toFixed(2) + 'ch;';
+    }
+
+    function isSpacerRow(row) {
+        return row === null || row === 'spacer';
     }
 
     function buildSpacerRow() {
         return '<span style="grid-column:1 / -1;height:10px;line-height:0;font-size:0;">&nbsp;</span>';
     }
 
-    function isSpacerRow(row) {
-        return row === null || row === 'spacer' || (Array.isArray(row) && row[0] === '__spacer__');
-    }
-
-    function buildRow(label, value, align) {
-        var displayValue = value == null || value === '' ? '-' : value;
-        var valueStyle = resolveValueAlign(displayValue, align) === 'right' ? VALUE_RIGHT_STYLE : VALUE_LEFT_STYLE;
+    function buildRow(label, value, align, maxAmountWidthCh) {
+        var shown = displayValue(value);
         return '<span style="' + LABEL_STYLE + '">' + safeHtml(formatLabel(label)) + '</span>' +
-            '<span style="' + valueStyle + '">' + safeHtml(displayValue) + '</span>';
+            '<span style="' + buildValueStyle(shown, align, maxAmountWidthCh) + '">' + safeHtml(shown) + '</span>';
     }
 
     function buildTableHtml(rows, options) {
         options = options || {};
         if (!rows || !rows.length) return '';
+        var maxAmountWidthCh = getMaxAmountWidthCh(rows);
         var body = rows.map(function (row) {
             if (isSpacerRow(row)) return buildSpacerRow();
-            return buildRow(row[0], row[1], row[2]);
+            return buildRow(row[0], row[1], row[2], maxAmountWidthCh);
         }).join('');
         var subtitle = options.subtitle
             ? '<div style="font-weight:600;margin-bottom:8px;text-align:center;">' + safeHtml(options.subtitle) + '</div>'
             : '';
-        return '<div style="max-width:420px;margin:0 auto;">' + subtitle +
+        return '<div style="margin:0 auto;">' + subtitle +
             '<div style="' + GRID_STYLE + '">' + body + '</div></div>';
     }
 
