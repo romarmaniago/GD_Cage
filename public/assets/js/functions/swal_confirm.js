@@ -111,6 +111,36 @@
             '<div style="' + GRID_STYLE + '">' + body + '</div></div>';
     }
 
+    function applyModalStack(options) {
+        options = options || {};
+        var focusTrapHandler = function (e) {
+            if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+                e.stopImmediatePropagation();
+            }
+        };
+        var userDidOpen = options.didOpen;
+        var userWillClose = options.willClose;
+        var merged = Object.assign({}, options, {
+            heightAuto: options.heightAuto != null ? options.heightAuto : false,
+            didOpen: function () {
+                window.addEventListener('focusin', focusTrapHandler, true);
+                document.querySelectorAll('.swal2-container').forEach(function (el) {
+                    el.style.zIndex = '1080';
+                });
+                if (typeof userDidOpen === 'function') {
+                    userDidOpen.apply(this, arguments);
+                }
+            },
+            willClose: function () {
+                window.removeEventListener('focusin', focusTrapHandler, true);
+                if (typeof userWillClose === 'function') {
+                    userWillClose.apply(this, arguments);
+                }
+            }
+        });
+        return merged;
+    }
+
     function fire(options) {
         options = options || {};
         if (!window.Swal) return Promise.resolve({ isConfirmed: false });
@@ -122,7 +152,7 @@
             html += '<div style="margin-top:12px;text-align:center;">' + safeHtml(options.message) + '</div>';
         }
 
-        return Swal.fire({
+        var swalOptions = {
             icon: options.icon != null ? options.icon : 'question',
             title: options.title || '',
             html: html || undefined,
@@ -136,11 +166,27 @@
             allowEscapeKey: options.allowEscapeKey === true,
             width: options.width || (hasRows ? '500px' : undefined),
             reverseButtons: !!options.reverseButtons
-        });
+        };
+
+        if (options.showDenyButton) {
+            swalOptions.showDenyButton = true;
+            swalOptions.denyButtonText = options.denyButtonText || 'No';
+            if (options.denyButtonColor) swalOptions.denyButtonColor = options.denyButtonColor;
+        }
+        if (options.heightAuto != null) swalOptions.heightAuto = options.heightAuto;
+        if (options.didOpen) swalOptions.didOpen = options.didOpen;
+        if (options.willClose) swalOptions.willClose = options.willClose;
+
+        if (options.modalStack) {
+            swalOptions = applyModalStack(swalOptions);
+        }
+
+        return Swal.fire(swalOptions);
     }
 
     window.SwalConfirm = {
         fire: fire,
-        buildTableHtml: buildTableHtml
+        buildTableHtml: buildTableHtml,
+        applyModalStack: applyModalStack
     };
 })(window);

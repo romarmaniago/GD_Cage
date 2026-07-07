@@ -2526,11 +2526,12 @@ function confirmGameTypeChange(gameId, currentType) {
 	var prevLabel = prevType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
 	var newLabel = newType === 'TELEBET' ? (translations.telebet || 'TELEBET') : (translations.live || 'LIVE');
 
-	Swal.fire({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: 'Change game type?',
-		html: 'Change type from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong>?',
-		showCancelButton: true,
+		rows: [
+			['Previous Type', prevLabel],
+			['New Type', newLabel]
+		],
 		confirmButtonText: 'Yes, update',
 		cancelButtonText: 'Cancel'
 	}).then(function (result) {
@@ -2626,11 +2627,13 @@ function confirmProgramDateChange($cell, gameId, currentYmd, newYmd, prevHtml) {
 	$cell.html(prevHtml);
 	var prevLabel = formatProgramDateLabel(currentYmd);
 	var newLabel = formatProgramDateLabel(newYmd);
-	Swal.fire({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: 'Update program date?',
-		html: 'Change program date from <strong>' + escapeHtmlText(prevLabel) + '</strong> to <strong>' + escapeHtmlText(newLabel) + '</strong> for Game # <strong>' + escapeHtmlText(String(gameId)) + '</strong>.',
-		showCancelButton: true,
+		rows: [
+			['Previous Date', prevLabel],
+			['New Date', newLabel],
+			['Game #', String(gameId)]
+		],
 		confirmButtonText: 'Yes, update',
 		cancelButtonText: 'Cancel'
 	}).then(function (result) {
@@ -3766,14 +3769,12 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 	}
 	$('#edit-commission-rate').removeClass('is-invalid');
 	var typeLabel = typeVal === 2 ? 'Shared Game' : 'Rolling Game';
-	Swal.fire({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: 'Confirm update',
-		html: '<div class="text-center">' +
-			'<div><strong>Type:</strong> ' + typeLabel + '</div>' +
-			'<div><strong>Rate:</strong> ' + rateVal + '%</div>' +
-			'</div>',
-		showCancelButton: true,
+		rows: [
+			['Type', typeLabel],
+			['Rate', rateVal + '%']
+		],
 		confirmButtonText: 'Yes, update',
 		cancelButtonText: 'Cancel'
 	}).then(function (result) {
@@ -6242,22 +6243,16 @@ $('#add_buyin').submit(function (event) {
 					return;
 				}
 
-				// Build confirmation message
-				var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
-				confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString('en-US')}<br>`;
-
-				Swal.fire({
-			icon: 'question',
-			title: isUpdate ? 'Confirm Update' : 'Confirm Transaction',
-			html: confirmationMessage + '<br>Are you sure you want to proceed?',
-			showCancelButton: true,
-			confirmButtonText: 'Yes, Confirm',
-			cancelButtonText: 'Cancel',
-			confirmButtonColor: '#3085d6',
-			cancelButtonColor: '#d33',
-			allowOutsideClick: false,
-			allowEscapeKey: false
-		}).then((result) => {
+				SwalConfirm.fire({
+					title: isUpdate ? 'Confirm Update' : 'Confirm Transaction',
+					subtitle: 'Confirm Rolling Transaction:',
+					rows: [['CC Chips', parseFloat(ccAmount).toLocaleString('en-US')]],
+					message: 'Are you sure you want to proceed?',
+					confirmButtonText: 'Yes, Confirm',
+					cancelButtonText: 'Cancel',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then((result) => {
 			if (result.isConfirmed) {
 				// User confirmed, proceed with transaction
 				$btn.prop('disabled', true).html(`
@@ -8678,32 +8673,25 @@ function fireServicesSwal(options) {
 	if (!window.Swal) {
 		return Promise.resolve({ isConfirmed: false, isDismissed: true });
 	}
-	var focusTrapHandler = function (e) {
-		if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
-			e.stopImmediatePropagation();
-		}
-	};
-	var userDidOpen = options && options.didOpen;
-	var userWillClose = options && options.willClose;
-	var merged = Object.assign({}, options || {}, {
-		heightAuto: false,
-		didOpen: function () {
-			window.addEventListener('focusin', focusTrapHandler, true);
-			document.querySelectorAll('.swal2-container').forEach(function (el) {
-				el.style.zIndex = '1080';
-			});
-			if (typeof userDidOpen === 'function') {
-				userDidOpen.apply(this, arguments);
-			}
-		},
-		willClose: function () {
-			window.removeEventListener('focusin', focusTrapHandler, true);
-			if (typeof userWillClose === 'function') {
-				userWillClose.apply(this, arguments);
-			}
-		}
-	});
+	var merged = window.SwalConfirm && window.SwalConfirm.applyModalStack
+		? window.SwalConfirm.applyModalStack(options || {})
+		: Object.assign({}, options || {});
 	return window.Swal.fire(merged);
+}
+
+function buildServiceConfirmRows(type, amount, deliveryFee, transactionId, remarks) {
+	var rows = [
+		['Service Type', (type || '').toUpperCase()],
+		['Amount', parseFloat(amount).toLocaleString('en-US')],
+		['Transaction', formatServiceTransactionLabel(parseInt(transactionId, 10))]
+	];
+	if (deliveryFee > 0) {
+		rows.splice(2, 0, ['Delivery Fee', deliveryFee.toLocaleString('en-US')]);
+	}
+	if (remarks) {
+		rows.push(['Remarks', remarks]);
+	}
+	return rows;
 }
 
 $(document).on('change', '#services-type', function () {
@@ -8744,27 +8732,14 @@ $(document).on('click', '#services-save-btn', function (e) {
 		agentId = null;
 	}
 	
-	// Build confirmation message
-	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
-	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
-	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
-	if (deliveryFee > 0) {
-		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
-	}
-	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
-	if (remarks) {
-		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
-	}
-	
-	fireServicesSwal({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: `Confirm ${isEdit ? 'Update' : 'Add'} Service`,
-		html: confirmationMessage + '<br>Are you sure you want to proceed?',
-		showCancelButton: true,
+		subtitle: `Confirm ${isEdit ? 'Update' : 'Add'} Service:`,
+		rows: buildServiceConfirmRows(type, amount, deliveryFee, transactionId, remarks),
+		message: 'Are you sure you want to proceed?',
+		modalStack: true,
 		confirmButtonText: 'Yes, Confirm',
 		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
 		allowOutsideClick: false,
 		allowEscapeKey: false
 	}).then((result) => {
@@ -8869,27 +8844,14 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 
 	const $btn = $('#services-edit-save-btn');
 	
-	// Build confirmation message
-	var confirmationMessage = `Confirm Update Service:<br><br>`;
-	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
-	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString('en-US')}<br>`;
-	if (deliveryFee > 0) {
-		confirmationMessage += `<strong>Delivery Fee:</strong> ${deliveryFee.toLocaleString('en-US')}<br>`;
-	}
-	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
-	if (remarks) {
-		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
-	}
-	
-	fireServicesSwal({
-		icon: 'question',
+	SwalConfirm.fire({
 		title: 'Confirm Update Service',
-		html: confirmationMessage + '<br>Are you sure you want to proceed?',
-		showCancelButton: true,
+		subtitle: 'Confirm Update Service:',
+		rows: buildServiceConfirmRows(type, amount, deliveryFee, transactionId, remarks),
+		message: 'Are you sure you want to proceed?',
+		modalStack: true,
 		confirmButtonText: 'Yes, Confirm',
 		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#3085d6',
-		cancelButtonColor: '#d33',
 		allowOutsideClick: false,
 		allowEscapeKey: false
 	}).then((result) => {
@@ -9426,11 +9388,15 @@ $(document).ready(function () {
 			return;
 		}
 
-		Swal.fire({
-			icon: 'question',
+		var pendingConfirmRows = [['Account', accountLabel]];
+		if (nn > 0) pendingConfirmRows.push(['NN Chips', nn.toLocaleString('en-US')]);
+		if (cc > 0) pendingConfirmRows.push(['CC Chips', cc.toLocaleString('en-US')]);
+		pendingConfirmRows.push(['Buy-in Total', parseFloat(total).toLocaleString('en-US')]);
+
+		SwalConfirm.fire({
 			title: 'Confirm New Game',
-			html: 'Create a new game for <strong>' + accountLabel + '</strong> with buy-in <strong>' + parseFloat(total).toLocaleString('en-US') + '</strong>?<br>',
-			showCancelButton: true,
+			rows: pendingConfirmRows,
+			message: 'Are you sure you want to proceed?',
 			confirmButtonText: 'Yes, Confirm'
 		}).then(function (result) {
 			if (!result.isConfirmed) return;
