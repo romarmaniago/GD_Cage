@@ -23,6 +23,8 @@
 
     let agents = [];
     let records = [];
+    const sortState = { sortKey: 'date', sortDir: 'desc' };
+    const tableHead = document.querySelector('#additional-commission-tbl thead');
     const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
 
     function escapeHtml(value) {
@@ -161,15 +163,62 @@
       return formatAmount(amount);
     }
 
+    function getSortValue(row, key) {
+      if (!row) return '';
+      if (key === 'date') return new Date(row.ENCODED_DT || 0).getTime();
+      if (key === 'account') return String(row.account || '').toLowerCase();
+      if (key === 'name') return String(row.name || '').toLowerCase();
+      if (key === 'amount') return Number(row.AMOUNT) || 0;
+      if (key === 'type') return Number(row.TYPE) || 0;
+      if (key === 'remarks') return String(row.REMARKS || '').toLowerCase();
+      return '';
+    }
+
+    function sortRecords(rows) {
+      const list = (rows || []).slice();
+      const key = sortState.sortKey || 'date';
+      const dir = sortState.sortDir === 'asc' ? 'asc' : 'desc';
+
+      list.sort((a, b) => {
+        const av = getSortValue(a, key);
+        const bv = getSortValue(b, key);
+        if (av < bv) return dir === 'asc' ? -1 : 1;
+        if (av > bv) return dir === 'asc' ? 1 : -1;
+
+        const dateDiff = new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (Number(b.IDNo) || 0) - (Number(a.IDNo) || 0);
+      });
+
+      return list;
+    }
+
+    function syncSortHeaders() {
+      if (!tableHead) return;
+
+      tableHead.querySelectorAll('th.sortable-col').forEach((th) => {
+        const thKey = th.dataset.sortKey;
+        const active = thKey === sortState.sortKey;
+        th.classList.toggle('is-sorted', active);
+        th.setAttribute('aria-sort', active ? (sortState.sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+
+        const indicator = th.querySelector('.sort-indicator');
+        if (indicator) {
+          indicator.textContent = active ? (sortState.sortDir === 'asc' ? '▲' : '▼') : '-';
+        }
+      });
+    }
+
     function renderRows(rows) {
       records = rows || [];
 
       if (!records.length) {
         tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
+        syncSortHeaders();
         return;
       }
 
-      tableBody.innerHTML = records.map((row) => {
+      tableBody.innerHTML = sortRecords(records).map((row) => {
         const type = getRowType(row);
         const typeLabel = getTypeLabel(type);
         const amount = Number(row.AMOUNT) || 0;
@@ -194,6 +243,8 @@
         </tr>
       `;
       }).join('');
+
+      syncSortHeaders();
     }
 
     function loadAdditionalCommissionData() {
@@ -367,6 +418,23 @@
     }
 
     addButton.addEventListener('click', openAdditionalCommissionModal);
+
+    if (tableHead) {
+      tableHead.addEventListener('click', function (event) {
+        const th = event.target.closest('th.sortable-col');
+        if (!th) return;
+
+        const key = th.dataset.sortKey || 'date';
+        if (sortState.sortKey === key) {
+          sortState.sortDir = sortState.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.sortKey = key;
+          sortState.sortDir = (key === 'date' || key === 'amount') ? 'desc' : 'asc';
+        }
+
+        renderRows(records);
+      });
+    }
 
     tableBody.addEventListener('click', function (event) {
       const editBtn = event.target.closest('.btn-edit-additional-commission');

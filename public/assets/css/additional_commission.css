@@ -17,6 +17,22 @@
   border: none;
 }
 
+#additional-commission-tbl thead th.sortable-col {
+  cursor: pointer;
+  user-select: none;
+}
+
+#additional-commission-tbl thead th.sortable-col:hover,
+#additional-commission-tbl thead th.sortable-col.is-sorted {
+  background: #dfe6ff;
+}
+
+#additional-commission-tbl .sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #6c757d;
+}
+
 #additional-commission-tbl thead th:nth-child(2),
 #additional-commission-tbl thead th:nth-child(3) {
   text-align: left;
