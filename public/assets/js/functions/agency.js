@@ -8,6 +8,108 @@ let currentAgencyGuestRows = [];
 let currentAllGuestRows = [];
 let guestSearchQuery = '';
 let transferGuestCurrentAgentId = null;
+let agencyLineSortDir = 'asc';
+let agencyLineCurrentPage = 1;
+let agencyAgentSortDir = 'asc';
+let agencyGuestSortState = { sortKey: 'guest_name', sortDir: 'asc' };
+
+const agencyGuestNumericSortKeys = {
+  balance: true,
+  credit: true,
+  winloss: true,
+  rolling: true,
+  commission: true
+};
+
+function getAgencyLineSortValue(row) {
+  return String((row && row.AGENCY) || '').trim().toLowerCase();
+}
+
+function sortAgencyLineRows(rows) {
+  const list = (rows || []).slice();
+  const dir = agencyLineSortDir === 'asc' ? 'asc' : 'desc';
+  list.sort(function (a, b) {
+    const av = getAgencyLineSortValue(a);
+    const bv = getAgencyLineSortValue(b);
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ? 1 : -1;
+    return (Number(a.IDNo) || 0) - (Number(b.IDNo) || 0);
+  });
+  return list;
+}
+
+function getAgencyAgentSortValue(agent) {
+  const code = String((agent && agent.agent_code) || '').trim().toLowerCase();
+  const name = String((agent && agent.agent_name) || '').trim().toLowerCase();
+  return code + '\u0000' + name;
+}
+
+function sortAgencyAgentRows(agents) {
+  const list = (agents || []).slice();
+  const dir = agencyAgentSortDir === 'asc' ? 'asc' : 'desc';
+  list.sort(function (a, b) {
+    const av = getAgencyAgentSortValue(a);
+    const bv = getAgencyAgentSortValue(b);
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ? 1 : -1;
+    return (Number(a.agent_id) || 0) - (Number(b.agent_id) || 0);
+  });
+  return list;
+}
+
+function getAgencyGuestSortValue(row, key) {
+  if (!row) return '';
+  if (key === 'guest_name') {
+    return String(row.guest_name || row.NAME || '').trim().toLowerCase();
+  }
+  if (key === 'membership_no') {
+    return String(row.membership_no || row.MEMBERSHIP_NO || '').trim().toLowerCase();
+  }
+  if (key === 'balance') return Number(row.total_balance || row.balance) || 0;
+  if (key === 'credit') return Number(row.total_credit || row.credit) || 0;
+  if (key === 'winloss') return Number(row.total_winloss || row.winloss) || 0;
+  if (key === 'rolling') return Number(row.total_rolling || row.rolling) || 0;
+  if (key === 'commission') return Number(row.total_commission || row.commission) || 0;
+  return '';
+}
+
+function sortAgencyGuestRows(rows) {
+  const list = (rows || []).slice();
+  const sortKey = agencyGuestSortState.sortKey || 'guest_name';
+  const sortDir = agencyGuestSortState.sortDir === 'asc' ? 'asc' : 'desc';
+  list.sort(function (a, b) {
+    const av = getAgencyGuestSortValue(a, sortKey);
+    const bv = getAgencyGuestSortValue(b, sortKey);
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return String(a.guest_id || '').localeCompare(String(b.guest_id || ''));
+  });
+  return list;
+}
+
+function syncAgencyGuestSortHeaders() {
+  const sortKey = agencyGuestSortState.sortKey || 'guest_name';
+  const sortDir = agencyGuestSortState.sortDir === 'asc' ? 'asc' : 'desc';
+  $('#guest-list .agency-guest-table thead th.sortable-col').each(function () {
+    const $th = $(this);
+    const thKey = $th.attr('data-sort-key');
+    const active = thKey === sortKey;
+    $th.toggleClass('is-sorted', active);
+    $th.attr('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+    const indicator = active ? (sortDir === 'asc' ? '▲' : '▼') : '';
+    $th.find('.sort-indicator').text(indicator);
+  });
+}
+
+function syncAgencyPanelTitleSortIndicator(buttonId, sortDir) {
+  const $btn = $(buttonId);
+  if (!$btn.length) return;
+  const asc = sortDir === 'asc';
+  const indicator = asc ? '▲' : '▼';
+  const label = asc ? 'Sorted A–Z (click to reverse)' : 'Sorted Z–A (click to reverse)';
+  $btn.attr('title', label).attr('aria-label', label);
+  $btn.find('.panel-title-sort-indicator').text(indicator);
+}
 
 function formatLineStatNumber(value) {
   const numeric = Number(value) || 0;
@@ -277,6 +379,35 @@ $(document).ready(function() {
   loadAllGuestsForSearch();
 
   syncAgentPanelTransferButton();
+  syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
+  syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
+
+  $('#btn-sort-line-panel').on('click', function () {
+    agencyLineSortDir = agencyLineSortDir === 'asc' ? 'desc' : 'asc';
+    syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
+    renderPage(allAgents, agencyLineCurrentPage);
+  });
+
+  $('#btn-sort-agent-panel').on('click', function () {
+    agencyAgentSortDir = agencyAgentSortDir === 'asc' ? 'desc' : 'asc';
+    syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
+    if (isGuestSearchActive()) {
+      applyGuestSearchReactions();
+    } else if (selectedAgencyId) {
+      renderAgentPanel(currentAgencyAccounts);
+    }
+  });
+
+  $(document).on('click', '#guest-list .agency-guest-table thead th.sortable-col', function () {
+    const key = $(this).attr('data-sort-key') || 'guest_name';
+    if (agencyGuestSortState.sortKey === key) {
+      agencyGuestSortState.sortDir = agencyGuestSortState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      agencyGuestSortState.sortKey = key;
+      agencyGuestSortState.sortDir = agencyGuestNumericSortKeys[key] ? 'desc' : 'asc';
+    }
+    applyGuestPanelView();
+  });
 
   $('#guest-panel-search').on('input', function () {
     guestSearchQuery = $(this).val();
@@ -818,10 +949,12 @@ function renderPage(data, page = 1, perPage = 30) {
   agencyGrid.empty();
   pagination.empty();
 
-  const totalPages = Math.ceil(data.length / perPage);
+  agencyLineCurrentPage = page;
+  const sortedData = sortAgencyLineRows(data);
+  const totalPages = Math.ceil(sortedData.length / perPage);
   const start = (page - 1) * perPage;
   const end = start + perPage;
-  const currentPageData = data.slice(start, end);
+  const currentPageData = sortedData.slice(start, end);
 
   currentPageData.forEach(function(row) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
@@ -906,7 +1039,7 @@ function renderPage(data, page = 1, perPage = 30) {
 
   // Pagination para lang sa LINE list kapag mahigit sa isang page (default 30 kada page).
   // Itago kapag isa lang ang page para hindi lumabas ang pointless na "1".
-  if (totalPages <= 1 || data.length === 0) {
+  if (totalPages <= 1 || sortedData.length === 0) {
     pagination.empty();
     $pager.addClass('d-none');
     return;
@@ -971,7 +1104,7 @@ function renderAgentPanel(accounts, options) {
     }
   });
 
-  let agents = Object.values(byAgent);
+  let agents = sortAgencyAgentRows(Object.values(byAgent));
   if (searching && matchedAgentIds && matchedAgentIds.size) {
     agents = agents.filter(function (agent) {
       return matchedAgentIds.has(String(agent.agent_id));
@@ -1482,7 +1615,9 @@ function renderGuestPanel(guests, options) {
     return;
   }
 
-  const htmlRows = rows.map(function (row) {
+  const sortedRows = sortAgencyGuestRows(rows);
+
+  const htmlRows = sortedRows.map(function (row) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
     const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
@@ -1571,13 +1706,13 @@ function renderGuestPanel(guests, options) {
       <table class="table table-sm mb-0 agency-guest-table">
         <thead>
           <tr>
-            <th class="agency-guest-col">Guest</th>
-            <th class="agency-guest-membership-col">Membership No</th>
-            <th>Balance</th>
-            <th>Credit</th>
-            <th>Winloss</th>
-            <th>Rolling</th>
-            <th>Commission</th>
+            <th class="agency-guest-col sortable-col" data-sort-key="guest_name">Guest <span class="sort-indicator"></span></th>
+            <th class="agency-guest-membership-col sortable-col" data-sort-key="membership_no">Membership No <span class="sort-indicator"></span></th>
+            <th class="sortable-col" data-sort-key="balance">Balance <span class="sort-indicator"></span></th>
+            <th class="sortable-col" data-sort-key="credit">Credit <span class="sort-indicator"></span></th>
+            <th class="sortable-col" data-sort-key="winloss">Winloss <span class="sort-indicator"></span></th>
+            <th class="sortable-col" data-sort-key="rolling">Rolling <span class="sort-indicator"></span></th>
+            <th class="sortable-col" data-sort-key="commission">Commission <span class="sort-indicator"></span></th>
             <th style="width: 96px;"></th>
           </tr>
         </thead>
@@ -1590,6 +1725,7 @@ function renderGuestPanel(guests, options) {
 
   $list.html(tableHtml).removeClass('d-none');
   $empty.addClass('d-none');
+  syncAgencyGuestSortHeaders();
 }
 
 function openGuestRemarks(guestId) {

@@ -115,7 +115,9 @@
 										<div class="col-12 col-xl-2-5">
 											<div class="panel-box h-100">
 												<div class="panel-header d-flex align-items-center justify-content-between">
-													<div class="panel-title">LINE</div>
+													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-line-panel" title="Click to sort" aria-label="Sort LINE list">
+														LINE <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
+													</button>
 													<div class="d-flex align-items-center gap-1">
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel">
 															<i class="fa fa-download" aria-hidden="true"></i>
@@ -134,7 +136,9 @@
 										<div class="col-12 col-xl-2-5">
 											<div class="panel-box h-100">
 												<div class="panel-header d-flex align-items-center justify-content-between">
-													<div class="panel-title">AGENT</div>
+													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-agent-panel" title="Click to sort" aria-label="Sort AGENT list">
+														AGENT <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
+													</button>
 													<div class="d-flex align-items-center gap-1">
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-transfer" title="Transfer LINE">
 															<i class="fa fa-exchange-alt"></i>
@@ -365,6 +369,31 @@
   color: #1f2937;
 }
 
+button.panel-title-sortable {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.panel-title-sortable:hover,
+button.panel-title-sortable:focus {
+  color: #2f5bea;
+  outline: none;
+}
+
+.panel-title-sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #6c757d;
+}
+
+button.panel-title-sortable:hover .panel-title-sort-indicator,
+button.panel-title-sortable:focus .panel-title-sort-indicator {
+  color: #2f5bea;
+}
+
 .panel-body {
   padding: 14px;
   min-height: 520px;
@@ -431,6 +460,27 @@
 .agency-guest-table thead th.agency-guest-membership-col,
 .agency-guest-table tbody td.agency-guest-membership-col {
   text-align: left;
+}
+
+.agency-guest-table thead th.sortable-col {
+  cursor: pointer;
+  user-select: none;
+}
+
+.agency-guest-table thead th.sortable-col:hover,
+.agency-guest-table thead th.sortable-col.is-sorted {
+  color: #2f5bea;
+  background: #dfe6ff;
+}
+
+.agency-guest-table .sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #6c757d;
+}
+
+.agency-guest-table thead th.sortable-col.is-sorted .sort-indicator {
+  color: #2f5bea;
 }
 
 .agency-guest-table tbody td.agency-guest-membership-col {
@@ -725,7 +775,8 @@
   border-bottom-color: var(--agency-border);
 }
 
-.agency-page .panel-title {
+.agency-page .panel-title,
+.agency-page button.panel-title-sortable {
   color: var(--agency-accent-dark);
   text-transform: uppercase;
 }
