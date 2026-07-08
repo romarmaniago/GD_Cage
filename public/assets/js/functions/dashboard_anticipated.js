@@ -118,10 +118,10 @@
 				title: 'Confirm W/L Rate',
 				rows: [
 					['Month', formatMonthKey(monthKey)],
-					['W/L', formatAmtPlain(winLoss), 'right'],
+					['W/L', formatAmtPlain(winLoss)],
 					['Previous Rate', formatRateLabel(previous)],
 					['New Rate', formatRateLabel(rate)],
-					['W/L Settlement', formatAmtPlain(wlSettlement), 'right']
+					['W/L Settlement', formatAmtPlain(wlSettlement)]
 				],
 				message: 'Are you sure you want to save this W/L rate?',
 				confirmButtonText: 'Yes, Save'
