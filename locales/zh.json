@@ -1076,6 +1076,7 @@
 	},
 	"modal_new_house_expense": {
 		"add_house_expense": "添加房屋费用",
+		"program_date": "节目日期",
 		"category": "--- 类别 ---",
 		"category_placeholder": "类别",
 		"receipt_no": "说明",

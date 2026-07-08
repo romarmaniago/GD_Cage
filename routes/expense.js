@@ -8,6 +8,44 @@ const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
 const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
 const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
+function parseEncodedDtFromProgramDate(raw) {
+	const rawDate = raw == null ? '' : String(raw).trim();
+	if (!rawDate) return new Date();
+
+	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
+	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawDate);
+	if (!dateOnly && !dateTime) return new Date();
+
+	const parts = rawDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
+	const y = parts[0];
+	const mo = parts[1];
+	const d = parts[2];
+	let hours = 0;
+	let minutes = 0;
+	let seconds = 0;
+	let ms = 0;
+
+	if (dateTime) {
+		const tp = rawDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
+		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
+			hours = tp[0];
+			minutes = tp[1];
+		}
+	} else {
+		const now = new Date();
+		hours = now.getHours();
+		minutes = now.getMinutes();
+		seconds = now.getSeconds();
+		ms = now.getMilliseconds();
+	}
+
+	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
+	if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+		return dt;
+	}
+	return new Date();
+}
+
 async function insertCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
 	await pool.execute(
 		`INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
@@ -436,10 +474,12 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			txtReceiver,
 			txtAmount,
 			txtKmL,
-			txtVehicleId
+			txtVehicleId,
+			txtProgramDate
 		} = req.body;
 
-		const date_now = new Date();
+		const date_now = parseEncodedDtFromProgramDate(txtProgramDate);
+		const created_dt = new Date();
 		const category = txtCategory || null;
 		const receiptNo = txtReceiptNo || null;
 		const dateTime = txtDateandTime || null;
@@ -453,8 +493,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 		const query = `
 			INSERT INTO junket_house_expense 
-			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, KM_L, VEHICLE_ID, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, KM_L, VEHICLE_ID, PHOTO, ENCODED_BY, ENCODED_DT, CREATED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
 		`;
 
 		// Determine DAILY_SETTLEMENT status based on latest settlement
@@ -471,7 +511,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 				const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
 					? latestSettlement[0].RUN_AT 
 					: new Date(latestSettlement[0].RUN_AT);
-				const expenseCreatedAt = date_now instanceof Date ? date_now : new Date(date_now);
+				const expenseCreatedAt = created_dt instanceof Date ? created_dt : new Date(created_dt);
 				
 				// If expense created before settlement run, it's pending (should be in previous settlement)
 				// Otherwise, mark as unsettled (will be in next settlement)
@@ -501,6 +541,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			receiptFileName,
 			encodedBy,
 			date_now,
+			created_dt,
 			dailySettlementStatus
 		]);
 
@@ -857,8 +898,10 @@ async function buildHouseExpenseReceipt(expenseId) {
 			e.AMOUNT,
 			e.KM_L,
 			e.ENCODED_DT,
+			e.CREATED_DT,
 			e.APPROVAL_STATUS,
 			ec.CATEGORY AS category_name,
+			ec.PARENT_ID AS category_parent_id,
 			hv.PLATE_NO AS vehicle_plate,
 			hv.MODEL AS vehicle_model,
 			u.FIRSTNAME AS encoded_by_name
@@ -878,8 +921,10 @@ async function buildHouseExpenseReceipt(expenseId) {
 
 	return {
 		expense_id: row.IDNo,
-		title: '* HOUSE EXPENSE *',
-		encoded_dt: row.DATE_TIME || row.ENCODED_DT,
+		title: '* Expenses *',
+		created_dt: row.CREATED_DT || row.ENCODED_DT,
+		program_date: row.ENCODED_DT,
+		use_item_format: row.category_parent_id != null,
 		category: row.category_name || '',
 		receipt_no: row.RECEIPT_NO || '',
 		description: row.DESCRIPTION || '',

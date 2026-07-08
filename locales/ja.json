@@ -1076,6 +1076,7 @@
 	},
 	"modal_new_house_expense": {
 		"add_house_expense": "ハウス経費の追加",
+		"program_date": "プログラム日付",
 		"category": "--- カテゴリ ---",
 		"category_placeholder": "カテゴリ",
 		"receipt_no": "説明",

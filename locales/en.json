@@ -1028,6 +1028,7 @@
 	},
 	"modal_new_house_expense": {
 		"add_house_expense": "Add House Expense",
+		"program_date": "Program Date",
 		"category": "--- Category ---",
 		"category_placeholder": "Category",
 		"receipt_photo": "Receipt Photo",

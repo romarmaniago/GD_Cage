@@ -1076,6 +1076,7 @@
 	},
 	"modal_new_house_expense": {
 		"add_house_expense": "하우스 경비 추가",
+		"program_date": "프로그램 날짜",
 		"category_placeholder": "카테고리",
 		"category": "--- 카테고리 ---",
 		"receipt_no": "설명",

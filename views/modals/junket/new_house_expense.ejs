@@ -25,6 +25,12 @@
                             </select>
                         </div>
                     </div>
+                    <div class="row mb-3" id="house-expense-new-row-program-date">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label" for="houseExpenseProgramDate"><%= __('modal_new_house_expense.program_date') %></label>
+                            <input type="text" class="form-control input-program-date" name="txtProgramDate" id="houseExpenseProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" required />
+                        </div>
+                    </div>
                     <div class="row mb-3" id="house-expense-new-row-receipt-photo">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_new_house_expense.receipt_photo') || 'Receipt Photo' %></label>

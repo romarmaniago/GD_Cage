@@ -325,6 +325,13 @@ function formatHouseExpenseReceiptDateTime(encodedDt) {
     return m.format('YYYY-MM-DD HH:mm');
 }
 
+function formatHouseExpenseReceiptDateOnly(encodedDt) {
+    if (!encodedDt) return '';
+    var m = moment.utc(encodedDt).utcOffset(8);
+    if (!m.isValid()) return '';
+    return m.format('YYYY-MM-DD');
+}
+
 function hasHouseExpenseReceiptField(value) {
     if (value == null) return false;
     if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
@@ -368,19 +375,41 @@ function buildHouseExpenseReceiptSlipHtml(data) {
         kmDisplay = houseExpenseFormatKmDisplay(data.km_l);
     }
 
-    var detailsRows =
-        buildHouseExpenseReceiptTextLegRow('- RECEIPT NO', data.receipt_no) +
-        buildHouseExpenseReceiptTextLegRow('- IN-CHARGE', data.description) +
-        buildHouseExpenseReceiptTextLegRow('- RECEIVER', data.receiver) +
-        buildHouseExpenseReceiptTextLegRow('- VEHICLE', data.vehicle) +
-        (kmDisplay ? buildHouseExpenseReceiptTextLegRow('- KM/L', kmDisplay) : '') +
-        buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by);
+    var programDateDisplay = formatHouseExpenseReceiptDateOnly(data.program_date);
+    var detailsRows = '';
+    var amountRows = '';
 
-    var amountRows =
-        buildHouseExpenseReceiptSectionTable(
-            'her-section-amount',
-            buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true)
-        ) || '';
+    if (data.use_item_format) {
+        detailsRows =
+            '<tr><td class="her-label">Program Date :</td><td class="her-value">' +
+            houseExpenseHtmlEscape(programDateDisplay || '') +
+            '</td></tr>' +
+            buildHouseExpenseReceiptTextLegRow('Approved By :', data.description) +
+            buildHouseExpenseReceiptTextLegRow('Received By :', data.receiver);
+
+        amountRows =
+            buildHouseExpenseReceiptSectionTable(
+                'her-section-amount',
+                buildHouseExpenseReceiptLegRow('Amount :', data.amount, true)
+            ) || '';
+    } else {
+        detailsRows =
+            (programDateDisplay
+                ? buildHouseExpenseReceiptTextLegRow('- PROGRAM DATE', programDateDisplay)
+                : '') +
+            buildHouseExpenseReceiptTextLegRow('- RECEIPT NO', data.receipt_no) +
+            buildHouseExpenseReceiptTextLegRow('- IN-CHARGE', data.description) +
+            buildHouseExpenseReceiptTextLegRow('- RECEIVER', data.receiver) +
+            buildHouseExpenseReceiptTextLegRow('- VEHICLE', data.vehicle) +
+            (kmDisplay ? buildHouseExpenseReceiptTextLegRow('- KM/L', kmDisplay) : '') +
+            buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by);
+
+        amountRows =
+            buildHouseExpenseReceiptSectionTable(
+                'her-section-amount',
+                buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true)
+            ) || '';
+    }
 
     var detailsTable = detailsRows
         ? '<table class="her-table her-section-details"><tbody>' + detailsRows + '</tbody></table>'
@@ -390,11 +419,11 @@ function buildHouseExpenseReceiptSlipHtml(data) {
         '<div class="house-expense-receipt-slip">' +
         '<div class="house-expense-receipt-slip-body">' +
         '<p class="her-brand">GOLDEN DRAGON</p>' +
-        '<p class="her-datetime">' +
-        formatHouseExpenseReceiptDateTime(data.encoded_dt) +
-        '</p>' +
         '<p class="her-title">' +
-        (data.title || '* HOUSE EXPENSE *') +
+        (data.title || '* Expenses *') +
+        '</p>' +
+        '<p class="her-datetime">' +
+        formatHouseExpenseReceiptDateTime(data.created_dt) +
         '</p>' +
         '<p class="her-category">' +
         houseExpenseHtmlEscape(data.category || '') +
@@ -1163,12 +1192,30 @@ function houseExpenseIsNewExpenseCategoryLocked() {
     return $('#house-expense-new-expense-category-id').attr('name') === 'txtCategory';
 }
 
+function ensureHouseExpenseProgramDatePicker() {
+    var el = document.getElementById('houseExpenseProgramDate');
+    if (!el || typeof flatpickr === 'undefined') return;
+    if (el._flatpickr) {
+        el._flatpickr.destroy();
+    }
+    flatpickr(el, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: new Date(),
+        allowInput: true,
+        disableMobile: true
+    });
+}
+
 function houseExpenseApplyNewExpenseFormFormat(categoryId) {
     var useLockedItemFormat = houseExpenseIsNewExpenseCategoryLocked();
     var showVehicleFields = houseExpenseCarSubCategoryShowsVehicleFields(categoryId);
     var $form = $('#add_junket_house_expense');
     var $footer = $form.find('.modal-footer');
     var rowMap = {
+        programDate: '#house-expense-new-row-program-date',
         preset: '#house-expense-new-cat-preset-wrap',
         select: '#house-expense-new-cat-select-wrap',
         photo: '#house-expense-new-row-receipt-photo',
@@ -1181,11 +1228,11 @@ function houseExpenseApplyNewExpenseFormFormat(categoryId) {
     var order;
 
     if (useLockedItemFormat) {
-        order = ['preset', 'officer'];
+        order = ['preset', 'programDate', 'officer'];
         if (showVehicleFields) order.push('vehicle', 'km');
         order.push('amount', 'receiptNo', 'photo');
     } else {
-        order = ['preset', 'select', 'photo', 'vehicle', 'km', 'receiptNo', 'officer', 'amount'];
+        order = ['preset', 'select', 'programDate', 'photo', 'vehicle', 'km', 'receiptNo', 'officer', 'amount'];
     }
 
     if ($form.length && $footer.length) {
@@ -3801,6 +3848,7 @@ $(document).ready(function () {
 
     // New house expense modal: bind only when jQuery and DOM are ready (fixes "$ is not defined")
     var isSubmittingNewExpense = false;
+    ensureHouseExpenseProgramDatePicker();
     $('#modal-new-house-expense').on('shown.bs.modal', function () {
         isSubmittingNewExpense = false;
         var $btn = $('#btn-save-new-expense');
@@ -3809,6 +3857,7 @@ $(document).ready(function () {
         if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
         var $form = $('#add_junket_house_expense');
         if ($form.length) $form[0].reset();
+        ensureHouseExpenseProgramDatePicker();
         if (window.houseExpensePendingNewExpenseCategoryId) {
             houseExpenseApplyNewExpenseCategoryUi(window.houseExpensePendingNewExpenseCategoryId);
         } else {
