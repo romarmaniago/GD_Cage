@@ -165,13 +165,15 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			remarks,
 			transaction_id,
 			game_id,
-			source_type
+			source_type,
+			guest_id
 		} = req.body;
 
 		const parsedAccountId = parseInt(account_id, 10);
 		const parsedAgentId = parseInt(agent_id, 10);
 		const parsedGameId = parseInt(game_id, 10);
 		const parsedTransactionId = parseInt(transaction_id, 10);
+		const parsedGuestId = parseInt(guest_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
 		const resolvedCategory = await resolveActiveServiceCategory(service_type);
@@ -185,6 +187,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 		const resolvedGameId = Number.isNaN(parsedGameId) ? null : parsedGameId;
 		const resolvedAgentId = !Number.isNaN(parsedAgentId) ? parsedAgentId : null;
+		const resolvedGuestId = !Number.isNaN(parsedGuestId) && parsedGuestId > 0 ? parsedGuestId : null;
 		if (resolvedAgentId === null) {
 			return res.status(400).json({ error: 'Invalid account/agent' });
 		}
@@ -193,9 +196,9 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const now = new Date();
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[resolvedGameId || null, resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, encodedBy, now]
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, GUEST_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			[resolvedGameId || null, resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, resolvedGuestId, sourceType, encodedBy, now]
 		);
 
 		if (parsedTransactionId === 1 || parsedTransactionId === 2) {

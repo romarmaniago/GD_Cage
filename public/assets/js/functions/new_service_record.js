@@ -5,6 +5,7 @@ $(function () {
 
 	const $modal = $('#modal-services-new-record');
 	const $accountSelect = $('#new-services-account');
+	const $guestSelect = $('#new-services-guest');
 	const $accountWrapper = $('#new-services-account-wrapper');
 	const $transactionType = $('#new-transaction-type');
 	const $paymentMethods = $('#new-services-payment-methods');
@@ -13,6 +14,8 @@ $(function () {
 	const $saveBtn = $('#new-services-save');
 	const $balanceHint = $('#deposit-balance');
 	const $balanceValue = $('#deposit-balance-value');
+	const $serviceTypeValue = $('#new-services-type-value');
+	const $serviceTypeList = $('#new-services-type-list');
 	let depositBalance = 0;
 
 	const t = window.fnbHotelTranslations || {};
@@ -24,9 +27,11 @@ $(function () {
 		} else {
 			$accountSelect.val('');
 		}
+		resetGuestSelect();
 		$agentInput.val('');
 		$gameInput.val('');
-		$('#new-services-type').val('');
+		$serviceTypeValue.val('');
+		$serviceTypeList.html('<span class="new-services-type-placeholder text-muted small">' + escapeHtml(t.select_service || 'Select service') + '</span>');
 		$('#new-services-amount').val('');
 		$('#new-services-remarks').val('');
 		$('input[name="new-services-transaction"]').prop('checked', false);
@@ -35,18 +40,20 @@ $(function () {
 
 	function toggleAccountByTransactionType() {
 		const type = $transactionType.val();
-		const shouldShow = type === 'GUEST' || type === 'JUNKET';
-		if (shouldShow) {
-			$accountWrapper.show();
+		const isActive = type === 'GUEST' || type === 'JUNKET';
+
+		$accountWrapper.show();
+		if (isActive) {
 			$accountSelect.prop('disabled', false);
+			$guestSelect.prop('disabled', !$accountSelect.val());
 			$paymentMethods.show();
 		} else {
-			$accountWrapper.hide();
 			if ($accountSelect.data('select2')) {
 				$accountSelect.val('').trigger('change');
 			} else {
 				$accountSelect.val('');
 			}
+			resetGuestSelect();
 			$accountSelect.prop('disabled', true);
 			$agentInput.val('');
 			$gameInput.val('');
@@ -64,8 +71,70 @@ $(function () {
 		$accountSelect.select2({
 			placeholder: $accountSelect.attr('data-placeholder'),
 			allowClear: false,
-			dropdownParent: $modal
+			dropdownParent: $modal,
+			width: '100%'
 		});
+	}
+
+	function initGuestSelect2() {
+		if ($guestSelect.data('select2')) {
+			$guestSelect.select2('destroy');
+		}
+		$guestSelect.select2({
+			placeholder: $guestSelect.attr('data-placeholder'),
+			allowClear: true,
+			dropdownParent: $modal,
+			width: '100%'
+		});
+	}
+
+	function resetGuestSelect() {
+		if ($guestSelect.data('select2')) {
+			$guestSelect.select2('destroy');
+		}
+		$guestSelect.empty().append(
+			$('<option>').val('').text($guestSelect.attr('data-placeholder') || (t.select_guest_optional || 'Select Guest (Optional)'))
+		);
+		initGuestSelect2();
+		$guestSelect.val('').trigger('change');
+		$guestSelect.prop('disabled', true);
+	}
+
+	async function populateGuests(agentId, preselectGuestId) {
+		resetGuestSelect();
+		const parsedAgentId = parseInt(agentId, 10);
+		if (!parsedAgentId) return;
+
+		try {
+			const res = await fetch('/guest_data?agentId=' + encodeURIComponent(parsedAgentId));
+			if (!res.ok) throw new Error('Unable to load guests.');
+			const guests = await res.json();
+
+			if ($guestSelect.data('select2')) {
+				$guestSelect.select2('destroy');
+			}
+			$guestSelect.empty().append(
+				$('<option>').val('').text($guestSelect.attr('data-placeholder') || (t.select_guest_optional || 'Select Guest (Optional)'))
+			);
+			(guests || []).forEach(function (guest) {
+				const guestId = guest.guest_id;
+				if (guestId == null) return;
+				const guestName = String(guest.guest_name || '').trim() || ('Guest #' + guestId);
+				$guestSelect.append($('<option>').val(String(guestId)).text(guestName));
+			});
+			initGuestSelect2();
+
+			const preselect = String(preselectGuestId || '').trim();
+			if (preselect && $guestSelect.find('option[value="' + preselect + '"]').length) {
+				$guestSelect.val(preselect).trigger('change');
+			} else {
+				$guestSelect.val('').trigger('change');
+			}
+			$guestSelect.prop('disabled', false);
+		} catch (err) {
+			console.error(err);
+			resetGuestSelect();
+		}
 	}
 
 	async function populateAccounts() {
@@ -99,22 +168,108 @@ $(function () {
 			$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
 			initAccountSelect2();
 		} finally {
-			$accountSelect.prop('disabled', false);
+			toggleAccountByTransactionType();
 		}
 	}
 
-	async function populateServiceTypes(selectedValue) {
-		if (typeof window.populateServiceCategorySelect !== 'function') return;
-		await window.populateServiceCategorySelect($('#new-services-type'), selectedValue || '');
+	function escapeHtml(value) {
+		return String(value == null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
 	}
+
+	function normalizeCategoryKey(category) {
+		return String(category || '').trim().toLowerCase();
+	}
+
+	function setSelectedServiceType(value) {
+		const raw = String(value || '').trim();
+		$serviceTypeValue.val(raw);
+		if (!$serviceTypeList.length) return;
+		$serviceTypeList.find('input[type="checkbox"][name="new-services-type"]').each(function () {
+			const v = String(this.value || '').trim();
+			this.checked = !!raw && v.toLowerCase() === raw.toLowerCase();
+		});
+	}
+
+	async function populateServiceTypeCheckboxes(selectedValue) {
+		if (!$serviceTypeList.length) return;
+		$serviceTypeList.html('<span class="new-services-type-placeholder text-muted small">' + escapeHtml(t.select_service || 'Select service') + '</span>');
+
+		try {
+			const res = await fetch('/services_category_data');
+			if (!res.ok) throw new Error('Failed to load service categories');
+			const rows = await res.json();
+
+			const selected = String(selectedValue || '').trim();
+			let hasSelected = false;
+			$serviceTypeList.empty();
+			(rows || []).forEach(function (row, idx) {
+				const category = String(row.CATEGORY || '').trim();
+				if (!category) return;
+				const key = normalizeCategoryKey(category);
+				const id = 'new-services-type-' + idx;
+				const isChecked = selected && key === selected.toLowerCase();
+				if (isChecked) hasSelected = true;
+				const html =
+					'<div class="form-check form-check-inline">' +
+					'<input class="form-check-input" type="checkbox" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(category) + '"' + (isChecked ? ' checked' : '') + '>' +
+					'<label class="form-check-label" for="' + escapeHtml(id) + '">' + escapeHtml(category) + '</label>' +
+					'</div>';
+				$serviceTypeList.append(html);
+			});
+
+			if (selected && !hasSelected) {
+				const id = 'new-services-type-legacy';
+				$serviceTypeList.append(
+					'<div class="form-check form-check-inline">' +
+					'<input class="form-check-input" type="checkbox" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(selected) + '" checked>' +
+					'<label class="form-check-label" for="' + escapeHtml(id) + '">' + escapeHtml(selected) + ' (legacy)</label>' +
+					'</div>'
+				);
+			}
+
+			setSelectedServiceType(selected);
+		} catch (err) {
+			console.error('populateServiceTypeCheckboxes:', err);
+			$serviceTypeList.html('<div class="text-danger small">Unable to load service types.</div>');
+			$serviceTypeValue.val('');
+		}
+	}
+
+	// Expose for other scripts (services_category, dashboard preset buttons)
+	window.populateNewServiceTypeCheckboxes = function (selectedValue) {
+		return populateServiceTypeCheckboxes(selectedValue || '');
+	};
+	window.setNewServiceTypeValue = function (value) {
+		setSelectedServiceType(value || '');
+	};
 
 	$modal.on('show.bs.modal', async function () {
 		resetForm();
+		initGuestSelect2();
+		toggleAccountByTransactionType();
+		// apply dashboard preset (if any)
+		const preset = window.__dashServicePresetType || '';
+		window.__dashServicePresetType = null;
 		await Promise.all([
 			populateAccounts(),
-			populateServiceTypes('')
+			populateServiceTypeCheckboxes(preset)
 		]);
 		toggleAccountByTransactionType();
+	});
+
+	// Checkbox list behavior: act like single-select (checkbox UI, single checked)
+	$serviceTypeList.on('change', 'input[type="checkbox"][name="new-services-type"]', function () {
+		if (this.checked) {
+			$serviceTypeList.find('input[type="checkbox"][name="new-services-type"]').not(this).prop('checked', false);
+			$serviceTypeValue.val(String(this.value || '').trim());
+		} else {
+			$serviceTypeValue.val('');
+		}
 	});
 
 	function updateBalanceHint() {
@@ -163,9 +318,13 @@ $(function () {
 
 	$accountSelect.on('change', async function () {
 		const $selected = $(this).find('option:selected');
-		$agentInput.val($selected.data('agentId') || '');
+		const agentId = $selected.data('agentId') || '';
+		$agentInput.val(agentId || '');
 		$gameInput.val($selected.data('gameId') || '');
-		await loadDepositBalance($selected.val());
+		await Promise.all([
+			loadDepositBalance($selected.val()),
+			populateGuests(agentId)
+		]);
 		updateBalanceHint();
 	});
 
@@ -191,12 +350,13 @@ $(function () {
 		const accountId = $accountSelect.val();
 		const agentId = $agentInput.val();
 		const gameId = $gameInput.val();
-		const serviceType = $('#new-services-type').val();
+		const serviceType = ($serviceTypeValue.val() || '').trim();
 		const amountRaw = $('#new-services-amount').val().replace(/,/g, '').trim();
 		const amount = parseFloat(amountRaw) || 0;
 		const remarks = $('#new-services-remarks').val().trim();
 		const transactionId = $('input[name="new-services-transaction"]:checked').val();
 		const sourceType = $transactionType.val();
+		const guestId = ($guestSelect.val() || '').trim();
 
 		if (!sourceType) {
 			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
@@ -225,6 +385,7 @@ $(function () {
 					account_id: accountId,
 					agent_id: agentId,
 					game_id: gameId,
+					guest_id: guestId || null,
 					service_type: serviceType,
 					amount: amount,
 					remarks: remarks,

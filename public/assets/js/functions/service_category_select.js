@@ -5,6 +5,10 @@ var SERVICE_CATEGORY_LEGACY_LABELS = {
 	incidental: 'Incidental'
 };
 
+function serviceCategoryFilterKey(category) {
+	return String(category || '').trim().toLowerCase();
+}
+
 function escapeServiceCategoryOption(value) {
 	return String(value || '')
 		.replace(/&/g, '&amp;')
@@ -35,8 +39,11 @@ function matchesServiceCategory(serviceType, category) {
 			return raw === 'delivery' || raw.indexOf('delivery') !== -1;
 		case 'incidental':
 			return raw === 'incidental' || raw.indexOf('incidental') !== -1;
-		default:
-			return raw.indexOf(String(category).toLowerCase()) !== -1;
+		default: {
+			var cat = String(category).trim().toLowerCase();
+			var normalized = normalizeServiceCategoryLabel(serviceType).toLowerCase();
+			return raw === cat || normalized === cat;
+		}
 	}
 }
 
@@ -88,12 +95,87 @@ window.populateFnbHotelServiceTypeSelect = populateServiceCategorySelect;
 window.matchesServiceCategory = matchesServiceCategory;
 
 window.refreshServiceCategorySelects = function () {
-	var newVal = $('#new-services-type').val() || '';
 	var editVal = $('#edit-services-type').val() || '';
-	return Promise.all([
-		populateServiceCategorySelect($('#new-services-type'), newVal),
-		populateServiceCategorySelect($('#edit-services-type'), editVal)
-	]);
+	var newVal = '';
+	if ($('#new-services-type').length) {
+		newVal = $('#new-services-type').val() || '';
+	} else if ($('#new-services-type-value').length) {
+		newVal = $('#new-services-type-value').val() || '';
+	}
+
+	var tasks = [];
+	if ($('#new-services-type').length) {
+		tasks.push(populateServiceCategorySelect($('#new-services-type'), newVal));
+	} else if (typeof window.populateNewServiceTypeCheckboxes === 'function') {
+		tasks.push(window.populateNewServiceTypeCheckboxes(newVal));
+	}
+	if ($('#edit-services-type').length) {
+		tasks.push(populateServiceCategorySelect($('#edit-services-type'), editVal));
+	}
+	return Promise.all(tasks);
 };
 
 window.refreshFnbHotelServiceTypeSelects = window.refreshServiceCategorySelects;
+
+function renderFnbHotelFilterTabs() {
+	var container = document.getElementById('fnb-hotel-filter-categories');
+	if (!container) return Promise.resolve(null);
+
+	var filterRoot = document.getElementById('fnb-hotel-filter');
+	var activeEl = filterRoot ? filterRoot.querySelector('.filter-link.active') : null;
+	var activeFilter = activeEl ? (activeEl.getAttribute('data-filter') || 'all') : 'all';
+
+	return fetch('/services_category_data')
+		.then(function (res) {
+			if (!res.ok) throw new Error('Failed to load service categories');
+			return res.json();
+		})
+		.then(function (rows) {
+			var html = '';
+			var keys = [];
+
+			(rows || []).forEach(function (row) {
+				var category = String(row.CATEGORY || '').trim();
+				if (!category) return;
+				var key = serviceCategoryFilterKey(category);
+				keys.push(key);
+				var isActive = activeFilter === key;
+				html += '<a href="#" class="filter-link' + (isActive ? ' active' : '') + '" data-filter="' +
+					escapeServiceCategoryOption(key) + '">' +
+					escapeServiceCategoryOption(category) + '</a>';
+			});
+
+			container.innerHTML = html;
+
+			if (activeFilter !== 'all' && keys.indexOf(activeFilter) === -1) {
+				activeFilter = 'all';
+				if (filterRoot) {
+					filterRoot.querySelectorAll('.filter-link').forEach(function (link) {
+						link.classList.toggle('active', link.getAttribute('data-filter') === 'all');
+					});
+				}
+			} else if (activeFilter !== 'all') {
+				var allLink = filterRoot ? filterRoot.querySelector('.filter-link[data-filter="all"]') : null;
+				if (allLink) allLink.classList.remove('active');
+			}
+
+			window.dispatchEvent(new CustomEvent('fnbHotelFilterTabsUpdated', {
+				detail: { activeFilter: activeFilter }
+			}));
+			return activeFilter;
+		})
+		.catch(function (err) {
+			console.error('Error loading F&B / Hotel filter tabs:', err);
+			container.innerHTML = '';
+			return activeFilter;
+		});
+}
+
+window.renderFnbHotelFilterTabs = renderFnbHotelFilterTabs;
+
+window.refreshFnbHotelCategoryUi = function () {
+	return Promise.all([
+		window.refreshServiceCategorySelects(),
+		renderFnbHotelFilterTabs()
+	]);
+};

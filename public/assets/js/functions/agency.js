@@ -119,6 +119,11 @@ function formatLineStatNumber(value) {
   });
 }
 
+function formatPanelBalance(value) {
+  const numeric = Number(value) || 0;
+  return numeric === 0 ? '-' : formatLineStatNumber(numeric);
+}
+
 function updateScopeStatCard(isSingleLineScope, lineCount, agentCount) {
   if (isSingleLineScope) {
     $('#line-stat-scope-label').text('Total Agent');
@@ -998,14 +1003,12 @@ function renderPage(data, page = 1, perPage = 30) {
       ${deleteBtnHtml}
     `;
 
+    const balanceValue = Number(row.total_balance) || 0;
+    const balance = formatPanelBalance(balanceValue);
     const cardHtml = `
     <div class="agency-card agency-list-item text-center" data-id="${row.IDNo}">
       <!-- Idagdag ang hidden input para sa memo -->
       <input type="hidden" class="hidden-memo" value="${row.REMARKS || ''}">
-
-      <div class="agency-row-actions">
-        ${actionsHtml}
-      </div>
 
       <div class="agency-card-body py-3 px-2">
         <a 
@@ -1015,6 +1018,11 @@ function renderPage(data, page = 1, perPage = 30) {
         >
           ${row.AGENCY}
         </a>
+        <span class="agency-line-balance">${balance}</span>
+      </div>
+
+      <div class="agency-row-actions">
+        ${actionsHtml}
       </div>
     </div>
 `;
@@ -1099,7 +1107,8 @@ function renderAgentPanel(accounts, options) {
         agent_name: row.agent_name || '',
         agent_code: row.agent_code || '',
         agency_id: row.agency_id || null,
-        agency_name: row.agency_name || ''
+        agency_name: row.agency_name || '',
+        total_balance: Number(row.total_balance || row.total_ledger_amount) || 0
       };
     }
   });
@@ -1143,6 +1152,8 @@ function renderAgentPanel(accounts, options) {
     const isMatch = searching && matchedAgentIds && matchedAgentIds.has(String(agent.agent_id));
     const isDim = searching && matchedAgentIds && !matchedAgentIds.has(String(agent.agent_id));
     const isSelected = selectedAgentId && String(agent.agent_id) === String(selectedAgentId);
+    const balanceValue = Number(agent.total_balance) || 0;
+    const balance = formatPanelBalance(balanceValue);
     const itemClasses = [
       'panel-list-item',
       isSelected ? 'is-active' : '',
@@ -1152,6 +1163,7 @@ function renderAgentPanel(accounts, options) {
     return `
       <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
         <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}${agencyHint}</a>
+        <span class="panel-list-agent-balance">${balance}</span>
         <div class="panel-row-actions">
           <button
             type="button"

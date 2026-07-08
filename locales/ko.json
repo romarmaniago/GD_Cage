@@ -416,7 +416,13 @@
 		"reject_confirm": "house_expense.reject_confirm",
 		"expense_slip_receipt": "house_expense.expense_slip_receipt",
 		"manual_date_range": "house_expense.manual_date_range",
-		"manual_date_range_hint": "house_expense.manual_date_range_hint"
+		"manual_date_range_hint": "house_expense.manual_date_range_hint",
+		"date_from": "house_expense.date_from",
+		"date_from_hint": "house_expense.date_from_hint",
+		"date_to": "house_expense.date_to",
+		"date_to_hint": "house_expense.date_to_hint",
+		"start_date": "house_expense.start_date",
+		"end_date": "house_expense.end_date"
 	},
 	"hotel_booking": {
 		"junket": "정켓",
@@ -493,6 +499,8 @@
 		"date_time": "날짜 & 시간",
 		"grand_total": "총 합계",
 		"select_date_range": "날짜 범위 선택",
+		"start_date": "house_expense.start_date",
+		"end_date": "house_expense.end_date",
 		"invalid_date": "유효하지 않은 날짜",
 		"search": "검색:",
 		"showing_entries": "_START_부터 _END_까지, 총 _TOTAL_개 항목 표시",
@@ -533,8 +541,8 @@
 		"no_data_export": "보낼 데이터가 없습니다.",
 		"export_error": "보내기 실패",
 		"select_date_range": "junket_loss.select_date_range",
-		"manual_date_range": "junket_loss.manual_date_range",
-		"manual_date_range_hint": "junket_loss.manual_date_range_hint"
+		"start_date": "house_expense.start_date",
+		"end_date": "house_expense.end_date"
 	},
 	"agent_statistic": {
 		"statistics": "통계",
@@ -1068,6 +1076,7 @@
 	},
 	"modal_new_house_expense": {
 		"add_house_expense": "하우스 경비 추가",
+		"program_date": "프로그램 날짜",
 		"category_placeholder": "카테고리",
 		"category": "--- 카테고리 ---",
 		"receipt_no": "설명",
@@ -1378,6 +1387,8 @@
 		"guest_payment": "In",
 		"account": "계정",
 		"choose_account": "계정 선택",
+		"guest": "게스트",
+		"select_guest_optional": "게스트 선택 (선택사항)",
 		"select_service": "서비스 선택",
 		"enter_amount": "금액 입력",
 		"available_balance": "사용 가능 잔액:",
@@ -1410,8 +1421,8 @@
 		"failed_to_delete": "서비스 기록 삭제에 실패했습니다.",
 		"select_account": "fnb_hotel.select_account",
 		"select_date_range": "fnb_hotel.select_date_range",
-		"manual_date_range": "fnb_hotel.manual_date_range",
-		"manual_date_range_hint": "fnb_hotel.manual_date_range_hint"
+		"start_date": "house_expense.start_date",
+		"end_date": "house_expense.end_date"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

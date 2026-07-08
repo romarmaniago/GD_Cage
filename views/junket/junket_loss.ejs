@@ -34,21 +34,19 @@
             </button>
           </div>
         </div>
-        <div class="dataTables_wrapper">
-          <div class="row mb-2">
-            <div class="col-sm-12">
-              <div class="junket-loss-daterange-group d-flex flex-wrap align-items-center gap-2">
-                <div class="junket-loss-daterange-wrap">
-                  <input type="text" id="junket-loss-daterange" class="form-control form-control-sm text-center" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" />
-                </div>
-                <div class="junket-loss-daterange-wrap junket-loss-manual-daterange-wrap">
-                  <input type="text" id="junket-loss-manual-daterange" class="form-control form-control-sm text-center junket-loss-manual-daterange-input" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" spellcheck="false" aria-label="<%= __('junket_loss.manual_date_range') || 'Manual date range' %>" title="<%= __('junket_loss.manual_date_range_hint') || 'Type date range and press Enter' %>" />
-                </div>
-              </div>
+        <div class="junket-loss-filter-bar">
+          <div class="junket-loss-daterange-group d-flex flex-wrap align-items-center gap-2">
+            <div class="junket-loss-daterange-wrap">
+              <input type="text" id="junket-loss-daterange" class="form-control form-control-sm text-center" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" />
             </div>
+            <%- include('../partials/split_daterange', {
+              splitPrefix: 'junket-loss',
+              splitLocaleNs: 'junket_loss',
+              splitWrapClass: 'junket-loss-daterange-wrap junket-loss-split-daterange house-expense-split-daterange'
+            }) %>
           </div>
         </div>
-        <div class="card-body">
+        <div class="card-body pt-2">
           <div class="table-responsive">
             <table id="junket-loss-tbl" class="table nowrap small-text" style="width:100%">
               <thead>
@@ -195,6 +193,14 @@
     font-size: 12px;
   }
 
+  .junket-loss-filter-bar {
+    padding: 0.75rem var(--bs-card-spacer-x, 1.25rem) 0;
+  }
+
+  .junket-loss-filter-bar--modal {
+    padding: 0;
+  }
+
   .junket-loss-daterange-group {
     display: flex;
     flex-wrap: wrap;
@@ -234,14 +240,27 @@
     cursor: pointer;
   }
 
-  .junket-loss-manual-daterange-wrap {
+  .junket-loss-split-daterange,
+  .house-expense-split-daterange {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
     min-width: 0;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
   }
 
-  .junket-loss-manual-daterange-wrap.junket-loss-daterange-wrap input.form-control.junket-loss-manual-daterange-input {
+  .junket-loss-split-daterange .flatpickr-wrapper,
+  .house-expense-split-daterange .flatpickr-wrapper {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+  }
+
+  .junket-loss-split-daterange input.split-date-input,
+  .junket-loss-split-daterange .flatpickr-input.form-control,
+  .house-expense-split-daterange input.split-date-input,
+  .house-expense-split-daterange .flatpickr-input.form-control {
     display: inline-block;
     position: static;
     left: auto;
@@ -256,8 +275,9 @@
     text-overflow: clip;
     white-space: nowrap;
     box-sizing: border-box;
-    cursor: text;
+    cursor: pointer;
     text-align: center;
+    field-sizing: content;
   }
 
   #btn-add-junket-loss.expense-cat-panel-add-btn {
@@ -344,6 +364,12 @@
 
   .flatpickr-calendar .cur-month:hover {
     text-decoration: underline;
+  }
+
+  #junket-loss-tbl_wrapper .dataTables_length,
+  #junket-loss-tbl_wrapper .dataTables_filter {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   @media (max-width: 768px) {

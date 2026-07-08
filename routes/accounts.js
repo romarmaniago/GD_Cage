@@ -9,7 +9,7 @@ const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const { applyCommaThousandsToNumericCells, autoFitExcelWorksheetColumns } = require('../utils/excelAmountFormat');
 const path = require('path');
 const fs = require('fs/promises');
 const sharp = require('sharp');
@@ -333,7 +333,41 @@ router.post('/add_agency', async (req, res) => {
 // GET AGENCY DATA
 router.get('/agency_data', async (req, res) => {
 	try {
-		const query = `SELECT * FROM agency WHERE ACTIVE = 1 ORDER BY AGENCY ASC`;
+		const ledgerTotalsSubquery = `
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(
+					CASE
+						WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+						WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+						ELSE 0
+					END
+				) AS total_balance
+			FROM account_ledger al
+			LEFT JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (2, 3, 5)
+			GROUP BY al.ACCOUNT_ID
+		`;
+
+		const query = `
+			SELECT
+				a.*,
+				COALESCE(bal.total_balance, 0) AS total_balance
+			FROM agency a
+			LEFT JOIN (
+				SELECT
+					ag.AGENCY AS agency_id,
+					SUM(COALESCE(led.total_balance, 0)) AS total_balance
+				FROM agent ag
+				INNER JOIN account acc ON acc.AGENT_ID = ag.IDNo AND acc.ACTIVE = 1
+				LEFT JOIN (${ledgerTotalsSubquery}) AS led ON led.ACCOUNT_ID = acc.IDNo
+				WHERE ag.ACTIVE = 1
+				GROUP BY ag.AGENCY
+			) AS bal ON bal.agency_id = a.IDNo
+			WHERE a.ACTIVE = 1
+			ORDER BY a.AGENCY ASC
+		`;
 		const [results] = await pool.execute(query);
 
 		res.json(results);
@@ -880,6 +914,428 @@ function sumGameRowMetrics(gameRows) {
 		totals.total_commission += net;
 	}
 	return totals;
+}
+
+async function fetchAllLinesOverviewStats() {
+	const [[lineRow]] = await pool.execute(
+		`SELECT COUNT(*) AS total_line FROM agency a WHERE a.ACTIVE = 1`
+	);
+
+	const [gameRows] = await pool.execute(
+		`SELECT
+				gl.IDNo AS game_id,
+				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
+				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
+				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
+		 FROM game_list gl
+		 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
+		 WHERE gl.ACTIVE IN (1, 2)
+		   AND acc.ACTIVE = 1
+		   AND ag.ACTIVE = 1
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`
+	);
+
+	const [[balanceRow]] = await pool.execute(
+		`SELECT COALESCE(SUM(led.total_balance), 0) AS total_balance
+		 FROM account acc
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN tt.TRANSACTION = 'DEPOSIT' THEN al.AMOUNT ELSE 0 END) +
+				SUM(CASE WHEN tt.TRANSACTION = 'MARKER REDEEM' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'WITHDRAW' THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN tt.TRANSACTION = 'IOU RETURN DEPOSIT' THEN al.AMOUNT ELSE 0 END) AS total_balance
+			FROM account_ledger al
+			INNER JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (2, 5, 3)
+			GROUP BY ACCOUNT_ID
+		 ) AS led ON led.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1 AND ag.ACTIVE = 1`
+	);
+
+	const [[creditRow]] = await pool.execute(
+		`SELECT COALESCE(SUM(cred.credit_balance), 0) AS total_credit
+		 FROM account acc
+		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+		 LEFT JOIN (
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger al
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (3, 4)
+			GROUP BY al.ACCOUNT_ID
+		 ) AS cred ON cred.ACCOUNT_ID = acc.IDNo
+		 WHERE acc.ACTIVE = 1 AND ag.ACTIVE = 1`
+	);
+
+	const gameTotals = sumGameRowMetrics(gameRows);
+	return {
+		total_line: Number(lineRow?.total_line ?? 0),
+		total_balance: Number(balanceRow?.total_balance ?? 0),
+		total_credit: Number(creditRow?.total_credit ?? 0),
+		total_rolling: gameTotals.total_rolling,
+		total_winloss: gameTotals.total_winloss,
+		total_commission: gameTotals.total_commission
+	};
+}
+
+async function fetchLineExportOverviewStats(agencyId) {
+	if (agencyId) {
+		const stats = await fetchAgencyLineFinancialStats(agencyId);
+		return {
+			total_balance: stats.total_balance,
+			total_credit: stats.total_credit,
+			total_rolling: stats.total_rolling,
+			total_winloss: stats.total_winloss,
+			total_commission: stats.total_commission
+		};
+	}
+	return fetchAllLinesOverviewStats();
+}
+
+async function buildLineAgentMatrixWorkbook(agencyId) {
+	const numericAgencyId = agencyId ? parseInt(agencyId, 10) : null;
+	const hasAgencyFilter = numericAgencyId && !Number.isNaN(numericAgencyId);
+
+	const overviewStats = await fetchLineExportOverviewStats(hasAgencyFilter ? numericAgencyId : null);
+
+	const agentQuery = hasAgencyFilter
+		? `
+			SELECT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			FROM agent ag
+			WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
+			ORDER BY ag.AGENT_CODE ASC, ag.NAME ASC, ag.IDNo ASC
+		`
+		: `
+			SELECT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+			FROM agent ag
+			INNER JOIN agency a ON a.IDNo = ag.AGENCY AND a.ACTIVE = 1
+			WHERE ag.ACTIVE = 1
+			ORDER BY a.AGENCY ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
+		`;
+	const [agentRows] = await pool.execute(
+		agentQuery,
+		hasAgencyFilter ? [numericAgencyId] : []
+	);
+
+	const guestQuery = `
+		SELECT g.NAME AS guest_name
+		FROM guest g
+		WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
+		ORDER BY g.IDNo DESC
+	`;
+
+	const agentOrder = [];
+	const agentMap = new Map();
+
+	for (const r of agentRows || []) {
+		const id = Number(r.agent_id);
+		if (agentMap.has(id)) continue;
+		const code = String(r.agent_code != null ? r.agent_code : '').trim();
+		const name = String(r.agent_name != null ? r.agent_name : '').trim();
+		const headerLabel =
+			code && name
+				? code.toUpperCase() + ' · ' + name.toUpperCase()
+				: String(code || name || '').toUpperCase();
+		agentMap.set(id, { headerLabel, guests: [] });
+		agentOrder.push(id);
+	}
+
+	for (const aid of agentOrder) {
+		const [gRows] = await pool.execute(guestQuery, [aid]);
+		const bucket = agentMap.get(aid);
+		for (const g of gRows || []) {
+			const gn = String(g.guest_name != null ? g.guest_name : '').trim();
+			if (gn) bucket.guests.push(gn);
+		}
+	}
+
+	let lineName = 'LINE';
+	if (hasAgencyFilter) {
+		const [agencyNameRows] = await pool.execute(
+			`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
+			[numericAgencyId]
+		);
+		lineName = String(agencyNameRows[0]?.AGENCY ?? '')
+			.trim()
+			|| 'LINE ' + numericAgencyId;
+	}
+
+	const workbook = new ExcelJS.Workbook();
+	const ws = workbook.addWorksheet('LINE');
+	const thinBorder = {
+		top: { style: 'thin', color: { argb: 'FF666666' } },
+		left: { style: 'thin', color: { argb: 'FF666666' } },
+		bottom: { style: 'thin', color: { argb: 'FF666666' } },
+		right: { style: 'thin', color: { argb: 'FF666666' } }
+	};
+	const summaryFill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FFF2F2F2' }
+	};
+	const alignCenter = { vertical: 'middle', horizontal: 'center', wrapText: false };
+	const alignLeft = { vertical: 'middle', horizontal: 'left', wrapText: false, indent: 1 };
+	const alignRight = { vertical: 'middle', horizontal: 'right', wrapText: false };
+	const scopeLabel = hasAgencyFilter ? 'Total Agent' : 'TOTAL LINE';
+	const scopeValue = hasAgencyFilter ? agentOrder.length : overviewStats.total_line;
+
+	const summaryHeaderRow = ws.addRow([
+		scopeLabel,
+		'TOTAL BALANCE',
+		'Total Credit',
+		'Total Winloss',
+		'Total Rolling',
+		'Total Commission'
+	]);
+	summaryHeaderRow.eachCell((cell) => {
+		cell.font = { bold: true };
+		cell.alignment = alignCenter;
+		cell.border = thinBorder;
+		cell.fill = summaryFill;
+	});
+
+	const summaryValueRow = ws.addRow([
+		scopeValue,
+		overviewStats.total_balance,
+		overviewStats.total_credit,
+		overviewStats.total_winloss,
+		overviewStats.total_rolling,
+		overviewStats.total_commission
+	]);
+	summaryValueRow.eachCell((cell, colNumber) => {
+		cell.font = { bold: true };
+		cell.border = thinBorder;
+		cell.alignment = colNumber === 1 ? alignCenter : alignRight;
+	});
+
+	ws.addRow([]);
+
+	if (agentOrder.length === 0) {
+		const hr = ws.addRow([hasAgencyFilter ? 'No agents for this LINE.' : 'No active agents.']);
+		hr.getCell(1).alignment = alignCenter;
+		hr.getCell(1).border = thinBorder;
+	} else {
+		const headers = agentOrder.map((id) => agentMap.get(id).headerLabel);
+		const maxRows = Math.max(0, ...agentOrder.map((id) => agentMap.get(id).guests.length));
+
+		const headerRow = ws.addRow(headers);
+		headerRow.eachCell({ includeEmpty: true }, (cell) => {
+			cell.font = { bold: true };
+			cell.alignment = alignLeft;
+			cell.border = thinBorder;
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FFD9E1F2' }
+			};
+		});
+
+		for (let i = 0; i < maxRows; i++) {
+			const rowVals = agentOrder.map((id) => agentMap.get(id).guests[i] || '');
+			const dataRow = ws.addRow(rowVals);
+			dataRow.eachCell({ includeEmpty: true }, (cell) => {
+				cell.border = thinBorder;
+				cell.alignment = alignLeft;
+			});
+		}
+	}
+
+	applyCommaThousandsToNumericCells(ws, { headerRows: 1 });
+	autoFitExcelWorksheetColumns(ws, { minWidth: 10, maxWidth: 80, padding: 4 });
+	ws.views = [{ state: 'normal', showGridLines: true }];
+
+	const now = new Date();
+	const pad = (n) => String(n).padStart(2, '0');
+	const dateSuffix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+	let outName = `Line-${dateSuffix}.xlsx`;
+	if (hasAgencyFilter) {
+		const safeLine = String(lineName).replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
+		outName = `${safeLine}-${dateSuffix}.xlsx`;
+	}
+
+	return { workbook, outName };
+}
+
+async function fetchAgentExportOverviewStats(agencyId) {
+	const [[guestRow]] = await pool.execute(
+		`SELECT COUNT(*) AS total_guest
+		 FROM guest g
+		 INNER JOIN agent ag ON ag.IDNo = g.AGENT_ID AND ag.ACTIVE = 1
+		 WHERE g.ACTIVE = 1 AND ag.AGENCY = ?`,
+		[agencyId]
+	);
+	const stats = await fetchAgencyLineFinancialStats(agencyId);
+	return {
+		total_guest: Number(guestRow?.total_guest ?? 0),
+		total_balance: stats.total_balance,
+		total_credit: stats.total_credit,
+		total_rolling: stats.total_rolling,
+		total_winloss: stats.total_winloss,
+		total_commission: stats.total_commission
+	};
+}
+
+async function buildAgentGuestMatrixWorkbook(agencyId) {
+	const numericAgencyId = parseInt(agencyId, 10);
+	if (!numericAgencyId) {
+		throw new Error('Select a LINE first.');
+	}
+
+	const overviewStats = await fetchAgentExportOverviewStats(numericAgencyId);
+
+	const [agencyNameRows] = await pool.execute(
+		`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
+		[numericAgencyId]
+	);
+	const lineName = String(agencyNameRows[0]?.AGENCY ?? '')
+		.trim()
+		|| 'LINE ' + numericAgencyId;
+
+	const agentQuery = `
+		SELECT DISTINCT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
+		FROM agent ag
+		INNER JOIN account acc ON acc.AGENT_ID = ag.IDNo AND acc.ACTIVE = 1
+		WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
+		ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
+	`;
+	const [agentRows] = await pool.execute(agentQuery, [numericAgencyId]);
+
+	const guestQuery = `
+		SELECT g.NAME AS guest_name
+		FROM guest g
+		WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
+		ORDER BY g.IDNo DESC
+	`;
+
+	const agentOrder = [];
+	const agentMap = new Map();
+
+	for (const r of agentRows || []) {
+		const id = Number(r.agent_id);
+		if (agentMap.has(id)) continue;
+		const code = String(r.agent_code != null ? r.agent_code : '').trim();
+		const name = String(r.agent_name != null ? r.agent_name : '').trim();
+		const headerLabel =
+			code && name
+				? code.toUpperCase() + ' · ' + name.toUpperCase()
+				: String(code || name || '').toUpperCase();
+		agentMap.set(id, { headerLabel, guests: [] });
+		agentOrder.push(id);
+	}
+
+	for (const aid of agentOrder) {
+		const [gRows] = await pool.execute(guestQuery, [aid]);
+		const bucket = agentMap.get(aid);
+		for (const g of gRows || []) {
+			const gn = String(g.guest_name != null ? g.guest_name : '').trim();
+			if (gn) bucket.guests.push(gn);
+		}
+	}
+
+	const workbook = new ExcelJS.Workbook();
+	const ws = workbook.addWorksheet('AGENT');
+	const thinBorder = {
+		top: { style: 'thin', color: { argb: 'FF666666' } },
+		left: { style: 'thin', color: { argb: 'FF666666' } },
+		bottom: { style: 'thin', color: { argb: 'FF666666' } },
+		right: { style: 'thin', color: { argb: 'FF666666' } }
+	};
+	const summaryFill = {
+		type: 'pattern',
+		pattern: 'solid',
+		fgColor: { argb: 'FFF2F2F2' }
+	};
+	const alignCenter = { vertical: 'middle', horizontal: 'center', wrapText: false };
+	const alignLeft = { vertical: 'middle', horizontal: 'left', wrapText: false, indent: 1 };
+	const alignRight = { vertical: 'middle', horizontal: 'right', wrapText: false };
+
+	const summaryHeaderRow = ws.addRow([
+		'Total Guest',
+		'Total Balance',
+		'Total Credit',
+		'Total Winloss',
+		'Total Rolling',
+		'Total Commission'
+	]);
+	summaryHeaderRow.eachCell((cell) => {
+		cell.font = { bold: true };
+		cell.alignment = alignCenter;
+		cell.border = thinBorder;
+		cell.fill = summaryFill;
+	});
+
+	const summaryValueRow = ws.addRow([
+		overviewStats.total_guest,
+		overviewStats.total_balance,
+		overviewStats.total_credit,
+		overviewStats.total_winloss,
+		overviewStats.total_rolling,
+		overviewStats.total_commission
+	]);
+	summaryValueRow.eachCell((cell, colNumber) => {
+		cell.font = { bold: true };
+		cell.border = thinBorder;
+		cell.alignment = colNumber === 1 ? alignCenter : alignRight;
+	});
+
+	ws.addRow([]);
+
+	if (agentOrder.length === 0) {
+		const hr = ws.addRow(['No agents for this LINE.']);
+		hr.getCell(1).alignment = alignLeft;
+		hr.getCell(1).border = thinBorder;
+	} else {
+		const headers = agentOrder.map((id) => agentMap.get(id).headerLabel);
+		const maxRows = Math.max(0, ...agentOrder.map((id) => agentMap.get(id).guests.length));
+
+		const headerRow = ws.addRow(headers);
+		headerRow.eachCell({ includeEmpty: true }, (cell) => {
+			cell.font = { bold: true };
+			cell.alignment = alignLeft;
+			cell.border = thinBorder;
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FFD9E1F2' }
+			};
+		});
+
+		for (let i = 0; i < maxRows; i++) {
+			const rowVals = agentOrder.map((id) => agentMap.get(id).guests[i] || '');
+			const dataRow = ws.addRow(rowVals);
+			dataRow.eachCell({ includeEmpty: true }, (cell) => {
+				cell.border = thinBorder;
+				cell.alignment = alignLeft;
+			});
+		}
+	}
+
+	applyCommaThousandsToNumericCells(ws, { headerRows: 1 });
+	autoFitExcelWorksheetColumns(ws, { minWidth: 10, maxWidth: 80, padding: 4 });
+	ws.views = [{ state: 'normal', showGridLines: true }];
+
+	const now = new Date();
+	const pad = (n) => String(n).padStart(2, '0');
+	const dateSuffix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+	const safeLine = String(lineName).replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
+	const outName = `${safeLine}-Agent-${dateSuffix}.xlsx`;
+
+	return { workbook, outName };
 }
 
 async function fetchAgencyLineFinancialStats(agencyId) {
@@ -3071,7 +3527,7 @@ router.get('/export', async (req, res) => {
 	}
 });
 
-/** Excel: row 1 = merged LINE name; row 2 = each agent (CODE · NAME); below = guest names per column. */
+/** Excel: summary totals row, then agents as columns and guests as rows for selected LINE. */
 router.post('/agency/export_agent_guest_matrix_xlsx', checkSession, async function (req, res) {
 	try {
 		const agencyId = parseInt(req.body.agencyId, 10);
@@ -3079,140 +3535,7 @@ router.post('/agency/export_agent_guest_matrix_xlsx', checkSession, async functi
 			return res.status(400).json({ error: 'Select a LINE first.' });
 		}
 
-		const [agencyNameRows] = await pool.execute(
-			`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
-			[agencyId]
-		);
-		const lineName = String(agencyNameRows[0]?.AGENCY ?? '')
-			.trim()
-			|| 'LINE ' + agencyId;
-
-		const agentQuery = `
-			SELECT DISTINCT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
-			FROM agent ag
-			INNER JOIN account acc ON acc.AGENT_ID = ag.IDNo AND acc.ACTIVE = 1
-			WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
-			ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
-		`;
-		const [agentRows] = await pool.execute(agentQuery, [agencyId]);
-
-		const guestQuery = `
-			SELECT g.NAME AS guest_name
-			FROM guest g
-			WHERE g.AGENT_ID = ? AND g.ACTIVE = 1
-			ORDER BY g.IDNo DESC
-		`;
-
-		const agentOrder = [];
-		const agentMap = new Map();
-
-		for (const r of agentRows || []) {
-			const id = Number(r.agent_id);
-			if (agentMap.has(id)) continue;
-			const code = String(r.agent_code != null ? r.agent_code : '').trim();
-			const name = String(r.agent_name != null ? r.agent_name : '').trim();
-			const headerLabel =
-				code && name
-					? code.toUpperCase() + ' · ' + name.toUpperCase()
-					: String(code || name || '').toUpperCase();
-			agentMap.set(id, { headerLabel, guests: [] });
-			agentOrder.push(id);
-		}
-
-		for (const aid of agentOrder) {
-			const [gRows] = await pool.execute(guestQuery, [aid]);
-			const bucket = agentMap.get(aid);
-			for (const g of gRows || []) {
-				const gn = String(g.guest_name != null ? g.guest_name : '').trim();
-				if (gn) bucket.guests.push(gn);
-			}
-		}
-
-		const workbook = new ExcelJS.Workbook();
-		const ws = workbook.addWorksheet('AGENT', {
-			views: [{ state: 'frozen', ySplit: 2 }]
-		});
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-		const lineTitleFill = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFC6EFCE' }
-		};
-
-		function addLineTitleRow(ncol) {
-			const n = Math.max(1, ncol);
-			const lineRow = ws.addRow(Array(n).fill(''));
-			lineRow.height = 24;
-			lineRow.getCell(1).value = lineName;
-			lineRow.getCell(1).font = { bold: true };
-			lineRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			for (let c = 1; c <= n; c++) {
-				const cell = lineRow.getCell(c);
-				cell.fill = lineTitleFill;
-				cell.border = thinBorder;
-			}
-			if (n > 1) {
-				ws.mergeCells(1, 1, 1, n);
-			}
-		}
-
-		if (agentOrder.length === 0) {
-			addLineTitleRow(1);
-			const msgRow = ws.addRow(['No agents for this LINE.']);
-			msgRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			msgRow.getCell(1).border = thinBorder;
-			ws.getColumn(1).width = Math.min(44, Math.max(12, String(lineName).length + 2, 28));
-		} else {
-			const headers = agentOrder.map((id) => agentMap.get(id).headerLabel);
-			const ncol = headers.length;
-			addLineTitleRow(ncol);
-
-			const maxRows = Math.max(0, ...agentOrder.map((id) => agentMap.get(id).guests.length));
-
-			const headerRow = ws.addRow(headers);
-			headerRow.height = 22;
-			headerRow.eachCell((cell) => {
-				cell.font = { bold: true };
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-				cell.border = thinBorder;
-				cell.fill = {
-					type: 'pattern',
-					pattern: 'solid',
-					fgColor: { argb: 'FFD9E1F2' }
-				};
-			});
-
-			for (let i = 0; i < maxRows; i++) {
-				const rowVals = agentOrder.map((id) => agentMap.get(id).guests[i] || '');
-				const dataRow = ws.addRow(rowVals);
-				dataRow.eachCell((cell) => {
-					cell.border = thinBorder;
-					cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
-				});
-			}
-
-			for (let c = 1; c <= ncol; c++) {
-				let maxLen = Math.max(
-					String(lineName).length,
-					String(headers[c - 1] || '').length
-				);
-				const guests = agentMap.get(agentOrder[c - 1]).guests;
-				for (let i = 0; i < guests.length; i++) {
-					const L = String(guests[i] || '').length;
-					if (L > maxLen) maxLen = L;
-				}
-				ws.getColumn(c).width = Math.min(44, Math.max(12, maxLen + 2));
-			}
-		}
-
-		const now = new Date();
-		const pad = (n) => String(n).padStart(2, '0');
-		const outName = `Agent-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+		const { workbook, outName } = await buildAgentGuestMatrixWorkbook(agencyId);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -3224,104 +3547,10 @@ router.post('/agency/export_agent_guest_matrix_xlsx', checkSession, async functi
 	}
 });
 
-/** Excel: row 1 = each LINE (agency) name; below = agents under that line (CODE · NAME), one agent per row per column. */
+/** Excel: summary totals row, then agents as columns and guests as rows (all LINEs or one LINE). */
 router.post('/agency/export_line_agent_matrix_xlsx', checkSession, async function (req, res) {
 	try {
-		const query = `
-			SELECT a.IDNo AS agency_id, a.AGENCY AS line_name,
-				ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
-			FROM agency a
-			LEFT JOIN agent ag ON ag.AGENCY = a.IDNo AND ag.ACTIVE = 1
-			WHERE a.ACTIVE = 1
-			ORDER BY a.AGENCY ASC, ag.AGENT_CODE ASC, ag.IDNo ASC
-		`;
-		const [rows] = await pool.execute(query);
-
-		const lineOrder = [];
-		const lineMap = new Map();
-
-		for (const r of rows || []) {
-			const id = Number(r.agency_id);
-			if (!lineMap.has(id)) {
-				lineMap.set(id, {
-					name: String(r.line_name != null ? r.line_name : '').trim(),
-					agents: [],
-					seen: new Set()
-				});
-				lineOrder.push(id);
-			}
-			if (r.agent_id != null) {
-				const b = lineMap.get(id);
-				const aid = Number(r.agent_id);
-				if (b.seen.has(aid)) continue;
-				b.seen.add(aid);
-				const code = String(r.agent_code != null ? r.agent_code : '').trim();
-				const name = String(r.agent_name != null ? r.agent_name : '').trim();
-				const label =
-					code && name
-						? code.toUpperCase() + ' · ' + name.toUpperCase()
-						: String(code || name || '').toUpperCase();
-				b.agents.push(label);
-			}
-		}
-
-		const workbook = new ExcelJS.Workbook();
-		const ws = workbook.addWorksheet('LINE', {
-			views: [{ state: 'frozen', ySplit: 1 }]
-		});
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-
-		if (lineOrder.length === 0) {
-			const hr = ws.addRow(['No active LINE records.']);
-			hr.getCell(1).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			hr.getCell(1).border = thinBorder;
-		} else {
-			const headers = lineOrder.map((lid) => lineMap.get(lid).name || 'LINE ' + lid);
-			const maxRows = Math.max(0, ...lineOrder.map((lid) => lineMap.get(lid).agents.length));
-
-			const headerRow = ws.addRow(headers);
-			headerRow.height = 22;
-			headerRow.eachCell((cell) => {
-				cell.font = { bold: true };
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-				cell.border = thinBorder;
-				cell.fill = {
-					type: 'pattern',
-					pattern: 'solid',
-					fgColor: { argb: 'FFD9E1F2' }
-				};
-			});
-
-			for (let i = 0; i < maxRows; i++) {
-				const rowVals = lineOrder.map((lid) => lineMap.get(lid).agents[i] || '');
-				const dataRow = ws.addRow(rowVals);
-				dataRow.eachCell((cell) => {
-					cell.border = thinBorder;
-					cell.alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
-				});
-			}
-
-			const ncol = headers.length;
-			for (let c = 1; c <= ncol; c++) {
-				let maxLen = String(headers[c - 1] || '').length;
-				const lid = lineOrder[c - 1];
-				const agents = lineMap.get(lid).agents;
-				for (let i = 0; i < agents.length; i++) {
-					const L = String(agents[i] || '').length;
-					if (L > maxLen) maxLen = L;
-				}
-				ws.getColumn(c).width = Math.min(44, Math.max(12, maxLen + 2));
-			}
-		}
-
-		const now = new Date();
-		const pad = (n) => String(n).padStart(2, '0');
-		const outName = `Line-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+		const { workbook, outName } = await buildLineAgentMatrixWorkbook(req.body?.agencyId);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -3333,7 +3562,7 @@ router.post('/agency/export_line_agent_matrix_xlsx', checkSession, async functio
 	}
 });
 
-/** Excel: LINE totals, then each AGENT with totals, then each GUEST under that agent. */
+/** Excel: same format as export_line_agent_matrix_xlsx, scoped to one LINE. */
 router.post('/agency/export_line_stats_xlsx', checkSession, async function (req, res) {
 	try {
 		const agencyId = parseInt(req.body.agencyId, 10);
@@ -3341,132 +3570,7 @@ router.post('/agency/export_line_stats_xlsx', checkSession, async function (req,
 			return res.status(400).json({ error: 'Select a LINE first.' });
 		}
 
-		const [agencyNameRows] = await pool.execute(
-			`SELECT AGENCY FROM agency WHERE IDNo = ? AND ACTIVE = 1`,
-			[agencyId]
-		);
-		const lineName = String(agencyNameRows[0]?.AGENCY ?? '')
-			.trim()
-			|| 'LINE ' + agencyId;
-
-		const [agentRows] = await pool.execute(
-			`SELECT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name
-			 FROM agent ag
-			 WHERE ag.AGENCY = ? AND ag.ACTIVE = 1
-			 ORDER BY ag.NAME ASC, ag.AGENT_CODE ASC, ag.IDNo ASC`,
-			[agencyId]
-		);
-
-		const lineStats = await fetchAgencyLineFinancialStats(agencyId);
-		const guestStats = await fetchAgencyGuestStatsForExport(agencyId);
-		const guestsByAgent = new Map();
-		for (const guest of guestStats) {
-			const agentId = Number(guest.agent_id);
-			if (!guestsByAgent.has(agentId)) guestsByAgent.set(agentId, []);
-			guestsByAgent.get(agentId).push(guest);
-		}
-
-		const workbook = new ExcelJS.Workbook();
-		const ws = workbook.addWorksheet('LINE Stats', {
-			views: [{ state: 'frozen', ySplit: 1 }]
-		});
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-		const headerFill = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFD9E1F2' }
-		};
-		const lineFill = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFC6EFCE' }
-		};
-		const agentFill = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFE2EFDA' }
-		};
-
-		const headers = [
-			'Level',
-			'Name',
-			'Total Balance',
-			'Total Credit',
-			'Total Winloss',
-			'Total Rolling',
-			'Total Commission'
-		];
-		const headerRow = ws.addRow(headers);
-		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
-			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			cell.border = thinBorder;
-			cell.fill = headerFill;
-		});
-
-		function addStatsRow(level, name, stats, fill) {
-			const row = ws.addRow([
-				level,
-				name,
-				Number(stats.total_balance) || 0,
-				Number(stats.total_credit) || 0,
-				Number(stats.total_winloss) || 0,
-				Number(stats.total_rolling) || 0,
-				Number(stats.total_commission) || 0
-			]);
-			row.eachCell((cell, colNumber) => {
-				cell.border = thinBorder;
-				cell.alignment = {
-					vertical: 'middle',
-					horizontal: colNumber <= 2 ? 'left' : 'right',
-					wrapText: true
-				};
-				if (fill) cell.fill = fill;
-				if (colNumber === 1) cell.font = { bold: true };
-			});
-			if (level === 'LINE') row.font = { bold: true };
-		}
-
-		addStatsRow('LINE', lineName.toUpperCase(), lineStats, lineFill);
-
-		for (const agent of agentRows || []) {
-			const agentId = Number(agent.agent_id);
-			const code = String(agent.agent_code != null ? agent.agent_code : '').trim();
-			const name = String(agent.agent_name != null ? agent.agent_name : '').trim();
-			const agentLabel =
-				code && name
-					? code.toUpperCase() + ' · ' + name.toUpperCase()
-					: String(code || name || ('AGENT ' + agentId)).toUpperCase();
-
-			const agentGuests = guestsByAgent.get(agentId) || [];
-			const agentStats = await fetchAgentFinancialStats(agentId);
-
-			addStatsRow('AGENT', agentLabel, agentStats, agentFill);
-
-			for (const guest of agentGuests) {
-				const guestName = String(guest.guest_name || '').trim().toUpperCase() || ('GUEST ' + guest.guest_id);
-				addStatsRow('GUEST', guestName, guest, null);
-			}
-		}
-
-		ws.getColumn(1).width = 10;
-		ws.getColumn(2).width = 36;
-		for (let c = 3; c <= 7; c++) {
-			ws.getColumn(c).width = 16;
-		}
-
-		applyCommaThousandsToNumericCells(ws, { headerRows: 1 });
-
-		const safeLine = lineName.replace(/[<>:"/\\|?*]+/g, '').trim() || 'LINE';
-		const now = new Date();
-		const pad = (n) => String(n).padStart(2, '0');
-		const outName = `${safeLine}-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.xlsx`;
+		const { workbook, outName } = await buildLineAgentMatrixWorkbook(agencyId);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

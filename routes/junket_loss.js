@@ -3,6 +3,40 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const {
+	toApiDate,
+	getMonthEndCutoffRange,
+	expandApiEndDateToMonthEnd,
+} = require('../utils/monthEndCutoffRange');
+
+function junketLossApiEndDate(endYmd) {
+	if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+	const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+	const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+	if (parts[2] === lastDayOfMonth - 1) {
+		return expandApiEndDateToMonthEnd(endYmd);
+	}
+	return endYmd;
+}
+
+function normalizeJunketLossDateRange(fromDate, toDate) {
+	let from = toApiDate(fromDate);
+	let to = junketLossApiEndDate(toApiDate(toDate));
+
+	if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+		const fallback = getMonthEndCutoffRange();
+		from = fallback.startDate;
+		to = fallback.endDateApi || junketLossApiEndDate(fallback.endDate);
+	}
+
+	if (from > to) {
+		const swap = from;
+		from = to;
+		to = swap;
+	}
+
+	return { fromDate: from, toDate: to };
+}
 
 router.get('/junket_loss', checkSession, function (req, res) {
 	const data = sessions(req, 'junket_loss');
@@ -24,17 +58,7 @@ router.get('/junket_loss_total', checkSession, async (req, res) => {
 
 router.get('/junket_loss_data', async (req, res) => {
 	try {
-		let { fromDate, toDate } = req.query;
-		const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
-
-		if (!isValidDate(fromDate) || !isValidDate(toDate)) {
-			const now = new Date();
-			const first = new Date(now.getFullYear(), now.getMonth(), 1);
-			const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			const pad = (n) => String(n).padStart(2, '0');
-			fromDate = `${first.getFullYear()}-${pad(first.getMonth() + 1)}-${pad(first.getDate())}`;
-			toDate = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
-		}
+		const { fromDate, toDate } = normalizeJunketLossDateRange(req.query.fromDate, req.query.toDate);
 
 		const query = `
 			SELECT

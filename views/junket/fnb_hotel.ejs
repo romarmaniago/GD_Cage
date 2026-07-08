@@ -35,12 +35,8 @@
 						<div id="fnb-hotel-filter" class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
 							<a href="#"><%= __('fnb_hotel.junket') %></a>
-							
 							<a href="#" class="filter-link active" data-filter="all"><%= __('fnb_hotel.all') %></a>
-							<a href="#" class="filter-link" data-filter="fnb"><%= __('fnb_hotel.fnb') %></a>
-							<a href="#" class="filter-link" data-filter="hotel"><%= __('fnb_hotel.hotel') %></a>
-							<a href="#" class="filter-link" data-filter="incidental"><%= __('fnb_hotel.incidental') %></a>
-							<a href="#" class="filter-link" data-filter="delivery"><%= __('fnb_hotel.delivery') %></a>
+							<span id="fnb-hotel-filter-categories"></span>
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
@@ -62,9 +58,11 @@
 						<div class="fnb-hotel-daterange-wrap">
 							<input type="text" id="fnb-hotel-daterange" class="form-control form-control-sm text-center fnb-hotel-daterange-input" placeholder="<%= __('fnb_hotel.select_date_range') || 'Select date range' %>" autocomplete="off" />
 						</div>
-						<div class="fnb-hotel-daterange-wrap fnb-hotel-manual-daterange-wrap">
-							<input type="text" id="fnb-hotel-manual-daterange" class="form-control form-control-sm text-center fnb-hotel-manual-daterange-input" placeholder="<%= __('fnb_hotel.select_date_range') || 'Select date range' %>" autocomplete="off" spellcheck="false" aria-label="<%= __('fnb_hotel.manual_date_range') || 'Manual date range' %>" title="<%= __('fnb_hotel.manual_date_range_hint') || 'Type date range and press Enter' %>" />
-						</div>
+						<%- include('../partials/split_daterange', {
+							splitPrefix: 'fnb-hotel',
+							splitLocaleNs: 'fnb_hotel',
+							splitWrapClass: 'fnb-hotel-daterange-wrap fnb-hotel-split-daterange house-expense-split-daterange'
+						}) %>
 					</div>
 				</div>
 				<div class="card-body">
@@ -199,14 +197,27 @@
     cursor: pointer;
 }
 
-.fnb-hotel-manual-daterange-wrap {
+.fnb-hotel-split-daterange,
+.house-expense-split-daterange {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
     min-width: 0;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
 }
 
-.fnb-hotel-manual-daterange-wrap.fnb-hotel-daterange-wrap input.form-control.fnb-hotel-manual-daterange-input {
+.fnb-hotel-split-daterange .flatpickr-wrapper,
+.house-expense-split-daterange .flatpickr-wrapper {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+}
+
+.fnb-hotel-split-daterange input.split-date-input,
+.fnb-hotel-split-daterange .flatpickr-input.form-control,
+.house-expense-split-daterange input.split-date-input,
+.house-expense-split-daterange .flatpickr-input.form-control {
     display: inline-block;
     position: static;
     left: auto;
@@ -221,8 +232,9 @@
     text-overflow: clip;
     white-space: nowrap;
     box-sizing: border-box;
-    cursor: text;
+    cursor: pointer;
     text-align: center;
+    field-sizing: content;
 }
 
 /* No-data row: hidden by default, shown only with .show-empty */
@@ -375,7 +387,8 @@
 		select_who_is_paying: "<%= __('fnb_hotel.select_who_is_paying') %>",
 		select_service_type: "<%= __('fnb_hotel.select_service_type') %>",
 		select_account: "<%= __('fnb_hotel.select_account') %>",
-		select_account_for_guest: "<%= __('fnb_hotel.select_account_for_guest') %>",
+		select_guest_optional: "<%= __('fnb_hotel.select_guest_optional') %>",
+		select_service: "<%= __('fnb_hotel.select_service') %>",
 		select_transaction_type: "<%= __('fnb_hotel.select_transaction_type') %>",
 		saving: "<%= __('fnb_hotel.saving') %>",
 		updating: "<%= __('fnb_hotel.updating') %>",

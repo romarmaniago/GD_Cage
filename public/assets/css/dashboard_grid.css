@@ -745,6 +745,36 @@ body {
   letter-spacing: 0.02em;
 }
 
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-actions .btn {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  line-height: 1.25;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-print {
+  color: var(--gd-dash-gold-light);
+  border: 1px solid rgba(200, 162, 76, 0.45);
+  background: transparent;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-print:hover {
+  color: #1a1205;
+  background: rgba(241, 212, 138, 0.9);
+  border-color: transparent;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-export {
+  color: #1a1205;
+  border: 0;
+  background: linear-gradient(135deg, #c8a24c 0%, #f1d48a 100%);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-export:hover {
+  color: #0f0a02;
+  filter: brightness(1.05);
+}
+
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix-col.is-wl {
   border-left: 1px solid var(--gd-dash-border);
 }
@@ -1003,6 +1033,8 @@ body {
 .dash-rolling-panel .dash-rolling-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   padding: 0;
   -webkit-overflow-scrolling: touch;
@@ -1010,6 +1042,24 @@ body {
 
 #dash-rolling-root {
   font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100%;
+}
+
+#dash-rolling-root > .dash-rolling-head-excel {
+  flex: 0 0 auto;
+}
+
+#dash-rolling-root > .dash-rolling-row {
+  flex: 1 1 0;
+  min-height: 1.65rem;
+  align-items: stretch;
+}
+
+#dash-rolling-root > .dash-rolling-row .dash-rolling-body-cell {
+  height: 100%;
 }
 
 .dash-rolling-foot,
@@ -1355,6 +1405,8 @@ body {
 .dash-wl-panel .dash-wl-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   padding: 0;
   -webkit-overflow-scrolling: touch;
@@ -1362,6 +1414,24 @@ body {
 
 #dash-wl-root {
   font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100%;
+}
+
+#dash-wl-root > .dash-wl-head-excel {
+  flex: 0 0 auto;
+}
+
+#dash-wl-root > .dash-wl-row {
+  flex: 1 1 0;
+  min-height: 1.65rem;
+  align-items: stretch;
+}
+
+#dash-wl-root > .dash-wl-row .dash-wl-body-cell {
+  height: 100%;
 }
 
 .dash-wl-head-excel,

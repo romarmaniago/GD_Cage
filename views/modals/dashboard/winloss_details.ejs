@@ -149,19 +149,20 @@ $(document).ready(function() {
 
   function loadWinlossDetails() {
     const range = $('#winloss-daterange').val();
-    if (!range) return;
     
     const t = window.winlossDetailsTranslations || {};
     
     const apiRange = window.MonthEndCutoffRange
-      ? window.MonthEndCutoffRange.parseRangeToApiDates(range)
+      ? window.MonthEndCutoffRange.resolveRangeFromPicker(range, 'winloss-daterange')
       : (() => {
+          if (!range) return { start: '', end: '' };
           let [start, end] = range.split(' to ');
           if (!end) end = start;
           return { start, end };
         })();
     const start = apiRange.start;
     const end = apiRange.end;
+    if (!start || !end) return;
 
     if (winlossDataTable) {
       winlossDataTable.destroy();

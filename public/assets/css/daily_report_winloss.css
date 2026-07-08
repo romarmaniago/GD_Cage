@@ -189,14 +189,27 @@
   box-sizing: border-box;
 }
 
-.daily-report-manual-daterange-wrap {
+.daily-report-split-daterange,
+.house-expense-split-daterange {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
   min-width: 0;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
 }
 
-.daily-report-manual-daterange-wrap.daily-report-list-daterange-wrap input.form-control.daily-report-manual-daterange-input {
+.daily-report-split-daterange .flatpickr-wrapper,
+.house-expense-split-daterange .flatpickr-wrapper {
+  display: inline-block;
+  width: auto;
+  min-width: 0;
+}
+
+.daily-report-split-daterange input.split-date-input,
+.daily-report-split-daterange .flatpickr-input.form-control,
+.house-expense-split-daterange input.split-date-input,
+.house-expense-split-daterange .flatpickr-input.form-control {
   display: inline-block;
   position: static;
   left: auto;
@@ -212,7 +225,9 @@
   text-overflow: clip;
   white-space: nowrap;
   box-sizing: border-box;
-  cursor: text;
+  cursor: pointer;
+  text-align: center;
+  field-sizing: content;
 }
 
 #daily-report-view-table_wrapper .dataTables_length {

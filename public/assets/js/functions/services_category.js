@@ -8,8 +8,15 @@ function escapeForInline(value) {
 var servicesCategoryDataTable;
 
 function refreshFnbHotelServiceTypeDropdowns() {
+	if (typeof window.refreshFnbHotelCategoryUi === 'function') {
+		window.refreshFnbHotelCategoryUi();
+		return;
+	}
 	if (typeof window.refreshServiceCategorySelects === 'function') {
 		window.refreshServiceCategorySelects();
+	}
+	if (typeof window.renderFnbHotelFilterTabs === 'function') {
+		window.renderFnbHotelFilterTabs();
 	}
 }
 

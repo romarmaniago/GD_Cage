@@ -9,6 +9,25 @@
       </div>
 
       <div class="modal-body">
+        <div class="row mb-2 g-2 align-items-center total-chips-top-date-row">
+          <div class="col-auto total-chips-history-date-wrap">
+            <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
+              placeholder="Select date range" autocomplete="off" />
+          </div>
+          <div class="col-auto total-chips-program-date-wrap">
+            <input
+              type="text"
+              id="totalChipsProgramDate"
+              name="txtProgramDate"
+              form="add_junket_total_chips"
+              class="form-control input-program-date"
+              placeholder="<%= __('dashboard_total_chips.program_date') %>"
+              autocomplete="off"
+              required
+            />
+          </div>
+        </div>
+
         <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
           <%
             function sumServiceTotals(rows) {
@@ -94,21 +113,6 @@
                 <div class="total-chips-ref-label">CC Chips</div>
                 <div class="total-chips-ref-value total-chips-ref-value--cc" id="ccbalance-display"><%= refCcBalStr %></div>
               </div>
-            </div>
-          </div>
-
-          <!-- Program Date -->
-          <div class="row mb-2">
-            <div class="col-auto total-chips-program-date-wrap">
-              <input
-                type="text"
-                id="totalChipsProgramDate"
-                name="txtProgramDate"
-                class="form-control input-program-date"
-                placeholder="<%= __('dashboard_total_chips.program_date') %>"
-                autocomplete="off"
-                required
-              />
             </div>
           </div>
 
@@ -230,14 +234,6 @@
 
         <hr style="border: none; border-top: 0.2rem solid black; margin-top: 20px; margin-bottom: 20px;">
         
-        <!-- History Section -->
-        <div class="row mb-3">
-          <div class="col-sm-4">
-            <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
-                placeholder="Select date range" autocomplete="off" />
-          </div>
-        </div>
-
         <table id="total-chips-history-tbl" class="table table-bordered table-responsive"
             style="font-size: 13px !important;">
           <thead>
@@ -302,6 +298,22 @@
 <style>
   .modal-lg {
     max-width: 90% !important;
+  }
+
+  #modal-new-total-chips .total-chips-top-date-row {
+    flex-wrap: wrap;
+  }
+
+  #modal-new-total-chips .total-chips-history-date-wrap input,
+  #modal-new-total-chips .total-chips-history-date-wrap .flatpickr-alt-input {
+    width: 14rem;
+    min-width: 14rem;
+    max-width: 14rem;
+    font-size: 0.875rem;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
   }
 
   #modal-new-total-chips .total-chips-program-date-wrap input,
@@ -782,21 +794,39 @@ $(document).ready(function() {
     const dateRange = $('#total-chips-daterange').val();
     console.log('Total Chips History Date Range:', dateRange);
 
-    if (!dateRange) {
+    const resolved = window.MonthEndCutoffRange
+      ? window.MonthEndCutoffRange.resolveRangeFromPicker(dateRange, 'total-chips-daterange')
+      : null;
+
+    let startNorm;
+    let endNorm;
+    let endDisplay;
+    if (resolved) {
+      startNorm = resolved.start;
+      endNorm = resolved.end;
+      endDisplay = resolved.endDisplay;
+    } else {
+      if (!dateRange) {
+        alert('Please select a date range.');
+        return;
+      }
+      let startDate;
+      let endDate;
+      if (dateRange.indexOf(" to ") > -1) {
+        [startDate, endDate] = dateRange.split(" to ");
+      } else {
+        startDate = dateRange;
+        endDate = dateRange;
+      }
+      startNorm = window.parseToYmd(startDate) || (startDate || '').trim();
+      endNorm = window.parseToYmd(endDate) || (endDate || '').trim();
+      endDisplay = endNorm;
+    }
+
+    if (!startNorm || !endNorm) {
       alert('Please select a date range.');
       return;
     }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-      [startDate, endDate] = dateRange.split(" to ");
-    } else {
-      startDate = dateRange;
-      endDate = dateRange;
-    }
-    // Normalize to YYYY-MM-DD for API and period check (flatpickr may return altFormat)
-    const startNorm = window.parseToYmd(startDate) || (startDate || '').trim();
-    const endNorm = window.parseToYmd(endDate) || (endDate || '').trim();
     console.log('Total Chips History Start:', startNorm, 'End:', endNorm);
 
     // Destroy existing DataTable instance if it exists
@@ -953,7 +983,7 @@ $(document).ready(function() {
             }
           });
           // Ibawas ang nn_cashout kung period tapos na (end <= today) at may month_settle record
-          const isPeriodEnded = endNorm && window.isDateSameOrBefore(endNorm);
+          const isPeriodEnded = endDisplay && window.isDateSameOrBefore(endDisplay);
           const nnSettle = parseFloat(periodSettle && periodSettle.nn_cashout) || 0;
           const netTotal = isPeriodEnded ? Math.max(0, total - nnSettle) : total;
           $('#total-chips-amount-sum').text(netTotal.toLocaleString('en-US'));

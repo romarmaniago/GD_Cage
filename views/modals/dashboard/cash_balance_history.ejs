@@ -132,16 +132,17 @@ $(document).ready(function() {
 
   function loadCashBalanceHistory(type) {
     const range = $('#cash-balance-daterange').val();
-    if (!range) return;
     const apiRange = window.MonthEndCutoffRange
-      ? window.MonthEndCutoffRange.parseRangeToApiDates(range)
+      ? window.MonthEndCutoffRange.resolveRangeFromPicker(range, 'cash-balance-daterange')
       : (() => {
+          if (!range) return { start: '', end: '' };
           let [start, end] = range.split(' to ');
           if (!end) end = start;
           return { start, end };
         })();
     const start = apiRange.start;
     const end = apiRange.end;
+    if (!start || !end) return;
     if ($.fn.DataTable.isDataTable('#cash-balance-history-tbl')) {
       $('#cash-balance-history-tbl').DataTable().destroy();
     }

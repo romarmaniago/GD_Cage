@@ -40,6 +40,17 @@ async function ensureHouseExpenseApprovalSchema(pool) {
         );
         console.log('[junket_house_expense] Added column KM_L');
     }
+
+    if (!(await columnExists(pool, 'junket_house_expense', 'CREATED_DT'))) {
+        await pool.execute(
+            'ALTER TABLE junket_house_expense ADD COLUMN CREATED_DT DATETIME NULL DEFAULT NULL AFTER ENCODED_DT'
+        );
+        console.log('[junket_house_expense] Added column CREATED_DT');
+    }
+
+    await pool.execute(
+        'UPDATE junket_house_expense SET CREATED_DT = ENCODED_DT WHERE CREATED_DT IS NULL AND ENCODED_DT IS NOT NULL'
+    );
 }
 
 module.exports = {
