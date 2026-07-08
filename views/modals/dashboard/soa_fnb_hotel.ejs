@@ -1,0 +1,73 @@
+<div class="modal fade" id="modal-dash-soa-fnb-hotel" tabindex="-1" aria-labelledby="modal-dash-soa-fnb-hotel-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content">
+      <div class="modal-header bg-primary py-2">
+        <h5 class="modal-title text-white mb-0" id="modal-dash-soa-fnb-hotel-label">SOA (F&amp;B, Hotel)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="dash-soa-fnb-hotel-form">
+        <div class="modal-body py-3">
+          <input type="hidden" id="dash-soa-date-from">
+          <input type="hidden" id="dash-soa-date-to">
+
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-auto">
+              <label class="form-label small text-muted mb-1">Period</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-period-label" readonly tabindex="-1" value="—" style="min-width: 170px;">
+            </div>
+            <div class="col">
+              <label for="dash-soa-amount" class="form-label small text-muted mb-1">Add SOA Amount</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-striped mb-0" id="dash-soa-history-tbl">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th class="text-end">Amount</th>
+                  <th class="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="dash-soa-history-body">
+                <tr>
+                  <td colspan="3" class="text-muted text-center py-3">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="modal-footer py-2">
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-dash-soa-fnb-hotel-edit" tabindex="-1" aria-labelledby="modal-dash-soa-fnb-hotel-edit-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-primary py-2">
+        <h5 class="modal-title text-white mb-0" id="modal-dash-soa-fnb-hotel-edit-label">Edit Amount</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="dash-soa-edit-form">
+        <div class="modal-body py-3">
+          <input type="hidden" id="dash-soa-edit-id">
+          <label for="dash-soa-edit-amount" class="form-label small text-muted mb-1">Amount</label>
+          <input type="text" class="form-control form-control-sm" id="dash-soa-edit-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
