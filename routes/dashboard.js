@@ -9,7 +9,7 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
-const ExcelJS = require('exceljs');
+const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
 const {
 	getMarkerDataBreakdownSql,
 	getMarkerGrandTotalSql
@@ -2818,110 +2818,22 @@ router.get('/marker_history', async (req, res) => {
 	}
 });
 
-function coerceMarkerHistoryExportCell(raw) {
-	if (raw == null || raw === '') return '';
-	if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
-	let s = String(raw).trim();
-	s = s.replace(/^\u20B1\s*/, '').replace(/^PHP\s*/i, '').trim();
-	if (/[a-zA-Z]/.test(s)) return s;
-	if (/%/.test(s)) return s;
-	const normalized = s.replace(/,/g, '');
-	if (normalized === '' || normalized === '-' || normalized === '+') return s;
-	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
-	const n = Number(normalized);
-	return Number.isFinite(n) ? n : s;
-}
-
-function sanitizeMarkerExportSheetName(raw) {
-	if (raw == null || typeof raw !== 'string') return '';
-	let s = raw.trim().replace(/[\]\[\\\/\?\*:]/g, '');
-	if (s.length > 31) s = s.slice(0, 31);
-	return s;
-}
-
 router.post('/marker_history/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename, sheetName } = req.body || {};
-		if (!Array.isArray(headers) || headers.length === 0) {
-			return res.status(400).json({ error: 'Invalid headers' });
-		}
-		if (!Array.isArray(rows)) {
-			return res.status(400).json({ error: 'Invalid rows' });
-		}
-		const MAX_ROWS = 10000;
-		if (rows.length > MAX_ROWS) {
-			return res.status(400).json({ error: 'Too many rows' });
-		}
-		const ncol = headers.length;
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-
-		const workbook = new ExcelJS.Workbook();
-		const sheetTitle = sanitizeMarkerExportSheetName(sheetName) || 'Credit History';
-		const ws = workbook.addWorksheet(sheetTitle, {
-			views: [{ state: 'frozen', ySplit: 1 }]
+		const { headers, rows, filename, sheetName, profileKey } = req.body || {};
+		const ncol = Array.isArray(headers) ? headers.length : 0;
+		const key = profileKey || (ncol === 2 ? 'markerBalance' : 'markerHistory');
+		const defaultName = key === 'markerBalance' ? 'CreditBalance-export.xlsx' : 'CreditHistory-export.xlsx';
+		const result = await buildTableExportXlsx({
+			profileKey: key,
+			sheetName: sanitizeSheetName(sheetName) || (key === 'markerBalance' ? 'Credit Balance' : 'Credit History'),
+			headers,
+			rows,
+			filename: filename || defaultName
 		});
-
-		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
-		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
-			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			cell.border = thinBorder;
-			cell.fill = {
-				type: 'pattern',
-				pattern: 'solid',
-				fgColor: { argb: 'FFD9E1F2' }
-			};
-		});
-
-		rows.forEach((r) => {
-			const arr = Array.isArray(r) ? r : [];
-			const padded = Array.from({ length: ncol }, (_, i) => {
-				const v = arr[i];
-				if (v == null || v === '') return '';
-				return coerceMarkerHistoryExportCell(v);
-			});
-			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell) => {
-				cell.border = thinBorder;
-				cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			});
-		});
-
-		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
-			for (let ri = 0; ri < rows.length; ri++) {
-				const row = rows[ri];
-				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
-				if (L > m) m = L;
-			}
-			return Math.min(48, Math.max(10, m + 2));
-		});
-		for (let i = 1; i <= ncol; i++) {
-			const col = ws.getColumn(i);
-			col.width = colMaxLens[i - 1];
-			col.alignment = { horizontal: 'center', vertical: 'middle' };
-		}
-
-		applyCommaThousandsToNumericCells(ws);
-
-		const buffer = await workbook.xlsx.writeBuffer();
-		let outName = 'CreditHistory-export.xlsx';
-		if (filename && typeof filename === 'string') {
-			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
-			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
-			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
-		}
-		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
-		return res.send(Buffer.from(buffer));
+		return sendTableExportResponse(res, result);
 	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('marker_history/export_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}

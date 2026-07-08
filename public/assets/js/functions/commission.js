@@ -1426,7 +1426,7 @@ $(document).ready(function() {
     $('#btn-commission-export').on('click', function (e) {
         e.preventDefault();
         if (!$.fn.DataTable.isDataTable('#commission-tbl')) return;
-        var payload = getCommissionTablePayload(true);
+        var payload = getCommissionTablePayload(false);
         var headers = payload.headers;
         var rows = payload.rows;
         var t = window.commissionTranslations || {};

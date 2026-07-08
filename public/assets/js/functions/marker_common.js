@@ -481,9 +481,6 @@
                 if (Number.isFinite(balNum)) sum += balNum;
                 rows.push([name, Number.isFinite(balNum) ? balNum : balText]);
             });
-            if (rows.length > 0) {
-                rows.push([t.total || 'Total', sum]);
-            }
             if (rows.length === 0) {
                 if (window.Swal) {
                     window.Swal.fire({
@@ -511,7 +508,8 @@
                     headers: headers,
                     rows: rows,
                     filename: outName,
-                    sheetName: sheetLabel
+                    sheetName: sheetLabel,
+                    profileKey: 'markerBalance'
                 })
             })
                 .then(function (res) {
@@ -605,7 +603,8 @@
                     headers: headers,
                     rows: rows,
                     filename: outName,
-                    sheetName: options.sheetName || 'Credit History'
+                    sheetName: options.sheetName || 'Credit History',
+                    profileKey: 'markerHistory'
                 })
             })
                 .then(function (res) {

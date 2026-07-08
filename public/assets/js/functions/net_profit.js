@@ -254,7 +254,7 @@
 		return formatDisplayDatePlain(raw);
 	}
 
-	function buildExportPayload(payload) {
+function buildExportPayload(payload, includeTotal) {
 		const monthly = (payload.view || viewMode) === 'monthly';
 		const pct =
 			payload.house_share_pct != null && !Number.isNaN(Number(payload.house_share_pct))
@@ -283,17 +283,19 @@
 				r.grand_net_profit
 			]);
 		}
-		const t = payload.range_totals || {};
-		rows.push([
-			'TOTAL',
-			t.game_count != null ? t.game_count : '',
-			t.win_loss,
-			fmtPct(t.share_percentage != null ? t.share_percentage : pct),
-			t.casino_share,
-			t.commission,
-			t.house_expenses_settled,
-			t.grand_net_profit
-		]);
+		if (includeTotal) {
+			const t = payload.range_totals || {};
+			rows.push([
+				'TOTAL',
+				t.game_count != null ? t.game_count : '',
+				t.win_loss,
+				fmtPct(t.share_percentage != null ? t.share_percentage : pct),
+				t.casino_share,
+				t.commission,
+				t.house_expenses_settled,
+				t.grand_net_profit
+			]);
+		}
 		return { headers, rows };
 	}
 
@@ -305,7 +307,7 @@
 			const res = await fetch(`/net_profit_data?${q}`, { credentials: 'same-origin' });
 			const payload = await res.json();
 			if (!payload.success) throw new Error(payload.error || 'Request failed');
-			const { headers, rows } = buildExportPayload(payload);
+			const { headers, rows } = buildExportPayload(payload, false);
 			const viewSuffix = isMonthlyView() ? 'Monthly' : 'Daily';
 			const filename = `NetProfit_${viewSuffix}_${getExportFilenameSuffix()}.xlsx`;
 			const exportRes = await fetch('/net_profit/export_xlsx', {
@@ -360,7 +362,7 @@
 	}
 
 	function printPayload(payload) {
-		const { headers, rows } = buildExportPayload(payload);
+		const { headers, rows } = buildExportPayload(payload, true);
 		if (!(payload.rows || []).length) {
 			if (typeof Swal !== 'undefined') {
 				Swal.fire({ icon: 'info', title: 'Print', text: 'No rows to print.' });

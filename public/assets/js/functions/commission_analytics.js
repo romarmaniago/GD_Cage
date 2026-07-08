@@ -217,13 +217,13 @@ $(document).ready(function () {
         return 'CommissionTransactions-' + agentName + '.xlsx';
     }
 
-    function downloadCommissionXlsx(headers, rows, filename, $btn) {
+    function downloadCommissionXlsx(headers, rows, filename, $btn, profileKey) {
         $btn.prop('disabled', true);
         fetch('/commission/export_xlsx', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ headers: headers, rows: rows, filename: filename })
+            body: JSON.stringify({ headers: headers, rows: rows, filename: filename, profileKey: profileKey })
         })
             .then(function (res) {
                 if (!res.ok) {
@@ -348,6 +348,14 @@ $(document).ready(function () {
             headers: headers,
             rows: rows
         };
+    }
+
+    function getCommissionPanelModalExportPayload() {
+        var payload = getCommissionPanelModalPayload();
+        if (payload.rows.length && String(payload.rows[payload.rows.length - 1][0] || '').toLowerCase().indexOf('grand total') !== -1) {
+            payload.rows = payload.rows.slice(0, -1);
+        }
+        return payload;
     }
 
     function notifyNoCommissionAnalyticsRows(title) {
@@ -901,7 +909,7 @@ $(document).ready(function () {
 
         var outName = getCommissionAnalyticsExportFilename();
         var $btn = $(this);
-        downloadCommissionXlsx(headers, rows, outName, $btn);
+        downloadCommissionXlsx(headers, rows, outName, $btn, 'commissionAnalytics');
     });
 
     $('#btn-commission-analytics-print').on('click', function (e) {
@@ -911,12 +919,12 @@ $(document).ready(function () {
 
     $('#btn-commission-panel-modal-export').on('click', function (e) {
         e.preventDefault();
-        var payload = getCommissionPanelModalPayload();
+        var payload = getCommissionPanelModalExportPayload();
         if (payload.rows.length === 0) {
             notifyNoCommissionPanelModalRows('Export');
             return;
         }
-        downloadCommissionXlsx(payload.headers, payload.rows, getCommissionPanelModalExportFilename(), $(this));
+        downloadCommissionXlsx(payload.headers, payload.rows, getCommissionPanelModalExportFilename(), $(this), 'commissionPanelModal');
     });
 
     $('#btn-commission-panel-modal-print').on('click', function (e) {

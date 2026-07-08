@@ -38,9 +38,7 @@ function requireSuperAdmin(req, res, next) {
 
 const superAdminOnly = [checkSession, requireSuperAdmin];
 
-const path = require('path');
-const ExcelJS = require('exceljs');
-const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
 
 const MAX_RANGE_DAYS = 400;
 
@@ -1162,138 +1160,20 @@ router.post('/net_profit/share_percentage/month', superAdminOnly, async (req, re
 
 
 
-function coerceNetProfitExportCell(raw) {
-	if (raw == null || raw === '') return '';
-	if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
-	let s = String(raw).trim();
-	s = s.replace(/^\u20B1\s*/, '').replace(/^PHP\s*/i, '').trim();
-	if (/[a-zA-Z]/.test(s)) return s;
-	if (/%/.test(s)) return s;
-	const normalized = s.replace(/,/g, '');
-	if (normalized === '' || normalized === '-' || normalized === '+') return s;
-	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
-	const n = Number(normalized);
-	return Number.isFinite(n) ? n : s;
-}
-
-function sanitizeNetProfitSheetName(raw) {
-	if (raw == null || typeof raw !== 'string') return '';
-	let s = raw.trim().replace(/[\]\[\\\/\?\*:]/g, '');
-	if (s.length > 31) s = s.slice(0, 31);
-	return s;
-}
-
 router.post('/net_profit/export_xlsx', superAdminOnly, async function (req, res) {
 	try {
 		const { headers, rows, filename, sheetName } = req.body || {};
-		if (!Array.isArray(headers) || headers.length === 0) {
-			return res.status(400).json({ error: 'Invalid headers' });
-		}
-		if (!Array.isArray(rows)) {
-			return res.status(400).json({ error: 'Invalid rows' });
-		}
-		const MAX_ROWS = 2000;
-		if (rows.length > MAX_ROWS) {
-			return res.status(400).json({ error: 'Too many rows' });
-		}
-		const ncol = headers.length;
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-		const fillHeader = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFD9E1F2' }
-		};
-		const fillTotalRow = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFFFF3CD' }
-		};
-		const fillZebra = {
-			type: 'pattern',
-			pattern: 'solid',
-			fgColor: { argb: 'FFF5F5F5' }
-		};
-
-		const workbook = new ExcelJS.Workbook();
-		const sheetTitle = sanitizeNetProfitSheetName(sheetName) || 'Net profit';
-		const ws = workbook.addWorksheet(sheetTitle, {
-			views: [{ state: 'frozen', ySplit: 1 }]
+		const result = await buildTableExportXlsx({
+			profileKey: 'netProfit',
+			sheetName: sanitizeSheetName(sheetName) || 'Net profit',
+			headers,
+			rows,
+			filename: filename || 'NetProfit-export.xlsx',
+			maxRows: 2000
 		});
-
-		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
-		headerRow.height = 22;
-		headerRow.eachCell((cell, colNumber) => {
-			cell.font = { bold: true };
-			cell.border = thinBorder;
-			cell.fill = fillHeader;
-			const colIdx = colNumber - 1;
-			cell.alignment =
-				colIdx === 0
-					? { vertical: 'middle', horizontal: 'left', wrapText: true }
-					: { vertical: 'middle', horizontal: 'right', wrapText: true };
-		});
-
-		rows.forEach((r, rowIdx) => {
-			const arr = Array.isArray(r) ? r : [];
-			const padded = Array.from({ length: ncol }, (_, i) => {
-				const v = arr[i];
-				if (v == null || v === '') return '';
-				return coerceNetProfitExportCell(v);
-			});
-			const firstCell = arr[0];
-			const isTotal = firstCell != null && String(firstCell).trim().toUpperCase() === 'TOTAL';
-			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell, colNumber) => {
-				cell.border = thinBorder;
-				const colIdx = colNumber - 1;
-				if (colIdx === 0) {
-					cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-				} else {
-					cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
-				}
-				if (isTotal) {
-					cell.fill = fillTotalRow;
-					cell.font = { bold: true };
-					return;
-				}
-				if (rowIdx % 2 === 1) {
-					cell.fill = fillZebra;
-				}
-			});
-		});
-
-		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
-			for (let ri = 0; ri < rows.length; ri++) {
-				const row = rows[ri];
-				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
-				if (L > m) m = L;
-			}
-			return Math.min(48, Math.max(10, m + 2));
-		});
-		for (let i = 1; i <= ncol; i++) {
-			ws.getColumn(i).width = colMaxLens[i - 1];
-		}
-
-		applyCommaThousandsToNumericCells(ws);
-
-		const buffer = await workbook.xlsx.writeBuffer();
-		let outName = 'NetProfit-export.xlsx';
-		if (filename && typeof filename === 'string') {
-			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
-			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
-			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
-		}
-		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
-		return res.send(Buffer.from(buffer));
+		return sendTableExportResponse(res, result);
 	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('net_profit/export_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}

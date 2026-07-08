@@ -2449,7 +2449,6 @@ $(document).ready(function () {
         var headers = ['Name', 'In-Charge', 'Description', 'Amount', 'Date & Time'];
         var rows = data.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
-            var formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             var enc = row.ENCODED_DT
                 ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
                 : '';
@@ -2457,7 +2456,7 @@ $(document).ready(function () {
                 row.expense_category || 'N/A',
                 row.DESCRIPTION || row.OIC || '-',
                 houseExpenseItemDescriptionColumnText(row),
-                formattedAmount,
+                amount,
                 enc
             ];
         });

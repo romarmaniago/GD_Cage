@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
 const ExcelJS = require('exceljs');
+const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
 
 const mysql2 = require('mysql2/promise');
@@ -3149,245 +3150,39 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
 	});
 });
 
-function coerceJunketXlsxNumericCell(raw) {
-	if (raw == null || raw === '') return '';
-	let s = String(raw).trim();
-	s = s.replace(/^\u20B1\s*/, '').replace(/^PHP\s*/i, '').trim();
-	if (/[a-zA-Z]/.test(s)) return s;
-	if (/%/.test(s)) return s;
-	const normalized = s.replace(/,/g, '');
-	if (normalized === '' || normalized === '-' || normalized === '+') return s;
-	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
-	const n = Number(normalized);
-	return Number.isFinite(n) ? n : s;
-}
-
-function houseExpenseExportBodyAlignment(header) {
-	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
-	if (h.includes('AMOUNT')) {
-		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
-	}
-	return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: false };
-}
-
-function houseExpenseExportDisplayWidth(value) {
-	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
-		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
-	}, 0);
-}
-
 /** Client sends rows without ACTION (last column). */
 pageRouter.post('/house_expense/export_xlsx', checkSession, async function (req, res) {
 	try {
 		const { headers, rows, filename } = req.body || {};
-		if (!Array.isArray(headers) || headers.length === 0) {
-			return res.status(400).json({ error: 'Invalid headers' });
-		}
-		if (!Array.isArray(rows)) {
-			return res.status(400).json({ error: 'Invalid rows' });
-		}
-		const MAX_ROWS = 10000;
-		if (rows.length > MAX_ROWS) {
-			return res.status(400).json({ error: 'Too many rows' });
-		}
-		const ncol = headers.length;
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-
-		const workbook = new ExcelJS.Workbook();
-		const ws = workbook.addWorksheet('Junket Expenses', {
-			views: [{ state: 'frozen', ySplit: 1 }]
+		const result = await buildTableExportXlsx({
+			profileKey: 'houseExpense',
+			sheetName: 'Junket Expenses',
+			headers,
+			rows,
+			filename: filename || 'Junket_Expenses-export.xlsx'
 		});
-
-		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
-		headerRow.height = 22;
-		headerRow.eachCell((cell, colNumber) => {
-			cell.font = { bold: true };
-			cell.alignment = houseExpenseExportBodyAlignment(headers[colNumber - 1]);
-			cell.border = thinBorder;
-			cell.fill = {
-				type: 'pattern',
-				pattern: 'solid',
-				fgColor: { argb: 'FFD9E1F2' }
-			};
-		});
-
-		rows.forEach((r) => {
-			const arr = Array.isArray(r) ? r : [];
-			const padded = Array.from({ length: ncol }, (_, i) => {
-				const v = arr[i];
-				if (v == null || v === '') return '';
-				return coerceJunketXlsxNumericCell(v);
-			});
-			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell, colNumber) => {
-				cell.border = thinBorder;
-				cell.alignment = houseExpenseExportBodyAlignment(headers[colNumber - 1]);
-			});
-		});
-
-		const colMaxLens = headers.map((h, c) => {
-			const headerText = String(h == null ? '' : h);
-			const upperHeader = headerText.toUpperCase();
-			const isDescription = upperHeader.includes('DESCRIPTION');
-			const isReceiptNo = upperHeader.includes('RECEIPT');
-			const isDateTime = upperHeader.includes('DATE');
-			let m = houseExpenseExportDisplayWidth(headerText);
-			for (let ri = 0; ri < rows.length; ri++) {
-				const row = rows[ri];
-				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = houseExpenseExportDisplayWidth(row[c]);
-				if (L > m) m = L;
-			}
-			const minWidth = isDescription ? 24 : (isReceiptNo || isDateTime ? 18 : 12);
-			const maxWidth = isDescription ? 100 : 60;
-			return Math.min(maxWidth, Math.max(minWidth, m + 4));
-		});
-		for (let i = 1; i <= ncol; i++) {
-			const col = ws.getColumn(i);
-			col.width = colMaxLens[i - 1];
-		}
-
-		applyCommaThousandsToNumericCells(ws);
-
-		const buffer = await workbook.xlsx.writeBuffer();
-		let outName = 'Junket_Expenses-export.xlsx';
-		if (filename && typeof filename === 'string') {
-			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
-			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
-			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
-		}
-		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
-		return res.send(Buffer.from(buffer));
+		return sendTableExportResponse(res, result);
 	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('house_expense/export_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });
 
-/** 1-based column index for ROLLING RATE (Excel percent type = no green "number as text" warning). */
-function commissionExportRollingRateCol1Based(headers) {
-	for (let i = 0; i < (headers || []).length; i++) {
-		const u = String(headers[i] || '').toUpperCase().replace(/\s+/g, ' ');
-		if (u.includes('ROLLING') && u.includes('RATE')) return i + 1;
-	}
-	return 7;
-}
-
-function commissionExportBodyAlignment(header) {
-	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
-	if (h.includes('ACCOUNT NAME') || h.includes('DATE')) {
-		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
-	}
-	if (h.includes('GAME') || h.includes('RANKING')) {
-		return { vertical: 'middle', horizontal: 'center', wrapText: true };
-	}
-	return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
-}
-
 /** Commission table export (all columns; no action column on page). */
 pageRouter.post('/commission/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename } = req.body || {};
-		if (!Array.isArray(headers) || headers.length === 0) {
-			return res.status(400).json({ error: 'Invalid headers' });
-		}
-		if (!Array.isArray(rows)) {
-			return res.status(400).json({ error: 'Invalid rows' });
-		}
-		const MAX_ROWS = 10000;
-		if (rows.length > MAX_ROWS) {
-			return res.status(400).json({ error: 'Too many rows' });
-		}
-		const ncol = headers.length;
-		const rollingRateCol1Based = commissionExportRollingRateCol1Based(headers);
-		const thinBorder = {
-			top: { style: 'thin', color: { argb: 'FF666666' } },
-			left: { style: 'thin', color: { argb: 'FF666666' } },
-			bottom: { style: 'thin', color: { argb: 'FF666666' } },
-			right: { style: 'thin', color: { argb: 'FF666666' } }
-		};
-
-		const workbook = new ExcelJS.Workbook();
-		const ws = workbook.addWorksheet('Commission', {
-			views: [{ state: 'frozen', ySplit: 1 }]
+		const { headers, rows, filename, profileKey } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey,
+			sheetName: 'Commission',
+			headers,
+			rows,
+			filename: filename || 'Commission-export.xlsx'
 		});
-
-		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
-		headerRow.height = 22;
-		headerRow.eachCell((cell) => {
-			cell.font = { bold: true };
-			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-			cell.border = thinBorder;
-			cell.fill = {
-				type: 'pattern',
-				pattern: 'solid',
-				fgColor: { argb: 'FFD9E1F2' }
-			};
-		});
-
-		rows.forEach((r) => {
-			const arr = Array.isArray(r) ? r : [];
-			const padded = Array.from({ length: ncol }, (_, i) => {
-				const v = arr[i];
-				if (v == null || v === '') return '';
-				if (i === rollingRateCol1Based - 1) {
-					const s = String(v).trim();
-					const m = s.match(/^([-+]?[\d,]*\.?\d+)\s*%$/);
-					if (m) {
-						const n = parseFloat(m[1].replace(/,/g, ''));
-						if (Number.isFinite(n)) return n / 100;
-					}
-				}
-				return coerceJunketXlsxNumericCell(v);
-			});
-			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell, colNumber) => {
-				cell.border = thinBorder;
-				cell.alignment = commissionExportBodyAlignment(headers[colNumber - 1]);
-				if (colNumber === rollingRateCol1Based) {
-					const orig = arr[colNumber - 1];
-					const s = orig == null ? '' : String(orig).trim();
-					if (/^[-+]?[\d,]*\.?\d+\s*%$/.test(s) && typeof cell.value === 'number') {
-						cell.numFmt = '0.00%';
-					}
-				}
-			});
-		});
-
-		const colMaxLens = headers.map((h, c) => {
-			let m = String(h == null ? '' : h).length;
-			for (let ri = 0; ri < rows.length; ri++) {
-				const row = rows[ri];
-				if (!Array.isArray(row) || row[c] == null) continue;
-				const L = String(row[c]).length;
-				if (L > m) m = L;
-			}
-			return Math.min(48, Math.max(10, m + 2));
-		});
-		for (let i = 1; i <= ncol; i++) {
-			const col = ws.getColumn(i);
-			col.width = colMaxLens[i - 1];
-		}
-
-		applyCommaThousandsToNumericCells(ws);
-
-		const buffer = await workbook.xlsx.writeBuffer();
-		let outName = 'Commission-export.xlsx';
-		if (filename && typeof filename === 'string') {
-			const base = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
-			if (base && /\.xlsx$/i.test(base)) outName = base.slice(0, 180);
-			else if (base) outName = base.replace(/\.+$/g, '').slice(0, 160) + '.xlsx';
-		}
-		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
-		return res.send(Buffer.from(buffer));
+		return sendTableExportResponse(res, result);
 	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('commission/export_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}

@@ -995,7 +995,6 @@
       });
     };
     collectMatrixRows('tbody tr');
-    collectMatrixRows('tfoot tr');
     if (rows.length === 0) {
       Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export for the current view.' });
       return;
@@ -1033,7 +1032,7 @@
     }
   }
 
-  function getDailyReportMatrixPayload() {
+  function getDailyReportMatrixPayload(includeFooter) {
     const matrixTable = getMatrixTableRefs().table;
     if (!matrixTable) return { headers: [], rows: [] };
     const theadRow = matrixTable.querySelector('thead tr');
@@ -1048,8 +1047,12 @@
       });
     };
     collectMatrixRows('tbody tr');
-    collectMatrixRows('tfoot tr');
+    if (includeFooter !== false) collectMatrixRows('tfoot tr');
     return { headers, rows };
+  }
+
+  function getDailyReportMatrixExportPayload() {
+    return getDailyReportMatrixPayload(false);
   }
 
   function getDailyReportPrintStyles() {
