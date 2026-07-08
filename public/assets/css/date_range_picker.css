@@ -16,11 +16,8 @@
 .fnb-hotel-daterange-wrap,
 .junket-loss-daterange-wrap,
 #daterange-wrapper,
-#manual-daterange-wrapper,
-.house-expense-manual-daterange-wrap,
-.fnb-hotel-manual-daterange-wrap,
-.daily-report-manual-daterange-wrap,
-.junket-loss-manual-daterange-wrap {
+.house-expense-split-daterange,
+[id$="-split-daterange-wrapper"] {
 	width: auto;
 	min-width: 0;
 	max-width: none;
@@ -55,11 +52,23 @@
 .fnb-hotel-daterange-wrap .flatpickr-input.form-control,
 .junket-loss-daterange-wrap input.form-control,
 .junket-loss-daterange-wrap .flatpickr-input.form-control,
-#modal-new-capital .hb-field-daterange-wrap input,
-#manual-daterange-wrapper input.house-expense-manual-daterange-input,
-#fnb-hotel-manual-daterange.fnb-hotel-manual-daterange-input,
-#junket-loss-manual-daterange.junket-loss-manual-daterange-input,
-#daily-report-list-manual-daterange.daily-report-manual-daterange-input,
+#modal-new-capital .hb-field-daterange-wrap input {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+.house-expense-split-daterange .flatpickr-wrapper,
+[id$="-split-daterange-wrapper"] .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+.house-expense-split-daterange input.house-expense-split-date-input,
+.house-expense-split-daterange .flatpickr-input.form-control,
+[id$="-split-daterange-wrapper"] input.split-date-input,
+[id$="-split-daterange-wrapper"] .flatpickr-input.form-control,
 #daterange-wrapper input.form-control,
 input.fp-auto-range-width,
 input.flatpickr-input.fp-auto-range-width {

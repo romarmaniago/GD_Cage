@@ -737,109 +737,16 @@ $(document).ready(function() {
         return getCommissionDateRangeValue();
     }
 
-    var commissionManualDateLastApplied = '';
+    var commissionSplitDateRange = (window.SplitDateRange && SplitDateRange.attach({
+        rangePickerId: 'commission-daterange',
+        startId: 'commission-start-date',
+        endId: 'commission-end-date',
+        splitWrapperId: 'commission-split-daterange-wrapper',
+        invalidDateMessage: window.commissionTranslations?.invalid_date || 'Invalid date range.'
+    })) || { syncFromRange: function () {}, isSyncing: function () { return false; } };
 
-    function getCommissionManualDateInput() {
-        return document.getElementById('commission-manual-daterange');
-    }
-
-    function getCommissionManualDateRangeRaw() {
-        return ($('#commission-manual-daterange').val() || '').trim();
-    }
-
-    function fitCommissionManualInputWidth() {
-        var el = getCommissionManualDateInput();
-        if (!el) {
-            return;
-        }
-        var text = (el.value || '').trim();
-        if (!text) {
-            text = (el.getAttribute('placeholder') || '').trim();
-        }
-        if (!text) {
-            text = 'Jun 30, 2026 to Jul 30, 2026';
-        }
-        var pad = 20;
-        var widthPx = 160;
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
-            window.MonthEndCutoffRange.fitRangeInputWidth(el);
-            widthPx = parseInt(el.style.width, 10) || widthPx;
-        }
-        if (window.MonthEndCutoffRange && typeof document !== 'undefined') {
-            var measurer = document.getElementById('fp-range-width-measurer');
-            if (measurer) {
-                var style = window.getComputedStyle(el);
-                measurer.style.fontFamily = style.fontFamily;
-                measurer.style.fontSize = style.fontSize;
-                measurer.style.fontWeight = style.fontWeight;
-                measurer.style.letterSpacing = style.letterSpacing;
-                measurer.textContent = text;
-                widthPx = Math.max(measurer.offsetWidth + pad, widthPx);
-            }
-        }
-        el.style.setProperty('width', widthPx + 'px', 'important');
-        el.style.setProperty('min-width', widthPx + 'px', 'important');
-        var wrap = el.closest('.commission-manual-daterange-wrap');
-        if (wrap) {
-            wrap.style.width = widthPx + 'px';
-            wrap.style.minWidth = widthPx + 'px';
-        }
-    }
-
-    function syncCommissionManualFromFlatpickr() {
-        if (!flatpickrInstance) {
-            return;
-        }
-        var label = getCommissionDateRangeLabel();
-        if (!label) {
-            return;
-        }
-        $('#commission-manual-daterange').val(label);
-        commissionManualDateLastApplied = label;
-        fitCommissionManualInputWidth();
-    }
-
-    function applyCommissionManualDateRange() {
-        var raw = getCommissionManualDateRangeRaw();
-        if (!raw) {
-            return false;
-        }
-        if (raw === commissionManualDateLastApplied) {
-            return true;
-        }
-        var start;
-        var end;
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
-            var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
-            start = apiRange.start;
-            end = apiRange.end;
-        } else if (raw.includes(' to ')) {
-            var parts = raw.split(' to ');
-            start = (parts[0] || '').trim();
-            end = (parts[1] || '').trim();
-        } else {
-            start = raw;
-            end = raw;
-        }
-        if (!start || !end) {
-            alert(window.commissionTranslations?.invalid_date || 'Invalid date.');
-            return false;
-        }
-        var startDate = parseCommissionIsoDateLocal(start);
-        var endDate = parseCommissionIsoDateLocal(end);
-        if (!startDate || !endDate || endDate < startDate) {
-            alert(window.commissionTranslations?.invalid_date || 'Invalid date range.');
-            return false;
-        }
-        commissionManualDateLastApplied = raw;
-        if (flatpickrInstance) {
-            flatpickrInstance.setDate([startDate, endDate], false);
-            if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
-                window.MonthEndCutoffRange.fitRangePickerInstance(flatpickrInstance);
-            }
-        }
-        reloadData();
-        return true;
+    function syncCommissionSplitFromFlatpickr() {
+        commissionSplitDateRange.syncFromRange();
     }
 
     // Initialize Flatpickr for date range
@@ -852,6 +759,7 @@ $(document).ready(function() {
             if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                 window.setupFlatpickrMonthNameRangeSelect(instance);
             }
+            setTimeout(syncCommissionSplitFromFlatpickr, 0);
         },
         onOpen: function (selectedDates, dateStr, instance) {
             jumpCommissionRangeToCurrentThreeMonths(instance);
@@ -863,23 +771,20 @@ $(document).ready(function() {
             if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
                 window.styleFlatpickrMonthNameClickable(instance);
             }
+        },
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                if (!commissionSplitDateRange.isSyncing()) {
+                    syncCommissionSplitFromFlatpickr();
+                }
+                reloadData();
+            }
         }
     }) : null;
 
     if (flatpickrInstance) {
-        setTimeout(syncCommissionManualFromFlatpickr, 0);
+        setTimeout(syncCommissionSplitFromFlatpickr, 0);
     }
-
-    $(document).on('keydown', '#commission-manual-daterange', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            applyCommissionManualDateRange();
-        }
-    });
-
-    $(document).on('input', '#commission-manual-daterange', function () {
-        fitCommissionManualInputWidth();
-    });
 
     // Destroy existing DataTable if already initialized
     if ($.fn.DataTable.isDataTable('#commission-tbl')) {
@@ -1221,7 +1126,7 @@ $(document).ready(function() {
         var end = parseCommissionIsoDateLocal(to);
         if (!start || !end) return;
         flatpickrInstance.setDate([start, end], false);
-        syncCommissionManualFromFlatpickr();
+        syncCommissionSplitFromFlatpickr();
     }
 
     function applyCommissionDefaultDateRange() {
@@ -1230,7 +1135,7 @@ $(document).ready(function() {
             var range = window.MonthEndCutoffRange.getMonthEndCutoffRange();
             if (range && range.defaultDate && range.defaultDate.length === 2) {
                 flatpickrInstance.setDate(range.defaultDate, false);
-                syncCommissionManualFromFlatpickr();
+                syncCommissionSplitFromFlatpickr();
                 return;
             }
         }
@@ -1238,7 +1143,7 @@ $(document).ready(function() {
         var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         flatpickrInstance.setDate([monthStart, monthEnd], false);
-        syncCommissionManualFromFlatpickr();
+        syncCommissionSplitFromFlatpickr();
     }
 
     window.setCommissionDateRange = setCommissionDateRange;
@@ -1263,16 +1168,6 @@ $(document).ready(function() {
             placeCommissionDateFilter();
             placeCommissionCompareToolbar();
             placeCommissionCompareSelection();
-        });
-    }
-
-    // Reload data when date range changes (use 'close' event instead of 'change' to avoid multiple triggers)
-    if (flatpickrInstance && flatpickrInstance.config) {
-        flatpickrInstance.config.onClose.push(function (selectedDates) {
-            if (selectedDates.length === 2) {
-                syncCommissionManualFromFlatpickr();
-                reloadData();
-            }
         });
     }
 

@@ -281,14 +281,27 @@
 	box-sizing: border-box;
 }
 
-.commission-manual-daterange-wrap {
+.commission-split-daterange,
+.house-expense-split-daterange {
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
 	min-width: 0;
+	gap: 0.5rem;
+	flex-wrap: nowrap;
 }
 
-.commission-manual-daterange-wrap.commission-daterange-wrap input.form-control.commission-manual-daterange-input {
+.commission-split-daterange .flatpickr-wrapper,
+.house-expense-split-daterange .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+.commission-split-daterange input.split-date-input,
+.commission-split-daterange .flatpickr-input.form-control,
+.house-expense-split-daterange input.split-date-input,
+.house-expense-split-daterange .flatpickr-input.form-control {
 	display: inline-block;
 	position: static;
 	left: auto;
@@ -303,7 +316,9 @@
 	text-overflow: clip;
 	white-space: nowrap;
 	box-sizing: border-box;
-	cursor: text;
+	cursor: pointer;
+	text-align: center;
+	field-sizing: content;
 }
 
 #commission-tbl thead th:nth-child(1) {

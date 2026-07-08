@@ -21,6 +21,26 @@
 		margin-bottom: 0.75rem;
 	}
 
+	#modal-new-capital .house-balance-date-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px;
+	}
+
+	#modal-new-capital .house-balance-filter-row .hb-field-daterange-wrap,
+	#modal-new-capital .house-balance-filter-row .hb-field-program-date-wrap {
+		flex: 0 0 auto;
+		width: auto;
+		min-width: 0;
+	}
+
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-wrapper {
+		display: inline-block;
+		width: auto;
+		min-width: 0;
+	}
+
 	#modal-new-capital .house-balance-form-row {
 		margin-bottom: 0.5rem;
 	}
@@ -33,7 +53,8 @@
 	}
 
 	#modal-new-capital .hb-field-daterange-wrap input,
-	#modal-new-capital .hb-field-program-date-wrap input {
+	#modal-new-capital .hb-field-daterange-wrap .flatpickr-alt-input,
+	#modal-new-capital .hb-field-daterange-wrap .flatpickr-input.form-control {
 		width: auto;
 		min-width: 10rem;
 		max-width: none;
@@ -42,6 +63,21 @@
 		text-overflow: clip;
 		white-space: nowrap;
 		box-sizing: border-box;
+	}
+
+	#modal-new-capital .hb-field-program-date-wrap input,
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-alt-input,
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-input.form-control {
+		width: auto;
+		min-width: 0;
+		max-width: none;
+		font-size: 0.875rem;
+		overflow: visible;
+		text-overflow: clip;
+		white-space: nowrap;
+		box-sizing: border-box;
+		text-align: center;
+		field-sizing: content;
 	}
 
 	#capital-tbl {
@@ -163,15 +199,19 @@ border-top: 2px solid #dee2e6;
 					
 					<div class="modal-body">
 						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
-							<div class="row g-2 align-items-center house-balance-filter-row">
-								<div class="col-auto hb-field-daterange-wrap">
-									<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+							<div class="row house-balance-filter-row">
+								<div class="col-12">
+									<div class="house-balance-date-controls">
+										<div class="hb-field-daterange-wrap">
+											<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+										</div>
+										<div class="hb-field-program-date-wrap">
+											<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
+										</div>
+									</div>
 								</div>
 							</div>
 							<div class="row g-2 align-items-center house-balance-form-row">
-								<div class="col-auto hb-field-program-date-wrap">
-									<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
-								</div>
 								<div class="col-auto">
 									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
 								</div>
@@ -305,6 +345,12 @@ border-top: 2px solid #dee2e6;
 				});
 		}
 
+		function fitCapitalProgramDatePicker(instance) {
+			if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitSingleDatePickerInstance === 'function') {
+				window.MonthEndCutoffRange.fitSingleDatePickerInstance(instance);
+			}
+		}
+
 		function ensureCapitalProgramDatePicker() {
 			var el = document.getElementById('capitalProgramDate');
 			if (!el || typeof flatpickr === 'undefined') return;
@@ -318,13 +364,26 @@ border-top: 2px solid #dee2e6;
 				altFormat: 'M j, Y',
 				defaultDate: new Date(),
 				allowInput: true,
-				disableMobile: true
+				disableMobile: true,
+				onReady: function (_selectedDates, _dateStr, instance) {
+					fitCapitalProgramDatePicker(instance);
+				},
+				onChange: function (_selectedDates, _dateStr, instance) {
+					fitCapitalProgramDatePicker(instance);
+				},
+				onClose: function (_selectedDates, _dateStr, instance) {
+					fitCapitalProgramDatePicker(instance);
+				}
 			});
 		}
 
 		ensureCapitalProgramDatePicker();
 		$('#modal-new-capital').on('shown.bs.modal', function() {
 			ensureCapitalProgramDatePicker();
+			setTimeout(function () {
+				var el = document.getElementById('capitalProgramDate');
+				if (el && el._flatpickr) fitCapitalProgramDatePicker(el._flatpickr);
+			}, 0);
 		});
 
 		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);

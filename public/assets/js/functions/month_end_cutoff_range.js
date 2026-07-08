@@ -123,8 +123,38 @@
 		};
 	}
 
-	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-manual-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.daily-report-manual-daterange-wrap,.hb-field-daterange-wrap,.house-expense-daterange-wrap,.house-expense-manual-daterange-wrap,.fnb-hotel-daterange-wrap,.fnb-hotel-manual-daterange-wrap,.junket-loss-daterange-wrap,.junket-loss-manual-daterange-wrap,#daterange-wrapper,#manual-daterange-wrapper';
+	function resolveRangeFromPicker(dateRange, fpElOrSelector) {
+		var fpEl = null;
+		if (fpElOrSelector) {
+			fpEl = typeof fpElOrSelector === 'string'
+				? (typeof document !== 'undefined' ? document.getElementById(fpElOrSelector) : null)
+				: fpElOrSelector;
+		}
+		var fp = fpEl && fpEl._flatpickr;
+		var rangeStr = dateRange == null ? '' : String(dateRange).trim();
+
+		if ((!rangeStr || !/\s+to\s+/i.test(rangeStr)) && fp && fp.selectedDates && fp.selectedDates.length === 2) {
+			rangeStr = formatDisplayDate(fp.selectedDates[0]) + ' to ' + formatDisplayDate(fp.selectedDates[1]);
+		}
+
+		if (!rangeStr) {
+			var fallback = getMonthEndCutoffRange();
+			rangeStr = fallback.start + ' to ' + fallback.end;
+		}
+
+		var parsed = parseRangeString(rangeStr);
+		var endDisplay = toApiDate(parsed.end);
+		return {
+			rangeStr: rangeStr,
+			start: toApiDate(parsed.start),
+			end: expandApiEndDateToMonthEnd(endDisplay),
+			endDisplay: endDisplay,
+		};
+	}
+
+	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.hb-field-daterange-wrap,.house-expense-daterange-wrap,.fnb-hotel-daterange-wrap,.junket-loss-daterange-wrap,.house-expense-split-daterange,[id$="-split-daterange-wrapper"],#daterange-wrapper';
 	var DEFAULT_RANGE_SAMPLE = 'Jun 30, 2026 to Jul 30, 2026';
+	var DEFAULT_SINGLE_DATE_SAMPLE = 'Sep 30, 2026';
 
 	function getRangeWidthMeasurer() {
 		var el = document.getElementById('fp-range-width-measurer');
@@ -177,6 +207,31 @@
 		if (!instance) return;
 		var visible = instance.altInput || instance.input;
 		fitRangeInputWidth(visible);
+	}
+
+	function fitSingleDateInputWidth(inputEl) {
+		if (!inputEl || inputEl.type === 'hidden') return;
+		var text = (inputEl.value || '').trim();
+		if (!text) text = (inputEl.getAttribute('placeholder') || '').trim();
+		if (!text) text = DEFAULT_SINGLE_DATE_SAMPLE;
+
+		var pad = 28;
+		var minW = measureTextWidth(DEFAULT_SINGLE_DATE_SAMPLE, inputEl) + pad;
+		var w = Math.max(measureTextWidth(text, inputEl) + pad, minW);
+
+		inputEl.classList.add('fp-auto-range-width');
+		inputEl.style.width = w + 'px';
+		inputEl.style.minWidth = minW + 'px';
+		inputEl.style.maxWidth = 'none';
+
+		var fpWrap = inputEl.closest('.flatpickr-wrapper');
+		if (fpWrap) fpWrap.style.width = w + 'px';
+	}
+
+	function fitSingleDatePickerInstance(instance) {
+		if (!instance) return;
+		var visible = instance.altInput || instance.input;
+		fitSingleDateInputWidth(visible);
 	}
 
 	function chainRangeHook(config, hookName, fn) {
@@ -279,10 +334,13 @@
 		parseDisplayDate: parseDisplayDate,
 		parseRangeString: parseRangeString,
 		parseRangeToApiDates: parseRangeToApiDates,
+		resolveRangeFromPicker: resolveRangeFromPicker,
 		normalizeRangeForApi: normalizeRangeForApi,
 		patchRangePickerConfig: patchRangePickerConfig,
 		fitRangeInputWidth: fitRangeInputWidth,
 		fitRangePickerInstance: fitRangePickerInstance,
+		fitSingleDateInputWidth: fitSingleDateInputWidth,
+		fitSingleDatePickerInstance: fitSingleDatePickerInstance,
 		resizeAllRangePickers: resizeAllRangePickers,
 	};
 

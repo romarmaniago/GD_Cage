@@ -2,17 +2,79 @@ let junketLossTable;
 let junketLossFromDate = null;
 let junketLossToDate = null;
 let junketLossDatePicker = null;
-let junketLossManualDateLastApplied = '';
 
-function parseJunketLossIsoDateLocal(value) {
-    const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!m) return null;
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+function junketLossApiEndDate(endYmd) {
+    if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+    const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+    const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+        return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+    }
+    return endYmd;
 }
 
-function getJunketLossManualDateInput() {
-    return document.getElementById('junket-loss-manual-daterange');
+function resolveJunketLossDateRange(fpInstance) {
+    const formatYmdLocal = function (d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
+    };
+
+    let selectedDates = null;
+    if (fpInstance && fpInstance.selectedDates && fpInstance.selectedDates.length) {
+        selectedDates = fpInstance.selectedDates;
+    } else {
+        const el = document.getElementById('junket-loss-daterange');
+        if (el && el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length) {
+            selectedDates = el._flatpickr.selectedDates;
+        }
+    }
+
+    if (selectedDates && selectedDates.length >= 2) {
+        let fromDate = formatYmdLocal(selectedDates[0]);
+        let toDate = junketLossApiEndDate(formatYmdLocal(selectedDates[1]));
+        if (fromDate > toDate) {
+            const swap = fromDate;
+            fromDate = toDate;
+            toDate = swap;
+        }
+        return { fromDate: fromDate, toDate: toDate };
+    }
+
+    if (selectedDates && selectedDates.length === 1) {
+        const single = junketLossApiEndDate(formatYmdLocal(selectedDates[0]));
+        return { fromDate: single, toDate: single };
+    }
+
+    const label = getJunketLossDateRangeLabel();
+    if (label && window.MonthEndCutoffRange) {
+        const parsed = window.MonthEndCutoffRange.parseRangeString(label);
+        const fromDate = window.MonthEndCutoffRange.toApiDate(parsed.start);
+        const toDate = junketLossApiEndDate(window.MonthEndCutoffRange.toApiDate(parsed.end));
+        if (fromDate && toDate) {
+            return fromDate <= toDate
+                ? { fromDate: fromDate, toDate: toDate }
+                : { fromDate: toDate, toDate: fromDate };
+        }
+    }
+
+    if (window.MonthEndCutoffRange) {
+        const fallback = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+        return {
+            fromDate: fallback.startDate,
+            toDate: fallback.endDateApi || junketLossApiEndDate(fallback.endDate),
+        };
+    }
+
+    const monthRange = getFirstAndLastOfMonth();
+    return {
+        fromDate: formatYmd(monthRange.first),
+        toDate: junketLossApiEndDate(formatYmd(monthRange.last)),
+    };
 }
+
+let junketLossSplitDateRange = null;
 
 function getJunketLossDateRangeLabel() {
     const el = document.getElementById('junket-loss-daterange');
@@ -22,80 +84,16 @@ function getJunketLossDateRangeLabel() {
     return ($('#junket-loss-daterange').val() || '').trim();
 }
 
-function fitJunketLossManualInputWidth() {
-    const el = getJunketLossManualDateInput();
-    if (!el) return;
-
-    let widthPx = 160;
-    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
-        window.MonthEndCutoffRange.fitRangeInputWidth(el);
-        widthPx = parseInt(el.style.width, 10) || widthPx;
-    }
-
-    const wrap = el.closest('.junket-loss-manual-daterange-wrap');
-    if (wrap) {
-        wrap.style.width = widthPx + 'px';
-        wrap.style.minWidth = widthPx + 'px';
-    }
+function syncJunketLossSplitFromFlatpickr() {
+    if (junketLossSplitDateRange) junketLossSplitDateRange.syncFromRange();
 }
 
-function syncJunketLossManualFromFlatpickr() {
-    const label = getJunketLossDateRangeLabel();
-    if (!label) return;
-    $('#junket-loss-manual-daterange').val(label);
-    junketLossManualDateLastApplied = label;
-    fitJunketLossManualInputWidth();
-}
-
-function applyJunketLossDateFilter(selectedDates) {
-    if (!selectedDates || selectedDates.length !== 2) return;
-    junketLossFromDate = formatYmd(selectedDates[0]);
-    junketLossToDate = formatYmd(selectedDates[1]);
+function applyJunketLossDateFilter(fpInstance) {
+    const range = resolveJunketLossDateRange(fpInstance);
+    if (!range.fromDate || !range.toDate) return;
+    junketLossFromDate = range.fromDate;
+    junketLossToDate = range.toDate;
     fetchJunketLossData();
-}
-
-function applyJunketLossManualDateRange() {
-    const raw = ($('#junket-loss-manual-daterange').val() || '').trim();
-    if (!raw) return false;
-    if (raw === junketLossManualDateLastApplied) return true;
-
-    let start;
-    let end;
-    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
-        const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
-        start = apiRange.start;
-        end = apiRange.end;
-    } else if (raw.includes(' to ')) {
-        const parts = raw.split(' to ');
-        start = (parts[0] || '').trim();
-        end = (parts[1] || '').trim();
-    } else {
-        start = raw;
-        end = raw;
-    }
-
-    if (!start || !end) {
-        Swal.fire('Error', 'Invalid date.', 'error');
-        return false;
-    }
-
-    const startDate = parseJunketLossIsoDateLocal(start);
-    const endDate = parseJunketLossIsoDateLocal(end);
-    if (!startDate || !endDate || endDate < startDate) {
-        Swal.fire('Error', 'Invalid date range.', 'error');
-        return false;
-    }
-
-    junketLossManualDateLastApplied = raw;
-    const el = document.getElementById('junket-loss-daterange');
-    if (el && el._flatpickr) {
-        el._flatpickr.setDate([startDate, endDate], false);
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
-            window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
-        }
-    }
-    applyJunketLossDateFilter([startDate, endDate]);
-    return true;
 }
 
 function sanitizeAmountInput(value) {
@@ -187,9 +185,15 @@ function jumpJunketLossRangeToCurrentThreeMonths(instance) {
     instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
 }
 
-function fetchJunketLossData() {
+function fetchJunketLossData(fpInstance) {
     const table = ensureJunketLossTable();
     if (!table) return;
+
+    const range = resolveJunketLossDateRange(fpInstance);
+    if (!range.fromDate || !range.toDate) return;
+
+    junketLossFromDate = range.fromDate;
+    junketLossToDate = range.toDate;
 
     $.get('/junket_loss_data', {
         fromDate: junketLossFromDate,
@@ -305,11 +309,16 @@ $(document).ready(function () {
     if (!$('#junket-loss-tbl').length) return;
 
     const isDashboard = !!document.getElementById('modal-dash-junket-loss');
-    const monthRange = getFirstAndLastOfMonth();
-    junketLossFromDate = formatYmd(monthRange.first);
-    junketLossToDate = formatYmd(monthRange.last);
 
     if (typeof flatpickr === 'function') {
+        junketLossSplitDateRange = window.SplitDateRange && SplitDateRange.attach({
+            rangePickerId: 'junket-loss-daterange',
+            startId: 'junket-loss-start-date',
+            endId: 'junket-loss-end-date',
+            splitWrapperId: 'junket-loss-split-daterange-wrapper',
+            invalidDateMessage: 'Invalid date range.'
+        });
+
         junketLossDatePicker = flatpickr('#junket-loss-daterange', {
             mode: 'range',
             showMonths: 3,
@@ -318,7 +327,10 @@ $(document).ready(function () {
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
-                setTimeout(syncJunketLossManualFromFlatpickr, 0);
+                setTimeout(function () {
+                    syncJunketLossSplitFromFlatpickr();
+                    fetchJunketLossData(instance);
+                }, 0);
             },
             onOpen: function (_selectedDates, _dateStr, instance) {
                 jumpJunketLossRangeToCurrentThreeMonths(instance);
@@ -331,27 +343,16 @@ $(document).ready(function () {
                     window.styleFlatpickrMonthNameClickable(instance);
                 }
             },
-            onChange: function (selectedDates) {
+            onChange: function (selectedDates, _dateStr, instance) {
                 if (selectedDates.length === 2) {
-                    syncJunketLossManualFromFlatpickr();
+                    if (!junketLossSplitDateRange || !junketLossSplitDateRange.isSyncing()) {
+                        syncJunketLossSplitFromFlatpickr();
+                    }
+                    fetchJunketLossData(instance);
                 }
-            },
-            onClose: function (selectedDates) {
-                applyJunketLossDateFilter(selectedDates);
             }
         });
     }
-
-    $(document).on('keydown', '#junket-loss-manual-daterange', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            applyJunketLossManualDateRange();
-        }
-    });
-
-    $(document).on('input', '#junket-loss-manual-daterange', function () {
-        fitJunketLossManualInputWidth();
-    });
 
     function getJunketLossExportFilename() {
         var dr = document.getElementById('junket-loss-daterange');
@@ -378,7 +379,6 @@ $(document).ready(function () {
 
     if (!isDashboard) {
         junketLossTable = ensureJunketLossTable();
-        fetchJunketLossData();
     }
 
     var actionColIndex = 5;

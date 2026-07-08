@@ -793,7 +793,11 @@ $(document).ready(function () {
 
         var start;
         var end;
-        if (dateRange.includes(' to ')) {
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
+            var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
+            start = apiRange.start;
+            end = apiRange.end;
+        } else if (dateRange.includes(' to ')) {
             var parts = dateRange.split(' to ');
             start = parts[0];
             end = parts[1];

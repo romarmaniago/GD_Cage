@@ -258,12 +258,8 @@ $(document).ready(function () {
 	$('#btn-dash-fnb-new-record').on('click', function () {
 		window.__dashServicePresetType = 'F & B';
 	});
-
-	$('#modal-services-new-record').on('shown.bs.modal', function () {
-		if (!window.__dashServicePresetType || typeof window.populateServiceCategorySelect !== 'function') return;
-		window.populateServiceCategorySelect($('#new-services-type'), window.__dashServicePresetType);
-		window.__dashServicePresetType = null;
-	});
+	// Preset service type is handled by new_service_record.js on modal show
+	// (works whether Service Type is a dropdown or checkbox list)
 
 	$(document).on('click', '#modal-dash-fnb .edit-service-btn', function () {
 		var $btn = $(this);

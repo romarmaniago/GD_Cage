@@ -45,6 +45,34 @@ function getDefaultMonthEndRange() {
     };
 }
 
+function parseCapitalDateRange(dateRange, pickerId) {
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.resolveRangeFromPicker === 'function') {
+        return window.MonthEndCutoffRange.resolveRangeFromPicker(dateRange, pickerId);
+    }
+
+    let rangeStr = (dateRange || '').trim();
+    if (!rangeStr) {
+        const fallback = getDefaultMonthEndRange();
+        rangeStr = `${fallback.startDisplay} to ${fallback.endDisplay}`;
+    }
+
+    let startDate;
+    let endDate;
+    if (rangeStr.indexOf(' to ') > -1) {
+        [startDate, endDate] = rangeStr.split(' to ');
+    } else {
+        startDate = rangeStr;
+        endDate = rangeStr;
+    }
+
+    return {
+        rangeStr: rangeStr,
+        start: startDate,
+        end: endDate,
+        endDisplay: endDate,
+    };
+}
+
 function inferCapitalRemarksSource(row) {
     if (row.REMARKS_SOURCE) return row.REMARKS_SOURCE;
     if (row.CATEGORY_ID > 0 && row.expense_description != null) return 'junket_house_expense';
@@ -69,40 +97,10 @@ function renderCapitalRemarksCell(row, displayText, suffixHtml) {
 }
 
 function reloadData() {
-    const fpEl = document.getElementById('main-daterange');
-    const fp = fpEl && fpEl._flatpickr;
-    let dateRange = $('#main-daterange').val();
-
-    if ((!dateRange || !/\s+to\s+/i.test(dateRange)) && fp && fp.selectedDates.length === 2) {
-        const fmt = window.MonthEndCutoffRange && window.MonthEndCutoffRange.formatDisplayDate
-            ? window.MonthEndCutoffRange.formatDisplayDate
-            : (d) => moment(d).format('MMM D, YYYY');
-        dateRange = `${fmt(fp.selectedDates[0])} to ${fmt(fp.selectedDates[1])}`;
-    }
-
-    if (!dateRange) {
-        const fallback = getDefaultMonthEndRange();
-        dateRange = `${fallback.startDisplay} to ${fallback.endDisplay}`;
-    }
-
-    // Kung walang " to ", ibig sabihin iisang petsa lang ang napili
-    let startDate, endDate;
-    if (fp && fp.selectedDates.length === 2) {
-        startDate = moment(fp.selectedDates[0]).format('YYYY-MM-DD');
-        endDate = moment(fp.selectedDates[1]).format('YYYY-MM-DD');
-        if (window.MonthEndCutoffRange) {
-            endDate = window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endDate);
-        }
-    } else if (window.MonthEndCutoffRange) {
-        const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
-        startDate = apiRange.start;
-        endDate = apiRange.end;
-    } else if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
-    }
+    const dateRange = $('#main-daterange').val();
+    const resolved = parseCapitalDateRange(dateRange, 'main-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
 
     if (!startDate || !endDate) {
         alert('Please select a valid date range.');
@@ -302,6 +300,11 @@ $(document).ready(function () {
             const current = new Date();
             instance.jumpToDate(new Date(current.getFullYear(), current.getMonth(), 1), false);
         },
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                reloadData();
+            }
+        },
     };
     if (window.MonthEndCutoffRange) {
         flatpickr("#main-daterange", window.MonthEndCutoffRange.patchRangePickerConfig(mainDatePickerConfig));
@@ -343,11 +346,6 @@ $(document).ready(function () {
                 }
             }
         ]
-    });
-
-    // Add event listener to trigger reloadData on date range change
-    $('#main-daterange').on('change', function () {
-        reloadData();
     });
 
     // Initial data load
@@ -555,17 +553,12 @@ function loadCashInData() {
     const dateRange = $('#daterange').val();
     console.log('Date Range:', dateRange);
 
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert('Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     console.log('Start Date:', startDate, 'End Date:', endDate);
 
@@ -684,17 +677,12 @@ function loadCashOutData() {
     const dateRange = $('#cashout-daterange').val();
     console.log('Cash-Out Date Range:', dateRange);
 
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'cashout-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert('Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     console.log('Cash-Out Start Date:', startDate, 'End Date:', endDate);
 
@@ -935,17 +923,12 @@ function loadChipsTransaction() {
     const dateRange = $('#transaction-daterange').val();
     console.log('Date Range:', dateRange);
 
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'transaction-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert('Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     console.log('Start Date:', startDate, 'End Date:', endDate);
 
@@ -1121,17 +1104,12 @@ function loadNNChipsHistory() {
     console.log('NN Chips History Date Range:', dateRange);
 
     var nnT = window.nnChipsHistoryTranslations || {};
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'nnchips-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert(nnT.please_select_date_range || 'Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     console.log('NN Chips History Start Date:', startDate, 'End Date:', endDate);
 
@@ -1250,17 +1228,12 @@ function loadCCChipsHistory() {
     console.log('CC Chips History Date Range:', dateRange);
 
     var ccT = window.ccChipsHistoryTranslations || {};
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'ccchips-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert(ccT.please_select_date_range || 'Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     console.log('CC Chips History Start Date:', startDate, 'End Date:', endDate);
 
@@ -1403,17 +1376,12 @@ function loadJunketExpenseData() {
     const dateRange = $('#junket-daterange').val();
     // console.log('Junket Expense Date Range:', dateRange);
 
-    if (!dateRange) {
+    const resolved = parseCapitalDateRange(dateRange, 'junket-daterange');
+    const startDate = resolved.start;
+    const endDate = resolved.end;
+    if (!startDate || !endDate) {
         alert('Please select a date range.');
         return;
-    }
-
-    let startDate, endDate;
-    if (dateRange.indexOf(" to ") > -1) {
-        [startDate, endDate] = dateRange.split(" to ");
-    } else {
-        startDate = dateRange;
-        endDate = dateRange;
     }
     // console.log('Junket Expense Start Date:', startDate, 'End Date:', endDate);
 

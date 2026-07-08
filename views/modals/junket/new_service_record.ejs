@@ -3,54 +3,68 @@
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white" id="modal-services-new-record-label"><%= __('fnb_hotel.new_service_record') %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body new-service-record-body">
         <input type="hidden" id="new-services-game-id" />
         <input type="hidden" id="new-services-agent-id" />
+        <input type="hidden" id="new-services-type-value" value="" />
 
-        <div class="row g-3">
-			<div class="col-md-4">
-				<div class="fw-semibold text-muted"><%= __('fnb_hotel.transaction_type') %></div>
-				<select id="new-transaction-type" class="form-select">
-				  <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
-				  <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
-				  <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
-				
-				</select>
-			  </div>
-          <div class="col-md-4" id="new-services-account-wrapper" style="display:none">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.account') %></div>
-            <select id="new-services-account" class="js-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
-              <option value="" selected disabled><%= __('fnb_hotel.choose_account') %></option>
+        <div class="row g-3 new-service-record-row">
+          <div class="col-md-6">
+            <div class="new-service-field-label"><%= __('fnb_hotel.transaction_type') %></div>
+            <select id="new-transaction-type" class="form-select">
+              <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
+              <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
+              <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
             </select>
           </div>
-          <div class="col-md-4">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.service_type') %></div>
-            <select id="new-services-type" class="form-select" data-placeholder="<%= __('fnb_hotel.select_service') %>">
-              <option value="" selected disabled><%= __('fnb_hotel.select_service') %></option>
+        </div>
+
+        <div class="row g-3 new-service-record-row" id="new-services-account-wrapper">
+          <div class="col-md-6">
+            <div class="new-service-field-label"><%= __('fnb_hotel.account') %></div>
+            <select id="new-services-account" class="js-select2 new-service-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
+              <option value=""><%= __('fnb_hotel.choose_account') %></option>
             </select>
           </div>
-          <div class="col-md-4">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.amount') %></div>
+          <div class="col-md-6">
+            <div class="new-service-field-label"><%= __('fnb_hotel.guest') %></div>
+            <select id="new-services-guest" class="js-select2 new-service-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
+              <option value=""><%= __('fnb_hotel.select_guest_optional') %></option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 align-items-end new-service-record-row new-service-amount-type-row">
+          <div class="col-md-5">
+            <div class="new-service-field-label"><%= __('fnb_hotel.amount') %></div>
             <input type="text" id="new-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
             <div id="deposit-balance" class="text-muted small mt-1" style="display:none">
               <%= __('fnb_hotel.available_balance') %> <span id="deposit-balance-value">0</span>
             </div>
           </div>
+          <div class="col-md-7">
+            <div class="new-service-field-label"><%= __('fnb_hotel.service_type') %></div>
+            <div id="new-services-type-list" class="new-services-type-list" role="group" aria-label="<%= __('fnb_hotel.service_type') %>">
+              <span class="new-services-type-placeholder text-muted small"><%= __('fnb_hotel.select_service') %></span>
+            </div>
+          </div>
         </div>
 
-        <div class="mt-3 mb-1 fw-semibold text-muted"><%= __('fnb_hotel.remarks') %></div>
-        <textarea id="new-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
+        <div class="new-service-record-row">
+          <div class="new-service-field-label"><%= __('fnb_hotel.remarks') %></div>
+          <textarea id="new-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
+        </div>
 
-        <div class="row mt-3 gx-4 justify-content-center" id="new-services-payment-methods">
-          <div class="col-sm-3">
+        <div class="row mt-2 gx-4 justify-content-center new-service-record-row" id="new-services-payment-methods">
+          <div class="col-auto">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="new-services-transaction-cash" name="new-services-transaction" />
               <label class="form-check-label" for="new-services-transaction-cash"><%= __('fnb_hotel.cash') %></label>
             </div>
           </div>
-          <div class="col-sm-3">
+          <div class="col-auto">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="new-services-transaction-deposit" name="new-services-transaction" />
               <label class="form-check-label" for="new-services-transaction-deposit"><%= __('fnb_hotel.deposit') %></label>
@@ -65,3 +79,95 @@
     </div>
   </div>
 </div>
+
+<style>
+  #modal-services-new-record .new-service-record-body {
+    padding: 1.25rem 1.5rem 0.5rem;
+  }
+
+  #modal-services-new-record .new-service-field-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  #modal-services-new-record .new-service-record-row {
+    margin-bottom: 1rem;
+  }
+
+  #modal-services-new-record .new-service-amount-type-row {
+    min-height: 4.75rem;
+  }
+
+  #modal-services-new-record .form-control,
+  #modal-services-new-record .form-select {
+    border-color: #d1d5db;
+    border-radius: 0.25rem;
+    min-height: 38px;
+  }
+
+  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection--single {
+    min-height: 38px;
+    border-color: #d1d5db;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+  }
+
+  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection__rendered {
+    line-height: 36px;
+    color: #6b7280;
+    padding-left: 0.75rem;
+  }
+
+  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection__arrow {
+    height: 36px;
+  }
+
+  #modal-services-new-record .new-services-type-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    gap: 0.65rem 1.35rem;
+    min-height: 38px;
+    padding: 0.45rem 0;
+  }
+
+  #modal-services-new-record .new-services-type-list .form-check {
+    margin: 0;
+    padding-left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 1.5rem;
+  }
+
+  #modal-services-new-record .new-services-type-list .form-check-input {
+    margin: 0;
+    float: none;
+    flex-shrink: 0;
+    border-color: #8a92a6;
+  }
+
+  #modal-services-new-record .new-services-type-list .form-check-label {
+    user-select: none;
+    font-size: 0.9rem;
+    color: #374151;
+    white-space: nowrap;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  #modal-services-new-record .new-services-type-placeholder {
+    line-height: 38px;
+  }
+
+  #modal-services-new-record #new-services-payment-methods .form-check-label {
+    font-size: 0.95rem;
+    color: #374151;
+  }
+</style>

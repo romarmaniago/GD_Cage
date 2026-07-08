@@ -1,0 +1,28 @@
+<%
+  const now = new Date();
+  const pad = value => value.toString().padStart(2, '0');
+  const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatRangeDisplayDate = (d) => `${monthAbbr[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  const splitStart = typeof splitRangeStartValue !== 'undefined'
+    ? splitRangeStartValue
+    : (typeof monthEndCutoffStart !== 'undefined'
+      ? monthEndCutoffStart
+      : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth(), 0)));
+  const splitEnd = typeof splitRangeEndValue !== 'undefined'
+    ? splitRangeEndValue
+    : (typeof monthEndCutoffEnd !== 'undefined'
+      ? monthEndCutoffEnd
+      : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+  const prefix = typeof splitPrefix !== 'undefined' ? splitPrefix : 'split';
+  const ns = typeof splitLocaleNs !== 'undefined' ? splitLocaleNs : 'house_expense';
+  const wrapClass = typeof splitWrapClass !== 'undefined'
+    ? splitWrapClass
+    : 'house-expense-daterange-wrap house-expense-split-daterange';
+  const startLabel = (typeof __ === 'function' && __(`${ns}.start_date`)) || 'Start Date';
+  const endLabel = (typeof __ === 'function' && __(`${ns}.end_date`)) || 'End Date';
+%>
+<div id="<%= prefix %>-split-daterange-wrapper" class="<%= wrapClass %>" data-range-start="<%= splitStart %>" data-range-end="<%= splitEnd %>">
+  <input type="text" id="<%= prefix %>-start-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="<%= splitStart %>" placeholder="<%= startLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= startLabel %>" />
+  <span class="house-expense-daterange-separator" aria-hidden="true">to</span>
+  <input type="text" id="<%= prefix %>-end-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="<%= splitEnd %>" placeholder="<%= endLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= endLabel %>" />
+</div>

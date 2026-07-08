@@ -2507,115 +2507,20 @@ $(document).ready(function () {
 
     toggleHouseExpenseBreakdownPanel('daterange');
 
-    var houseExpenseManualDateLastApplied = '';
-
-    function getHouseExpenseManualDateInput() {
-        return document.getElementById('house-expense-manual-daterange');
-    }
-
-    function getHouseExpenseManualDateRangeRaw() {
-        return ($('#house-expense-manual-daterange').val() || '').trim();
-    }
-
-    function parseHouseExpenseIsoDateLocal(value) {
-        var m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return null;
-        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    }
-
-    function fitHouseExpenseManualInputWidth() {
-        var el = getHouseExpenseManualDateInput();
-        if (!el) return;
-
-        var text = (el.value || '').trim();
-        if (!text) {
-            text = (el.getAttribute('placeholder') || '').trim();
-        }
-        if (!text) {
-            text = 'Jun 30, 2026 to Jul 30, 2026';
-        }
-
-        var widthPx = 160;
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
-            window.MonthEndCutoffRange.fitRangeInputWidth(el);
-            widthPx = parseInt(el.style.width, 10) || widthPx;
-        }
-
-        var wrap = el.closest('.house-expense-manual-daterange-wrap');
-        if (wrap) {
-            wrap.style.width = widthPx + 'px';
-            wrap.style.minWidth = widthPx + 'px';
-        }
-    }
-
-    function syncHouseExpenseManualFromFlatpickr() {
-        var label = getHouseExpenseDateRangeLabel();
-        if (!label || label === 'Select date range') return;
-        $('#house-expense-manual-daterange').val(label);
-        houseExpenseManualDateLastApplied = label;
-        fitHouseExpenseManualInputWidth();
-    }
-
-    function applyHouseExpenseManualDateRange() {
-        var raw = getHouseExpenseManualDateRangeRaw();
-        if (!raw) return false;
-        if (raw === houseExpenseManualDateLastApplied) return true;
-
-        var start;
-        var end;
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
-            var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
-            start = apiRange.start;
-            end = apiRange.end;
-        } else if (raw.includes(' to ')) {
-            var parts = raw.split(' to ');
-            start = (parts[0] || '').trim();
-            end = (parts[1] || '').trim();
-        } else {
-            start = raw;
-            end = raw;
-        }
-
-        if (!start || !end) {
-            alert((window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date.');
-            return false;
-        }
-
-        var startDate = parseHouseExpenseIsoDateLocal(start);
-        var endDate = parseHouseExpenseIsoDateLocal(end);
-        if (!startDate || !endDate || endDate < startDate) {
-            alert((window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date range.');
-            return false;
-        }
-
-        houseExpenseManualDateLastApplied = raw;
-        var el = document.getElementById('daterange-picker');
-        if (el && el._flatpickr) {
-            el._flatpickr.setDate([startDate, endDate], false);
-            if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
-                window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
-            }
-        }
-        if (typeof window.reloadData === 'function') window.reloadData();
-        return true;
-    }
-
-    $(document).on('keydown', '#house-expense-manual-daterange', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            applyHouseExpenseManualDateRange();
-        }
-    });
-
-    $(document).on('input', '#house-expense-manual-daterange', function () {
-        fitHouseExpenseManualInputWidth();
-    });
-
     var dateRangePicker = null;
+    var houseExpenseSplitDateRange = (window.SplitDateRange && SplitDateRange.attach({
+        rangePickerId: 'daterange-picker',
+        startId: 'house-expense-start-date',
+        endId: 'house-expense-end-date',
+        splitWrapperId: 'house-expense-split-daterange-wrapper',
+        invalidDateMessage: (window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date range.'
+    })) || { syncFromRange: function () {}, isSyncing: function () { return false; } };
+
     if (document.getElementById('daterange-picker')) {
         var now = new Date();
-        var pad = function(n) { return String(n).padStart(2, '0'); };
-        var rangeWrapper = document.getElementById('daterange-wrapper');
+        var pad = function (n) {
+            return String(n).padStart(2, '0');
+        };
 
         var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
         var earliestSettlementDate =
@@ -2636,7 +2541,7 @@ $(document).ready(function () {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
                 toggleHouseExpenseBreakdownPanel('daterange');
-                setTimeout(syncHouseExpenseManualFromFlatpickr, 0);
+                setTimeout(function () { houseExpenseSplitDateRange.syncFromRange(); }, 0);
                 if (typeof window.reloadData === 'function') {
                     setTimeout(function () {
                         window.reloadData(false, instance);
@@ -2655,9 +2560,11 @@ $(document).ready(function () {
                 }
             },
             onChange: function (selectedDates) {
+                if (!houseExpenseSplitDateRange.isSyncing()) {
+                    houseExpenseSplitDateRange.syncFromRange();
+                }
                 toggleHouseExpenseBreakdownPanel('daterange');
                 if (selectedDates.length === 2) {
-                    syncHouseExpenseManualFromFlatpickr();
                     if (typeof window.reloadData === 'function') window.reloadData();
                 } else {
                     clearExpenseTableDisplay();
