@@ -97,6 +97,21 @@
             </div>
           </div>
 
+          <!-- Program Date -->
+          <div class="row mb-2">
+            <div class="col-auto total-chips-program-date-wrap">
+              <input
+                type="text"
+                id="totalChipsProgramDate"
+                name="txtProgramDate"
+                class="form-control input-program-date"
+                placeholder="<%= __('dashboard_total_chips.program_date') %>"
+                autocomplete="off"
+                required
+              />
+            </div>
+          </div>
+
           <!-- NN Chips -->
           <div class="row mb-2">
             <div class="col-sm-12">
@@ -289,6 +304,18 @@
     max-width: 90% !important;
   }
 
+  #modal-new-total-chips .total-chips-program-date-wrap input,
+  #modal-new-total-chips .total-chips-program-date-wrap .flatpickr-alt-input {
+    width: 11rem;
+    min-width: 11rem;
+    max-width: 11rem;
+    font-size: 0.875rem;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
   #total-chips-history-tbl {
     width: 100%;
     font-size: 13px;
@@ -387,11 +414,29 @@ $(document).ready(function() {
     $('#add_junket_total_chips button[type="submit"]').prop('disabled', true);
   }
 
+  function ensureTotalChipsProgramDatePicker() {
+    const el = document.getElementById('totalChipsProgramDate');
+    if (!el || typeof flatpickr === 'undefined') return;
+    if (el._flatpickr) {
+      el._flatpickr.destroy();
+    }
+    flatpickr(el, {
+      enableTime: false,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'M j, Y',
+      defaultDate: new Date(),
+      allowInput: true,
+      disableMobile: true
+    });
+  }
+
   window.openTotalChipsModal = function(mode) {
     $('#nnChips').val('').removeClass('is-invalid');
     $('#ccChips').val('').removeClass('is-invalid');
     $('#totalChips').val('');
     $('input[name="optBuyinReturn"]').prop('checked', false);
+    ensureTotalChipsProgramDatePicker();
 
     if (mode === 'buyin') {
       $('#add').prop('checked', true);
@@ -674,11 +719,26 @@ $(document).ready(function() {
     toggleBuyInRadioByCcChips();
   });
 
+  ensureTotalChipsProgramDatePicker();
+  $('#modal-new-total-chips').on('shown.bs.modal', ensureTotalChipsProgramDatePicker);
+
   // 7) Spinner logic on form submit
   $('#add_junket_total_chips').on('submit', function(e) {
     e.preventDefault();
     if (typeof validateChips === 'function' && !validateChips()) {
       return false;
+    }
+
+    const programDateEl = document.getElementById('totalChipsProgramDate');
+    const programDateVal = (programDateEl && programDateEl.value ? programDateEl.value : '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Program Date required',
+        text: 'Select a valid Program Date before saving.',
+        confirmButtonText: 'OK'
+      });
+      return;
     }
 
     const nnChips = parseFloat($('#nnChips').val().replace(/,/g, '')) || 0;
@@ -695,6 +755,7 @@ $(document).ready(function() {
     SwalConfirm.fire({
       title: 'Confirm transaction',
       rows: [
+        ['Program Date', programDateVal],
         ['Type', chosen.text],
         ['Amount', '₱ ' + totalAmount]
       ],

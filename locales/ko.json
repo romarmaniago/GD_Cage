@@ -815,6 +815,7 @@
 		"chat_id_disabled": "이 계정의 알림이 비활성화되었습니다."
 	},
 	"dashboard_total_chips": {
+		"program_date": "프로그램 날짜",
 		"nn_chips": "NN 칩",
 		"cc_chips": "CC 칩",
 		"total_chips": "칩스 합계",
@@ -913,6 +914,7 @@
 		"house_balance": "월 하우스 잔액",
 		"loading_house_balance": "로딩중...",
 		"junket_balance_amount": "금액 입력란",
+		"program_date": "프로그램 날짜",
 		"select_date_range": "날짜 범위 선택",
 		"remarks_placeholder": "메모",
 		"cash_in": "현금 입금",

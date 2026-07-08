@@ -771,6 +771,7 @@
 		"log_preview_service_payment": "Service payment"
 	},
 	"dashboard_total_chips": {
+		"program_date": "Program Date",
 		"nn_chips": "NN Chips",
 		"cc_chips": "CC Chips",
 		"total_chips": "Total Chips",
@@ -869,6 +870,7 @@
 		"house_balance": "House Balance of Month",
 		"loading_house_balance": "Loading, please wait...",
 		"junket_balance_amount": "Junket Balance Amount",
+		"program_date": "Program Date",
 		"select_date_range": "Select Date Range",
 		"remarks_placeholder": "Remarks",
 		"cash_in": "Cash-in",

@@ -1096,6 +1096,44 @@ router.get('/account_dashboard', async (req, res) => {
 });
 
 
+function parseEncodedDtFromProgramDate(raw) {
+	const rawDate = raw == null ? '' : String(raw).trim();
+	if (!rawDate) return new Date();
+
+	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
+	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawDate);
+	if (!dateOnly && !dateTime) return new Date();
+
+	const parts = rawDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
+	const y = parts[0];
+	const mo = parts[1];
+	const d = parts[2];
+	let hours = 0;
+	let minutes = 0;
+	let seconds = 0;
+	let ms = 0;
+
+	if (dateTime) {
+		const tp = rawDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
+		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
+			hours = tp[0];
+			minutes = tp[1];
+		}
+	} else {
+		const now = new Date();
+		hours = now.getHours();
+		minutes = now.getMinutes();
+		seconds = now.getSeconds();
+		ms = now.getMilliseconds();
+	}
+
+	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
+	if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+		return dt;
+	}
+	return new Date();
+}
+
 // ADD JUNKET CAPITAL
 router.post('/add_junket_capital', async (req, res) => {
 	try {
@@ -1104,10 +1142,11 @@ router.post('/add_junket_capital', async (req, res) => {
 			txtAmount = "0",
 			Remarks = null,
 			optWithdrawDeposit = null,
-			description = null
+			description = null,
+			txtProgramDate = null
 		} = req.body;
 
-		let date_now = new Date();
+		let date_now = parseEncodedDtFromProgramDate(txtProgramDate);
 		let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
 		if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
 			return res.status(400).send('Enter a valid amount greater than zero.');
@@ -1177,147 +1216,27 @@ router.get('/junket_capital_data', async (req, res) => {
 			return res.status(400).json({ error: 'start_date and end_date are required' });
 		}
 
-		// Define the query
 		const query = `
-        SELECT * FROM (
-            SELECT 
-                j.IDNo, 
-                j.TRANSACTION_ID, 
-                j.NN_CHIPS, 
-				(j.NN_CHIPS + j.CC_CHIPS) AS TOTAL_CHIPS,  
-                j.ACTIVE, 
-                j.ENCODED_BY, 
-                j.ENCODED_DT, 
-                j.EDITED_BY, 
-                j.EDITED_DT, 
-                NULL AS CATEGORY_ID, 
-                NULL AS CATEGORY,  
-                COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,  
-                j.DESCRIPTION COLLATE utf8mb4_general_ci AS capital_description,   
-                NULL AS capital_amount, 
-                NULL AS ledger_amount, 
-                NULL AS REMARKS, 
-                NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID,
-                NULL AS REMARKS_SOURCE
-            FROM junket_total_chips j
-            LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo 
-            WHERE j.ACTIVE = 1 AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			SELECT
+				k.IDNo,
+				k.TRANSACTION_ID,
+				k.ACTIVE,
+				k.ENCODED_BY,
+				k.ENCODED_DT,
+				k.EDITED_BY,
+				k.EDITED_DT,
+				k.AMOUNT AS capital_amount,
+				k.REMARKS,
+				k.DESCRIPTION AS capital_description,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
+				'junket_capital' AS REMARKS_SOURCE
+			FROM junket_capital k
+			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
+			WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
+			ORDER BY k.ENCODED_DT DESC
+		`;
 
-            UNION ALL 
-
-            SELECT 
-                k.IDNo, 
-                k.TRANSACTION_ID, 
-                NULL AS NN_CHIPS, 
-                NULL AS TOTAL_CHIPS, 
-                k.ACTIVE, 
-                k.ENCODED_BY, 
-                k.ENCODED_DT, 
-                NULL AS EDITED_BY, 
-                NULL AS EDITED_DT, 
-                NULL AS CATEGORY_ID, 
-                k.CATEGORY_ID AS CATEGORY,  
-                COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,  
-                k.DESCRIPTION COLLATE utf8mb4_general_ci AS chips_description,   
-                k.AMOUNT AS capital_amount, 
-                NULL AS ledger_amount, 
-                k.REMARKS, 
-                NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID,
-                'junket_capital' AS REMARKS_SOURCE
-            FROM junket_capital k
-            LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo 
-            WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
-
-            UNION ALL 
-
-            SELECT 
-                al.IDNo, 
-                al.TRANSACTION_ID, 
-                NULL AS NN_CHIPS, 
-                NULL AS TOTAL_CHIPS, 
-                al.ACTIVE, 
-                al.ENCODED_BY, 
-                al.ENCODED_DT, 
-                NULL AS EDITED_BY, 
-                NULL AS EDITED_DT, 
-                NULL AS CATEGORY_ID, 
-                NULL AS CATEGORY,  
-                COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,  
-                al.TRANSACTION_DESC COLLATE utf8mb4_general_ci AS comms_description,   
-                NULL AS capital_amount, 
-                al.AMOUNT AS ledger_amount, 
-                al.REMARKS, 
-                NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID,
-                'account_ledger' AS REMARKS_SOURCE
-            FROM account_ledger al
-            LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo 
-            WHERE al.ACTIVE = 1 AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
-
-            UNION ALL
-
-            SELECT 
-                je.IDNo, 
-                NULL AS TRANSACTION_ID, 
-                NULL AS NN_CHIPS, 
-                NULL AS TOTAL_CHIPS, 
-                je.ACTIVE, 
-                je.ENCODED_BY, 
-                je.ENCODED_DT, 
-                NULL AS EDITED_BY, 
-                NULL AS EDITED_DT, 
-                je.CATEGORY_ID AS CATEGORY_ID, 
-                CE.CATEGORY AS CATEGORY, 
-                COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,  
-                je.CATEGORY_ID AS expense_description,  
-                je.AMOUNT AS capital_amount,  
-                NULL AS ledger_amount, 
-                je.DESCRIPTION AS REMARKS, 
-                NULL AS CAGE_TYPE,  
-                NULL AS GAME_ID,
-                'junket_house_expense' AS REMARKS_SOURCE
-            FROM junket_house_expense je
-            LEFT JOIN expense_category CE ON CE.IDNo = je.CATEGORY_ID
-            LEFT JOIN user_info u ON je.ENCODED_BY = u.IDNo 
-            WHERE je.ACTIVE = 1 AND DATE(je.ENCODED_DT) BETWEEN ? AND ?
-
-            UNION ALL
-
-            SELECT 
-                gr.IDNo, 
-                gr.TRANSACTION AS TRANSACTION_ID, 
-                gr.NN_CHIPS, 
-                gr.CC_CHIPS AS TOTAL_CHIPS, 
-                gr.ACTIVE, 
-                gr.ENCODED_BY, 
-                gr.ENCODED_DT, 
-                NULL AS EDITED_BY, 
-                NULL AS EDITED_DT, 
-                NULL AS CATEGORY_ID, 
-                NULL AS CATEGORY, 
-                COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,  
-                NULL AS capital_description, 
-                (gr.NN_CHIPS + gr.CC_CHIPS) AS capital_amount,  
-                NULL AS ledger_amount, 
-                gr.REMARKS, 
-                gr.CAGE_TYPE,  
-                gr.GAME_ID,
-                'game_record' AS REMARKS_SOURCE
-            FROM game_record gr
-            LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo 
-            WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 1 AND gr.TRANSACTION IN (1, 2) AND DATE(gr.ENCODED_DT) BETWEEN ? AND ?
-        ) AS full_result;
-    `;
-
-		const [results] = await pool.execute(query, [
-			start_date, end_date,
-			start_date, end_date,
-			start_date, end_date,
-			start_date, end_date,
-			start_date, end_date
-		]);
+		const [results] = await pool.execute(query, [start_date, end_date]);
 
 		res.json(results);
 	} catch (err) {
@@ -2321,8 +2240,8 @@ router.get('/on_game_list_data', async (req, res) => {
 
 // ADD JUNKET TOTAL CHIPS
 router.post('/add_junket_total_chips', async (req, res) => {
-	const { txtNNChips, txtCCChips, optBuyinReturn, typedescription } = req.body;
-	let date_now = new Date();
+	const { txtNNChips, txtCCChips, optBuyinReturn, typedescription, txtProgramDate } = req.body;
+	let date_now = parseEncodedDtFromProgramDate(txtProgramDate);
 
 	const nnChipsStr = String(txtNNChips ?? '').replace(/,/g, ''); // Remove commas
 	const ccChipsStr = String(txtCCChips ?? '').replace(/,/g, ''); // Remove commas

@@ -17,6 +17,10 @@
 		padding: 0.75rem 1rem;
 	}
 
+	#modal-new-capital .house-balance-filter-row {
+		margin-bottom: 0.75rem;
+	}
+
 	#modal-new-capital .house-balance-form-row {
 		margin-bottom: 0.5rem;
 	}
@@ -28,7 +32,8 @@
 		font-size: 0.875rem;
 	}
 
-	#modal-new-capital .hb-field-daterange-wrap input {
+	#modal-new-capital .hb-field-daterange-wrap input,
+	#modal-new-capital .hb-field-program-date-wrap input {
 		width: auto;
 		min-width: 10rem;
 		max-width: none;
@@ -158,12 +163,17 @@ border-top: 2px solid #dee2e6;
 					
 					<div class="modal-body">
 						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
-							<div class="row g-2 align-items-center house-balance-form-row">
-								<div class="col-auto">
-									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
-								</div>
+							<div class="row g-2 align-items-center house-balance-filter-row">
 								<div class="col-auto hb-field-daterange-wrap">
 									<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+								</div>
+							</div>
+							<div class="row g-2 align-items-center house-balance-form-row">
+								<div class="col-auto hb-field-program-date-wrap">
+									<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
+								</div>
+								<div class="col-auto">
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
 								</div>
 								<div class="col-12">
 									<textarea class="form-control form-control-sm" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
@@ -295,6 +305,28 @@ border-top: 2px solid #dee2e6;
 				});
 		}
 
+		function ensureCapitalProgramDatePicker() {
+			var el = document.getElementById('capitalProgramDate');
+			if (!el || typeof flatpickr === 'undefined') return;
+			if (el._flatpickr) {
+				el._flatpickr.destroy();
+			}
+			flatpickr(el, {
+				enableTime: false,
+				dateFormat: 'Y-m-d',
+				altInput: true,
+				altFormat: 'M j, Y',
+				defaultDate: new Date(),
+				allowInput: true,
+				disableMobile: true
+			});
+		}
+
+		ensureCapitalProgramDatePicker();
+		$('#modal-new-capital').on('shown.bs.modal', function() {
+			ensureCapitalProgramDatePicker();
+		});
+
 		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
 
 		$('#add_junket_capital').on('submit', function(e) {
@@ -315,6 +347,18 @@ border-top: 2px solid #dee2e6;
 					icon: 'warning',
 					title: 'Amount required',
 					text: 'Enter a valid amount greater than zero in Junket Balance Amount.',
+					confirmButtonText: 'OK'
+				});
+				return;
+			}
+
+			const programDateEl = document.getElementById('capitalProgramDate');
+			const programDateVal = (programDateEl && programDateEl.value ? programDateEl.value : '').trim();
+			if (!/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Program Date required',
+					text: 'Select a valid Program Date before saving.',
 					confirmButtonText: 'OK'
 				});
 				return;
@@ -344,6 +388,7 @@ border-top: 2px solid #dee2e6;
 			SwalConfirm.fire({
 				title: 'Confirm transaction',
 				rows: [
+					['Program Date', programDateVal],
 					['Type', typeLabel],
 					['Amount', amountStr]
 				],
@@ -363,11 +408,6 @@ border-top: 2px solid #dee2e6;
 					}
 				}, 0);
 			});
-		});
-		
-		// Initialize Flatpickr for the date range picker (month-end cut-off defaults)
-		flatpickr("#daterange", {
-			mode: "range"
 		});
 	});
 

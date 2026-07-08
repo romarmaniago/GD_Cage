@@ -815,6 +815,7 @@
 		"error_category_telegram": "Telegram API"
 	},
 	"dashboard_total_chips": {
+		"program_date": "节目日期",
 		"nn_chips": "NN 筹码",
 		"cc_chips": "CC 筹码",
 		"total_chips": "总筹码",
@@ -913,6 +914,7 @@
 		"house_balance": "月度庄家余额",
 		"loading_house_balance": "加载中...",
 		"junket_balance_amount": "接待余额",
+		"program_date": "节目日期",
 		"select_date_range": "选择日期范围",
 		"remarks_placeholder": "备注",
 		"cash_in": "现金入账",
