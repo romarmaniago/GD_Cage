@@ -131,7 +131,7 @@
 												<th class="d-none d-sm-table-cell text-center col-roller-chips">
 													<%= __('gamelist.roller_chips') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center col-action">
+												<th class="d-none d-sm-table-cell text-start col-action">
 													<%= __('gamelist.action') %>
 												</th>
 											</tr>
@@ -797,11 +797,16 @@ th.col-winloss {
 
 #game_list-tbl thead th.col-game-end,
 #game_list-tbl tbody td.col-game-end,
+#game_list-tbl tfoot th.col-game-end {
+	text-align: center !important;
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
 #game_list-tbl thead th.col-action,
 #game_list-tbl tbody td.col-action,
-#game_list-tbl tfoot th.col-game-end,
 #game_list-tbl tfoot th.col-action {
-	text-align: center !important;
+	text-align: left !important;
 	padding-left: 12px;
 	padding-right: 12px;
 }
@@ -969,11 +974,14 @@ table.dataTable tbody tr.highlight-row {
 							vertical-align: middle;
 						}
 
-						/* Action column - pantay na gap sa lahat ng buttons */
-						#game_list-tbl td:last-child .action-btn-square {
+						/* Action column - left-aligned icons, consistent gap */
+						#game_list-tbl td.col-action {
+							white-space: nowrap;
+						}
+						#game_list-tbl td.col-action .action-btn-square {
 							margin-right: 4px;
 						}
-						#game_list-tbl td:last-child .btn-group:last-child .action-btn-square {
+						#game_list-tbl td.col-action .btn-group:last-child .action-btn-square {
 							margin-right: 0;
 						}
 
@@ -988,11 +996,11 @@ table.dataTable tbody tr.highlight-row {
 							border-radius: 6px !important;
 						}
 						/* Override Bootstrap btn-group - parehas na border-radius sa lahat ng corners */
-						#game_list-tbl td:last-child .btn-group .btn,
-						#game_list-tbl td:last-child .btn-group .action-btn-square,
-						#game_list-tbl td:last-child .btn-group > .btn:first-child,
-						#game_list-tbl td:last-child .btn-group > .btn:last-child,
-						#game_list-tbl td:last-child .btn-group > .btn:not(:first-child):not(:last-child) {
+						#game_list-tbl td.col-action .btn-group .btn,
+						#game_list-tbl td.col-action .btn-group .action-btn-square,
+						#game_list-tbl td.col-action .btn-group > .btn:first-child,
+						#game_list-tbl td.col-action .btn-group > .btn:last-child,
+						#game_list-tbl td.col-action .btn-group > .btn:not(:first-child):not(:last-child) {
 							border-radius: 6px !important;
 						}
 

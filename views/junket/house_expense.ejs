@@ -173,7 +173,7 @@
                                                         <th class="sortable-col" data-sort-key="receiver"><%= __('house_expense.receiver') || 'RECEIVER' %></th>
                                                         <th class="sortable-col" data-sort-key="description"><%= __('house_expense.receipt_no') %></th>
                                                         <th class="sortable-col text-end" data-sort-key="amount"><%= __('house_expense.amount') %></th>
-                                                        <th class="text-end"><%= __('house_expense.action') %></th>
+                                                        <th class="text-start"><%= __('house_expense.action') %></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="expense-item-cat-tbody">
@@ -716,10 +716,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 
 
 
-/* Balance column */
-#expense-tbl td:last-child {
-    text-align: center;
+/* Action column — fit icon buttons only */
+#expense-tbl td:last-child,
+#expense-tbl th:last-child {
+    width: 11rem;
+    max-width: 11rem;
+    min-width: 10rem;
+    text-align: left;
     color: #333;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
 }
 
 
@@ -944,10 +950,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 display: inline-flex;
                 flex-wrap: nowrap;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-start;
                 gap: 0.2rem;
                 white-space: nowrap;
-                width: 100%;
             }
             #expense-item-cat-tbl .house-expense-actions .btn i.fa,
             #expense-tbl .house-expense-actions .btn i.fa {
@@ -1035,15 +1040,23 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             /* Keep action column in single line (no two-line wrap) */
             #expense-item-cat-tbl th:last-child,
             #expense-item-cat-tbl td:last-child {
-                min-width: 72px;
+                width: 11rem;
+                max-width: 11rem;
+                min-width: 10rem;
                 white-space: nowrap;
-                text-align: center !important;
+                text-align: left !important;
+                padding-left: 0.35rem;
+                padding-right: 0.35rem;
             }
             #expense-tbl th:last-child,
             #expense-tbl td:last-child {
-                min-width: 105px;
+                width: 11rem;
+                max-width: 11rem;
+                min-width: 10rem;
                 white-space: nowrap;
-                text-align: center !important;
+                text-align: left !important;
+                padding-left: 0.35rem;
+                padding-right: 0.35rem;
             }
 
             /* Stat columns stretch with date column; card fills column height */
@@ -1872,13 +1885,13 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 table-layout: fixed;
                 width: 100%;
             }
-            .expense-item-tbl-layout col.expense-col-date-time { width: 13%; }
-            .expense-item-tbl-layout col.expense-col-name { width: 17%; }
-            .expense-item-tbl-layout col.expense-col-in-charge { width: 10%; }
-            .expense-item-tbl-layout col.expense-col-receiver { width: 10%; }
-            .expense-item-tbl-layout col.expense-col-description { width: 16%; }
-            .expense-item-tbl-layout col.expense-col-amount { width: 10%; }
-            .expense-item-tbl-layout col.expense-col-action { width: 24%; }
+            .expense-item-tbl-layout col.expense-col-date-time { width: 14%; }
+            .expense-item-tbl-layout col.expense-col-name { width: 22%; }
+            .expense-item-tbl-layout col.expense-col-in-charge { width: 11%; }
+            .expense-item-tbl-layout col.expense-col-receiver { width: 11%; }
+            .expense-item-tbl-layout col.expense-col-description { width: 20%; }
+            .expense-item-tbl-layout col.expense-col-amount { width: 11%; }
+            .expense-item-tbl-layout col.expense-col-action { width: 11rem; }
             .expense-item-table-wrap {
                 transform: translateY(0);
             }
@@ -1985,6 +1998,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 overflow-wrap: anywhere;
                 overflow: visible;
             }
+            .expense-item-tbl tbody td.expense-item-action-cell,
+            .expense-item-tbl thead th:last-child {
+                width: 11rem;
+                max-width: 11rem;
+                min-width: 10rem;
+                text-align: left !important;
+                padding-left: 0.35rem;
+                padding-right: 0.35rem;
+                white-space: nowrap;
+            }
             .expense-item-tbl tbody td:nth-child(2) .d-inline-flex {
                 justify-content: center;
                 width: 100%;
@@ -2000,9 +2023,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
                 display: flex;
-                justify-content: center;
+                justify-content: flex-start;
                 flex-wrap: wrap;
-                width: 100%;
             }
             @media (min-width: 992px) {
                 .expense-explorer-main-col {

@@ -4177,7 +4177,7 @@ $(document).ready(function () {
 			{ targets: 13, className: 'text-center col-total-settle' },
 			{ targets: 14, className: 'text-center col-game-end' },
 			{ targets: 15, className: 'col-roller-chips' },
-			{ targets: 16, className: 'text-center col-action' },
+			{ targets: 16, className: 'text-start col-action' },
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		

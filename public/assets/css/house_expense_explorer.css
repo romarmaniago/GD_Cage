@@ -69,13 +69,13 @@
 }
 
 /* Proportional column distribution (sums to 100%) */
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 13%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 17%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 10%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 10%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 16%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 10%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 24%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 14%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 22%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 11%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 11%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 20%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 11%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 11rem; }
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(3),
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3) {
@@ -129,18 +129,31 @@
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-action-cell {
-  padding-left: 0.2rem;
-  padding-right: 0.2rem;
+  width: 11rem;
+  max-width: 11rem;
+  min-width: 10rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
   overflow: visible;
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout thead th:last-child {
+  width: 11rem;
+  max-width: 11rem;
+  min-width: 10rem;
+  text-align: left !important;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.15rem;
-  width: 100%;
   max-width: 100%;
 }
 
@@ -666,7 +679,13 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 #expense-item-cat-tbl th:last-child,
 #expense-item-cat-tbl td:last-child {
-    text-align: center !important;
+    width: 11rem;
+    max-width: 11rem;
+    min-width: 10rem;
+    white-space: nowrap;
+    text-align: left !important;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
 }
 #expense-item-cat-tbl thead th.sortable-col {
     cursor: pointer;
@@ -957,6 +976,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     overflow-wrap: anywhere;
     overflow: visible;
 }
+.expense-item-tbl tbody td.expense-item-action-cell,
+.expense-item-tbl thead th:last-child {
+    width: 11rem;
+    max-width: 11rem;
+    min-width: 10rem;
+    text-align: left !important;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    white-space: nowrap;
+}
 .expense-item-tbl tbody td:nth-child(2) .d-inline-flex {
     justify-content: center;
     width: 100%;
@@ -972,9 +1001,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
-    width: 100%;
     gap: 0.15rem;
 }
 #expense-item-cat-tbl .house-expense-actions .btn i.fa,

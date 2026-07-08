@@ -933,7 +933,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '<td class="text-end">' +
                     amountDisplay +
                     '</td>' +
-                    '<td class="text-end expense-item-action-cell">' +
+                    '<td class="text-start expense-item-action-cell">' +
                     buildHouseExpenseActionButtons(row, amount) +
                     '</td>' +
                     '</tr>'
