@@ -6254,7 +6254,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		game_id,
 		txtAccountCode,
 		txttotal_balance_cashout,
-		txtTotalRolling,
 		txtMarkerChipsReturn
 	} = req.body;
 
@@ -6287,7 +6286,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		return parts.length ? parts.join(' | ') : null;
 	};
 
-	const rollingLimit = parseFloat((txtTotalRolling || '0').replace(/,/g, '')) || 0;
 	const markerBalance = parseFloat((txtMarkerChipsReturn || '0').replace(/,/g, '')) || 0;
 	const sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
 
@@ -6316,7 +6314,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		return res.status(400).json({ error: 'Tip Dealer NN must be in thousands.' });
 	}
 
-	const totalNN = cashNn + depNn + creditNn;
 	const cashLeg = cashNn + cashCc;
 	const depLeg = depNn + depCc;
 	const creditLeg = creditNn + creditCc;
@@ -6334,10 +6331,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 
 	if (splitGrandTotal <= 0 && tipGrandTotal <= 0) {
 		return res.status(400).json({ error: 'Enter a cash-out amount and/or a tip amount.' });
-	}
-	const totalNnAll = totalNN + tipRollerNn + tipDealerNn;
-	if (totalNnAll > rollingLimit) {
-		return res.status(400).json({ error: 'Total NN exceeds Total Rolling.' });
 	}
 	if (splitGrandTotal > 0 && creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
 		return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });

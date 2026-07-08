@@ -11,7 +11,16 @@
 .commission-daterange-wrap,
 .commission-panel-daterange-wrap,
 .daily-report-list-daterange-wrap,
-.hb-field-daterange-wrap {
+.hb-field-daterange-wrap,
+.house-expense-daterange-wrap,
+.fnb-hotel-daterange-wrap,
+.junket-loss-daterange-wrap,
+#daterange-wrapper,
+#manual-daterange-wrapper,
+.house-expense-manual-daterange-wrap,
+.fnb-hotel-manual-daterange-wrap,
+.daily-report-manual-daterange-wrap,
+.junket-loss-manual-daterange-wrap {
 	width: auto;
 	min-width: 0;
 	max-width: none;
@@ -22,7 +31,10 @@
 .commission-daterange-wrap .flatpickr-wrapper,
 .commission-panel-daterange-wrap .flatpickr-wrapper,
 .daily-report-list-daterange-wrap .flatpickr-wrapper,
-.hb-field-daterange-wrap .flatpickr-wrapper {
+.hb-field-daterange-wrap .flatpickr-wrapper,
+.house-expense-daterange-wrap .flatpickr-wrapper,
+.fnb-hotel-daterange-wrap .flatpickr-wrapper,
+.junket-loss-daterange-wrap .flatpickr-wrapper {
 	display: inline-block;
 	width: auto;
 	min-width: 0;
@@ -37,7 +49,18 @@
 .daily-report-list-daterange-wrap .flatpickr-input.form-control,
 .hb-field-daterange-wrap input.form-control,
 .hb-field-daterange-wrap .flatpickr-input.form-control,
+.house-expense-daterange-wrap input.form-control,
+.house-expense-daterange-wrap .flatpickr-input.form-control,
+.fnb-hotel-daterange-wrap input.form-control,
+.fnb-hotel-daterange-wrap .flatpickr-input.form-control,
+.junket-loss-daterange-wrap input.form-control,
+.junket-loss-daterange-wrap .flatpickr-input.form-control,
 #modal-new-capital .hb-field-daterange-wrap input,
+#manual-daterange-wrapper input.house-expense-manual-daterange-input,
+#fnb-hotel-manual-daterange.fnb-hotel-manual-daterange-input,
+#junket-loss-manual-daterange.junket-loss-manual-daterange-input,
+#daily-report-list-manual-daterange.daily-report-manual-daterange-input,
+#daterange-wrapper input.form-control,
 input.fp-auto-range-width,
 input.flatpickr-input.fp-auto-range-width {
 	display: inline-block !important;

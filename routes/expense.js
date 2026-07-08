@@ -16,6 +16,16 @@ async function insertCashTransactionForExpense(pool, expenseId, amount, category
 	);
 }
 
+async function ensureCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
+	const [ctRows] = await pool.execute(
+		`SELECT IDNo FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses' AND ACTIVE = 1 LIMIT 1`,
+		[expenseId]
+	);
+	if (!ctRows.length) {
+		await insertCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow);
+	}
+}
+
 async function sendNewHouseExpenseTelegram(pool, payload) {
 	const {
 		categoryName,
@@ -494,7 +504,23 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			dailySettlementStatus
 		]);
 
-		res.json({ success: true, id: insertResult.insertId });
+		const expenseId = insertResult.insertId;
+		const [categoryRows] = await pool.execute(
+			'SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1',
+			[category]
+		);
+		const categoryName =
+			categoryRows[0] && categoryRows[0].CATEGORY ? categoryRows[0].CATEGORY : '-';
+		await insertCashTransactionForExpense(
+			pool,
+			expenseId,
+			amount,
+			categoryName,
+			encodedBy,
+			date_now
+		);
+
+		res.json({ success: true, id: expenseId });
 	} catch (err) {
 		console.error('Error inserting junket:', err);
 		res.status(500).json({ error: 'Error inserting junket' });
@@ -526,20 +552,14 @@ router.put('/junket_house_expense/approve/:id', checkSession, async (req, res) =
 			[req.session.user_id, date_now, id]
 		);
 
-		const [ctRows] = await pool.execute(
-			`SELECT IDNo FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses' AND ACTIVE = 1 LIMIT 1`,
-			[id]
+		await ensureCashTransactionForExpense(
+			pool,
+			id,
+			Number(exp.AMOUNT),
+			exp.category_name || '-',
+			exp.ENCODED_BY,
+			date_now
 		);
-		if (!ctRows.length) {
-			await insertCashTransactionForExpense(
-				pool,
-				id,
-				Number(exp.AMOUNT),
-				exp.category_name || '-',
-				exp.ENCODED_BY,
-				date_now
-			);
-		}
 
 		await sendNewHouseExpenseTelegram(pool, {
 			categoryName: exp.category_name || '-',
@@ -578,6 +598,10 @@ router.put('/junket_house_expense/reject/:id', checkSession, async (req, res) =>
 		await pool.execute(
 			`UPDATE junket_house_expense SET APPROVAL_STATUS = 2, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 			[req.session.user_id, date_now, id]
+		);
+		await pool.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND CATEGORY = ? AND ACTIVE = 1',
+			[req.session.user_id, date_now, id, 'Expenses']
 		);
 
 		res.json({ success: true });
@@ -1087,7 +1111,24 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			SET AMOUNT = ?, CATEGORY = ?, REMARKS = ?, ENCODED_BY = ?, ENCODED_DT = ?
 			WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses' AND ACTIVE = 1
 		`;
-		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
+		const [cashUpdateResult] = await pool.execute(cashTransactionUpdateQuery, [
+			editXAmount.toString(),
+			'Expenses',
+			expenseCategoryName,
+			req.session.user_id,
+			date_now,
+			id
+		]);
+		if (!cashUpdateResult.affectedRows) {
+			await ensureCashTransactionForExpense(
+				pool,
+				id,
+				editXAmount,
+				expenseCategoryName,
+				req.session.user_id,
+				date_now
+			);
+		}
 
 		// Telegram to Management: expense edited with details
 		try {

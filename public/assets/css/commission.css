@@ -281,6 +281,31 @@
 	box-sizing: border-box;
 }
 
+.commission-manual-daterange-wrap {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	min-width: 0;
+}
+
+.commission-manual-daterange-wrap.commission-daterange-wrap input.form-control.commission-manual-daterange-input {
+	display: inline-block;
+	position: static;
+	left: auto;
+	top: auto;
+	width: auto;
+	min-width: 0;
+	padding-left: 8px;
+	padding-right: 8px;
+	max-width: none;
+	margin: 0;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
+	cursor: text;
+}
+
 #commission-tbl thead th:nth-child(1) {
 	text-align: center;
 }

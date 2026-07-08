@@ -123,7 +123,7 @@
 		};
 	}
 
-	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.hb-field-daterange-wrap';
+	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-manual-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.daily-report-manual-daterange-wrap,.hb-field-daterange-wrap,.house-expense-daterange-wrap,.house-expense-manual-daterange-wrap,.fnb-hotel-daterange-wrap,.fnb-hotel-manual-daterange-wrap,.junket-loss-daterange-wrap,.junket-loss-manual-daterange-wrap,#daterange-wrapper,#manual-daterange-wrapper';
 	var DEFAULT_RANGE_SAMPLE = 'Jun 30, 2026 to Jul 30, 2026';
 
 	function getRangeWidthMeasurer() {

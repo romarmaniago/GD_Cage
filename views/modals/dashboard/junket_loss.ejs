@@ -7,7 +7,14 @@
       </div>
       <div class="modal-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <input type="text" id="junket-loss-daterange" class="form-control form-control-sm dash-junket-loss-daterange" placeholder="Select date range" autocomplete="off" readonly>
+          <div class="junket-loss-daterange-group d-flex flex-wrap align-items-center gap-2">
+            <div class="junket-loss-daterange-wrap">
+              <input type="text" id="junket-loss-daterange" class="form-control form-control-sm text-center dash-junket-loss-daterange" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" />
+            </div>
+            <div class="junket-loss-daterange-wrap junket-loss-manual-daterange-wrap">
+              <input type="text" id="junket-loss-manual-daterange" class="form-control form-control-sm text-center junket-loss-manual-daterange-input dash-junket-loss-daterange" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" spellcheck="false" aria-label="<%= __('junket_loss.manual_date_range') || 'Manual date range' %>" title="<%= __('junket_loss.manual_date_range_hint') || 'Type date range and press Enter' %>" />
+            </div>
+          </div>
           <div class="d-flex flex-wrap gap-2">
             <button type="button" id="btn-junket-loss-print" class="btn btn-sm btn-alt-success">
               <i class="fa fa-print" aria-hidden="true"></i> Print
@@ -79,7 +86,14 @@
 
 <style>
   #modal-dash-junket-loss .dash-junket-loss-daterange {
-    max-width: 260px;
+    max-width: none;
+  }
+
+  #modal-dash-junket-loss .junket-loss-daterange-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
   #modal-dash-junket-loss #junket-loss-tbl thead th {

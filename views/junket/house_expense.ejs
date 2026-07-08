@@ -83,9 +83,12 @@
 
                             <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
                                 <div class="house-expense-filter-toolbar">
-                                    <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
-                                        <div class="input-group">
-                                            <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                    <div class="house-expense-daterange-group d-flex flex-wrap align-items-center gap-2">
+                                        <div id="daterange-wrapper" class="house-expense-daterange-wrap day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+                                            <input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" />
+                                        </div>
+                                        <div id="manual-daterange-wrapper" class="house-expense-daterange-wrap house-expense-manual-daterange-wrap">
+                                            <input type="text" id="house-expense-manual-daterange" class="form-control form-control-sm text-center house-expense-manual-daterange-input" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" spellcheck="false" aria-label="<%= __('house_expense.manual_date_range') || 'Manual date range' %>" title="<%= __('house_expense.manual_date_range_hint') || 'Type date range and press Enter' %>" />
                                         </div>
                                     </div>
                                     <div class="house-expense-filter-actions d-flex flex-wrap align-items-center gap-2">
@@ -633,9 +636,72 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     margin-left: auto;
 }
 
-#daterange-wrapper {
-    width: 320px;
-    max-width: 100%;
+.house-expense-daterange-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#daterange-wrapper,
+#manual-daterange-wrapper,
+.house-expense-daterange-wrap {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.house-expense-daterange-wrap .flatpickr-wrapper {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+}
+
+.house-expense-daterange-wrap input.form-control,
+.house-expense-daterange-wrap .flatpickr-input.form-control {
+    display: inline-block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    min-width: 10rem;
+    max-width: none !important;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    text-align: center;
+    cursor: pointer;
+}
+
+.house-expense-manual-daterange-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.house-expense-manual-daterange-wrap.house-expense-daterange-wrap input.form-control.house-expense-manual-daterange-input {
+    display: inline-block;
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: text;
+    text-align: center;
 }
 
 /* Cell styles */
@@ -779,8 +845,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             .house-expense-filter-shell .day-selector-wrapper {
-                width: 320px;
-                max-width: 100%;
+                width: auto;
+                min-width: 0;
+                max-width: none;
             }
 
             /* Settlement Date Navigation Buttons */
@@ -841,43 +908,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 pointer-events: none;
             }
 
-            #daterange-wrapper .flatpickr-input {
-                border: none;
-                text-align: center;
-                font-weight: 600;
-                font-size: 0.95rem;
-                color: #212529;
-                background: #ffffff;
-                flex: 1;
-                padding: 0.5rem 0.75rem;
-                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-                cursor: pointer;
-            }
-
-            #daterange-wrapper .flatpickr-input:focus {
-                outline: none;
-                box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-            }
-
-            .day-selector-wrapper #daterange-picker {
-                border: none;
-                text-align: center;
-                font-weight: 600;
-                font-size: 0.95rem;
-                color: #212529;
-                background: #ffffff;
-                flex: 1;
-                padding: 0.5rem 0.75rem;
-                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-                cursor: pointer;
-            }
-            
-            .day-selector-wrapper #daterange-picker:focus {
-                outline: none;
-                box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-            }
-            
-            .day-selector-wrapper #daterange-picker.flatpickr-input {
+            #daterange-wrapper .flatpickr-input,
+            #daterange-wrapper input.flatpickr-alt-input {
                 cursor: pointer;
             }
 

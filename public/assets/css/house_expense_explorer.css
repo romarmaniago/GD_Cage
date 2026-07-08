@@ -246,10 +246,80 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     margin-left: auto;
 }
 
-#daterange-wrapper {
-    width: 320px;
-    max-width: 100%;
+#daterange-wrapper,
+#manual-daterange-wrapper,
+.house-expense-daterange-wrap {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    display: inline-block;
 }
+
+.house-expense-daterange-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.house-expense-daterange-wrap .flatpickr-wrapper {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+}
+
+.house-expense-daterange-wrap input.form-control,
+.house-expense-daterange-wrap .flatpickr-input.form-control {
+    display: inline-block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    min-width: 10rem;
+    max-width: none !important;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    text-align: center;
+    cursor: pointer;
+}
+
+.house-expense-manual-daterange-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.house-expense-manual-daterange-wrap.house-expense-daterange-wrap input.form-control.house-expense-manual-daterange-input {
+    display: inline-block;
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: text;
+    text-align: center;
+}
+
+.house-expense-filter-shell .day-selector-wrapper {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+}
+
 .house-expense-filter-shell {
     margin-bottom: 1rem;
     padding-bottom: 0.25rem;
@@ -291,10 +361,6 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     font-size: 14px;
 }
 
-.house-expense-filter-shell .day-selector-wrapper {
-    width: 320px;
-    max-width: 100%;
-}
 .expense-dash-kpi {
     border-radius: 14px;
     padding: 1rem 1.15rem;

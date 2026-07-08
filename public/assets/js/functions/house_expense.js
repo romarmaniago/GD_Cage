@@ -240,7 +240,7 @@ function houseExpenseGetApprovalStatus(row) {
 }
 
 function houseExpenseIsApprovedForTotals(row) {
-    return houseExpenseGetApprovalStatus(row) === 1;
+    return houseExpenseGetApprovalStatus(row) !== 2;
 }
 
 /** Pending/rejected first; approved last. */
@@ -402,8 +402,12 @@ function buildHouseExpenseReceiptSlipHtml(data) {
         detailsTable +
         amountRows +
         '</div>' +
-        '<button type="button" class="btn btn-sm btn-primary w-100 mt-2 js-copy-house-expense-receipt-slip">' +
-        '<i class="fa fa-copy me-1"></i>Copy</button>' +
+        '<div class="house-expense-receipt-slip-actions">' +
+        '<button type="button" class="btn btn-sm btn-outline-primary js-copy-house-expense-receipt-slip-image">' +
+        'Copy image</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-primary js-copy-house-expense-receipt-slip-text">' +
+        'Copy text</button>' +
+        '</div>' +
         '</div>'
     );
 }
@@ -520,54 +524,52 @@ function copyHouseExpenseReceiptSlipText(slipBodyEl) {
     return navigator.clipboard.writeText(text);
 }
 
-function copyHouseExpenseReceiptSlipImage(slipBodyEl, $btn) {
-    if (!slipBodyEl || !$btn || !$btn.length) return;
-
+function getHouseExpenseReceiptCopyUiHelpers($btn) {
     var originalHtml = $btn.html();
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
 
-    var showCopySuccess = function (message) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Copied!',
-                text: message,
-                timer: 2000,
-                showConfirmButton: false
-            });
+    return {
+        showCopySuccess: function (message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Copied!',
+                    text: message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        },
+        showCopyError: function (msg) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+            } else {
+                alert(msg);
+            }
+        },
+        restoreBtn: function () {
+            $btn.prop('disabled', false).html(originalHtml);
         }
     };
+}
 
-    var showCopyError = function (msg) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
-        } else {
-            alert(msg);
-        }
-    };
+function copyHouseExpenseReceiptSlipImage(slipBodyEl, $btn) {
+    if (!slipBodyEl || !$btn || !$btn.length) return;
 
-    var restoreBtn = function () {
-        $btn.prop('disabled', false).html(originalHtml);
-    };
-
+    var ui = getHouseExpenseReceiptCopyUiHelpers($btn);
     var imageBlobPromise = buildHouseExpenseReceiptSlipImageBlob(slipBodyEl);
 
     if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
         navigator.clipboard
             .write([new ClipboardItem({ 'image/png': imageBlobPromise })])
             .then(function () {
-                showCopySuccess('Receipt image copied. You can paste it anywhere.');
-            })
-            .catch(function () {
-                return copyHouseExpenseReceiptSlipText(slipBodyEl).then(function () {
-                    showCopySuccess('Receipt text copied. You can paste it anywhere.');
-                });
+                ui.showCopySuccess('Receipt image copied. You can paste it anywhere.');
             })
             .catch(function (err) {
-                var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
-                showCopyError(msg);
+                var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
+                ui.showCopyError(msg);
             })
-            .finally(restoreBtn);
+            .finally(ui.restoreBtn);
         return;
     }
 
@@ -579,18 +581,29 @@ function copyHouseExpenseReceiptSlipImage(slipBodyEl, $btn) {
             link.download = 'expense-receipt.png';
             link.click();
             URL.revokeObjectURL(url);
-            showCopySuccess('Receipt image downloaded.');
-        })
-        .catch(function () {
-            return copyHouseExpenseReceiptSlipText(slipBodyEl).then(function () {
-                showCopySuccess('Receipt text copied. You can paste it anywhere.');
-            });
+            ui.showCopySuccess('Receipt image downloaded.');
         })
         .catch(function (err) {
-            var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
-            showCopyError(msg);
+            var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
+            ui.showCopyError(msg);
         })
-        .finally(restoreBtn);
+        .finally(ui.restoreBtn);
+}
+
+function copyHouseExpenseReceiptSlipTextButton(slipBodyEl, $btn) {
+    if (!slipBodyEl || !$btn || !$btn.length) return;
+
+    var ui = getHouseExpenseReceiptCopyUiHelpers($btn);
+
+    copyHouseExpenseReceiptSlipText(slipBodyEl)
+        .then(function () {
+            ui.showCopySuccess('Receipt text copied. You can paste it anywhere.');
+        })
+        .catch(function (err) {
+            var msg = (err && err.message) ? err.message : 'Unable to copy receipt text.';
+            ui.showCopyError(msg);
+        })
+        .finally(ui.restoreBtn);
 }
 
 function buildHouseExpenseActionButtons(row, amount) {
@@ -2495,6 +2508,110 @@ $(document).ready(function () {
 
     toggleHouseExpenseBreakdownPanel('daterange');
 
+    var houseExpenseManualDateLastApplied = '';
+
+    function getHouseExpenseManualDateInput() {
+        return document.getElementById('house-expense-manual-daterange');
+    }
+
+    function getHouseExpenseManualDateRangeRaw() {
+        return ($('#house-expense-manual-daterange').val() || '').trim();
+    }
+
+    function parseHouseExpenseIsoDateLocal(value) {
+        var m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return null;
+        return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
+
+    function fitHouseExpenseManualInputWidth() {
+        var el = getHouseExpenseManualDateInput();
+        if (!el) return;
+
+        var text = (el.value || '').trim();
+        if (!text) {
+            text = (el.getAttribute('placeholder') || '').trim();
+        }
+        if (!text) {
+            text = 'Jun 30, 2026 to Jul 30, 2026';
+        }
+
+        var widthPx = 160;
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
+            window.MonthEndCutoffRange.fitRangeInputWidth(el);
+            widthPx = parseInt(el.style.width, 10) || widthPx;
+        }
+
+        var wrap = el.closest('.house-expense-manual-daterange-wrap');
+        if (wrap) {
+            wrap.style.width = widthPx + 'px';
+            wrap.style.minWidth = widthPx + 'px';
+        }
+    }
+
+    function syncHouseExpenseManualFromFlatpickr() {
+        var label = getHouseExpenseDateRangeLabel();
+        if (!label || label === 'Select date range') return;
+        $('#house-expense-manual-daterange').val(label);
+        houseExpenseManualDateLastApplied = label;
+        fitHouseExpenseManualInputWidth();
+    }
+
+    function applyHouseExpenseManualDateRange() {
+        var raw = getHouseExpenseManualDateRangeRaw();
+        if (!raw) return false;
+        if (raw === houseExpenseManualDateLastApplied) return true;
+
+        var start;
+        var end;
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
+            var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
+            start = apiRange.start;
+            end = apiRange.end;
+        } else if (raw.includes(' to ')) {
+            var parts = raw.split(' to ');
+            start = (parts[0] || '').trim();
+            end = (parts[1] || '').trim();
+        } else {
+            start = raw;
+            end = raw;
+        }
+
+        if (!start || !end) {
+            alert((window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date.');
+            return false;
+        }
+
+        var startDate = parseHouseExpenseIsoDateLocal(start);
+        var endDate = parseHouseExpenseIsoDateLocal(end);
+        if (!startDate || !endDate || endDate < startDate) {
+            alert((window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date range.');
+            return false;
+        }
+
+        houseExpenseManualDateLastApplied = raw;
+        var el = document.getElementById('daterange-picker');
+        if (el && el._flatpickr) {
+            el._flatpickr.setDate([startDate, endDate], false);
+            if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+                window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
+            }
+        }
+        if (typeof window.reloadData === 'function') window.reloadData();
+        return true;
+    }
+
+    $(document).on('keydown', '#house-expense-manual-daterange', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyHouseExpenseManualDateRange();
+        }
+    });
+
+    $(document).on('input', '#house-expense-manual-daterange', function () {
+        fitHouseExpenseManualInputWidth();
+    });
+
     var dateRangePicker = null;
     if (document.getElementById('daterange-picker')) {
         var now = new Date();
@@ -2520,6 +2637,7 @@ $(document).ready(function () {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
                 toggleHouseExpenseBreakdownPanel('daterange');
+                setTimeout(syncHouseExpenseManualFromFlatpickr, 0);
                 if (typeof window.reloadData === 'function') {
                     setTimeout(function () {
                         window.reloadData(false, instance);
@@ -2540,6 +2658,7 @@ $(document).ready(function () {
             onChange: function (selectedDates) {
                 toggleHouseExpenseBreakdownPanel('daterange');
                 if (selectedDates.length === 2) {
+                    syncHouseExpenseManualFromFlatpickr();
                     if (typeof window.reloadData === 'function') window.reloadData();
                 } else {
                     clearExpenseTableDisplay();
@@ -2712,12 +2831,21 @@ $(document).ready(function () {
     };
 
     $(document)
-        .off('click', '.js-copy-house-expense-receipt-slip')
-        .on('click', '.js-copy-house-expense-receipt-slip', function (e) {
+        .off('click', '.js-copy-house-expense-receipt-slip-image')
+        .on('click', '.js-copy-house-expense-receipt-slip-image', function (e) {
             e.preventDefault();
             var $btn = $(this);
             var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
             copyHouseExpenseReceiptSlipImage(slipBody, $btn);
+        });
+
+    $(document)
+        .off('click', '.js-copy-house-expense-receipt-slip-text')
+        .on('click', '.js-copy-house-expense-receipt-slip-text', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
+            copyHouseExpenseReceiptSlipTextButton(slipBody, $btn);
         });
 
     $(document)
@@ -3167,11 +3295,9 @@ function openHouseExpenseEditCategoryModal(catId, kind) {
     if (!row) return;
 
     var isSub = kind === 'sub';
-    var typeVal = row.TYPE != null ? String(row.TYPE) : '2';
 
     $('#house-expense-edit-cat-id').val(String(catId));
     $('#house-expense-edit-cat-name').val(row.CATEGORY || '').removeClass('is-invalid');
-    $('#house-expense-edit-cat-type').val(typeVal === '1' ? '1' : '2');
     $('#house-expense-edit-cat-parent').val(isSub && row.PARENT_ID != null ? String(row.PARENT_ID) : '');
     $('#house-expense-edit-category-title').text(
         isSub ? t.edit_sub_category || 'Edit sub category' : t.edit_main_category || 'Edit main category'
@@ -3305,7 +3431,6 @@ function houseExpenseInitCategoryAddUi() {
     $('#modal-house-expense-add-category').on('hidden.bs.modal', function () {
         var $form = $('#form-house-expense-add-category');
         if ($form.length) $form[0].reset();
-        $('#house-expense-add-cat-type').val('2');
         $('#house-expense-add-cat-name').removeClass('is-invalid');
         houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), '');
         var $save = $('#house-expense-add-cat-save');
@@ -3336,7 +3461,7 @@ function submitHouseExpenseAddCategoryForm($form) {
     var t = window.houseExpenseTranslations || {};
     var mode = window.houseExpenseAddCategoryMode;
     var name = String($('#house-expense-add-cat-name').val() || '').trim();
-    var typeVal = $('#house-expense-add-cat-type').val() || '2';
+    var typeVal = '2';
     var parentId = $('#house-expense-add-cat-parent').val() || '';
 
     if (!name) {
@@ -3398,7 +3523,8 @@ function submitHouseExpenseEditCategoryForm($form) {
     var t = window.houseExpenseTranslations || {};
     var catId = $('#house-expense-edit-cat-id').val();
     var name = String($('#house-expense-edit-cat-name').val() || '').trim();
-    var typeVal = $('#house-expense-edit-cat-type').val() || '2';
+    var row = houseExpenseFindCategoryRow(catId);
+    var typeVal = row && row.TYPE != null ? String(row.TYPE) : '2';
     var parentId = $('#house-expense-edit-cat-parent').val() || '';
 
     if (!catId) return;
@@ -3459,7 +3585,6 @@ function openHouseExpenseAddCategoryModal(mode) {
     }
 
     $('#house-expense-add-cat-name').val('').removeClass('is-invalid');
-    $('#house-expense-add-cat-type').val('2');
     houseExpenseShowCategoryFormError($('#house-expense-add-cat-error'), '');
 
     if (mode === 'sub') {

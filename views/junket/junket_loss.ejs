@@ -30,8 +30,15 @@
         </div>
         <div class="dataTables_wrapper">
           <div class="row mb-2">
-            <div class="col-sm-4">
-              <input type="text" id="junket-loss-daterange" class="input-daterange input-group" placeholder="Select date range" autocomplete="off" />
+            <div class="col-sm-12">
+              <div class="junket-loss-daterange-group d-flex flex-wrap align-items-center gap-2">
+                <div class="junket-loss-daterange-wrap">
+                  <input type="text" id="junket-loss-daterange" class="form-control form-control-sm text-center" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" />
+                </div>
+                <div class="junket-loss-daterange-wrap junket-loss-manual-daterange-wrap">
+                  <input type="text" id="junket-loss-manual-daterange" class="form-control form-control-sm text-center junket-loss-manual-daterange-input" placeholder="<%= __('junket_loss.select_date_range') || 'Select date range' %>" autocomplete="off" spellcheck="false" aria-label="<%= __('junket_loss.manual_date_range') || 'Manual date range' %>" title="<%= __('junket_loss.manual_date_range_hint') || 'Type date range and press Enter' %>" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -182,27 +189,69 @@
     font-size: 12px;
   }
 
-  .input-daterange {
+  .junket-loss-daterange-group {
     display: flex;
-    justify-content: space-between;
-    position: relative;
-    left: 9rem;
-    top: 4rem;
-    max-width: 220px;
-    font-size: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
-  .input-daterange .form-control {
-    flex: 1;
-    margin-right: 5px;
-    max-width: 100px;
-    font-size: 12px;
-    padding: 8px;
+  .junket-loss-daterange-wrap {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+    display: inline-block;
+  }
+
+  .junket-loss-daterange-wrap .flatpickr-wrapper {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+  }
+
+  .junket-loss-daterange-wrap input.form-control,
+  .junket-loss-daterange-wrap .flatpickr-input.form-control {
+    display: inline-block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: auto !important;
+    min-width: 10rem;
+    max-width: none !important;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
     text-align: center;
+    cursor: pointer;
   }
 
-  .input-daterange .form-control:last-child {
-    margin-right: 0;
+  .junket-loss-manual-daterange-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .junket-loss-manual-daterange-wrap.junket-loss-daterange-wrap input.form-control.junket-loss-manual-daterange-input {
+    display: inline-block;
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    min-width: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: text;
+    text-align: center;
   }
 
   .flatpickr-calendar .cur-month {
@@ -219,13 +268,8 @@
     }
 
     .dataTables_wrapper .row,
-    .input-daterange,
-    .input-daterange .form-control {
+    .junket-loss-daterange-wrap input.form-control {
       font-size: 10px;
-    }
-
-    .input-daterange .form-control {
-      padding: 5px;
     }
 
     #junket-loss-tbl th,

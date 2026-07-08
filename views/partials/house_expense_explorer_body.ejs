@@ -54,9 +54,12 @@
 
 <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
   <div class="house-expense-filter-toolbar">
-    <div id="daterange-wrapper" class="day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
-      <div class="input-group">
-        <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+    <div class="house-expense-daterange-group d-flex flex-wrap align-items-center gap-2">
+      <div id="daterange-wrapper" class="house-expense-daterange-wrap day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+        <input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" />
+      </div>
+      <div id="manual-daterange-wrapper" class="house-expense-daterange-wrap house-expense-manual-daterange-wrap">
+        <input type="text" id="house-expense-manual-daterange" class="form-control form-control-sm text-center house-expense-manual-daterange-input" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" spellcheck="false" aria-label="<%= __('house_expense.manual_date_range') || 'Manual date range' %>" title="<%= __('house_expense.manual_date_range_hint') || 'Type date range and press Enter' %>" />
       </div>
     </div>
     <div class="house-expense-filter-actions d-flex flex-wrap align-items-center gap-2">

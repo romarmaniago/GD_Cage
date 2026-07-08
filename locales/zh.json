@@ -414,7 +414,9 @@
 		"pending_approval": "house_expense.pending_approval",
 		"approve_confirm": "house_expense.approve_confirm",
 		"reject_confirm": "house_expense.reject_confirm",
-		"expense_slip_receipt": "house_expense.expense_slip_receipt"
+		"expense_slip_receipt": "house_expense.expense_slip_receipt",
+		"manual_date_range": "house_expense.manual_date_range",
+		"manual_date_range_hint": "house_expense.manual_date_range_hint"
 	},
 	"hotel_booking": {
 		"junket": "接待",
@@ -517,7 +519,11 @@
 		"game_start": "commission.game_start",
 		"type": "commission.type",
 		"acct_no": "commission.acct_no",
-		"guest": "commission.guest"
+		"guest": "commission.guest",
+		"manual_date_range": "commission.manual_date_range",
+		"manual_date_from": "commission.manual_date_from",
+		"manual_date_to": "commission.manual_date_to",
+		"manual_date_range_hint": "commission.manual_date_range_hint"
 	},
 	"junket_loss": {
 		"junket": "接待",
@@ -525,7 +531,10 @@
 		"export": "导出",
 		"add": "添加接待损失",
 		"no_data_export": "没有可导出的数据。",
-		"export_error": "导出失败"
+		"export_error": "导出失败",
+		"select_date_range": "junket_loss.select_date_range",
+		"manual_date_range": "junket_loss.manual_date_range",
+		"manual_date_range_hint": "junket_loss.manual_date_range_hint"
 	},
 	"agent_statistic": {
 		"statistics": "统计",
@@ -1397,7 +1406,10 @@
 		"service_deleted": "服务记录已删除。",
 		"delete_failed": "删除失败",
 		"failed_to_delete": "删除服务记录失败。",
-		"select_account": "fnb_hotel.select_account"
+		"select_account": "fnb_hotel.select_account",
+		"select_date_range": "fnb_hotel.select_date_range",
+		"manual_date_range": "fnb_hotel.manual_date_range",
+		"manual_date_range_hint": "fnb_hotel.manual_date_range_hint"
 	},
 	"services_category": {
 		"services_category": "services_category.services_category",

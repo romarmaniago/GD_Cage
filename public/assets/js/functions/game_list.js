@@ -2969,8 +2969,12 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 		summaryRows +
 		settlementRows +
 		'</div>' +
-		'<button type="button" class="btn btn-sm btn-primary w-100 mt-2 js-copy-game-receipt-slip">' +
-		'<i class="fa fa-copy me-1"></i>Copy</button>' +
+		'<div class="game-start-receipt-slip-actions">' +
+		'<button type="button" class="btn btn-sm btn-outline-primary js-copy-game-receipt-slip-image">' +
+		'Copy image</button>' +
+		'<button type="button" class="btn btn-sm btn-outline-primary js-copy-game-receipt-slip-text">' +
+		'Copy text</button>' +
+		'</div>' +
 		'</div>'
 	);
 }
@@ -3192,36 +3196,39 @@ function copyGameReceiptSlipText(slipBodyEl) {
 	return navigator.clipboard.writeText(text);
 }
 
-function copyGameReceiptSlipImage(slipBodyEl, $btn) {
-	if (!slipBodyEl || !$btn || !$btn.length) return;
-
+function getGameReceiptCopyUiHelpers($btn) {
 	var originalHtml = $btn.html();
 	$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
 
-	var showCopySuccess = function (message) {
-		if (typeof Swal !== 'undefined') {
-			Swal.fire({
-				icon: 'success',
-				title: 'Copied!',
-				text: message,
-				timer: 2000,
-				showConfirmButton: false
-			});
+	return {
+		showCopySuccess: function (message) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({
+					icon: 'success',
+					title: 'Copied!',
+					text: message,
+					timer: 2000,
+					showConfirmButton: false
+				});
+			}
+		},
+		showCopyError: function (msg) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+			} else {
+				alert(msg);
+			}
+		},
+		restoreBtn: function () {
+			$btn.prop('disabled', false).html(originalHtml);
 		}
 	};
+}
 
-	var showCopyError = function (msg) {
-		if (typeof Swal !== 'undefined') {
-			Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
-		} else {
-			alert(msg);
-		}
-	};
+function copyGameReceiptSlipImage(slipBodyEl, $btn) {
+	if (!slipBodyEl || !$btn || !$btn.length) return;
 
-	var restoreBtn = function () {
-		$btn.prop('disabled', false).html(originalHtml);
-	};
-
+	var ui = getGameReceiptCopyUiHelpers($btn);
 	var imageBlobPromise = buildGameReceiptSlipImageBlob(slipBodyEl);
 
 	if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
@@ -3230,19 +3237,13 @@ function copyGameReceiptSlipImage(slipBodyEl, $btn) {
 			new ClipboardItem({ 'image/png': imageBlobPromise })
 		])
 			.then(function () {
-				showCopySuccess('Receipt image copied. You can paste it anywhere.');
-			})
-			.catch(function () {
-				return copyGameReceiptSlipText(slipBodyEl)
-					.then(function () {
-						showCopySuccess('Receipt text copied. You can paste it anywhere.');
-					});
+				ui.showCopySuccess('Receipt image copied. You can paste it anywhere.');
 			})
 			.catch(function (err) {
-				var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
-				showCopyError(msg);
+				var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
+				ui.showCopyError(msg);
 			})
-			.finally(restoreBtn);
+			.finally(ui.restoreBtn);
 		return;
 	}
 
@@ -3254,27 +3255,45 @@ function copyGameReceiptSlipImage(slipBodyEl, $btn) {
 			link.download = 'receipt.png';
 			link.click();
 			URL.revokeObjectURL(url);
-			showCopySuccess('Receipt image downloaded.');
-		})
-		.catch(function () {
-			return copyGameReceiptSlipText(slipBodyEl)
-				.then(function () {
-					showCopySuccess('Receipt text copied. You can paste it anywhere.');
-				});
+			ui.showCopySuccess('Receipt image downloaded.');
 		})
 		.catch(function (err) {
-			var msg = (err && err.message) ? err.message : 'Unable to copy receipt.';
-			showCopyError(msg);
+			var msg = (err && err.message) ? err.message : 'Unable to copy receipt image.';
+			ui.showCopyError(msg);
 		})
-		.finally(restoreBtn);
+		.finally(ui.restoreBtn);
 }
 window.copyGameReceiptSlipImage = copyGameReceiptSlipImage;
 
-$(document).off('click', '.js-copy-game-receipt-slip').on('click', '.js-copy-game-receipt-slip', function (e) {
+function copyGameReceiptSlipTextButton(slipBodyEl, $btn) {
+	if (!slipBodyEl || !$btn || !$btn.length) return;
+
+	var ui = getGameReceiptCopyUiHelpers($btn);
+
+	copyGameReceiptSlipText(slipBodyEl)
+		.then(function () {
+			ui.showCopySuccess('Receipt text copied. You can paste it anywhere.');
+		})
+		.catch(function (err) {
+			var msg = (err && err.message) ? err.message : 'Unable to copy receipt text.';
+			ui.showCopyError(msg);
+		})
+		.finally(ui.restoreBtn);
+}
+window.copyGameReceiptSlipTextButton = copyGameReceiptSlipTextButton;
+
+$(document).off('click', '.js-copy-game-receipt-slip-image').on('click', '.js-copy-game-receipt-slip-image', function (e) {
 	e.preventDefault();
 	var $btn = $(this);
 	var slipBody = $btn.closest('.game-start-receipt-slip').find('.game-start-receipt-slip-body')[0];
 	copyGameReceiptSlipImage(slipBody, $btn);
+});
+
+$(document).off('click', '.js-copy-game-receipt-slip-text').on('click', '.js-copy-game-receipt-slip-text', function (e) {
+	e.preventDefault();
+	var $btn = $(this);
+	var slipBody = $btn.closest('.game-start-receipt-slip').find('.game-start-receipt-slip-body')[0];
+	copyGameReceiptSlipTextButton(slipBody, $btn);
 });
 
 function setGameStartReceiptBackdrop(active) {
@@ -4146,8 +4165,8 @@ $(document).ready(function () {
 			{ targets: 1, type: 'game-list-date', className: 'col-game-start text-start' },
 			{ targets: 2, className: 'col-type text-center', width: '68px' },
 			{ targets: 3, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
-			{ targets: 4, className: 'col-acct-no', width: '120px' },
-			{ targets: 5, className: 'col-guest', width: '120px' },
+			{ targets: 4, className: 'col-acct-no', width: '1%' },
+			{ targets: 5, className: 'col-guest', width: '1%' },
 			{ targets: 6, className: 'col-buyin', width: '130px' },
 			{ targets: 7, className: 'col-cashout', width: '130px' },
 			{ targets: 8, className: 'col-winloss', width: '130px' },
@@ -4471,7 +4490,7 @@ $(document).ready(function () {
 				parseFloat(acc.total_amount || 0).toLocaleString('en-US'),
 				parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
 				parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
-				parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
+				formatListAmount(acc.total_rolling || 0, 'signed'),
 				'-',
 				formatListAmount(acc.total_commission || 0, 'out'),
 				parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
@@ -4493,7 +4512,7 @@ $(document).ready(function () {
 		dt.draw();
 		$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(grandRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+		$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').html(formatListAmount(grandRolling, 'signed'));
 		$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'out'));
 		$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -4629,7 +4648,7 @@ $(document).ready(function () {
                             parseFloat(acc.total_amount || 0).toLocaleString('en-US'),
                             parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
                             parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
-                            parseFloat(acc.total_rolling || 0).toLocaleString('en-US'),
+                            formatListAmount(acc.total_rolling || 0, 'signed'),
                             '-',
                             formatListAmount(acc.total_commission || 0, 'out'),
                             parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
@@ -4651,7 +4670,7 @@ $(document).ready(function () {
                     dataTable.draw();
                     $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(grandAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(grandRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+                    $('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').html(formatListAmount(grandRolling, 'signed'));
                     $('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'out'));
                     $('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -5895,7 +5914,6 @@ $('#add_buyin').submit(function (event) {
 			Loading...
 		`);
 
-		var txtTotalRollingSplit = parseFloat($('#TotalRollingCashout').val()) || 0;
 			var $nnCashInput = $('#nnCashAmount');
 			var $nnDepInput = $('#nnDepositAmount');
 			var $nnCreditInput = $('#nnCreditAmount');
@@ -6034,17 +6052,6 @@ $('#add_buyin').submit(function (event) {
 						return;
 					}
 				}
-			}
-
-			var totalNnAll = totalNN + tipRollerNn + tipDealerNn;
-			if (totalNnAll > txtTotalRollingSplit) {
-				Swal.fire({
-					icon: 'warning',
-					title: 'Invalid Input',
-					text: 'Total NN (cash-out + tips) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
-				});
-				$btn.prop('disabled', false).html('Save');
-				return;
 			}
 
 			var pushCashoutLegRow = function (rows, name, chipType, amount) {
@@ -7452,7 +7459,7 @@ function buildAddChgTd(gameListId, agentCode, guestName, addChgValue, gameStatus
 }
 
 function buildTotalRollingTd(gameListId, agentCode, guestName, totalRollingChips, canAddRolling) {
-	var display = parseFloat(totalRollingChips || 0).toLocaleString('en-US');
+	var display = formatListAmount(totalRollingChips, 'signed');
 	if (!canAddRolling) {
 		return display;
 	}
@@ -8071,7 +8078,7 @@ function reloadDataRecord() {
                 '<strong>TOTAL</strong>',
                 '<strong>' + (totalBuyIn + totalAdditionalBuyIn).toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalCashOut.toLocaleString('en-US') + '</strong>',
-                '<strong>' + totalRolling.toLocaleString('en-US') + '</strong>',
+                '<strong>' + formatListAmount(totalRolling, 'signed') + '</strong>',
                 '<strong>' + totalNN.toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalCC.toLocaleString('en-US') + '</strong>',
                 '<strong>' + totalRollerChips.toLocaleString('en-US') + '</strong>',
@@ -8126,7 +8133,7 @@ function reloadDataRecord() {
                     rowData.displayDate || date,
                     formatBuyinCell(buyInAmount, buyInDisplayType),
                     formatBuyinCell(rowData.cash_out, cashOutType),
-                    (rowData.total_rolling_actual || 0).toLocaleString('en-US'),
+                    formatListAmount(rowData.total_rolling_actual || 0, 'signed'),
                     rowData.nn.toLocaleString('en-US'),
                     rowData.cc.toLocaleString('en-US'),
                     rollerChips.toLocaleString('en-US'),

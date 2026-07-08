@@ -58,7 +58,7 @@
 		<div class="modal-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
 			<div class="rolling-legend text-muted small d-flex align-items-center gap-3 flex-wrap ms-4">
 				<span class="d-inline-flex align-items-center gap-1">
-					<span class="rolling-legend-swatch" style="background-color: #0d6efd;"></span>
+					<span class="rolling-legend-swatch" style="background-color: #dc3545;"></span>
 					<span>Credit</span>
 				</span>
 				<span class="d-inline-flex align-items-center gap-1">
@@ -67,6 +67,9 @@
 				</span>
 			</div>
 			<div class="d-flex align-items-center gap-2">
+				<button type="button" class="btn btn-sm btn-warning" id="btn-export-game-history">
+					<i class="fa fa-file-excel me-1"></i> Export
+				</button>
 				<button type="button" class="btn btn-sm btn-alt-success" id="btn-print-game-history">
 					<i class="fa fa-print me-1"></i> Print
 				</button>
@@ -80,9 +83,9 @@
 </div>
 
 <style>
-	/* Color only when value is non-zero: Marker = blue, Deposit (including cashout thru deposit) = green */
+	/* Color only when value is non-zero: Credit = red, Deposit (including cashout thru deposit) = green */
 	#modal-show-history #game_record-tbl .rolling-cell-marker {
-		color: #0d6efd;
+		color: #dc3545;
 		font-weight: 500;
 	}
 	#modal-show-history #game_record-tbl .rolling-cell-deposit {
@@ -220,6 +223,88 @@
 				+ '<tbody>' + servicesBody + servicesTotalRow + '</tbody>'
 				+ '</table>';
 		}
+
+		function stripGameHistoryExportCell(value) {
+			if (value == null) return '';
+			var raw = String(value);
+			if (raw.indexOf('<') === -1) return raw.trim();
+			var tmp = document.createElement('div');
+			tmp.innerHTML = raw;
+			return (tmp.textContent || tmp.innerText || raw).trim();
+		}
+
+		function buildGameHistoryExportPayload() {
+			if (!$.fn.DataTable.isDataTable('#game_record-tbl')) {
+				return { headers: [], rows: [] };
+			}
+			const table = $('#game_record-tbl').DataTable();
+			const headers = $('#game_record-tbl thead th').map(function (index) {
+				if (index === 7) return null;
+				return $(this).text().trim();
+			}).get().filter(Boolean);
+			const rows = table.rows({ search: 'applied' }).data().toArray().map(function (row) {
+				return row.slice(0, 7).map(stripGameHistoryExportCell);
+			});
+			return { headers: headers, rows: rows };
+		}
+
+		function getGameHistoryExportFilename() {
+			const accountLabel = ($('#show-agent-label').text() || 'export').trim();
+			const safe = accountLabel.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80) || 'export';
+			return 'GameRecordHistory-' + safe + '.xlsx';
+		}
+
+		$(document).off('click', '#btn-export-game-history').on('click', '#btn-export-game-history', function () {
+			const payload = buildGameHistoryExportPayload();
+			if (!payload.rows.length) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'info', title: 'Export', text: 'No rows to export.', confirmButtonColor: '#0d6efd' });
+				} else {
+					alert('No rows to export.');
+				}
+				return;
+			}
+			const outName = getGameHistoryExportFilename();
+			const $btn = $(this);
+			$btn.prop('disabled', true);
+			fetch('/game_list/export_xlsx', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'same-origin',
+				body: JSON.stringify({
+					headers: payload.headers,
+					rows: payload.rows,
+					filename: outName
+				})
+			})
+				.then(function (res) {
+					if (!res.ok) {
+						return res.json().catch(function () { return {}; }).then(function (j) {
+							throw new Error((j && j.error) ? j.error : 'Export failed');
+						});
+					}
+					return res.blob();
+				})
+				.then(function (blob) {
+					const link = document.createElement('a');
+					link.href = URL.createObjectURL(blob);
+					link.download = outName;
+					document.body.appendChild(link);
+					link.click();
+					document.body.removeChild(link);
+					URL.revokeObjectURL(link.href);
+				})
+				.catch(function (err) {
+					if (typeof Swal !== 'undefined') {
+						Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed', confirmButtonColor: '#0d6efd' });
+					} else {
+						alert(err.message || 'Export failed');
+					}
+				})
+				.finally(function () {
+					$btn.prop('disabled', false);
+				});
+		});
 
 		$(document).off('click', '#btn-print-game-history').on('click', '#btn-print-game-history', function () {
 			const table = $('#game_record-tbl').DataTable();

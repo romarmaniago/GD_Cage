@@ -206,7 +206,7 @@ async function getRealtimeData() {
     pool.execute('SELECT SUM(ROLLER_CC_CHIPS) AS ROLLER_CC_ADD FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=5 AND ROLLER_TRANSACTION=2'),
     pool.execute('SELECT SUM(AMOUNT) AS CASH_DEPOSIT FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute('SELECT SUM(AMOUNT) AS CASH_WITHDRAW FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
-    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE=1'),
+    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE=1 AND COALESCE(APPROVAL_STATUS, 1) != 2'),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=2 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS SETTLEMENT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),

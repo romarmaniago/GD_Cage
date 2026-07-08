@@ -1,5 +1,5 @@
-/** Match house_expense.js houseExpenseIsApprovedForTotals: status 1 only. */
-const SQL_HOUSE_EXPENSE_APPROVED_ONLY = 'COALESCE(APPROVAL_STATUS, 1) = 1';
+/** Match house_expense.js houseExpenseCountsForTotals: pending + approved; rejected excluded. */
+const SQL_HOUSE_EXPENSE_APPROVED_ONLY = 'COALESCE(APPROVAL_STATUS, 1) != 2';
 
 function sqlJunketExpenseResetTotal() {
 	return `SELECT SUM(AMOUNT) AS RESET_EXPENSE

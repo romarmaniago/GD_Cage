@@ -16,6 +16,7 @@
   const reportMode = (reportModeSource?.dataset?.reportMode || 'both').toLowerCase();
   const reportColspan = reportMode === 'both' ? 3 : 2;
   const reportListDateRange = document.getElementById('daily-report-list-daterange');
+  const reportListManualDateRange = document.getElementById('daily-report-list-manual-daterange');
   const reportListThead = document.getElementById('daily-report-list-thead');
   const reportListTbody = document.getElementById('daily-report-list-tbody');
   const reportListTfoot = document.getElementById('daily-report-list-tfoot');
@@ -56,6 +57,88 @@
   const dailyReportModal = dailyReportModalEl ? new bootstrap.Modal(dailyReportModalEl) : null;
   let dailyReportDatePicker = null;
   let reportListDateRangePicker = null;
+  let reportListManualDateLastApplied = '';
+
+  function parseReportListIsoDateLocal(value) {
+    const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  function getReportListDateRangeLabel() {
+    if (reportListDateRangePicker && reportListDateRangePicker.altInput && reportListDateRangePicker.altInput.value) {
+      return reportListDateRangePicker.altInput.value.trim();
+    }
+    return (reportListDateRange?.value || '').trim();
+  }
+
+  function fitReportListManualInputWidth() {
+    if (!reportListManualDateRange) return;
+
+    let widthPx = 160;
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
+      window.MonthEndCutoffRange.fitRangeInputWidth(reportListManualDateRange);
+      widthPx = parseInt(reportListManualDateRange.style.width, 10) || widthPx;
+    }
+
+    const wrap = reportListManualDateRange.closest('.daily-report-manual-daterange-wrap');
+    if (wrap) {
+      wrap.style.width = `${widthPx}px`;
+      wrap.style.minWidth = `${widthPx}px`;
+    }
+  }
+
+  function syncReportListManualFromFlatpickr() {
+    const label = getReportListDateRangeLabel();
+    if (!label || !reportListManualDateRange) return;
+    reportListManualDateRange.value = label;
+    reportListManualDateLastApplied = label;
+    fitReportListManualInputWidth();
+  }
+
+  function applyReportListManualDateRange() {
+    if (!reportListManualDateRange) return false;
+    const raw = (reportListManualDateRange.value || '').trim();
+    if (!raw) return false;
+    if (raw === reportListManualDateLastApplied) return true;
+
+    let start;
+    let end;
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
+      const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
+      start = apiRange.start;
+      end = apiRange.end;
+    } else if (raw.includes(' to ')) {
+      const parts = raw.split(' to ');
+      start = (parts[0] || '').trim();
+      end = (parts[1] || '').trim();
+    } else {
+      start = raw;
+      end = raw;
+    }
+
+    if (!start || !end) {
+      alert('Invalid date.');
+      return false;
+    }
+
+    const startDate = parseReportListIsoDateLocal(start);
+    const endDate = parseReportListIsoDateLocal(end);
+    if (!startDate || !endDate || endDate < startDate) {
+      alert('Invalid date range.');
+      return false;
+    }
+
+    reportListManualDateLastApplied = raw;
+    if (reportListDateRangePicker) {
+      reportListDateRangePicker.setDate([startDate, endDate], false);
+      if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+        window.MonthEndCutoffRange.fitRangePickerInstance(reportListDateRangePicker);
+      }
+    }
+    loadSubmittedReports();
+    return true;
+  }
 
   function toIsoDate(date) {
     const y = date.getFullYear();
@@ -574,6 +657,7 @@
         window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
       }
     }
+    fitReportListManualInputWidth();
   }
 
   function destroyMatrixDataTable() {
@@ -757,6 +841,7 @@
         if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
           window.setupFlatpickrMonthNameRangeSelect(instance);
         }
+        setTimeout(syncReportListManualFromFlatpickr, 0);
       },
       onOpen: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);
@@ -770,7 +855,10 @@
         }
       },
       onChange: (selectedDates) => {
-        if (selectedDates.length === 2) loadSubmittedReports();
+        if (selectedDates.length === 2) {
+          syncReportListManualFromFlatpickr();
+          loadSubmittedReports();
+        }
       }
     });
   }
@@ -1282,12 +1370,28 @@
     const end = parseIsoDateLocal(to);
     if (!reportListDateRangePicker || !start || !end) return;
     reportListDateRangePicker.setDate([start, end], false);
+    syncReportListManualFromFlatpickr();
+  }
+
+  function bindReportListManualDateRangeEvents() {
+    if (!reportListManualDateRange || reportListManualDateRange.dataset.bound === '1') return;
+    reportListManualDateRange.dataset.bound = '1';
+    reportListManualDateRange.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyReportListManualDateRange();
+      }
+    });
+    reportListManualDateRange.addEventListener('input', () => {
+      fitReportListManualInputWidth();
+    });
   }
 
   function initMatrixView() {
     if (!isMatrixView) return;
     if (reportListDateRange) {
       initReportListDateRangePicker();
+      bindReportListManualDateRangeEvents();
     }
     initMatrixCellEditing();
     if (!dashWinlossReportModalEl) {

@@ -1,6 +1,102 @@
 let junketLossTable;
 let junketLossFromDate = null;
 let junketLossToDate = null;
+let junketLossDatePicker = null;
+let junketLossManualDateLastApplied = '';
+
+function parseJunketLossIsoDateLocal(value) {
+    const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function getJunketLossManualDateInput() {
+    return document.getElementById('junket-loss-manual-daterange');
+}
+
+function getJunketLossDateRangeLabel() {
+    const el = document.getElementById('junket-loss-daterange');
+    if (el && el._flatpickr && el._flatpickr.altInput && el._flatpickr.altInput.value) {
+        return el._flatpickr.altInput.value.trim();
+    }
+    return ($('#junket-loss-daterange').val() || '').trim();
+}
+
+function fitJunketLossManualInputWidth() {
+    const el = getJunketLossManualDateInput();
+    if (!el) return;
+
+    let widthPx = 160;
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
+        window.MonthEndCutoffRange.fitRangeInputWidth(el);
+        widthPx = parseInt(el.style.width, 10) || widthPx;
+    }
+
+    const wrap = el.closest('.junket-loss-manual-daterange-wrap');
+    if (wrap) {
+        wrap.style.width = widthPx + 'px';
+        wrap.style.minWidth = widthPx + 'px';
+    }
+}
+
+function syncJunketLossManualFromFlatpickr() {
+    const label = getJunketLossDateRangeLabel();
+    if (!label) return;
+    $('#junket-loss-manual-daterange').val(label);
+    junketLossManualDateLastApplied = label;
+    fitJunketLossManualInputWidth();
+}
+
+function applyJunketLossDateFilter(selectedDates) {
+    if (!selectedDates || selectedDates.length !== 2) return;
+    junketLossFromDate = formatYmd(selectedDates[0]);
+    junketLossToDate = formatYmd(selectedDates[1]);
+    fetchJunketLossData();
+}
+
+function applyJunketLossManualDateRange() {
+    const raw = ($('#junket-loss-manual-daterange').val() || '').trim();
+    if (!raw) return false;
+    if (raw === junketLossManualDateLastApplied) return true;
+
+    let start;
+    let end;
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
+        const apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(raw);
+        start = apiRange.start;
+        end = apiRange.end;
+    } else if (raw.includes(' to ')) {
+        const parts = raw.split(' to ');
+        start = (parts[0] || '').trim();
+        end = (parts[1] || '').trim();
+    } else {
+        start = raw;
+        end = raw;
+    }
+
+    if (!start || !end) {
+        Swal.fire('Error', 'Invalid date.', 'error');
+        return false;
+    }
+
+    const startDate = parseJunketLossIsoDateLocal(start);
+    const endDate = parseJunketLossIsoDateLocal(end);
+    if (!startDate || !endDate || endDate < startDate) {
+        Swal.fire('Error', 'Invalid date range.', 'error');
+        return false;
+    }
+
+    junketLossManualDateLastApplied = raw;
+    const el = document.getElementById('junket-loss-daterange');
+    if (el && el._flatpickr) {
+        el._flatpickr.setDate([startDate, endDate], false);
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+            window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
+        }
+    }
+    applyJunketLossDateFilter([startDate, endDate]);
+    return true;
+}
 
 function sanitizeAmountInput(value) {
     return String(value || '').replace(/[^\d.]/g, '');
@@ -214,7 +310,7 @@ $(document).ready(function () {
     junketLossToDate = formatYmd(monthRange.last);
 
     if (typeof flatpickr === 'function') {
-        flatpickr('#junket-loss-daterange', {
+        junketLossDatePicker = flatpickr('#junket-loss-daterange', {
             mode: 'range',
             showMonths: 3,
             onReady: function (_selectedDates, _dateStr, instance) {
@@ -222,6 +318,7 @@ $(document).ready(function () {
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
+                setTimeout(syncJunketLossManualFromFlatpickr, 0);
             },
             onOpen: function (_selectedDates, _dateStr, instance) {
                 jumpJunketLossRangeToCurrentThreeMonths(instance);
@@ -234,14 +331,27 @@ $(document).ready(function () {
                     window.styleFlatpickrMonthNameClickable(instance);
                 }
             },
+            onChange: function (selectedDates) {
+                if (selectedDates.length === 2) {
+                    syncJunketLossManualFromFlatpickr();
+                }
+            },
             onClose: function (selectedDates) {
-                if (!selectedDates || selectedDates.length !== 2) return;
-                junketLossFromDate = formatYmd(selectedDates[0]);
-                junketLossToDate = formatYmd(selectedDates[1]);
-                fetchJunketLossData();
+                applyJunketLossDateFilter(selectedDates);
             }
         });
     }
+
+    $(document).on('keydown', '#junket-loss-manual-daterange', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyJunketLossManualDateRange();
+        }
+    });
+
+    $(document).on('input', '#junket-loss-manual-daterange', function () {
+        fitJunketLossManualInputWidth();
+    });
 
     function getJunketLossExportFilename() {
         var dr = document.getElementById('junket-loss-daterange');
