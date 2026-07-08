@@ -7,7 +7,7 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
-const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const { numberFormatForValue } = require('../utils/excelAmountFormat');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
@@ -2071,57 +2071,56 @@ router.get("/game_list", checkSession, async function (req, res) {
 	}
 });
 
-/** If the cell is only a number (optional commas/decimals/minus), store as number so Excel does not show green "text number" triangles. */
-function coerceGameBookExportCell(raw) {
+/** Game Book export layout (client omits ROLLER CHIPS + ACTION). Columns are 1-based. */
+const GAME_LIST_AMOUNT_FMT = '#,##0;[Red](#,##0)';
+const GAME_LIST_AMOUNT_COLS_1 = [7, 8, 9, 10, 12, 13, 14];
+const GAME_LIST_OUTFLOW_COLS_1 = [8, 12, 14];
+const GAME_LIST_SIGNED_COL_1 = 9;
+const GAME_LIST_LABEL_COLS = 6;
+
+function getGameListExportAmountCols1Based(headerCount) {
+	const cols = GAME_LIST_AMOUNT_COLS_1.filter((c) => c <= headerCount);
+	if (headerCount >= 16) cols.push(15);
+	return cols;
+}
+
+function isGameListExportOutflowCol(col1) {
+	return GAME_LIST_OUTFLOW_COLS_1.indexOf(col1) !== -1;
+}
+
+/** Store UI text as real numbers; parentheses become negative where appropriate. */
+function coerceGameBookExportCell(raw, colIndex0) {
 	if (raw == null || raw === '') return '';
+	if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
 	const s = String(raw).trim();
 	if (/[a-zA-Z]/.test(s)) return s;
 	if (/%/.test(s)) return s;
-	const normalized = s.replace(/,/g, '');
+
+	const col1 = colIndex0 + 1;
+	const isParenDisplay = /^\(\s*[\d,.\s]+\s*\)$/.test(s);
+	const normalized = s.replace(/,/g, '').trim();
+	if (isParenDisplay) {
+		const inner = normalized.replace(/[()]/g, '').trim();
+		if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(inner)) return s;
+		const n = Number(inner);
+		if (!Number.isFinite(n)) return s;
+		if (col1 === GAME_LIST_SIGNED_COL_1 || isGameListExportOutflowCol(col1)) return -Math.abs(n);
+		return Math.abs(n);
+	}
+
 	if (normalized === '' || normalized === '-' || normalized === '+') return s;
-	// Integer or decimal only (commas already stripped); avoids dates/times with ":" etc.
 	if (!/^[-+]?(?:\d+\.\d+|\d+\.?|\.\d+)(?:[eE][-+]?\d+)?$/.test(normalized)) return s;
 	const n = Number(normalized);
 	return Number.isFinite(n) ? n : s;
 }
 
-/** 1-based Excel column numbers for GAME RATE & COMMISSION (no wrap, centered). */
-function getGameListExportRateCommissionCols1Based(headers) {
-	const set = new Set();
-	(headers || []).forEach((h, i) => {
-		const t = String(h == null ? '' : h).replace(/\s+/g, ' ').trim();
-		const u = t.toUpperCase();
-		if (/GAME\s*RATE|GAME\s*RAT\b/i.test(t) || (u.includes('GAME') && u.includes('RATE'))) {
-			set.add(i + 1);
-		}
-		if (/^COMMISS/i.test(u) || u === 'COMMISSION') {
-			set.add(i + 1);
-		}
-	});
-	if (set.size === 0 && headers && headers.length >= 12) {
-		set.add(11);
-		set.add(12);
-	}
-	return set;
-}
-
-function gameListExportBodyAlignment(header) {
-	const h = String(header || '').toUpperCase().replace(/\s+/g, ' ').trim();
-	if (h === 'TYPE' || h.includes('ACCT') || h === 'GUEST') {
+function gameListExportBodyAlignment(colIndex0, headerCount) {
+	const col1 = colIndex0 + 1;
+	if (col1 === 3 || col1 === 5 || col1 === 6) {
 		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
 	}
-	if (
-		h.includes('BUY') ||
-		h.includes('CASH') ||
-		h.includes('WIN') ||
-		h.includes('LOSS') ||
-		h.includes('ROLLING') ||
-		h.includes('RATE') ||
-		h.includes('COMMISSION') ||
-		h.includes('ADD CHG') ||
-		h.includes('SETTLE')
-	) {
-		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: false };
+	if (getGameListExportAmountCols1Based(headerCount).indexOf(col1) !== -1) {
+		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
 	}
 	return { vertical: 'middle', horizontal: 'center', wrapText: true };
 }
@@ -2130,6 +2129,99 @@ function gameListExportDisplayWidth(value) {
 	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
 		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
 	}, 0);
+}
+
+function gameListExportAutoFitRowHeights(ws, startRow, endRow) {
+	for (let rowNumber = startRow; rowNumber <= endRow; rowNumber++) {
+		const row = ws.getRow(rowNumber);
+		if (!row) continue;
+		let maxLines = 1;
+		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+			if (!cell.alignment || !cell.alignment.wrapText) return;
+			const colWidth = ws.getColumn(colNumber).width || 10;
+			const text = cell.value == null ? '' : (cell.formula ? '' : String(cell.value));
+			if (!text) return;
+			let lineCount = 0;
+			text.split(/\r?\n/).forEach((segment) => {
+				lineCount += Math.max(1, Math.ceil(gameListExportDisplayWidth(segment) / Math.max(1, colWidth - 1)));
+			});
+			maxLines = Math.max(maxLines, lineCount);
+		});
+		row.height = Math.max(15, Math.min(120, maxLines * 15));
+	}
+}
+
+function addGameListExportGrandTotalRow(ws, headerCount, dataRowCount, fillGrandTotal) {
+	if (dataRowCount <= 0) return;
+	const ncol = headerCount;
+	const dataStartRow = 2;
+	const dataEndRow = 1 + dataRowCount;
+	const totalRowNum = dataEndRow + 1;
+	const amountCols = getGameListExportAmountCols1Based(headerCount);
+	const grandTotalBorder = {
+		top: { style: 'medium', color: { argb: 'FF333333' } },
+		left: { style: 'thin', color: { argb: 'FF666666' } },
+		bottom: { style: 'thin', color: { argb: 'FF666666' } },
+		right: { style: 'thin', color: { argb: 'FF666666' } }
+	};
+	const amountAlign = { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
+
+	const totalRow = ws.addRow(Array.from({ length: ncol }, () => null));
+
+	amountCols.forEach((col1) => {
+		const letter = ws.getColumn(col1).letter;
+		const range = letter + dataStartRow + ':' + letter + dataEndRow;
+		const sumExpr = isGameListExportOutflowCol(col1) ? 'ABS(SUM(' + range + '))' : 'SUM(' + range + ')';
+		const cell = totalRow.getCell(col1);
+		cell.value = { formula: sumExpr };
+		cell.numFmt = GAME_LIST_AMOUNT_FMT;
+		cell.alignment = amountAlign;
+	});
+
+	if (GAME_LIST_LABEL_COLS > 1) {
+		try {
+			ws.mergeCells(totalRowNum, 1, totalRowNum, GAME_LIST_LABEL_COLS);
+		} catch (mergeErr) {
+			console.warn('game_list export: grand total merge skipped:', mergeErr.message);
+		}
+	}
+
+	const labelCell = totalRow.getCell(1);
+	labelCell.value = 'GRAND TOTAL';
+	labelCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+
+	for (let col1 = 1; col1 <= ncol; col1++) {
+		const cell = totalRow.getCell(col1);
+		cell.font = { bold: true, size: 11 };
+		cell.fill = fillGrandTotal;
+		cell.border = grandTotalBorder;
+		if (!cell.alignment) {
+			cell.alignment = col1 <= GAME_LIST_LABEL_COLS
+				? labelCell.alignment
+				: { vertical: 'middle', horizontal: 'center', wrapText: true };
+		}
+	}
+
+	totalRow.height = 24;
+}
+
+function applyGameListExportNumericFormats(ws, amountCols1Based, lastRowNum) {
+	const amountSet = new Set(amountCols1Based);
+	ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+		if (rowNumber <= 1 || rowNumber > lastRowNum) return;
+		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+			if (cell.numFmt && /%/.test(String(cell.numFmt))) return;
+			const hasFormula =
+				!!cell.formula || (cell.value != null && typeof cell.value === 'object' && cell.value.formula);
+			if (hasFormula) {
+				if (amountSet.has(colNumber)) cell.numFmt = GAME_LIST_AMOUNT_FMT;
+				return;
+			}
+			if (typeof cell.value === 'number' && Number.isFinite(cell.value)) {
+				cell.numFmt = amountSet.has(colNumber) ? GAME_LIST_AMOUNT_FMT : numberFormatForValue(cell.value);
+			}
+		});
+	});
 }
 
 /** Build Game Book table as .xlsx with borders (client omits ROLLER CHIPS and ACTION columns). */
@@ -2147,12 +2239,17 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			return res.status(400).json({ error: 'Too many rows' });
 		}
 		const ncol = headers.length;
-		const rateCommCols1Based = getGameListExportRateCommissionCols1Based(headers);
+		const amountCols1Based = getGameListExportAmountCols1Based(ncol);
 		const thinBorder = {
 			top: { style: 'thin', color: { argb: 'FF666666' } },
 			left: { style: 'thin', color: { argb: 'FF666666' } },
 			bottom: { style: 'thin', color: { argb: 'FF666666' } },
 			right: { style: 'thin', color: { argb: 'FF666666' } }
+		};
+		const fillGrandTotal = {
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FFE2E8F0' }
 		};
 
 		const workbook = new ExcelJS.Workbook();
@@ -2162,9 +2259,9 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 
 		const headerRow = ws.addRow(headers.map((h) => (h == null ? '' : String(h))));
 		headerRow.height = 22;
-		headerRow.eachCell((cell, colNumber) => {
+		headerRow.eachCell({ includeEmpty: true }, (cell) => {
 			cell.font = { bold: true };
-			cell.alignment = gameListExportBodyAlignment(headers[colNumber - 1]);
+			cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 			cell.border = thinBorder;
 			cell.fill = {
 				type: 'pattern',
@@ -2178,14 +2275,20 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			const padded = Array.from({ length: ncol }, (_, i) => {
 				const v = arr[i];
 				if (v == null || v === '') return '';
-				return coerceGameBookExportCell(v);
+				return coerceGameBookExportCell(v, i);
 			});
 			const dataRow = ws.addRow(padded);
-			dataRow.eachCell((cell, colNumber) => {
+			for (let colNumber = 1; colNumber <= ncol; colNumber++) {
+				const cell = dataRow.getCell(colNumber);
 				cell.border = thinBorder;
-				cell.alignment = gameListExportBodyAlignment(headers[colNumber - 1]);
-			});
+				cell.alignment = gameListExportBodyAlignment(colNumber - 1, ncol);
+			}
 		});
+
+		const dataRowCount = rows.length;
+		if (dataRowCount > 0) {
+			addGameListExportGrandTotalRow(ws, ncol, dataRowCount, fillGrandTotal);
+		}
 
 		const colMaxLens = headers.map((h, c) => {
 			const headerText = String(h == null ? '' : h);
@@ -2196,6 +2299,9 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 				if (!Array.isArray(row) || row[c] == null) continue;
 				const L = gameListExportDisplayWidth(row[c]);
 				if (L > m) m = L;
+			}
+			if (dataRowCount > 0 && c === 0) {
+				m = Math.max(m, gameListExportDisplayWidth('GRAND TOTAL'));
 			}
 			let minWidth = 11;
 			let maxWidth = 60;
@@ -2212,7 +2318,9 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 			ws.getColumn(i).width = colMaxLens[i - 1];
 		}
 
-		applyCommaThousandsToNumericCells(ws);
+		const lastRowNum = dataRowCount > 0 ? dataRowCount + 2 : 1;
+		gameListExportAutoFitRowHeights(ws, 2, lastRowNum);
+		applyGameListExportNumericFormats(ws, amountCols1Based, lastRowNum);
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		let outName = 'Gamebook-export.xlsx';

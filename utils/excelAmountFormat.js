@@ -39,4 +39,4 @@ function applyCommaThousandsToNumericCells(ws, opts) {
 	});
 }
 
-module.exports = { applyCommaThousandsToNumericCells };
+module.exports = { applyCommaThousandsToNumericCells, numberFormatForValue };
