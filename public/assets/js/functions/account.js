@@ -2203,58 +2203,98 @@ $(document).on('keydown', '#agent_remarks_notice', function (e) {
 document.addEventListener('DOMContentLoaded', function () {
 	const balanceBtn = document.getElementById('balanceCheckBtn');
 
+	function getGuestPortalDisplayBalance() {
+		const displayText = ($('#modal-account-details .total_balance').first().text() || '').trim();
+		if (displayText) return displayText;
+		const raw = Number($('#total_balanceGuest').val()) || 0;
+		return '₱' + raw.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+	}
+
+	function getGuestPortalAccountLabel() {
+		const code = ($('#agent_code').text() || '').trim();
+		const name = ($('#account_name').text() || '').trim();
+		if (code && name) return code + ' - ' + name;
+		return name || code || 'Guest';
+	}
+
+	async function sendBalanceCheckToTelegram(accountId, balanceBtn) {
+		const originalHtml = balanceBtn.innerHTML;
+		balanceBtn.disabled = true;
+		balanceBtn.innerHTML = `
+			<span class="spinner-border spinner-border-sm me-1 text-white" role="status" aria-hidden="true"></span>
+			<span class="text-white">Loading...</span>
+		`;
+
+		try {
+			const response = await fetch(`/check_balance/${accountId}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' }
+			});
+			const result = await response.json();
+
+			if (response.ok && result.success) {
+				await Swal.fire({
+					icon: 'success',
+					title: 'Balance Sent',
+					text: 'Balance was successfully sent to Telegram!',
+					confirmButtonColor: '#3085d6'
+				});
+			} else {
+				await Swal.fire({
+					icon: 'error',
+					title: 'Failed',
+					text: result.message || 'Unable to send balance to Telegram.',
+					confirmButtonColor: '#d33'
+				});
+			}
+		} catch (err) {
+			console.error(err);
+			await Swal.fire({
+				icon: 'error',
+				title: 'Error',
+				text: err.message || 'An error occurred while checking balance.',
+				confirmButtonColor: '#d33'
+			});
+		} finally {
+			balanceBtn.disabled = false;
+			balanceBtn.innerHTML = originalHtml;
+		}
+	}
+
 	if (balanceBtn) {
 		balanceBtn.addEventListener('click', async function () {
 			const accountId = document.getElementById('account_id').value;
-
-			// Save original content
-			const originalHtml = balanceBtn.innerHTML;
-
-			// Show loading spinner on button
-			balanceBtn.disabled = true;
-			balanceBtn.innerHTML = `
-				<span class="spinner-border spinner-border-sm me-1 text-white" role="status" aria-hidden="true"></span>
-<span class="text-white">Loading...</span>
-			`;
-
-			try {
-				const response = await fetch(`/check_balance/${accountId}`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					}
-				});
-
-				const result = await response.json();
-
-				if (response.ok && result.success) {
-					await Swal.fire({
-						icon: 'success',
-						title: '✅ Balance Sent',
-						text: 'Balance was successfully sent to Telegram!',
-						confirmButtonColor: '#3085d6'
-					});
-				} else {
-					await Swal.fire({
-						icon: 'error',
-						title: '⚠️ Failed',
-						text: result.message || 'Unable to send balance to Telegram.',
-						confirmButtonColor: '#d33'
-					});
-				}
-			} catch (err) {
-				console.error(err);
+			if (!accountId) {
 				await Swal.fire({
-					icon: 'error',
-					title: '❌ Error',
-					text: err.message || 'An error occurred while checking balance.',
-					confirmButtonColor: '#d33'
+					icon: 'warning',
+					title: 'No account',
+					text: 'Please open a guest account first.',
+					confirmButtonColor: '#3085d6'
 				});
-			} finally {
-				// Re-enable button and reset original HTML
-				balanceBtn.disabled = false;
-				balanceBtn.innerHTML = originalHtml;
+				return;
 			}
+
+			const balanceDisplay = getGuestPortalDisplayBalance();
+			const accountLabel = getGuestPortalAccountLabel();
+
+			const confirmResult = await Swal.fire({
+				icon: 'info',
+				title: 'Balance Check',
+				html:
+					'<div style="margin-top:8px;margin-bottom:4px;color:#6c757d;">' + accountLabel + '</div>' +
+					'<div style="font-size:1.75rem;font-weight:700;color:#1e3a5f;letter-spacing:0.02em;">' + balanceDisplay + '</div>' +
+					'<div style="margin-top:12px;font-size:0.9rem;color:#6c757d;">Send this balance to Telegram?</div>',
+				showCancelButton: true,
+				confirmButtonText: 'Send to Telegram',
+				cancelButtonText: 'Cancel',
+				confirmButtonColor: '#0dcaf0',
+				cancelButtonColor: '#6c757d',
+				reverseButtons: true
+			});
+
+			if (!confirmResult.isConfirmed) return;
+
+			await sendBalanceCheckToTelegram(accountId, balanceBtn);
 		});
 	}
 });
