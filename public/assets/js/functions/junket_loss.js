@@ -250,6 +250,10 @@ function ensureJunketLossTable() {
     junketLossTable = $('#junket-loss-tbl').DataTable({
         pageLength: 25,
         order: [[0, 'desc']],
+        language: {
+            search: '',
+            searchPlaceholder: 'Search...'
+        },
         columns: [
             {
                 data: 'ENCODED_DT',

@@ -110,7 +110,8 @@ $(document).ready(function() {
 				}
 			],
 			language: {
-				search: translations.search || "Search:",
+				search: "",
+				searchPlaceholder: translations.search || "Search...",
 				lengthMenu: translations.lengthMenu || "Show _MENU_ entries",
 				info: translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
 				infoEmpty: translations.infoEmpty || "Showing 0 to 0 of 0 entries",

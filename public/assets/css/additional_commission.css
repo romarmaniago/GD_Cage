@@ -52,6 +52,107 @@
   border-bottom: 1px solid #eee;
 }
 
+/* Reuse MODIN house-expense style for the Add button */
+.expense-cat-panel-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--bs-primary);
+  line-height: 1;
+  flex-shrink: 0;
+  z-index: 2;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.expense-cat-panel-add-btn:focus,
+.expense-cat-panel-add-btn:active {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.expense-cat-panel-add-btn i.fa {
+  font-size: 1rem;
+}
+
+.expense-cat-panel-add-btn:hover:not(:disabled) {
+  background: var(--bs-primary);
+  color: #fff;
+}
+
+.expense-cat-panel-add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Match F&B controls container style */
+#additional-commission-tbl_wrapper .additional-commission-controls-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  background: #E8EAFB;
+  border: 1px solid #D5DAF6;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+}
+
+#additional-commission-tbl_wrapper .additional-commission-controls-highlight .dataTables_length {
+  margin-top: 4px;
+}
+
+#additional-commission-tbl_wrapper .additional-commission-controls-highlight .dataTables_filter {
+  margin: 0;
+  margin-left: auto;
+}
+
+#additional-commission-tbl_wrapper #additional-commission-tbl_filter .additional-commission-filter-highlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  border-radius: 10px;
+}
+
+/* Align DataTables filter label to keep button next to search */
+#additional-commission-tbl_wrapper #additional-commission-tbl_filter .additional-commission-filter-highlight label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+#additional-commission-tbl_wrapper #additional-commission-tbl_filter .additional-commission-filter-highlight label input {
+  margin-left: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: #fff;
+}
+
+#additional-commission-tbl_wrapper #additional-commission-tbl_filter .additional-commission-filter-highlight label input:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+#additional-commission-tbl_wrapper #additional-commission-tbl {
+  margin-top: 0 !important;
+}
+
+
 #additional-commission-tbl td {
   padding: 12px 15px;
   color: #666;

@@ -23,8 +23,14 @@
             <button type="button" id="btn-junket-loss-export" class="btn btn-sm btn-success">
               <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('junket_loss.export') || 'Export' %>
             </button>
-            <button type="button" class="btn btn-sm btn-primary" id="btn-add-junket-loss">
-              <i class="fa fa-plus me-1"></i> <%= __('junket_loss.add') || 'Add Junket Loss' %>
+            <button
+              type="button"
+              class="expense-cat-panel-add-btn js-house-expense-add-sub-cat d-none"
+              id="btn-add-junket-loss"
+              title="<%= __('junket_loss.add') || 'Add Junket Loss' %>"
+              aria-label="<%= __('junket_loss.add') || 'Add Junket Loss' %>"
+            >
+              <i class="fa fa-plus" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -254,6 +260,84 @@
     text-align: center;
   }
 
+  #btn-add-junket-loss.expense-cat-panel-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--bs-primary);
+    line-height: 1;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  #btn-add-junket-loss.expense-cat-panel-add-btn i.fa {
+    font-size: 1rem;
+  }
+
+  #btn-add-junket-loss.expense-cat-panel-add-btn:hover:not(:disabled) {
+    background: var(--bs-primary);
+    color: #fff;
+  }
+
+  #junket-loss-tbl_wrapper .junket-loss-controls-highlight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: -1px;
+    background: #E8EAFB;
+    border: 1px solid #D5DAF6;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+  }
+
+  #junket-loss-tbl_wrapper .junket-loss-controls-highlight .dataTables_length {
+    margin-top: 4px;
+  }
+
+  #junket-loss-tbl_wrapper .junket-loss-controls-highlight .dataTables_filter {
+    margin: 0 0 0 auto;
+  }
+
+  #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.35);
+    border: none;
+    border-radius: 10px;
+  }
+
+  #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight label input {
+    margin-left: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  #junket-loss-tbl_wrapper #junket-loss-tbl {
+    margin-top: 0 !important;
+  }
+
   .flatpickr-calendar .cur-month {
     cursor: pointer;
   }
@@ -278,3 +362,56 @@
     }
   }
 </style>
+
+<script>
+  (function () {
+    function applyJunketLossControlsLayout() {
+      var wrapper = document.getElementById('junket-loss-tbl_wrapper');
+      var lengthWrap = document.getElementById('junket-loss-tbl_length');
+      var filterWrap = document.getElementById('junket-loss-tbl_filter');
+      var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+      var addBtn = document.getElementById('btn-add-junket-loss');
+      var controlsHighlight;
+      var filterHighlight;
+
+      if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+      controlsHighlight = wrapper.querySelector('.junket-loss-controls-highlight');
+      if (!controlsHighlight) {
+        controlsHighlight = document.createElement('div');
+        controlsHighlight.className = 'junket-loss-controls-highlight';
+        wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+      }
+      if (lengthWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(lengthWrap);
+      }
+      if (filterWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(filterWrap);
+      }
+
+      filterHighlight = filterWrap.querySelector('.junket-loss-filter-highlight');
+      if (!filterHighlight) {
+        filterHighlight = document.createElement('div');
+        filterHighlight.className = 'junket-loss-filter-highlight';
+        filterWrap.appendChild(filterHighlight);
+      }
+
+      if (addBtn && addBtn.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(addBtn);
+      }
+      if (searchLabel.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(searchLabel);
+      }
+      if (addBtn) addBtn.classList.remove('d-none');
+    }
+
+    if (window.jQuery) {
+      $(document).on('init.dt draw.dt', '#junket-loss-tbl', applyJunketLossControlsLayout);
+      $(applyJunketLossControlsLayout);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(applyJunketLossControlsLayout, 0);
+      });
+    }
+  })();
+</script>

@@ -25,6 +25,7 @@
     let records = [];
     const sortState = { sortKey: 'date', sortDir: 'desc' };
     const tableHead = document.querySelector('#additional-commission-tbl thead');
+    let dataTable = null;
     const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
 
     function escapeHtml(value) {
@@ -209,40 +210,157 @@
       });
     }
 
+    function initDataTableOnce() {
+      if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.DataTable) return null;
+
+      const $table = window.jQuery('#additional-commission-tbl');
+      if (!$table.length) return null;
+
+      if (window.jQuery.fn.DataTable.isDataTable($table[0])) {
+        dataTable = $table.DataTable();
+      } else {
+        dataTable = $table.DataTable({
+          paging: true,
+          pageLength: 10,
+          lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+          searching: true,
+          ordering: false,
+          info: true,
+          autoWidth: false,
+          language: {
+            search: '',
+            searchPlaceholder: 'Search...',
+            infoEmpty: 'Showing 0 to 0 of 0 entries',
+            emptyTable: 'No additional commission records found.'
+          },
+          columns: [
+            {
+              data: null,
+              render: (data, type, row) => {
+                return formatDateTime(row.ENCODED_DT);
+              }
+            },
+            { data: null, render: (data, type, row) => escapeHtml(row.account || '') },
+            { data: null, render: (data, type, row) => escapeHtml(row.name || '') },
+            {
+              data: null,
+              className: 'text-end',
+              render: (data, type, row) => {
+                const amount = Number(row.AMOUNT) || 0;
+                const amountClass = amount ? 'text-danger' : '';
+                const display = `<span class="${amountClass}">${formatRowAmount(row)}</span>`;
+                if (type === 'filter' || type === 'sort') return String(amount);
+                return display;
+              }
+            },
+            {
+              data: null,
+              render: (data, type, row) => {
+                const typeLabel = getTypeLabel(getRowType(row));
+                if (type === 'filter' || type === 'sort') return typeLabel;
+                return escapeHtml(typeLabel);
+              }
+            },
+            { data: null, render: (data, type, row) => escapeHtml(row.REMARKS || '') },
+            {
+              data: null,
+              className: 'text-center text-nowrap',
+              orderable: false,
+              render: (data, type, row) => {
+                if (type !== 'display') return '';
+                return `
+                  <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
+                    <i class="fa fa-pencil-alt"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                `;
+              }
+            }
+          ],
+          data: []
+        });
+      }
+
+      // Put "Show entries" + search into highlighted controls row (same pattern as F&B).
+      const $wrapper = $table.closest('#additional-commission-tbl_wrapper');
+      const $length = $wrapper.find('#additional-commission-tbl_length');
+      const $filter = $wrapper.find('#additional-commission-tbl_filter');
+      const $filterLabel = $wrapper.find('#additional-commission-tbl_filter label');
+      let $controlsHighlight = $wrapper.find('.additional-commission-controls-highlight');
+      if (!$controlsHighlight.length) {
+        $controlsHighlight = window.jQuery('<div class="additional-commission-controls-highlight"></div>');
+        $wrapper.prepend($controlsHighlight);
+      }
+      if ($length.length && $length.parent()[0] !== $controlsHighlight[0]) {
+        $controlsHighlight.append($length);
+      }
+      if ($filter.length && $filter.parent()[0] !== $controlsHighlight[0]) {
+        $controlsHighlight.append($filter);
+      }
+
+      let $filterHighlight = $filter.find('.additional-commission-filter-highlight');
+      if (!$filterHighlight.length) {
+        $filterHighlight = window.jQuery('<div class="additional-commission-filter-highlight"></div>');
+        $filter.append($filterHighlight);
+      }
+
+      if (addButton && addButton.parentElement !== $filterHighlight[0]) {
+        $filterHighlight.append(addButton);
+      }
+      if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
+        $filterHighlight.append($filterLabel);
+      }
+
+      return dataTable;
+    }
+
     function renderRows(rows) {
       records = rows || [];
+      const sorted = sortRecords(records);
 
       if (!records.length) {
-        tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
+        if (dataTable) {
+          dataTable.clear().draw(false);
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
+        }
         syncSortHeaders();
         return;
       }
 
-      tableBody.innerHTML = sortRecords(records).map((row) => {
-        const type = getRowType(row);
-        const typeLabel = getTypeLabel(type);
-        const amount = Number(row.AMOUNT) || 0;
-        const amountClass = amount ? 'text-danger' : '';
+      if (dataTable) {
+        dataTable.clear();
+        dataTable.rows.add(sorted);
+        dataTable.draw(false);
+      } else {
+        tableBody.innerHTML = sorted.map((row) => {
+          const type = getRowType(row);
+          const typeLabel = getTypeLabel(type);
+          const amount = Number(row.AMOUNT) || 0;
+          const amountClass = amount ? 'text-danger' : '';
 
-        return `
-        <tr>
-          <td>${formatDateTime(row.ENCODED_DT)}</td>
-          <td>${escapeHtml(row.account)}</td>
-          <td>${escapeHtml(row.name)}</td>
-          <td class="text-end ${amountClass}">${formatRowAmount(row)}</td>
-          <td>${escapeHtml(typeLabel)}</td>
-          <td>${escapeHtml(row.REMARKS)}</td>
-          <td class="text-center text-nowrap">
-            <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
-              <i class="fa fa-pencil-alt"></i>
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
-              <i class="fa fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-      }).join('');
+          return `
+          <tr>
+            <td>${formatDateTime(row.ENCODED_DT)}</td>
+            <td>${escapeHtml(row.account)}</td>
+            <td>${escapeHtml(row.name)}</td>
+            <td class="text-end ${amountClass}">${formatRowAmount(row)}</td>
+            <td>${escapeHtml(typeLabel)}</td>
+            <td>${escapeHtml(row.REMARKS)}</td>
+            <td class="text-center text-nowrap">
+              <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
+                <i class="fa fa-pencil-alt"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
+                <i class="fa fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+        }).join('');
+      }
 
       syncSortHeaders();
     }
@@ -404,6 +522,9 @@
     }
 
     window.loadAdditionalCommissionData = loadAdditionalCommissionData;
+
+    // Enable DataTables UI (search + show entries).
+    initDataTableOnce();
 
     if (!dashListModalEl) {
       loadAdditionalCommissionData();

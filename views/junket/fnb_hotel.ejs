@@ -55,9 +55,6 @@
 						<button type="button" id="btn-fnb-hotel-export" class="btn btn-sm btn-success">
 							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('fnb_hotel.export') || 'Export' %>
 						</button>
-						<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
-							<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
-						</button>
 					</div>
 				</div>
 				<div class="fnb-hotel-date-filter-wrap">
@@ -75,6 +72,19 @@
 						<div class="col-12">
 							
 							<div class="table-responsive">
+								<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+								<button
+									type="button"
+									id="btn-fnb-hotel-new-record"
+									class="expense-cat-panel-add-btn js-house-expense-add-sub-cat d-none"
+									data-bs-toggle="modal"
+									data-bs-target="#modal-services-new-record"
+									title="<%= __('fnb_hotel.new_record') %>"
+									aria-label="<%= __('fnb_hotel.new_record') %>"
+								>
+									<i class="fa fa-plus" aria-hidden="true"></i>
+								</button>
+								<% } %>
 								<table id="fnb-hotel-table" class="table  nowrap small-text" style="width:100%">
 									<thead>
 											<tr>
@@ -269,6 +279,90 @@
 							padding-left: 0.75rem;
 						}
 
+#btn-fnb-hotel-new-record.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--bs-primary);
+	line-height: 1;
+	flex-shrink: 0;
+	position: relative;
+	z-index: 2;
+	pointer-events: auto;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+	margin-right: 8px;
+	vertical-align: middle;
+}
+
+#btn-fnb-hotel-new-record.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+}
+
+#btn-fnb-hotel-new-record.expense-cat-panel-add-btn:hover:not(:disabled) {
+	background: var(--bs-primary);
+	color: #fff;
+	border-color: var(--bs-primary);
+}
+
+#btn-fnb-hotel-new-record.expense-cat-panel-add-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+#fnb-hotel-table_wrapper .fnb-hotel-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: 0;
+	background: #E8EAFB;
+	border: 1px solid #D5DAF6;
+	border-radius: 10px 10px 0 0;
+}
+
+#fnb-hotel-table_wrapper .fnb-hotel-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+
+#fnb-hotel-table_wrapper .fnb-hotel-controls-highlight .dataTables_filter {
+	margin: 0;
+}
+
+#fnb-hotel-table_wrapper .dataTables_scroll,
+#fnb-hotel-table_wrapper .dataTables_scrollHead,
+#fnb-hotel-table_wrapper .dataTables_scrollHeadInner,
+#fnb-hotel-table_wrapper table.dataTable {
+	margin-top: 0 !important;
+}
+
+#fnb-hotel-table_filter .fnb-hotel-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.35);
+	border: 1px solid rgba(213, 218, 246, 0.9);
+	border-radius: 10px;
+}
+
+#fnb-hotel-table_filter .fnb-hotel-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+}
+
+#fnb-hotel-table_filter .fnb-hotel-filter-highlight label input {
+	margin-left: 0;
+}
+
 </style>
 <%- include ('../partials/permission_view_only_script') %>
 <%- include('../modals/junket/new_service_record') %>
@@ -315,6 +409,56 @@
 <script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/new_service_record.js"></script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
+<script>
+	(function () {
+		function moveNewRecordButtonBesideSearch() {
+			var wrapper = document.getElementById('fnb-hotel-table_wrapper');
+			var lengthWrap = document.getElementById('fnb-hotel-table_length');
+			var filterWrap = document.getElementById('fnb-hotel-table_filter');
+			var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+			var addBtn = document.getElementById('btn-fnb-hotel-new-record');
+			var controlsHighlight;
+			var highlightBox;
+			if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+			controlsHighlight = wrapper.querySelector('.fnb-hotel-controls-highlight');
+			if (!controlsHighlight) {
+				controlsHighlight = document.createElement('div');
+				controlsHighlight.className = 'fnb-hotel-controls-highlight';
+				wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+			}
+			if (lengthWrap.parentElement !== controlsHighlight || controlsHighlight.firstElementChild !== lengthWrap) {
+				controlsHighlight.insertBefore(lengthWrap, controlsHighlight.firstChild);
+			}
+			if (filterWrap.parentElement !== controlsHighlight) {
+				controlsHighlight.appendChild(filterWrap);
+			}
+
+			highlightBox = filterWrap.querySelector('.fnb-hotel-filter-highlight');
+			if (!highlightBox) {
+				highlightBox = document.createElement('div');
+				highlightBox.className = 'fnb-hotel-filter-highlight';
+				filterWrap.appendChild(highlightBox);
+			}
+			if (addBtn && (addBtn.parentElement !== highlightBox || highlightBox.firstElementChild !== addBtn)) {
+				highlightBox.insertBefore(addBtn, highlightBox.firstChild);
+				addBtn.classList.remove('d-none');
+			}
+			if (searchLabel.parentElement !== highlightBox) {
+				highlightBox.appendChild(searchLabel);
+			}
+		}
+
+		if (window.jQuery) {
+			$(document).on('init.dt draw.dt', '#fnb-hotel-table', moveNewRecordButtonBesideSearch);
+			$(moveNewRecordButtonBesideSearch);
+		} else {
+			document.addEventListener('DOMContentLoaded', function () {
+				setTimeout(moveNewRecordButtonBesideSearch, 0);
+			});
+		}
+	})();
+</script>
 <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
 <script>
 	window.servicesCategoryTranslations = {
