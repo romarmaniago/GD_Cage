@@ -1,5 +1,6 @@
 (() => {
   const beyondChipsEls = {};
+  let lastGridPayload = null;
 
   function cacheBeyondChipsEls() {
     beyondChipsEls.modal = document.getElementById('modal-dash-beyond-chips');
@@ -566,59 +567,14 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  function isoDateLocal(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-
-  function buildNextMonthPreviewDates(dateToStr, count = 5) {
-    const parts = String(dateToStr || '').split('-');
-    if (parts.length !== 3) return [];
-    const y = Number(parts[0]);
-    const m = Number(parts[1]);
-    if (!Number.isFinite(y) || !Number.isFinite(m)) return [];
-    const start = new Date(y, m, 1);
-    const dates = [];
-    for (let i = 0; i < count; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      dates.push(isoDateLocal(d));
-    }
-    return dates;
-  }
-
-  function renderRollingPreviewRows(dates) {
-    return dates.map((date) => `
-      <div class="dash-rolling-row is-preview" data-date="${escapeAttr(date)}">
-        <span class="dash-rolling-body-cell is-date">${toDisplayDate(date)}</span>
-        <span class="dash-rolling-body-cell is-col-casino"></span>
-        <span class="dash-rolling-body-cell is-col-casino"></span>
-        <span class="dash-rolling-body-cell is-col-casino"></span>
-        <span class="dash-rolling-body-cell is-col-gold"></span>
-        <span class="dash-rolling-body-cell is-col-remarks"></span>
-      </div>`).join('');
-  }
-
-  function renderWlPreviewRows(dates) {
-    return dates.map((date) => `
-      <div class="dash-wl-row is-preview" data-date="${escapeAttr(date)}">
-        <span class="dash-wl-body-cell is-date">${toDisplayDate(date)}</span>
-        <span class="dash-wl-body-cell is-col-casino"></span>
-        <span class="dash-wl-body-cell is-col-gold"></span>
-        <span class="dash-wl-body-cell is-col-diff"></span>
-        <span class="dash-wl-body-cell is-col-remarks"></span>
-      </div>`).join('');
-  }
-
   function renderRollingTable(payload) {
     const root = document.getElementById('dash-rolling-root');
     const foot = document.getElementById('dash-rolling-foot');
-    const preview = document.getElementById('dash-rolling-preview');
-    if (!root || !foot || !preview || !payload) return;
+    if (!root || !foot || !payload) return;
 
     const today = todayIso();
     const rows = payload.rolling_rows || [];
     const t = payload.totals || {};
-    const previewDates = buildNextMonthPreviewDates(payload.date_to);
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-rolling-row is-today' : 'dash-rolling-row';
@@ -661,8 +617,6 @@
         <span class="dash-rolling-body-cell is-col-remarks is-total-remarks"></span>
       </div>`;
 
-    preview.innerHTML = renderRollingPreviewRows(previewDates);
-
     updateActualCheck(payload);
     bindRollingHeaderClicks(root);
     syncRollingTableLayout();
@@ -676,19 +630,6 @@
     const wlByDate = new Map(wlRows.map((row) => [row.dataset.date, row]));
     rollingRows.forEach((row) => {
       const wlRow = wlByDate.get(row.dataset.date);
-      if (!wlRow) return;
-      const h = Math.max(row.offsetHeight, wlRow.offsetHeight);
-      row.style.minHeight = `${h}px`;
-      wlRow.style.minHeight = `${h}px`;
-    });
-
-    const rollingPreviewRows = [...document.querySelectorAll('#dash-rolling-preview .dash-rolling-row.is-preview')];
-    const wlPreviewRows = [...document.querySelectorAll('#dash-wl-preview .dash-wl-row.is-preview')];
-    rollingPreviewRows.forEach((row) => { row.style.minHeight = ''; });
-    wlPreviewRows.forEach((row) => { row.style.minHeight = ''; });
-    const wlPreviewByDate = new Map(wlPreviewRows.map((row) => [row.dataset.date, row]));
-    rollingPreviewRows.forEach((row) => {
-      const wlRow = wlPreviewByDate.get(row.dataset.date);
       if (!wlRow) return;
       const h = Math.max(row.offsetHeight, wlRow.offsetHeight);
       row.style.minHeight = `${h}px`;
@@ -767,12 +708,10 @@
   function renderWlTable(payload) {
     const root = document.getElementById('dash-wl-root');
     const foot = document.getElementById('dash-wl-foot');
-    const preview = document.getElementById('dash-wl-preview');
-    if (!root || !foot || !preview || !payload) return;
+    if (!root || !foot || !payload) return;
 
     const today = todayIso();
     const rows = payload.wl_rows || [];
-    const previewDates = buildNextMonthPreviewDates(payload.date_to);
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-wl-row is-today' : 'dash-wl-row';
@@ -812,8 +751,6 @@
         <span class="dash-wl-body-cell is-col-diff is-total-amt${totalNegClass(totalDiff)}">${escapeHtml(formatTotalCell(totalDiff))}</span>
         <span class="dash-wl-body-cell is-col-remarks is-total-remarks"></span>
       </div>`;
-
-    preview.innerHTML = renderWlPreviewRows(previewDates);
 
     bindWlHeaderClicks(root);
     syncRollingTableLayout();
@@ -952,6 +889,260 @@
     return escapeHtml(value).replace(/'/g, '&#39;');
   }
 
+  function getDashPeriodLabel() {
+    const from = document.getElementById('dash-date-from')?.value || '';
+    const to = document.getElementById('dash-date-to')?.value || '';
+    if (!from || !to) return '';
+    return `${toDisplayDate(from)} – ${toDisplayDate(to)}`;
+  }
+
+  function buildRollingSheetPayload(payload) {
+    const headers = ['Date', 'Buy In', 'Cash Out', 'Rolling', 'Beyond Chips', 'Remarks'];
+    const rows = (payload.rolling_rows || []).map((row) => [
+      toDisplayDate(row.date),
+      formatCell(row.buy_in),
+      formatCashOutCell(row.cash_out),
+      formatCell(row.rolling),
+      formatCell(row.beyond_chips),
+      formatRollingRemarksDisplay(row)
+    ]);
+    const t = payload.totals || {};
+    rows.push([
+      'Total',
+      formatTotalCell(t.buy_in),
+      formatCashOutTotal(t.cash_out),
+      formatTotalCell(t.rolling),
+      formatTotalCell(t.beyond_chips),
+      ''
+    ]);
+    return { headers, rows };
+  }
+
+  function buildWlSheetPayload(payload) {
+    const headers = ['Date', 'Casino', 'Gold Dragon', 'The difference', 'Remarks'];
+    const rows = (payload.wl_rows || []).map((row) => {
+      const diff = (Number(row.casino) || 0) - (Number(row.gold_dragon) || 0);
+      return [
+        toDisplayDate(row.date),
+        formatCell(row.casino),
+        formatCell(row.gold_dragon),
+        formatCell(diff),
+        formatWlRemarksDisplay(row)
+      ];
+    });
+    const t = payload.totals || {};
+    const totalDiff = (Number(t.casino_wl) || 0) - (Number(t.gold_dragon_wl) || 0);
+    rows.push([
+      'Total',
+      formatTotalCell(t.casino_wl),
+      formatTotalCell(t.gold_dragon_wl),
+      formatTotalCell(totalDiff),
+      ''
+    ]);
+    return { headers, rows };
+  }
+
+  function getRollingPrintColgroup() {
+    return '<colgroup><col style="width:9%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:31%"></colgroup>';
+  }
+
+  function getWlPrintColgroup() {
+    return '<colgroup><col style="width:10%"><col style="width:22%"><col style="width:22%"><col style="width:24%"><col style="width:22%"></colgroup>';
+  }
+
+  const DASHBOARD_PRINT_PAGE_HEIGHT_MM = 287;
+
+  function getDashboardMatrixPrintStyles() {
+    return [
+      '@page{size:A4 portrait;margin:5mm;}',
+      'html,body{margin:0;padding:0;width:100%;height:100%;}',
+      'body{font-family:Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact;}',
+      `.print-page{width:100%;height:${DASHBOARD_PRINT_PAGE_HEIGHT_MM}mm;max-height:${DASHBOARD_PRINT_PAGE_HEIGHT_MM}mm;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;}`,
+      '.print-meta{flex:0 0 auto;padding:0 2mm;}',
+      'h2{text-align:center;margin:0 0 1mm;font-size:15px;line-height:1.2;font-weight:700;}',
+      '.subtitle{text-align:center;margin:0 0 2mm;font-size:10px;line-height:1.2;color:#444;}',
+      '.print-table{flex:1 1 auto;width:100%;height:100%;border-collapse:collapse;table-layout:fixed;}',
+      'th,td{border:1px solid #777;padding:1px 3px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box;}',
+      'th{text-align:center;background:#e8d5a8;font-weight:700;}',
+      'td{text-align:right;color:#333;}',
+      'td:first-child,th:first-child{text-align:left;}',
+      'tbody tr:last-child td{font-weight:700;background:#f4ecd8;}',
+      `@media print{.print-page{height:${DASHBOARD_PRINT_PAGE_HEIGHT_MM}mm;page-break-after:avoid;page-break-inside:avoid;}}`
+    ].join('');
+  }
+
+  function fitDashboardPrintToSinglePage(frameWindow) {
+    const doc = frameWindow.document;
+    const page = doc.querySelector('.print-page');
+    const table = doc.querySelector('.print-table');
+    const meta = doc.querySelector('.print-meta');
+    if (!page || !table) return;
+
+    const pageHeightPx = page.offsetHeight || 1083;
+    const metaHeight = meta ? meta.offsetHeight : 0;
+    const thead = table.querySelector('thead');
+    const bodyRows = [...table.querySelectorAll('tbody tr')];
+    const theadRowCount = thead ? thead.querySelectorAll('tr').length : 1;
+    const totalRows = bodyRows.length + theadRowCount;
+    if (!totalRows) return;
+
+    const tableHeightPx = Math.max(0, pageHeightPx - metaHeight - 2);
+    const rowHeightPx = Math.max(12, Math.floor(tableHeightPx / totalRows));
+    const fontSize = Math.min(12, Math.max(8, Math.floor(rowHeightPx * 0.42)));
+
+    if (thead) {
+      thead.querySelectorAll('tr').forEach((tr) => {
+        tr.style.height = `${rowHeightPx}px`;
+      });
+    }
+    bodyRows.forEach((tr) => {
+      tr.style.height = `${rowHeightPx}px`;
+    });
+
+    table.style.height = `${rowHeightPx * totalRows}px`;
+    doc.querySelectorAll('th, td').forEach((cell) => {
+      cell.style.fontSize = `${fontSize}px`;
+      cell.style.lineHeight = '1.1';
+      cell.style.padding = `1px ${Math.max(4, Math.floor(fontSize * 0.45))}px`;
+    });
+  }
+
+  function printDashboardMatrix(kind) {
+    if (!lastGridPayload) {
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Print', text: 'No data to print.' });
+      return;
+    }
+    const isRolling = kind === 'rolling';
+    const title = isRolling ? 'Main Cage Rolling Check' : 'W/L Check';
+    const sheet = isRolling ? buildRollingSheetPayload(lastGridPayload) : buildWlSheetPayload(lastGridPayload);
+    if (!sheet.rows.length) {
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Print', text: 'No data to print.' });
+      return;
+    }
+    const headerHtml = sheet.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
+    const colgroupHtml = isRolling ? getRollingPrintColgroup() : getWlPrintColgroup();
+    const rowsHtml = sheet.rows.map((row) => {
+      return `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`;
+    }).join('');
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden;';
+    document.body.appendChild(iframe);
+    const frameWindow = iframe.contentWindow;
+    const frameDoc = frameWindow.document;
+    frameDoc.open();
+    frameDoc.write([
+      '<!doctype html><html><head><title>', escapeHtml(title), '</title><style>',
+      getDashboardMatrixPrintStyles(),
+      '</style></head><body><div class="print-page">',
+      '<div class="print-meta">',
+      '<h2>', escapeHtml(title), '</h2>',
+      '<div class="subtitle">', escapeHtml(getDashPeriodLabel()), '</div>',
+      '</div>',
+      '<table class="print-table">', colgroupHtml,
+      '<thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+      '</div></body></html>'
+    ].join(''));
+    frameDoc.close();
+    const cleanup = () => {
+      setTimeout(() => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 300);
+    };
+    frameWindow.onafterprint = cleanup;
+    setTimeout(() => {
+      fitDashboardPrintToSinglePage(frameWindow);
+      requestAnimationFrame(() => {
+        fitDashboardPrintToSinglePage(frameWindow);
+        frameWindow.focus();
+        frameWindow.print();
+        cleanup();
+      });
+    }, 100);
+  }
+
+  async function exportDashboardMatrix(kind) {
+    if (!lastGridPayload) {
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export.' });
+      return;
+    }
+    const isRolling = kind === 'rolling';
+    const rows = isRolling ? (lastGridPayload.rolling_rows || []) : (lastGridPayload.wl_rows || []);
+    if (!rows.length) {
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Export', text: 'No data to export.' });
+      return;
+    }
+    const prefix = isRolling ? 'MainCageRollingCheck' : 'WLCheck';
+    const filename = `${prefix}_${lastGridPayload.date_from}_${lastGridPayload.date_to}.xlsx`;
+    const sheetName = isRolling ? 'Rolling Check' : 'WL Check';
+    const btn = document.getElementById(isRolling ? 'btn-dash-rolling-export' : 'btn-dash-wl-export');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/dashboard_grid/export_xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          kind: isRolling ? 'rolling' : 'wl',
+          date_from: lastGridPayload.date_from,
+          date_to: lastGridPayload.date_to,
+          rolling_rows: lastGridPayload.rolling_rows,
+          wl_rows: lastGridPayload.wl_rows,
+          totals: lastGridPayload.totals,
+          filename,
+          sheetName
+        })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error('exportDashboardMatrix:', err);
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Export failed.' });
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function initDashMatrixPrintExport() {
+    const rollingPrint = document.getElementById('btn-dash-rolling-print');
+    const rollingExport = document.getElementById('btn-dash-rolling-export');
+    const wlPrint = document.getElementById('btn-dash-wl-print');
+    const wlExport = document.getElementById('btn-dash-wl-export');
+    if (rollingPrint) {
+      rollingPrint.addEventListener('click', (e) => {
+        e.preventDefault();
+        printDashboardMatrix('rolling');
+      });
+    }
+    if (rollingExport) {
+      rollingExport.addEventListener('click', (e) => {
+        e.preventDefault();
+        exportDashboardMatrix('rolling');
+      });
+    }
+    if (wlPrint) {
+      wlPrint.addEventListener('click', (e) => {
+        e.preventDefault();
+        printDashboardMatrix('wl');
+      });
+    }
+    if (wlExport) {
+      wlExport.addEventListener('click', (e) => {
+        e.preventDefault();
+        exportDashboardMatrix('wl');
+      });
+    }
+  }
+
   function syncMatrixPanelHeight() {
     const ref = document.getElementById('dash-anticipated-panel');
     const panel = document.getElementById('dash-dual-matrix-panel');
@@ -984,15 +1175,13 @@
 
   async function loadGridData() {
     const from = document.getElementById('dash-date-from')?.value || '';
-    let to = document.getElementById('dash-date-to')?.value || '';
-    if (window.MonthEndCutoffRange && to) {
-      to = window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(to);
-    }
+    const to = document.getElementById('dash-date-to')?.value || '';
     const q = new URLSearchParams({ date_from: from, date_to: to });
     try {
       const res = await fetch(`/dashboard_grid_data?${q}`, { credentials: 'same-origin' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to load grid data');
+      lastGridPayload = data;
       renderRollingTable(data);
       renderWlTable(data);
       updateOnGameSummary(data);
@@ -1009,6 +1198,7 @@
     initBeyondChips();
     initRollingRemarks();
     initWlRemarks();
+    initDashMatrixPrintExport();
     loadGridData();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');

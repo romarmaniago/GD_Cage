@@ -1,8 +1,7 @@
 /**
  * Month-end cut-off default range for flatpickr range pickers.
- * Start = last day of previous month
- * End   = 2nd-to-last day of current month (display)
- * API end extends to last day of that month.
+ * Normal:  start = last day of previous month, end = 2nd-to-last day of current month
+ * Rollover (last day of month): start = last day of current month, end = 2nd-to-last of next month
  * Display: MMM DD, YYYY (e.g. Jun 30, 2026) — no time component.
  * Value/API: YYYY-MM-DD (e.g. 2026-06-30)
  */
@@ -45,9 +44,19 @@
 		var ref = refDate instanceof Date && !isNaN(refDate.getTime()) ? refDate : new Date();
 		var y = ref.getFullYear();
 		var m = ref.getMonth();
-		var startAt = new Date(y, m, 0);
-		var endAt = new Date(y, m + 1, 0);
-		endAt.setDate(endAt.getDate() - 1);
+		var lastDayOfMonth = new Date(y, m + 1, 0).getDate();
+		var isLastDayOfMonth = ref.getDate() === lastDayOfMonth;
+		var startAt;
+		var endAt;
+		if (isLastDayOfMonth) {
+			startAt = new Date(y, m + 1, 0);
+			endAt = new Date(y, m + 2, 0);
+			endAt.setDate(endAt.getDate() - 1);
+		} else {
+			startAt = new Date(y, m, 0);
+			endAt = new Date(y, m + 1, 0);
+			endAt.setDate(endAt.getDate() - 1);
+		}
 		var start = formatDisplayDate(startAt);
 		var end = formatDisplayDate(endAt);
 		var endDate = toIsoDate(endAt);

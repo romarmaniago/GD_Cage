@@ -39,4 +39,67 @@ function applyCommaThousandsToNumericCells(ws, opts) {
 	});
 }
 
-module.exports = { applyCommaThousandsToNumericCells, numberFormatForValue };
+function excelDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
+function excelCellDisplayText(cell) {
+	const v = cell.value;
+	if (v == null) return '';
+	if (typeof v === 'object' && v.formula) return '';
+	if (typeof v === 'number' && Number.isFinite(v)) {
+		const r = Math.round(v * 1e6) / 1e6;
+		if (Math.abs(r - Math.round(r)) < 1e-9) {
+			return Math.round(r).toLocaleString('en-US');
+		}
+		return r.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+	return String(v).replace(/\r?\n/g, ' ');
+}
+
+/**
+ * Set column widths from the widest cell in each column (CJK counts double).
+ *
+ * @param {import('exceljs').Worksheet} ws
+ * @param {object} [opts]
+ * @param {number} [opts.minWidth=8]
+ * @param {number} [opts.maxWidth=80]
+ * @param {number} [opts.padding=4]
+ * @param {number} [opts.startRow=1]
+ * @param {number} [opts.endRow]
+ * @param {boolean} [opts.boldExtra=1] - extra width when cell font is bold
+ */
+function autoFitExcelWorksheetColumns(ws, opts) {
+	opts = opts || {};
+	const minWidth = opts.minWidth != null ? opts.minWidth : 8;
+	const maxWidth = opts.maxWidth != null ? opts.maxWidth : 80;
+	const padding = opts.padding != null ? opts.padding : 4;
+	const boldExtra = opts.boldExtra != null ? opts.boldExtra : 1;
+	const startRow = opts.startRow != null ? opts.startRow : 1;
+	const endRow = opts.endRow != null ? opts.endRow : ws.rowCount;
+
+	const colMax = new Map();
+	for (let rowNumber = startRow; rowNumber <= endRow; rowNumber++) {
+		const row = ws.getRow(rowNumber);
+		if (!row) continue;
+		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+			const text = excelCellDisplayText(cell);
+			if (!text) return;
+			let w = excelDisplayWidth(text);
+			if (cell.font && cell.font.bold) w += boldExtra;
+			colMax.set(colNumber, Math.max(colMax.get(colNumber) || 0, w));
+		});
+	}
+
+	colMax.forEach((maxLen, colNumber) => {
+		ws.getColumn(colNumber).width = Math.min(maxWidth, Math.max(minWidth, maxLen + padding));
+	});
+}
+
+module.exports = {
+	applyCommaThousandsToNumericCells,
+	numberFormatForValue,
+	autoFitExcelWorksheetColumns
+};

@@ -10,6 +10,7 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
+const { buildDashboardGridExportXlsx } = require('../utils/dashboardGridExport');
 const {
 	getMarkerDataBreakdownSql,
 	getMarkerGrandTotalSql
@@ -29,6 +30,7 @@ const {
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
 const { categorizeDisplayExpenseTotals } = require('../utils/dashboardServiceBalance');
+const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
 function requireSuperAdmin(req, res, next) {
 	const p = req.session.permissions;
@@ -895,6 +897,7 @@ let sqlServiceSettle = `
 
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
+		const dashboardCutoffRange = getMonthEndCutoffRange();
 
 		res.render(viewName, {
 
@@ -930,6 +933,7 @@ let sqlServiceSettle = `
 			dashboardWlSharePct,
 			dashboardWlShareDefault: DEFAULT_DASHBOARD_WL_SHARE_PCT,
 			dashboardMonthKey,
+			dashboardCutoffRange,
 			sqlChipsReturnMarker: ChipsReturnMarkerResult,
 			sqlMArkerReturnDeposit: MArkerReturnDepositResult,
 			sqlMArkerReturnCash: MArkerReturnCashResult,
@@ -3924,6 +3928,35 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 	} catch (err) {
 		console.error('dashboard_grid_data:', err);
 		res.status(500).json({ message: 'Error loading dashboard grid data.' });
+	}
+});
+
+router.post('/dashboard_grid/export_xlsx', checkSession, async (req, res) => {
+	try {
+		const { kind, date_from, date_to, rolling_rows, wl_rows, totals, filename, sheetName } = req.body || {};
+		const normalizedKind = String(kind || '').trim().toLowerCase();
+		if (normalizedKind !== 'rolling' && normalizedKind !== 'wl') {
+			return res.status(400).json({ error: 'Invalid export kind.' });
+		}
+		const rows = normalizedKind === 'wl' ? wl_rows : rolling_rows;
+		if (!Array.isArray(rows) || rows.length === 0) {
+			return res.status(400).json({ error: 'No data to export.' });
+		}
+		const result = await buildDashboardGridExportXlsx({
+			kind: normalizedKind,
+			date_from,
+			date_to,
+			rolling_rows,
+			wl_rows,
+			totals: totals || {},
+			filename,
+			sheetName: sanitizeSheetName(sheetName) || (normalizedKind === 'wl' ? 'WL Check' : 'Rolling Check')
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('dashboard_grid/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed.' });
 	}
 });
 

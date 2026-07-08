@@ -1,9 +1,8 @@
 /**
- * Month-end cut-off default range (rolls over on the 1st of each month):
- * Start = last day of previous month
- * End   = 2nd-to-last day of current month (display)
- * API end extends to last day of that month so month-end data is included.
- * Display: MMM DD, YYYY (e.g. Jun 30, 2026 to Jul 30, 2026 throughout July)
+ * Month-end cut-off default range (rolls over on the last day of each month):
+ * Normal:  start = last day of previous month, end = 2nd-to-last day of current month
+ * Rollover (last day of month): start = last day of current month, end = 2nd-to-last of next month
+ * Display: MMM DD, YYYY (e.g. Jun 30, 2026 to Jul 30, 2026 throughout July; Jul 31 to Aug 30 on Jul 31)
  */
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -36,9 +35,20 @@ function getMonthEndCutoffRange(refDate) {
 	const ref = refDate instanceof Date && !isNaN(refDate.getTime()) ? refDate : new Date();
 	const y = ref.getFullYear();
 	const m = ref.getMonth();
-	const startAt = new Date(y, m, 0);
-	const endAt = new Date(y, m + 1, 0);
-	endAt.setDate(endAt.getDate() - 1);
+	const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
+	const isLastDayOfMonth = ref.getDate() === lastDayOfMonth;
+
+	let startAt;
+	let endAt;
+	if (isLastDayOfMonth) {
+		startAt = new Date(y, m + 1, 0);
+		endAt = new Date(y, m + 2, 0);
+		endAt.setDate(endAt.getDate() - 1);
+	} else {
+		startAt = new Date(y, m, 0);
+		endAt = new Date(y, m + 1, 0);
+		endAt.setDate(endAt.getDate() - 1);
+	}
 	const start = formatDisplayDate(startAt);
 	const end = formatDisplayDate(endAt);
 	const endDate = toIsoDate(endAt);
