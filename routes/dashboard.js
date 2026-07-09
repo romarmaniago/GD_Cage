@@ -54,6 +54,11 @@ async function renderDashboardPage(req, res, viewName) {
 		return res.status(500).send("Permissions are undefined");
 	}
 
+	// Dashboard period (month-end cutoff window) used by SOA settlement totals.
+	const dashboardCutoffRange = getMonthEndCutoffRange();
+	const dashboardDateFrom = dashboardCutoffRange?.startAt;
+	const dashboardDateTo = dashboardCutoffRange?.endAt;
+
 	let sqlWinlossManual = 'SELECT SUM(AMOUNT) AS WINLOSS FROM winloss WHERE RESET=1';
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
@@ -522,12 +527,13 @@ let sqlServiceDepositJunket = `
 	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 	
 `;
+// SOA (F&B, Hotel) settlement is maintained in its own table (soa_fnb_hotel).
+// Filtered by the dashboard cutoff range (month-end cutoff window).
 let sqlServiceSettle = `
-	SELECT  SUM(game_services.AMOUNT) AS TOTAL
-	FROM game_services
-	JOIN game_list ON game_list.IDNo = game_services.GAME_ID
-	WHERE game_services.ACTIVE = 1 AND game_services.TRANSACTION_ID = 3 AND game_list.SETTLED = 1
-	
+	SELECT SUM(COALESCE(sfh.AMOUNT, 0)) AS TOTAL
+	FROM soa_fnb_hotel sfh
+	WHERE sfh.ACTIVE = 1
+	  AND sfh.SOA_DATE BETWEEN ? AND ?
 `;
 
 	let sqlCommisionRolling = `SELECT 
@@ -667,7 +673,14 @@ let sqlServiceSettle = `
 		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
 		const [serviceCashJunketResults] = await pool.execute(sqlServiceCashJunket);
 		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
-		const [serviceSettleResults] = await pool.execute(sqlServiceSettle);
+		const startIso = dashboardDateFrom
+			? `${dashboardDateFrom.getFullYear()}-${String(dashboardDateFrom.getMonth() + 1).padStart(2, '0')}-${String(dashboardDateFrom.getDate()).padStart(2, '0')}`
+			: null;
+		const endIso = dashboardDateTo
+			? `${dashboardDateTo.getFullYear()}-${String(dashboardDateTo.getMonth() + 1).padStart(2, '0')}-${String(dashboardDateTo.getDate()).padStart(2, '0')}`
+			: null;
+
+		const [serviceSettleResults] = await pool.execute(sqlServiceSettle, [startIso, endIso]);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 		
 		const [manualBalancingResult] = await pool.execute(sqlManualBalancing);
@@ -897,7 +910,6 @@ let sqlServiceSettle = `
 
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
-		const dashboardCutoffRange = getMonthEndCutoffRange();
 
 		res.render(viewName, {
 
@@ -3593,6 +3605,147 @@ router.delete('/delete_beyond_chips', checkSession, async (req, res) => {
 	} catch (error) {
 		console.error('delete_beyond_chips:', error);
 		res.status(500).json({ message: 'Error deleting Beyond Chips.' });
+	}
+});
+
+// -------------------------
+// SOA (F&B, Hotel) - custom DB
+// -------------------------
+router.get('/soa_fnb_hotel_history', checkSession, async (req, res) => {
+	try {
+		const dateFrom = String(req.query.date_from || '').trim();
+		const dateTo = String(req.query.date_to || '').trim();
+		if (!dateFrom || !dateTo) {
+			return res.status(400).json({ message: 'Date range is required.' });
+		}
+
+		const [rows] = await pool.execute(
+			`SELECT
+				sfh.IDNo AS id,
+				DATE_FORMAT(sfh.SOA_DATE, '%Y-%m-%d') AS soa_date,
+				sfh.AMOUNT AS amount,
+				DATE_FORMAT(sfh.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
+			 FROM soa_fnb_hotel sfh
+			 WHERE sfh.ACTIVE = 1
+			   AND sfh.SOA_DATE BETWEEN ? AND ?
+			 ORDER BY sfh.SOA_DATE DESC, sfh.ENCODED_DT DESC, sfh.IDNo DESC`,
+			[dateFrom, dateTo]
+		);
+
+		const entries = rows || [];
+		const total = entries.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+		res.json({ entries, total });
+	} catch (error) {
+		console.error('soa_fnb_hotel_history:', error);
+		res.status(500).json({ message: 'Error loading SOA history.' });
+	}
+});
+
+router.get('/soa_fnb_hotel_total', checkSession, async (req, res) => {
+	try {
+		const dateFrom = String(req.query.date_from || '').trim();
+		const dateTo = String(req.query.date_to || '').trim();
+		if (!dateFrom || !dateTo) {
+			return res.status(400).json({ message: 'Date range is required.' });
+		}
+
+		const [[row]] = await pool.execute(
+			`SELECT SUM(COALESCE(AMOUNT, 0)) AS total
+			 FROM soa_fnb_hotel
+			 WHERE ACTIVE = 1
+			   AND SOA_DATE BETWEEN ? AND ?`,
+			[dateFrom, dateTo]
+		);
+		res.json({ total: Number(row?.total || 0) });
+	} catch (error) {
+		console.error('soa_fnb_hotel_total:', error);
+		res.status(500).json({ message: 'Error loading SOA total.' });
+	}
+});
+
+router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
+	try {
+		const soaDate = String(req.body.soa_date || '').trim();
+		const parsedAmount = Number(req.body.amount);
+		if (!soaDate) {
+			return res.status(400).json({ message: 'SOA date is required.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO soa_fnb_hotel
+				(SOA_DATE, CATEGORY, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, 'SOA', ?, NULL, ?, ?, 1)`,
+			[soaDate, parsedAmount, userId, now]
+		);
+
+		res.json({ success: true, message: 'SOA saved successfully.' });
+	} catch (error) {
+		console.error('add_soa_fnb_hotel:', error);
+		res.status(500).json({ message: 'Error saving SOA.' });
+	}
+});
+
+router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+		const parsedAmount = Number(req.body.amount);
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+		const [result] = await pool.execute(
+			`UPDATE soa_fnb_hotel
+			 SET AMOUNT = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[parsedAmount, userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'SOA updated successfully.' });
+	} catch (error) {
+		console.error('update_soa_fnb_hotel:', error);
+		res.status(500).json({ message: 'Error updating SOA.' });
+	}
+});
+
+router.delete('/delete_soa_fnb_hotel', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+		const [result] = await pool.execute(
+			`UPDATE soa_fnb_hotel
+			 SET ACTIVE = 0, UPDATED_BY = ?, UPDATED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'SOA deleted successfully.' });
+	} catch (error) {
+		console.error('delete_soa_fnb_hotel:', error);
+		res.status(500).json({ message: 'Error deleting SOA.' });
 	}
 });
 

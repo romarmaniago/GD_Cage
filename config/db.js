@@ -16,6 +16,7 @@ const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettl
 const { ensureAdditionalCommissionSchema } = require('../utils/ensureAdditionalCommissionSchema');
 const { ensureBeyondChipsSchema } = require('../utils/ensureBeyondChipsSchema');
 const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardCheckRemarksSchema');
+const { ensureSoaFnbHotelSchema } = require('../utils/ensureSoaFnbHotelSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -48,6 +49,7 @@ const pool = mysql.createPool({
 		await ensureDashboardWlShareSchema(pool);
 		await ensureAdditionalCommissionSchema(pool);
 		await ensureBeyondChipsSchema(pool);
+		await ensureSoaFnbHotelSchema(pool);
 		await ensureDashboardCheckRemarksSchema(pool);
 		await dropGameDailySettlementSchema(pool);
 	} catch (err) {
