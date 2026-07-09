@@ -809,14 +809,291 @@
     el.classList.toggle('text-dash-neg', n < 0);
   }
 
-  function renderGuestSummaryStats(stats) {
+  const lineQvState = {
+    selectedAgencyId: null,
+    selectedAgentId: null,
+    agencyRows: [],
+    accountRows: []
+  };
+
+  function updateLineQvScopeLabel(isSingleLineScope, lineCount, agentCount) {
+    const labelEl = document.getElementById('dash-guest-summary-scope-label');
+    const valueEl = document.getElementById('dash-guest-summary-scope-value');
+    if (!labelEl || !valueEl) return;
+
+    if (isSingleLineScope) {
+      labelEl.textContent = 'Total Agent';
+      valueEl.textContent = formatAmount(agentCount);
+      return;
+    }
+
+    labelEl.textContent = 'Total Line';
+    valueEl.textContent = formatAmount(lineCount);
+  }
+
+  function renderGuestSummaryStats(stats, isSingleLineScope) {
     const payload = stats || {};
-    setGuestSummaryValue('dash-guest-summary-total-guest', payload.total_guest);
+    updateLineQvScopeLabel(
+      isSingleLineScope,
+      payload.total_line,
+      payload.total_agent
+    );
     setGuestSummaryValue('dash-guest-summary-total-balance', payload.total_balance);
     setGuestSummaryValue('dash-guest-summary-total-credit', payload.total_credit);
     setGuestSummaryValue('dash-guest-summary-total-winloss', payload.total_winloss);
     setGuestSummaryValue('dash-guest-summary-total-rolling', payload.total_rolling);
     setGuestSummaryValue('dash-guest-summary-total-commission', payload.total_commission);
+  }
+
+  function renderLineQvAgentStats(stats, isVisible) {
+    const payload = stats || {};
+    const lineRow = document.getElementById('dash-line-qv-line-stat-row');
+    const agentRow = document.getElementById('dash-line-qv-agent-stat-row');
+
+    setGuestSummaryValue('dash-line-qv-agent-total-guest', payload.total_guest);
+    setGuestSummaryValue('dash-line-qv-agent-total-games', payload.total_games);
+    setGuestSummaryValue('dash-line-qv-agent-total-balance', payload.total_balance);
+    setGuestSummaryValue('dash-line-qv-agent-total-winloss', payload.total_winloss);
+    setGuestSummaryValue('dash-line-qv-agent-total-rolling', payload.total_rolling);
+    setGuestSummaryValue('dash-line-qv-agent-total-commission', payload.total_commission);
+
+    if (lineRow) lineRow.classList.toggle('d-none', isVisible);
+    if (agentRow) agentRow.classList.toggle('d-none', !isVisible);
+  }
+
+  function formatLineQvBalance(value) {
+    const n = Number(value) || 0;
+    return n === 0 ? '—' : formatAmount(n);
+  }
+
+  function showLineQvEmpty(panel, message) {
+    const emptyEl = document.getElementById(`dash-line-qv-${panel}-empty`);
+    const listEl = document.getElementById(`dash-line-qv-${panel}-list`);
+    if (emptyEl) {
+      emptyEl.textContent = message;
+      emptyEl.classList.remove('d-none');
+    }
+    if (listEl) {
+      listEl.classList.add('d-none');
+      listEl.innerHTML = '';
+    }
+  }
+
+  function renderLineQvLines(rows) {
+    const listEl = document.getElementById('dash-line-qv-line-list');
+    const emptyEl = document.getElementById('dash-line-qv-line-empty');
+    if (!listEl || !emptyEl) return;
+
+    const data = Array.isArray(rows) ? rows : [];
+    if (!data.length) {
+      showLineQvEmpty('line', 'No LINE found.');
+      return;
+    }
+
+    listEl.innerHTML = data.map((row) => {
+      const agencyId = Number(row.IDNo);
+      const isActive = lineQvState.selectedAgencyId === agencyId;
+      const balance = formatLineQvBalance(row.total_balance);
+      return `
+        <div class="dash-line-qv-list-item${isActive ? ' is-active' : ''}" data-agency-id="${agencyId}">
+          <span class="dash-line-qv-list-name">${escapeHtml(String(row.AGENCY || '').toUpperCase())}</span>
+          <span class="dash-line-qv-list-balance">${escapeHtml(balance)}</span>
+        </div>`;
+    }).join('');
+
+    emptyEl.classList.add('d-none');
+    listEl.classList.remove('d-none');
+  }
+
+  function renderLineQvAgents(accounts) {
+    const listEl = document.getElementById('dash-line-qv-agent-list');
+    const emptyEl = document.getElementById('dash-line-qv-agent-empty');
+    if (!listEl || !emptyEl) return;
+
+    if (!lineQvState.selectedAgencyId) {
+      showLineQvEmpty('agent', 'Select LINE to load agents.');
+      return;
+    }
+
+    const byAgent = {};
+    (accounts || []).forEach((row) => {
+      const id = String(row.agent_id || '');
+      if (!id) return;
+      if (!byAgent[id]) {
+        byAgent[id] = {
+          agent_id: row.agent_id,
+          agent_name: row.agent_name || '',
+          agent_code: row.agent_code || '',
+          total_balance: Number(row.total_balance || row.total_ledger_amount) || 0
+        };
+      }
+    });
+
+    const agents = Object.values(byAgent).sort((a, b) => {
+      const codeA = String(a.agent_code || '').toUpperCase();
+      const codeB = String(b.agent_code || '').toUpperCase();
+      return codeA.localeCompare(codeB);
+    });
+
+    if (!agents.length) {
+      showLineQvEmpty('agent', 'No agents under this LINE.');
+      return;
+    }
+
+    listEl.innerHTML = agents.map((agent) => {
+      const agentId = Number(agent.agent_id);
+      const isActive = lineQvState.selectedAgentId === agentId;
+      const code = String(agent.agent_code || '').toUpperCase();
+      const name = String(agent.agent_name || '').toUpperCase();
+      const label = code && name
+        ? `<span class="dash-line-qv-list-code">${escapeHtml(code)}</span><span class="dash-line-qv-list-sep">·</span><span>${escapeHtml(name)}</span>`
+        : escapeHtml(code || name || '—');
+      const balance = formatLineQvBalance(agent.total_balance);
+      return `
+        <div class="dash-line-qv-list-item${isActive ? ' is-active' : ''}" data-agent-id="${agentId}">
+          <span class="dash-line-qv-list-name">${label}</span>
+          <span class="dash-line-qv-list-balance">${escapeHtml(balance)}</span>
+        </div>`;
+    }).join('');
+
+    emptyEl.classList.add('d-none');
+    listEl.classList.remove('d-none');
+  }
+
+  function renderLineQvGuests(guests) {
+    const listEl = document.getElementById('dash-line-qv-guest-list');
+    const emptyEl = document.getElementById('dash-line-qv-guest-empty');
+    if (!listEl || !emptyEl) return;
+
+    if (!lineQvState.selectedAgentId) {
+      showLineQvEmpty('guest', 'Select AGENT to load guests.');
+      return;
+    }
+
+    const rows = Array.isArray(guests) ? guests : [];
+    if (!rows.length) {
+      showLineQvEmpty('guest', 'No guests under this agent.');
+      return;
+    }
+
+    const htmlRows = rows.map((row) => {
+      const name = String(row.guest_name || row.NAME || '—').toUpperCase();
+      const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim() || '—';
+      return `
+        <tr>
+          <td class="dash-line-qv-guest-col">${escapeHtml(name)}</td>
+          <td class="dash-line-qv-membership-col">${escapeHtml(membershipNo)}</td>
+          <td>${escapeHtml(formatAmount(row.total_balance || row.balance || 0))}</td>
+          <td>${escapeHtml(formatAmount(row.total_credit || row.credit || 0))}</td>
+          <td>${escapeHtml(formatAmount(row.total_winloss || row.winloss || 0))}</td>
+          <td>${escapeHtml(formatAmount(row.total_rolling || row.rolling || 0))}</td>
+          <td>${escapeHtml(formatAmount(row.total_commission || row.commission || 0))}</td>
+        </tr>`;
+    }).join('');
+
+    listEl.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 dash-line-qv-guest-table">
+          <thead>
+            <tr>
+              <th class="dash-line-qv-guest-col">Guest</th>
+              <th class="dash-line-qv-membership-col">Membership No</th>
+              <th>Balance</th>
+              <th>Credit</th>
+              <th>Winloss</th>
+              <th>Rolling</th>
+              <th>Commission</th>
+            </tr>
+          </thead>
+          <tbody>${htmlRows}</tbody>
+        </table>
+      </div>`;
+
+    emptyEl.classList.add('d-none');
+    listEl.classList.remove('d-none');
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url, { credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed.');
+    return data;
+  }
+
+  async function loadLineQvStats(agencyId) {
+    const hasAgency = Number.isFinite(Number(agencyId)) && Number(agencyId) > 0;
+    const endpoint = hasAgency
+      ? `/agency_line_stats?agencyId=${encodeURIComponent(agencyId)}`
+      : '/agency_line_stats';
+    const stats = await fetchJson(endpoint);
+    renderGuestSummaryStats(stats, hasAgency);
+    return stats;
+  }
+
+  async function loadLineQvAgentStats(agentId) {
+    const numericAgentId = Number(agentId);
+    if (!Number.isFinite(numericAgentId) || numericAgentId <= 0) {
+      renderLineQvAgentStats({}, false);
+      return;
+    }
+
+    const stats = await fetchJson(`/agency_agent_stats?agentId=${encodeURIComponent(numericAgentId)}`);
+    renderLineQvAgentStats(stats, true);
+  }
+
+  async function selectLineQvLine(agencyId) {
+    lineQvState.selectedAgencyId = Number(agencyId);
+    lineQvState.selectedAgentId = null;
+    lineQvState.accountRows = [];
+
+    document.querySelectorAll('#dash-line-qv-line-list .dash-line-qv-list-item').forEach((el) => {
+      el.classList.toggle('is-active', Number(el.dataset.agencyId) === lineQvState.selectedAgencyId);
+    });
+
+    showLineQvEmpty('guest', 'Select AGENT to load guests.');
+    renderLineQvAgents([]);
+
+    try {
+      const [accounts] = await Promise.all([
+        fetchJson(`/account_data?agencyId=${encodeURIComponent(lineQvState.selectedAgencyId)}`),
+        loadLineQvStats(lineQvState.selectedAgencyId)
+      ]);
+      lineQvState.accountRows = Array.isArray(accounts) ? accounts : [];
+      renderLineQvAgents(lineQvState.accountRows);
+      renderLineQvAgentStats({}, false);
+    } catch (err) {
+      console.error('line quick view agency:', err);
+      showLineQvEmpty('agent', 'Failed to load agents.');
+    }
+  }
+
+  async function selectLineQvAgent(agentId) {
+    lineQvState.selectedAgentId = Number(agentId);
+
+    document.querySelectorAll('#dash-line-qv-agent-list .dash-line-qv-list-item').forEach((el) => {
+      el.classList.toggle('is-active', Number(el.dataset.agentId) === lineQvState.selectedAgentId);
+    });
+
+    try {
+      const [guests] = await Promise.all([
+        fetchJson(`/guest_data?agentId=${encodeURIComponent(lineQvState.selectedAgentId)}`),
+        loadLineQvAgentStats(lineQvState.selectedAgentId)
+      ]);
+      renderLineQvGuests(guests);
+    } catch (err) {
+      console.error('line quick view agent:', err);
+      showLineQvEmpty('guest', 'Failed to load guests.');
+    }
+  }
+
+  function resetLineQuickView() {
+    lineQvState.selectedAgencyId = null;
+    lineQvState.selectedAgentId = null;
+    lineQvState.agencyRows = [];
+    lineQvState.accountRows = [];
+    renderLineQvAgentStats({}, false);
+    showLineQvEmpty('agent', 'Select LINE to load agents.');
+    showLineQvEmpty('guest', 'Select AGENT to load guests.');
   }
 
   async function loadGuestSummaryStats() {
@@ -826,19 +1103,47 @@
       status.classList.remove('text-danger');
     }
 
+    resetLineQuickView();
+    showLineQvEmpty('line', 'Loading...');
+
     try {
-      const res = await fetch('/agency_line_stats', { credentials: 'same-origin' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load guest summary.');
-      renderGuestSummaryStats(data);
+      const [agencyRows, stats] = await Promise.all([
+        fetchJson('/agency_data'),
+        fetchJson('/agency_line_stats')
+      ]);
+      lineQvState.agencyRows = Array.isArray(agencyRows) ? agencyRows : [];
+      renderGuestSummaryStats(stats, false);
+      renderLineQvLines(lineQvState.agencyRows);
       if (status) status.textContent = '';
     } catch (err) {
       console.error('agency_line_stats:', err);
-      renderGuestSummaryStats({});
+      renderGuestSummaryStats({}, false);
+      showLineQvEmpty('line', 'Failed to load LINE list.');
       if (status) {
-        status.textContent = 'Failed to load guest summary.';
+        status.textContent = 'Failed to load line summary.';
         status.classList.add('text-danger');
       }
+    }
+  }
+
+  function initLineQuickView() {
+    const lineList = document.getElementById('dash-line-qv-line-list');
+    const agentList = document.getElementById('dash-line-qv-agent-list');
+
+    if (lineList) {
+      lineList.addEventListener('click', (event) => {
+        const item = event.target.closest('[data-agency-id]');
+        if (!item) return;
+        selectLineQvLine(item.dataset.agencyId);
+      });
+    }
+
+    if (agentList) {
+      agentList.addEventListener('click', (event) => {
+        const item = event.target.closest('[data-agent-id]');
+        if (!item) return;
+        selectLineQvAgent(item.dataset.agentId);
+      });
     }
   }
 
@@ -1203,6 +1508,7 @@
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
     if (guestSummaryModal) {
+      initLineQuickView();
       guestSummaryModal.addEventListener('show.bs.modal', loadGuestSummaryStats);
     }
 

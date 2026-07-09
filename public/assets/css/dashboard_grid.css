@@ -334,6 +334,238 @@ body {
   color: #dc3545;
 }
 
+.dash-line-qv-modal-dialog {
+  max-width: min(1280px, calc(100vw - 2rem));
+}
+
+.dash-line-qv-stats {
+  margin-bottom: 0.25rem;
+}
+
+.dash-line-qv-stat-card {
+  background: #fff;
+  border: 1px solid #edf0f7;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dash-line-qv-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.dash-line-qv-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-line-qv-stat-value.text-dash-neg {
+  color: #dc3545;
+}
+
+.dash-line-qv-panels {
+  margin-top: 0.75rem;
+}
+
+.dash-line-qv-panels > [class*="col-"] {
+  display: flex;
+}
+
+.dash-line-qv-panel {
+  background: #fff;
+  border: 1px solid #edf0f7;
+  border-radius: 14px;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-line-qv-panel-header {
+  border-bottom: 1px solid #edf0f7;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: #1f2937;
+  flex: 0 0 auto;
+}
+
+.dash-line-qv-panel-body {
+  padding: 10px;
+  height: 720px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.dash-line-qv-panel-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dash-line-qv-panel-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border: 0;
+}
+
+.dash-line-qv-panel-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  border: 0;
+}
+
+.dash-line-qv-panel-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dash-line-qv-modal-dialog .modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.dash-line-qv-modal-dialog .modal-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dash-line-qv-modal-dialog .modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border: 0;
+}
+
+.dash-line-qv-modal-dialog .modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  border: 0;
+}
+
+.dash-line-qv-modal-dialog .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dash-line-qv-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  border: 1px dashed #dbe2ef;
+  border-radius: 10px;
+  background: #fafbfd;
+  padding: 16px;
+}
+
+.dash-line-qv-list {
+  border-top: 1px solid #edf0f7;
+  border-bottom: 1px solid #edf0f7;
+}
+
+.dash-line-qv-list-item {
+  min-height: 48px;
+  border-bottom: 1px solid #edf0f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.dash-line-qv-list-item:last-child {
+  border-bottom: 0;
+}
+
+.dash-line-qv-list-item:hover {
+  background: #f8fafc;
+}
+
+.dash-line-qv-list-item.is-active {
+  background: #f3f7ff;
+}
+
+.dash-line-qv-list-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #44506a;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.dash-line-qv-list-code {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.dash-line-qv-list-sep {
+  color: #9ca3af;
+  margin: 0 4px;
+}
+
+.dash-line-qv-list-balance {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 64px;
+  text-align: right;
+}
+
+.dash-line-qv-guest-table {
+  width: 100%;
+  font-size: 12px;
+}
+
+.dash-line-qv-guest-table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+  border-bottom: 1px solid #edf0f7;
+  padding: 8px 6px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.dash-line-qv-guest-table tbody td {
+  color: #334155;
+  border-bottom: 1px solid #edf0f7;
+  padding: 8px 6px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.dash-line-qv-guest-table thead th.dash-line-qv-guest-col,
+.dash-line-qv-guest-table tbody td.dash-line-qv-guest-col,
+.dash-line-qv-guest-table thead th.dash-line-qv-membership-col,
+.dash-line-qv-guest-table tbody td.dash-line-qv-membership-col {
+  text-align: left;
+}
+
+.dash-line-qv-guest-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 #dash-on-game-details-tbl {
   width: 100%;
   font-size: 13px;
