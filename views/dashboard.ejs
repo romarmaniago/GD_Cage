@@ -496,47 +496,122 @@
 </div>
 
 <div class="modal fade" id="modal-guest-summary-quick-view" tabindex="-1" aria-labelledby="modal-guest-summary-quick-view-label" aria-hidden="true">
-   <div class="modal-dialog modal-md modal-dialog-centered">
+   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable dash-line-qv-modal-dialog">
       <div class="modal-content">
          <div class="modal-header bg-primary">
             <h5 class="modal-title text-white" id="modal-guest-summary-quick-view-label">Line</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
          </div>
          <div class="modal-body">
             <div class="dash-guest-summary-status text-muted small mb-2" id="dash-guest-summary-status">Loading...</div>
-            <div class="table-responsive">
-               <table class="dash-guest-summary-table">
-                  <tbody>
-                     <tr>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Guest</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-guest">—</div>
-                        </td>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Balance</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-balance">—</div>
-                        </td>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Credit</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-credit">—</div>
-                        </td>
-                     </tr>
-                     <tr>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Win / Loss</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-winloss">—</div>
-                        </td>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Rolling</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-rolling">—</div>
-                        </td>
-                        <td>
-                           <div class="dash-guest-summary-label">Total Commission</div>
-                           <div class="dash-guest-summary-value" id="dash-guest-summary-total-commission">—</div>
-                        </td>
-                     </tr>
-                  </tbody>
-               </table>
+            <div id="dash-line-qv-line-stat-row">
+               <div class="row g-3 dash-line-qv-stats">
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label" id="dash-guest-summary-scope-label">Total Line</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-scope-value">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Balance</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-total-balance">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Credit</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-total-credit">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Win / Loss</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-total-winloss">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Rolling</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-total-rolling">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Commission</div>
+                        <div class="dash-line-qv-stat-value" id="dash-guest-summary-total-commission">—</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div id="dash-line-qv-agent-stat-row" class="d-none">
+               <div class="row g-3 dash-line-qv-stats">
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Guest</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-guest">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Games</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-games">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Balance</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-balance">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Win / Loss</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-winloss">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Rolling</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-rolling">—</div>
+                     </div>
+                  </div>
+                  <div class="col-6 col-lg">
+                     <div class="dash-line-qv-stat-card h-100">
+                        <div class="dash-line-qv-stat-label">Total Commission</div>
+                        <div class="dash-line-qv-stat-value" id="dash-line-qv-agent-total-commission">—</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            <div class="row g-3 dash-line-qv-panels mt-2">
+               <div class="col-12 col-lg-3">
+                  <div class="dash-line-qv-panel">
+                     <div class="dash-line-qv-panel-header">LINE</div>
+                     <div class="dash-line-qv-panel-body" id="dash-line-qv-line-body">
+                        <div class="dash-line-qv-empty" id="dash-line-qv-line-empty">Loading...</div>
+                        <div id="dash-line-qv-line-list" class="dash-line-qv-list d-none"></div>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-12 col-lg-3">
+                  <div class="dash-line-qv-panel">
+                     <div class="dash-line-qv-panel-header">AGENT</div>
+                     <div class="dash-line-qv-panel-body" id="dash-line-qv-agent-body">
+                        <div class="dash-line-qv-empty" id="dash-line-qv-agent-empty">Select LINE to load agents.</div>
+                        <div id="dash-line-qv-agent-list" class="dash-line-qv-list d-none"></div>
+                     </div>
+                  </div>
+               </div>
+               <div class="col-12 col-lg-6">
+                  <div class="dash-line-qv-panel">
+                     <div class="dash-line-qv-panel-header">GUEST</div>
+                     <div class="dash-line-qv-panel-body" id="dash-line-qv-guest-body">
+                        <div class="dash-line-qv-empty" id="dash-line-qv-guest-empty">Select AGENT to load guests.</div>
+                        <div id="dash-line-qv-guest-list" class="d-none"></div>
+                     </div>
+                  </div>
+               </div>
             </div>
          </div>
       </div>
