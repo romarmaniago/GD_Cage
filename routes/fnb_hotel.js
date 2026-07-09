@@ -250,10 +250,10 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 							const updated_time = now.toLocaleTimeString();
 							const remarksText = (remarks || '').trim();
 							const serviceLine = remarksText
-								? `서비스: ${serviceLabel} - ${remarksText}`
-								: `서비스: ${serviceLabel}`;
+								? `Service: ${serviceLabel} - ${remarksText}`
+								: `Service: ${serviceLabel}`;
 
-							const text = `Demo Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+							const text = `Demo Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 							await sendTelegramMessage(text, TELEGRAM_ID);
 							await sendTelegramToAdditionalChats(text);
@@ -274,11 +274,11 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 				const updated_time = now.toLocaleTimeString();
 				const remarksText = (remarks || '').trim();
 				const serviceLine = remarksText
-					? `서비스: ${serviceLabel} - ${remarksText}`
-					: `서비스: ${serviceLabel}`;
-				const gameLine = resolvedGameId ? `게임번호: ${resolvedGameId}\n` : '';
+					? `Service: ${serviceLabel} - ${remarksText}`
+					: `Service: ${serviceLabel}`;
+				const gameLine = resolvedGameId ? `Game #: ${resolvedGameId}\n` : '';
 
-				const text = `Demo Cage\n\n* 서비스 결제 (정켓) *\n\n${gameLine}${serviceLine}\n금액: ${formattedAmount}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const text = `Demo Cage\n\n* Service Payment (Junket) *\n\n${gameLine}${serviceLine}\nAmount: ${formattedAmount}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				await sendTelegramToAdditionalChats(text);
 			} catch (telegramErr) {

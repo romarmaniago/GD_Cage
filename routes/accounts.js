@@ -45,24 +45,14 @@ const getTransactionName = async (transactionId) => {
 	}
 };
 
-/** Korean Telegram copy only when UI language is ko; English is the default (en / ja / zh). */
-const isTelegramKorean = (req) => req && req.cookies && req.cookies.lang === 'ko';
-
-const telegramCashTransactionTitle = (transaction, ko) => {
-	if (ko) {
-		if (transaction === 'DEPOSIT') return '어카운트 입금';
-		if (transaction === 'WITHDRAW') return '어카운트 출금';
-		if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return '크레딧';
-	} else {
-		if (transaction === 'DEPOSIT') return 'Account deposit';
-		if (transaction === 'WITHDRAW') return 'Account withdrawal';
-		if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return 'Credit';
-	}
+const telegramCashTransactionTitle = (transaction) => {
+	if (transaction === 'DEPOSIT') return 'Account deposit';
+	if (transaction === 'WITHDRAW') return 'Account withdrawal';
+	if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return 'Credit';
 	return transaction;
 };
 
-const telegramAccountCashMessage = (req, opts) => {
-	const ko = isTelegramKorean(req);
+const telegramAccountCashMessage = (_req, opts) => {
 	const {
 		transaction,
 		guestAccountNum,
@@ -74,40 +64,23 @@ const telegramAccountCashMessage = (req, opts) => {
 		date_nowTG,
 		updated_time
 	} = opts;
-	const L = ko
-		? { account: '계정', amount: '금액', balance: '잔고', totalCredit: '총 크레딧', remarks: '비고', date: '날짜', time: '시간' }
-		: { account: 'Account', amount: 'Amount', balance: 'Balance', totalCredit: 'Total credit', remarks: 'Remarks', date: 'Date', time: 'Time' };
-	const title = telegramCashTransactionTitle(transaction, ko);
+	const L = { account: 'Account', amount: 'Amount', balance: 'Balance', totalCredit: 'Total credit', remarks: 'Remarks', date: 'Date', time: 'Time' };
+	const title = telegramCashTransactionTitle(transaction);
 	const balanceLabel = String(txtTrans) === '3' ? L.totalCredit : L.balance;
 	const remarksLine = txtRemarks ? `${L.remarks}: ${txtRemarks}\n` : '';
 	return `Demo Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString('en-US')}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString('en-US')}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
 };
 
-const telegramBalanceCheckMessage = (req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now) => {
-	const ko = isTelegramKorean(req);
-	const headline = ko ? '잔고 확인' : 'Balance check';
-	const L = ko
-		? { account: '계정', balance: '잔고', date: '날짜', time: '시간' }
-		: { account: 'Account', balance: 'Balance', date: 'Date', time: 'Time' };
-	return `Demo Cage\n\n* ${headline} *\n\n${L.account}: ${AGENT_CODE} - ${NAME}\n${L.balance}: ${balanceFormatted}\n\n${L.date}: ${date_now}\n${L.time}: ${time_now}`;
+const telegramBalanceCheckMessage = (_req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now) => {
+	return `Demo Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
 };
 
-const telegramTransferFromMessage = (req, fromCode, fromName, toCode, toName, totalAmount, senderBalance, date_nowTG, updated_time) => {
-	const ko = isTelegramKorean(req);
-	const headline = ko ? '이체' : 'Transfer';
-	const L = ko
-		? { account: '계정', to: '받으신분', amount: '금액', balance: '잔고', date: '날짜', time: '시간' }
-		: { account: 'Account', to: 'To', amount: 'Amount', balance: 'Balance', date: 'Date', time: 'Time' };
-	return `Demo Cage\n\n* ${headline} *\n\n${L.account}: ${fromCode} - ${fromName}\n${L.to}: ${toCode} - ${toName}\n${L.amount}: -${totalAmount.toLocaleString('en-US')}\n${L.balance}: ${senderBalance.toLocaleString('en-US')}\n\n${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+const telegramTransferFromMessage = (_req, fromCode, fromName, toCode, toName, totalAmount, senderBalance, date_nowTG, updated_time) => {
+	return `Demo Cage\n\n* Transfer *\n\nAccount: ${fromCode} - ${fromName}\nTo: ${toCode} - ${toName}\nAmount: -${totalAmount.toLocaleString('en-US')}\nBalance: ${senderBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
-const telegramTransferToMessage = (req, toCode, toName, fromCode, fromName, totalAmount, receiverBalance, date_nowTG, updated_time) => {
-	const ko = isTelegramKorean(req);
-	const headline = ko ? '이체' : 'Transfer';
-	const L = ko
-		? { to: '받으신분', from: '보내신분', amount: '금액', balance: '잔고', date: '날짜', time: '시간' }
-		: { to: 'To', from: 'From', amount: 'Amount', balance: 'Balance', date: 'Date', time: 'Time' };
-	return `Demo Cage\n\n* ${headline} *\n\n${L.to}: ${toCode} - ${toName}\n${L.from}: ${fromCode} - ${fromName}\n${L.amount}: ${totalAmount.toLocaleString('en-US')}\n${L.balance}: ${receiverBalance.toLocaleString('en-US')}\n\n${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+const telegramTransferToMessage = (_req, toCode, toName, fromCode, fromName, totalAmount, receiverBalance, date_nowTG, updated_time) => {
+	return `Demo Cage\n\n* Transfer *\n\nTo: ${toCode} - ${toName}\nFrom: ${fromCode} - ${fromName}\nAmount: ${totalAmount.toLocaleString('en-US')}\nBalance: ${receiverBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
 // Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)
@@ -2519,24 +2492,17 @@ router.post('/add_account_details', async (req, res) => {
 				const guestAccountNum = guestAccountNumResults[0].AGENT_CODE;
 				const guestName = guestNameResults[0].NAME;
 
-				// Reformat the amount with commas
-				const formattedAmount = amountNumber.toLocaleString('en-US');
-
-				// Translate transaction type to Korean (DB: IOU CASH or CREDIT CASH for Credit)
-				const translateTransaction = (trans) => {
-					if (trans === 'DEPOSIT') return '어카운트 입금';
-					if (trans === 'WITHDRAW') return '어카운트 출금';
-					if (trans === 'CREDIT' || trans === 'IOU CASH' || trans === 'CREDIT CASH') return '크레딧';
-					return trans;
-				};
-
-				const translatedTransaction = translateTransaction(transaction);
-
-				// Build remarks line if remarks exist
-				const remarksLine = txtRemarks ? `비고: ${txtRemarks}\n` : '';
-
-				const balanceLabel = (txtTrans === '3') ? '총 크레딧' : '잔고';
-				const text = `Demo Cage\n\n* ${translatedTransaction} *\n\n계정: ${guestAccountNum} - ${guestName}\n금액: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString('en-US')}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString('en-US')}\n${remarksLine}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const text = telegramAccountCashMessage(req, {
+					transaction,
+					guestAccountNum,
+					guestName,
+					displayWithdraw,
+					amountForTelegram,
+					txtTrans,
+					txtRemarks,
+					date_nowTG,
+					updated_time
+				});
 
 				const telegramLogPreview = guestPortalTransactionLogPreview(transaction, {
 					transactionDesc: transacDesc
@@ -2659,7 +2625,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		let date_now = new Date().toLocaleDateString();
 		let time_now = new Date().toLocaleTimeString();
 
-		const message = `Demo Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
+		const message = telegramBalanceCheckMessage(req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now);
 
 		const telegramSendOpts = {
 			logPreview: balanceCheckTelegramLogPreview(),
@@ -2820,7 +2786,17 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
 
-			const textFrom = `Demo Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString('en-US')}\n잔고: ${SenderCurrentBalance.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const textFrom = telegramTransferFromMessage(
+				req,
+				AGENT_CODE_FROM,
+				NAME_FROM,
+				telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A',
+				telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A',
+				totalAmount,
+				SenderCurrentBalance,
+				date_nowTG,
+				updated_time
+			);
 
 			const toCode =
 				telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A';
@@ -2872,7 +2848,17 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
 
-			const textTo = `Demo Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString('en-US')}\n잔고: ${ReceiverCurrentBalance.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const textTo = telegramTransferToMessage(
+				req,
+				AGENT_CODE_TO,
+				NAME_TO,
+				telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A',
+				telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A',
+				totalAmount,
+				ReceiverCurrentBalance,
+				date_nowTG,
+				updated_time
+			);
 
 			const fromCode =
 				telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A';

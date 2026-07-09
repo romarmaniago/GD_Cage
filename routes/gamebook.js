@@ -87,7 +87,7 @@ function gamebookTelegramOpts(label, accountCode, guestName, amount, gameId) {
 	};
 }
 
-/** LIVE / TELEBET (+ legacy 라이브·텔레벳) → agent vs management display strings */
+/** LIVE / TELEBET (+ legacy 라이브·텔레벳) → English display strings */
 function normalizeTelegramGameTypeKey(raw) {
 	if (raw == null || String(raw).trim() === '') return null;
 	const s = String(raw).trim();
@@ -103,10 +103,10 @@ function telegramGameTypeLabels(rawGameType) {
 	}
 	const norm = normalizeTelegramGameTypeKey(rawGameType);
 	if (norm === 'LIVE') {
-		return { agentText: '라이브', managementText: '라이브 LIVE' };
+		return { agentText: 'LIVE', managementText: 'LIVE' };
 	}
 	if (norm === 'TELEBET') {
-		return { agentText: '아바타', managementText: '아바타 AVATAR' };
+		return { agentText: 'AVATAR', managementText: 'AVATAR' };
 	}
 	const fallback = String(rawGameType).trim();
 	return { agentText: fallback, managementText: fallback };
@@ -117,8 +117,8 @@ function telegramSettlementGameTypeLines(rawGameType) {
 	const { agentText, managementText } = telegramGameTypeLabels(rawGameType);
 	if (!agentText) return { agentLine: '', managementLine: '' };
 	return {
-		agentLine: `\n게임 유형 : ${agentText}`,
-		managementLine: `\n게임 유형 Game type : ${managementText}`
+		agentLine: `\nGame type: ${agentText}`,
+		managementLine: `\nGame type: ${managementText}`
 	};
 }
 
@@ -1836,10 +1836,10 @@ function buildSettlementTelegramCutoffContext(primaryGameId, txtCutoffLinkedGame
 	const gameNumbersDisplay = isCutoff ? gameIds.join(' & ') : String(primaryGameId);
 	const gameNumbersHash = isCutoff ? gameIds.map((id) => `#${id}`).join(' & ') : `#${primaryGameId}`;
 
-	const agentTitleLine = isCutoff ? '\n컷오프 게임' : '';
-	const mgmtTitleLine = isCutoff ? '\n컷오프 게임 Cutoff Game' : '';
-	const agentGameLine = `\n게임 #: ${gameNumbersDisplay}`;
-	const mgmtGameLine = `\n게임 Game #: ${gameNumbersDisplay}`;
+	const agentTitleLine = isCutoff ? '\nCutoff Game' : '';
+	const mgmtTitleLine = isCutoff ? '\nCutoff Game' : '';
+	const agentGameLine = `\nGame #: ${gameNumbersDisplay}`;
+	const mgmtGameLine = `\nGame #: ${gameNumbersDisplay}`;
 
 	return {
 		isCutoff,
@@ -1856,8 +1856,8 @@ function buildSettlementTelegramCutoffContext(primaryGameId, txtCutoffLinkedGame
 /** Cut-off new game: title lines for Game Start Telegram. */
 function buildGameStartTelegramCutoffTitleLines(isCutoff) {
 	return {
-		agentTitleLine: isCutoff ? '\n컷오프 게임' : '',
-		mgmtTitleLine: isCutoff ? '\n컷오프 게임 Cutoff Game' : ''
+		agentTitleLine: isCutoff ? '\nCutoff Game' : '',
+		mgmtTitleLine: isCutoff ? '\nCutoff Game' : ''
 	};
 }
 
@@ -1881,16 +1881,10 @@ async function fetchGuestDisplayNameById(db, guestId) {
 }
 
 /** Guest line for Game Start Telegram (after account line). */
-function buildGameStartTelegramGuestLines(guestDisplayName, useKorean) {
+function buildGameStartTelegramGuestLines(guestDisplayName) {
 	const name = guestDisplayName ? String(guestDisplayName).trim() : '';
 	if (!name) {
 		return { agentLine: '', mgmtLine: '' };
-	}
-	if (useKorean) {
-		return {
-			agentLine: `\n게스트: ${name}`,
-			mgmtLine: `\n게스트 Guest: ${name}`
-		};
 	}
 	return {
 		agentLine: `\nGuest: ${name}`,
@@ -2574,55 +2568,48 @@ router.post('/add_game_list', async (req, res) => {
 	const updated_time = new Date().toLocaleTimeString();
 	let text = '';
 
-	// Check if game type is LIVE or Telebet to use Korean translations
-	const useKorean =
-		normalizeTelegramGameTypeKey(gameType) != null ||
-		normalizeTelegramGameTypeKey(txtGameType) != null;
-
 	const gtList = telegramGameTypeLabels(gameType);
 	const gtDeposit = telegramGameTypeLabels(txtGameType || gameType);
 	const translatedGameType = gtList.agentText;
 	const translatedTxtGameType = gtDeposit.agentText;
-	
-	// Korean translations
+
 	const labels = {
-		gameStart: useKorean ? '게임 시작' : 'Game Start',
-		account: useKorean ? '계정' : 'Account',
-		game: useKorean ? '게임' : 'Game',
-		buyIn: useKorean ? '바이인' : 'Buy-in',
-		accountBalance: useKorean ? '잔고' : 'Account Balance',
-		date: useKorean ? '날짜' : 'Date',
-		time: useKorean ? '시간' : 'Time',
-		cash: useKorean ? '현금' : 'Cash',
-		deposit: useKorean ? '계좌출금' : 'Deposit',
-		credit: useKorean ? '크레딧' : 'Credit'
+		gameStart: 'Game Start',
+		account: 'Account',
+		game: 'Game',
+		buyIn: 'Buy-in',
+		accountBalance: 'Account Balance',
+		date: 'Date',
+		time: 'Time',
+		cash: 'Cash',
+		deposit: 'Deposit',
+		credit: 'Credit'
 	};
 
-	// Bilingual labels (Korean English) for management and agent notifications
 	const mgmtLabels = {
-		gameStart: '게임 시작 Game Start',
-		account: '계정 Account',
-		game: '게임 Game',
-		buyIn: '바이인 Buy-in',
-		date: '날짜 Date',
-		time: '시간 Time'
+		gameStart: 'Game Start',
+		account: 'Account',
+		game: 'Game',
+		buyIn: 'Buy-in',
+		date: 'Date',
+		time: 'Time'
 	};
 	// Commission type labels for Telegram (1 = none, 2 = Share, 3 = Losing)
 	const commissionType = parseInt(txtCommisionType, 10) || null;
 	const commissionTextLabel =
-		commissionType === 2 ? '게임타입 : 셰어' :
-		commissionType === 3 ? '게임타입 : 루징' :
+		commissionType === 2 ? 'Game type: Share' :
+		commissionType === 3 ? 'Game type: Losing' :
 		'';
 	const commissionMgmtLabel =
-		commissionType === 2 ? '게임타입 GameType : 셰어 Share' :
-		commissionType === 3 ? '게임타입 GameType : 루징 Losing' :
+		commissionType === 2 ? 'Game type: Share' :
+		commissionType === 3 ? 'Game type: Losing' :
 		'';
 	const commissionTextLine = commissionTextLabel ? `\n${commissionTextLabel}` : '';
 	const commissionMgmtLine = commissionMgmtLabel ? `\n${commissionMgmtLabel}` : '';
 
 	let effectiveGuestId = guestId;
 	const guestDisplayName = await fetchGuestDisplayNameById(pool, effectiveGuestId);
-	const guestTelegramLines = buildGameStartTelegramGuestLines(guestDisplayName, useKorean);
+	const guestTelegramLines = buildGameStartTelegramGuestLines(guestDisplayName);
 	const telegramLogGuestName = guestDisplayName || agentName;
 	const gameNoForTelegram = buildGameStartTelegramGameNoDisplay(
 		transType === 2 ? result.insertId : gameId,
@@ -2644,15 +2631,15 @@ router.post('/add_game_list', async (req, res) => {
 		const newTotalBalance = totalBalanceGuest - totalAmount;
 		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedTxtGameType}${commissionTextLine}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString('en-US')}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtDeposit.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${parseFloat(totalAmount).toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account}: ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtDeposit.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn}: ${parseFloat(totalAmount).toLocaleString('en-US')}\n\n${mgmtLabels.date}: ${date_nowTG}\n${mgmtLabels.time}: ${updated_time}`;
 	} else if (transType === 1) {
 		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account}: ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn}: ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date}: ${date_nowTG}\n${mgmtLabels.time}: ${updated_time}`;
 	} else if (transType === 3) {
 		text = `Demo Cage\n\n* ${labels.gameStart} *${cutoffStartTitle.agentTitleLine}\n\n${labels.account}: ${agentCode} - ${agentName}${guestTelegramLines.agentLine}\n${labels.game} #: ${gameNoForTelegram} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString('en-US')}${agentBuyInPaymentSuffix}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Demo Cage\n\n* ${mgmtLabels.gameStart} *${cutoffStartTitle.mgmtTitleLine}\n\n${mgmtLabels.account}: ${agentCode} - ${agentName}${guestTelegramLines.mgmtLine}\n${mgmtLabels.game} #: ${managementGameNoForStart} - ${gtList.managementText}${commissionMgmtLine}\n${mgmtLabels.buyIn}: ${totalAmount.toLocaleString('en-US')}\n\n${mgmtLabels.date}: ${date_nowTG}\n${mgmtLabels.time}: ${updated_time}`;
 	}
 
 		if (text && agentId) {
@@ -2901,19 +2888,19 @@ router.post('/add_game_list_split', async (req, res) => {
 				const date_nowTG = encoded_dt.toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
-				const splitLinesKo = [];
-				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString('en-US')}`);
-				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString('en-US')}`);
-				const splitTextBlockKo = splitLinesKo.join('\n');
+				const splitLinesGuest = [];
+				if (cashTotal > 0) splitLinesGuest.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesGuest.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				const splitTextBlockGuest = splitLinesGuest.join('\n');
 				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString('en-US')}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (cashTotal > 0) splitLinesMgmt.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const splitGt = telegramGameTypeLabels(gameType);
-				const text = `Demo Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString('en-US')}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString('en-US')}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Demo Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const text = `Demo Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockGuest}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}${depositTotal > 0 ? `\nBalance: ${balanceAfterDeposit.toLocaleString('en-US')}` : ''}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const managementText = `Demo Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 				if (telegramId) {
@@ -3080,10 +3067,10 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 						const updated_time = now.toLocaleTimeString();
 						const remarksText = (remarks || '').trim();
 						const serviceLine = remarksText
-							? `서비스: ${serviceLabel} - ${remarksText}`
-							: `서비스: ${serviceLabel}`;
+							? `Service: ${serviceLabel} - ${remarksText}`
+							: `Service: ${serviceLabel}`;
 
-						const text = `Demo Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+						const text = `Demo Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 						const servicePaymentOpts = gamebookTelegramOpts('Service Payment', AGENT_CODE, NAME, amt, gameId);
 						// Send to individual guest
@@ -3613,15 +3600,15 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
                 const telegramId = getAgentTelegramChatId(rows[0]);
                 const text =
                     `GD Cage\n\n` +
-                    `계정 : ${accountDisplayText}\n` +
-                    `게임 # : ${gameNos}\n\n` +
-                    `바이인 합계 : ${buyInText}\n` +
-                    `캐시아웃 합계 : ${chipsReturnText}\n` +
-                    `윈/로스 Win/Loss : ${winLossText}\n` +
-                    `토탈롤링 : ${rollingText}\n` +
-                    `커미션 : ${paymentText}\n\n` +
-                    `날짜 Date : ${dateText}\n` +
-                    `시간 Time : ${timeText}`;
+                    `Account: ${accountDisplayText}\n` +
+                    `Game #: ${gameNos}\n\n` +
+                    `Total Buy-in: ${buyInText}\n` +
+                    `Total Cash-out: ${chipsReturnText}\n` +
+                    `Win/Loss: ${winLossText}\n` +
+                    `Total Rolling: ${rollingText}\n` +
+                    `Commission: ${paymentText}\n\n` +
+                    `Date: ${dateText}\n` +
+                    `Time: ${timeText}`;
 
                 const mergeOpts = gamebookTelegramOpts(
                     'End Game / Settlement',
@@ -5065,11 +5052,11 @@ router.post('/add_settlement', async (req, res) => {
 					const row = gameInfoRows[0];
 					const commissionType = parseInt(row.COMMISSION_TYPE, 10) || null;
 					if (commissionType === 2) {
-						commissionTextLine = '\n게임타입 : 셰어';
-						commissionMgmtLine = '\n게임타입 GameType : 셰어 Share';
+						commissionTextLine = '\nGame type: Share';
+						commissionMgmtLine = '\nGame type: Share';
 					} else if (commissionType === 3) {
-						commissionTextLine = '\n게임타입 : 루징';
-						commissionMgmtLine = '\n게임타입 GameType : 루징 Losing';
+						commissionTextLine = '\nGame type: Losing';
+						commissionMgmtLine = '\nGame type: Losing';
 					}
 					if (row.GAME_TYPE != null && String(row.GAME_TYPE).trim() !== '') {
 						const gt = telegramSettlementGameTypeLines(row.GAME_TYPE);
@@ -5087,13 +5074,13 @@ router.post('/add_settlement', async (req, res) => {
 			if (txtTransType == 1) {
 				const balRaw = txtSettlementBalance != null && txtSettlementBalance !== '' ? String(txtSettlementBalance) : '0';
 				const currentBalance = parseFloat(balRaw.replace(/,/g, '') || '0') + parseFloat(paymentValue);
-				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString('en-US')} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				// Management/agent message: bilingual labels, no payment type
-				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\nCommission: ${parseFloat(paymentValue).toLocaleString('en-US')} - Deposit\nBalance: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				// Management/agent message: no payment type
+				managementText = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\nCommission: ${parseFloat(paymentValue).toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else {
-				text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString('en-US')} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				// Management/agent message: bilingual labels, no payment type
-				managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\nCommission: ${parseFloat(paymentValue).toLocaleString('en-US')} - Cash\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				// Management/agent message: no payment type
+				managementText = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\nCommission: ${parseFloat(paymentValue).toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			const sendAgentPaths = fakeSettleBefore !== 1 || sendTelegramAgent;
@@ -5244,11 +5231,11 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		let gameTypeMgmtLine = '';
 		const commissionType = parseInt(gameRows[0].COMMISSION_TYPE, 10) || null;
 		if (commissionType === 2) {
-			commissionTextLine = '\n게임타입 : 셰어';
-			commissionMgmtLine = '\n게임타입 GameType : 셰어 Share';
+			commissionTextLine = '\nGame type: Share';
+			commissionMgmtLine = '\nGame type: Share';
 		} else if (commissionType === 3) {
-			commissionTextLine = '\n게임타입 : 루징';
-			commissionMgmtLine = '\n게임타입 GameType : 루징 Losing';
+			commissionTextLine = '\nGame type: Losing';
+			commissionMgmtLine = '\nGame type: Losing';
 		}
 		if (gameRows[0].GAME_TYPE != null && String(gameRows[0].GAME_TYPE).trim() !== '') {
 			const gt = telegramSettlementGameTypeLines(gameRows[0].GAME_TYPE);
@@ -5269,11 +5256,11 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		if (tt === '1') {
 			const balRaw = txtSettlementBalance != null && txtSettlementBalance !== '' ? String(txtSettlementBalance) : '0';
 			const currentBalance = stripMoney(balRaw) + paymentValue;
-			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString('en-US')} - 계좌입금\n잔고: ${currentBalance.toLocaleString('en-US')}\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+			text = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\nCommission: ${paymentValue.toLocaleString('en-US')} - Deposit\nBalance: ${currentBalance.toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+			managementText = `Demo Cage\n\n* End Game / Settlement *\n(Edited)${cutoffCtx.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\nCommission: ${paymentValue.toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 		} else {
-			text = `Demo Cage\n\n* 게임종료 / 정산 *${cutoffCtx.agentTitleLine}\n\n계정: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString('en-US')} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계: ${total_cash_out.toLocaleString('en-US')}\n윈/로스: ${winloss.toLocaleString('en-US')}\n토탈롤링: ${total_rolling.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			managementText = `Demo Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)${cutoffCtx.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString('en-US')}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString('en-US')}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString('en-US')}\n윈/로스 Win/Loss : ${winloss.toLocaleString('en-US')}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+			text = `Demo Cage\n\n* End Game / Settlement *${cutoffCtx.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.agentGameLine}${gameTypeLine}${commissionTextLine}\nCommission: ${paymentValue.toLocaleString('en-US')} - Cash\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+			managementText = `Demo Cage\n\n* End Game / Settlement *\n(Edited)${cutoffCtx.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}${cutoffCtx.mgmtGameLine}${gameTypeMgmtLine}${commissionMgmtLine}\nCommission: ${paymentValue.toLocaleString('en-US')}\n\nTotal Buy-in: ${total_buy_in.toLocaleString('en-US')}\nTotal Cash-out: ${total_cash_out.toLocaleString('en-US')}\nWin/Loss: ${winloss.toLocaleString('en-US')}\nTotal Rolling: ${total_rolling.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 		}
 
 		const editLogLabel = cutoffCtx.isCutoff ? 'End Game / Settlement (Cut Off, Edited)' : 'End Game / Settlement (Edited)';
@@ -5708,14 +5695,14 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			let text = '';
 			let managementText = ''; // Message for management (without account balance)
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n잔고: ${parseFloat(newTotalBalance).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${buyinGameLineAgent}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')} - Deposit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\nBalance: ${parseFloat(newTotalBalance).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 현금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${buyinGameLineAgent}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')} - Cash\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 3) {
-				text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinGameLineAgent}\n바이인: ${parseFloat(totalAmount).toLocaleString('en-US')} - 크레딧\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString('en-US')}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${buyinGameLineAgent}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')} - Credit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${buyinGameLineMgmt}\nBuy-in: ${parseFloat(totalAmount).toLocaleString('en-US')}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			// Send Telegram messages (when we have agent data)
@@ -5922,23 +5909,23 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				const buyinSplitGameLineMgmt = buyinSplitGt.managementText ? ` - ${buyinSplitGt.managementText}` : '';
 				const date_nowTG = new Date().toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
-				const splitLinesKo = [];
-				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString('en-US')}`);
-				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString('en-US')}`);
-				const splitTextBlockKo = splitLinesKo.join('\n');
+				const splitLinesGuest = [];
+				if (cashTotal > 0) splitLinesGuest.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesGuest.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesGuest.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
+				const splitTextBlockGuest = splitLinesGuest.join('\n');
 				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString('en-US')}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString('en-US')}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString('en-US')}`);
+				if (cashTotal > 0) splitLinesMgmt.push(`Cash: ${cashTotal.toLocaleString('en-US')}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`Deposit: ${depositTotal.toLocaleString('en-US')}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const priorBuyinTotal = parseFloat((txtTotalAmountBuyin || '0').toString().replace(/,/g, '')) || 0;
 				const totalBuyin = priorBuyinTotal + grandTotal;
 				const newTotalBalance = totalBalance - depositTotal;
 				const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 				const telegramGameNo = cutoffTelegram.telegramGameNo;
-				const text = `Demo Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${buyinSplitGameLineAgent}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString('en-US')}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString('en-US')}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Demo Cage\n\n* 추가 바이인 Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${buyinSplitGameLineMgmt}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const text = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${buyinSplitGameLineAgent}\n${splitTextBlockGuest}\nTotal Buy-in: ${totalBuyin.toLocaleString('en-US')}${depositTotal > 0 ? `\nBalance: ${newTotalBalance.toLocaleString('en-US')}` : ''}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const managementText = `Demo Cage\n\n* Add Buy-in *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${buyinSplitGameLineMgmt}\n${splitTextBlockMgmt}\nTotal Buy-in: ${totalBuyin.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				const addBuyinSplitLogLabel = cutoffTelegram.isCutoffContinuation ? 'Add Buy-in (Cut Off)' : 'Add Buy-in';
 				const addBuyinSplitOpts = gamebookTelegramOpts(addBuyinSplitLogLabel, agentCode, agentName, grandTotal, telegramGameNo);
@@ -6138,14 +6125,14 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			let text = '';
 			let managementText = '';
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 계좌입금\n잔고: ${currentBalanceCashout.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${cashoutGameLineAgent}\nCash-out: ${chipsReturn.toLocaleString('en-US')} - Deposit\nBalance: ${currentBalanceCashout.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\nCash-out: ${chipsReturn.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${cashoutGameLineAgent}\nCash-out: ${chipsReturn.toLocaleString('en-US')} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\nCash-out: ${chipsReturn.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 4) {
-				text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutGameLineAgent}\n캐시아웃: ${chipsReturn.toLocaleString('en-US')} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString('en-US')}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				text = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${cashoutGameLineAgent}\nCash-out: ${chipsReturn.toLocaleString('en-US')} - Credit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				managementText = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${cashoutGameLineMgmt}\nCash-out: ${chipsReturn.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			if (text !== '' && agentResults.length > 0) {
@@ -6518,12 +6505,12 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			const combinedGrandTotal = splitGrandTotal + tipGrandTotal;
 			const cutoffTelegram = await resolveCutoffTelegramGameContext(pool, game_id);
 			const telegramGameNo = cutoffTelegram.telegramGameNo;
-			const creditLineKo = creditTotal > 0 ? `\n크레딧: ${creditTotal.toLocaleString('en-US')}` : '';
-			const creditLineMgmt = creditTotal > 0 ? `\n크레딧 Credit: ${creditTotal.toLocaleString('en-US')}` : '';
-			const tipLineKo = tipGrandTotal > 0 ? `\n팁: ${tipGrandTotal.toLocaleString('en-US')}` : '';
-			const tipLineMgmt = tipGrandTotal > 0 ? `\n팁 Tip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
-			const text = `Demo Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\n현금: ${cashTotal.toLocaleString('en-US')}\n계좌입금: ${depTotal.toLocaleString('en-US')}${creditLineKo}${tipLineKo}\n총 캐시아웃: ${combinedGrandTotal.toLocaleString('en-US')}\n잔고: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			const managementText = `Demo Cage\n\n* 캐시아웃 Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\n현금 Cash: ${cashTotal.toLocaleString('en-US')}\n계좌입금 Deposit: ${depTotal.toLocaleString('en-US')}${creditLineMgmt}${tipLineMgmt}\n총 캐시아웃 Total Cash-out: ${combinedGrandTotal.toLocaleString('en-US')}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+			const creditLineGuest = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}` : '';
+			const creditLineMgmt = creditTotal > 0 ? `\nCredit: ${creditTotal.toLocaleString('en-US')}` : '';
+			const tipLineGuest = tipGrandTotal > 0 ? `\nTip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
+			const tipLineMgmt = tipGrandTotal > 0 ? `\nTip: ${tipGrandTotal.toLocaleString('en-US')}` : '';
+			const text = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.agentTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${telegramGameNo}${cashoutSplitGameLineAgent}\n\nCash: ${cashTotal.toLocaleString('en-US')}\nDeposit: ${depTotal.toLocaleString('en-US')}${creditLineGuest}${tipLineGuest}\nTotal Cash-out: ${combinedGrandTotal.toLocaleString('en-US')}\nBalance: ${currentBalanceAfterSplit.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+			const managementText = `Demo Cage\n\n* Cash-out *${cutoffTelegram.cutoffTitle.mgmtTitleLine}\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${cutoffTelegram.managementGameNo}${cashoutSplitGameLineMgmt}\n\nCash: ${cashTotal.toLocaleString('en-US')}\nDeposit: ${depTotal.toLocaleString('en-US')}${creditLineMgmt}${tipLineMgmt}\nTotal Cash-out: ${combinedGrandTotal.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 			const telegramId =
 				telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;

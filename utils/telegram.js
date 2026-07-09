@@ -10,6 +10,28 @@ const { getEnabledChatIds } = require('./telegramChatIds');
 let guestBotInstance; // GUEST bot instance
 let employeeBotInstance; // EMPLOYEE bot instance
 let managementBotInstance; // MANAGEMENT bot instance
+const RECENT_TELEGRAM_SEND_TTL_MS = 15000;
+const recentTelegramSends = new Map();
+
+function pruneRecentTelegramSends(nowTs = Date.now()) {
+  for (const [key, expiresAt] of recentTelegramSends.entries()) {
+    if (expiresAt <= nowTs) {
+      recentTelegramSends.delete(key);
+    }
+  }
+}
+
+function shouldSkipDuplicateTelegramSend(chatId, text) {
+  const nowTs = Date.now();
+  pruneRecentTelegramSends(nowTs);
+  const dedupeKey = `${String(chatId)}::${String(text)}`;
+  const existingExpiry = recentTelegramSends.get(dedupeKey);
+  if (existingExpiry && existingExpiry > nowTs) {
+    return true;
+  }
+  recentTelegramSends.set(dedupeKey, nowTs + RECENT_TELEGRAM_SEND_TTL_MS);
+  return false;
+}
 
 // Get active token from DB based on user type (GUEST, EMPLOYEE, MANAGEMENT)
 async function getTelegramToken(userType = 'GUEST') {
@@ -54,6 +76,9 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
   const token = await getTelegramToken('GUEST');
   const msgPreview = previewText(logPreview != null ? logPreview : text);
   const chatStr = String(telegramId);
+  if (shouldSkipDuplicateTelegramSend(chatStr, text)) {
+    return;
+  }
 
   if (!token) {
     console.warn('No Telegram token found for GUEST bot');
@@ -236,6 +261,9 @@ async function sendTelegramToEmployees(text, options = {}) {
 
   for (const id of chatIds) {
     try {
+      if (shouldSkipDuplicateTelegramSend(id, text)) {
+        continue;
+      }
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       const response = await fetch(url, {
         method: 'POST',
@@ -339,6 +367,9 @@ async function sendTelegramToManagement(text, options = {}) {
 
   for (const id of chatIds) {
     try {
+      if (shouldSkipDuplicateTelegramSend(id, text)) {
+        continue;
+      }
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       const response = await fetch(url, {
         method: 'POST',

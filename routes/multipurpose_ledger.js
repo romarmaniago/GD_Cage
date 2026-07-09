@@ -110,24 +110,24 @@ function transTypeTelegramHeadline(action, transType) {
 	const typeLabel = transTypeLabel(transType);
 	const actionKey = String(action || 'add').toLowerCase();
 	if (actionKey === 'edit') {
-		return `* 멀티목적 장부 수정 Multipurpose Ledger — ${typeLabel} Updated *`;
+		return `* Multipurpose Ledger — ${typeLabel} Updated *`;
 	}
 	if (actionKey === 'delete') {
-		return `* 멀티목적 장부 삭제 Multipurpose Ledger — ${typeLabel} Deleted *`;
+		return `* Multipurpose Ledger — ${typeLabel} Deleted *`;
 	}
 	if (Number(transType) === TRANS_TYPE.DEPOSIT) {
-		return '* 멀티목적 장부 입금 Multipurpose Ledger — Deposit *';
+		return '* Multipurpose Ledger — Deposit *';
 	}
 	if (Number(transType) === TRANS_TYPE.WITHDRAWAL) {
-		return '* 멀티목적 장부 출금 Multipurpose Ledger — Withdrawal *';
+		return '* Multipurpose Ledger — Withdrawal *';
 	}
 	if (isTransferType(transType)) {
-		return '* 멀티목적 장부 이체 Multipurpose Ledger — Transfer *';
+		return '* Multipurpose Ledger — Transfer *';
 	}
 	if (Number(transType) === TRANS_TYPE.MONEY_EXCHANGE) {
-		return '* 멀티목적 장부 환전 Multipurpose Ledger — Money Exchange *';
+		return '* Multipurpose Ledger — Money Exchange *';
 	}
-	return `* 멀티목적 장부 Multipurpose Ledger — ${typeLabel} *`;
+	return `* Multipurpose Ledger — ${typeLabel} *`;
 }
 
 const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
@@ -187,20 +187,20 @@ function buildJflManagementTelegramText(payload) {
 		'',
 		transTypeTelegramHeadline(action, transType),
 		'',
-		`유형 : ${transTypeLabel(transType)}`,
-		`금액 Amount : ${(Number(amount) || 0).toLocaleString('en-US')}${ccyLabel}`
+		`Type: ${transTypeLabel(transType)}`,
+		`Amount: ${(Number(amount) || 0).toLocaleString('en-US')}${ccyLabel}`
 	];
 	if (accountLabel) {
-		lines.push(`계정 Account : ${accountLabel}`);
+		lines.push(`Account: ${accountLabel}`);
 	}
 	lines.push(
-		`담당 In charge : ${inCharge || '-'}`,
-		`비고 Remarks : ${remarks || '-'}`,
-		`잔고 Balance${ccyLabel ? ` (${currencyCode})` : ''} : ${(Number(balance) || 0).toLocaleString('en-US')}`,
-		`처리 Processed by : ${processedBy || 'Unknown'}`,
+		`In charge: ${inCharge || '-'}`,
+		`Remarks: ${remarks || '-'}`,
+		`Balance${ccyLabel ? ` (${currencyCode})` : ''}: ${(Number(balance) || 0).toLocaleString('en-US')}`,
+		`Processed by: ${processedBy || 'Unknown'}`,
 		'',
-		`날짜 Date : ${date}`,
-		`시간 Time : ${time}`
+		`Date: ${date}`,
+		`Time: ${time}`
 	);
 	return lines.join('\n');
 }
