@@ -239,7 +239,7 @@
          <!-- Cage Balance + Main -->
          <div class="col-xl-2 col-lg-3 align-self-start">
             <div class="dash-card-stack">
-               <div class="card dash-card dash-panel-narrow gd-dash-panel">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
                   <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center">
                      <a href="/activity_log">Cage Balance</a>
                      <span class="dash-card-meta"><%= nowStampDisplay %></span>
@@ -253,18 +253,22 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-nn-chips" data-bs-toggle="modal" data-view-only-disable>NN</a></span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>CC</a></span><span class="dash-kv-value"><%- fmtAmt(ccChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">RC</span><span class="dash-kv-value"><%- fmtAmt(rcChipsBalance) %></span></div>
-                     <div class="dash-kv-group-title is-warn">Balance</div>
-                     <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value" id="dash-cage-balance-total"><%- fmtAmt(houseBalance) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">The difference</span><span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span></div>
+                     <div class="dash-kv-group-title is-warn">Balance Total</div>
+                     <div class="dash-kv is-total dash-kv-balance-total"><span class="dash-kv-value" id="dash-cage-balance-total"><%- fmtAmt(houseBalance) %></span></div>
                   </div>
                </div>
 
-               <div class="card dash-card dash-panel-narrow gd-dash-panel">
+               <div class="dash-cage-balance-diff">
+                  <span class="dash-kv-label">The difference</span>
+                  <span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span>
+               </div>
+
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
                   <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
                      <span>Main</span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link" id="dash-company-balance-total"><%- fmtAmt(houseBalance) %></a></span></div>
+                     <div class="dash-kv dash-kv-company"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link" id="dash-company-balance-total"><%- fmtAmt(houseBalance) %></a></span></div>
                      <div class="dash-kv-group-title is-warn">Liabilities</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Credit</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
@@ -300,7 +304,61 @@
                data-month-key="<%= dashboardMonthKey || '' %>"
                data-wl-rate="<%= wlSharePct %>"
                data-wl-default="<%= dashboardWlShareDefault || 65 %>">
-               <div class="card dash-card dash-panel-narrow gd-dash-panel">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
+                  <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
+                     <span>Current Time W/L</span>
+                  </div>
+                  <div class="card-body">
+                     <div class="dash-kv"><span class="dash-kv-label">Buy In</span><span class="dash-kv-value" id="dash-actual-buyin">—</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Cash Out</span><span class="dash-kv-value text-dash-neg" id="dash-actual-cashout">—</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Chips</span><span class="dash-kv-value"><%- fmtAmt(totalChipsBalance) %></span></div>
+                     <div class="dash-kv-group-title is-muted">Win / Lose</div>
+                     <div class="dash-kv"><span class="dash-kv-label">Cage</span><span class="dash-kv-value" id="dash-actual-wl">—</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-wl">—</span></div>
+                  </div>
+               </div>
+
+               <div class="dash-cage-balance-diff">
+                  <span class="dash-kv-label">The difference</span>
+                  <span class="dash-kv-value">0</span>
+               </div>
+
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
+                  <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
+                     <span>Current Time Rolling</span>
+                  </div>
+                  <div class="card-body">
+                     <div class="dash-kv"><span class="dash-kv-label">Main Cage</span><span class="dash-kv-value" id="dash-actual-rolling">—</span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value"><%- fmtAmt(totalRollingAmount) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
+                  </div>
+               </div>
+
+               <div class="dash-cage-balance-diff">
+                  <span class="dash-kv-label">The difference</span>
+                  <span class="dash-kv-value">0</span>
+               </div>
+
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body is-headerless">
+                  <div class="card-body">
+                     <div class="dash-kv-group-title is-warn d-flex justify-content-between align-items-center">
+                        <span>On Game</span>
+                        <span id="dash-on-game-count">—</span>
+                     </div>
+                     <div id="dash-on-game-summary">
+                        <div class="dash-kv"><span class="dash-kv-label">Total B/I</span><span class="dash-kv-value">—</span></div>
+                        <div class="dash-kv"><span class="dash-kv-label">Total C/O</span><span class="dash-kv-value">—</span></div>
+                        <div class="dash-kv"><span class="dash-kv-label">Total Rolling</span><span class="dash-kv-value">—</span></div>
+                     </div>
+                     <div class="dash-card-actions">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modal-on-game-details" class="btn btn-sm btn-primary-subtle">Quick View</a>
+                        <a href="/game_list" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
+                     </div>
+                  </div>
+               </div>
+
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
                   <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center flex-wrap gap-1">
                      <span>Anticipated Profit</span>
                      <span class="dash-card-meta"><%= dashPeriodLabel %></span>
@@ -335,40 +393,6 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-delivery">Delivery</a></span><span class="dash-kv-value dash-service-balance" data-category="delivery"><%- fmtAmt(deliveryBalance) %></span></div>
                      <div class="dash-kv is-total"><span class="dash-kv-label">Total</span><span class="dash-kv-value"><%- fmtNeg(companyExpenseTotal) %></span></div>
                      <div class="dash-kv is-grand"><span class="dash-kv-label">Grand Total</span><span class="dash-kv-value" id="dash-grand-total"><%- fmtAmt(grandAnticipatedProfit) %></span></div>
-                  </div>
-               </div>
-
-               <div class="card dash-card dash-panel-narrow gd-dash-panel">
-                  <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
-                     <span>Actual Check</span>
-                  </div>
-                  <div class="card-body">
-                     <div class="dash-kv-group-title is-warn is-center">Current Time W/L</div>
-                     <div class="dash-kv"><span class="dash-kv-label">Buy In</span><span class="dash-kv-value" id="dash-actual-buyin">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Cash Out</span><span class="dash-kv-value text-dash-neg" id="dash-actual-cashout">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Chips</span><span class="dash-kv-value"><%- fmtAmt(totalChipsBalance) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Cage</span><span class="dash-kv-value" id="dash-actual-wl">—</span></div>
-                     <div class="dash-kv-group-title is-muted">Win / Lose</div>
-                     <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-wl">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Difference</span><span class="dash-kv-value">0</span></div>
-                     <div class="dash-kv-group-title is-warn is-center">Current Time Rolling</div>
-                     <div class="dash-kv"><span class="dash-kv-label">Main Cage</span><span class="dash-kv-value" id="dash-actual-rolling">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value"><%- fmtAmt(totalRollingAmount) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
-                     <div class="dash-kv-group-title is-warn d-flex justify-content-between align-items-center">
-                        <span>On Game</span>
-                        <span id="dash-on-game-count">—</span>
-                     </div>
-                     <div id="dash-on-game-summary">
-                        <div class="dash-kv"><span class="dash-kv-label">Total B/I</span><span class="dash-kv-value">—</span></div>
-                        <div class="dash-kv"><span class="dash-kv-label">Total C/O</span><span class="dash-kv-value">—</span></div>
-                        <div class="dash-kv"><span class="dash-kv-label">Total Rolling</span><span class="dash-kv-value">—</span></div>
-                     </div>
-                     <div class="dash-card-actions">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#modal-on-game-details" class="btn btn-sm btn-primary-subtle">Quick View</a>
-                        <a href="/game_list" target="_blank" class="btn btn-sm btn-outline-primary">Go to Page</a>
-                     </div>
                   </div>
                </div>
             </div>
