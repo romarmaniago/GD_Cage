@@ -160,7 +160,7 @@ function autoFitRowHeights(ws, startRow, endRow) {
 	}
 }
 
-function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, fillGrandTotal, grandTotalLabel) {
+function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, fillGrandTotal, grandTotalLabel, amountNumFmt) {
 	if (dataRowCount <= 0 || profile.skipGrandTotal) return;
 	const dataStartRow = 2;
 	const dataEndRow = 1 + dataRowCount;
@@ -183,7 +183,7 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 		const sumExpr = isOutflowCol(col1, outflowSet) ? 'ABS(SUM(' + range + '))' : 'SUM(' + range + ')';
 		const cell = totalRow.getCell(col1);
 		cell.value = { formula: sumExpr };
-		cell.numFmt = AMOUNT_FMT;
+		cell.numFmt = amountNumFmt;
 		cell.alignment = amountAlign;
 	});
 
@@ -214,7 +214,8 @@ function addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet
 	totalRow.height = 24;
 }
 
-function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum) {
+function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt) {
+	const numFmt = amountNumFmt || AMOUNT_FMT;
 	ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
 		if (rowNumber <= 1 || rowNumber > lastRowNum) return;
 		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
@@ -222,7 +223,7 @@ function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum) {
 			const hasFormula =
 				!!cell.formula || (cell.value != null && typeof cell.value === 'object' && cell.value.formula);
 			if (hasFormula) {
-				if (amountSet.has(colNumber)) cell.numFmt = AMOUNT_FMT;
+				if (amountSet.has(colNumber)) cell.numFmt = numFmt;
 				return;
 			}
 			if (percentSet.has(colNumber) && typeof cell.value === 'number' && Number.isFinite(cell.value)) {
@@ -230,7 +231,7 @@ function applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum) {
 				return;
 			}
 			if (typeof cell.value === 'number' && Number.isFinite(cell.value)) {
-				cell.numFmt = amountSet.has(colNumber) ? AMOUNT_FMT : numberFormatForValue(cell.value);
+				cell.numFmt = amountSet.has(colNumber) ? numFmt : numberFormatForValue(cell.value);
 			}
 		});
 	});
@@ -321,6 +322,7 @@ async function buildTableExportXlsx(opts) {
 	const percentSet = new Set(profile.percentCols);
 	const leftSet = new Set(profile.leftAlignCols);
 	const centerSet = new Set(profile.centerAlignCols);
+	const amountNumFmt = profile.amountNumFmt || AMOUNT_FMT;
 	const grandTotalLabel = profile.grandTotalLabel || 'GRAND TOTAL';
 	const totalColIndex = profile.highlightTotalCol ? findTotalColIndex(headerStrings) : -1;
 
@@ -373,7 +375,7 @@ async function buildTableExportXlsx(opts) {
 
 	const dataRowCount = rows.length;
 	if (dataRowCount > 0) {
-		addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, FILL_GRAND_TOTAL, grandTotalLabel);
+		addGrandTotalRow(ws, ncol, dataRowCount, profile, outflowSet, amountSet, FILL_GRAND_TOTAL, grandTotalLabel, amountNumFmt);
 	}
 
 	const colWidths = computeColumnWidths(headerStrings, rows, dataRowCount, profile, grandTotalLabel);
@@ -383,7 +385,7 @@ async function buildTableExportXlsx(opts) {
 
 	const lastRowNum = dataRowCount > 0 && !profile.skipGrandTotal ? dataRowCount + 2 : Math.max(1, dataRowCount + 1);
 	autoFitRowHeights(ws, 2, lastRowNum);
-	applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum);
+	applyExportNumericFormats(ws, amountSet, percentSet, lastRowNum, amountNumFmt);
 
 	const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 	const outName = sanitizeFilename(filename, 'Export.xlsx');

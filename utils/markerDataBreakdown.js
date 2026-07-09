@@ -1,5 +1,5 @@
 const MARKER_ACCOUNT_BREAKDOWN_SUBQUERY = `
-			SELECT sub.ACCOUNT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
+			SELECT sub.ACCOUNT_ID, sub.AGENT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
 				ROUND(
 					GREATEST(
 						0,
@@ -14,7 +14,7 @@ const MARKER_ACCOUNT_BREAKDOWN_SUBQUERY = `
 					0
 				) AS TOTAL_AMOUNT
 			FROM (
-				SELECT account.IDNo AS ACCOUNT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
+				SELECT account.IDNo AS ACCOUNT_ID, agent.IDNo AS AGENT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_ISSUED,
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
@@ -32,7 +32,7 @@ const MARKER_ACCOUNT_BREAKDOWN_SUBQUERY = `
 				JOIN account ON agent.IDNo = account.AGENT_ID
 				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
 				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND account.ACTIVE = 1 AND agent.ACTIVE = 1
-				GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME
+				GROUP BY account.IDNo, agent.IDNo, agent.AGENT_CODE, agent.NAME
 				HAVING (
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END)
@@ -41,7 +41,7 @@ const MARKER_ACCOUNT_BREAKDOWN_SUBQUERY = `
 
 function getMarkerDataBreakdownSql() {
 	return `
-		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
+		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
 			inner_sub.BALANCE_CREDIT,
 			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
 			inner_sub.TOTAL_AMOUNT

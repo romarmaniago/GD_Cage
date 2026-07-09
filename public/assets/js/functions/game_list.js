@@ -2090,19 +2090,26 @@ function buildCutoffGameIdPlainLabel(row) {
 	return String(gameId);
 }
 
+function getNewGameProgramDateEl() {
+	return document.querySelector('#modal-new-game-list #txtProgramDate')
+		|| document.getElementById('txtProgramDate');
+}
+
 /** Flatpickr on New Game modal: date only (maps to game_list.PROGRAM_DATE). */
-function ensureNewGameProgramDatePicker() {
-	var el = document.getElementById('txtProgramDate');
-	if (!el || typeof flatpickr === 'undefined') return;
+function ensureNewGameProgramDatePicker(defaultYmd) {
+	var el = getNewGameProgramDateEl();
+	if (!el || typeof flatpickr === 'undefined') return null;
 	if (el._flatpickr) {
 		el._flatpickr.destroy();
 	}
-	flatpickr(el, {
+	var ymd = String(defaultYmd || '').trim();
+	var defaultDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : new Date();
+	return flatpickr(el, {
 		enableTime: false,
 		dateFormat: 'Y-m-d',
 		altInput: true,
 		altFormat: 'M j, Y',
-		defaultDate: new Date(),
+		defaultDate: defaultDate,
 		allowInput: true,
 		disableMobile: true,
 		onReady: function (_selectedDates, _dateStr, instance) {
@@ -2116,6 +2123,18 @@ function ensureNewGameProgramDatePicker() {
 			}
 		}
 	});
+}
+
+function setNewGameProgramDate(ymd) {
+	var val = String(ymd || '').trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) return;
+	var el = getNewGameProgramDateEl();
+	if (el && el._flatpickr) {
+		el._flatpickr.setDate(val, true, 'Y-m-d');
+		return;
+	}
+	if (el) el.value = val;
+	ensureNewGameProgramDatePicker(val);
 }
 
 function syncSelectedGuestIdFromAccount() {
@@ -2301,8 +2320,37 @@ function applyNewGameListAccountPrefill(accountId, opts) {
 
 	var guestId = $option.attr('data-guest-id') || (opts.accountMeta && opts.accountMeta.guestId) || opts.preselectGuestId || '';
 	loadGuestsForSelectedAccount(guestId || null);
+
+	if (opts.prefillCreditNN != null) {
+		var creditNn = parseFloat(String(opts.prefillCreditNN).replace(/,/g, '')) || 0;
+		if (creditNn > 0) {
+			window._newGamePrefillCreditNN = creditNn;
+			setFormattedChipInputValue($('#splitCreditNN'), creditNn);
+		}
+	}
+	if (opts.prefillCreditGuarantor) {
+		window._newGamePrefillCreditGuarantor = String(opts.prefillCreditGuarantor).trim();
+	}
+	applyNewGameCreditPrefills();
 	return true;
 }
+
+/** Re-apply Credit NN / Guarantor after New Game modal balance reset (shown.bs.modal). */
+function applyNewGameCreditPrefills() {
+	var creditNn = parseFloat(window._newGamePrefillCreditNN) || 0;
+	if (creditNn > 0) {
+		setFormattedChipInputValue($('#splitCreditNN'), creditNn);
+	}
+	var guarantor = String(window._newGamePrefillCreditGuarantor || '').trim();
+	if (guarantor) {
+		var $g = $('#new-game-credit-guarantor');
+		if ($g.length) $g.val(guarantor);
+	}
+	if ((creditNn > 0 || guarantor) && typeof window.updateNewGameBalanceSummary === 'function') {
+		window.updateNewGameBalanceSummary();
+	}
+}
+window.applyNewGameCreditPrefills = applyNewGameCreditPrefills;
 
 function scheduleNewGameListAccountPrefill(accountId, opts, attempt) {
 	var tryNo = attempt || 0;
@@ -2367,6 +2415,14 @@ function addGameList(accountId, opts) {
 	var preselectAccountId = accountId ? String(accountId).trim() : '';
 	var $select = $('#txtTrans');
 	var $guest = $('#txtGuestGame');
+	// When opened from Credit History Buy-in, redirect to Gamebook after save.
+	window._newGameRedirectToGamebook = opts.redirectToGamebook === true;
+	window._newGamePrefillCreditGuarantor = opts.prefillCreditGuarantor
+		? String(opts.prefillCreditGuarantor).trim()
+		: '';
+	window._newGamePrefillCreditNN = opts.prefillCreditNN != null
+		? (parseFloat(String(opts.prefillCreditNN).replace(/,/g, '')) || 0)
+		: 0;
 	resetNewGameInputs();
 	resetNewGameSubmitButton();
 	$('#txtTrans').prop('disabled', false);
@@ -2440,7 +2496,25 @@ function addGameList(accountId, opts) {
 		});
 	}
 	fetchAndApplyAvailableChipsForNewGameModal();
-	ensureNewGameProgramDatePicker();
+	var prefillProgramDate = opts.prefillProgramDate ? String(opts.prefillProgramDate).trim() : '';
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(prefillProgramDate)) {
+		prefillProgramDate = '';
+	}
+	// Apply after modal is shown so flatpickr altInput renders with the prefilled date.
+	var applyProgramDate = function () {
+		if (prefillProgramDate) {
+			ensureNewGameProgramDatePicker(prefillProgramDate);
+			setNewGameProgramDate(prefillProgramDate);
+		} else {
+			ensureNewGameProgramDatePicker();
+		}
+	};
+	var $modal = $('#modal-new-game-list');
+	if ($modal.hasClass('show')) {
+		applyProgramDate();
+	} else {
+		$modal.one('shown.bs.modal.newGameProgramDate', applyProgramDate);
+	}
 }
 window.addGameList = addGameList;
 
@@ -3135,7 +3209,12 @@ function afterTransactionSavedReceipt(gameId, receiptType, cleanupFn) {
 			timer: 1500
 		});
 	}
-	reloadData();
+	if (typeof window.refreshMarkerCreditHistory === 'function') {
+		window.refreshMarkerCreditHistory();
+	}
+	if (typeof reloadData === 'function') {
+		reloadData();
+	}
 }
 
 function showGameStartReceipt(gameId) {
@@ -3323,6 +3402,17 @@ $(document).off('hidden.bs.modal.gameReceiptBackdrop', '#modal-game-start-receip
 	setGameStartReceiptBackdrop(false);
 });
 
+function getNewGameProgramDateYmd() {
+	var el = getNewGameProgramDateEl();
+	if (!el) return '';
+	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length) {
+		try {
+			return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d');
+		} catch (e) { /* fall through */ }
+	}
+	return String(el.value || '').trim();
+}
+
 function afterNewGameCreated(gameId) {
 	$('#modal-new-game-list').modal('hide');
 	var resetSubmitBtn = function () {
@@ -3333,6 +3423,20 @@ function afterNewGameCreated(gameId) {
 		}
 	};
 	resetSubmitBtn();
+
+	var programDateYmd = getNewGameProgramDateYmd();
+	var redirectToGamebook = !!window._newGameRedirectToGamebook;
+	window._newGameRedirectToGamebook = false;
+
+	var goToGamebook = function () {
+		// Date only — do not pass id (that filters the list to a single game).
+		var url = '/game_list';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(programDateYmd)) {
+			url += '?date=' + encodeURIComponent(programDateYmd);
+		}
+		window.location.href = url;
+	};
+
 	if (gameId && typeof Swal !== 'undefined') {
 		var msg = getTransactionReceiptSuccessMessage('game_start');
 		Swal.fire({
@@ -3340,12 +3444,34 @@ function afterNewGameCreated(gameId) {
 			title: msg.title,
 			text: msg.text,
 			showConfirmButton: false,
-			timer: 1500
+			timer: 1200
+		}).then(function () {
+			if (redirectToGamebook) {
+				goToGamebook();
+				return;
+			}
+			if (typeof window.refreshMarkerCreditHistory === 'function') {
+				window.refreshMarkerCreditHistory();
+			}
+			if (window.location.pathname === '/agency') {
+				$(document).trigger('agency:new-game-saved');
+			} else if (typeof reloadData === 'function') {
+				reloadData();
+			}
 		});
+		return;
+	}
+
+	if (redirectToGamebook) {
+		goToGamebook();
+		return;
+	}
+	if (typeof window.refreshMarkerCreditHistory === 'function') {
+		window.refreshMarkerCreditHistory();
 	}
 	if (window.location.pathname === '/agency') {
 		$(document).trigger('agency:new-game-saved');
-	} else {
+	} else if (typeof reloadData === 'function') {
 		reloadData();
 	}
 }
@@ -5544,8 +5670,8 @@ $('#add_game_list').submit(function (event) {
     event.preventDefault(); // Prevent the default form submission
 
     var $btn = $('#submit-game-list-btn'); // Reference to the submit button
-    var programDateEl = document.getElementById('txtProgramDate');
-    var programDateVal = ($('#txtProgramDate').val() || '').trim();
+    var programDateEl = getNewGameProgramDateEl();
+    var programDateVal = programDateEl ? String(programDateEl.value || '').trim() : '';
     if (programDateVal && !/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
         Swal.fire({
             title: 'Invalid date',
@@ -5559,7 +5685,7 @@ $('#add_game_list').submit(function (event) {
         var today = new Date();
         var pad = function (n) { return String(n).padStart(2, '0'); };
         programDateVal = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
-        $('#txtProgramDate').val(programDateVal);
+        if (programDateEl) programDateEl.value = programDateVal;
         if (programDateEl && programDateEl._flatpickr) {
             programDateEl._flatpickr.setDate(programDateVal, false);
         }
@@ -8040,9 +8166,21 @@ function reloadDataRecord() {
                 totalRollerNN += (rowData.roller_nn || 0);
                 totalRollerCC += (rowData.roller_cc || 0);
             }
-            
-            // Calculate total roller chips
-            let totalRollerChips = totalRollerNN + totalRollerCC;
+
+            // TOTAL R/C: sum RC-only rows (roller chips not paired with buy-in/cash-out/rolling)
+            let totalRollerChips = 0;
+            for (const date of sortedDates) {
+                const rowData = mergedData[date];
+                const buyInAmount = (rowData.buy_in || 0) + (rowData.additional_buyin || 0);
+                const rollerChipVal = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
+                if (buyInAmount === 0
+                    && (rowData.cash_out || 0) === 0
+                    && (rowData.nn || 0) === 0
+                    && (rowData.cc || 0) === 0
+                    && rollerChipVal !== 0) {
+                    totalRollerChips += rollerChipVal;
+                }
+            }
             
             // Compute running total rolling: Follow same logic as game_list_data (reloadData function)
             // Formula: total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -8092,6 +8230,37 @@ function reloadDataRecord() {
                 if (transType === 5 || transType === 6) return '<span class="rolling-cell rolling-cell-tip">' + str + '</span>';
                 return str;
             }
+            function isRcOnlyRow(rowData) {
+                var buyInAmount = (rowData.buy_in || 0) + (rowData.additional_buyin || 0);
+                var rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
+                return buyInAmount === 0
+                    && (rowData.cash_out || 0) === 0
+                    && (rowData.nn || 0) === 0
+                    && (rowData.cc || 0) === 0
+                    && rollerChips !== 0;
+            }
+            function getDisplayTotalRolling(rowData) {
+                if (!isRcOnlyRow(rowData)) {
+                    return rowData.total_rolling_actual || 0;
+                }
+                // CC return affects rolling — keep the running total visible
+                if ((rowData.roller_return_cc || 0) !== 0) {
+                    return rowData.total_rolling_actual || 0;
+                }
+                return 0;
+            }
+            function getDisplayNnCc(rowData) {
+                if (isRcOnlyRow(rowData)) {
+                    return {
+                        nn: rowData.roller_nn || 0,
+                        cc: rowData.roller_cc || 0
+                    };
+                }
+                return {
+                    nn: rowData.nn || 0,
+                    cc: rowData.cc || 0
+                };
+            }
             function buildActionButtons(rowData) {
                 const gameEnded = rowData.game_status == 1 && userPermissions !== 0;
                 const deleteId = rowData.deletePrimaryId;
@@ -8124,13 +8293,17 @@ function reloadDataRecord() {
                 var buyInDisplayType = (rowData.additional_buyin || 0) > 0 && !(rowData.buy_in || 0)
                     ? addBuyinType
                     : buyInType;
+                var displayTotalRolling = getDisplayTotalRolling(rowData);
+                var displayNnCc = getDisplayNnCc(rowData);
+                var displayNn = (displayNnCc.nn || 0).toLocaleString('en-US');
+                var displayCc = (displayNnCc.cc || 0).toLocaleString('en-US');
                 allRows.push([
                     rowData.displayDate || date,
                     formatBuyinCell(buyInAmount, buyInDisplayType),
                     formatBuyinCell(rowData.cash_out, cashOutType),
-                    formatListAmount(rowData.total_rolling_actual || 0, 'signed'),
-                    rowData.nn.toLocaleString('en-US'),
-                    rowData.cc.toLocaleString('en-US'),
+                    formatListAmount(displayTotalRolling, 'signed'),
+                    displayNn,
+                    displayCc,
                     rollerChips.toLocaleString('en-US'),
                     buildActionButtons(rowData)
                 ]);

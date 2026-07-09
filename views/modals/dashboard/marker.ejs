@@ -13,12 +13,7 @@
                      <input  type="hidden"  id="AgentBalance" name="AgentBalance">
                     <div class="col-sm-12 mb-3">
                         <input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
-                        value="  <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
-                        (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                        (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
-                        (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
-                        (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                        (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString('en-US') %>" readonly/>    
+                        value="<%- Number((sqlJunketCredit && sqlJunketCredit[0] && sqlJunketCredit[0].JUNKET_CREDIT) || 0).toLocaleString('en-US') %>" readonly/>    
                     </div>
                 </div>
                 <div class="row mb-1">
@@ -33,51 +28,70 @@
                 </div>
 
                 <input type="hidden" id="txtTotalBalanceGuest" name="totalBalanceGuest" />
-                <div class="row mb-3 align-items-center">
-                    <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="form-mode-issue-modal" name="optFormMode" value="issue" />
-                            <label class="form-check-label" for="form-mode-issue-modal"><%= __('dashboard_marker.form_mode_issue') %></label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="form-mode-return-modal" name="optFormMode" value="return" />
-                            <label class="form-check-label" for="form-mode-return-modal"><%= __('dashboard_marker.form_mode_return') %></label>
-                        </div>
-                    </div>
+                <input type="hidden" id="optFormModeHidden" name="optFormMode" value="" />
+                <input type="hidden" id="optTransTypeHidden" name="optTransType" value="" />
+                <div id="marker-form-fields-wrap">
+                <div id="marker-return-source-wrap" class="d-none" aria-hidden="true">
+                    <input type="radio" name="optReturnSource" id="return-source-credit" value="credit" />
+                    <input type="radio" name="optReturnSource" id="return-source-buyin" value="buyin" />
                 </div>
-                <div id="marker-form-fields-wrap" style="display: none;">
-                <div id="marker-return-source-wrap" class="row mb-3 align-items-center">
-                    <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-credit" name="optReturnSource" value="credit" />
-                            <label class="form-check-label" for="return-source-credit"><%= __('dashboard_marker.tab_credit') %></label>
-                        </div>
-                        <div class="form-check mb-0">
-                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin" name="optReturnSource" value="buyin" />
-                            <label class="form-check-label" for="return-source-buyin"><%= __('dashboard_marker.tab_buyin') %></label>
-                        </div>
+                <div class="row mb-2">
+                    <div class="col-sm-3">
+                        <label class="form-label text-muted small mb-1"><%= __('dashboard_marker.program_date') %></label>
+                        <input type="text" class="form-control form-control-sm" name="txtProgramDate" id="txtCreditProgramDate" required autocomplete="off" placeholder="YYYY-MM-DD" style="width: 100%;" />
                     </div>
                 </div>
                 <div class="row mb-2">
-                    <div class="col-sm-6">
+                    <div class="col-sm-4">
                         <label class="form-label text-muted small"><%= __('dashboard_marker.account') %></label>
                         <select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.choose_account') %>">
                             <option value=""><%= __('dashboard_marker.choose_account') %></option>
                         </select>
                     </div>
-                    <div class="col-sm-6" id="marker-issue-field-wrap">
-                        <label class="form-label text-muted small" id="lbl-marker-issue"><%= __('dashboard_marker.credits_issue') %></label>
-                        <input type="text" class="form-control" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
+                    <div class="col-sm-4">
+                        <label class="form-label text-muted small"><%= __('dashboard_marker.guest') %></label>
+                        <select class="js-select2 form-select" name="txtGuestId" id="txtGuestMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.select_guest_optional') %>" disabled>
+                            <option value=""><%= __('dashboard_marker.select_guest_optional') %></option>
+                        </select>
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label text-muted small"><%= __('dashboard_marker.guarantor') %></label>
+                        <input type="text" class="form-control" name="txtGuarantor" id="txtGuarantor" maxlength="255" autocomplete="off" required placeholder="<%= __('dashboard_marker.guarantor') %>" />
                     </div>
                 </div>
-                <div class="row mb-2">
-                    <div class="col-sm-6">
+                <div class="row mb-2 align-items-end">
+                    <div class="col-sm-4">
                         <label class="form-label text-muted small" id="lbl-marker-amount"><%= __('dashboard_marker.amount') %></label>
-                        <input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
+                        <input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" inputmode="decimal" />
                     </div>
-                    <div class="col-sm-6">
-                        <label class="form-label text-muted small" id="lbl-marker-balance"><%= __('dashboard_marker.balance') %></label>
-                        <input type="text" class="form-control" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;" />
+                    <div class="col-sm-8">
+                        <label class="form-label text-muted small d-block"><%= __('dashboard_marker.credit_action') %></label>
+                        <div class="d-flex flex-wrap align-items-center gap-3 gap-md-4 pt-1" id="marker-credit-action-wrap">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-deposit-modal" name="optCreditAction" value="return_deposit" />
+                                <label class="form-check-label" for="credit-action-return-deposit-modal"><%= __('dashboard_marker.credit_action_return_deposit') %></label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-game-credit-modal" name="optCreditAction" value="game_credit" />
+                                <label class="form-check-label" for="credit-action-game-credit-modal"><%= __('dashboard_marker.credit_action_game_credit') %></label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-cash-modal" name="optCreditAction" value="return_cash" />
+                                <label class="form-check-label" for="credit-action-return-cash-modal"><%= __('dashboard_marker.credit_action_return_cash') %></label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-cash-credit-modal" name="optCreditAction" value="cash_credit" />
+                                <label class="form-check-label" for="credit-action-cash-credit-modal"><%= __('dashboard_marker.credit_action_cash_credit') %></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-none" id="marker-issue-balance-row" aria-hidden="true">
+                    <div id="marker-issue-field-wrap">
+                        <input type="hidden" name="txtMarkerIssue" id="txtMarkerIssue" />
+                    </div>
+                    <div id="marker-balance-field-wrap">
+                        <input type="hidden" name="txtMarkerBalance" id="txtMarkerBalance" />
                     </div>
                 </div>
                 <div class="row mb-2">
@@ -86,25 +100,7 @@
                         <input type="text" class="form-control" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
                     </div>
                 </div>
-                <div id="marker-return-trans-type-wrap">
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
-                            <label class="form-label text-muted small"><%= __('dashboard_marker.transaction_type') %></label>
-                        </div>
-                    </div>
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash" name="optTransType" value="11" />
-                                <label class="form-check-label" for="cash"><%= __('dashboard_marker.cash') %></label>
-                            </div>
-                            <div class="form-check mb-0">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optTransType" value="12" />
-                                <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div id="marker-return-trans-type-wrap" class="d-none" aria-hidden="true"></div>
                 <div class="row d-flex justify-content-between align-items-center mt-3 mb-2">
                     <div class="col-auto d-flex justify-content-start align-items-center gap-2">
                         <button type="button" class="btn btn-sm btn-success d-none" id="btn-credits-game-start">
@@ -146,14 +142,19 @@
                     <table id="marker-accounts-total-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
                         <thead>
                             <tr>
-                                <th class="marker-total-col-account"><%= __('dashboard_marker.account_name') %></th>
-                                <th class="text-end marker-balance-col-amount marker-total-col-junket"><%= __('dashboard_marker.tab_credit') %></th>
-                                <th class="text-end marker-balance-col-amount marker-total-col-game"><%= __('dashboard_marker.tab_buyin') %></th>
-                                <th class="text-end marker-balance-col-amount marker-total-col-sum"><%= __('dashboard_marker.total') %></th>
+                                <th><%= __('dashboard_marker.program_date') %></th>
+                                <th><%= __('dashboard_marker.date_time') %></th>
+                                <th><%= __('dashboard_marker.account') %></th>
+                                <th><%= __('dashboard_marker.agent') %></th>
+                                <th><%= __('dashboard_marker.debtor') %></th>
+                                <th class="text-end"><%= __('dashboard_marker.amount') %></th>
+                                <th><%= __('dashboard_marker.type') %></th>
+                                <th><%= __('dashboard_marker.guarantor') %></th>
+                                <th><%= __('dashboard_marker.remarks') %></th>
+                                <th class="text-center"><%= __('dashboard_marker.action') %></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount marker-total-col-junket"></th><th class="text-end marker-balance-col-amount marker-total-col-game"></th><th class="text-end marker-balance-col-amount marker-total-col-sum"></th></tr></tfoot>
                     </table>
                 </div>
             </div>
@@ -227,7 +228,7 @@
 
     <style>
         .modal-lg2 {
-            max-width: min(96vw, 60rem) !important;
+            max-width: min(98vw, 85rem) !important;
             width: 100%;
             margin-left: auto;
             margin-right: auto;
@@ -565,8 +566,7 @@
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th:first-child,
-        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th:first-child,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th:first-child {
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th:first-child {
             text-align: left;
         }
 
@@ -584,7 +584,6 @@
             line-height: 1.45;
             border-collapse: separate;
             border-spacing: 0;
-            table-layout: fixed;
             border: 1px solid #e2e8f0;
             border-radius: 0.375rem;
             overflow: hidden;
@@ -601,50 +600,21 @@
             padding: 0.65rem 0.75rem;
             border-bottom: 1px solid #d5e0f0 !important;
             border-color: #eef2f7 !important;
+            white-space: nowrap;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-account,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-account,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th:first-child {
-            width: 34%;
-            max-width: 12.5rem;
-            min-width: 8rem;
-            text-align: left;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-junket,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-junket,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-junket {
-            width: 18%;
-            max-width: 7rem;
-            min-width: 5.5rem;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game {
-            width: 18%;
-            max-width: 7rem;
-            min-width: 5.5rem;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
-            width: 30%;
-            max-width: 9rem;
-            min-width: 6rem;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table tbody td,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th {
+        #marker-accounts-total-wrapper .marker-total-table tbody td {
             padding: 0.65rem 0.75rem;
             color: #334155;
             border-color: #eef2f7 !important;
-            vertical-align: top;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-remarks {
+            white-space: normal;
+            min-width: 8rem;
+            max-width: 14rem;
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td {
@@ -661,32 +631,6 @@
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td:first-child {
             box-shadow: inset 3px 0 0 var(--bs-primary);
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-balance-col-amount,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-balance-col-amount,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-balance-col-amount {
-            padding-left: 0.4rem;
-            font-variant-numeric: tabular-nums;
-            text-align: right !important;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-junket,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-junket,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-junket,
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
-        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
-            padding-right: 1.5rem !important;
-        }
-
-        #marker-accounts-total-wrapper .marker-total-table tfoot th {
-            background-color: #f4f6fa;
-            border-top: 2px solid #dee2e6;
-            font-weight: 600;
         }
 
          /* History table — layout + word-wrap + visual polish */
@@ -872,6 +816,10 @@ window.markerTranslations = window.markerTranslations || {
 	save: "<%= __('dashboard_marker.save') %>",
 	delete: "<%= __('dashboard_marker.delete') %>",
 	edit_remarks: "<%= __('dashboard_marker.edit_remarks') %>",
+	edit: "<%= __('dashboard_marker.edit') %>",
+	edit_credit: "<%= __('dashboard_marker.edit_credit') %>",
+	credit_updated: "<%= __('dashboard_marker.credit_updated') %>",
+	error_update_credit: "<%= __('dashboard_marker.error_update_credit') %>",
 	remarks_updated: "<%= __('dashboard_marker.remarks_updated') %>",
 	error_update_remarks: "<%= __('dashboard_marker.error_update_remarks') %>",
 	confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
@@ -897,7 +845,24 @@ window.markerTranslations = window.markerTranslations || {
 	credit_added_success: "<%= __('dashboard_marker.credit_added_success') %>",
 	game_credit_use_game_start: "<%= __('dashboard_marker.game_credit_use_game_start') %>",
 	return_auto_split: "<%= __('dashboard_marker.return_auto_split') %>",
-	select_form_mode: "<%= __('dashboard_marker.select_form_mode') %>"
+	select_form_mode: "<%= __('dashboard_marker.select_form_mode') %>",
+	credit_action: "<%= __('dashboard_marker.credit_action') %>",
+	credit_action_return_deposit: "<%= __('dashboard_marker.credit_action_return_deposit') %>",
+	credit_action_game_credit: "<%= __('dashboard_marker.credit_action_game_credit') %>",
+	credit_action_return_cash: "<%= __('dashboard_marker.credit_action_return_cash') %>",
+	credit_action_cash_credit: "<%= __('dashboard_marker.credit_action_cash_credit') %>",
+	select_credit_action: "<%= __('dashboard_marker.select_credit_action') %>",
+	select_guest_optional: "<%= __('dashboard_marker.select_guest_optional') %>",
+	guest: "<%= __('dashboard_marker.guest') %>",
+	program_date: "<%= __('dashboard_marker.program_date') %>",
+	guarantor: "<%= __('dashboard_marker.guarantor') %>",
+	guarantor_optional: "<%= __('dashboard_marker.guarantor_optional') %>",
+	date_time: "<%= __('dashboard_marker.date_time') %>",
+	agent: "<%= __('dashboard_marker.agent') %>",
+	debtor: "<%= __('dashboard_marker.debtor') %>",
+	type: "<%= __('dashboard_marker.type') %>",
+	account: "<%= __('dashboard_marker.account') %>",
+	action: "<%= __('dashboard_marker.action') %>"
 };
 </script>
 <!-- Marker init runs from footer (after jQuery + marker_common.js) -->
@@ -911,26 +876,37 @@ window.__markerModalInit = function() {
         formOptions: {
             formSelector: '#add_marker_settlement',
             accountSelectSelector: '#txtAccountMarker',
+            guestSelectSelector: '#txtGuestMarker',
+            guestPlaceholder: '<%= __("dashboard_marker.select_guest_optional") %>',
             markerIssueSelector: '#txtMarkerIssue',
             markerReturnSelector: '#txtMarkerReturn',
             markerBalanceSelector: '#txtMarkerBalance',
             remarksSelector: '#txtRemarks',
+            programDateSelector: '#txtCreditProgramDate',
+            guarantorSelector: '#txtGuarantor',
             submitBtnSelector: '#submit_marker_settlement',
             agentBalanceSelector: '#AgentBalance',
             optTransTypeName: 'optTransType',
             optReturnSourceName: 'optReturnSource',
-            returnSourceWrapSelector: '#marker-return-source-wrap',
             selectPlaceholder: '<%= __("dashboard_marker.choose_account") %>',
             dropdownParent: '#modal-new-marker',
             populateAccountsOnInit: false,
             supportAddCredit: true,
+            useCreditActionRadios: true,
+            optCreditActionName: 'optCreditAction',
             optFormModeName: 'optFormMode',
+            formModeHiddenSelector: '#optFormModeHidden',
+            transTypeHiddenSelector: '#optTransTypeHidden',
             formFieldsWrapSelector: '#marker-form-fields-wrap',
             returnTransTypeWrapSelector: '#marker-return-trans-type-wrap',
             amountLabelSelector: '#lbl-marker-amount',
             issueFieldWrapSelector: '#marker-issue-field-wrap',
+            balanceFieldWrapSelector: '#marker-balance-field-wrap',
+            issueBalanceRowSelector: '#marker-issue-balance-row',
+            returnSourceWrapSelector: '#marker-return-source-wrap',
             balanceLabelSelector: '#lbl-marker-balance',
             totalBalanceGuestSelector: '#txtTotalBalanceGuest',
+            hideModalOnGameStartSelector: '#modal-new-marker',
             onSuccess: function() {
                 if (typeof window.reloadData === "function") window.reloadData();
             }

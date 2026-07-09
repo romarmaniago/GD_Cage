@@ -1,0 +1,53 @@
+<div class="modal fade" id="modal-edit-credit-transaction" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modal-edit-credit-transaction-label" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-edit-credit-transaction-label"><%= __('dashboard_marker.edit_credit') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="edit_credit_transaction_form" action="#" method="POST" autocomplete="off">
+				<input type="hidden" id="edit-credit-txn-id" name="id" value="" />
+				<input type="hidden" id="edit-credit-agent-id" value="" />
+				<div class="modal-body">
+					<div class="row mb-3">
+						<div class="col-12">
+							<label class="form-label text-muted small" for="edit-credit-program-date"><%= __('dashboard_marker.program_date') %></label>
+							<input type="text" class="form-control" id="edit-credit-program-date" name="programDate" required autocomplete="off" placeholder="<%= __('dashboard_marker.program_date') %>" />
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col-12">
+							<label class="form-label text-muted small" for="edit-credit-guest"><%= __('dashboard_marker.debtor') %></label>
+							<select class="form-select" id="edit-credit-guest" name="guestId" data-placeholder="<%= __('dashboard_marker.select_guest_optional') %>">
+								<option value=""><%= __('dashboard_marker.select_guest_optional') %></option>
+							</select>
+						</div>
+					</div>
+					<div class="row mb-3">
+						<div class="col-12">
+							<label class="form-label text-muted small" for="edit-credit-amount"><%= __('dashboard_marker.amount') %></label>
+							<input type="text" class="form-control" id="edit-credit-amount" name="amount" inputmode="decimal" required autocomplete="off" />
+						</div>
+					</div>
+					
+					<div class="row mb-3">
+						<div class="col-12">
+							<label class="form-label text-muted small" for="edit-credit-guarantor"><%= __('dashboard_marker.guarantor') %></label>
+							<input type="text" class="form-control" id="edit-credit-guarantor" name="guarantor" maxlength="255" required autocomplete="off" placeholder="<%= __('dashboard_marker.guarantor') %>" />
+						</div>
+					</div>
+					<div class="row mb-1">
+						<div class="col-12">
+							<label class="form-label text-muted small" for="edit-credit-remarks"><%= __('dashboard_marker.remarks') %></label>
+							<textarea class="form-control" id="edit-credit-remarks" name="remarks" rows="3" maxlength="500" placeholder="<%= __('dashboard_marker.remarks_optional') %>"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-primary" id="edit-credit-save-btn"><%= __('dashboard_marker.save') %></button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_marker.close') %></button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

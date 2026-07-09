@@ -6,6 +6,7 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
+const { insertCreditRecord } = require('../utils/creditService');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -2360,7 +2361,10 @@ router.post('/add_account_details', async (req, res) => {
 		txtAmount,
 		txtRemarks,
 		sendToTelegram, // Added to handle checkbox value
-		totalBalanceGuest
+		totalBalanceGuest,
+		txtGuestId,
+		txtProgramDate,
+		txtGuarantor
 	} = req.body;
 	let date_now = new Date();
 
@@ -2380,6 +2384,24 @@ router.post('/add_account_details', async (req, res) => {
 	try {
 		const transactionType = (txtTrans === '1' || txtTrans === '2') ? 2 : 3;
 		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, txtRemarks, req.session.user_id, date_now]);
+
+		if (String(txtTrans) === '3') {
+			const balanceAfterCredit = await getCreditBalance(txtAccountId).catch(() => null);
+			await insertCreditRecord(pool, {
+				accountId: txtAccountId,
+				guestId: txtGuestId,
+				creditAction: 'Cash-out',
+				creditSource: 'CREDIT',
+				amount: amountNumber,
+				balanceAfter: balanceAfterCredit,
+				ledgerId: insertResult.insertId,
+				programDate: txtProgramDate || null,
+				guarantor: txtGuarantor || null,
+				remarks: txtRemarks || null,
+				encodedBy: req.session.user_id,
+				encodedDt: date_now
+			});
+		}
 
 		const transactionQuery = `
             SELECT transaction_type.TRANSACTION

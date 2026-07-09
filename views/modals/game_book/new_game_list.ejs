@@ -1746,7 +1746,13 @@ document.addEventListener('DOMContentLoaded', function () {
         resetBalanceDisplay();
         syncAgentGuestLabels();
         return Promise.all([loadCompanyBalances(), loadAccountBalance(), loadCreditContext()])
-            .then(updateBalanceSummary);
+            .then(function () {
+                updateBalanceSummary();
+                // Keep Credit History Buy-in Guarantor / Credit NN after balance reset.
+                if (typeof window.applyNewGameCreditPrefills === 'function') {
+                    window.applyNewGameCreditPrefills();
+                }
+            });
     };
 
     const allowSidePanelFocus = function (e) {
@@ -1897,6 +1903,8 @@ document.addEventListener('DOMContentLoaded', function () {
     modal.addEventListener('hidden.bs.modal', function () {
         restoreFocusTrap();
         resetBalanceDisplay();
+        window._newGamePrefillCreditGuarantor = '';
+        window._newGamePrefillCreditNN = 0;
     });
 
     wireSidePanelsResize();

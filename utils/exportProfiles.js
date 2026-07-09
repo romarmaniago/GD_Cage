@@ -92,6 +92,14 @@ const PROFILES = {
 		leftAlignCols: [1],
 		zebraRows: true
 	},
+	gameRecordHistory: {
+		amountCols: [2, 3, 4, 5, 6, 7],
+		signedCols: [4, 5, 6, 7],
+		labelCols: 1,
+		centerAlignCols: [1],
+		skipGrandTotal: true,
+		amountNumFmt: '#,##0;#,##0'
+	},
 	dailyReportMatrix: {
 		labelCols: 1,
 		zebraRows: true,
@@ -129,7 +137,8 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		skipGrandTotal: resolved.skipGrandTotal != null ? resolved.skipGrandTotal : !!base.skipGrandTotal,
 		zebraRows: resolved.zebraRows != null ? resolved.zebraRows : !!base.zebraRows,
 		highlightTotalCol: resolved.highlightTotalCol != null ? resolved.highlightTotalCol : !!base.highlightTotalCol,
-		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL'
+		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL',
+		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null
 	};
 }
 

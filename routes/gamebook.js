@@ -11,6 +11,7 @@ const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/Exce
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
+const { insertCreditRecord } = require('../utils/creditService');
 
 /** Junket/house account used when resolving pending via New Game (account.IDNo). */
 const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
@@ -459,11 +460,22 @@ async function insertCutoffCashoutLeg(db, {
 			[parentAccountId, parentGameId, 1, 2, 'Chips Returned', legTotal, encodedBy, dateNow]
 		);
 	} else if (leg.transType === 4) {
-		await db.execute(
+		const [ledgerResult] = await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			[parentAccountId, parentGameId, 1, 4, 'Chips Returned', legTotal, encodedBy, dateNow]
 		);
+		await insertCreditRecord(db, {
+			accountId: parentAccountId,
+			creditAction: 'Chips Return',
+			creditSource: 'BUYIN',
+			amount: legTotal,
+			ledgerId: ledgerResult.insertId,
+			gameId: parentGameId,
+			remarks: 'Chips Returned',
+			encodedBy,
+			encodedDt: dateNow
+		});
 	} else {
 		await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
@@ -1589,6 +1601,12 @@ function buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, fallback)
 	return fallback || null;
 }
 
+/** Remarks for credit_transaction only (guarantor goes to GUARANTOR column). */
+function creditTxnRemarksOnly(creditRemarks) {
+	const remarks = (creditRemarks || '').toString().trim();
+	return remarks || null;
+}
+
 function creditGuarantorRequiredError(creditTotal, creditGuarantor) {
 	if ((parseFloat(creditTotal) || 0) > 0 && !(creditGuarantor || '').toString().trim()) {
 		return 'Please enter the guarantor for the credit amount.';
@@ -1618,10 +1636,22 @@ async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, 
 			[accountId, gameId, 2, transType, 'ADDITIONAL BUY-IN', totalAmount, depRemarks, encodedBy, dateNow]
 		);
 	} else if (transType === 3) {
-		await db.execute(
+		const [ledgerResult] = await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			[accountId, gameId, 10, transType, totalAmount, creditLedgerRemarks, encodedBy, dateNow]
 		);
+		await insertCreditRecord(db, {
+			accountId,
+			creditAction: 'Buy-in',
+			creditSource: 'BUYIN',
+			amount: totalAmount,
+			ledgerId: ledgerResult.insertId,
+			gameId,
+			guarantor: creditGuarantor || null,
+			remarks: creditTxnRemarksOnly(creditRemarks),
+			encodedBy,
+			encodedDt: dateNow
+		});
 	}
 	return { buyinRecordIds };
 }
@@ -2074,9 +2104,9 @@ router.get("/game_list", checkSession, async function (req, res) {
 /** Build Game Book table as .xlsx (client omits ROLLER CHIPS and ACTION columns). */
 router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 	try {
-		const { headers, rows, filename } = req.body || {};
+		const { headers, rows, filename, profileKey } = req.body || {};
 		const result = await buildTableExportXlsx({
-			profileKey: 'gameBook',
+			profileKey: profileKey || 'gameBook',
 			sheetName: 'Game Book',
 			headers,
 			rows,
@@ -2496,11 +2526,23 @@ router.post('/add_game_list', async (req, res) => {
 				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, encoded_dt]
 			);
 		} else if (transType === 3) {
-			await pool.execute(`
+			const [ledgerResult] = await pool.execute(`
 				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, encoded_dt]
 			);
+			await insertCreditRecord(pool, {
+				accountId,
+				guestId,
+				creditAction: 'Buy-in',
+				creditSource: 'BUYIN',
+				amount: totalAmount,
+				ledgerId: ledgerResult.insertId,
+				gameId,
+				remarks: `Buy-in Game: ${gameId}`,
+				encodedBy,
+				encodedDt: encoded_dt
+			});
 		}
 
 		// 4. Get agent info
@@ -2800,7 +2842,7 @@ router.post('/add_game_list_split', async (req, res) => {
 			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, depositRemarks || null, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
-			await connection.execute(ledgerCreditSQL, [
+			const [ledgerResult] = await connection.execute(ledgerCreditSQL, [
 				accountId,
 				gameId,
 				10,
@@ -2810,6 +2852,20 @@ router.post('/add_game_list_split', async (req, res) => {
 				encodedBy,
 				encoded_dt
 			]);
+			await insertCreditRecord(connection, {
+				accountId,
+				guestId,
+				creditAction: 'Buy-in',
+				creditSource: 'BUYIN',
+				amount: creditTotal,
+				ledgerId: ledgerResult.insertId,
+				gameId,
+				programDate: program_date || null,
+				guarantor: creditGuarantor || null,
+				remarks: creditTxnRemarksOnly(creditRemarks),
+				encodedBy,
+				encodedDt: encoded_dt
+			});
 		}
 
 		const [agentRows] = await connection.execute(`
@@ -5592,7 +5648,18 @@ router.post('/game_list/add/buyin', async (req, res) => {
 
 		if (txtTransType == 3) {
 			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]));
+			const [ledgerResult] = await pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]);
+			await insertCreditRecord(pool, {
+				accountId: txtAccountCode,
+				creditAction: 'Buy-in',
+				creditSource: 'BUYIN',
+				amount: totalAmount,
+				ledgerId: ledgerResult.insertId,
+				gameId: game_id,
+				remarks: `Add Buy-in Game: ${game_id}`,
+				encodedBy: req.session.user_id,
+				encodedDt: date_now
+			});
 		}
 
 		// Wait for all queries to finish
@@ -5790,7 +5857,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		if (creditTotal > 0) {
 			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
-			await connection.execute(ledgerCreditSQL, [
+			const [ledgerResult] = await connection.execute(ledgerCreditSQL, [
 				txtAccountCode,
 				game_id,
 				10,
@@ -5800,6 +5867,18 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				req.session.user_id,
 				date_now
 			]);
+			await insertCreditRecord(connection, {
+				accountId: txtAccountCode,
+				creditAction: 'Buy-in',
+				creditSource: 'BUYIN',
+				amount: creditTotal,
+				ledgerId: ledgerResult.insertId,
+				gameId: game_id,
+				guarantor: creditGuarantor || null,
+				remarks: creditTxnRemarksOnly(creditRemarks),
+				encodedBy: req.session.user_id,
+				encodedDt: date_now
+			});
 		}
 
 		if (cashTotal > 0 && cashRecordId) {
@@ -6284,17 +6363,29 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			if (!gameRecordIdCash) {
 				gameRecordIdCash = r3.insertId;
 			}
-			await connection.execute(query2Credit, [
+			const creditRemarksVal = buildCreditLedgerRemarks();
+			const [ledgerResult] = await connection.execute(query2Credit, [
 				txtAccountCode,
 				game_id,
 				1,
 				4,
 				CashOutDESC,
 				creditLeg,
-				buildCreditLedgerRemarks(),
+				creditRemarksVal,
 				userId,
 				date_now
 			]);
+			await insertCreditRecord(connection, {
+				accountId: txtAccountCode,
+				creditAction: 'Chips Return',
+				creditSource: 'BUYIN',
+				amount: creditLeg,
+				ledgerId: ledgerResult.insertId,
+				gameId: game_id,
+				remarks: creditRemarksVal || CashOutDESC,
+				encodedBy: userId,
+				encodedDt: date_now
+			});
 		}
 
 		const agentQuery = `

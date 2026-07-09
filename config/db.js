@@ -17,6 +17,7 @@ const { ensureAdditionalCommissionSchema } = require('../utils/ensureAdditionalC
 const { ensureBeyondChipsSchema } = require('../utils/ensureBeyondChipsSchema');
 const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardCheckRemarksSchema');
 const { ensureSoaFnbHotelSchema } = require('../utils/ensureSoaFnbHotelSchema');
+const { ensureCreditSchema, backfillCreditFromLedger } = require('../utils/ensureCreditSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -51,6 +52,8 @@ const pool = mysql.createPool({
 		await ensureBeyondChipsSchema(pool);
 		await ensureSoaFnbHotelSchema(pool);
 		await ensureDashboardCheckRemarksSchema(pool);
+		await ensureCreditSchema(pool);
+		await backfillCreditFromLedger(pool);
 		await dropGameDailySettlementSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);

@@ -60,6 +60,7 @@
             return { guarantor: parseGuarantorFromRemarks(remarks) };
         };
         (historyRows || []).forEach(function (row) {
+            pushUnique(labels, seen, row && (row.GUARANTOR || row.guarantor));
             var parsed = parseFn(row && (row.REMARKS || row.remarks) || '');
             var guarantor = parsed && parsed.guarantor ? parsed.guarantor : parseGuarantorFromRemarks(row && (row.REMARKS || row.remarks));
             pushUnique(labels, seen, guarantor);

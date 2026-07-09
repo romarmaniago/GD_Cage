@@ -66,12 +66,12 @@
 					<span>Deposit</span>
 				</span>
 			</div>
-			<div class="d-flex align-items-center gap-2">
-				<button type="button" class="btn btn-sm btn-warning" id="btn-export-game-history">
-					<i class="fa fa-file-excel me-1"></i> Export
-				</button>
+			<div class="d-flex align-items-center gap-2">				
 				<button type="button" class="btn btn-sm btn-alt-success" id="btn-print-game-history">
 					<i class="fa fa-print me-1"></i> Print
+				</button>
+				<button type="button" class="btn btn-sm btn-primary-subtle" id="btn-export-game-history">
+					<i class="fa fa-file-excel me-1"></i> Export
 				</button>
 				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
 					<%= __('modal_show_rolling.close') %>
@@ -274,7 +274,8 @@
 				body: JSON.stringify({
 					headers: payload.headers,
 					rows: payload.rows,
-					filename: outName
+					filename: outName,
+					profileKey: 'gameRecordHistory'
 				})
 			})
 				.then(function (res) {

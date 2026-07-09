@@ -10,6 +10,14 @@ const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountForma
 const mysql2 = require('mysql2/promise');
 const pool = require('../config/db.js');
 const dashboardQueries = require('../utils/dashboardQueries');
+const {
+	getCreditDataBreakdownSql,
+	getCreditHistorySql,
+	getCreditIssueTransactionsSql,
+	getCreditGrandTotalSql,
+	softDeleteCreditByLedgerId,
+	updateCreditFieldsByLedgerId
+} = require('../utils/creditService');
 
 const bodyParser = require('body-parser');
 
@@ -1138,40 +1146,17 @@ pageRouter.get("/commission", function (req, res) {
 });
 
 pageRouter.get("/markerHistory", checkSession, async function (req, res) {
-	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE =1 AND TRANSACTION = 3 AND CAGE_TYPE = 1';
-	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_ID = 3 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
-	const sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
-	const sqlMArkerReturnCash = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 11 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
-	const sqlMArkerReturnDeposit = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 12 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
-	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE = 2 AND TRANSACTION = 4 AND ACTIVE = 1`;
 	try {
-		const [r1, r2, r3, r4, r5, r6] = await Promise.all([
-			pool.execute(sqlMarkerIssueGame),
-			pool.execute(sqlMarkerIssueAccount),
-			pool.execute(sqlNNChipsAccountMarker),
-			pool.execute(sqlMArkerReturnCash),
-			pool.execute(sqlMArkerReturnDeposit),
-			pool.execute(sqlChipsReturnMarker)
-		]);
+		const [rows] = await pool.execute(getCreditGrandTotalSql());
 		const data = sessions(req, 'marker_history');
 		data.permissions = req.session.permissions;
-		data.sqlMarkerIssueGame = [r1[0][0] || { TOTAL_ISSUE_GAME: 0 }];
-		data.sqlMarkerIssueAccount = [r2[0][0] || { TOTAL_ISSUE_RECORD: 0 }];
-		data.sqlNNChipsAccountMarker = [r3[0][0] || { TOTAL_NN_MARKER: 0 }];
-		data.sqlMArkerReturnCash = [r4[0][0] || { MARKER_RETURN_CASH: 0 }];
-		data.sqlMArkerReturnDeposit = [r5[0][0] || { MARKER_RETURN_DEPOSIT: 0 }];
-		data.sqlChipsReturnMarker = [r6[0][0] || { CHIPS_RETURN_MARKER: 0 }];
+		data.totalCreditsIssue = Number((rows[0] && rows[0].JUNKET_CREDIT) || 0);
 		res.render("marker/markerHistory", data);
 	} catch (err) {
 		console.error('markerHistory query error:', err);
 		const data = sessions(req, 'marker_history');
 		data.permissions = req.session.permissions;
-		data.sqlMarkerIssueGame = [{ TOTAL_ISSUE_GAME: 0 }];
-		data.sqlMarkerIssueAccount = [{ TOTAL_ISSUE_RECORD: 0 }];
-		data.sqlNNChipsAccountMarker = [{ TOTAL_NN_MARKER: 0 }];
-		data.sqlMArkerReturnCash = [{ MARKER_RETURN_CASH: 0 }];
-		data.sqlMArkerReturnDeposit = [{ MARKER_RETURN_DEPOSIT: 0 }];
-		data.sqlChipsReturnMarker = [{ CHIPS_RETURN_MARKER: 0 }];
+		data.totalCreditsIssue = 0;
 		res.render("marker/markerHistory", data);
 	}
 });
@@ -5133,56 +5118,10 @@ pageRouter.get('/marker_data', (req, res) => {
 	});
 });
 
-// GET MARKER DATA WITH BREAKDOWN (Credit 3-3 vs Buy-in 10-3 per account, minus returns 11,12,1)
+// GET MARKER DATA WITH BREAKDOWN (from credit_transaction)
 pageRouter.get('/marker_data_breakdown', async (req, res) => {
-	const query = `
-		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
-			inner_sub.BALANCE_CREDIT,
-			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
-			inner_sub.TOTAL_AMOUNT
-		FROM (
-			SELECT sub.ACCOUNT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
-				ROUND(
-					GREATEST(
-						0,
-						sub.CREDIT_ISSUED -
-						sub.RETURNS_TAGGED_CREDIT -
-						COALESCE(sub.RETURNS_UNTAGGED * sub.CREDIT_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
-					),
-					0
-				) AS BALANCE_CREDIT,
-				ROUND(
-					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
-					0
-				) AS TOTAL_AMOUNT
-			FROM (
-				SELECT account.IDNo AS ACCOUNT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
-					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
-					SUM(CASE 
-						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
-							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
-							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
-							AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
-						THEN account_ledger.AMOUNT 
-						ELSE 0 
-					END) AS RETURNS_UNTAGGED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
-				FROM agent
-				JOIN account ON agent.IDNo = account.AGENT_ID
-				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
-				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND account.ACTIVE = 1 AND agent.ACTIVE = 1
-				GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME
-				HAVING (
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END)
-				) <> 0
-			) sub
-		) inner_sub`;
 	try {
-		const [results] = await pool.execute(query);
+		const [results] = await pool.execute(getCreditDataBreakdownSql());
 		res.json(results);
 	} catch (error) {
 		console.error('Error fetching marker data breakdown:', error);
@@ -5365,28 +5304,9 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 });
 
 pageRouter.get('/marker_total_credits_issue', async (req, res) => {
-	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE=1 AND TRANSACTION=3 AND CAGE_TYPE=1';
-	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=3 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
-	const sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 AND TRANSACTION=3';
-	const sqlMArkerReturnCash = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=11 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
-	const sqlMArkerReturnDeposit = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=12 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
-	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE=2 AND TRANSACTION=4 AND ACTIVE=1`;
-
 	try {
-		const [[r1], [r2], [r3], [r4], [r5], [r6]] = await Promise.all([
-			pool.execute(sqlMarkerIssueGame),
-			pool.execute(sqlMarkerIssueAccount),
-			pool.execute(sqlNNChipsAccountMarker),
-			pool.execute(sqlMArkerReturnCash),
-			pool.execute(sqlMArkerReturnDeposit),
-			pool.execute(sqlChipsReturnMarker)
-		]);
-		const total = (parseFloat((r1[0] || {}).TOTAL_ISSUE_GAME) || 0) +
-			(parseFloat((r2[0] || {}).TOTAL_ISSUE_RECORD) || 0) -
-			(parseFloat((r3[0] || {}).TOTAL_NN_MARKER) || 0) -
-			(parseFloat((r4[0] || {}).MARKER_RETURN_CASH) || 0) -
-			(parseFloat((r5[0] || {}).MARKER_RETURN_DEPOSIT) || 0) -
-			(parseFloat((r6[0] || {}).CHIPS_RETURN_MARKER) || 0);
+		const [rows] = await pool.execute(getCreditGrandTotalSql());
+		const total = Number((rows[0] && rows[0].JUNKET_CREDIT) || 0);
 		res.json({ total });
 	} catch (err) {
 		console.error('Error fetching marker total:', err);
@@ -5427,6 +5347,8 @@ pageRouter.delete('/marker_record/:id', async (req, res) => {
 			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 			[req.session.user_id, date_now, id]
 		);
+
+		await softDeleteCreditByLedgerId(pool, id, req.session.user_id, date_now);
 
 		if (transId === 10 && gameId) {
 			await pool.execute(
@@ -5490,24 +5412,96 @@ pageRouter.patch('/marker_record/:id/remarks', async (req, res) => {
 	}
 });
 
-pageRouter.get('/marker_history', async (req, res) => {
-	const query = `
-        SELECT account_ledger.*, 
-       agent.NAME AS AGENT_NAME, 
-       agent.AGENT_CODE AS AGENT_CODE,
-       CONCAT(account_ledger.TRANSACTION_ID, '-', account_ledger.TRANSACTION_TYPE) AS TRANSACTION_INFO
-		FROM account_ledger 
-		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
-		JOIN agent ON agent.IDNo = account.AGENT_ID 
-		WHERE account_ledger.ACTIVE = 1 
-		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)
-		ORDER BY account_ledger.ENCODED_DT DESC, account_ledger.IDNo DESC`;
+pageRouter.patch('/marker_record/:id', async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ success: false, message: 'Not authorized to edit credit records.' });
+	}
+
+	const id = parseInt(req.params.id, 10);
+	if (isNaN(id)) {
+		return res.status(400).json({ success: false, message: 'Invalid id.' });
+	}
+
+	const body = req.body || {};
+	const programDate = body.programDate != null ? String(body.programDate) : (body.program_date != null ? String(body.program_date) : '');
+	const guarantor = body.guarantor != null ? String(body.guarantor) : '';
+	const guestId = body.guestId != null ? body.guestId : (body.guest_id != null ? body.guest_id : null);
+	const amount = body.amount != null ? body.amount : null;
+	let remarks = body.remarks != null ? String(body.remarks) : '';
+	if (remarks.length > 500) remarks = remarks.slice(0, 500);
+	const date_now = new Date();
+
+	if (!String(guarantor || '').trim()) {
+		return res.status(400).json({ success: false, message: 'Guarantor is required.' });
+	}
+	if (amount != null && String(amount).trim() !== '') {
+		const amt = Math.abs(parseFloat(String(amount).replace(/,/g, '')));
+		if (!Number.isFinite(amt) || amt <= 0) {
+			return res.status(400).json({ success: false, message: 'Amount must be greater than zero.' });
+		}
+	}
+
 	try {
-		const [results] = await pool.execute(query);
+		const [rows] = await pool.execute(
+			`SELECT IDNo FROM credit_transaction WHERE (LEDGER_ID = ? OR IDNo = ?) AND ACTIVE = 1 LIMIT 1`,
+			[id, id]
+		);
+		if (rows.length === 0) {
+			const [ledgerRows] = await pool.execute(
+				`SELECT IDNo FROM account_ledger 
+				 WHERE IDNo = ? AND ACTIVE = 1 
+				 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
+				[id]
+			);
+			if (ledgerRows.length === 0) {
+				return res.status(404).json({ success: false, message: 'Record not found.' });
+			}
+		}
+
+		const ok = await updateCreditFieldsByLedgerId(
+			pool,
+			id,
+			{ programDate, guarantor, remarks, guestId, amount },
+			req.session.user_id,
+			date_now
+		);
+		if (!ok) {
+			return res.status(404).json({ success: false, message: 'Record not found or invalid amount.' });
+		}
+
+		res.json({
+			success: true,
+			message: 'Record updated.',
+			programDate: programDate || null,
+			guarantor: guarantor || null,
+			guestId: guestId || null,
+			amount: amount != null ? amount : null,
+			remarks
+		});
+	} catch (err) {
+		console.error('Error updating marker credit record:', err);
+		res.status(500).json({ success: false, message: 'Error updating record.' });
+	}
+});
+
+pageRouter.get('/marker_history', async (req, res) => {
+	try {
+		const [results] = await pool.execute(getCreditHistorySql());
 		res.json(results);
 	} catch (err) {
 		console.error('Error fetching marker history:', err);
 		return res.status(500).json({ success: false, message: 'Error fetching marker history' });
+	}
+});
+
+pageRouter.get('/marker_total_credit', async (req, res) => {
+	try {
+		const [results] = await pool.execute(getCreditIssueTransactionsSql());
+		res.json(results);
+	} catch (err) {
+		console.error('Error fetching total credit transactions:', err);
+		return res.status(500).json({ success: false, message: 'Error fetching total credit transactions' });
 	}
 });
 
