@@ -17,9 +17,6 @@
             </div>
           </h3>
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" class="btn btn-sm btn-primary" id="btn-add-jfl">
-              <i class="fa fa-plus me-1"></i> New Record
-            </button>
             <button type="button" class="btn btn-sm" id="btn-jfl-money-exchange" style="background-color:#E89149;border-color:#d67d35;color:#fff;">
               <i class="fa fa-exchange me-1"></i> Money Exchange
             </button>
@@ -29,7 +26,6 @@
             <button type="button" id="btn-jfl-export" class="btn btn-sm btn-success">
               <i class="fa fa-file-excel" aria-hidden="true"></i> Export
             </button>
-           
           </div>
         </div>
         <div class="card-body pb-0">
@@ -39,6 +35,15 @@
         </div>
         <div class="card-body pt-0">
           <div class="table-responsive">
+            <button
+              type="button"
+              class="expense-cat-panel-add-btn js-house-expense-add-sub-cat d-none"
+              id="btn-add-jfl"
+              title="New Record"
+              aria-label="New Record"
+            >
+              <i class="fa fa-plus" aria-hidden="true"></i>
+            </button>
             <table id="jfl-tbl" class="table nowrap small-text" style="width:100%">
               <thead>
                 <tr>
@@ -533,4 +538,148 @@
     border-color: #dee2e6;
     border-radius: 0.375rem;
   }
+
+  #btn-add-jfl.expense-cat-panel-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--bs-primary);
+    line-height: 1;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+
+  #btn-add-jfl.expense-cat-panel-add-btn i.fa {
+    font-size: 1rem;
+  }
+
+  #btn-add-jfl.expense-cat-panel-add-btn:hover:not(:disabled) {
+    background: var(--bs-primary);
+    color: #fff;
+  }
+
+  #btn-add-jfl.expense-cat-panel-add-btn:focus,
+  #btn-add-jfl.expense-cat-panel-add-btn:active {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  #jfl-tbl_wrapper .jfl-controls-highlight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: -1px;
+    background: #E8EAFB;
+    border: 1px solid #D5DAF6;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+  }
+
+  #jfl-tbl_wrapper .jfl-controls-highlight .dataTables_length {
+    margin-top: 4px;
+  }
+
+  #jfl-tbl_wrapper .jfl-controls-highlight .dataTables_filter {
+    margin: 0 0 0 auto;
+  }
+
+  #jfl-tbl_wrapper #jfl-tbl_filter .jfl-filter-highlight {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.35);
+    border: none;
+    border-radius: 10px;
+  }
+
+  #jfl-tbl_wrapper #jfl-tbl_filter .jfl-filter-highlight label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #jfl-tbl_wrapper #jfl-tbl_filter .jfl-filter-highlight label input {
+    margin-left: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  #jfl-tbl_wrapper #jfl-tbl_filter .jfl-filter-highlight label input:focus {
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  #jfl-tbl_wrapper #jfl-tbl {
+    margin-top: 0 !important;
+  }
 </style>
+
+<script>
+  (function () {
+    function applyJflControlsLayout() {
+      var wrapper = document.getElementById('jfl-tbl_wrapper');
+      var lengthWrap = document.getElementById('jfl-tbl_length');
+      var filterWrap = document.getElementById('jfl-tbl_filter');
+      var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+      var addBtn = document.getElementById('btn-add-jfl');
+      var controlsHighlight;
+      var filterHighlight;
+
+      if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+      controlsHighlight = wrapper.querySelector('.jfl-controls-highlight');
+      if (!controlsHighlight) {
+        controlsHighlight = document.createElement('div');
+        controlsHighlight.className = 'jfl-controls-highlight';
+        wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+      }
+      if (lengthWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(lengthWrap);
+      }
+      if (filterWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(filterWrap);
+      }
+
+      filterHighlight = filterWrap.querySelector('.jfl-filter-highlight');
+      if (!filterHighlight) {
+        filterHighlight = document.createElement('div');
+        filterHighlight.className = 'jfl-filter-highlight';
+        filterWrap.appendChild(filterHighlight);
+      }
+
+      if (addBtn && addBtn.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(addBtn);
+      }
+      if (searchLabel.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(searchLabel);
+      }
+      if (addBtn) addBtn.classList.remove('d-none');
+    }
+
+    if (window.jQuery) {
+      $(document).on('init.dt draw.dt', '#jfl-tbl', applyJflControlsLayout);
+      $(applyJflControlsLayout);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(applyJflControlsLayout, 0);
+      });
+    }
+  })();
+</script>
