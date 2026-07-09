@@ -581,13 +581,84 @@
     };
   }
 
+  function applyDailyReportControlsLayout() {
+    const wrapper = document.getElementById('daily-report-view-table_wrapper');
+    const lengthWrap = document.getElementById('daily-report-view-table_length');
+    const filterWrap = document.getElementById('daily-report-view-table_filter');
+    const searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+    const addBtn = document.getElementById('btn-add-daily-report');
+    const dateMount = document.getElementById('daily-report-daterange-mount');
+    let controlsHighlight;
+    let lengthHighlight;
+    let filterHighlight;
+
+    if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+    controlsHighlight = wrapper.querySelector('.daily-report-controls-highlight');
+    if (!controlsHighlight) {
+      controlsHighlight = document.createElement('div');
+      controlsHighlight.className = 'daily-report-controls-highlight';
+      wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+    }
+
+    lengthHighlight = controlsHighlight.querySelector('.daily-report-length-highlight');
+    if (!lengthHighlight) {
+      lengthHighlight = document.createElement('div');
+      lengthHighlight.className = 'daily-report-length-highlight';
+      controlsHighlight.insertBefore(lengthHighlight, controlsHighlight.firstChild);
+    }
+
+    if (lengthWrap.parentElement !== lengthHighlight) {
+      lengthHighlight.appendChild(lengthWrap);
+    }
+    if (dateMount && dateMount.classList.contains('is-placed') && dateMount.parentElement !== lengthHighlight) {
+      lengthHighlight.appendChild(dateMount);
+    }
+    if (filterWrap.parentElement !== controlsHighlight) {
+      controlsHighlight.appendChild(filterWrap);
+    }
+
+    filterHighlight = filterWrap.querySelector('.daily-report-filter-highlight');
+    if (!filterHighlight) {
+      filterHighlight = document.createElement('div');
+      filterHighlight.className = 'daily-report-filter-highlight';
+      filterWrap.appendChild(filterHighlight);
+    }
+
+    if (addBtn && addBtn.parentElement !== filterHighlight) {
+      filterHighlight.appendChild(addBtn);
+    }
+    if (searchLabel.parentElement !== filterHighlight) {
+      filterHighlight.appendChild(searchLabel);
+    }
+    if (addBtn) addBtn.classList.remove('d-none');
+
+    wrapper.querySelectorAll(':scope > .row').forEach((row) => {
+      if (row.classList.contains('dt-row')) return;
+      if (row.querySelector('table, .dataTables_info, .dataTables_paginate')) return;
+      if (row.querySelector('.dataTables_length, .dataTables_filter')) return;
+      row.style.display = 'none';
+      row.style.margin = '0';
+      row.style.padding = '0';
+      row.style.height = '0';
+      row.style.minHeight = '0';
+      row.style.overflow = 'hidden';
+    });
+  }
+
   function placeDailyReportDateFilter() {
     const $ = window.jQuery;
     if (!$) return;
+    applyDailyReportControlsLayout();
     const $mount = $('#daily-report-daterange-mount');
+    const $lengthHighlight = $('.daily-report-length-highlight');
     const $length = $('#daily-report-view-table').closest('.dataTables_wrapper').find('.dataTables_length').first();
     if (!$mount.length || !$length.length || $mount.data('placed')) return;
-    $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+    if ($lengthHighlight.length) {
+      $mount.detach().appendTo($lengthHighlight).addClass('is-placed').data('placed', true);
+    } else {
+      $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+    }
     if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
       const el = document.getElementById('daily-report-list-daterange');
       if (el && el._flatpickr) {
@@ -595,6 +666,7 @@
       }
     }
     fitReportListSplitWidths();
+    applyDailyReportControlsLayout();
   }
 
   function fitReportListSplitWidths() {
@@ -679,7 +751,8 @@
       scrollX: false,
       info: true,
       language: {
-        search: 'Search:',
+        search: '',
+        searchPlaceholder: 'Search...',
         info: 'Showing _START_ to _END_ of _TOTAL_ entries',
         paginate: {
           previous: 'Previous',
@@ -1425,5 +1498,9 @@
         window.dashboardGridReload();
       }
     });
+  }
+
+  if (window.jQuery) {
+    $(document).on('init.dt draw.dt', '#daily-report-view-table', applyDailyReportControlsLayout);
   }
 })();
