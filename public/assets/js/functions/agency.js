@@ -8,6 +8,7 @@ let currentAgencyGuestRows = [];
 let currentAllGuestRows = [];
 let guestSearchQuery = '';
 let transferGuestCurrentAgentId = null;
+let transferAgentGuestsSourceId = null;
 let agencyLineSortDir = 'asc';
 let agencyLineCurrentPage = 1;
 let agencyAgentSortDir = 'asc';
@@ -277,12 +278,16 @@ function refreshSelectedAgencyPanels(selectAgentId) {
   });
 }
 
-function escapeHtmlAttr(value) {
+function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtml(value);
 }
 
 function downloadAgencyExportBlob(blob, filename) {
@@ -379,8 +384,38 @@ function syncAgentPanelTransferButton() {
 }
 
 $(document).ready(function() {
-  reloadData();
-  loadLineStats();
+  var restoreAgencyId = null;
+  var restoreAgentId = null;
+  try {
+    restoreAgencyId = parseInt(sessionStorage.getItem('agencyStayOnLineId'), 10) || null;
+    restoreAgentId = parseInt(sessionStorage.getItem('agencyStayOnAgentId'), 10) || null;
+    sessionStorage.removeItem('agencyStayOnLineId');
+    sessionStorage.removeItem('agencyStayOnAgentId');
+  } catch (e) {
+    restoreAgencyId = null;
+    restoreAgentId = null;
+  }
+
+  reloadData(restoreAgencyId || undefined);
+  if (restoreAgencyId) {
+    loadLineStats(restoreAgencyId);
+    if (restoreAgentId) {
+      // Wait for LINE agents to load, then re-select the same agent
+      var tries = 0;
+      var restoreAgentTimer = setInterval(function () {
+        tries += 1;
+        var $link = $('#agent-list .panel-list-item[data-agent-id="' + restoreAgentId + '"] .panel-list-agent-link');
+        if ($link.length) {
+          clearInterval(restoreAgentTimer);
+          selectAgentInPanel(restoreAgentId, $link[0]);
+          return;
+        }
+        if (tries >= 40) clearInterval(restoreAgentTimer);
+      }, 100);
+    }
+  } else {
+    loadLineStats();
+  }
   loadAllGuestsForSearch();
 
   syncAgentPanelTransferButton();
@@ -654,7 +689,22 @@ $(document).ready(function() {
 
   $('#transfer_guest_agency_id').on('change', function () {
     const agencyId = parseInt($(this).val(), 10);
-    loadTransferGuestAgentOptions(agencyId, transferGuestCurrentAgentId);
+    loadTransferAgentOptions($('#transfer_guest_agent_id'), agencyId, transferGuestCurrentAgentId);
+  });
+
+  $('#transfer_agent_to_agency_id').on('change', function () {
+    const agencyId = parseInt($(this).val(), 10);
+    loadTransferAgentOptions($('#transfer_agent_to_agent_id'), agencyId, transferAgentGuestsSourceId);
+  });
+
+  $(document).on('change', '#transfer_agent_guest_select_all', function () {
+    const checked = $(this).is(':checked');
+    $('#transfer_agent_guest_list .transfer-agent-guest-check').prop('checked', checked);
+    updateTransferAgentGuestSelectionCount();
+  });
+
+  $(document).on('change', '#transfer_agent_guest_list .transfer-agent-guest-check', function () {
+    updateTransferAgentGuestSelectionCount();
   });
 
   $('#btn-open-transfer-from-edit-guest').on('click', function () {
@@ -703,6 +753,70 @@ $(document).ready(function() {
           icon: 'error',
           title: 'Error',
           text: xhr.responseJSON?.error || 'Failed to transfer guest.',
+          confirmButtonText: 'OK'
+        });
+      },
+      complete: function () {
+        $btn.prop('disabled', false).text('Transfer');
+      }
+    });
+  });
+
+  $('#transfer_agent_guests_form').on('submit', function (e) {
+    e.preventDefault();
+    const sourceAgentId = parseInt($('#transfer_agent_source_id').val(), 10);
+    const targetAgentId = parseInt($('#transfer_agent_to_agent_id').val(), 10);
+    const guestIds = $('#transfer_agent_guest_list .transfer-agent-guest-check:checked')
+      .map(function () { return parseInt($(this).val(), 10); })
+      .get()
+      .filter(function (id) { return id > 0; });
+    const $btn = $('#btn-transfer-agent-guests');
+
+    if (!sourceAgentId || !targetAgentId) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Selection required',
+        text: 'Select a target LINE and agent.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    if (!guestIds.length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No guests selected',
+        text: 'Select at least one guest to transfer.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    $btn.prop('disabled', true).text('Transferring...');
+    $.ajax({
+      url: '/agent/' + encodeURIComponent(sourceAgentId) + '/transfer-guests',
+      type: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify({ targetAgentId: targetAgentId, guestIds: guestIds }),
+      success: function (res) {
+        $('#modal-transfer-agent-guests').modal('hide');
+        const moved = Number(res?.moved) || 0;
+        const toAgency = res?.to?.agency_name || '';
+        const toLine = [res?.to?.agent_code, res?.to?.agent_name].filter(Boolean).join(' · ');
+        Swal.fire({
+          icon: 'success',
+          title: 'Transferred',
+          text: moved + ' guest(s) moved to ' + [toAgency, toLine].filter(Boolean).join(' · ') + '.',
+          confirmButtonText: 'OK'
+        }).then(function () {
+          refreshSelectedAgencyPanels();
+          refreshGuestPanels();
+        });
+      },
+      error: function (xhr) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: xhr.responseJSON?.error || 'Failed to transfer agent guests.',
           confirmButtonText: 'OK'
         });
       },
@@ -1154,17 +1268,27 @@ function renderAgentPanel(accounts, options) {
     const isSelected = selectedAgentId && String(agent.agent_id) === String(selectedAgentId);
     const balanceValue = Number(agent.total_balance) || 0;
     const balance = formatPanelBalance(balanceValue);
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
+    const isSuperAdmin = permissions === 0;
+    const canEdit = permissions !== 2;
+    const deleteBtnHtml = isSuperAdmin
+      ? `<button type="button"
+            class="btn btn-sm agency-icon-btn agency-icon-btn-danger"
+            onclick="checkPermissionToDeleteAgentPanel(${agent.agent_id})"
+            data-bs-toggle="tooltip"
+            title="Archive">
+            <i class="fa fa-trash"></i>
+          </button>`
+      : `<button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive">
+            <i class="fa fa-trash"></i>
+          </button>`;
     const itemClasses = [
       'panel-list-item',
       isSelected ? 'is-active' : '',
       isMatch ? 'is-search-match' : '',
       isDim ? 'is-search-dim' : ''
     ].filter(Boolean).join(' ');
-    return `
-      <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
-        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}${agencyHint}</a>
-        <span class="panel-list-agent-balance">${balance}</span>
-        <div class="panel-row-actions">
+    const actionsHtml = canEdit ? `
           <button
             type="button"
             class="btn btn-sm agency-icon-btn"
@@ -1175,7 +1299,7 @@ function renderAgentPanel(accounts, options) {
           <button
             type="button"
             class="btn btn-sm agency-icon-btn"
-            title="Edit LINE"
+            title="Edit Agent"
             onclick="editAgentFromPanel(${agent.agent_id}, this)">
             <i class="fa fa-pen"></i>
           </button>
@@ -1186,6 +1310,19 @@ function renderAgentPanel(accounts, options) {
             onclick="viewAgentPortal(${agent.agent_id}, '${escapeJsString(agent.agent_code || '')}', '${escapeJsString(agent.agent_name || '')}', this)">
             <i class="fa fa-eye"></i>
           </button>
+          ${deleteBtnHtml}
+    ` : `
+          <button type="button" class="btn btn-sm agency-icon-btn" disabled title="New Game"><i class="fa fa-plus"></i></button>
+          <button type="button" class="btn btn-sm agency-icon-btn" disabled title="Edit"><i class="fa fa-pen"></i></button>
+          <button type="button" class="btn btn-sm agency-icon-btn" disabled title="View"><i class="fa fa-eye"></i></button>
+          <button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive"><i class="fa fa-trash"></i></button>
+    `;
+    return `
+      <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
+        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}${agencyHint}</a>
+        <span class="panel-list-agent-balance">${balance}</span>
+        <div class="panel-row-actions">
+          ${actionsHtml}
         </div>
       </div>
     `;
@@ -1683,6 +1820,15 @@ function renderGuestPanel(guests, options) {
             <i class="fa fa-exchange-alt"></i>
           </button>
     ` : '';
+    const deleteButtonHtml = permissions === 0
+      ? `<button
+            type="button"
+            class="btn btn-link p-0 agency-guest-plus-btn text-danger"
+            title="Archive Guest"
+            onclick="checkPermissionToDeleteGuest(${row.guest_id || 0})">
+            <i class="fa fa-trash"></i>
+          </button>`
+      : '';
     return `
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
@@ -1703,11 +1849,12 @@ function renderGuestPanel(guests, options) {
           ${editButtonHtml}
           <button
             type="button"
-            class="btn btn-link p-0 agency-guest-plus-btn"
+            class="btn btn-link p-0 me-2 agency-guest-plus-btn"
             title="Game History"
             onclick="openGuestGameHistory(${row.guest_id || 0})">
             <i class="fa fa-history"></i>
           </button>
+          ${deleteButtonHtml}
         </td>
       </tr>
     `;
@@ -1813,9 +1960,8 @@ function buildGuestLineLabel(agencyName, agentCode, agentName) {
   return agency || line || '-';
 }
 
-function populateTransferGuestAgencies(selectedAgencyId, done) {
+function populateTransferAgencySelect($agencySelect, selectedAgencyId, done) {
   function fillOptions(rows) {
-    const $agencySelect = $('#transfer_guest_agency_id');
     $agencySelect.html('<option value="">Select LINE</option>');
     (rows || []).forEach(function (row) {
       const id = row.IDNo;
@@ -1850,8 +1996,7 @@ function populateTransferGuestAgencies(selectedAgencyId, done) {
   });
 }
 
-function loadTransferGuestAgentOptions(agencyId, currentAgentId) {
-  const $agentSelect = $('#transfer_guest_agent_id');
+function loadTransferAgentOptions($agentSelect, agencyId, currentAgentId) {
   $agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
 
   if (!agencyId) {
@@ -1883,13 +2028,13 @@ function loadTransferGuestAgentOptions(agencyId, currentAgentId) {
         if (String(agent.agent_id) === String(currentAgentId)) return;
         const code = String(agent.agent_code || '').toUpperCase();
         const name = String(agent.agent_name || '').toUpperCase();
-        const label = code && name ? (code + ' · ' + name) : (code || name || ('LINE ' + agent.agent_id));
+        const label = code && name ? (code + ' · ' + name) : (code || name || ('Agent ' + agent.agent_id));
         html += '<option value="' + agent.agent_id + '">' + label + '</option>';
       });
       $agentSelect.html(html).prop('disabled', false);
     },
     error: function () {
-      $agentSelect.html('<option value="">Failed to load LINE list</option>').prop('disabled', true);
+      $agentSelect.html('<option value="">Failed to load agent list</option>').prop('disabled', true);
     }
   });
 }
@@ -1928,9 +2073,121 @@ function openTransferGuestModal(guestId) {
   $('#transfer_guest_current_line').val(
     buildGuestLineLabel(target.agency_name, target.agent_code, target.agent_name)
   );
-  populateTransferGuestAgencies(target.agency_id || '', function () {
-    loadTransferGuestAgentOptions(parseInt(target.agency_id, 10) || null, transferGuestCurrentAgentId);
+  populateTransferAgencySelect($('#transfer_guest_agency_id'), target.agency_id || '', function () {
+    loadTransferAgentOptions(
+      $('#transfer_guest_agent_id'),
+      parseInt(target.agency_id, 10) || null,
+      transferGuestCurrentAgentId
+    );
     $('#modal-transfer-guest-table').modal('show');
+  });
+}
+
+function openTransferAgentGuestsModal(agentId) {
+  const permissions = parseInt($('#user-role').data('permissions'), 10);
+  if (permissions === 2) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Not allowed',
+      text: 'You cannot transfer guests.',
+      confirmButtonText: 'OK'
+    });
+    return;
+  }
+
+  const numericAgentId = parseInt(agentId, 10);
+  if (!numericAgentId) return;
+
+  const target = currentAgencyAccounts.find(function (row) {
+    return String(row.agent_id) === String(numericAgentId);
+  });
+  const code = String((target && target.agent_code) || '').trim().toUpperCase();
+  const name = String((target && target.agent_name) || '').trim().toUpperCase();
+  const display = code && name ? (code + ' · ' + name) : (code || name || ('Agent ' + numericAgentId));
+  const agencyId = (target && target.agency_id) || selectedAgencyId || '';
+
+  transferAgentGuestsSourceId = numericAgentId;
+  $('#transfer_agent_source_id').val(numericAgentId);
+  $('#transfer_agent_from_display').val(display);
+  $('#transfer_agent_guest_select_all').prop('checked', false).prop('indeterminate', false).prop('disabled', true);
+  $('#transfer_agent_guest_list').html('<div class="text-muted small">Loading guests...</div>');
+  $('#transfer_agent_guest_count').text('(0 of 0 selected)');
+
+  populateTransferAgencySelect($('#transfer_agent_to_agency_id'), agencyId, function () {
+    loadTransferAgentOptions(
+      $('#transfer_agent_to_agent_id'),
+      parseInt(agencyId, 10) || null,
+      transferAgentGuestsSourceId
+    );
+    loadTransferAgentGuestList(numericAgentId);
+    $('#modal-transfer-agent-guests').modal('show');
+  });
+}
+
+function renderTransferAgentGuestList(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const $list = $('#transfer_agent_guest_list');
+  const $selectAll = $('#transfer_agent_guest_select_all');
+
+  if (!list.length) {
+    $list.html('<div class="text-muted small">No guests under this agent.</div>');
+    $selectAll.prop('checked', false).prop('disabled', true);
+    updateTransferAgentGuestSelectionCount();
+    return;
+  }
+
+  $selectAll.prop('disabled', false).prop('checked', true);
+  const html = list.map(function (row) {
+    const guestId = parseInt(row.guest_id, 10) || 0;
+    if (!guestId) return '';
+    const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
+    const guestName = String(row.guest_name || row.NAME || '').trim().toUpperCase();
+    const label = membershipNo ? (membershipNo + '-' + guestName) : (guestName || 'GUEST');
+    return (
+      '<label class="d-flex align-items-center gap-2 small py-1 border-bottom mb-0">' +
+        '<input type="checkbox" class="form-check-input m-0 transfer-agent-guest-check" value="' + guestId + '" checked>' +
+        '<span>' + escapeHtml(label) + '</span>' +
+      '</label>'
+    );
+  }).filter(Boolean).join('');
+  $list.html(html || '<div class="text-muted small">No guests under this agent.</div>');
+  updateTransferAgentGuestSelectionCount();
+}
+
+function updateTransferAgentGuestSelectionCount() {
+  const total = $('#transfer_agent_guest_list .transfer-agent-guest-check').length;
+  const selected = $('#transfer_agent_guest_list .transfer-agent-guest-check:checked').length;
+  $('#transfer_agent_guest_count').text('(' + selected + ' of ' + total + ' selected)');
+  const $selectAll = $('#transfer_agent_guest_select_all');
+  if (!total) {
+    $selectAll.prop('checked', false).prop('indeterminate', false);
+    return;
+  }
+  $selectAll.prop('checked', selected === total);
+  $selectAll.prop('indeterminate', selected > 0 && selected < total);
+}
+
+function loadTransferAgentGuestList(agentId) {
+  const numericAgentId = parseInt(agentId, 10);
+  if (!numericAgentId) {
+    renderTransferAgentGuestList([]);
+    return;
+  }
+
+  $.ajax({
+    url: '/guest_data?agentId=' + encodeURIComponent(numericAgentId),
+    method: 'GET',
+    success: function (rows) {
+      const filtered = (Array.isArray(rows) ? rows : []).filter(function (row) {
+        return String(row.agent_id) === String(numericAgentId);
+      });
+      renderTransferAgentGuestList(filtered);
+    },
+    error: function () {
+      $('#transfer_agent_guest_list').html('<div class="text-danger small">Failed to load guests.</div>');
+      $('#transfer_agent_guest_count').text('(0 of 0 selected)');
+      $('#transfer_agent_guest_select_all').prop('checked', false).prop('disabled', true);
+    }
   });
 }
 
@@ -2222,7 +2479,7 @@ function edit_agency(id, agency, memo) {
 function checkPermissionToDeleteAgency(id) {
   const permissions = parseInt($('#user-role').data('permissions'), 10);
   if (permissions === 0) {
-    archive_agency(id);
+    promptDeleteAgentsWithTransferOption([id]);
   } else {
     Swal.fire({
       title: 'Access Denied',
@@ -2232,6 +2489,102 @@ function checkPermissionToDeleteAgency(id) {
       confirmButtonColor: '#6f9c40'
     });
   }
+}
+
+function checkPermissionToDeleteAgentPanel(id) {
+  const permissions = parseInt($('#user-role').data('permissions'), 10);
+  if (permissions === 0) {
+    promptDeleteAgentWithTransferOption(id);
+  } else {
+    Swal.fire({
+      title: 'Access Denied',
+      text: 'Not allowed to delete this data.',
+      icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#6f9c40'
+    });
+  }
+}
+
+// Manager password override (shared by LINE / AGENT delete)
+function promptManagerPasswordThen(actionText, onConfirmed) {
+  const $guestSearch = $('#guest-panel-search');
+  const savedGuestSearch = $guestSearch.val() || '';
+  const savedGuestSearchQuery = guestSearchQuery;
+  let restored = false;
+
+  function restoreGuestSearch() {
+    if (restored) return;
+    restored = true;
+    if ($guestSearch.length) {
+      $guestSearch.prop('readonly', false);
+      if ($guestSearch.val() !== savedGuestSearch) {
+        $guestSearch.val(savedGuestSearch);
+      }
+    }
+    if (guestSearchQuery !== savedGuestSearchQuery) {
+      guestSearchQuery = savedGuestSearchQuery;
+      applyGuestPanelView();
+    }
+  }
+
+  if ($guestSearch.length) {
+    $guestSearch.prop('readonly', true);
+  }
+
+  Swal.fire({
+    icon: 'warning',
+    title: 'Password required',
+    text: 'Enter the manager password to ' + actionText,
+    input: 'password',
+    inputPlaceholder: 'Password',
+    inputAttributes: {
+      autocomplete: 'new-password',
+      name: 'agency-delete-override'
+    },
+    showCancelButton: true,
+    confirmButtonText: 'Continue',
+    confirmButtonColor: '#d33',
+    cancelButtonText: 'Cancel',
+    allowOutsideClick: function () {
+      return !Swal.isLoading();
+    },
+    preConfirm: function (password) {
+      if (!password) {
+        Swal.showValidationMessage('Password is required.');
+        return false;
+      }
+      return new Promise(function (resolve) {
+        $.ajax({
+          url: '/verify-password',
+          type: 'POST',
+          data: { password: password },
+          success: function (response) {
+            if (response && response.permissions === 11) {
+              resolve();
+              return;
+            }
+            Swal.showValidationMessage('Incorrect password.');
+            resolve(false);
+          },
+          error: function (xhr) {
+            Swal.showValidationMessage(
+              (xhr && xhr.status === 403)
+                ? 'Incorrect password.'
+                : 'Error during password verification.'
+            );
+            resolve(false);
+          }
+        });
+      });
+    },
+    willClose: restoreGuestSearch
+  }).then(function (result) {
+    restoreGuestSearch();
+    if (result.isConfirmed && typeof onConfirmed === 'function') {
+      onConfirmed();
+    }
+  });
 }
 
 function performAgencyArchiveRemove(ids) {
@@ -2253,16 +2606,103 @@ function performAgencyArchiveRemove(ids) {
       console.error('Error archiving:', err);
       Swal.fire({
         title: 'Error',
-        text: 'One or more agents could not be archived. Please try again.',
+        text: 'One or more lines could not be archived. Please try again.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
     });
 }
 
-/**
- * Delete/archive flow: optional "Transfer accounts…" opens the same Change Agent modal (when one agent).
- */
+function performAgentArchiveRemove(id) {
+  const numericId = parseInt(id, 10);
+  if (!numericId) return;
+
+  $.ajax({
+    url: '/agent/remove/' + numericId,
+    type: 'PUT',
+    success: function () {
+      if (selectedAgencyId) {
+        try {
+          sessionStorage.setItem('agencyStayOnLineId', String(selectedAgencyId));
+        } catch (e) { /* ignore */ }
+      }
+      window.location.reload();
+    },
+    error: function (xhr) {
+      Swal.fire({
+        title: 'Error',
+        text: xhr.responseJSON?.message || 'Agent could not be archived. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  });
+}
+
+function saveAgencyStayContext() {
+  try {
+    if (selectedAgencyId) {
+      sessionStorage.setItem('agencyStayOnLineId', String(selectedAgencyId));
+    }
+    if (selectedAgentId) {
+      sessionStorage.setItem('agencyStayOnAgentId', String(selectedAgentId));
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function checkPermissionToDeleteGuest(id) {
+  const permissions = parseInt($('#user-role').data('permissions'), 10);
+  if (permissions !== 0) {
+    Swal.fire({
+      title: 'Access Denied',
+      text: 'Not allowed to delete this data.',
+      icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#6f9c40'
+    });
+    return;
+  }
+
+  const numericId = parseInt(id, 10);
+  if (!numericId) return;
+
+  SwalConfirm.fire({
+    title: 'Are you sure you want to delete this guest?',
+    message: 'This will archive the guest record.',
+    confirmButtonText: 'Delete now',
+    confirmButtonColor: '#d33'
+  }).then(function (result) {
+    if (!result.isConfirmed) return;
+    setTimeout(function () {
+      promptManagerPasswordThen('delete this guest.', function () {
+        performGuestArchiveRemove(numericId);
+      });
+    }, 200);
+  });
+}
+
+function performGuestArchiveRemove(id) {
+  const numericId = parseInt(id, 10);
+  if (!numericId) return;
+
+  $.ajax({
+    url: '/guest/remove/' + numericId,
+    type: 'PUT',
+    success: function () {
+      saveAgencyStayContext();
+      window.location.reload();
+    },
+    error: function (xhr) {
+      Swal.fire({
+        title: 'Error',
+        text: xhr.responseJSON?.message || 'Guest could not be archived. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK'
+      });
+    }
+  });
+}
+
 function promptDeleteAgentsWithTransferOption(ids) {
   const count = ids.length;
   if (count === 0) return;
@@ -2273,10 +2713,10 @@ function promptDeleteAgentsWithTransferOption(ids) {
   const agencyName = card && card.length ? card.find('.agency-name').text().trim() : '';
 
   SwalConfirm.fire({
-    title: 'Are you sure you want to delete this agent?',
+    title: 'Are you sure you want to delete this LINE?',
     message: onlyOne
-      ? 'You can <strong>transfer guest accounts</strong> to another agent first, or delete this agent now.'
-      : 'You are about to delete <strong>' + count + ' agents</strong>. To move accounts first, select <strong>one</strong> agent and use <strong>Transfer accounts…</strong>.',
+      ? 'You can <strong>transfer guest accounts</strong> to another LINE first, or delete this LINE now.'
+      : 'You are about to delete <strong>' + count + ' lines</strong>. To move accounts first, select <strong>one</strong> LINE and use <strong>Transfer accounts…</strong>.',
     showDenyButton: onlyOne,
     confirmButtonText: onlyOne ? 'Delete now' : 'Yes, delete all',
     denyButtonText: 'Transfer accounts…',
@@ -2284,10 +2724,14 @@ function promptDeleteAgentsWithTransferOption(ids) {
     denyButtonColor: '#3085d6'
   }).then(function (result) {
     if (result.isConfirmed) {
-      performAgencyArchiveRemove(ids);
+      setTimeout(function () {
+        promptManagerPasswordThen('delete this LINE.', function () {
+          performAgencyArchiveRemove(ids);
+        });
+      }, 200);
     } else if (result.isDenied && onlyOne) {
       if (typeof window.openTransferAgencyModalForAgency === 'function') {
-        window.openTransferAgencyModalForAgency(String(singleId), agencyName || 'Agent', [singleId]);
+        window.openTransferAgencyModalForAgency(String(singleId), agencyName || 'LINE', [singleId]);
       } else {
         Swal.fire({
           icon: 'error',
@@ -2300,7 +2744,27 @@ function promptDeleteAgentsWithTransferOption(ids) {
   });
 }
 
-// I-archive (delete) ang agency
-function archive_agency(id) {
-  promptDeleteAgentsWithTransferOption([id]);
+function promptDeleteAgentWithTransferOption(id) {
+  const numericId = parseInt(id, 10);
+  if (!numericId) return;
+
+  SwalConfirm.fire({
+    title: 'Are you sure you want to delete this agent?',
+    message: 'You can <strong>transfer guests</strong> to another agent first, or delete this agent now.',
+    showDenyButton: true,
+    confirmButtonText: 'Delete now',
+    denyButtonText: 'Transfer guests…',
+    confirmButtonColor: '#d33',
+    denyButtonColor: '#3085d6'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      setTimeout(function () {
+        promptManagerPasswordThen('delete this agent.', function () {
+          performAgentArchiveRemove(numericId);
+        });
+      }, 200);
+    } else if (result.isDenied) {
+      openTransferAgentGuestsModal(numericId);
+    }
+  });
 }
