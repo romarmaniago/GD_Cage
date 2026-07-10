@@ -37,7 +37,54 @@ const {
 	isValidMonthKey,
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
-const { categorizeDisplayExpenseTotals } = require('../utils/dashboardServiceBalance');
+const {
+	buildDashboardServiceExpensePayload
+} = require('../utils/dashboardServiceBalance');
+const { fetchActiveServiceCategories } = require('../utils/serviceCategoryHelpers');
+
+async function loadDashboardServiceExpenseData() {
+	const [junketDepositRows] = await pool.execute(`
+		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+		FROM game_services
+		WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+		GROUP BY SERVICE_TYPE
+	`);
+	const [junketCashRows] = await pool.execute(`
+		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+		FROM game_services
+		WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
+		GROUP BY SERVICE_TYPE
+	`);
+	const [guestDepositRows] = await pool.execute(`
+		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+		FROM game_services
+		WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+		GROUP BY SERVICE_TYPE
+	`);
+	const [guestCashRows] = await pool.execute(`
+		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+		FROM game_services
+		WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
+		GROUP BY SERVICE_TYPE
+	`);
+	const categories = await fetchActiveServiceCategories(pool);
+	const payload = buildDashboardServiceExpensePayload(
+		categories,
+		junketCashRows || [],
+		junketDepositRows || [],
+		guestCashRows || [],
+		guestDepositRows || []
+	);
+
+	return {
+		categories,
+		payload,
+		junketCashRows: junketCashRows || [],
+		junketDepositRows: junketDepositRows || [],
+		guestCashRows: guestCashRows || [],
+		guestDepositRows: guestDepositRows || []
+	};
+}
 const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
 function requireSuperAdmin(req, res, next) {
@@ -918,6 +965,7 @@ let sqlServiceSettle = `
 
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
+		const serviceExpenseData = await loadDashboardServiceExpenseData();
 
 		res.render(viewName, {
 
@@ -1034,7 +1082,8 @@ let sqlServiceSettle = `
 			// Dashboard Commission card should show Settlement (NET commission)
 			sqlCommissionSettlement: totalCommissionSettlement || 0,
 			sqlAdditionalCommission: totalAdditionalCommission || 0,
-			sqlManualBalancing: manualBalancingResult || 0
+			sqlManualBalancing: manualBalancingResult || 0,
+			serviceCategoryRows: serviceExpenseData.payload.categories || []
 		});
 
 	} catch (err) {
@@ -3503,36 +3552,8 @@ router.get('/dashboard_house_balances', checkSession, async (req, res) => {
 
 router.get('/dashboard/service_expense_balances', checkSession, async (req, res) => {
 	try {
-		const [junketDepositRows] = await pool.execute(`
-			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
-			FROM game_services
-			WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
-			GROUP BY SERVICE_TYPE
-		`);
-		const [junketCashRows] = await pool.execute(`
-			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
-			FROM game_services
-			WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
-			GROUP BY SERVICE_TYPE
-		`);
-		const [guestDepositRows] = await pool.execute(`
-			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
-			FROM game_services
-			WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
-			GROUP BY SERVICE_TYPE
-		`);
-		const [guestCashRows] = await pool.execute(`
-			SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
-			FROM game_services
-			WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
-			GROUP BY SERVICE_TYPE
-		`);
-		res.json(categorizeDisplayExpenseTotals(
-			junketCashRows || [],
-			junketDepositRows || [],
-			guestCashRows || [],
-			guestDepositRows || []
-		));
+		const serviceExpenseData = await loadDashboardServiceExpenseData();
+		res.json(serviceExpenseData.payload);
 	} catch (err) {
 		console.error('dashboard/service_expense_balances:', err);
 		res.status(500).json({ error: 'Failed to load service expense balances.' });

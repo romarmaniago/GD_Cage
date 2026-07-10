@@ -1870,6 +1870,122 @@ router.put('/guest/:id/transfer', async (req, res) => {
 	}
 });
 
+// TRANSFER ALL GUESTS FROM ONE AGENT TO ANOTHER
+router.put('/agent/:id/transfer-guests', async (req, res) => {
+	try {
+		if (req.session?.permissions === 2) {
+			return res.status(403).json({ error: 'Not authorized to transfer guests.' });
+		}
+
+		const sourceAgentId = parseInt(req.params.id, 10);
+		const targetAgentId = parseInt(req.body.targetAgentId, 10);
+		const editedBy = req.session?.user_id || 1;
+		const now = new Date();
+
+		if (!sourceAgentId) {
+			return res.status(400).json({ error: 'Source agent is required.' });
+		}
+		if (!targetAgentId) {
+			return res.status(400).json({ error: 'Target agent is required.' });
+		}
+		if (sourceAgentId === targetAgentId) {
+			return res.status(400).json({ error: 'Source and target agent must be different.' });
+		}
+
+		const [sourceRows] = await pool.execute(
+			`SELECT
+				ag.IDNo AS agent_id,
+				ag.AGENCY AS agency_id,
+				ag.AGENT_CODE AS agent_code,
+				ag.NAME AS agent_name,
+				ay.AGENCY AS agency_name
+			FROM agent ag
+			INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+			WHERE ag.IDNo = ? AND ag.ACTIVE = 1
+			LIMIT 1`,
+			[sourceAgentId]
+		);
+		if (!sourceRows.length) {
+			return res.status(404).json({ error: 'Source agent not found.' });
+		}
+
+		const [targetRows] = await pool.execute(
+			`SELECT
+				ag.IDNo AS agent_id,
+				ag.AGENCY AS agency_id,
+				ag.AGENT_CODE AS agent_code,
+				ag.NAME AS agent_name,
+				ay.AGENCY AS agency_name
+			FROM agent ag
+			INNER JOIN agency ay ON ay.IDNo = ag.AGENCY AND ay.ACTIVE = 1
+			WHERE ag.IDNo = ? AND ag.ACTIVE = 1
+			LIMIT 1`,
+			[targetAgentId]
+		);
+		if (!targetRows.length) {
+			return res.status(404).json({ error: 'Target agent not found.' });
+		}
+
+		const source = sourceRows[0];
+		const target = targetRows[0];
+
+		const rawGuestIds = Array.isArray(req.body.guestIds) ? req.body.guestIds : [];
+		const guestIds = [...new Set(
+			rawGuestIds
+				.map((id) => parseInt(id, 10))
+				.filter((id) => Number.isInteger(id) && id > 0)
+		)];
+
+		if (!guestIds.length) {
+			return res.status(400).json({ error: 'Select at least one guest to transfer.' });
+		}
+
+		const placeholders = guestIds.map(() => '?').join(',');
+		const [guestRows] = await pool.execute(
+			`SELECT IDNo AS guest_id, NAME AS guest_name, MEMBERSHIP_NO AS membership_no
+			 FROM guest
+			 WHERE AGENT_ID = ? AND ACTIVE = 1 AND IDNo IN (${placeholders})
+			 ORDER BY IDNo DESC`,
+			[sourceAgentId, ...guestIds]
+		);
+
+		if (!guestRows.length) {
+			return res.status(404).json({ error: 'No matching guests found under this agent.' });
+		}
+
+		const validGuestIds = guestRows.map((row) => row.guest_id);
+		const updatePlaceholders = validGuestIds.map(() => '?').join(',');
+		const [updateResult] = await pool.execute(
+			`UPDATE guest
+			 SET AGENT_ID = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE AGENT_ID = ? AND ACTIVE = 1 AND IDNo IN (${updatePlaceholders})`,
+			[targetAgentId, editedBy, now, sourceAgentId, ...validGuestIds]
+		);
+
+		return res.json({
+			success: true,
+			moved: updateResult.affectedRows || 0,
+			from: {
+				agency_id: source.agency_id,
+				agency_name: source.agency_name,
+				agent_id: source.agent_id,
+				agent_code: source.agent_code,
+				agent_name: source.agent_name
+			},
+			to: {
+				agency_id: target.agency_id,
+				agency_name: target.agency_name,
+				agent_id: target.agent_id,
+				agent_code: target.agent_code,
+				agent_name: target.agent_name
+			}
+		});
+	} catch (err) {
+		console.error('Error transferring agent guests:', err);
+		return res.status(500).json({ error: 'Failed to transfer agent guests.' });
+	}
+});
+
 
 // EDIT AGENT (session or Passport Scanner x-api-key; optional face + passport images + agent_passport)
 router.put(
@@ -2018,6 +2134,37 @@ router.put(
 		}
 	}
 );
+
+
+// REMOVE GUEST (Super Admin only)
+router.put('/guest/remove/:id', async (req, res) => {
+	try {
+		const permissions = req.session?.permissions;
+		if (permissions !== 0) {
+			return res.status(403).json({ success: false, message: 'Only Super Admin can delete guests.' });
+		}
+
+		const id = parseInt(req.params.id, 10);
+		if (!id) {
+			return res.status(400).json({ success: false, message: 'Guest is required.' });
+		}
+
+		const date_now = new Date();
+		const [result] = await pool.execute(
+			`UPDATE guest SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[0, req.session.user_id, date_now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ success: false, message: 'Guest not found.' });
+		}
+
+		return res.json({ success: true });
+	} catch (error) {
+		console.error('❌ Error removing guest:', error);
+		return res.status(500).json({ success: false, message: 'Error removing guest' });
+	}
+});
 
 
 // REMOVE AGENT (Super Admin only)

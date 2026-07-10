@@ -16,8 +16,10 @@ function matchesServiceCategory(serviceType, category) {
 			return raw === 'delivery' || raw.includes('delivery');
 		case 'incidental':
 			return raw === 'incidental' || raw.includes('incidental');
-		default:
-			return raw.includes(String(category || '').toLowerCase());
+		default: {
+			const cat = String(category || '').trim().toLowerCase();
+			return raw === cat;
+		}
 	}
 }
 
@@ -77,11 +79,57 @@ function categorizeJunketExpenseTotals(cashRows, depositRows) {
 	};
 }
 
+function buildDashboardServiceCategoryBalances(categories, junketCashRows, junketDepositRows, guestCashRows, guestDepositRows) {
+	return (categories || []).map((cat) => {
+		const key = cat && cat.key != null ? cat.key : cat;
+		const label = cat && cat.label != null ? cat.label : String(key || '');
+		return {
+			id: cat && cat.id != null ? cat.id : null,
+			key,
+			label,
+			modalId: cat && cat.modalId ? cat.modalId : null,
+			balance: signedCategoryBalance(
+				junketCashRows,
+				junketDepositRows,
+				guestCashRows,
+				guestDepositRows,
+				key
+			),
+			junketOut: sumCategoryAcrossRowSets([junketCashRows, junketDepositRows], key)
+		};
+	});
+}
+
+function buildDashboardServiceExpensePayload(categories, junketCashRows, junketDepositRows, guestCashRows, guestDepositRows) {
+	const rows = buildDashboardServiceCategoryBalances(
+		categories,
+		junketCashRows,
+		junketDepositRows,
+		guestCashRows,
+		guestDepositRows
+	);
+	const legacy = categorizeDisplayExpenseTotals(
+		junketCashRows,
+		junketDepositRows,
+		guestCashRows,
+		guestDepositRows
+	);
+	const junketOutTotal = rows.reduce((sum, cat) => sum + (Number(cat.junketOut) || 0), 0);
+
+	return {
+		categories: rows,
+		junketOutTotal,
+		...legacy
+	};
+}
+
 module.exports = {
 	matchesServiceCategory,
 	sumDepositsByCategory,
 	categorizeDepositTotals,
 	categorizeJunketExpenseTotals,
 	categorizeDisplayExpenseTotals,
-	categorizeSignedServiceTotals
+	categorizeSignedServiceTotals,
+	buildDashboardServiceCategoryBalances,
+	buildDashboardServiceExpensePayload
 };

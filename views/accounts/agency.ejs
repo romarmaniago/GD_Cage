@@ -171,8 +171,11 @@
 																type="search"
 																class="form-control form-control-sm agency-guest-search-input"
 																id="guest-panel-search"
+																name="agency-guest-panel-search"
 																placeholder="Search all guests..."
-																autocomplete="off">
+																autocomplete="off"
+																data-lpignore="true"
+																data-1p-ignore="true">
 														</div>
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-guest-panel-add">
 															<i class="fa fa-plus"></i>
@@ -271,6 +274,53 @@
 								</div>
 								<div class="modal-footer">
 									<button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-guest-table">Transfer</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="modal-transfer-agent-guests" tabindex="-1" aria-labelledby="modal-transfer-agent-guests-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-transfer-agent-guests-label">Transfer Agent Guests</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="transfer_agent_guests_form">
+								<div class="modal-body">
+									<input type="hidden" id="transfer_agent_source_id" name="sourceAgentId">
+									<div class="mb-2">
+										<label class="form-label">From Agent</label>
+										<input type="text" class="form-control" id="transfer_agent_from_display" readonly disabled>
+									</div>
+									<div class="mb-3">
+										<div class="d-flex align-items-center justify-content-between mb-1">
+											<label class="form-label mb-0">Guests to transfer <span class="text-muted" id="transfer_agent_guest_count">(0 selected)</span></label>
+											<label class="small mb-0 d-flex align-items-center gap-1">
+												<input type="checkbox" id="transfer_agent_guest_select_all" class="form-check-input m-0">
+												Select all
+											</label>
+										</div>
+										<div id="transfer_agent_guest_list" class="border rounded px-2 py-2" style="max-height: 180px; overflow-y: auto; background: #f8fafc;">
+											<div class="text-muted small">Loading guests...</div>
+										</div>
+									</div>
+									<div class="mt-2 mb-2">
+										<label for="transfer_agent_to_agency_id" class="form-label">Transfer To LINE</label>
+										<select class="form-select" id="transfer_agent_to_agency_id" required>
+											<option value="">Select LINE</option>
+										</select>
+									</div>
+									<div class="mb-0">
+										<label for="transfer_agent_to_agent_id" class="form-label">Transfer To Agent</label>
+										<select class="form-select" id="transfer_agent_to_agent_id" name="targetAgentId" required disabled>
+											<option value="">Select Agent</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-agent-guests">Transfer</button>
 									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
 								</div>
 							</form>

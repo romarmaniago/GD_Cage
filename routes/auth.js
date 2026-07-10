@@ -305,6 +305,44 @@ router.post('/verify-password', async (req, res) => {
     }
   });
 
+// Verify Super Admin password (PERMISSIONS = 0) for elevated delete overrides
+router.post('/verify-superadmin-password', async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ message: 'Password is required' });
+      }
+
+      const query = 'SELECT * FROM user_info WHERE PERMISSIONS = 0 AND ACTIVE = 1 LIMIT 1';
+      const [results] = await pool.execute(query);
+
+      if (!results.length) {
+        return res.status(404).json({ message: 'Super Admin not found' });
+      }
+
+      const superAdmin = results[0];
+      const storedPassword = superAdmin.PASSWORD;
+      const salt = superAdmin.SALT;
+      let isValid = false;
+
+      if (isArgonHash(storedPassword)) {
+        isValid = await argon2.verify(storedPassword, password);
+      } else {
+        const hashedPassword = generateMD5(salt + password);
+        isValid = (hashedPassword === storedPassword);
+      }
+
+      if (isValid) {
+        return res.json({ permissions: Number(superAdmin.PERMISSIONS) });
+      }
+
+      return res.status(403).json({ message: 'Incorrect password' });
+    } catch (error) {
+      console.error('Error verifying super admin password: ' + error.stack);
+      return res.status(500).json({ message: 'Error during password verification' });
+    }
+  });
+
 // Check Permission route
 router.post('/check-permission', (req, res) => {
     if (req.session.permissions === undefined || req.session.permissions === null) {
