@@ -759,11 +759,13 @@ body {
   flex-direction: row;
   align-items: stretch;
   width: 100%;
+  gap: 1rem;
   --rolling-excel-date: #dbeafe;
   --rolling-excel-casino: #dcfce7;
   --rolling-excel-gold: #fef9c3;
   --rolling-excel-diff: #ffedd5;
   --rolling-excel-remarks: #e2e8f0;
+  --rolling-excel-subhead: var(--rolling-excel-casino);
   --rolling-excel-today: #fef08a;
   --rolling-total-text: #a16207;
   --rolling-excel-grid: #64748b;
@@ -787,7 +789,6 @@ body {
 
 .dash-dual-matrix-col.is-wl {
   flex: 1 1 0;
-  border-left: 1px solid #e2e8f0;
 }
 
 .dash-card-stack {
@@ -1107,11 +1108,12 @@ body {
   box-shadow: none;
 }
 
-.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix {
+.dash-card.gd-dash-panel.dash-dual-matrix-panel {
   --gd-dash-matrix-body: #faf6ee;
   --gd-dash-matrix-body-alt: #f5efe3;
   --rolling-excel-date: rgba(200, 162, 76, 0.38);
   --rolling-excel-casino: rgba(72, 110, 72, 0.22);
+  --rolling-excel-subhead: rgba(72, 110, 72, 0.22);
   --rolling-excel-gold: rgba(200, 162, 76, 0.45);
   --rolling-excel-diff: rgba(168, 102, 44, 0.24);
   --rolling-excel-remarks: rgba(44, 36, 24, 0.07);
@@ -1161,10 +1163,6 @@ body {
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-export:hover {
   color: #0f0a02;
   filter: brightness(1.05);
-}
-
-.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix-col.is-wl {
-  border-left: 1px solid var(--gd-dash-border);
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-foot,
@@ -1273,11 +1271,76 @@ body {
   color: #b91c1c !important;
 }
 
-@media (max-width: 991.98px) {
-  .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-dual-matrix-col.is-wl {
-    border-left: 0;
-    border-top: 1px solid var(--gd-dash-border);
-  }
+/* Light-body variant — gold gradient section headers, matching the other dashboard cards */
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-section-header {
+  color: #3a2e12;
+  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+  border-bottom-color: rgba(58, 46, 18, 0.25);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .btn-dash-matrix-print {
+  color: #3a2e12;
+  border: 1px solid rgba(58, 46, 18, 0.35);
+  background: transparent;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .btn-dash-matrix-print:hover {
+  color: #1a1205;
+  background: rgba(255, 255, 255, 0.35);
+  border-color: transparent;
+}
+
+/* Uniform gold table — header AND data rows share the same tone instead of the mixed excel-style tints */
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body > .card-body {
+  background: #f0dfa8;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body {
+  --gd-dash-matrix-body: #f0dfa8;
+  --gd-dash-matrix-body-alt: #f0dfa8;
+  --rolling-excel-date: #f0dfa8;
+  --rolling-excel-casino: #f0dfa8;
+  --rolling-excel-subhead: #f0dfa8;
+  --rolling-excel-gold: #f0dfa8;
+  --rolling-excel-diff: #f0dfa8;
+  --rolling-excel-remarks: #f0dfa8;
+  --rolling-excel-today: #f0dfa8;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-preview .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-wl-row.is-preview .dash-wl-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-preview:hover .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-wl-row.is-preview:hover .dash-wl-body-cell {
+  background: #f0dfa8;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-total .dash-rolling-body-cell,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-wl-row.is-total .dash-wl-body-cell {
+  background: #d4bc82;
+}
+
+/* Main Cage Rolling Check — th header row uses the same gold tone as the Cash/Chips group titles */
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-rolling {
+  --rolling-excel-date: #e8d08c;
+  --rolling-excel-casino: #e8d08c;
+  --rolling-excel-gold: #e8d08c;
+  --rolling-excel-diff: #e8d08c;
+  --rolling-excel-remarks: #e8d08c;
+  --rolling-excel-subhead: #eeda9f;
+}
+
+/* W/L Check — same th header gold treatment as Main Cage Rolling Check */
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl {
+  --rolling-excel-date: #e8d08c;
+  --rolling-excel-casino: #e8d08c;
+  --rolling-excel-gold: #e8d08c;
+  --rolling-excel-diff: #e8d08c;
+  --rolling-excel-remarks: #e8d08c;
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-casino,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-remarks {
+  background: #f5e7bd;
 }
 
 .dash-top-row .dash-dual-matrix-panel-col {
@@ -1286,10 +1349,14 @@ body {
   min-height: 0;
 }
 
+.dash-top-row .dash-dual-matrix-panel-col .dash-dual-matrix {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .dash-top-row .dash-dual-matrix-panel {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -1297,11 +1364,6 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-}
-
-.dash-top-row .dash-dual-matrix-panel .dash-dual-matrix {
-  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -1316,11 +1378,6 @@ body {
 @media (max-width: 991.98px) {
   .dash-dual-matrix {
     flex-direction: column;
-  }
-
-  .dash-dual-matrix-col.is-wl {
-    border-left: 0;
-    border-top: 1px solid #e2e8f0;
   }
 }
 
@@ -1594,7 +1651,7 @@ body {
   grid-column: 5;
   grid-row: 2;
   justify-content: center;
-  background: var(--rolling-excel-gold);
+  background: var(--rolling-excel-subhead);
   font-weight: 600;
   font-size: 10px;
 }
@@ -1610,7 +1667,7 @@ body {
   grid-column: 2;
   grid-row: 2;
   justify-content: flex-end;
-  background: var(--rolling-excel-casino);
+  background: var(--rolling-excel-subhead);
   font-weight: 600;
 }
 
@@ -1618,7 +1675,7 @@ body {
   grid-column: 3;
   grid-row: 2;
   justify-content: flex-end;
-  background: var(--rolling-excel-casino);
+  background: var(--rolling-excel-subhead);
   font-weight: 600;
 }
 
@@ -1626,7 +1683,7 @@ body {
   grid-column: 4;
   grid-row: 2;
   justify-content: flex-end;
-  background: var(--rolling-excel-casino);
+  background: var(--rolling-excel-subhead);
   font-weight: 600;
 }
 
@@ -1697,6 +1754,11 @@ body {
   min-height: 1.65rem;
   box-sizing: border-box;
   border-bottom: 1px solid var(--dash-row-line);
+  border-right: 1px solid var(--dash-col-line);
+}
+
+.dash-rolling-body-cell.is-col-remarks,
+.dash-wl-body-cell.is-col-remarks {
   border-right: none;
 }
 
