@@ -1281,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			case 11: return sourceLabel ? (sourceLabel + ' Returned thru Cash') : 'Credit Returned thru Cash';
 			case 12: return sourceLabel ? (sourceLabel + ' Returned thru Deposit') : 'Credit Returned thru Deposit';
 			default:
-				return transactionType === 4 ? 'Chips Return thru Credit' : 'Credit';
+				return transactionType === 4 ? 'Cash-in' : 'Credit';
 		}
 	};
 

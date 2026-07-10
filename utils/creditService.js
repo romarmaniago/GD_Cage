@@ -5,9 +5,9 @@
  * CREDIT_ACTION values (UI labels):
  *   Transfer      = return thru deposit
  *   Buy-in        = game credit
- *   Cash-in       = return thru cash
+ *   Cash-in       = return thru cash / cashout credit return (ledger 11-3 or 1-4)
  *   Cash-out      = cash credit
- *   Chips Return  = chips return thru credit (ledger 1-4)
+ *   Chips Return  = legacy chips return thru credit (ledger 1-4; new writes use Cash-in)
  *
  * CREDIT_SOURCE (for returns / buy-in tracking):
  *   CREDIT = cash credit bucket
@@ -103,7 +103,7 @@ function normalizeCreditSource(raw, creditAction) {
 		return CREDIT_SOURCES.BUYIN;
 	}
 	if (action === CREDIT_ACTIONS.CASH_OUT) return CREDIT_SOURCES.CREDIT;
-	// Transfer / Cash-in default to cash credit bucket when source not provided
+	// Transfer / Cash-in: default CREDIT bucket unless caller set BUYIN (cashout credit return)
 	if (action === CREDIT_ACTIONS.TRANSFER || action === CREDIT_ACTIONS.CASH_IN) {
 		return CREDIT_SOURCES.CREDIT;
 	}
@@ -119,7 +119,8 @@ function mapLedgerToCreditAction(transactionId, transactionType, creditActionHin
 	if (tid === '12') return CREDIT_ACTIONS.TRANSFER;
 	if (tid === '11') return CREDIT_ACTIONS.CASH_IN;
 	if (tid === '10') return CREDIT_ACTIONS.BUY_IN;
-	if (tid === '1' && ttype === '4') return CREDIT_ACTIONS.CHIPS_RETURN;
+	// Cashout credit return (game chips returned thru credit)
+	if (tid === '1' && ttype === '4') return CREDIT_ACTIONS.CASH_IN;
 	return CREDIT_ACTIONS.CASH_OUT;
 }
 

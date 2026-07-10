@@ -115,8 +115,8 @@ router.get('/loss_amount_data', async (req, res) => {
 			LEFT JOIN agent ag ON ag.IDNo = a.AGENT_ID
 			LEFT JOIN guest g ON g.IDNo = jl.GUEST_ID
 			WHERE jl.ACTIVE = 1
-				AND DATE(COALESCE(jl.PROGRAM_DATE, jl.ENCODED_DT)) BETWEEN ? AND ?
-			ORDER BY COALESCE(jl.PROGRAM_DATE, jl.ENCODED_DT) DESC, jl.IDNo DESC
+				AND jl.PROGRAM_DATE BETWEEN ? AND ?
+			ORDER BY jl.PROGRAM_DATE DESC, jl.IDNo DESC
 		`;
 
 		const [result] = await pool.execute(query, [fromDate, toDate]);

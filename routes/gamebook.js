@@ -467,7 +467,7 @@ async function insertCutoffCashoutLeg(db, {
 		);
 		await insertCreditRecord(db, {
 			accountId: parentAccountId,
-			creditAction: 'Chips Return',
+			creditAction: 'Cash-in',
 			creditSource: 'BUYIN',
 			amount: legTotal,
 			ledgerId: ledgerResult.insertId,
@@ -510,6 +510,8 @@ async function insertCutoffCashoutLeg(db, {
 async function insertCutoffBuyinLeg(db, {
 	newGameId,
 	parentAccountId,
+	guestId = null,
+	programDate = null,
 	leg,
 	encodedBy,
 	dateNow,
@@ -557,11 +559,24 @@ async function insertCutoffBuyinLeg(db, {
 			[parentAccountId, newGameId, 2, buyinTransType, 'INITIAL BUY-IN', legTotal, encodedBy, dateNow]
 		);
 	} else if (buyinTransType === 3) {
-		await db.execute(
+		const [ledgerResult] = await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			[parentAccountId, newGameId, 10, buyinTransType, legTotal, `Buy-in Game: ${newGameId}`, encodedBy, dateNow]
 		);
+		await insertCreditRecord(db, {
+			accountId: parentAccountId,
+			guestId,
+			creditAction: 'Buy-in',
+			creditSource: 'BUYIN',
+			amount: legTotal,
+			ledgerId: ledgerResult.insertId,
+			gameId: newGameId,
+			programDate: programDate || null,
+			remarks: `Buy-in Game: ${newGameId}`,
+			encodedBy,
+			encodedDt: dateNow
+		});
 	}
 
 	if (buyinTransType === 1) {
@@ -810,6 +825,8 @@ async function performGameCutoff(db, params) {
 		await insertCutoffBuyinLeg(db, {
 			newGameId,
 			parentAccountId,
+			guestId: parent.GUEST_ID,
+			programDate,
 			leg,
 			encodedBy,
 			dateNow,
@@ -1076,6 +1093,8 @@ async function performInGameSettlement(db, params) {
 		await insertCutoffBuyinLeg(db, {
 			newGameId,
 			parentAccountId,
+			guestId: parent.GUEST_ID,
+			programDate,
 			leg,
 			encodedBy,
 			dateNow,
@@ -6364,12 +6383,13 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			]);
 			await insertCreditRecord(connection, {
 				accountId: txtAccountCode,
-				creditAction: 'Chips Return',
+				creditAction: 'Cash-in',
 				creditSource: 'BUYIN',
 				amount: creditLeg,
 				ledgerId: ledgerResult.insertId,
 				gameId: game_id,
-				remarks: creditRemarksVal || CashOutDESC,
+				guarantor: creditGuarantor || null,
+				remarks: creditTxnRemarksOnly(creditRemarks) || CashOutDESC,
 				encodedBy: userId,
 				encodedDt: date_now
 			});

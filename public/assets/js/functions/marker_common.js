@@ -1468,7 +1468,8 @@
                 closeOnSelect: true
             });
             if (programDatePicker && programDatePicker.altInput) {
-                programDatePicker.altInput.classList.add('form-control', 'form-control-sm');
+                programDatePicker.altInput.classList.add('form-control');
+                programDatePicker.altInput.classList.remove('form-control-sm');
                 programDatePicker.altInput.style.width = '100%';
                 programDatePicker.altInput.required = true;
             }

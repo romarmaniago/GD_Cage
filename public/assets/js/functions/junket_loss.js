@@ -4,6 +4,36 @@ let junketLossToDate = null;
 let junketLossDatePicker = null;
 let junketLossProgramDatePicker = null;
 let junketLossAccountGuestResetting = false;
+let junketLossTypeFilter = 'all';
+let junketLossTypeFilterRegistered = false;
+
+function registerJunketLossTypeFilter() {
+    if (junketLossTypeFilterRegistered || !$.fn.dataTable || !$.fn.dataTable.ext) return;
+    junketLossTypeFilterRegistered = true;
+    $.fn.dataTable.ext.search.push(function (settings, _data, dataIndex) {
+        if (!settings.nTable || settings.nTable.id !== 'junket-loss-tbl') return true;
+        if (junketLossTypeFilter === 'all') return true;
+        const api = new $.fn.dataTable.Api(settings);
+        const row = api.row(dataIndex).data();
+        if (!row) return true;
+        const paymentType = Number(row.PAYMENT_TYPE);
+        if (junketLossTypeFilter === 'chip') return paymentType === 1;
+        if (junketLossTypeFilter === 'cash') return paymentType === 2;
+        return true;
+    });
+}
+
+function getJunketLossTypeFilter() {
+    const $active = $('#junket-loss-type-tabs .nav-link.active');
+    return ($active.data('filter') || 'all').toString();
+}
+
+function applyJunketLossTypeFilter(filter) {
+    junketLossTypeFilter = filter || 'all';
+    if (junketLossTable) {
+        junketLossTable.draw();
+    }
+}
 
 function junketLossApiEndDate(endYmd) {
     if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
@@ -308,6 +338,26 @@ function paymentTypeLabel(value) {
     return '';
 }
 
+function formatJunketLossAmountDisplay(value) {
+    const amount = Math.abs(Number(value) || 0);
+    const formatted = amount.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+    return '<span class="text-dash-neg">(' + formatted + ')</span>';
+}
+
+function updateJunketLossTableTotal(api) {
+    if (!api) return;
+    const total = api
+        .column(4, { search: 'applied' })
+        .data()
+        .reduce(function (sum, value) {
+            return sum + (Number(value) || 0);
+        }, 0);
+    $('#junket-loss-total-amount').html(formatJunketLossAmountDisplay(total));
+}
+
 function openJunketLossModal(data) {
     const id = data && data.IDNo ? data.IDNo : '';
     resetJunketLossFormFields();
@@ -437,6 +487,9 @@ function ensureJunketLossTable() {
     if (junketLossTable) return junketLossTable;
     if (!$('#junket-loss-tbl').length || !$.fn.DataTable) return null;
 
+    registerJunketLossTypeFilter();
+    junketLossTypeFilter = getJunketLossTypeFilter();
+
     if ($.fn.DataTable.isDataTable('#junket-loss-tbl')) {
         junketLossTable = $('#junket-loss-tbl').DataTable();
         return junketLossTable;
@@ -471,11 +524,10 @@ function ensureJunketLossTable() {
             { data: 'GUEST_NAME', defaultContent: '' },
             {
                 data: 'AMOUNT',
-                render: function (data) {
-                    return (Number(data) || 0).toLocaleString('en-US', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    });
+                className: 'text-end',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') return Number(data) || 0;
+                    return formatJunketLossAmountDisplay(data);
                 }
             },
             {
@@ -501,7 +553,10 @@ function ensureJunketLossTable() {
             //             '<i class="fa fa-trash-alt"></i></button>';
             //     }
             // }
-        ]
+        ],
+        footerCallback: function () {
+            updateJunketLossTableTotal(this.api());
+        }
     });
 
     return junketLossTable;
@@ -628,8 +683,10 @@ $(document).ready(function () {
             'table{width:100%;border-collapse:collapse;font-size:11px;}',
             'th,td{border:1px solid #777;padding:6px 8px;vertical-align:middle;}',
             'th{background:#d9e1f2;text-align:left;font-weight:700;}',
-            'th:nth-child(2),td:nth-child(2){text-align:right;}',
-            'td{text-align:left;}'
+            'th:nth-child(5),td:nth-child(5){text-align:right;}',
+            'th:nth-child(6),td:nth-child(6){text-align:center;}',
+            'td{text-align:left;}',
+            '.text-dash-neg{color:#dc3545;}'
         ].join('');
     }
 
@@ -753,6 +810,14 @@ $(document).ready(function () {
 
     $('#btn-add-junket-loss').on('click', function () {
         openJunketLossModal(null);
+    });
+
+    $(document).on('click', '#junket-loss-type-tabs .nav-link', function (e) {
+        e.preventDefault();
+        const $btn = $(this);
+        $('#junket-loss-type-tabs .nav-link').removeClass('active');
+        $btn.addClass('active');
+        applyJunketLossTypeFilter($btn.data('filter'));
     });
 
     $('#junket-loss-account').on('change', onJunketLossAccountChange);

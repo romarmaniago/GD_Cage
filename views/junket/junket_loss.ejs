@@ -47,6 +47,7 @@
           </div>
         </div>
         <div class="card-body pt-2">
+          <%- include('../partials/junket_loss_type_tabs') %>
           <div class="table-responsive">
             <table id="junket-loss-tbl" class="table nowrap small-text" style="width:100%">
               <thead>
@@ -57,12 +58,19 @@
                   <th>Guest</th>
                   <th>Amount</th>
                   <th>Type</th>
-                  <th>Person Involved</th>
+                  <th>Person(s) Involved</th>
                   <th>Description</th>
                   <%# <th>Encoded By</th> %>
                   <%# <th>Action</th> %>
                 </tr>
               </thead>
+              <tfoot>
+                <tr>
+                  <th colspan="4" class="text-end">Total</th>
+                  <th id="junket-loss-total-amount" class="text-end"></th>
+                  <th colspan="3"></th>
+                </tr>
+              </tfoot>
               <tbody></tbody>
             </table>
           </div>
@@ -124,7 +132,8 @@
   }
 
   #junket-loss-tbl thead th:nth-child(5),
-  #junket-loss-tbl tbody td:nth-child(5) {
+  #junket-loss-tbl tbody td:nth-child(5),
+  #junket-loss-tbl tfoot th:nth-child(2) {
     text-align: right;
     padding-right: 20px;
   }
@@ -132,6 +141,37 @@
   #junket-loss-tbl thead th:nth-child(6),
   #junket-loss-tbl tbody td:nth-child(6) {
     text-align: center;
+  }
+
+  #junket-loss-tbl tfoot th {
+    background: #f4f6fa;
+    font-weight: 700;
+    padding: 12px 15px;
+    border-top: 2px solid #dee2e6;
+  }
+
+  #junket-loss-tbl .text-dash-neg {
+    color: #dc3545;
+  }
+
+  .junket-loss-type-tabs .nav-link {
+    font-size: 0.875rem;
+    color: #8a92a6;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+  }
+
+  .junket-loss-type-tabs .nav-link:hover {
+    color: var(--bs-primary);
+  }
+
+  .junket-loss-type-tabs .nav-link.active {
+    color: var(--bs-primary);
+    font-weight: 500;
+    border-bottom-color: var(--bs-primary);
+    background: transparent;
   }
 
   /* Action column (when restored):
