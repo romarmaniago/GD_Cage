@@ -114,7 +114,7 @@
 		"guest": "Guest",
 		"account_list": "Account List",
 		"junket_expenses": "Junket Expenses",
-		"junket_loss": "Loss Amount",
+		"junket_loss": "Junket Loss",
 		"all_agent": "All Agent",
 		"game": "Game",
 		"user_accounts": "User Accounts",
@@ -334,7 +334,7 @@
 		"previous": "Previous",
 		"next": "Next",
 		"please_select_date_range": "Please select a date range.",
-		"no_receipt_uploaded": "No Receipt Uploaded",
+		"no_receipt_uploaded": "house_expense.no_receipt_uploaded",
 		"no_receipt_available": "There is no receipt available to view.",
 		"ok": "OK",
 		"receipt_image": "Receipt Image",
@@ -366,8 +366,7 @@
 		"manual_date_range_hint": "Type date range (e.g. Jun 30, 2026 to Jul 30, 2026) and press Enter",
 		"type_goods": "Goods / Consumables",
 		"type_non_goods": "Non-goods / Services",
-		"settle": "house_expense.settle",
-		"no_receipt_uploaded": "house_expense.no_receipt_uploaded"
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "Junket",
@@ -480,9 +479,9 @@
 	},
 	"junket_loss": {
 		"junket": "Junket",
-		"title": "Loss Amount",
+		"title": "Junket Loss",
 		"export": "Export",
-		"add": "Add Loss Amount",
+		"add": "Add Junket Loss",
 		"select_date_range": "Select date range",
 		"start_date": "Start Date",
 		"end_date": "End Date",

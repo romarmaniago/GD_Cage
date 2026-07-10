@@ -1,26 +1,25 @@
 
 <style>
-/* Golden Dragon sidebar — matches login page palette */
+/* Golden Dragon sidebar — light gold body, matches dashboard card theme */
 aside.sidebar.gd-sidebar {
-    --gd-sidebar-bg: #0a0a0a;
-    --gd-sidebar-surface: #121212;
+    --gd-sidebar-bg-top: #fbf0d4;
+    --gd-sidebar-bg-bottom: #f6e4b8;
     --gd-sidebar-gold: #c8a24c;
-    --gd-sidebar-gold-light: #f1d48a;
-    --gd-sidebar-gold-muted: #eacc90;
-    --gd-sidebar-text: #f5f0e6;
-    --gd-sidebar-text-muted: #d8d0c0;
-    --gd-sidebar-text-subtle: #8a8278;
-    --gd-sidebar-border: rgba(200, 162, 76, 0.22);
-    --gd-sidebar-gold-gradient: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
-    --gd-sidebar-hover-bg: rgba(200, 162, 76, 0.12);
+    --gd-sidebar-gold-dark: #6b4f14;
+    --gd-sidebar-text: #262019;
+    --gd-sidebar-text-muted: #4a4238;
+    --gd-sidebar-text-subtle: #7a6a4a;
+    --gd-sidebar-border: rgba(154, 113, 26, 0.3);
+    --gd-sidebar-gold-gradient: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+    --gd-sidebar-hover-bg: rgba(154, 113, 26, 0.14);
     display: flex;
     flex-direction: column;
     height: 100vh;
     min-height: 100vh;
     overflow: visible;
-    background: linear-gradient(180deg, #121212 0%, var(--gd-sidebar-bg) 100%) !important;
+    background: linear-gradient(180deg, var(--gd-sidebar-bg-top) 0%, var(--gd-sidebar-bg-bottom) 100%) !important;
     border-right: 1px solid var(--gd-sidebar-border);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
     color: var(--gd-sidebar-text-muted);
 }
 
@@ -34,12 +33,14 @@ aside.sidebar.gd-sidebar .sidebar-header {
 
 aside.sidebar.gd-sidebar .sidebar-toggle {
     z-index: 1001;
-    color: var(--gd-sidebar-gold-light) !important;
+    background: var(--gd-sidebar-gold-gradient) !important;
+    color: #1a1205 !important;
+    box-shadow: 0 2px 8px rgba(200, 162, 76, 0.35) !important;
 }
 
 aside.sidebar.gd-sidebar .sidebar-toggle:hover {
-    color: var(--gd-sidebar-text) !important;
-    background: var(--gd-sidebar-hover-bg) !important;
+    color: #1a1205 !important;
+    filter: brightness(1.08);
 }
 
 aside.sidebar.gd-sidebar .sidebar-body {
@@ -48,15 +49,13 @@ aside.sidebar.gd-sidebar .sidebar-body {
     overflow-x: hidden;
     overflow-y: auto;
     max-height: none !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 aside.sidebar.gd-sidebar .sidebar-body::-webkit-scrollbar {
-    width: 6px;
-}
-
-aside.sidebar.gd-sidebar .sidebar-body::-webkit-scrollbar-thumb {
-    background: rgba(200, 162, 76, 0.35);
-    border-radius: 999px;
+    width: 0;
+    display: none;
 }
 
 aside.sidebar.gd-sidebar .sidebar-footer {
@@ -67,7 +66,7 @@ aside.sidebar.gd-sidebar .sidebar-footer {
 }
 
 aside.sidebar.gd-sidebar .sidebar-footer .text-muted {
-    color: var(--gd-sidebar-gold) !important;
+    color: var(--gd-sidebar-gold-dark) !important;
     letter-spacing: 0.08em;
 }
 
@@ -79,7 +78,7 @@ aside.sidebar.gd-sidebar .hr-horizontal {
     border: 0;
     height: 1px;
     margin: 0.75rem 1rem;
-    background: linear-gradient(90deg, transparent, rgba(212, 175, 90, 0.55), transparent);
+    background: linear-gradient(90deg, transparent, rgba(154, 113, 26, 0.55), transparent);
     opacity: 1;
 }
 
@@ -99,7 +98,7 @@ aside.sidebar.gd-sidebar .nav-link.static-item .default-icon {
 }
 
 aside.sidebar.gd-sidebar .nav-item.static-item .nav-link.static-item {
-    color: var(--gd-sidebar-gold) !important;
+    color: var(--gd-sidebar-gold-dark) !important;
     font-size: 0.72rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -108,9 +107,9 @@ aside.sidebar.gd-sidebar .nav-item.static-item .nav-link.static-item {
 
 aside.sidebar.gd-sidebar .nav-link:hover,
 aside.sidebar.gd-sidebar .nav-link:focus {
-    color: var(--gd-sidebar-gold-light) !important;
+    color: var(--gd-sidebar-gold-dark) !important;
     background: var(--gd-sidebar-hover-bg) !important;
-    box-shadow: inset 3px 0 0 rgba(200, 162, 76, 0.75) !important;
+    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.6) !important;
 }
 
 aside.sidebar.gd-sidebar .nav-link.active,
@@ -119,7 +118,7 @@ aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"],
 aside.sidebar.gd-sidebar .nav-link.bg-gradient-primary {
     color: #1a1205 !important;
     background: var(--gd-sidebar-gold-gradient) !important;
-    box-shadow: 0 4px 12px rgba(200, 162, 76, 0.22) !important;
+    box-shadow: 0 4px 12px rgba(200, 162, 76, 0.28) !important;
 }
 
 aside.sidebar.gd-sidebar .nav-link.active .icon,
@@ -138,16 +137,16 @@ aside.sidebar.gd-sidebar .sub-nav .nav-link {
 
 aside.sidebar.gd-sidebar .sub-nav .nav-link:hover,
 aside.sidebar.gd-sidebar .sub-nav .nav-link:focus {
-    color: var(--gd-sidebar-gold-light) !important;
-    background: rgba(200, 162, 76, 0.08) !important;
-    box-shadow: inset 3px 0 0 rgba(200, 162, 76, 0.45) !important;
+    color: var(--gd-sidebar-gold-dark) !important;
+    background: rgba(154, 113, 26, 0.1) !important;
+    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.45) !important;
 }
 
 aside.sidebar.gd-sidebar .sub-nav .nav-link.active,
 aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary {
-    color: #1a1205 !important;
-    background: var(--gd-sidebar-gold-gradient) !important;
-    box-shadow: 0 2px 8px rgba(200, 162, 76, 0.18) !important;
+    color: var(--gd-sidebar-gold-dark) !important;
+    background: rgba(154, 113, 26, 0.1) !important;
+    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.45) !important;
 }
 
 /* Pag nasa History page, hindi i-highlight ang Monthly Settle parent */
@@ -155,6 +154,16 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
     background: transparent !important;
     color: var(--gd-sidebar-text-muted) !important;
     box-shadow: none !important;
+}
+
+/* Extra breathing room above gapped items — single-direction so consecutive gapped items don't stack margins */
+aside.sidebar.gd-sidebar .nav-item-gapped {
+    margin-top: 0.5rem;
+}
+
+/* Space between a dropdown's sub-items and the next menu item */
+aside.sidebar.gd-sidebar .sub-nav {
+    margin-bottom: 0.5rem !important;
 }
 </style>
 
@@ -231,7 +240,7 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'agency' ? 'active bg-gradient-primary' : '' %>" href="/agency">
+                  <a class="nav-link <%= (currentPage === 'agency' || currentPage === 'agent') ? 'open' : '' %>" href="javascript:void(0)" tabindex="-1" role="button" aria-expanded="true">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M11.9488 14.54C8.49884 14.54 5.58789 15.1038 5.58789 17.2795C5.58789 19.4562 8.51765 20.0001 11.9488 20.0001C15.3988 20.0001 18.3098 19.4364 18.3098 17.2606C18.3098 15.084 15.38 14.54 11.9488 14.54Z" fill="currentColor"></path>
@@ -242,19 +251,30 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                             <path d="M3.32156 13.5127C2.21752 13.7297 1.49225 14.1719 1.19139 14.8167C0.936203 15.3453 0.936203 15.9586 1.19139 16.4872C1.65163 17.4851 3.13531 17.8066 3.71195 17.8885C3.83104 17.9065 3.92595 17.8038 3.91342 17.6832C3.61883 14.9167 5.9621 13.6046 6.56918 13.3029C6.59425 13.2885 6.59962 13.2677 6.59694 13.2542C6.59515 13.2452 6.5853 13.2317 6.5656 13.2299C5.25294 13.2047 3.84358 13.3848 3.32156 13.5127Z" fill="currentColor"></path>
                         </svg>
                     </i>
-                    <span class="item-name">Line</span>
+                    <span class="item-name">Accounts</span>
                   </a>
-              </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'agent' ? 'active bg-gradient-primary' : '' %>" href="/agent">
-                    <i class="icon">
-                        <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="currentColor"/>
-                            <path opacity="0.4" d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                    </i>
-                    <span class="item-name">Agent</span>
-                  </a>
+                  <ul class="sub-nav" id="sidebar-accounts">
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'agency' ? 'active bg-gradient-primary text-white' : '' %>" href="/agency">
+                            <i class="icon">
+                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                    <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                </svg>
+                            </i>
+                            <span class="item-name">Line</span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'agent' ? 'active bg-gradient-primary text-white' : '' %>" href="/agent">
+                            <i class="icon">
+                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                    <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                </svg>
+                            </i>
+                            <span class="item-name">Agent</span>
+                          </a>
+                      </li>
+                  </ul>
               </li>
 
               <!-- <li class="nav-item">
@@ -274,7 +294,7 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
             </li> -->
 
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'game_list' ? 'active bg-gradient-primary' : '' %>" href="/game_list">
+                <a class="nav-link open" href="/game_list">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M21.9964 8.37513H17.7618C15.7911 8.37859 14.1947 9.93514 14.1911 11.8566C14.1884 13.7823 15.7867 15.3458 17.7618 15.3484H22V15.6543C22 19.0136 19.9636 21 16.5173 21H7.48356C4.03644 21 2 19.0136 2 15.6543V8.33786C2 4.97862 4.03644 3 7.48356 3H16.5138C19.96 3 21.9964 4.97862 21.9964 8.33786V8.37513ZM6.73956 8.36733H12.3796H12.3831H12.3902C12.8124 8.36559 13.1538 8.03019 13.152 7.61765C13.1502 7.20598 12.8053 6.87318 12.3831 6.87491H6.73956C6.32 6.87664 5.97956 7.20858 5.97778 7.61852C5.976 8.03019 6.31733 8.36559 6.73956 8.36733Z" fill="currentColor"/>
@@ -285,56 +305,8 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                     <span class="item-name"><%= __('sidebar.gamebook') %></span>
                 </a>
                 </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary' : '' %>" href="/house_expense">
-                      <i class="icon">
-                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M8 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-                              <path opacity="0.4" d="M16 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-                              <path d="M21 8.5V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V8.5C3 5.5 4.5 3.5 8 3.5H16C19.5 3.5 21 5.5 21 8.5Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
-                              <path opacity="0.4" d="M7 11H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                              <path opacity="0.4" d="M7 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                          </svg>
-                      </i>
-                      <span class="item-name"><%= __('sidebar.junket_expenses') %></span>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'fnb-hotel' ? 'active bg-gradient-primary' : '' %>" href="/fnb-hotel">
-                      <i class="icon">
-                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M9.14373 20.7821V17.7152C9.14372 16.9381 9.77567 16.3067 10.5584 16.3018H13.4326C14.2189 16.3018 14.8563 16.9346 14.8563 17.7152V20.7732C14.8562 21.4473 15.404 21.9951 16.0829 22H18.0438C18.9596 22.0023 19.8388 21.6428 20.4872 21.0007C21.1356 20.3586 21.5 19.4868 21.5 18.5775V9.86585C21.5 9.13139 21.1721 8.43471 20.6046 7.9635L13.943 2.67427C12.7785 1.74912 11.1154 1.77901 9.98539 2.74538L3.46701 7.9635C2.87274 8.42082 2.51755 9.11956 2.5 9.86585V18.5686C2.5 20.4637 4.04738 22 5.95617 22H7.87229C8.19917 22.0023 8.51349 21.8751 8.74547 21.6464C8.97746 21.4178 9.10793 21.1067 9.10792 20.7821H9.14373Z" fill="currentColor"/>
-                          </svg>
-                      </i>
-                      <span class="item-name"><%= __('fnb_hotel.title') %></span>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'commission' ? 'active bg-gradient-primary' : '' %>" href="/commission">
-                      <i class="icon">
-                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
-                              <path d="M12 6V18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                              <path d="M15.5 9.5C15.5 8.11929 13.932 7 12 7C10.068 7 8.5 8.11929 8.5 9.5C8.5 10.8807 10.068 12 12 12C13.932 12 15.5 13.1193 15.5 14.5C15.5 15.8807 13.932 17 12 17C10.068 17 8.5 15.8807 8.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                          </svg>
-                      </i>
-                      <span class="item-name"><%= __('sidebar.commission') %></span>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'additional_commission' ? 'active bg-gradient-primary' : '' %>" href="/additional_commission">
-                      <i class="icon">
-                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
-                              <path d="M12 7V17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                              <path d="M7 12H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                          </svg>
-                      </i>
-                      <span class="item-name">Additional</span>
-                  </a>
-              </li>
-              <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'loss_amount' ? 'active bg-gradient-primary' : '' %>" href="/loss_amount">
+              <li class="nav-item nav-item-gapped">
+                  <a class="nav-link <%= (currentPage === 'marker_history' || currentPage === 'house_expense' || currentPage === 'loss_amount' || currentPage === 'fnb-hotel') ? 'open' : '' %>" href="javascript:void(0)" tabindex="-1" role="button" aria-expanded="true">
                       <i class="icon">
                           <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path opacity="0.4" d="M16.6756 2H7.33333C3.92889 2 2 3.92889 2 7.33333V16.6667C2 20.0711 3.92889 22 7.33333 22H16.6756C20.08 22 22 20.0711 22 16.6667V7.33333C22 3.92889 20.08 2 16.6756 2Z" fill="currentColor"/>
@@ -342,22 +314,87 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                               <path d="M8.5 14.5L12 18L15.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
                       </i>
-                      <span class="item-name"><%= __('sidebar.junket_loss') %></span>
+                      <span class="item-name">Junket</span>
                   </a>
+                  <ul class="sub-nav" id="sidebar-junket">
+                      <li class="nav-item">
+                        <a class="nav-link <%= currentPage === 'marker_history' ? 'active bg-gradient-primary text-white' : '' %>" href="/markerHistory">
+                            <i class="icon">
+                                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                    <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                </svg>
+                            </i>
+                            <span class="item-name"><%= __('sidebar.credit_history') %></span>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary text-white' : '' %>" href="/house_expense">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.junket_expenses') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'loss_amount' ? 'active bg-gradient-primary text-white' : '' %>" href="/loss_amount">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Loss Amount</span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'fnb-hotel' ? 'active bg-gradient-primary text-white' : '' %>" href="/fnb-hotel">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('fnb_hotel.title') %></span>
+                          </a>
+                      </li>
+                  </ul>
               </li>
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'marker_history' ? 'active bg-gradient-primary' : '' %>" href="/markerHistory">
-                    <i class="icon">
-                        <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">                                
-                            <path opacity="0.4" d="M16.8843 5.11485H13.9413C13.2081 5.11969 12.512 4.79355 12.0474 4.22751L11.0782 2.88762C10.6214 2.31661 9.9253 1.98894 9.19321 2.00028H7.11261C3.37819 2.00028 2.00001 4.19201 2.00001 7.91884V11.9474C1.99536 12.3904 21.9956 12.3898 21.9969 11.9474V10.7761C22.0147 7.04924 20.6721 5.11485 16.8843 5.11485Z" fill="currentColor"></path>                                
-                            <path fill-rule="evenodd" clip-rule="evenodd" d="M20.8321 6.54353C21.1521 6.91761 21.3993 7.34793 21.5612 7.81243C21.8798 8.76711 22.0273 9.77037 21.9969 10.7761V16.0292C21.9956 16.4717 21.963 16.9135 21.8991 17.3513C21.7775 18.1241 21.5057 18.8656 21.0989 19.5342C20.9119 19.8571 20.6849 20.1553 20.4231 20.4215C19.2383 21.5089 17.665 22.0749 16.0574 21.9921H7.93061C6.32049 22.0743 4.74462 21.5086 3.55601 20.4215C3.2974 20.1547 3.07337 19.8566 2.88915 19.5342C2.48475 18.8661 2.21869 18.1238 2.1067 17.3513C2.03549 16.9142 1.99981 16.4721 2 16.0292V10.7761C1.99983 10.3374 2.02357 9.89902 2.07113 9.46288C2.08113 9.38636 2.09614 9.31109 2.11098 9.23659C2.13573 9.11241 2.16005 8.99038 2.16005 8.86836C2.25031 8.34204 2.41496 7.83116 2.64908 7.35101C3.34261 5.86916 4.76525 5.11492 7.09481 5.11492H16.8754C18.1802 5.01401 19.4753 5.4068 20.5032 6.21522C20.6215 6.3156 20.7316 6.4254 20.8321 6.54353ZM6.97033 15.5412H17.0355H17.0533C17.2741 15.5507 17.4896 15.4717 17.6517 15.3217C17.8137 15.1716 17.9088 14.963 17.9157 14.7425C17.9282 14.5487 17.8644 14.3577 17.7379 14.2101C17.5924 14.0118 17.3618 13.8935 17.1155 13.8907H6.97033C6.51365 13.8907 6.14343 14.2602 6.14343 14.7159C6.14343 15.1717 6.51365 15.5412 6.97033 15.5412Z" fill="currentColor"></path>
-                        </svg>                            
-                    </i>
-                    <span class="item-name"><%= __('sidebar.credit_history') %></span>
-                </a>
-                </li>
+                  <a class="nav-link <%= (currentPage === 'commission' || currentPage === 'additional_commission') ? 'open' : '' %>" href="javascript:void(0)" tabindex="-1" role="button" aria-expanded="true">
+                      <i class="icon">
+                          <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
+                              <path d="M12 6V18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                              <path d="M15.5 9.5C15.5 8.11929 13.932 7 12 7C10.068 7 8.5 8.11929 8.5 9.5C8.5 10.8807 10.068 12 12 12C13.932 12 15.5 13.1193 15.5 14.5C15.5 15.8807 13.932 17 12 17C10.068 17 8.5 15.8807 8.5 14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                      </i>
+                      <span class="item-name">Settlement</span>
+                  </a>
+                  <ul class="sub-nav" id="sidebar-settlement">
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'commission' ? 'active bg-gradient-primary text-white' : '' %>" href="/commission">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name"><%= __('sidebar.commission') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'additional_commission' ? 'active bg-gradient-primary text-white' : '' %>" href="/additional_commission">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Additional</span>
+                          </a>
+                      </li>
+                  </ul>
+              </li>
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'tip' ? 'active bg-gradient-primary' : '' %>" href="/tip">
+                <a class="nav-link open" href="/tip">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M12 2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -374,8 +411,20 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                     <span class="item-name"><%= __('sidebar.tip') %></span>
                 </a>
               </li>
-              <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'multipurpose_ledger' ? 'active bg-gradient-primary' : '' %>" href="/multipurpose_ledger">
+              <li class="nav-item nav-item-gapped">
+                <a class="nav-link open" href="javascript:void(0)">
+                    <i class="icon">
+                      <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
+                          <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
+                          <path d="M12 8V8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M12 11V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </i>
+                    <span class="item-name">Game Information</span>
+                </a>
+              </li>
+              <li class="nav-item nav-item-gapped">
+                <a class="nav-link open" href="/multipurpose_ledger">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M8 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -400,8 +449,8 @@ aside.sidebar.gd-sidebar .nav-item.monthly-settle-parent > .nav-link {
                     <span class="item-name">Money Exchange</span>
                 </a>
               </li> -->
-              <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'table_daily_report_winloss' ? 'active bg-gradient-primary' : '' %>" href="/table_daily_report_winloss">
+              <li class="nav-item nav-item-gapped">
+                <a class="nav-link open" href="/table_daily_report_winloss">
                     <i class="icon">
                       <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path opacity="0.4" d="M16.6756 2H7.33333C3.92889 2 2 3.92889 2 7.33333V16.6667C2 20.0711 3.92889 22 7.33333 22H16.6756C20.08 22 22 20.0711 22 16.6667V7.33333C22 3.92889 20.08 2 16.6756 2Z" fill="currentColor"/>
