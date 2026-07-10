@@ -16,6 +16,7 @@ module.exports = [
     require('./junket_loss'),
     require('./multipurpose_ledger'),
     require('./tip'),
+    require('./game_information'),
     require('./money_exchange'),
     require('./table_daily_report'),
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.

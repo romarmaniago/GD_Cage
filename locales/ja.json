@@ -97,6 +97,7 @@
 		"junket": "ジャンケット",
 		"credit_history": "クレジット履歴",
 		"tip": "チップ",
+		"game_information": "ゲーム情報",
 		"expenses": "ジャンケット経費",
 		"hotel_booking": "ホテル予約",
 		"commission": "手数料",
@@ -125,6 +126,9 @@
 		"telegram_API": "テレグラム",
 		"telegram_message_log": "テレグラム送信ログ",
 		"Change_Game_No": "ゲーム番号の変更"
+	},
+	"game_information": {
+		"on_progress": "開発中"
 	},
 	"tip": {
 		"new_record": "新規チップ",

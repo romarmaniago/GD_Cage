@@ -97,6 +97,7 @@
 		"junket": "接待",
 		"credit_history": "信用记录",
 		"tip": "小费",
+		"game_information": "游戏信息",
 		"expenses": "接待费用",
 		"hotel_booking": "酒店预订",
 		"commission": "佣金",
@@ -125,6 +126,9 @@
 		"telegram_API": "电报",
 		"telegram_message_log": "Telegram 发送记录",
 		"Change_Game_No": "修改游戏编号"
+	},
+	"game_information": {
+		"on_progress": "开发中"
 	},
 	"tip": {
 		"new_record": "新增小费",

@@ -97,6 +97,7 @@
 		"junket": "정캣",
 		"credit_history": "크레딧 내역",
 		"tip": "팁",
+		"game_information": "게임 정보",
 		"expenses": "정캣 지출",
 		"hotel_booking": "호텔 부킹",
 		"commission": "커미션",
@@ -126,6 +127,9 @@
 		"telegram_message_log": "텔레그램 발송 기록",
 		"Change_Game_No": "게임 번호 변경",
 		"title": "정켓"
+	},
+	"game_information": {
+		"on_progress": "진행 중"
 	},
 	"tip": {
 		"new_record": "새 팁",

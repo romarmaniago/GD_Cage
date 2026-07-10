@@ -412,7 +412,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                 </a>
               </li>
               <li class="nav-item nav-item-gapped">
-                <a class="nav-link open" href="javascript:void(0)">
+                <a class="nav-link <%= currentPage === 'game_information' ? 'active bg-gradient-primary text-white' : 'open' %>" href="/game_information">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
@@ -420,7 +420,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                           <path d="M12 11V16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </i>
-                    <span class="item-name">Game Information</span>
+                    <span class="item-name"><%= __('sidebar.game_information') %></span>
                 </a>
               </li>
               <li class="nav-item nav-item-gapped">
