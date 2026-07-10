@@ -2506,8 +2506,8 @@ function checkPermissionToDeleteAgentPanel(id) {
   }
 }
 
-// Manager password override (shared by LINE / AGENT delete)
-function promptManagerPasswordThen(actionText, onConfirmed) {
+// Super Admin password override (shared by LINE / AGENT / GUEST delete)
+function promptManagerPasswordThen(onConfirmed) {
   const $guestSearch = $('#guest-panel-search');
   const savedGuestSearch = $guestSearch.val() || '';
   const savedGuestSearchQuery = guestSearchQuery;
@@ -2535,7 +2535,6 @@ function promptManagerPasswordThen(actionText, onConfirmed) {
   Swal.fire({
     icon: 'warning',
     title: 'Password required',
-    text: 'Enter the manager password to ' + actionText,
     input: 'password',
     inputPlaceholder: 'Password',
     inputAttributes: {
@@ -2556,11 +2555,11 @@ function promptManagerPasswordThen(actionText, onConfirmed) {
       }
       return new Promise(function (resolve) {
         $.ajax({
-          url: '/verify-password',
+          url: '/verify-superadmin-password',
           type: 'POST',
           data: { password: password },
           success: function (response) {
-            if (response && response.permissions === 11) {
+            if (response && Number(response.permissions) === 0) {
               resolve();
               return;
             }
@@ -2674,7 +2673,7 @@ function checkPermissionToDeleteGuest(id) {
   }).then(function (result) {
     if (!result.isConfirmed) return;
     setTimeout(function () {
-      promptManagerPasswordThen('delete this guest.', function () {
+      promptManagerPasswordThen(function () {
         performGuestArchiveRemove(numericId);
       });
     }, 200);
@@ -2725,7 +2724,7 @@ function promptDeleteAgentsWithTransferOption(ids) {
   }).then(function (result) {
     if (result.isConfirmed) {
       setTimeout(function () {
-        promptManagerPasswordThen('delete this LINE.', function () {
+        promptManagerPasswordThen(function () {
           performAgencyArchiveRemove(ids);
         });
       }, 200);
@@ -2759,7 +2758,7 @@ function promptDeleteAgentWithTransferOption(id) {
   }).then(function (result) {
     if (result.isConfirmed) {
       setTimeout(function () {
-        promptManagerPasswordThen('delete this agent.', function () {
+        promptManagerPasswordThen(function () {
           performAgentArchiveRemove(numericId);
         });
       }, 200);
