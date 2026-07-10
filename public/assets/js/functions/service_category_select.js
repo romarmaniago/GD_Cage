@@ -177,5 +177,10 @@ window.refreshFnbHotelCategoryUi = function () {
 	return Promise.all([
 		window.refreshServiceCategorySelects(),
 		renderFnbHotelFilterTabs()
-	]);
+	]).then(function () {
+		if (typeof window.refreshDashServiceCategoryUi === 'function') {
+			return window.refreshDashServiceCategoryUi();
+		}
+		return null;
+	});
 };

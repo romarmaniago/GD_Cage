@@ -18,6 +18,9 @@ function refreshFnbHotelServiceTypeDropdowns() {
 	if (typeof window.renderFnbHotelFilterTabs === 'function') {
 		window.renderFnbHotelFilterTabs();
 	}
+	if (typeof window.refreshDashServiceCategoryUi === 'function') {
+		window.refreshDashServiceCategoryUi();
+	}
 }
 
 function reloadServicesCategoryData() {
@@ -42,6 +45,9 @@ function reloadServicesCategoryData() {
 				servicesCategoryDataTable.row.add([row.CATEGORY, status, btn]).draw();
 			});
 			refreshFnbHotelServiceTypeDropdowns();
+			try {
+				localStorage.setItem('dashServiceCategoriesUpdated', String(Date.now()));
+			} catch (e) { /* ignore */ }
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching services category data:', error);
