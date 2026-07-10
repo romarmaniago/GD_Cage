@@ -1451,14 +1451,17 @@
   function syncMatrixPanelHeight() {
     const ref = document.getElementById('dash-anticipated-panel');
     const panel = document.getElementById('dash-dual-matrix-panel');
-    if (!ref || !panel) return;
+    const cageMainPanel = document.getElementById('dash-cage-main-panel');
+    if (!ref) return;
 
     if (window.innerWidth < 1200) {
-      panel.style.height = '';
+      if (panel) panel.style.height = '';
+      if (cageMainPanel) cageMainPanel.style.height = '';
       return;
     }
 
-    panel.style.height = `${ref.offsetHeight}px`;
+    if (panel) panel.style.height = `${ref.offsetHeight}px`;
+    if (cageMainPanel) cageMainPanel.style.height = `${ref.offsetHeight}px`;
   }
 
   function initMatrixPanelHeightSync() {

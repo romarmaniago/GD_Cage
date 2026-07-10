@@ -66,6 +66,48 @@ body {
   font-size: 0.95rem;
 }
 
+/* Cage Balance + Main — enlarged content so this stack's height levels with the Anticipated Profit column */
+#dash-cage-main-panel .dash-kv {
+  padding: 0.65rem 0.75rem;
+}
+
+#dash-cage-main-panel .dash-kv .dash-kv-label,
+#dash-cage-main-panel .dash-kv .dash-kv-value {
+  font-size: 13px;
+}
+
+#dash-cage-main-panel .dash-kv-group-title {
+  padding: 0.6rem 0.75rem;
+  font-size: 12px;
+}
+
+#dash-cage-main-panel > .card-header,
+#dash-cage-main-panel .card-header {
+  padding: 0.6rem 0.85rem;
+  font-size: 13px;
+}
+
+#dash-cage-main-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+#dash-cage-main-panel > .card:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#dash-cage-main-panel > .card:last-child > .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#dash-cage-main-panel > .card:last-child .dash-card-actions {
+  margin-top: auto;
+}
+
 .dash-panel-narrow .dash-card-actions {
   padding: 0.55rem 0.65rem;
   flex-direction: row;
@@ -779,6 +821,7 @@ body {
 
 .dash-dual-matrix-col {
   min-width: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
