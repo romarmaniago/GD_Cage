@@ -8,6 +8,7 @@ const { ensureJunketLossSchema } = require('../utils/ensureJunketLossSchema');
 const { ensureGameServicesDeliveryFeeSchema } = require('../utils/ensureGameServicesDeliveryFeeSchema');
 const { ensureGameServicesServiceTypeSchema } = require('../utils/ensureGameServicesServiceTypeSchema');
 const { ensureGameServicesGuestSchema } = require('../utils/ensureGameServicesGuestSchema');
+const { ensureGameServicesProgramDateSchema } = require('../utils/ensureGameServicesProgramDateSchema');
 const { ensureServicesCategorySchema } = require('../utils/ensureServicesCategorySchema');
 const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
 const { ensureGameListProgramDateSchema } = require('../utils/ensureGameListProgramDateSchema');
@@ -45,6 +46,7 @@ const pool = mysql.createPool({
 		await ensureGameServicesDeliveryFeeSchema(pool);
 		await ensureGameServicesServiceTypeSchema(pool);
 		await ensureGameServicesGuestSchema(pool);
+		await ensureGameServicesProgramDateSchema(pool);
 		await ensureServicesCategorySchema(pool);
 		await ensureGuestMembershipSchema(pool);
 		await ensureGameListProgramDateSchema(pool);

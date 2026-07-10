@@ -3,59 +3,63 @@
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white" id="modal-services-edit-record-label"><%= __('fnb_hotel.edit_service_record') %></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="edit-services-id" />
         <input type="hidden" id="edit-services-agent-id" />
+        <input type="hidden" id="edit-services-type-value" value="" />
+        <input type="hidden" id="edit-services-transaction-id" value="" />
 
-        <div class="row g-3">
-			<div class="col-md-4">
-				<div class="fw-semibold text-muted"><%= __('fnb_hotel.transaction_type') %></div>
-				<select id="edit-transaction-type" class="form-select">
-				  <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
-				  <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
-				  <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
-				
-				</select>
-			  </div>
-          <div class="col-md-4" id="edit-services-account-wrapper" style="display:none">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.account') %></div>
-            <select id="edit-services-account" class="js-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
+        <div class="row mb-3">
+          <div class="col-sm-6">
+            <label for="edit-services-program-date" class="form-label"><%= __('fnb_hotel.program_date') || 'Program Date' %></label>
+            <input type="text" id="edit-services-program-date" class="form-control" autocomplete="off" placeholder="YYYY-MM-DD" required />
+          </div>
+          <div class="col-sm-6">
+            <label for="edit-transaction-type" class="form-label"><%= __('fnb_hotel.transaction_type') %></label>
+            <select id="edit-transaction-type" class="form-control">
+              <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
+              <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
+              <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row mb-3" id="edit-services-account-wrapper">
+          <div class="col-sm-6">
+            <label for="edit-services-account" class="form-label"><%= __('fnb_hotel.account') %></label>
+            <select id="edit-services-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
               <option value=""><%= __('fnb_hotel.choose_account') %></option>
             </select>
           </div>
-          <div class="col-md-4">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.service_type') %></div>
-            <select id="edit-services-type" class="form-select" data-placeholder="<%= __('fnb_hotel.select_service') %>">
-              <option value="" selected disabled><%= __('fnb_hotel.select_service') %></option>
+          <div class="col-sm-6">
+            <label for="edit-services-guest" class="form-label"><%= __('fnb_hotel.guest') %></label>
+            <select id="edit-services-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
+              <option value=""><%= __('fnb_hotel.select_guest_optional') %></option>
             </select>
           </div>
-          <div class="col-md-4">
-            <div class="fw-semibold text-muted"><%= __('fnb_hotel.amount') %></div>
+        </div>
+
+        <div class="row mb-3 align-items-end">
+          <div class="col-sm-5">
+            <label for="edit-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
             <input type="text" id="edit-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
             <div id="edit-deposit-balance" class="text-muted small mt-1" style="display:none">
               <%= __('fnb_hotel.available_balance') %> <span id="edit-deposit-balance-value">0</span>
             </div>
           </div>
+          <div class="col-sm-7">
+            <label class="form-label"><%= __('fnb_hotel.service_type') %></label>
+            <div id="edit-services-type-list" class="edit-services-type-list" role="group" aria-label="<%= __('fnb_hotel.service_type') %>">
+              <span class="edit-services-type-placeholder text-muted small"><%= __('fnb_hotel.select_service') %></span>
+            </div>
+          </div>
         </div>
 
-        <div class="mt-3 mb-1 fw-semibold text-muted"><%= __('fnb_hotel.remarks') %></div>
-        <textarea id="edit-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
-
-        <div class="row mt-3 gx-4 justify-content-center" id="edit-services-payment-methods">
-          <div class="col-sm-3">
-            <div class="form-check">
-              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="edit-services-transaction-cash" name="edit-services-transaction" />
-              <label class="form-check-label" for="edit-services-transaction-cash"><%= __('fnb_hotel.cash') %></label>
-            </div>
-          </div>
-          <div class="col-sm-3">
-            <div class="form-check">
-              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="edit-services-transaction-deposit" name="edit-services-transaction" />
-              <label class="form-check-label" for="edit-services-transaction-deposit"><%= __('fnb_hotel.deposit') %></label>
-            </div>
-          </div>
+        <div class="mb-1">
+          <label for="edit-services-remarks" class="form-label"><%= __('fnb_hotel.remarks') %></label>
+          <textarea id="edit-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -66,277 +70,106 @@
   </div>
 </div>
 
-<script>
-	(function () {
-		const $modal = $('#modal-services-edit-record');
-		const $accountSelect = $('#edit-services-account');
-		const $accountWrapper = $('#edit-services-account-wrapper');
-		const $transactionType = $('#edit-transaction-type');
-		const $paymentMethods = $('#edit-services-payment-methods');
-		const $agentInput = $('#edit-services-agent-id');
-		const $saveBtn = $('#edit-services-save');
-		const $balanceHint = $('#edit-deposit-balance');
-		const $balanceValue = $('#edit-deposit-balance-value');
-		let depositBalance = 0;
+<style>
+  /* Keep modal-lg size even when dashboard pages override .modal-lg globally */
+  #modal-services-edit-record .modal-dialog.modal-lg {
+    max-width: 800px !important;
+  }
 
-		// Get translations
-		const t = window.fnbHotelTranslations || {};
+  #modal-services-edit-record .select2-container {
+    display: block;
+    width: 100% !important;
+  }
 
-		function resetForm() {
-			$('#edit-services-id').val('');
-			$transactionType.val('').trigger('change');
-			if ($accountSelect.data('select2')) {
-				$accountSelect.val('').trigger('change');
-			} else {
-				$accountSelect.val('');
-			}
-			$agentInput.val('');
-			$('#edit-services-type').val('');
-			$('#edit-services-amount').val('');
-			$('#edit-services-remarks').val('');
-			$('input[name="edit-services-transaction"]').prop('checked', false);
-			$paymentMethods.show();
-		}
+  #modal-services-edit-record .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+  }
 
-		function toggleAccountByTransactionType() {
-			const type = $transactionType.val();
-			const shouldShow = type === 'GUEST' || type === 'JUNKET';
-			if (shouldShow) {
-				$accountWrapper.show();
-				$accountSelect.prop('disabled', false);
-				$paymentMethods.show();
-			} else {
-				$accountWrapper.hide();
-				if ($accountSelect.data('select2')) {
-					$accountSelect.val('').trigger('change');
-				} else {
-					$accountSelect.val('');
-				}
-				$accountSelect.prop('disabled', true);
-				$agentInput.val('');
-				depositBalance = 0;
-				updateBalanceHint();
-				$paymentMethods.hide();
-				$('input[name="edit-services-transaction"]').prop('checked', false);
-			}
-		}
+  #modal-services-edit-record .select2-container--default .select2-selection--single {
+    position: relative;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background-color: #fff;
+  }
 
-		function initAccountSelect2() {
-			if ($accountSelect.data('select2')) {
-				$accountSelect.select2('destroy');
-			}
-			$accountSelect.select2({
-				placeholder: $accountSelect.attr('data-placeholder'),
-				allowClear: false,
-				dropdownParent: $modal
-			});
-		}
+  #modal-services-edit-record .select2-container--default.select2-container--focus .select2-selection--single,
+  #modal-services-edit-record .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  }
 
-		async function populateAccounts() {
-			$accountSelect.prop('disabled', true);
-			try {
-				const res = await fetch('/fnb-hotel/accounts');
-				if (!res.ok) {
-					throw new Error('Unable to load accounts.');
-				}
-				const accounts = await res.json();
-				if ($accountSelect.data('select2')) {
-					$accountSelect.select2('destroy');
-				}
-				$accountSelect.empty();
-				$accountSelect.append($('<option>').val('').text($accountSelect.attr('data-placeholder')));
-				accounts.forEach(acc => {
-					const label = acc.agent_name
-						? `${acc.agent_name} (${acc.agent_code || 'No code'})`
-						: `Account #${acc.account_id}`;
-					const $option = $('<option>')
-						.val(acc.account_id)
-						.text(label)
-						.data('agentId', acc.agent_id)
-						.data('balance', acc.balance || 0);
-					$accountSelect.append($option);
-				});
-				initAccountSelect2();
-				return Promise.resolve();
-			} catch (err) {
-				console.error(err);
-				$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
-				initAccountSelect2();
-				return Promise.reject(err);
-			} finally {
-				$accountSelect.prop('disabled', false);
-			}
-		}
+  #modal-services-edit-record .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: block;
+    padding-left: 0.75rem;
+    padding-right: 3.25rem;
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    line-height: calc(1.5em + 0.75rem + 2px);
+    color: var(--bs-body-color, #212529);
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-		$modal.on('show.bs.modal', function () {
-			// Huwag i-reset ang form dito para hindi mabura
-			// ang values na sinet ng F&B / Hotel page bago buksan ang modal.
-			const pendingAgentId = $modal.data('pendingAgentId');
-			populateAccounts().then(() => {
-				// After accounts are loaded, select account if agentId was set
-				if (pendingAgentId) {
-					let accountFound = false;
-					$accountSelect.find('option').each(function() {
-						const optionAgentId = $(this).data('agentId');
-						if (optionAgentId && parseInt(optionAgentId) == parseInt(pendingAgentId)) {
-							$accountSelect.val($(this).val()).trigger('change');
-							accountFound = true;
-							$modal.removeData('pendingAgentId');
-							return false;
-						}
-					});
-					if (!accountFound) {
-						$modal.removeData('pendingAgentId');
-					}
-				}
-			}).catch(() => {
-				$modal.removeData('pendingAgentId');
-			});
-		});
+  #modal-services-edit-record .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    right: 0.35rem;
+  }
 
-		function updateBalanceHint() {
-			const transaction = $('input[name="edit-services-transaction"]:checked').val();
-			if (transaction === '2' && depositBalance !== null) {
-				$balanceValue.text(depositBalance.toLocaleString('en-US'));
-				$balanceHint.show();
-			} else {
-				$balanceHint.hide();
-			}
-		}
+  #modal-services-edit-record .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
 
-		async function loadDepositBalance(accountId) {
-			depositBalance = 0;
-			if (!accountId) return;
+  #modal-services-edit-record .select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0 0.25rem;
+    line-height: 1;
+    font-size: 1rem;
+    color: #8a92a6;
+    z-index: 2;
+  }
 
-			try {
-				const response = await fetch(`/account_details_data_deposit/${accountId}`);
-				if (!response.ok) throw new Error('Failed to fetch deposit data');
-				const data = await response.json();
+  #modal-services-edit-record .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #495057;
+  }
 
-				let deposit_amount = 0;
-				let withdraw_amount = 0;
-				let marker_deposit_amount = 0;
-				let marker_return = 0;
+  #modal-services-edit-record .select2-container--default.select2-container--disabled .select2-selection--single {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+  }
 
-				data.forEach(row => {
-					const amount = parseFloat(row.AMOUNT || 0);
-					if (row.TRANSACTION === 'DEPOSIT') {
-						deposit_amount += amount;
-					} else if (row.TRANSACTION === 'WITHDRAW') {
-						withdraw_amount += amount;
-					} else if (row.TRANSACTION === 'MARKER REDEEM') {
-						marker_deposit_amount += amount;
-					} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT' || row.TRANSACTION === 'Credit Returned thru Deposit') {
-						marker_return += amount;
-					}
-				});
+  #modal-services-edit-record .edit-services-type-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.35rem 0;
+  }
 
-				depositBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-			} catch (err) {
-				console.error('Error loading deposit balance', err);
-				depositBalance = 0;
-			}
-		}
+  #modal-services-edit-record .edit-services-type-list .form-check-inline {
+    margin-right: 0;
+  }
 
-		$accountSelect.on('change', async function () {
-			const $selected = $(this).find('option:selected');
-			$agentInput.val($selected.data('agentId') || '');
-			await loadDepositBalance($selected.val());
-			updateBalanceHint();
-		});
+  #modal-services-edit-record .edit-services-type-list .form-check-input {
+    border-color: #8a92a6 !important;
+  }
 
-		$('input[name="edit-services-transaction"]').on('change', updateBalanceHint);
-		$transactionType.on('change', toggleAccountByTransactionType);
+  #modal-services-edit-record .edit-services-type-list .form-check-label {
+    cursor: pointer;
+  }
 
-		$('#edit-services-amount').on('input', function (event) {
-			// allow digits and single decimal point, format with commas
-			const $input = $(this);
-			let raw = $input.val() || '';
-			raw = raw.replace(/[^\d.]/g, '');
-			const parts = raw.split('.');
-			if (parts.length > 2) {
-				raw = `${parts[0]}.${parts.slice(1).join('')}`;
-			}
-			const [intPart, decPart] = raw.split('.');
-			const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-			const formatted = decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
-			$input.val(formatted);
-		});
+  #modal-services-edit-record .edit-services-type-placeholder {
+    line-height: calc(1.5em + 0.75rem + 2px);
+  }
+</style>
 
-		$saveBtn.on('click', async function () {
-			const serviceId = $('#edit-services-id').val();
-			const accountId = $accountSelect.val();
-			const agentId = $agentInput.val();
-			const serviceType = $('#edit-services-type').val();
-			const amountRaw = $('#edit-services-amount').val().replace(/,/g, '').trim();
-			const amount = parseFloat(amountRaw) || 0;
-			const remarks = $('#edit-services-remarks').val().trim();
-			const transactionId = $('input[name="edit-services-transaction"]:checked').val();
-			const sourceType = $transactionType.val();
-
-			if (!serviceId) {
-				Swal.fire({ icon: 'error', title: t.error || 'Error', text: t.service_id_missing || 'Service ID is missing.' });
-				return;
-			}
-			if (!sourceType) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
-				return;
-			}
-			if (!serviceType) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_service_type || 'Select a service type.' });
-				return;
-			}
-			if (!accountId) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_account || 'Select an account.' });
-				return;
-			}
-			if (!transactionId) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_transaction_type || 'Select a transaction type.' });
-				return;
-			}
-			if (amount <= 0) {
-				Swal.fire({ icon: 'warning', title: t.invalid_amount || 'Invalid amount', text: t.amount_must_be_greater || 'Amount must be greater than 0.' });
-				return;
-			}
-
-			$saveBtn.prop('disabled', true).text(t.updating || 'Updating...');
-
-			try {
-				const response = await fetch(`/fnb-hotel/service/${serviceId}`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						account_id: accountId,
-						agent_id: agentId,
-						service_type: serviceType,
-						amount,
-						remarks,
-						transaction_id: transactionId,
-						source_type: sourceType
-					})
-				});
-
-				if (!response.ok) {
-					const error = await response.json().catch(() => ({}));
-					throw new Error(error.error || (t.failed_to_update || 'Failed to update service record.'));
-				}
-
-				await Swal.fire({
-					icon: 'success',
-					title: t.service_updated || 'Service updated',
-					timer: 1200,
-					showConfirmButton: false
-				});
-
-				$modal.modal('hide');
-				if (window.reloadFnbHotelData) {
-					window.reloadFnbHotelData();
-				}
-			} catch (err) {
-				Swal.fire({ icon: 'error', title: t.error || 'Error', text: err.message || (t.failed_to_update || 'Failed to update record.') });
-			} finally {
-				$saveBtn.prop('disabled', false).text(t.update || 'Update');
-			}
-		});
-	})();
-</script>

@@ -86,15 +86,14 @@
 								<table id="fnb-hotel-table" class="table  nowrap small-text" style="width:100%">
 									<thead>
 											<tr>
+												<th><%= __('fnb_hotel.program_date') || 'Program Date' %></th>
 												<th><%= __('fnb_hotel.date') %></th>
-												<th><%= __('fnb_hotel.source') %></th>
 												<th><%= __('fnb_hotel.agent') %></th>
-												<th><%= __('fnb_hotel.game_id') %></th>
-												<th><%= __('fnb_hotel.service_type') %></th>
+												<th><%= __('fnb_hotel.guest') || 'Guest' %></th>
+												<th><%= __('fnb_hotel.type') || 'Type' %></th>
 												<th><%= __('fnb_hotel.amount') %></th>
 												<th><%= __('fnb_hotel.payment') %></th>
 												<th><%= __('fnb_hotel.remarks') %></th>
-												<th><%= __('fnb_hotel.encoded_by') %></th>
 												<th><%= __('fnb_hotel.action') %></th>
 											</tr>
 									</thead>
@@ -390,6 +389,8 @@
 		select_guest_optional: "<%= __('fnb_hotel.select_guest_optional') %>",
 		select_service: "<%= __('fnb_hotel.select_service') %>",
 		select_transaction_type: "<%= __('fnb_hotel.select_transaction_type') %>",
+		select_program_date: "<%= __('fnb_hotel.select_program_date') || 'Select a program date.' %>",
+		program_date: "<%= __('fnb_hotel.program_date') || 'Program Date' %>",
 		saving: "<%= __('fnb_hotel.saving') %>",
 		updating: "<%= __('fnb_hotel.updating') %>",
 		service_recorded: "<%= __('fnb_hotel.service_recorded') %>",
@@ -421,6 +422,7 @@
 </script>
 <script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/new_service_record.js"></script>
+<script src="/assets/js/functions/edit_service_record.js"></script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
 <script>
 	(function () {

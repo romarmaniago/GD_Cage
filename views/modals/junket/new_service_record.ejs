@@ -5,15 +5,19 @@
         <h5 class="modal-title text-white" id="modal-services-new-record-label"><%= __('fnb_hotel.new_service_record') %></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body new-service-record-body">
+      <div class="modal-body">
         <input type="hidden" id="new-services-game-id" />
         <input type="hidden" id="new-services-agent-id" />
         <input type="hidden" id="new-services-type-value" value="" />
 
-        <div class="row g-3 new-service-record-row">
-          <div class="col-md-6">
-            <div class="new-service-field-label"><%= __('fnb_hotel.transaction_type') %></div>
-            <select id="new-transaction-type" class="form-select">
+        <div class="row mb-3">
+          <div class="col-sm-6">
+            <label for="new-services-program-date" class="form-label"><%= __('fnb_hotel.program_date') || 'Program Date' %></label>
+            <input type="text" id="new-services-program-date" class="form-control" autocomplete="off" placeholder="YYYY-MM-DD" required />
+          </div>
+          <div class="col-sm-6">
+            <label for="new-transaction-type" class="form-label"><%= __('fnb_hotel.transaction_type') %></label>
+            <select id="new-transaction-type" class="form-control">
               <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
               <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
               <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
@@ -21,43 +25,43 @@
           </div>
         </div>
 
-        <div class="row g-3 new-service-record-row" id="new-services-account-wrapper">
-          <div class="col-md-6">
-            <div class="new-service-field-label"><%= __('fnb_hotel.account') %></div>
-            <select id="new-services-account" class="js-select2 new-service-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
+        <div class="row mb-3" id="new-services-account-wrapper">
+          <div class="col-sm-6">
+            <label for="new-services-account" class="form-label"><%= __('fnb_hotel.account') %></label>
+            <select id="new-services-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
               <option value=""><%= __('fnb_hotel.choose_account') %></option>
             </select>
           </div>
-          <div class="col-md-6">
-            <div class="new-service-field-label"><%= __('fnb_hotel.guest') %></div>
-            <select id="new-services-guest" class="js-select2 new-service-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
+          <div class="col-sm-6">
+            <label for="new-services-guest" class="form-label"><%= __('fnb_hotel.guest') %></label>
+            <select id="new-services-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
               <option value=""><%= __('fnb_hotel.select_guest_optional') %></option>
             </select>
           </div>
         </div>
 
-        <div class="row g-3 align-items-end new-service-record-row new-service-amount-type-row">
-          <div class="col-md-5">
-            <div class="new-service-field-label"><%= __('fnb_hotel.amount') %></div>
+        <div class="row mb-3 align-items-end">
+          <div class="col-sm-5">
+            <label for="new-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
             <input type="text" id="new-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
             <div id="deposit-balance" class="text-muted small mt-1" style="display:none">
               <%= __('fnb_hotel.available_balance') %> <span id="deposit-balance-value">0</span>
             </div>
           </div>
-          <div class="col-md-7">
-            <div class="new-service-field-label"><%= __('fnb_hotel.service_type') %></div>
+          <div class="col-sm-7">
+            <label class="form-label"><%= __('fnb_hotel.service_type') %></label>
             <div id="new-services-type-list" class="new-services-type-list" role="group" aria-label="<%= __('fnb_hotel.service_type') %>">
               <span class="new-services-type-placeholder text-muted small"><%= __('fnb_hotel.select_service') %></span>
             </div>
           </div>
         </div>
 
-        <div class="new-service-record-row">
-          <div class="new-service-field-label"><%= __('fnb_hotel.remarks') %></div>
+        <div class="mb-1">
+          <label for="new-services-remarks" class="form-label"><%= __('fnb_hotel.remarks') %></label>
           <textarea id="new-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
         </div>
 
-        <div class="row mt-2 gx-4 justify-content-center new-service-record-row" id="new-services-payment-methods">
+        <div class="row mt-3 gx-4 justify-content-center" id="new-services-payment-methods">
           <div class="col-auto">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="new-services-transaction-cash" name="new-services-transaction" />
@@ -81,93 +85,108 @@
 </div>
 
 <style>
-  #modal-services-new-record .new-service-record-body {
-    padding: 1.25rem 1.5rem 0.5rem;
+  /* Keep modal-lg size even when dashboard pages override .modal-lg globally */
+  #modal-services-new-record .modal-dialog.modal-lg {
+    max-width: 800px !important;
   }
 
-  #modal-services-new-record .new-service-field-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #9ca3af;
-    margin-bottom: 0.4rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+  #modal-services-new-record .select2-container {
+    display: block;
+    width: 100% !important;
   }
 
-  #modal-services-new-record .new-service-record-row {
-    margin-bottom: 1rem;
+  #modal-services-new-record .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
   }
 
-  #modal-services-new-record .new-service-amount-type-row {
-    min-height: 4.75rem;
+  #modal-services-new-record .select2-container--default .select2-selection--single {
+    position: relative;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background-color: #fff;
   }
 
-  #modal-services-new-record .form-control,
-  #modal-services-new-record .form-select {
-    border-color: #d1d5db;
-    border-radius: 0.25rem;
-    min-height: 38px;
+  #modal-services-new-record .select2-container--default.select2-container--focus .select2-selection--single,
+  #modal-services-new-record .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
   }
 
-  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection--single {
-    min-height: 38px;
-    border-color: #d1d5db;
-    border-radius: 0.25rem;
-    display: flex;
-    align-items: center;
-  }
-
-  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection__rendered {
-    line-height: 36px;
-    color: #6b7280;
+  #modal-services-new-record .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: block;
     padding-left: 0.75rem;
+    padding-right: 3.25rem;
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    line-height: calc(1.5em + 0.75rem + 2px);
+    color: var(--bs-body-color, #212529);
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  #modal-services-new-record .new-service-select2 + .select2-container .select2-selection__arrow {
-    height: 36px;
+  #modal-services-new-record .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    right: 0.35rem;
+  }
+
+  #modal-services-new-record .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
+
+  #modal-services-new-record .select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0 0.25rem;
+    line-height: 1;
+    font-size: 1rem;
+    color: #8a92a6;
+    z-index: 2;
+  }
+
+  #modal-services-new-record .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #495057;
+  }
+
+  #modal-services-new-record .select2-container--default.select2-container--disabled .select2-selection--single {
+    background-color: #e9ecef;
+    cursor: not-allowed;
   }
 
   #modal-services-new-record .new-services-type-list {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    align-content: flex-start;
-    gap: 0.65rem 1.35rem;
-    min-height: 38px;
-    padding: 0.45rem 0;
+    gap: 0.75rem 1.5rem;
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.35rem 0;
   }
 
-  #modal-services-new-record .new-services-type-list .form-check {
-    margin: 0;
-    padding-left: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    min-height: 1.5rem;
+  #modal-services-new-record .new-services-type-list .form-check-inline {
+    margin-right: 0;
   }
 
   #modal-services-new-record .new-services-type-list .form-check-input {
-    margin: 0;
-    float: none;
-    flex-shrink: 0;
-    border-color: #8a92a6;
+    border-color: #8a92a6 !important;
   }
 
   #modal-services-new-record .new-services-type-list .form-check-label {
-    user-select: none;
-    font-size: 0.9rem;
-    color: #374151;
-    white-space: nowrap;
-    margin: 0;
     cursor: pointer;
   }
 
   #modal-services-new-record .new-services-type-placeholder {
-    line-height: 38px;
+    line-height: calc(1.5em + 0.75rem + 2px);
   }
 
-  #modal-services-new-record #new-services-payment-methods .form-check-label {
-    font-size: 0.95rem;
-    color: #374151;
+  #modal-services-new-record #new-services-payment-methods .form-check-input {
+    border-color: #8a92a6 !important;
   }
 </style>

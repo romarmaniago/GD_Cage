@@ -16,9 +16,54 @@ $(function () {
 	const $balanceValue = $('#deposit-balance-value');
 	const $serviceTypeValue = $('#new-services-type-value');
 	const $serviceTypeList = $('#new-services-type-list');
+	const $programDate = $('#new-services-program-date');
 	let depositBalance = 0;
+	let programDatePicker = null;
 
 	const t = window.fnbHotelTranslations || {};
+
+	function formatYmd(date) {
+		const d = date instanceof Date ? date : new Date(date);
+		if (Number.isNaN(d.getTime())) return '';
+		const pad = (n) => String(n).padStart(2, '0');
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+	}
+
+	function todayProgramDateValue() {
+		return formatYmd(new Date());
+	}
+
+	function getProgramDateValue() {
+		const el = $programDate[0];
+		if (!el) return '';
+		if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+			return formatYmd(el._flatpickr.selectedDates[0]);
+		}
+		return String(el.value || '').trim().slice(0, 10);
+	}
+
+	function ensureProgramDatePicker(defaultDate) {
+		const el = $programDate[0];
+		if (!el) return;
+		const dateVal = defaultDate || getProgramDateValue() || todayProgramDateValue();
+		if (typeof flatpickr === 'undefined') {
+			el.value = dateVal;
+			return;
+		}
+		if (el._flatpickr) {
+			try { el._flatpickr.destroy(); } catch (e) {}
+		}
+		programDatePicker = flatpickr(el, {
+			enableTime: false,
+			dateFormat: 'Y-m-d',
+			altInput: true,
+			altFormat: 'M j, Y',
+			defaultDate: dateVal,
+			allowInput: true,
+			disableMobile: true,
+			closeOnSelect: true
+		});
+	}
 
 	function resetForm() {
 		$transactionType.val('');
@@ -36,6 +81,7 @@ $(function () {
 		$('#new-services-remarks').val('');
 		$('input[name="new-services-transaction"]').prop('checked', false);
 		$paymentMethods.show();
+		ensureProgramDatePicker(todayProgramDateValue());
 	}
 
 	function toggleAccountByTransactionType() {
@@ -70,7 +116,7 @@ $(function () {
 		}
 		$accountSelect.select2({
 			placeholder: $accountSelect.attr('data-placeholder'),
-			allowClear: false,
+			allowClear: true,
 			dropdownParent: $modal,
 			width: '100%'
 		});
@@ -189,7 +235,7 @@ $(function () {
 		const raw = String(value || '').trim();
 		$serviceTypeValue.val(raw);
 		if (!$serviceTypeList.length) return;
-		$serviceTypeList.find('input[type="checkbox"][name="new-services-type"]').each(function () {
+		$serviceTypeList.find('input[type="radio"][name="new-services-type"]').each(function () {
 			const v = String(this.value || '').trim();
 			this.checked = !!raw && v.toLowerCase() === raw.toLowerCase();
 		});
@@ -215,8 +261,8 @@ $(function () {
 				const isChecked = selected && key === selected.toLowerCase();
 				if (isChecked) hasSelected = true;
 				const html =
-					'<div class="form-check form-check-inline">' +
-					'<input class="form-check-input" type="checkbox" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(category) + '"' + (isChecked ? ' checked' : '') + '>' +
+					'<div class="form-check form-check-inline mb-0">' +
+					'<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(category) + '"' + (isChecked ? ' checked' : '') + '>' +
 					'<label class="form-check-label" for="' + escapeHtml(id) + '">' + escapeHtml(category) + '</label>' +
 					'</div>';
 				$serviceTypeList.append(html);
@@ -225,8 +271,8 @@ $(function () {
 			if (selected && !hasSelected) {
 				const id = 'new-services-type-legacy';
 				$serviceTypeList.append(
-					'<div class="form-check form-check-inline">' +
-					'<input class="form-check-input" type="checkbox" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(selected) + '" checked>' +
+					'<div class="form-check form-check-inline mb-0">' +
+					'<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(selected) + '" checked>' +
 					'<label class="form-check-label" for="' + escapeHtml(id) + '">' + escapeHtml(selected) + ' (legacy)</label>' +
 					'</div>'
 				);
@@ -250,6 +296,7 @@ $(function () {
 
 	$modal.on('show.bs.modal', async function () {
 		resetForm();
+		ensureProgramDatePicker(todayProgramDateValue());
 		initGuestSelect2();
 		toggleAccountByTransactionType();
 		// apply dashboard preset (if any)
@@ -262,14 +309,8 @@ $(function () {
 		toggleAccountByTransactionType();
 	});
 
-	// Checkbox list behavior: act like single-select (checkbox UI, single checked)
-	$serviceTypeList.on('change', 'input[type="checkbox"][name="new-services-type"]', function () {
-		if (this.checked) {
-			$serviceTypeList.find('input[type="checkbox"][name="new-services-type"]').not(this).prop('checked', false);
-			$serviceTypeValue.val(String(this.value || '').trim());
-		} else {
-			$serviceTypeValue.val('');
-		}
+	$serviceTypeList.on('change', 'input[type="radio"][name="new-services-type"]', function () {
+		$serviceTypeValue.val(String(this.value || '').trim());
 	});
 
 	function updateBalanceHint() {
@@ -357,7 +398,12 @@ $(function () {
 		const transactionId = $('input[name="new-services-transaction"]:checked').val();
 		const sourceType = $transactionType.val();
 		const guestId = ($guestSelect.val() || '').trim();
+		const programDate = getProgramDateValue();
 
+		if (!programDate) {
+			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_program_date || 'Select a program date.' });
+			return;
+		}
 		if (!sourceType) {
 			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
 			return;
@@ -390,7 +436,8 @@ $(function () {
 					amount: amount,
 					remarks: remarks,
 					transaction_id: transactionId,
-					source_type: sourceType
+					source_type: sourceType,
+					program_date: programDate
 				})
 			});
 

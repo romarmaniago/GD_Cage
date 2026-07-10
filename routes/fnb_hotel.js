@@ -9,6 +9,12 @@ const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const validTransactionIds = [1, 2, 3];
 const validSourceTypes = ['JUNKET', 'GUEST'];
 
+function parseProgramDate(value) {
+	const raw = String(value || '').trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+	return raw;
+}
+
 const LEGACY_SERVICE_TYPE_TO_CATEGORY = {
 	fnb: 'F & B',
 	hotel: 'Hotel',
@@ -35,7 +41,7 @@ async function resolveActiveServiceCategory(serviceType) {
 	return legacyRows[0]?.CATEGORY || null;
 }
 
-/** Client omits ENCODED BY (index 7) and ACTION (last column). */
+/** Client omits ACTION (last column). */
 router.post('/fnb-hotel/export_xlsx', checkSession, async function (req, res) {
 	try {
 		const { headers, rows, filename } = req.body || {};
@@ -62,6 +68,8 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 				SELECT 
 					gs.IDNo,
 					agent.NAME AS agent_name,
+					agent.AGENT_CODE AS agent_code,
+					NULLIF(TRIM(guest.NAME), '') AS guest_name,
 					gs.GAME_ID,
 					gs.SERVICE_TYPE,
 					gs.SOURCE_TYPE,
@@ -70,15 +78,18 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					gs.ENCODED_BY,
 					gs.TRANSACTION_ID,
 					gs.AGENT_ID,
+					gs.GUEST_ID,
 					user_info.FIRSTNAME AS encoded_by_name,
 					gs.ENCODED_DT,
+					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
+				LEFT JOIN guest ON guest.IDNo = gs.GUEST_ID
 				LEFT JOIN user_info ON user_info.IDNo = gs.ENCODED_BY
 				LEFT JOIN game_list ON game_list.IDNo = gs.GAME_ID
 				WHERE gs.ACTIVE = 1
-				ORDER BY gs.ENCODED_DT DESC
+				ORDER BY gs.PROGRAM_DATE DESC, gs.ENCODED_DT DESC
 			`);
 
 			res.render('junket/fnb_hotel', {
@@ -99,6 +110,8 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 				SELECT 
 					gs.IDNo,
 					agent.NAME AS agent_name,
+					agent.AGENT_CODE AS agent_code,
+					NULLIF(TRIM(guest.NAME), '') AS guest_name,
 					gs.GAME_ID,
 					gs.SERVICE_TYPE,
 					gs.SOURCE_TYPE,
@@ -107,15 +120,18 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					gs.ENCODED_BY,
 					gs.TRANSACTION_ID,
 					gs.AGENT_ID,
+					gs.GUEST_ID,
 					user_info.FIRSTNAME AS encoded_by_name,
 					gs.ENCODED_DT,
+					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
+				LEFT JOIN guest ON guest.IDNo = gs.GUEST_ID
 				LEFT JOIN user_info ON user_info.IDNo = gs.ENCODED_BY
 				LEFT JOIN game_list ON game_list.IDNo = gs.GAME_ID
 				WHERE gs.ACTIVE = 1
-				ORDER BY gs.ENCODED_DT DESC
+				ORDER BY gs.PROGRAM_DATE DESC, gs.ENCODED_DT DESC
 			`);
 
 			res.json(rows);
@@ -166,7 +182,8 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			transaction_id,
 			game_id,
 			source_type,
-			guest_id
+			guest_id,
+			program_date
 		} = req.body;
 
 		const parsedAccountId = parseInt(account_id, 10);
@@ -177,9 +194,13 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
 		const resolvedCategory = await resolveActiveServiceCategory(service_type);
+		const programDate = parseProgramDate(program_date);
 
 		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ error: 'Program date is required' });
 		}
 		if (!parsedAccountId) {
 			return res.status(400).json({ error: 'Account is required' });
@@ -196,9 +217,9 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const now = new Date();
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, GUEST_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[resolvedGameId || null, resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, resolvedGuestId, sourceType, encodedBy, now]
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, GUEST_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+			[resolvedGameId || null, resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, resolvedGuestId, sourceType, encodedBy, now, programDate]
 		);
 
 		if (parsedTransactionId === 1 || parsedTransactionId === 2) {
@@ -303,8 +324,9 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			service_type,
 			amount,
 			remarks,
-			transaction_id,
-			source_type
+			source_type,
+			program_date,
+			guest_id
 		} = req.body;
 
 		if (Number.isNaN(serviceId)) {
@@ -339,13 +361,20 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 
 		const parsedAccountId = parseInt(account_id, 10);
 		const parsedAgentId = parseInt(agent_id, 10);
-		const parsedTransactionId = parseInt(transaction_id, 10);
+		const parsedGuestId = parseInt(guest_id, 10);
+		// Payment method (Cash/Deposit) is locked — keep original TRANSACTION_ID
+		const parsedTransactionId = parseInt(existingService.TRANSACTION_ID, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
 		const resolvedCategory = await resolveActiveServiceCategory(service_type);
+		const programDate = parseProgramDate(program_date);
+		const resolvedGuestId = !Number.isNaN(parsedGuestId) && parsedGuestId > 0 ? parsedGuestId : null;
 
 		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
 			return res.status(400).json({ error: 'Invalid input' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ error: 'Program date is required' });
 		}
 		if (!parsedAccountId) {
 			return res.status(400).json({ error: 'Account is required' });
@@ -385,9 +414,9 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		// Update service
 		await pool.execute(
 			`UPDATE game_services 
-			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, AGENT_ID = ?, SOURCE_TYPE = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, AGENT_ID = ?, GUEST_ID = ?, SOURCE_TYPE = ?, PROGRAM_DATE = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
-			[resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, sourceType, updatedBy, now, serviceId]
+			[resolvedCategory, amt, remarks || '', parsedTransactionId, resolvedAgentId, resolvedGuestId, sourceType, programDate, updatedBy, now, serviceId]
 		);
 
 		// Create new cash_transaction if needed

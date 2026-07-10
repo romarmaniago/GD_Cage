@@ -11,9 +11,24 @@ $(document).ready(function () {
 		if (!value) return '-';
 		var d = new Date(value);
 		if (Number.isNaN(d.getTime())) return '-';
+		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+	}
+
+	function formatYmdLocal(d) {
 		var pad = function (n) { return String(n).padStart(2, '0'); };
-		var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-		return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+	}
+
+	function formatProgramDateForDisplay(value) {
+		if (!value) return '-';
+		var raw = String(value).slice(0, 10);
+		if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+			var parts = raw.split('-').map(Number);
+			return parts[1] + '/' + parts[2] + '/' + parts[0];
+		}
+		var d = new Date(value);
+		if (Number.isNaN(d.getTime())) return '-';
+		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
 	}
 
 	function paymentLabel(transactionId) {
@@ -39,6 +54,11 @@ $(document).ready(function () {
 	}
 
 	function parseRowDate(value) {
+		var text = String(value || '').trim();
+		if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+			var parts = text.split('-').map(Number);
+			return new Date(parts[0], parts[1] - 1, parts[2]);
+		}
 		var d = new Date(value);
 		return Number.isNaN(d.getTime()) ? null : d;
 	}
@@ -70,8 +90,9 @@ $(document).ready(function () {
 	$.fn.dataTable.ext.search.push(function (settings, data) {
 		if (!settings || !settings.nTable || settings.nTable.id !== 'dash-delivery-table') return true;
 		if (!deliveryDateStart || !deliveryDateEnd) return true;
-		var rawDate = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
-		var rowDate = parseRowDate(cellText(rawDate));
+		var rawProgram = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
+		var rawEncoded = data && data[1] && data[1].display !== undefined ? data[1].display : data[1];
+		var rowDate = parseRowDate(cellText(rawProgram)) || parseRowDate(cellText(rawEncoded));
 		if (!rowDate) return true;
 		var start = new Date(deliveryDateStart.getFullYear(), deliveryDateStart.getMonth(), deliveryDateStart.getDate(), 0, 0, 0, 0);
 		var end = new Date(deliveryDateEnd.getFullYear(), deliveryDateEnd.getMonth(), deliveryDateEnd.getDate(), 23, 59, 59, 999);
@@ -99,14 +120,14 @@ $(document).ready(function () {
 					}
 				},
 				{
-					targets: [0],
+					targets: [0, 1],
 					render: function (data) {
 						if (typeof data === 'object' && data && data.display !== undefined) return data.display;
 						return data;
 					}
 				},
 				{
-					targets: [9],
+					targets: [8],
 					orderable: false,
 					searchable: false
 				}
@@ -140,10 +161,12 @@ $(document).ready(function () {
 				' data-id="', service.IDNo, '"',
 				' data-source="', escapeHtml(service.SOURCE_TYPE || ''), '"',
 				' data-agent="', service.AGENT_ID || '', '"',
+				' data-guest="', service.GUEST_ID || '', '"',
 				' data-service="', escapeHtml(service.SERVICE_TYPE || ''), '"',
 				' data-amount="', service.AMOUNT, '"',
 				' data-remarks="', safeRemarks, '"',
 				' data-transaction="', service.TRANSACTION_ID, '"',
+				' data-program-date="', escapeHtml(String(service.PROGRAM_DATE || '').slice(0, 10)), '"',
 				' title="Edit"><i class="fa fa-pencil-alt"></i></button>',
 				'<button type="button" class="btn btn-sm bg-danger-subtle delete-service-btn"',
 				' data-id="', service.IDNo, '"',
@@ -182,23 +205,31 @@ $(document).ready(function () {
 					var displayAmt = isJunketSource
 						? (window.fmtOut ? window.fmtOut(amt) : '(' + formattedAmt + ')')
 						: formattedAmt;
-					var sourceClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 					var amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
-					var displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
+					var agentCode = String(service.agent_code || '').trim();
+					var agentName = String(service.agent_name || '').trim();
+					var agentHtml = agentCode && agentName
+						? escapeHtml(agentCode + ' (' + agentName + ')')
+						: escapeHtml(agentCode || agentName || '-');
+					var guestHtml = escapeHtml(String(service.guest_name || '').trim() || '-');
+					var programDateRaw = service.PROGRAM_DATE || '';
+					var programDateDisplay = formatProgramDateForDisplay(programDateRaw);
+					var programDateOrder = programDateRaw
+						? String(programDateRaw).slice(0, 10)
+						: (service.ENCODED_DT ? formatYmdLocal(new Date(service.ENCODED_DT)) : '');
 					var rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
 
 					dataTable.row.add([
+						{ display: programDateDisplay, '@data-order': programDateOrder },
 						{ display: formatDateForDisplay(service.ENCODED_DT), '@data-order': String(rawDate) },
-						'<span class="' + sourceClass + '">' + escapeHtml(displaySource) + '</span>',
-						escapeHtml(service.agent_name || '-'),
-						service.GAME_ID ? escapeHtml(String(service.GAME_ID)) : '-',
+						agentHtml,
+						guestHtml,
 						escapeHtml(service.SERVICE_TYPE || ''),
 						'<span class="' + amountClass + '">' + displayAmt + '</span>',
 						paymentLabel(service.TRANSACTION_ID),
 						window.RemarksEditor
 							? window.RemarksEditor.renderCell(service.REMARKS || '', { source: 'game_services', recordId: service.IDNo })
 							: escapeHtml(service.REMARKS || '-'),
-						escapeHtml(service.encoded_by_name || '-'),
 						buildActionHtml(service)
 					]);
 				});
@@ -251,28 +282,20 @@ $(document).ready(function () {
 
 	$(document).on('click', '#modal-dash-delivery .edit-service-btn', function () {
 		var $btn = $(this);
-		var id = $btn.data('id');
-		var sourceType = $btn.data('source');
-		var agentId = $btn.data('agent');
-		var serviceType = $btn.data('service');
-		var amount = parseFloat($btn.data('amount')) || 0;
-		var remarks = $btn.data('remarks') || '';
-		var transactionId = $btn.data('transaction');
-
-		$('#edit-services-id').val(id);
-		$('#edit-transaction-type').val(sourceType).trigger('change');
-		$('#edit-services-amount').val(amount.toLocaleString('en-US'));
-		$('#edit-services-remarks').val(remarks);
-		if (transactionId) {
-			$('input[name="edit-services-transaction"][value="' + transactionId + '"]').prop('checked', true);
+		var payload = {
+			id: $btn.attr('data-id') || $btn.data('id'),
+			sourceType: $btn.attr('data-source') || '',
+			agentId: $btn.attr('data-agent') || '',
+			guestId: $btn.attr('data-guest') || '',
+			serviceType: $btn.attr('data-service') || '',
+			amount: $btn.attr('data-amount') || 0,
+			remarks: $btn.attr('data-remarks') || '',
+			transactionId: $btn.attr('data-transaction') || '',
+			programDate: String($btn.attr('data-program-date') || '').trim().slice(0, 10)
+		};
+		if (typeof window.openEditChargeModal === 'function') {
+			window.openEditChargeModal(payload);
 		}
-		if (agentId) {
-			$('#modal-services-edit-record').data('pendingAgentId', agentId);
-		}
-
-		window.populateServiceCategorySelect($('#edit-services-type'), serviceType).then(function () {
-			$('#modal-services-edit-record').modal('show');
-		});
 	});
 
 	$(document).on('click', '#modal-dash-delivery .delete-service-btn', function () {

@@ -95,7 +95,7 @@ window.populateFnbHotelServiceTypeSelect = populateServiceCategorySelect;
 window.matchesServiceCategory = matchesServiceCategory;
 
 window.refreshServiceCategorySelects = function () {
-	var editVal = $('#edit-services-type').val() || '';
+	var editVal = $('#edit-services-type-value').val() || '';
 	var newVal = '';
 	if ($('#new-services-type').length) {
 		newVal = $('#new-services-type').val() || '';
@@ -111,6 +111,8 @@ window.refreshServiceCategorySelects = function () {
 	}
 	if ($('#edit-services-type').length) {
 		tasks.push(populateServiceCategorySelect($('#edit-services-type'), editVal));
+	} else if ($('#edit-services-type-list').length && $('#edit-services-type-value').length) {
+		// Edit modal now uses radio list; values refresh on next modal open.
 	}
 	return Promise.all(tasks);
 };

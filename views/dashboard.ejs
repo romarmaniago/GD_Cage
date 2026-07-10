@@ -286,7 +286,7 @@
                      <div class="dash-kv-group-title is-warn">Settlement</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-commission" data-view-only-disable class="dash-card-link">Commission</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Additional</a></span><span class="dash-kv-value" id="dash-additional-commission-total"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
-                     <div class="dash-kv-group-title is-muted">Deposit Of Expenses</div>
+                     <div class="dash-kv-group-title is-muted">Add Charge</div>
                      <div id="dash-service-category-rows-main">
                      <% dashServiceCategoryRows.forEach(function (cat) { %>
                      <div class="dash-kv dash-service-category-row" data-category="<%= cat.key %>">
@@ -800,6 +800,8 @@
       select_guest_optional: "<%= __('fnb_hotel.select_guest_optional') %>",
       select_service: "<%= __('fnb_hotel.select_service') %>",
       select_transaction_type: "<%= __('fnb_hotel.select_transaction_type') %>",
+      select_program_date: "<%= __('fnb_hotel.select_program_date') || 'Select a program date.' %>",
+      program_date: "<%= __('fnb_hotel.program_date') || 'Program Date' %>",
       saving: "<%= __('fnb_hotel.saving') %>",
       updating: "<%= __('fnb_hotel.updating') %>",
       service_recorded: "<%= __('fnb_hotel.service_recorded') %>",
@@ -825,3 +827,4 @@
    };
 </script>
 <script src="/assets/js/functions/new_service_record.js"></script>
+<script src="/assets/js/functions/edit_service_record.js"></script>

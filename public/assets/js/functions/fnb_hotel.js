@@ -10,9 +10,7 @@ $(document).ready(function() {
 		if (!value) return '-';
 		const d = new Date(value);
 		if (Number.isNaN(d.getTime())) return '-';
-		const pad = (n) => String(n).padStart(2, '0');
-		const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-		return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 	}
 
 	function paymentLabel(transactionId) {
@@ -41,7 +39,29 @@ $(document).ready(function() {
 		return $('<div>').html(value == null ? '' : String(value)).text().trim();
 	}
 
+	function formatProgramDateForDisplay(value) {
+		if (!value) return '-';
+		const raw = String(value).slice(0, 10);
+		if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+			const parts = raw.split('-').map(Number);
+			return `${parts[1]}/${parts[2]}/${parts[0]}`;
+		}
+		const d = new Date(value);
+		if (Number.isNaN(d.getTime())) return '-';
+		return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+	}
+
+	function formatYmdLocal(d) {
+		const pad = (n) => String(n).padStart(2, '0');
+		return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+	}
+
 	function parseFnbHotelDate(value) {
+		const text = String(value || '').trim();
+		if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+			const parts = text.split('-').map(Number);
+			return new Date(parts[0], parts[1] - 1, parts[2]);
+		}
 		const d = new Date(value);
 		return Number.isNaN(d.getTime()) ? null : d;
 	}
@@ -66,8 +86,9 @@ $(document).ready(function() {
 			if (!window.matchesServiceCategory || !window.matchesServiceCategory(serviceType, currentFilter)) return false;
 		}
 		if (!fnbHotelDateStart || !fnbHotelDateEnd) return true;
-		const rawDate = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
-		const rowDate = parseFnbHotelDate(cellText(rawDate));
+		const rawProgram = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
+		const rawEncoded = data && data[1] && data[1].display !== undefined ? data[1].display : data[1];
+		const rowDate = parseFnbHotelDate(cellText(rawProgram)) || parseFnbHotelDate(cellText(rawEncoded));
 		if (!rowDate) return true;
 		const start = new Date(fnbHotelDateStart.getFullYear(), fnbHotelDateStart.getMonth(), fnbHotelDateStart.getDate(), 0, 0, 0, 0);
 		const end = new Date(fnbHotelDateEnd.getFullYear(), fnbHotelDateEnd.getMonth(), fnbHotelDateEnd.getDate(), 23, 59, 59, 999);
@@ -89,7 +110,7 @@ $(document).ready(function() {
 			ordering: true,
 			info: true,
 			paging: true,
-			order: [[0, 'desc']], // Sort by Date column (descending)
+			order: [[0, 'desc']], // Sort by Program Date (descending)
 			columnDefs: [
 				{
 					createdCell: function (cell) {
@@ -97,14 +118,14 @@ $(document).ready(function() {
 					}
 				},
 				{
-					targets: [0], // Date column: sort by data-order / @data-order (timestamp)
+					targets: [0, 1], // Program Date + Date: sort by data-order / @data-order
 					render: function (data) {
 						if (typeof data === 'object' && data && data.display !== undefined) return data.display;
 						return data;
 					}
 				},
 				{
-					targets: [9], // Action column
+					targets: [8], // Action column
 					orderable: false,
 					searchable: false
 				}
@@ -181,13 +202,14 @@ $(document).ready(function() {
 					const canEdit = !hasGameId;
 					const canDelete = !hasGameId;
 
-					const sourceClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 					const amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 
-					const displaySource = isJunketSource ? 'OUT' : (service.SOURCE_TYPE === 'GUEST' ? 'IN' : (service.SOURCE_TYPE || '-'));
-					const sourceHtml = `<span class="${sourceClass}">${displaySource}</span>`;
-					const agentHtml = service.agent_name || '-';
-					const gameIdHtml = service.GAME_ID ? service.GAME_ID : '-';
+					const agentCode = String(service.agent_code || '').trim();
+					const agentName = String(service.agent_name || '').trim();
+					const agentHtml = agentCode && agentName
+						? escapeHtml(agentCode + ' (' + agentName + ')')
+						: escapeHtml(agentCode || agentName || '-');
+					const guestHtml = escapeHtml(String(service.guest_name || '').trim() || '-');
 					const serviceTypeHtml = service.SERVICE_TYPE || '';
 					const amountHtml = `<span class="${amountClass}">${displayAmt}</span>`;
 					const paymentHtml = paymentLabel(service.TRANSACTION_ID);
@@ -197,7 +219,12 @@ $(document).ready(function() {
 							recordId: service.IDNo
 						})
 						: (service.REMARKS || '-');
-					const encodedByHtml = service.encoded_by_name || '-';
+					const programDateRaw = service.PROGRAM_DATE || '';
+					const programDateDisplay = formatProgramDateForDisplay(programDateRaw);
+					const programDateOrder = programDateRaw
+						? String(programDateRaw).slice(0, 10)
+						: (service.ENCODED_DT ? formatYmdLocal(new Date(service.ENCODED_DT)) : '');
+					const programDateCellData = { display: programDateDisplay, '@data-order': programDateOrder };
 					const rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
 					const dateDisplay = formatDateForDisplay(service.ENCODED_DT);
 					// Orthogonal data: display text for show, @data-order for correct date sort
@@ -212,12 +239,14 @@ $(document).ready(function() {
 								<button type="button"
 									class="btn btn-sm bg-info-subtle edit-service-btn"
 									data-id="${service.IDNo}"
-									data-source="${service.SOURCE_TYPE}"
+									data-source="${escapeHtml(service.SOURCE_TYPE || '')}"
 									data-agent="${service.AGENT_ID || ''}"
-									data-service="${service.SERVICE_TYPE}"
+									data-guest="${service.GUEST_ID || ''}"
+									data-service="${escapeHtml(service.SERVICE_TYPE || '')}"
 									data-amount="${service.AMOUNT}"
 									data-remarks="${safeRemarks}"
 									data-transaction="${service.TRANSACTION_ID}"
+									data-program-date="${escapeHtml(String(service.PROGRAM_DATE || '').slice(0, 10))}"
 									title="Edit">
 									<i class="fa fa-pencil-alt"></i>
 								</button>
@@ -243,15 +272,14 @@ $(document).ready(function() {
 					}
 
 					dataTable.row.add([
+						programDateCellData,
 						dateCellData,
-						sourceHtml,
 						agentHtml,
-						gameIdHtml,
+						guestHtml,
 						serviceTypeHtml,
 						amountHtml,
 						paymentHtml,
 						remarksHtml,
-						encodedByHtml,
 						actionHtml
 					]);
 				});
@@ -276,14 +304,12 @@ $(document).ready(function() {
 		return 'FnbHotel_' + d + '.xlsx';
 	}
 
-	function getFnbHotelTablePayload(includeEncodedBy) {
+	function getFnbHotelTablePayload() {
 		const dt = $('#fnb-hotel-table').DataTable();
-		const actionColIndex = 9;
-		const encodedByColIndex = 8;
+		const actionColIndex = 8;
 		const headers = [];
 		$('#fnb-hotel-table thead tr:first th').each(function (i) {
 			if (i === actionColIndex) return;
-			if (!includeEncodedBy && i === encodedByColIndex) return;
 			headers.push($(this).text().trim());
 		});
 		const rows = [];
@@ -293,7 +319,6 @@ $(document).ready(function() {
 				.find('td')
 				.each(function (i) {
 					if (i === actionColIndex) return;
-					if (!includeEncodedBy && i === encodedByColIndex) return;
 					cells.push($(this).text().trim());
 				});
 			if (cells.length) rows.push(cells);
@@ -317,7 +342,7 @@ $(document).ready(function() {
 
 	function printFnbHotelTable() {
 		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return;
-		const payload = getFnbHotelTablePayload(true);
+		const payload = getFnbHotelTablePayload();
 		const t = window.fnbHotelTranslations || {};
 		if (payload.rows.length === 0) {
 			if (window.Swal) {
@@ -377,7 +402,7 @@ $(document).ready(function() {
 	$('#btn-fnb-hotel-export').on('click', function (e) {
 		e.preventDefault();
 		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return;
-		const payload = getFnbHotelTablePayload(false);
+		const payload = getFnbHotelTablePayload();
 		const headers = payload.headers;
 		const rows = payload.rows;
 		const t = window.fnbHotelTranslations || {};
@@ -518,29 +543,28 @@ $(document).ready(function() {
 	// Edit service button handlers
 	$(document).on('click', '.edit-service-btn', function() {
 		const $btn = $(this);
-		const id = $btn.data('id');
-		const sourceType = $btn.data('source');
-		const agentId = $btn.data('agent');
-		const serviceType = $btn.data('service');
-		const amount = parseFloat($btn.data('amount')) || 0;
-		const remarks = $btn.data('remarks') || '';
-		const transactionId = $btn.data('transaction');
+		const payload = {
+			id: $btn.attr('data-id') || $btn.data('id'),
+			sourceType: $btn.attr('data-source') || '',
+			agentId: $btn.attr('data-agent') || '',
+			guestId: $btn.attr('data-guest') || '',
+			serviceType: $btn.attr('data-service') || '',
+			amount: $btn.attr('data-amount') || $btn.data('amount') || 0,
+			remarks: $btn.attr('data-remarks') || '',
+			transactionId: $btn.attr('data-transaction') || '',
+			programDate: String($btn.attr('data-program-date') || '').trim().slice(0, 10)
+		};
 
-		$('#edit-services-id').val(id);
-		$('#edit-transaction-type').val(sourceType).trigger('change');
-		$('#edit-services-amount').val(amount.toLocaleString('en-US'));
-		$('#edit-services-remarks').val(remarks);
-		if (transactionId) {
-			$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
+		if (typeof window.openEditChargeModal === 'function') {
+			window.openEditChargeModal(payload);
+			return;
 		}
 
-		if (agentId) {
-			$('#modal-services-edit-record').data('pendingAgentId', agentId);
-		}
-
-		populateServiceCategorySelect($('#edit-services-type'), serviceType).then(function () {
-			$('#modal-services-edit-record').modal('show');
-		});
+		$('#edit-services-id').val(payload.id);
+		$('#edit-services-amount').val((parseFloat(String(payload.amount).replace(/,/g, '')) || 0).toLocaleString('en-US'));
+		$('#edit-services-remarks').val(payload.remarks);
+		$('#edit-services-transaction-id').val(payload.transactionId || '');
+		$('#modal-services-edit-record').modal('show');
 	});
 
 	// Delete service button handlers
