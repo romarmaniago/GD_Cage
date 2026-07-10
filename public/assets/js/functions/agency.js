@@ -2507,7 +2507,7 @@ function checkPermissionToDeleteAgentPanel(id) {
 }
 
 // Super Admin password override (shared by LINE / AGENT / GUEST delete)
-function promptManagerPasswordThen(onConfirmed) {
+function promptManagerPasswordThen(actionText, onConfirmed) {
   const $guestSearch = $('#guest-panel-search');
   const savedGuestSearch = $guestSearch.val() || '';
   const savedGuestSearchQuery = guestSearchQuery;
@@ -2535,6 +2535,7 @@ function promptManagerPasswordThen(onConfirmed) {
   Swal.fire({
     icon: 'warning',
     title: 'Password required',
+    text: 'Enter the Super Admin password to ' + actionText,
     input: 'password',
     inputPlaceholder: 'Password',
     inputAttributes: {
@@ -2673,7 +2674,7 @@ function checkPermissionToDeleteGuest(id) {
   }).then(function (result) {
     if (!result.isConfirmed) return;
     setTimeout(function () {
-      promptManagerPasswordThen(function () {
+      promptManagerPasswordThen('delete this guest.', function () {
         performGuestArchiveRemove(numericId);
       });
     }, 200);
@@ -2724,7 +2725,7 @@ function promptDeleteAgentsWithTransferOption(ids) {
   }).then(function (result) {
     if (result.isConfirmed) {
       setTimeout(function () {
-        promptManagerPasswordThen(function () {
+        promptManagerPasswordThen('delete this LINE.', function () {
           performAgencyArchiveRemove(ids);
         });
       }, 200);
@@ -2758,7 +2759,7 @@ function promptDeleteAgentWithTransferOption(id) {
   }).then(function (result) {
     if (result.isConfirmed) {
       setTimeout(function () {
-        promptManagerPasswordThen(function () {
+        promptManagerPasswordThen('delete this agent.', function () {
           performAgentArchiveRemove(numericId);
         });
       }, 200);
