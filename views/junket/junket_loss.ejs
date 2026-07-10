@@ -13,7 +13,7 @@
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
               <a href="#"><%= __('junket_loss.junket') %></a>
-              <a href="/junket_loss" class="active"><%= __('junket_loss.title') %></a>
+              <a href="/loss_amount" class="active"><%= __('junket_loss.title') %></a>
             </div>
           </h3>
           <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -27,8 +27,8 @@
               type="button"
               class="expense-cat-panel-add-btn js-house-expense-add-sub-cat d-none"
               id="btn-add-junket-loss"
-              title="<%= __('junket_loss.add') || 'Add Junket Loss' %>"
-              aria-label="<%= __('junket_loss.add') || 'Add Junket Loss' %>"
+              title="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
+              aria-label="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
             >
               <i class="fa fa-plus" aria-hidden="true"></i>
             </button>
@@ -51,12 +51,16 @@
             <table id="junket-loss-tbl" class="table nowrap small-text" style="width:100%">
               <thead>
                 <tr>
+                  <th>Program Date</th>
                   <th>Date &amp; Time</th>
-                  <th>Description</th>
+                  <th>Account</th>
+                  <th>Guest</th>
                   <th>Amount</th>
-                  <th>In-charge</th>
-                  <th>Encoded By</th>
-                  <th>Action</th>
+                  <th>Type</th>
+                  <th>Person Involved</th>
+                  <th>Description</th>
+                  <%# <th>Encoded By</th> %>
+                  <%# <th>Action</th> %>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -69,27 +73,15 @@
 </div>
 
 <div class="modal fade" id="modal-junket-loss" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Junket Expense</h5>
+        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Loss Amount</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="junket-loss-form">
         <div class="modal-body">
-          <input type="hidden" id="junket-loss-id" />
-          <div class="mb-3">
-            <label for="junket-loss-description" class="form-label">Description</label>
-            <textarea id="junket-loss-description" class="form-control" rows="3" required></textarea>
-          </div>
-          <div class="mb-3">
-            <label for="junket-loss-amount" class="form-label">Amount</label>
-            <input type="text" id="junket-loss-amount" class="form-control" inputmode="decimal" autocomplete="off" required />
-          </div>
-          <div class="mb-3">
-            <label for="junket-loss-incharge" class="form-label">In-charge</label>
-            <input type="text" id="junket-loss-incharge" class="form-control" maxlength="150" required />
-          </div>
+          <%- include('../partials/junket_loss_form_fields') %>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary" id="junket-loss-save-btn">Save</button>
@@ -131,22 +123,23 @@
     border: none;
   }
 
-  #junket-loss-tbl thead th:nth-child(1),
-  #junket-loss-tbl thead th:nth-child(3),
-  #junket-loss-tbl thead th:nth-child(4),
-  #junket-loss-tbl thead th:nth-child(5) {
-    text-align: left;
-    padding-left: 20px;
-  }
-
-  #junket-loss-tbl thead th:nth-child(2) {
+  #junket-loss-tbl thead th:nth-child(5),
+  #junket-loss-tbl tbody td:nth-child(5) {
     text-align: right;
     padding-right: 20px;
   }
 
-  #junket-loss-tbl thead th:nth-child(6) {
+  #junket-loss-tbl thead th:nth-child(6),
+  #junket-loss-tbl tbody td:nth-child(6) {
     text-align: center;
   }
+
+  /* Action column (when restored):
+  #junket-loss-tbl thead th:nth-child(10),
+  #junket-loss-tbl tbody td:nth-child(10) {
+    text-align: center;
+  }
+  */
 
   #junket-loss-tbl tbody tr {
     border-bottom: 1px solid #eee;
@@ -158,26 +151,13 @@
     vertical-align: middle;
   }
 
-  #junket-loss-tbl tbody td:nth-child(1),
-  #junket-loss-tbl tbody td:nth-child(3),
-  #junket-loss-tbl tbody td:nth-child(4),
-  #junket-loss-tbl tbody td:nth-child(5) {
-    text-align: left;
-    padding-left: 20px;
-  }
-
-  #junket-loss-tbl tbody td:nth-child(2) {
-    text-align: right;
-    padding-right: 20px;
-  }
-
   #junket-loss-tbl tbody tr:hover {
     background-color: #f5f5f5 !important;
   }
 
   #junket-loss-tbl td:last-child {
-    text-align: center;
-    color: #333;
+    text-align: left;
+    color: #666;
   }
 
   .dataTables_length label {

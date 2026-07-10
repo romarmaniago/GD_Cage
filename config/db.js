@@ -4,6 +4,7 @@ const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategoryS
 const { ensureHouseExpenseApprovalSchema } = require('../utils/ensureHouseExpenseApprovalSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
 const { ensureTipSchema } = require('../utils/ensureTipSchema');
+const { ensureJunketLossSchema } = require('../utils/ensureJunketLossSchema');
 const { ensureGameServicesDeliveryFeeSchema } = require('../utils/ensureGameServicesDeliveryFeeSchema');
 const { ensureGameServicesServiceTypeSchema } = require('../utils/ensureGameServicesServiceTypeSchema');
 const { ensureGameServicesGuestSchema } = require('../utils/ensureGameServicesGuestSchema');
@@ -40,6 +41,7 @@ const pool = mysql.createPool({
 		await ensureHouseExpenseApprovalSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
 		await ensureTipSchema(pool);
+		await ensureJunketLossSchema(pool);
 		await ensureGameServicesDeliveryFeeSchema(pool);
 		await ensureGameServicesServiceTypeSchema(pool);
 		await ensureGameServicesGuestSchema(pool);

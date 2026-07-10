@@ -38,13 +38,47 @@ function normalizeJunketLossDateRange(fromDate, toDate) {
 	return { fromDate: from, toDate: to };
 }
 
+function parseOptionalId(value) {
+	if (value === undefined || value === null || String(value).trim() === '') return null;
+	const n = parseInt(value, 10);
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function parsePaymentType(value) {
+	const n = parseInt(value, 10);
+	return n === 1 || n === 2 ? n : null;
+}
+
+function parseProgramDate(value) {
+	const raw = String(value || '').trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+	return raw;
+}
+
+function buildEncodedDtFromProgramDate(programDate) {
+	const now = new Date();
+	const parts = String(programDate).split('-').map(Number);
+	return new Date(
+		parts[0],
+		parts[1] - 1,
+		parts[2],
+		now.getHours(),
+		now.getMinutes(),
+		now.getSeconds()
+	);
+}
+
 router.get('/junket_loss', checkSession, function (req, res) {
-	const data = sessions(req, 'junket_loss');
+	return res.redirect(301, '/loss_amount');
+});
+
+router.get('/loss_amount', checkSession, function (req, res) {
+	const data = sessions(req, 'loss_amount');
 	data.permissions = req.session.permissions;
 	res.render('junket/junket_loss', data);
 });
 
-router.get('/junket_loss_total', checkSession, async (req, res) => {
+router.get('/loss_amount_total', checkSession, async (req, res) => {
 	try {
 		const [rows] = await pool.execute(
 			'SELECT COALESCE(SUM(AMOUNT), 0) AS TOTAL FROM junket_loss WHERE ACTIVE = 1 AND GAME_ID IS NULL'
@@ -56,7 +90,7 @@ router.get('/junket_loss_total', checkSession, async (req, res) => {
 	}
 });
 
-router.get('/junket_loss_data', async (req, res) => {
+router.get('/loss_amount_data', async (req, res) => {
 	try {
 		const { fromDate, toDate } = normalizeJunketLossDateRange(req.query.fromDate, req.query.toDate);
 
@@ -66,14 +100,23 @@ router.get('/junket_loss_data', async (req, res) => {
 				jl.DESCRIPTION,
 				jl.AMOUNT,
 				jl.IN_CHARGE,
+				jl.PROGRAM_DATE,
+				jl.ACCOUNT_ID,
+				jl.GUEST_ID,
+				jl.PAYMENT_TYPE,
 				jl.ENCODED_BY,
 				jl.ENCODED_DT,
-				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME
+				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME,
+				NULLIF(TRIM(CONCAT_WS(' - ', NULLIF(TRIM(ag.AGENT_CODE), ''), NULLIF(TRIM(ag.NAME), ''))), '') AS ACCOUNT_NAME,
+				NULLIF(TRIM(g.NAME), '') AS GUEST_NAME
 			FROM junket_loss jl
 			LEFT JOIN user_info ui ON ui.IDNo = jl.ENCODED_BY
+			LEFT JOIN account a ON a.IDNo = jl.ACCOUNT_ID
+			LEFT JOIN agent ag ON ag.IDNo = a.AGENT_ID
+			LEFT JOIN guest g ON g.IDNo = jl.GUEST_ID
 			WHERE jl.ACTIVE = 1
-				AND DATE(jl.ENCODED_DT) BETWEEN ? AND ?
-			ORDER BY jl.ENCODED_DT DESC
+				AND DATE(COALESCE(jl.PROGRAM_DATE, jl.ENCODED_DT)) BETWEEN ? AND ?
+			ORDER BY COALESCE(jl.PROGRAM_DATE, jl.ENCODED_DT) DESC, jl.IDNo DESC
 		`;
 
 		const [result] = await pool.execute(query, [fromDate, toDate]);
@@ -84,25 +127,56 @@ router.get('/junket_loss_data', async (req, res) => {
 	}
 });
 
-router.post('/add_junket_loss', async (req, res) => {
+router.post('/add_loss_amount', async (req, res) => {
 	try {
-		const { txtDescription, txtAmount, txtInCharge } = req.body;
-		const date_now = new Date();
-		const cleanAmount = String(txtAmount || '').replace(/,/g, '');
+		const {
+			txtDescription,
+			txtAmount,
+			txtInCharge,
+			txtProgramDate,
+			txtAccountId,
+			txtGuestId,
+			txtPaymentType
+		} = req.body;
 
-		if (!txtDescription || !txtInCharge || cleanAmount === '' || Number.isNaN(Number(cleanAmount))) {
+		const programDate = parseProgramDate(txtProgramDate);
+		const cleanAmount = String(txtAmount || '').replace(/,/g, '');
+		const paymentType = parsePaymentType(txtPaymentType);
+		const accountId = parseOptionalId(txtAccountId);
+		const guestId = parseOptionalId(txtGuestId);
+
+		if (
+			!txtDescription ||
+			!txtInCharge ||
+			!programDate ||
+			!paymentType ||
+			cleanAmount === '' ||
+			Number.isNaN(Number(cleanAmount))
+		) {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
 
+		const encodedDt = buildEncodedDtFromProgramDate(programDate);
+
 		const query = `
-			INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?)
+			INSERT INTO junket_loss (
+				DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE,
+				ENCODED_BY, ENCODED_DT
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
 
-		await pool.execute(
-			query,
-			[txtDescription.trim(), Number(cleanAmount), txtInCharge.trim(), req.session.user_id, date_now]
-		);
+		await pool.execute(query, [
+			txtDescription.trim(),
+			Number(cleanAmount),
+			txtInCharge.trim(),
+			programDate,
+			accountId,
+			guestId,
+			paymentType,
+			req.session.user_id,
+			encodedDt
+		]);
 
 		res.json({ message: 'Saved successfully' });
 	} catch (error) {
@@ -111,27 +185,58 @@ router.post('/add_junket_loss', async (req, res) => {
 	}
 });
 
-router.put('/junket_loss/:id', async (req, res) => {
+router.put('/loss_amount/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id, 10);
-		const { txtDescription, txtAmount, txtInCharge } = req.body;
+		const {
+			txtDescription,
+			txtAmount,
+			txtInCharge,
+			txtProgramDate,
+			txtAccountId,
+			txtGuestId,
+			txtPaymentType
+		} = req.body;
+
+		const programDate = parseProgramDate(txtProgramDate);
 		const date_now = new Date();
 		const cleanAmount = String(txtAmount || '').replace(/,/g, '');
+		const paymentType = parsePaymentType(txtPaymentType);
+		const accountId = parseOptionalId(txtAccountId);
+		const guestId = parseOptionalId(txtGuestId);
 
-		if (!id || !txtDescription || !txtInCharge || cleanAmount === '' || Number.isNaN(Number(cleanAmount))) {
+		if (
+			!id ||
+			!txtDescription ||
+			!txtInCharge ||
+			!programDate ||
+			!paymentType ||
+			cleanAmount === '' ||
+			Number.isNaN(Number(cleanAmount))
+		) {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
 
 		const query = `
 			UPDATE junket_loss
-			SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, EDITED_BY = ?, EDITED_DT = ?
+			SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?,
+				ACCOUNT_ID = ?, GUEST_ID = ?, PAYMENT_TYPE = ?,
+				EDITED_BY = ?, EDITED_DT = ?
 			WHERE IDNo = ? AND ACTIVE = 1
 		`;
 
-		await pool.execute(
-			query,
-			[txtDescription.trim(), Number(cleanAmount), txtInCharge.trim(), req.session.user_id, date_now, id]
-		);
+		await pool.execute(query, [
+			txtDescription.trim(),
+			Number(cleanAmount),
+			txtInCharge.trim(),
+			programDate,
+			accountId,
+			guestId,
+			paymentType,
+			req.session.user_id,
+			date_now,
+			id
+		]);
 
 		res.json({ message: 'Updated successfully' });
 	} catch (error) {
@@ -140,7 +245,7 @@ router.put('/junket_loss/:id', async (req, res) => {
 	}
 });
 
-router.put('/junket_loss/remove/:id', async (req, res) => {
+router.put('/loss_amount/remove/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id, 10);
 		const date_now = new Date();
@@ -158,20 +263,20 @@ router.put('/junket_loss/remove/:id', async (req, res) => {
 });
 
 /** Client omits ACTION (last column). */
-router.post('/junket_loss/export_xlsx', checkSession, async function (req, res) {
+router.post('/loss_amount/export_xlsx', checkSession, async function (req, res) {
 	try {
 		const { headers, rows, filename } = req.body || {};
 		const result = await buildTableExportXlsx({
 			profileKey: 'junketLoss',
-			sheetName: 'Junket Loss',
+			sheetName: 'Loss Amount',
 			headers,
 			rows,
-			filename: filename || 'JunketLoss-export.xlsx'
+			filename: filename || 'LossAmount-export.xlsx'
 		});
 		return sendTableExportResponse(res, result);
 	} catch (err) {
 		if (err.status === 400) return res.status(400).json({ error: err.message });
-		console.error('junket_loss/export_xlsx:', err);
+		console.error('loss_amount/export_xlsx:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });

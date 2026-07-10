@@ -1,0 +1,118 @@
+<input type="hidden" id="junket-loss-id" />
+<div class="mb-3">
+  <label for="junket-loss-program-date" class="form-label">Program Date</label>
+  <input type="text" id="junket-loss-program-date" class="form-control" autocomplete="off" placeholder="YYYY-MM-DD" required />
+</div>
+<div class="row mb-3">
+  <div class="col-sm-6">
+    <label for="junket-loss-account" class="form-label">Account <span class="text-muted fw-normal">(optional)</span></label>
+    <select id="junket-loss-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose account">
+      <option value="">Choose account</option>
+    </select>
+  </div>
+  <div class="col-sm-6">
+    <label for="junket-loss-guest" class="form-label">Guest <span class="text-muted fw-normal">(optional)</span></label>
+    <select id="junket-loss-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose guest" disabled>
+      <option value="">Choose guest</option>
+    </select>
+  </div>
+</div>
+<div class="row mb-3 align-items-end">
+  <div class="col-sm-6">
+    <label for="junket-loss-amount" class="form-label">Amount</label>
+    <input type="text" id="junket-loss-amount" class="form-control" inputmode="decimal" autocomplete="off" required />
+  </div>
+  <div class="col-sm-6">
+    <div class="d-flex flex-wrap align-items-center justify-content-center" style="min-height: calc(1.5em + 0.75rem + 2px); gap: 6rem;">
+      <div class="form-check mb-0">
+        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" name="junket-loss-payment-type" id="junket-loss-type-chip" value="1" required />
+        <label class="form-check-label" for="junket-loss-type-chip">Chip</label>
+      </div>
+      <div class="form-check mb-0">
+        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" name="junket-loss-payment-type" id="junket-loss-type-cash" value="2" />
+        <label class="form-check-label" for="junket-loss-type-cash">Cash</label>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="mb-3">
+  <label for="junket-loss-incharge" class="form-label">Person(s) involved</label>
+  <input type="text" id="junket-loss-incharge" class="form-control" maxlength="150" required />
+</div>
+<div class="mb-1">
+  <label for="junket-loss-description" class="form-label">Description</label>
+  <textarea id="junket-loss-description" class="form-control" rows="3" required></textarea>
+</div>
+
+<style>
+  #modal-junket-loss .select2-container {
+    display: block;
+    width: 100% !important;
+  }
+
+  #modal-junket-loss .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single {
+    position: relative;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background-color: #fff;
+  }
+
+  #modal-junket-loss .select2-container--default.select2-container--focus .select2-selection--single,
+  #modal-junket-loss .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: block;
+    padding-left: 0.75rem;
+    padding-right: 3.25rem;
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    line-height: calc(1.5em + 0.75rem + 2px);
+    color: var(--bs-body-color, #212529);
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 2px);
+    min-height: calc(1.5em + 0.75rem + 2px);
+    right: 0.35rem;
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: 1.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    float: none;
+    margin: 0;
+    padding: 0 0.25rem;
+    line-height: 1;
+    font-size: 1rem;
+    color: #8a92a6;
+    z-index: 2;
+  }
+
+  #modal-junket-loss .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #495057;
+  }
+
+  #modal-junket-loss .select2-container--default.select2-container--disabled .select2-selection--single {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+  }
+</style>

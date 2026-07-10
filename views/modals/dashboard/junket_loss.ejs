@@ -26,7 +26,7 @@
             </button>
             <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
             <button type="button" class="btn btn-sm btn-primary" id="btn-add-junket-loss" data-view-only-disable>
-              <i class="fa fa-plus me-1"></i> <%= __('junket_loss.add') || 'Add Junket Loss' %>
+              <i class="fa fa-plus me-1"></i> <%= __('junket_loss.add') || 'Add Loss Amount' %>
             </button>
             <% } %>
           </div>
@@ -35,12 +35,16 @@
           <table id="junket-loss-tbl" class="table nowrap small-text mb-0" style="width:100%">
             <thead>
               <tr>
+                <th>Program Date</th>
                 <th>Date &amp; Time</th>
-                <th>Description</th>
+                <th>Account</th>
+                <th>Guest</th>
                 <th>Amount</th>
-                <th>In-charge</th>
-                <th>Encoded By</th>
-                <th>Action</th>
+                <th>Type</th>
+                <th>Person(s) Involved</th>
+                <th>Description</th>
+                <%# <th>Encoded By</th> %>
+                <%# <th>Action</th> %>
               </tr>
             </thead>
             <tbody></tbody>
@@ -55,27 +59,15 @@
 </div>
 
 <div class="modal fade" id="modal-junket-loss" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Junket Expense</h5>
+        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Loss Amount</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="junket-loss-form">
         <div class="modal-body">
-          <input type="hidden" id="junket-loss-id" />
-          <div class="mb-3">
-            <label for="junket-loss-description" class="form-label">Description</label>
-            <textarea id="junket-loss-description" class="form-control" rows="3" required></textarea>
-          </div>
-          <div class="mb-3">
-            <label for="junket-loss-amount" class="form-label">Amount</label>
-            <input type="text" id="junket-loss-amount" class="form-control" inputmode="decimal" autocomplete="off" required />
-          </div>
-          <div class="mb-3">
-            <label for="junket-loss-incharge" class="form-label">In-charge</label>
-            <input type="text" id="junket-loss-incharge" class="form-control" maxlength="150" required />
-          </div>
+          <%- include('../../partials/junket_loss_form_fields') %>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary" id="junket-loss-save-btn" data-view-only-disable>Save</button>
@@ -111,18 +103,19 @@
     border-bottom: 2px solid #dee2e6;
   }
 
-  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(3),
-  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(3) {
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(5),
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(5) {
     text-align: right !important;
     padding-right: 16px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(6),
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(6) {
+    text-align: center;
   }
 
   #modal-dash-junket-loss #junket-loss-tbl tbody td {
     padding: 10px 12px;
     vertical-align: middle;
-  }
-
-  #modal-dash-junket-loss #junket-loss-tbl td:last-child {
-    text-align: center;
   }
 </style>

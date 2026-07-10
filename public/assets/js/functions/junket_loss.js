@@ -2,6 +2,8 @@ let junketLossTable;
 let junketLossFromDate = null;
 let junketLossToDate = null;
 let junketLossDatePicker = null;
+let junketLossProgramDatePicker = null;
+let junketLossAccountGuestResetting = false;
 
 function junketLossApiEndDate(endYmd) {
     if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
@@ -137,28 +139,217 @@ function hideJunketLossFormModal() {
     $('#modal-junket-loss').modal('hide');
 }
 
-function openJunketLossModal(data) {
-    const id = data && data.IDNo ? data.IDNo : '';
-    $('#junket-loss-id').val(id);
-    $('#junket-loss-description').val(data ? (data.DESCRIPTION || '') : '');
-    $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT || '') : '');
-    $('#junket-loss-incharge').val(data ? (data.IN_CHARGE || '') : '');
-    $('#junket-loss-modal-title').text(id ? 'Edit Junket Expense' : 'Add Junket Expense');
-    showJunketLossFormModal();
-}
-
-function closeJunketLossModal() {
-    const form = document.getElementById('junket-loss-form');
-    if (form) form.reset();
-    $('#junket-loss-id').val('');
-    hideJunketLossFormModal();
-}
-
 function formatYmd(dateObj) {
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
     const d = String(dateObj.getDate()).padStart(2, '0');
     return y + '-' + m + '-' + d;
+}
+
+function todayProgramDateValue() {
+    return formatYmd(new Date());
+}
+
+function getJunketLossProgramDateValue() {
+    const el = document.getElementById('junket-loss-program-date');
+    if (!el) return '';
+    if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+        return formatYmd(el._flatpickr.selectedDates[0]);
+    }
+    return String(el.value || '').trim().slice(0, 10);
+}
+
+function ensureJunketLossProgramDatePicker(defaultDate) {
+    const el = document.getElementById('junket-loss-program-date');
+    if (!el) return;
+    const dateVal = defaultDate || getJunketLossProgramDateValue() || todayProgramDateValue();
+    if (typeof flatpickr === 'undefined') {
+        el.value = dateVal;
+        return;
+    }
+    if (el._flatpickr) {
+        try { el._flatpickr.destroy(); } catch (e) {}
+    }
+    junketLossProgramDatePicker = flatpickr(el, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: dateVal,
+        allowInput: true,
+        disableMobile: true,
+        closeOnSelect: true
+    });
+}
+
+function initJunketLossAccountSelect() {
+    const $sel = $('#junket-loss-account');
+    if (!$sel.length || typeof $sel.select2 !== 'function') return;
+    if ($sel.data('select2')) {
+        try { $sel.select2('destroy'); } catch (e) {}
+    }
+    $sel.select2({
+        placeholder: $sel.data('placeholder') || 'Choose account',
+        allowClear: true,
+        dropdownParent: $('#modal-junket-loss')
+    });
+}
+
+function initJunketLossGuestSelect() {
+    const $sel = $('#junket-loss-guest');
+    if (!$sel.length || typeof $sel.select2 !== 'function') return;
+    if ($sel.data('select2')) {
+        try { $sel.select2('destroy'); } catch (e) {}
+    }
+    $sel.select2({
+        placeholder: $sel.data('placeholder') || 'Choose guest',
+        allowClear: true,
+        dropdownParent: $('#modal-junket-loss')
+    });
+}
+
+function clearJunketLossGuestOptions() {
+    const $sel = $('#junket-loss-guest');
+    if (!$sel.length) return;
+    const placeholder = $sel.data('placeholder') || 'Choose guest';
+    if ($sel.data('select2')) {
+        try { $sel.select2('destroy'); } catch (e) {}
+    }
+    $sel.empty().append($('<option/>', { value: '', text: placeholder }));
+    $sel.val('').prop('disabled', true);
+    initJunketLossGuestSelect();
+}
+
+function loadJunketLossAccounts(selectedId) {
+    const $sel = $('#junket-loss-account');
+    const placeholder = $sel.data('placeholder') || 'Choose account';
+    return $.getJSON('/account_data').then(function (rows) {
+        if ($sel.data('select2')) {
+            try { $sel.select2('destroy'); } catch (e) {}
+        }
+        $sel.empty().append($('<option/>', { value: '', text: placeholder }));
+        (rows || []).forEach(function (a) {
+            const id = a.account_id;
+            if (id == null) return;
+            const parts = [a.agent_code, a.agent_name].filter(Boolean);
+            const label = parts.length ? parts.join(' - ') : 'Account #' + id;
+            $sel.append(
+                $('<option/>', {
+                    value: String(id),
+                    text: label,
+                    'data-agent-id': a.agent_id != null ? String(a.agent_id) : ''
+                })
+            );
+        });
+        initJunketLossAccountSelect();
+        if (selectedId) {
+            $sel.val(String(selectedId));
+        }
+    });
+}
+
+function loadJunketLossGuests(agentId, selectedId) {
+    const $sel = $('#junket-loss-guest');
+    const placeholder = $sel.data('placeholder') || 'Choose guest';
+
+    clearJunketLossGuestOptions();
+    if (!agentId) {
+        return $.Deferred().resolve().promise();
+    }
+
+    return $.getJSON('/guest_data?agentId=' + encodeURIComponent(agentId)).then(function (rows) {
+        if ($sel.data('select2')) {
+            try { $sel.select2('destroy'); } catch (e) {}
+        }
+        $sel.empty().append($('<option/>', { value: '', text: placeholder }));
+        (rows || []).forEach(function (g) {
+            const id = g.guest_id;
+            if (id == null) return;
+            const name = (g.guest_name || '').toString().trim() || ('Guest #' + id);
+            $sel.append($('<option/>', { value: String(id), text: name }));
+        });
+        $sel.prop('disabled', false);
+        initJunketLossGuestSelect();
+        if (selectedId) {
+            $sel.val(String(selectedId)).trigger('change');
+        }
+    });
+}
+
+function onJunketLossAccountChange() {
+    if (junketLossAccountGuestResetting) return;
+    const $accountSel = $('#junket-loss-account');
+    const accountId = ($accountSel.val() || '').toString().trim();
+    const agentId = accountId
+        ? ($accountSel.find('option:selected').data('agent-id') || '').toString().trim()
+        : '';
+    loadJunketLossGuests(agentId || null).fail(function () {
+        Swal.fire('Error', 'Failed to load guests.', 'error');
+    });
+}
+
+function resetJunketLossFormFields() {
+    junketLossAccountGuestResetting = true;
+    const form = document.getElementById('junket-loss-form');
+    if (form) form.reset();
+    $('#junket-loss-id').val('');
+    $('#junket-loss-type-chip, #junket-loss-type-cash').prop('checked', false);
+    const $accountSel = $('#junket-loss-account');
+    if ($accountSel.data('select2')) $accountSel.val('').trigger('change.select2');
+    else $accountSel.val('');
+    clearJunketLossGuestOptions();
+    junketLossAccountGuestResetting = false;
+}
+
+function paymentTypeLabel(value) {
+    const n = Number(value);
+    if (n === 1) return 'Chip';
+    if (n === 2) return 'Cash';
+    return '';
+}
+
+function openJunketLossModal(data) {
+    const id = data && data.IDNo ? data.IDNo : '';
+    resetJunketLossFormFields();
+    $('#junket-loss-id').val(id);
+    $('#junket-loss-description').val(data ? (data.DESCRIPTION || '') : '');
+    $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT || '') : '');
+    $('#junket-loss-incharge').val(data ? (data.IN_CHARGE || '') : '');
+    $('#junket-loss-modal-title').text(id ? 'Edit Loss Amount' : 'Add Loss Amount');
+
+    const programDate = data && (data.PROGRAM_DATE || data.ENCODED_DT)
+        ? String(data.PROGRAM_DATE || data.ENCODED_DT).slice(0, 10)
+        : todayProgramDateValue();
+    ensureJunketLossProgramDatePicker(programDate);
+
+    const paymentType = data && data.PAYMENT_TYPE != null ? Number(data.PAYMENT_TYPE) : null;
+    if (paymentType === 1) $('#junket-loss-type-chip').prop('checked', true);
+    else if (paymentType === 2) $('#junket-loss-type-cash').prop('checked', true);
+
+    const accountId = data && data.ACCOUNT_ID ? data.ACCOUNT_ID : '';
+    const guestId = data && data.GUEST_ID ? data.GUEST_ID : '';
+
+    showJunketLossFormModal();
+
+    junketLossAccountGuestResetting = true;
+    clearJunketLossGuestOptions();
+    loadJunketLossAccounts(accountId || null)
+        .then(function () {
+            if (!accountId) return;
+            const agentId = ($('#junket-loss-account').find('option:selected').data('agent-id') || '').toString().trim();
+            return loadJunketLossGuests(agentId || null, guestId || null);
+        })
+        .fail(function () {
+            Swal.fire('Error', 'Failed to load account or guest list.', 'error');
+        })
+        .always(function () {
+            junketLossAccountGuestResetting = false;
+        });
+}
+
+function closeJunketLossModal() {
+    resetJunketLossFormFields();
+    hideJunketLossFormModal();
 }
 
 function getMonthEndCutoffRangeLocal() {
@@ -195,7 +386,7 @@ function fetchJunketLossData(fpInstance) {
     junketLossFromDate = range.fromDate;
     junketLossToDate = range.toDate;
 
-    $.get('/junket_loss_data', {
+    $.get('/loss_amount_data', {
         fromDate: junketLossFromDate,
         toDate: junketLossToDate
     }, function (rows) {
@@ -207,7 +398,7 @@ function fetchJunketLossData(fpInstance) {
 
 function refreshDashboardJunketLossTotal() {
     if (!document.getElementById('modal-dash-junket-loss')) return;
-    $.get('/junket_loss_total', function (data) {
+    $.get('/loss_amount_total', function (data) {
         const total = Number(data && data.total) || 0;
         const formatted = total
             ? '(' + Math.abs(total).toLocaleString('en-US') + ')'
@@ -228,7 +419,7 @@ function removeJunketLoss(id) {
         if (!result.isConfirmed) return;
 
         $.ajax({
-            url: '/junket_loss/remove/' + id,
+            url: '/loss_amount/remove/' + id,
             method: 'PUT',
             success: function () {
                 fetchJunketLossData();
@@ -260,6 +451,15 @@ function ensureJunketLossTable() {
         },
         columns: [
             {
+                data: 'PROGRAM_DATE',
+                render: function (data, type, row) {
+                    const raw = data || row.ENCODED_DT || '';
+                    if (!raw) return '';
+                    if (type === 'sort') return String(raw).slice(0, 10);
+                    return moment(raw).format('YYYY-MM-DD');
+                }
+            },
+            {
                 data: 'ENCODED_DT',
                 render: function (data, type) {
                     if (!data) return '';
@@ -267,7 +467,8 @@ function ensureJunketLossTable() {
                     return moment(data).format('YYYY-MM-DD HH:mm');
                 }
             },
-            { data: 'DESCRIPTION', defaultContent: '' },
+            { data: 'ACCOUNT_NAME', defaultContent: '' },
+            { data: 'GUEST_NAME', defaultContent: '' },
             {
                 data: 'AMOUNT',
                 render: function (data) {
@@ -277,20 +478,29 @@ function ensureJunketLossTable() {
                     });
                 }
             },
-            { data: 'IN_CHARGE', defaultContent: '' },
-            { data: 'ENCODED_BY_NAME', defaultContent: '' },
             {
-                data: null,
-                orderable: false,
-                searchable: false,
-                render: function (row) {
-                    return '' +
-                        '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-junket-loss-edit" data-id="' + row.IDNo + '">' +
-                        '<i class="fa fa-pencil-alt"></i></button>' +
-                        '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-remove" data-id="' + row.IDNo + '">' +
-                        '<i class="fa fa-trash-alt"></i></button>';
+                data: 'PAYMENT_TYPE',
+                render: function (data) {
+                    return paymentTypeLabel(data);
                 }
-            }
+            },
+            { data: 'IN_CHARGE', defaultContent: '' },
+            { data: 'DESCRIPTION', defaultContent: '' }
+            // Encoded By — uncomment to restore
+            // , { data: 'ENCODED_BY_NAME', defaultContent: '' }
+            // Action column — uncomment to restore edit/remove buttons
+            // , {
+            //     data: null,
+            //     orderable: false,
+            //     searchable: false,
+            //     render: function (row) {
+            //         return '' +
+            //             '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-junket-loss-edit" data-id="' + row.IDNo + '">' +
+            //             '<i class="fa fa-pencil-alt"></i></button>' +
+            //             '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-remove" data-id="' + row.IDNo + '">' +
+            //             '<i class="fa fa-trash-alt"></i></button>';
+            //     }
+            // }
         ]
     });
 
@@ -367,9 +577,9 @@ $(document).ready(function () {
             var fmt = function (dt) {
                 return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
             };
-            return 'JunketLoss_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
+            return 'LossAmount_' + fmt(dr._flatpickr.selectedDates[0]) + '_to_' + fmt(dr._flatpickr.selectedDates[1]) + '.xlsx';
         }
-        return 'JunketLoss-export.xlsx';
+        return 'LossAmount-export.xlsx';
     }
 
     function escapeHtml(value) {
@@ -385,7 +595,8 @@ $(document).ready(function () {
         junketLossTable = ensureJunketLossTable();
     }
 
-    var actionColIndex = 5;
+    // Action is last column when restored (Encoded By + Action); set to 9 and uncomment th + columns above
+    var actionColIndex = -1;
 
     function getJunketLossTablePayload() {
         var headers = [];
@@ -457,10 +668,10 @@ $(document).ready(function () {
         var frameDoc = frameWindow.document;
         frameDoc.open();
         frameDoc.write([
-            '<!doctype html><html><head><title>Junket Loss</title><style>',
+            '<!doctype html><html><head><title>Loss Amount</title><style>',
             getJunketLossPrintStyles(),
             '</style></head><body><div class="print-wrap">',
-            '<h2>Junket Loss</h2>',
+            '<h2>Loss Amount</h2>',
             '<div class="subtitle">', escapeHtml(junketLossFromDate + ' to ' + junketLossToDate), '</div>',
             '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
             '</div></body></html>'
@@ -499,7 +710,7 @@ $(document).ready(function () {
         var outName = getJunketLossExportFilename();
         var $btn = $(this);
         $btn.prop('disabled', true);
-        fetch('/junket_loss/export_xlsx', {
+        fetch('/loss_amount/export_xlsx', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
@@ -544,6 +755,8 @@ $(document).ready(function () {
         openJunketLossModal(null);
     });
 
+    $('#junket-loss-account').on('change', onJunketLossAccountChange);
+
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-edit', function () {
         const id = $(this).data('id');
         const row = junketLossTable.rows().data().toArray().find(function (r) { return r.IDNo === id; });
@@ -563,19 +776,24 @@ $(document).ready(function () {
 
         const rawAmount = sanitizeAmountInput($('#junket-loss-amount').val());
         const id = $('#junket-loss-id').val();
+        const paymentType = $('input[name="junket-loss-payment-type"]:checked').val();
         const payload = {
             txtDescription: $('#junket-loss-description').val().trim(),
             txtAmount: rawAmount,
-            txtInCharge: $('#junket-loss-incharge').val().trim()
+            txtInCharge: $('#junket-loss-incharge').val().trim(),
+            txtProgramDate: getJunketLossProgramDateValue(),
+            txtAccountId: ($('#junket-loss-account').val() || '').toString().trim(),
+            txtGuestId: ($('#junket-loss-guest').val() || '').toString().trim(),
+            txtPaymentType: paymentType || ''
         };
 
-        if (!payload.txtDescription || !payload.txtAmount || !payload.txtInCharge) {
+        if (!payload.txtDescription || !payload.txtAmount || !payload.txtInCharge || !payload.txtProgramDate || !payload.txtPaymentType) {
             Swal.fire('Validation', 'Please fill in all required fields.', 'warning');
             return;
         }
 
         const method = id ? 'PUT' : 'POST';
-        const url = id ? '/junket_loss/' + id : '/add_junket_loss';
+        const url = id ? '/loss_amount/' + id : '/add_loss_amount';
 
         $.ajax({
             url: url,
