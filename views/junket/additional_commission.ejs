@@ -1,35 +1,32 @@
-<%- include('../partials/header') %>
-<%- include('../partials/loader') %>
-<%- include('../partials/sidebar') %>
-<%- include('../partials/topbar') %>
-
-<link rel="stylesheet" href="/assets/css/additional_commission.css">
-
-<div class="container-fluid content-inner py-0">
-	<div class="row">
-		<div class="col-sm-12">
-			<div class="card">
-				<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-					<h3 class="card-title mb-0">
-						<div class="breadcrumb1 flat">
-							<a href="/dashboard"><span class="fa fa-home"></span></a>
-							<a href="#">Junket</a>
-							<a href="/additional_commission" class="active">Additional Commission</a>
-						</div>
-					</h3>
-					<div class="d-flex flex-wrap gap-2 align-items-center">
-						<%- include('../partials/additional_commission_toolbar') %>
-					</div>
-				</div>
-				<div class="card-body additional-commission-panel-body">
-					<%- include('../partials/additional_commission_table_body') %>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
-
-<%- include('../partials/additional_commission_form_modal') %>
-
-<%- include('../partials/footer') %>
-<script src="/assets/js/functions/additional_commission.js"></script>
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<link rel="stylesheet" href="/assets/css/additional_commission.css">
+
+<div class="container-fluid content-inner py-0">
+	<div class="row">
+		<div class="col-sm-12">
+			<div class="card">
+				<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+					<h3 class="card-title mb-0">
+						<div class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="#">Junket</a>
+							<a href="/additional_commission" class="active">Additional Commission</a>
+						</div>
+					</h3>
+				</div>
+				<div class="card-body additional-commission-panel-body">
+					<%- include('../partials/additional_commission_table_body') %>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/additional_commission_form_modal') %>
+
+<%- include('../partials/footer') %>
+<script src="/assets/js/functions/additional_commission.js"></script>

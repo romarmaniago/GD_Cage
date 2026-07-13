@@ -395,7 +395,7 @@
                     window.houseExpenseInitVehicleUi();
                 }
 
-                $(document).on('click', '.js-house-expense-add-main-cat', function (e) {
+                $(document).on('click', '#modal-dash-house-expense .js-house-expense-add-main-cat, .expense-explorer-row .js-house-expense-add-main-cat', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     if (typeof window.addHouseExpenseMainCategory === 'function') {
@@ -407,7 +407,7 @@
                     }
                 });
 
-                $(document).on('click', '.js-house-expense-add-sub-cat', function (e) {
+                $(document).on('click', '#modal-dash-house-expense .js-house-expense-add-sub-cat, .expense-explorer-row .js-house-expense-add-sub-cat', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     if ($(this).prop('disabled')) return;
@@ -420,7 +420,7 @@
                     }
                 });
 
-                $(document).on('click', '.js-house-expense-add-item', function (e) {
+                $(document).on('click', '#modal-dash-house-expense .js-house-expense-add-item, .expense-explorer-row .js-house-expense-add-item', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     if ($(this).prop('disabled')) return;

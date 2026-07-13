@@ -1,0 +1,14 @@
+<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+<button
+  type="button"
+  id="<%= buttonId %>"
+  class="expense-cat-panel-add-btn js-dash-service-add d-none"
+  data-bs-toggle="modal"
+  data-bs-target="#modal-services-new-record"
+  title="<%= title %>"
+  aria-label="<%= title %>"
+  data-view-only-disable
+>
+  <i class="fa fa-plus" aria-hidden="true"></i>
+</button>
+<% } %>

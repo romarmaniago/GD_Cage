@@ -210,6 +210,47 @@
       });
     }
 
+    function layoutAdditionalCommissionControls() {
+      if (!window.jQuery) return;
+
+      const $table = window.jQuery('#additional-commission-tbl');
+      if (!$table.length) return;
+
+      const $wrapper = $table.closest('#additional-commission-tbl_wrapper');
+      const $length = $wrapper.find('#additional-commission-tbl_length');
+      const $filter = $wrapper.find('#additional-commission-tbl_filter');
+      const $filterLabel = $wrapper.find('#additional-commission-tbl_filter label');
+      if (!$wrapper.length || !$length.length || !$filter.length) return;
+
+      let $controlsHighlight = $wrapper.find('.additional-commission-controls-highlight');
+      if (!$controlsHighlight.length) {
+        $controlsHighlight = window.jQuery('<div class="additional-commission-controls-highlight"></div>');
+        $wrapper.prepend($controlsHighlight);
+      }
+      if ($length.length && $length.parent()[0] !== $controlsHighlight[0]) {
+        $controlsHighlight.append($length);
+      }
+      if ($filter.length && $filter.parent()[0] !== $controlsHighlight[0]) {
+        $controlsHighlight.append($filter);
+      }
+
+      let $filterHighlight = $filter.find('.additional-commission-filter-highlight');
+      if (!$filterHighlight.length) {
+        $filterHighlight = window.jQuery('<div class="additional-commission-filter-highlight"></div>');
+        $filter.append($filterHighlight);
+      }
+
+      if (addButton) {
+        if (addButton.parentElement !== $filterHighlight[0] || $filterHighlight[0].firstElementChild !== addButton) {
+          $filterHighlight.prepend(addButton);
+        }
+        addButton.classList.remove('d-none');
+      }
+      if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
+        $filterHighlight.append($filterLabel);
+      }
+    }
+
     function initDataTableOnce() {
       if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.DataTable) return null;
 
@@ -281,37 +322,11 @@
           ],
           data: []
         });
+
+        $table.on('init.dt draw.dt', layoutAdditionalCommissionControls);
       }
 
-      // Put "Show entries" + search into highlighted controls row (same pattern as F&B).
-      const $wrapper = $table.closest('#additional-commission-tbl_wrapper');
-      const $length = $wrapper.find('#additional-commission-tbl_length');
-      const $filter = $wrapper.find('#additional-commission-tbl_filter');
-      const $filterLabel = $wrapper.find('#additional-commission-tbl_filter label');
-      let $controlsHighlight = $wrapper.find('.additional-commission-controls-highlight');
-      if (!$controlsHighlight.length) {
-        $controlsHighlight = window.jQuery('<div class="additional-commission-controls-highlight"></div>');
-        $wrapper.prepend($controlsHighlight);
-      }
-      if ($length.length && $length.parent()[0] !== $controlsHighlight[0]) {
-        $controlsHighlight.append($length);
-      }
-      if ($filter.length && $filter.parent()[0] !== $controlsHighlight[0]) {
-        $controlsHighlight.append($filter);
-      }
-
-      let $filterHighlight = $filter.find('.additional-commission-filter-highlight');
-      if (!$filterHighlight.length) {
-        $filterHighlight = window.jQuery('<div class="additional-commission-filter-highlight"></div>');
-        $filter.append($filterHighlight);
-      }
-
-      if (addButton && addButton.parentElement !== $filterHighlight[0]) {
-        $filterHighlight.append(addButton);
-      }
-      if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
-        $filterHighlight.append($filterLabel);
-      }
+      layoutAdditionalCommissionControls();
 
       return dataTable;
     }
@@ -439,6 +454,9 @@
 
     function openAdditionalCommissionModal() {
       resetAdditionalCommissionForm();
+      if (dashListModalEl) {
+        addModalEl.style.zIndex = '1065';
+      }
       loadAgents()
         .catch((error) => {
           console.error(error);
@@ -465,6 +483,10 @@
       setSelectedType(row.TYPE);
       amountInput.value = formatAmountInput(String(row.AMOUNT || ''));
       remarksInput.value = row.REMARKS || '';
+
+      if (dashListModalEl) {
+        addModalEl.style.zIndex = '1065';
+      }
 
       loadAgents(row.AGENT_ID)
         .catch((error) => {
@@ -534,6 +556,14 @@
       };
 
       dashListModalEl.addEventListener('shown.bs.modal', function () {
+        layoutAdditionalCommissionControls();
+        if (dataTable) {
+          try {
+            dataTable.columns.adjust().draw(false);
+          } catch (error) {
+            console.error(error);
+          }
+        }
         loadAdditionalCommissionData();
       });
     }
