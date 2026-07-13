@@ -607,7 +607,7 @@ $(document).ready(function() {
       return true;
     }
 
-    // ROLLING — CC only; must not exceed NN balance nor CC balance
+    // ROLLING — CC only; must not exceed CC balance
     if (selected === "3") {
       if (nnTrimmed !== '' || nnChips > 0) {
         Swal.fire({
@@ -630,14 +630,6 @@ $(document).ready(function() {
           icon: 'error',
           title: 'Exceeds CC balance',
           text: 'CC rolling cannot exceed the current CC balance of ' + formatNumberWithCommas(ccbalance) + '.'
-        });
-        return false;
-      }
-      if (ccChips > nnbalance) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Exceeds NN balance',
-          text: 'CC rolling cannot exceed the current NN balance of ' + formatNumberWithCommas(nnbalance) + '.'
         });
         return false;
       }

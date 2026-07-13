@@ -4892,13 +4892,7 @@ pageRouter.post('/add_junket_total_chips', async (req, res) => {
 			return res.status(400).send('Enter a valid positive CC amount for rolling.');
 		}
 		try {
-			const [nnBal, ccBal] = await Promise.all([
-				dashboardQueries.computeNnChipsBalance(),
-				dashboardQueries.computeCcChipsBalance()
-			]);
-			if (ccChips > nnBal) {
-				return res.status(400).send('CC rolling exceeds current NN balance.');
-			}
+			const ccBal = await dashboardQueries.computeCcChipsBalance();
 			if (ccChips > ccBal) {
 				return res.status(400).send('CC rolling exceeds current CC balance.');
 			}

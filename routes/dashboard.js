@@ -2344,7 +2344,7 @@ router.post('/add_junket_total_chips', async (req, res) => {
 		}
 	}
 
-	// Rolling (CC only): CC ≤ NN balance and CC ≤ CC balance
+	// Rolling (CC only): CC moves to NN, so cap by available CC balance only.
 	if (String(optBuyinReturn) === '3') {
 		if (nnChips !== 0) {
 			return res.status(400).send('Rolling allows CC chips only.');
@@ -2353,13 +2353,7 @@ router.post('/add_junket_total_chips', async (req, res) => {
 			return res.status(400).send('Enter a valid positive CC amount for rolling.');
 		}
 		try {
-			const [nnBal, ccBal] = await Promise.all([
-				dashboardQueries.computeNnChipsBalance(),
-				dashboardQueries.computeCcChipsBalance()
-			]);
-			if (ccChips > nnBal) {
-				return res.status(400).send('CC rolling exceeds current NN balance.');
-			}
+			const ccBal = await dashboardQueries.computeCcChipsBalance();
 			if (ccChips > ccBal) {
 				return res.status(400).send('CC rolling exceeds current CC balance.');
 			}
