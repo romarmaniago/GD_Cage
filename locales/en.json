@@ -981,6 +981,7 @@
 		"balance_from_credit": "Credit (3)",
 		"balance_from_buyin": "Buy-in (10)",
 		"total": "Total",
+		"total_amount": "Total Amount",
 		"game_start": "Game Start",
 		"form_mode_return": "Return Credit",
 		"form_mode_issue": "Add Credit",

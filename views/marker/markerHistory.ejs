@@ -16,7 +16,7 @@
 						</div>
 					</h3>
 				</div>
-				<div class="card-body">
+				<div class="card-body marker-history-page">
 					<!-- Total Credits Issue (overall by default; switches to selected account) -->
 					<div class="row mb-3 d-flex justify-content-center">
 						<span class="section-header text-center" id="lbl-total-credits-issue"><%= __('dashboard_marker.total_credits_issue') %></span>
@@ -158,6 +158,13 @@
 									</tr>
 								</thead>
 								<tbody></tbody>
+								<tfoot>
+									<tr>
+										<th colspan="5" class="fw-semibold text-end"></th>
+										<th class="text-end fw-semibold marker-total-col-amount"></th>
+										<th colspan="4"></th>
+									</tr>
+								</tfoot>
 							</table>
 						</div>
 					</div>
@@ -263,6 +270,7 @@
 		search: "<%= __('dashboard_marker.search') %>",
 		no_data_available: "<%= __('account_dashboard.no_data_available') %>",
 		total: "<%= __('dashboard_marker.total') %>",
+		total_amount: "<%= __('dashboard_marker.total_amount') %>",
 		form_mode_return: "<%= __('dashboard_marker.form_mode_return') %>",
 		form_mode_issue: "<%= __('dashboard_marker.form_mode_issue') %>",
 		credits_add: "<%= __('dashboard_marker.credits_add') %>",
@@ -403,22 +411,57 @@ $(document).ready(function() {
 							padding-left: 0.75rem;
 						}
 .card-body { overflow-x: auto; }
+
+/* GD gold table theme — matches modal headers / dashboard panels */
+.marker-history-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+/* Solid gold bar on full header/footer row — not per-cell gradient */
+.marker-history-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.marker-history-page table thead tr,
+.marker-history-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.marker-history-page table thead th,
+.marker-history-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.marker-history-page table.dataTable thead > tr > th.sorting,
+.marker-history-page table.dataTable thead > tr > th.sorting_asc,
+.marker-history-page table.dataTable thead > tr > th.sorting_desc,
+.marker-history-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
 #marker-history-tbl {
 	width: 100%;
 	font-size: 13px;
 	border-collapse: collapse;
 }
 #marker-history-tbl thead th {
-	background: var(--bs-primary-bg-subtle);
-	color: var(--bs-primary);
-	font-weight: 500;
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
 	padding: 12px 15px;
 	text-align: left;
 	border: none;
+	border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 #marker-history-tbl tbody tr { border-bottom: 1px solid #eee; }
 #marker-history-tbl td { padding: 12px 15px; color: #666; }
-#marker-history-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
+#marker-history-tbl tbody tr:hover { background-color: var(--gd-marker-gold-hover) !important; }
 .dataTables_length label { font-size: 0; }
 .dataTables_length select { font-size: 12px; }
 
@@ -429,42 +472,43 @@ $(document).ready(function() {
 	border-bottom: 2px solid transparent;
 	padding: 0.5rem 0.75rem;
 }
-.marker-balance-tabs .nav-link:hover { color: var(--bs-primary); }
+.marker-balance-tabs .nav-link:hover { color: #8a6712; }
 .marker-balance-tabs .nav-link.active {
-	color: var(--bs-primary);
-	font-weight: 500;
-	border-bottom-color: var(--bs-primary);
+	color: #6b4f14;
+	font-weight: 600;
+	border-bottom-color: #c8a24c;
 	background: transparent;
 }
 .marker-balance-tbl {
 	width: 100%;
 	font-size: 13px;
 	border-collapse: collapse;
-	border: 1px solid #dee2e6;
+	border: 1px solid var(--gd-marker-gold-border);
 }
 .marker-balance-tbl thead th {
-	background: var(--bs-primary-bg-subtle);
-	color: var(--bs-primary);
-	font-weight: 500;
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
 	padding: 12px 15px;
 	text-align: left;
 	border: none;
 }
-.marker-balance-tbl thead tr th { border-bottom: 1px solid #dee2e6; }
+.marker-balance-tbl thead tr th { border-bottom: 1px solid var(--gd-marker-gold-border); }
 .marker-balance-tbl tbody tr { border-bottom: 1px solid #eee; }
 .marker-balance-tbl tbody tr:last-child td,
-.marker-balance-tbl tbody td.dataTables_empty { border-bottom: 1px solid #dee2e6; }
+.marker-balance-tbl tbody td.dataTables_empty { border-bottom: 1px solid var(--gd-marker-gold-border); }
 .marker-balance-tbl tfoot tr th {
-	border-top: 2px solid #dee2e6;
-	border-bottom: 1px solid #dee2e6;
-	background-color: #f4f6fa;
+	border-top: 2px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
 	padding: 10px 15px;
 }
 .marker-balance-tbl td { padding: 12px 15px; color: #666; }
-.marker-balance-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
+.marker-balance-tbl tbody tr:hover { background-color: var(--gd-marker-gold-hover) !important; }
 .marker-balance-tbl tr.marker-balance-total-row td {
-	border-top: 2px solid #dee2e6;
-	background-color: #f4f6fa;
+	border-top: 2px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
 	padding: 10px 15px;
 }
 #marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
@@ -499,16 +543,37 @@ $(document).ready(function() {
 	vertical-align: middle;
 	font-size: 0.875rem;
 }
+#marker-accounts-total-wrapper .marker-total-table thead th {
+	color: var(--gd-marker-gold-text) !important;
+	font-weight: 600;
+	border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+}
 #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-remarks {
 	white-space: normal;
 	min-width: 8rem;
 	max-width: 14rem;
 }
 #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td {
-	background-color: #fafbfd;
+	background-color: #fbf5e4;
 }
 #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td {
-	background-color: #f0f6ff !important;
+	background-color: var(--gd-marker-gold-hover) !important;
+}
+#marker-accounts-total-wrapper .marker-total-table tfoot tr th {
+	border-top: 2px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
+	padding: 10px 15px;
+}
+#marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-amount {
+	font-variant-numeric: tabular-nums;
+	padding-right: 1.5rem !important;
+}
+#marker-accounts-total-wrapper .marker-total-table thead th.sorting,
+#marker-accounts-total-wrapper .marker-total-table thead th.sorting_asc,
+#marker-accounts-total-wrapper .marker-total-table thead th.sorting_desc {
+	color: var(--gd-marker-gold-text) !important;
 }
 </style>
 

@@ -1,4 +1,5 @@
 <%- include('../partials/header') %>
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css">
 <%- include('../partials/loader') %>
 
 
@@ -527,12 +528,17 @@
 }
 
 /* Header styles */
+#expense-tbl thead tr {
+    background: transparent;
+}
+
 #expense-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
+    background: transparent !important;
+    color: #64748b;
     font-weight: 500;
     padding: 12px 15px;
-    border: none;
+    border: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
 }
 
 #expense-tbl thead th:nth-child(1),
@@ -1394,18 +1400,18 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-table-panel-head {
                 padding: 0.55rem 0.85rem;
-                background: var(--bs-primary-bg-subtle);
-                border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.12);
+                background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+                border-bottom: 1px solid rgba(58, 46, 18, 0.25);
             }
             .expense-table-panel-title {
                 font-size: 0.72rem;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
-                color: var(--bs-primary);
+                color: #3a2e12;
             }
             #expense-item-panel-subtitle {
-                color: #64748b !important;
+                color: rgba(58, 46, 18, 0.72) !important;
                 transition: opacity 0.2s ease;
             }
             .expense-table-panel-body {
@@ -1653,9 +1659,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
-                color: var(--bs-primary);
-                background: var(--bs-primary-bg-subtle);
-                border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.12);
+                color: #3a2e12;
+                background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+                border-bottom: 1px solid rgba(58, 46, 18, 0.25);
             }
             .expense-cat-panel-add-btn {
                 display: inline-flex;
@@ -1664,17 +1670,17 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 width: 2.25rem;
                 height: 2.25rem;
                 padding: 0;
-                border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+                border: 1px solid rgba(58, 46, 18, 0.25);
                 border-radius: 50%;
-                background: #fff;
-                color: var(--bs-primary);
+                background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+                color: #1a1205;
                 line-height: 1;
                 flex-shrink: 0;
                 position: relative;
                 z-index: 2;
                 pointer-events: auto;
                 cursor: pointer;
-                transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+                transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, filter 0.12s ease;
             }
             .expense-cat-panel-add-btn i.fa {
                 font-size: 1rem;
@@ -1692,9 +1698,10 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 z-index: 2;
             }
             .expense-cat-panel-add-btn:hover:not(:disabled) {
-                background: var(--bs-primary);
-                color: #fff;
-                border-color: var(--bs-primary);
+                background: linear-gradient(135deg, #7d5618 0%, #d4ae5a 50%, #f5dc9a 100%);
+                color: #0f0a02;
+                border-color: rgba(58, 46, 18, 0.35);
+                filter: brightness(1.04);
             }
             .expense-cat-panel-add-btn:disabled {
                 opacity: 0.45;
@@ -1707,13 +1714,18 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 overflow-y: auto;
                 overflow-x: hidden;
             }
+            .expense-master-tbl thead tr {
+                background: transparent;
+            }
             .expense-master-tbl thead th {
-                background: var(--bs-primary-bg-subtle);
-                color: var(--bs-primary);
+                background: transparent !important;
+                color: #64748b;
                 font-weight: 600;
                 font-size: 0.78rem;
                 padding: 0.55rem 0.65rem;
-                border: none;
+                border: none !important;
+                border-bottom: 1px solid #e2e8f0 !important;
+                box-shadow: none !important;
                 white-space: nowrap;
                 text-align: center;
             }
@@ -1723,7 +1735,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             #expense-item-cat-tbl thead th.sortable-col:hover,
             #expense-item-cat-tbl thead th.sortable-col.is-sorted {
-                background: #dfe6ff;
+                background: transparent !important;
+                color: #475569;
+            }
+
+            #expense-item-cat-tbl thead th.sortable-col.is-sorted {
+                font-weight: 700;
             }
             #expense-item-cat-tbl thead th.expense-name-th.sortable-col .house-expense-select-all-slot {
                 cursor: default;
@@ -1968,10 +1985,11 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 width: 100%;
                 max-width: 340px;
                 margin-left: auto;
-                background: #e4e4f6;
+                background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
                 border-radius: 10px;
                 overflow: hidden;
-                box-shadow: 0 1px 2px rgba(45, 53, 97, 0.06);
+                box-shadow: 0 1px 2px rgba(58, 46, 18, 0.12);
+                border: 1px solid rgba(58, 46, 18, 0.2);
             }
             .expense-item-footer-line {
                 display: flex;
@@ -1981,8 +1999,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 padding: 0.55rem 0.9rem;
                 font-size: 0.78rem;
                 font-weight: 600;
-                color: #2a3160;
-                border-bottom: 1px solid rgba(42, 49, 96, 0.14);
+                color: #3a2e12;
+                border-bottom: 1px solid rgba(58, 46, 18, 0.18);
             }
             .expense-item-footer-line:last-child {
                 border-bottom: none;

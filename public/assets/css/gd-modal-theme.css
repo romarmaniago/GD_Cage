@@ -1,0 +1,111 @@
+/* Golden Dragon modal theme — headers & primary buttons (Cage Balance gold) */
+
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) {
+  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.25) !important;
+  color: #3a2e12;
+}
+
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .modal-title,
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) h5,
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .text-white {
+  color: #3a2e12 !important;
+}
+
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .btn-close,
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .btn-close-white {
+  filter: none;
+  opacity: 0.65;
+}
+
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .btn-close:hover,
+body:has(.gd-sidebar) .modal .modal-header:not(.guest-portal-header):not(.passport-details-header) .btn-close-white:hover {
+  opacity: 1;
+}
+
+body:has(.gd-sidebar) #modal-account-details .modal-header.bg-primary:not(.guest-portal-header) {
+  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.25) !important;
+  color: #3a2e12;
+}
+
+body:has(.gd-sidebar) #modal-house-expense-edit-history .house-expense-edit-history-header,
+body:has(.gd-sidebar) #modal-house-expense-edit-history .house-expense-edit-history-header .modal-title,
+body:has(.gd-sidebar) #modal-house-expense-edit-history .house-expense-edit-history-header .fa,
+body:has(.gd-sidebar) #modal-house-expense-edit-history .house-expense-edit-history-header .text-white,
+body:has(.gd-sidebar) #modal-house-expense-edit-history .house-expense-edit-history-header span {
+  color: #3a2e12 !important;
+}
+
+body:has(.gd-sidebar) .modal .block-header.bg-primary-dark {
+  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+  color: #3a2e12;
+}
+
+body:has(.gd-sidebar) .modal .block-header.bg-primary-dark .block-title,
+body:has(.gd-sidebar) .modal .block-header.bg-primary-dark .btn-block-option {
+  color: #3a2e12;
+}
+
+body:has(.gd-sidebar) .modal .btn-primary,
+body:has(.gd-sidebar) .modal .btn-primary-subtle {
+  --bs-btn-color: #1a1205;
+  --bs-btn-bg: #c8a24c;
+  --bs-btn-border-color: rgba(58, 46, 18, 0.25);
+  --bs-btn-hover-color: #0f0a02;
+  --bs-btn-hover-bg: #d4ae5a;
+  --bs-btn-hover-border-color: rgba(58, 46, 18, 0.35);
+  --bs-btn-active-color: #0f0a02;
+  --bs-btn-active-bg: #b8923f;
+  --bs-btn-active-border-color: rgba(58, 46, 18, 0.4);
+  --bs-btn-disabled-color: #1a1205;
+  --bs-btn-disabled-bg: #c8a24c;
+  --bs-btn-disabled-border-color: rgba(58, 46, 18, 0.25);
+  color: #1a1205 !important;
+  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%) !important;
+  border: 1px solid rgba(58, 46, 18, 0.22) !important;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+body:has(.gd-sidebar) .modal .btn-primary:hover:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary-subtle:hover:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary:focus:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary-subtle:focus:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary:active:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary-subtle:active:not(:disabled):not(.disabled),
+body:has(.gd-sidebar) .modal .btn-primary.active,
+body:has(.gd-sidebar) .modal .btn-primary-subtle.active {
+  color: #0f0a02 !important;
+  background: linear-gradient(135deg, #7d5618 0%, #d4ae5a 50%, #f5dc9a 100%) !important;
+  border-color: rgba(58, 46, 18, 0.3) !important;
+  filter: brightness(1.04);
+  box-shadow: none;
+}
+
+body:has(.gd-sidebar) .modal .btn-primary:disabled,
+body:has(.gd-sidebar) .modal .btn-primary.disabled,
+body:has(.gd-sidebar) .modal .btn-primary-subtle:disabled,
+body:has(.gd-sidebar) .modal .btn-primary-subtle.disabled {
+  opacity: 0.55;
+}
+
+body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn {
+  border: 1px solid rgba(58, 46, 18, 0.25) !important;
+  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%) !important;
+  color: #1a1205 !important;
+}
+
+body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:hover:not(:disabled),
+body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:focus:not(:disabled),
+body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:active:not(:disabled) {
+  background: linear-gradient(135deg, #7d5618 0%, #d4ae5a 50%, #f5dc9a 100%) !important;
+  color: #0f0a02 !important;
+  border-color: rgba(58, 46, 18, 0.35) !important;
+  box-shadow: none;
+}
+
+body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:disabled {
+  opacity: 0.45;
+}

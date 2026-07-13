@@ -105,6 +105,44 @@
         return formatMarkerHistoryAmount(value);
     }
 
+    function sumTotalCreditTabAmount(rows) {
+        var total = 0;
+        if (!rows || !rows.length) return total;
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var n = row && row.AMOUNT != null ? Number(row.AMOUNT) : 0;
+            if (isNaN(n)) continue;
+            total += isMarkerCreditOutTransaction(row) ? Math.abs(n) : n;
+        }
+        return total;
+    }
+
+    function formatTotalCreditTabSumHtml(total) {
+        var n = Number(total) || 0;
+        if (!n) return '0';
+        var formatted = formatMarkerHistoryAmount(Math.abs(n));
+        if (window.fmtOut) return window.fmtOut(Math.abs(n));
+        return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+    }
+
+    function updateTotalCreditTableFooter(api) {
+        if (!api || !api.table) return;
+        var $footer = $(api.table().footer());
+        if (!$footer.length) return;
+        var rows = [];
+        api.rows({ search: 'applied' }).every(function () {
+            rows.push(this.data());
+        });
+        var totalLabel = (window.markerTranslations || {}).total_amount || 'Total Amount';
+        if (!rows.length) {
+            $footer.hide();
+            return;
+        }
+        $footer.show();
+        $footer.find('th').first().text(totalLabel);
+        $footer.find('th.marker-total-col-amount').html(formatTotalCreditTabSumHtml(sumTotalCreditTabAmount(rows)));
+    }
+
     var MARKER_HISTORY_DATE_PARSE_FORMATS = [
         'YYYY-MM-DD HH:mm',
         'YYYY-MM-DD HH:mm:ss',
@@ -852,6 +890,9 @@
                 zeroRecords: translations.no_data_available || 'No matching records found'
             },
             dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+            footerCallback: function () {
+                updateTotalCreditTableFooter(this.api());
+            },
             ajax: {
                 url: '/marker_total_credit',
                 dataSrc: function (json) {

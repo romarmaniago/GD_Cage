@@ -1023,6 +1023,7 @@
 		"balance_from_credit": "크레딧(3)",
 		"balance_from_buyin": "바이인(10)",
 		"total": "합계",
+		"total_amount": "총 금액",
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"edit": "Edit",
 		"edit_credit": "Edit Credit",

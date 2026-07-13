@@ -1023,6 +1023,7 @@
 		"balance_from_credit": "信用(3)",
 		"balance_from_buyin": "买进(10)",
 		"total": "合计",
+		"total_amount": "总金额",
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"edit": "Edit",
 		"edit_credit": "Edit Credit",
