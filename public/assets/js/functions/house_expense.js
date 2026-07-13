@@ -3197,11 +3197,15 @@ function houseExpenseHideModal($modal) {
     }
 }
 
+function houseExpenseCategoryAddButtonScope() {
+    return '#modal-dash-house-expense .expense-cat-panel-add-btn, .expense-explorer-row .expense-cat-panel-add-btn';
+}
+
 function houseExpenseSyncCategoryAddButtons() {
     var t = window.houseExpenseTranslations || {};
     var st = window.houseExpenseExplorerState || {};
     var hasMain = !!(st.mainCategoryId);
-    var $subBtn = $('.js-house-expense-add-sub-cat');
+    var $subBtn = $(houseExpenseCategoryAddButtonScope()).filter('.js-house-expense-add-sub-cat');
     $subBtn.prop('disabled', !hasMain);
     $subBtn.attr(
         'title',
@@ -3209,7 +3213,7 @@ function houseExpenseSyncCategoryAddButtons() {
     );
 
     var itemCatId = houseExpenseGetAddItemCategoryId();
-    var $itemBtn = $('.js-house-expense-add-item');
+    var $itemBtn = $(houseExpenseCategoryAddButtonScope()).filter('.js-house-expense-add-item');
     $itemBtn.prop('disabled', !itemCatId);
     $itemBtn.attr(
         'title',
@@ -3336,7 +3340,7 @@ function confirmDeleteHouseExpenseCategory() {
 
 function houseExpenseInitCategoryAddUi() {
     if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly()) {
-        $('.js-house-expense-add-main-cat, .js-house-expense-add-sub-cat, .js-house-expense-add-item').addClass('d-none');
+        $(houseExpenseCategoryAddButtonScope()).filter('.js-house-expense-add-main-cat, .js-house-expense-add-sub-cat, .js-house-expense-add-item').addClass('d-none');
     }
     houseExpenseSyncCategoryAddButtons();
 

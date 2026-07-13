@@ -133,7 +133,8 @@ $(document).ready(function () {
 				}
 			],
 			language: {
-				search: t.search || 'Search:',
+				search: '',
+				searchPlaceholder: t.search || 'Search...',
 				lengthMenu: t.lengthMenu || 'Show _MENU_ entries',
 				info: t.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries',
 				infoEmpty: t.infoEmpty || 'Showing 0 to 0 of 0 entries',
@@ -145,6 +146,10 @@ $(document).ready(function () {
 				emptyTable: t.no_data_available || 'No data available in table'
 			}
 		});
+
+		if (typeof window.bindDashServiceTableControls === 'function') {
+			window.bindDashServiceTableControls('dash-delivery-table', 'btn-dash-delivery-new-record');
+		}
 	}
 
 	function buildActionHtml(service) {
@@ -274,6 +279,19 @@ $(document).ready(function () {
 		initDateRangePicker();
 		if (!dataTable) initializeDataTable();
 		reloadData();
+	});
+
+	$('#modal-dash-delivery').on('shown.bs.modal', function () {
+		if (typeof window.layoutDashServiceTableControls === 'function') {
+			window.layoutDashServiceTableControls('dash-delivery-table', 'btn-dash-delivery-new-record');
+		}
+		if (dataTable) {
+			try {
+				dataTable.columns.adjust().draw(false);
+			} catch (error) {
+				console.error(error);
+			}
+		}
 	});
 
 	$('#btn-dash-delivery-new-record').on('click', function () {

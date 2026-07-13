@@ -1485,6 +1485,7 @@
       );
       setReportListDateRange(from, to);
       await loadSubmittedReports();
+      applyDailyReportControlsLayout();
       const $ = window.jQuery;
       if ($ && $.fn.DataTable && $.fn.DataTable.isDataTable('#daily-report-view-table')) {
         $('#daily-report-view-table').DataTable().columns.adjust().draw(false);
