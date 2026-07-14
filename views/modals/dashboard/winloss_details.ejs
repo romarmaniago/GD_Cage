@@ -5,7 +5,7 @@
         <h5 class="block-title text-white" id="modal-winloss-details-label"><%= __('modal_winloss_details.title') %></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body winloss-details-page">
         <div class="row mb-3">
           <div class="col-sm-4">
             <label class="form-label"><%= __('modal_winloss_details.date_range') %></label>
@@ -26,7 +26,7 @@
         </table>
         <div class="row mt-3">
           <div class="col-12">
-            <div class="card bg-light">
+            <div class="card winloss-details-summary">
               <div class="card-body">
                 <div class="row">
                   <div class="col-md-4">
@@ -71,26 +71,120 @@ window.winlossDetailsTranslations = {
 </script>
 
 <style>
-#winloss-details-tbl td {
-  padding: 12px 15px;
+.winloss-details-page {
+  --gd-marker-gold-solid: #d9b96a;
+  --gd-marker-gold-text: #3a2e12;
+  --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+  --gd-marker-gold-hover: #faf3dc;
 }
-#winloss-details-tbl thead th {
-  background: #f0dfa8;
-  color: #6b4f14;
-  font-weight: 500;
-  border: none;
+
+.winloss-details-page table.dataTable {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
 }
+
+.winloss-details-page table thead tr {
+  background-color: var(--gd-marker-gold-solid);
+}
+
+.winloss-details-page table thead th {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.winloss-details-page table.dataTable thead > tr > th.sorting,
+.winloss-details-page table.dataTable thead > tr > th.sorting_asc,
+.winloss-details-page table.dataTable thead > tr > th.sorting_desc,
+.winloss-details-page table.dataTable thead > tr > th.sorting_disabled {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 #winloss-details-tbl {
   width: 100%;
   border-collapse: collapse;
+  border: 1px solid var(--gd-marker-gold-border);
+  font-size: 13px;
 }
+
+#winloss-details-tbl td {
+  padding: 12px 15px;
+  color: #666;
+  border-bottom: 1px solid #eee;
+}
+
+#winloss-details-tbl thead th {
+  background: transparent;
+  color: var(--gd-marker-gold-text);
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid var(--gd-marker-gold-border);
+  padding: 12px 15px;
+}
+
+#winloss-details-tbl tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
+#winloss-details-tbl tbody tr:hover,
+#winloss-details-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover) !important;
+}
+
+.winloss-details-summary {
+  border: 1px solid var(--gd-marker-gold-border);
+  background: linear-gradient(180deg, #faf3dc 0%, #fffdf5 100%);
+  box-shadow: none;
+}
+
+.winloss-details-summary .card-body {
+  padding: 0.85rem 1rem;
+}
+
+.winloss-details-summary strong {
+  color: var(--gd-marker-gold-text);
+  margin-right: 0.35rem;
+}
+
 .winloss-positive {
   color: #28a745;
   font-weight: 600;
 }
+
 .winloss-negative {
   color: #dc3545;
   font-weight: 600;
+}
+
+/* Pagination — gold colors */
+.winloss-details-page .dataTables_paginate .page-link {
+  border-color: var(--gd-marker-gold-border) !important;
+  color: var(--gd-marker-gold-text) !important;
+  background-color: #fff !important;
+}
+
+.winloss-details-page .dataTables_paginate .page-item.active .page-link {
+  background-color: var(--gd-marker-gold-solid) !important;
+  border-color: var(--gd-marker-gold-solid) !important;
+  color: var(--gd-marker-gold-text) !important;
+}
+
+.winloss-details-page .dataTables_paginate .page-link:hover {
+  background-color: var(--gd-marker-gold-hover) !important;
+  border-color: var(--gd-marker-gold-border) !important;
+  color: var(--gd-marker-gold-text) !important;
+}
+
+.winloss-details-page .dataTables_paginate .page-item.disabled .page-link {
+  color: rgba(58, 46, 18, 0.4) !important;
+  border-color: var(--gd-marker-gold-border) !important;
+  background-color: #fff !important;
+}
+
+.winloss-details-page .dataTables_length select:focus {
+  border-color: var(--gd-marker-gold-solid);
+  box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
 }
 </style>
 

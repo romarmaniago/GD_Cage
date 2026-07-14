@@ -85,9 +85,9 @@
 
 <style>
 .game-information-page {
-	--gd-marker-gold-solid: #e8d5a3;
-	--gd-marker-gold-border: #c8a24c;
-	--gd-marker-gold-text: #5c4a1f;
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-text: #3a2e12;
 	--gd-marker-gold-hover: #faf3dc;
 }
 
@@ -200,6 +200,67 @@
 .game-information-page .marker-total-table thead th.sorting_desc {
 	color: var(--gd-marker-gold-text) !important;
 }
+
+/* Cream Show / Search bar */
+#game_information-tbl_wrapper .gi-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: var(--gd-marker-gold-hover);
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#game_information-tbl_wrapper .gi-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#game_information-tbl_wrapper .gi-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#game_information-tbl_wrapper #game_information-tbl {
+	margin-top: 0 !important;
+}
+#game_information-tbl_wrapper .dataTables_length,
+#game_information-tbl_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
+}
 </style>
 
 <script type="application/json" id="game-information-i18n"><%- JSON.stringify({
@@ -209,4 +270,57 @@
   telebet: __('gamelist.telebet'),
   emptyTable: __('game_information.empty_table')
 }) %></script>
+<script>
+(function () {
+	function applyGiControlsLayout() {
+		var wrapper = document.getElementById('game_information-tbl_wrapper');
+		var lengthWrap = document.getElementById('game_information-tbl_length');
+		var filterWrap = document.getElementById('game_information-tbl_filter');
+		var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+		var searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+		var controlsHighlight;
+		var filterHighlight;
+
+		if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+		controlsHighlight = wrapper.querySelector('.gi-controls-highlight');
+		if (!controlsHighlight) {
+			controlsHighlight = document.createElement('div');
+			controlsHighlight.className = 'gi-controls-highlight';
+			wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+		}
+		if (lengthWrap.parentElement !== controlsHighlight) {
+			controlsHighlight.appendChild(lengthWrap);
+		}
+		if (filterWrap.parentElement !== controlsHighlight) {
+			controlsHighlight.appendChild(filterWrap);
+		}
+
+		filterHighlight = filterWrap.querySelector('.gi-filter-highlight');
+		if (!filterHighlight) {
+			filterHighlight = document.createElement('div');
+			filterHighlight.className = 'gi-filter-highlight';
+			filterWrap.appendChild(filterHighlight);
+		}
+		if (searchLabel.parentElement !== filterHighlight) {
+			filterHighlight.appendChild(searchLabel);
+		}
+		if (searchInput) {
+			searchInput.setAttribute('placeholder', 'Search...');
+			Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
+				if (node.nodeType === 3) searchLabel.removeChild(node);
+			});
+		}
+	}
+
+	if (window.jQuery) {
+		$(document).on('init.dt draw.dt', '#game_information-tbl', applyGiControlsLayout);
+		$(applyGiControlsLayout);
+	} else {
+		document.addEventListener('DOMContentLoaded', function () {
+			setTimeout(applyGiControlsLayout, 0);
+		});
+	}
+})();
+</script>
 <script src="/assets/js/functions/game_information.js"></script>

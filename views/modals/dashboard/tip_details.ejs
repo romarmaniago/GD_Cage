@@ -17,6 +17,9 @@
 					<div class="d-flex flex-wrap gap-2 align-items-center">
 						<input type="text" id="dash-tip-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('tip.date_time') %>" autocomplete="off" readonly>
 						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" class="btn btn-sm btn-primary" id="btn-dash-tip-in-open" data-view-only-disable>
+							<%= __('tip.in') %>
+						</button>
 						<button type="button" class="btn btn-sm btn-primary" id="btn-dash-tip-settlement-open" data-view-only-disable>
 							<%= __('tip.settle') %>
 						</button>
@@ -114,6 +117,81 @@
 	border-collapse: collapse;
 	border: 1px solid var(--gd-marker-gold-border);
 }
+
+#dash-tip-table_wrapper .dash-tip-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: #faf3dc;
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#dash-tip-table_wrapper .dash-tip-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#dash-tip-table_wrapper .dash-tip-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#dash-tip-table_wrapper #dash-tip-table_filter .dash-tip-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#dash-tip-table_wrapper #dash-tip-table_filter .dash-tip-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#dash-tip-table_wrapper #dash-tip-table_filter .dash-tip-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#dash-tip-table_wrapper #dash-tip-table_filter .dash-tip-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#dash-tip-table_wrapper #dash-tip-table {
+	margin-top: 0 !important;
+}
+#dash-tip-table_wrapper .dataTables_length,
+#dash-tip-table_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
+}
+#dash-tip-table_wrapper .dataTables_length label {
+	font-size: 0;
+}
+#dash-tip-table_wrapper .dataTables_length select {
+	font-size: 12px;
+}
+#dash-tip-table_wrapper > .row.dash-tip-dt-top-row-empty {
+	display: none !important;
+	height: 0 !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	overflow: hidden !important;
+	border: 0 !important;
+}
+
 #dash-tip-table thead th {
 	color: var(--gd-marker-gold-text);
 	font-weight: 600;
@@ -151,5 +229,62 @@
 }
 #dash-tip-table .tip-amount-negative {
 	color: #dc3545;
+}
+
+/* Pagination colors (Tip modal) */
+.dash-tip-page .dataTables_paginate .page-link {
+	border-color: var(--gd-marker-gold-border) !important;
+	color: var(--gd-marker-gold-text) !important;
+	background-color: #fff !important;
+}
+
+.dash-tip-page .dataTables_paginate .page-item.active .page-link {
+	background-color: var(--gd-marker-gold-solid) !important;
+	border-color: var(--gd-marker-gold-solid) !important;
+	color: var(--gd-marker-gold-text) !important;
+}
+
+.dash-tip-page .dataTables_paginate .page-link:hover {
+	background-color: var(--gd-marker-gold-hover) !important;
+	border-color: var(--gd-marker-gold-border) !important;
+	color: var(--gd-marker-gold-text) !important;
+}
+
+.dash-tip-page .dataTables_paginate .page-item.disabled .page-link {
+	color: rgba(58, 46, 18, 0.4) !important;
+	border-color: var(--gd-marker-gold-border) !important;
+	background-color: #fff !important;
+}
+</style>
+
+<style>
+#modal-tip-in .select2-container .select2-selection--single {
+	height: calc(1.5em + 0.75rem + 6px);
+}
+#modal-tip-in .select2-container .select2-search--inline .select2-search__field {
+	margin-top: 0;
+	margin: 0.25rem 0.25rem 0.25rem 0;
+	height: 1.375rem;
+	line-height: 1.375rem;
+}
+#modal-tip-in .select2-container--default .select2-selection--single {
+	border-color: #eee;
+}
+#modal-tip-in .select2-container--default .select2-selection--single .select2-selection__rendered {
+	display: flex;
+	align-items: center;
+	padding-left: 0.75rem;
+	height: calc(1.5em + 0.75rem + 6px);
+	line-height: 1.5;
+}
+#modal-tip-in .select2-container--default .select2-selection--single .select2-selection__arrow {
+	height: calc(1.5em + 0.75rem + 6px);
+}
+#modal-tip-in .select2-container--default .select2-selection--single .select2-selection__placeholder {
+	color: #8A92A6;
+}
+#modal-tip-in #tip-in-modal-guest + .select2-container .select2-selection--single,
+#modal-tip-in #tip-in-modal-account + .select2-container .select2-selection--single {
+	height: calc(1.5em + 0.75rem + 6px);
 }
 </style>

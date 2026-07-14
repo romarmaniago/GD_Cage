@@ -3266,9 +3266,9 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 		settlementRows +
 		'</div>' +
 		'<div class="game-start-receipt-slip-actions">' +
-		'<button type="button" class="btn btn-sm btn-outline-primary js-copy-game-receipt-slip-image">' +
+		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-image">' +
 		'Copy image</button>' +
-		'<button type="button" class="btn btn-sm btn-outline-primary js-copy-game-receipt-slip-text">' +
+		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-text">' +
 		'Copy text</button>' +
 		'</div>' +
 		'</div>'

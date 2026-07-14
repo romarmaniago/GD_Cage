@@ -109,3 +109,35 @@ body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:active:not(:disabled) {
 body:has(.gd-sidebar) .modal .expense-cat-panel-add-btn:disabled {
   opacity: 0.45;
 }
+
+/* House expense form labels — gold text (not blue) */
+body:has(.gd-sidebar) #modal-new-house-expense .form-label,
+body:has(.gd-sidebar) #modal-edit-house-expense .form-label,
+body:has(.gd-sidebar) #modal-new-return-money .form-label,
+body:has(.gd-sidebar) #modal-edit-return-money .form-label,
+body:has(.gd-sidebar) #modal-house-expense-add-category .form-label,
+body:has(.gd-sidebar) #modal-house-expense-edit-category .form-label,
+body:has(.gd-sidebar) #modal-house-expense-add-vehicle .form-label,
+body:has(.gd-sidebar) #modal-house-expense-edit-vehicle .form-label,
+body:has(.gd-sidebar) #house-expense-new-cat-preset-label {
+  color: #3a2e12 !important;
+}
+
+/* Modal Close / dismiss — white background only */
+body:has(.gd-sidebar) .modal .modal-footer .btn[data-bs-dismiss="modal"]:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-warning),
+body:has(.gd-sidebar) .modal .modal-footer .btn-alt-secondary[data-bs-dismiss="modal"],
+body:has(.gd-sidebar) .modal .modal-footer .btn-secondary[data-bs-dismiss="modal"] {
+  color: #212529 !important;
+  background: #fff !important;
+  border: 1px solid #dee2e6 !important;
+  box-shadow: none !important;
+}
+
+body:has(.gd-sidebar) .modal .modal-footer .btn[data-bs-dismiss="modal"]:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-warning):hover,
+body:has(.gd-sidebar) .modal .modal-footer .btn-alt-secondary[data-bs-dismiss="modal"]:hover,
+body:has(.gd-sidebar) .modal .modal-footer .btn-secondary[data-bs-dismiss="modal"]:hover {
+  color: #212529 !important;
+  background: #f8f9fa !important;
+  border-color: #ced4da !important;
+  box-shadow: none !important;
+}

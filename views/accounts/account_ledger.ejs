@@ -21,7 +21,7 @@
 								
 								</div>
 								
-								<div class="card-body">
+								<div class="card-body account-ledger-page">
 									<table id="account-tbl" class="table table-bordered table-responsive">
 										<thead>
 											<tr>
@@ -81,93 +81,155 @@
 				  padding-right: 0.75rem;
 				  padding-left: 0.75rem;
 				}
+
+				/* GD gold table theme */
+				.account-ledger-page {
+					--gd-marker-gold-solid: #d9b96a;
+					--gd-marker-gold-text: #3a2e12;
+					--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+					--gd-marker-gold-hover: #faf3dc;
+				}
+
+				.account-ledger-page table.dataTable {
+					border-collapse: collapse !important;
+					border-spacing: 0 !important;
+				}
+
+				.account-ledger-page table thead tr,
+				.account-ledger-page table tfoot tr {
+					background-color: var(--gd-marker-gold-solid);
+				}
+
+				.account-ledger-page table thead th,
+				.account-ledger-page table tfoot th {
+					background: transparent !important;
+					background-color: transparent !important;
+					box-shadow: none !important;
+				}
+
+				.account-ledger-page table.dataTable thead > tr > th.sorting,
+				.account-ledger-page table.dataTable thead > tr > th.sorting_asc,
+				.account-ledger-page table.dataTable thead > tr > th.sorting_desc,
+				.account-ledger-page table.dataTable thead > tr > th.sorting_disabled {
+					background: transparent !important;
+					background-color: transparent !important;
+				}
+
 				#account-tbl {
-								font-size: 12px; /* Bawasan ang laki ng font */
-								width: 100%; /* Para magkasya sa container */
-								table-layout: fixed; /* Para hindi lumagpas ang mga column */
-								word-wrap: break-word; /* Para hindi lumampas ang text */
-							}
+					font-size: 12px;
+					width: 100%;
+					table-layout: fixed;
+					word-wrap: break-word;
+					border-collapse: collapse;
+					border: 1px solid var(--gd-marker-gold-border);
+				}
 							
-							#account-tbl th,
-							#account-tbl td {
-								padding: 8px; /* Mas maliit na padding */
-								text-align: center; /* Center ang text */
-								white-space: nowrap; /* Para hindi mag-wrap ang text */
-								overflow: hidden;
-								text-overflow: ellipsis; /* Dagdag truncation kung may sobrang haba */
-							}
+				#account-tbl th,
+				#account-tbl td {
+					padding: 8px;
+					text-align: center;
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
 							
-							#account-tbl th {
-								background-color: #8A92A6; /* Para may contrast */
-								font-weight: bold;
-								color: white;
-							}
+				#account-tbl thead th {
+					background-color: transparent;
+					font-weight: 600;
+					color: var(--gd-marker-gold-text);
+					border: none;
+					border-bottom: 1px solid var(--gd-marker-gold-border);
+				}
+
+				#account-tbl tbody tr {
+					border-bottom: 1px solid #eee;
+				}
+
+				#account-tbl tbody tr:nth-child(even) td {
+					background-color: #fbf5e4;
+				}
+
+				#account-tbl td {
+					color: #666;
+				}
+
+				#account-tbl tbody tr:hover,
+				#account-tbl tbody tr:hover td {
+					background-color: var(--gd-marker-gold-hover) !important;
+				}
+
+				#account-tbl tfoot th {
+					color: var(--gd-marker-gold-text);
+					font-weight: 600;
+					border-top: 2px solid var(--gd-marker-gold-border);
+					border-bottom: 1px solid var(--gd-marker-gold-border);
+				}
 							
-							@media (max-width: 768px) {
-										#account-tbl {
-									font-size: 10px; /* Mas maliit sa mobile */
-								}
-							
-								#account-tbl th,
-								#account-tbl td {
-									padding: 5px;
-								}
-							}
-							/* Itago ang text na "Show" at "entries" sa DataTables */
-							.dataTables_length label {
-								font-size: 0; /* Itatago ang text */
-							}
-							
-							/* Panatilihin ang dropdown na nakikita */
-							.dataTables_length select {
-								font-size: 12px; /* Ibalik ang font size ng dropdown */
-							}
-							
-							
-							
-								/* Adjust spacing and alignment for date range picker */
-							.dataTables_wrapper .row {
-								margin-bottom: 15px;
-								font-size: 12px; /* Pareho sa commission-tbl */
-							}
-							
-							/* Flexbox layout for the date range picker */
-							.input-daterange {
-								display: flex;
-								justify-content: space-between;
-								position: relative;
-								left: 7.5rem;
-								top: 4rem;
-								max-width: 300px;
-								font-size: 12px; /* Pareho sa commission-tbl */
-							}
-							
-							/* Styling for form controls */
-							.input-daterange .form-control {
-								flex: 1;
-								margin-right: 5px;
-								max-width: 120px;
-								font-size: 12px; /* Pareho sa commission-tbl */
-								padding: 8px; /* Pareho sa cell padding ng table */
-							}
-							
-							/* Remove margin from the last input */
-							.input-daterange .form-control:last-child {
-								margin-right: 0;
-							}
-							
-							/* Responsive tweaks */
-							@media (max-width: 768px) {
-								.dataTables_wrapper .row,
-								.input-daterange,
-								.input-daterange .form-control {
-									font-size: 10px; /* Mas maliit sa mobile */
-								}
-							
-								.input-daterange .form-control {
-									padding: 5px; /* Mas maliit na padding */
-								}
-							}
+				@media (max-width: 768px) {
+					#account-tbl {
+						font-size: 10px;
+					}
+				
+					#account-tbl th,
+					#account-tbl td {
+						padding: 5px;
+					}
+				}
+				/* Itago ang text na "Show" at "entries" sa DataTables */
+				.dataTables_length label {
+					font-size: 0;
+				}
+				
+				/* Panatilihin ang dropdown na nakikita */
+				.dataTables_length select {
+					font-size: 12px;
+				}
+				
+				
+				
+					/* Adjust spacing and alignment for date range picker */
+				.dataTables_wrapper .row {
+					margin-bottom: 15px;
+					font-size: 12px;
+				}
+				
+				/* Flexbox layout for the date range picker */
+				.input-daterange {
+					display: flex;
+					justify-content: space-between;
+					position: relative;
+					left: 7.5rem;
+					top: 4rem;
+					max-width: 300px;
+					font-size: 12px;
+				}
+				
+				/* Styling for form controls */
+				.input-daterange .form-control {
+					flex: 1;
+					margin-right: 5px;
+					max-width: 120px;
+					font-size: 12px;
+					padding: 8px;
+				}
+				
+				/* Remove margin from the last input */
+				.input-daterange .form-control:last-child {
+					margin-right: 0;
+				}
+				
+				/* Responsive tweaks */
+				@media (max-width: 768px) {
+					.dataTables_wrapper .row,
+					.input-daterange,
+					.input-daterange .form-control {
+						font-size: 10px;
+					}
+				
+					.input-daterange .form-control {
+						padding: 5px;
+					}
+				}
 				
 						</style>
 			<%- include ('../modals/accounts/new_account') %>

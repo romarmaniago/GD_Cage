@@ -743,6 +743,7 @@
 <%- include ('modals/dashboard/service_category_details') %>
 <%- include ('modals/dashboard/tip_details') %>
 <%- include ('modals/dashboard/junket_loss') %>
+<%- include ('modals/tip/tip_in') %>
 <%- include ('modals/tip/tip_settlement') %>
 <%- include ('modals/junket/edit_service_record') %>
 <%- include('partials/permission_view_only_script') %>
@@ -771,6 +772,13 @@
 <script src="/assets/js/functions/dashboard_incidental.js"></script>
 <script src="/assets/js/functions/dashboard_delivery.js"></script>
 <script src="/assets/js/functions/dashboard_soa_fnb_hotel.js"></script>
+<script type="application/json" id="tip-in-i18n"><%- JSON.stringify({
+  invalidAmount: __('tip.in_invalid_amount'),
+  missingStatus: __('tip.settlement_missing_status'),
+  missingName: __('tip.settlement_missing_name'),
+  missingProgramDate: __('tip.missing_program_date'),
+  saved: __('tip.in_saved')
+}) %></script>
 <script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
   invalidAmount: __('tip.settlement_invalid_amount'),
   exceedsBalance: __('tip.settlement_exceeds_balance'),
@@ -781,6 +789,10 @@
 }) %></script>
 <script>
    (function () {
+      var inEl = document.getElementById('tip-in-i18n');
+      if (inEl) {
+         try { window.tipInI18n = JSON.parse(inEl.textContent || '{}'); } catch (e) { window.tipInI18n = {}; }
+      }
       var el = document.getElementById('tip-settlement-i18n');
       if (!el) return;
       try { window.tipSettlementI18n = JSON.parse(el.textContent || '{}'); } catch (e) { window.tipSettlementI18n = {}; }

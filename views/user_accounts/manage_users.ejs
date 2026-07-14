@@ -15,15 +15,22 @@
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
 									<a href="/manage_users"class="active"><%= __('manage_users.manage_users') %></a>
 								</div></h3>
-									<button type="button" class="btn btn-primary" onclick="add_user_modal()">
-										<i class="fa fa-plus" aria-hidden="true"></i> <%= __('manage_users.new_user') %>
-									</button>
 								
 							</div>
 
 
 							<div class="card-body settings-page">
-																
+								<button
+									type="button"
+									class="expense-cat-panel-add-btn d-none"
+									id="btn-add-user"
+									title="<%= __('manage_users.new_user') %>"
+									aria-label="<%= __('manage_users.new_user') %>"
+									onclick="add_user_modal()"
+									data-view-only-disable
+								>
+									<i class="fa fa-plus" aria-hidden="true"></i>
+								</button>
 								<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 								<table id="usersTable" class="table marker-balance-tbl w-100 mb-0">
 									<thead>
@@ -64,6 +71,66 @@
 							active: "<%= __('manage_users.active') %>",
 							inactive: "<%= __('manage_users.inactive') %>"
 						};
+
+						(function () {
+							function applyManageUsersControlsLayout() {
+								var wrapper = document.getElementById('usersTable_wrapper');
+								var lengthWrap = document.getElementById('usersTable_length');
+								var filterWrap = document.getElementById('usersTable_filter');
+								var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+								var searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+								var addBtn = document.getElementById('btn-add-user');
+								var controlsHighlight;
+								var filterHighlight;
+								var searchPlaceholder = (window.manageUsersTranslations && window.manageUsersTranslations.search)
+									? String(window.manageUsersTranslations.search).replace(/\s*:?\s*$/, '') + '...'
+									: 'Search...';
+
+								if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+								controlsHighlight = wrapper.querySelector('.manage-users-controls-highlight');
+								if (!controlsHighlight) {
+									controlsHighlight = document.createElement('div');
+									controlsHighlight.className = 'manage-users-controls-highlight';
+									wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+								}
+								if (lengthWrap.parentElement !== controlsHighlight) {
+									controlsHighlight.appendChild(lengthWrap);
+								}
+								if (filterWrap.parentElement !== controlsHighlight) {
+									controlsHighlight.appendChild(filterWrap);
+								}
+
+								filterHighlight = filterWrap.querySelector('.manage-users-filter-highlight');
+								if (!filterHighlight) {
+									filterHighlight = document.createElement('div');
+									filterHighlight.className = 'manage-users-filter-highlight';
+									filterWrap.appendChild(filterHighlight);
+								}
+								if (addBtn && addBtn.parentElement !== filterHighlight) {
+									filterHighlight.appendChild(addBtn);
+								}
+								if (searchLabel.parentElement !== filterHighlight) {
+									filterHighlight.appendChild(searchLabel);
+								}
+								if (searchInput) {
+									searchInput.setAttribute('placeholder', searchPlaceholder);
+									Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
+										if (node.nodeType === 3) searchLabel.removeChild(node);
+									});
+								}
+								if (addBtn) addBtn.classList.remove('d-none');
+							}
+
+							if (window.jQuery) {
+								$(document).on('init.dt draw.dt', '#usersTable', applyManageUsersControlsLayout);
+								$(applyManageUsersControlsLayout);
+							} else {
+								document.addEventListener('DOMContentLoaded', function () {
+									setTimeout(applyManageUsersControlsLayout, 0);
+								});
+							}
+						})();
 					</script>
 
 						<script src="/assets/js/functions/manage_user.js?v=5"></script>
@@ -116,10 +183,102 @@
     border: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Header styles — gold bg only; keep original text color */
+/* Circular + beside search — same as User Roles */
+#btn-add-user.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: 1px solid rgba(58, 46, 18, 0.25);
+	border-radius: 50%;
+	background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+	color: #1a1205;
+	box-shadow: none;
+	line-height: 1;
+	flex-shrink: 0;
+	position: relative;
+	z-index: 2;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+#btn-add-user.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+}
+#btn-add-user.expense-cat-panel-add-btn:hover:not(:disabled) {
+	background: linear-gradient(135deg, #5a3d0f 0%, #b8923f 50%, #e6c97a 100%);
+	color: #0f0a02;
+}
+#btn-add-user.expense-cat-panel-add-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+#usersTable_wrapper .manage-users-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: var(--gd-marker-gold-hover);
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#usersTable_wrapper .manage-users-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#usersTable_wrapper .manage-users-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#usersTable_wrapper #usersTable_filter .manage-users-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#usersTable_wrapper #usersTable_filter .manage-users-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#usersTable_wrapper #usersTable_filter .manage-users-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#usersTable_wrapper #usersTable_filter .manage-users-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#usersTable_wrapper #usersTable {
+	margin-top: 0 !important;
+}
+#usersTable_wrapper .dataTables_length,
+#usersTable_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+/* Header styles — gold bg */
 #usersTable thead th {
-    color: var(--bs-primary);
-    font-weight: 500;
+    color: var(--gd-marker-gold-text);
+    font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;

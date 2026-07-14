@@ -449,8 +449,10 @@ function buildHouseExpenseReceiptSlipHtml(data) {
         detailsTable +
         '</div>' +
         '<div class="house-expense-receipt-slip-actions">' +
-        '<button type="button" class="btn house-expense-receipt-copy-btn js-copy-house-expense-receipt-slip">' +
-        'Copy</button>' +
+        '<button type="button" class="btn house-expense-receipt-copy-btn js-copy-house-expense-receipt-slip-image">' +
+        'Copy image</button>' +
+        '<button type="button" class="btn house-expense-receipt-copy-btn js-copy-house-expense-receipt-slip-text">' +
+        'Copy text</button>' +
         '</div>' +
         '</div>'
     );
@@ -2814,6 +2816,24 @@ $(document).ready(function () {
         a.click();
         document.body.removeChild(a);
     };
+
+    $(document)
+        .off('click', '.js-copy-house-expense-receipt-slip-image')
+        .on('click', '.js-copy-house-expense-receipt-slip-image', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
+            copyHouseExpenseReceiptSlipImage(slipBody, $btn);
+        });
+
+    $(document)
+        .off('click', '.js-copy-house-expense-receipt-slip-text')
+        .on('click', '.js-copy-house-expense-receipt-slip-text', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
+            copyHouseExpenseReceiptSlipTextButton(slipBody, $btn);
+        });
 
     $(document)
         .off('click', '.js-copy-house-expense-receipt-slip')

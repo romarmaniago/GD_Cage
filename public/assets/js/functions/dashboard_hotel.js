@@ -114,7 +114,8 @@ $(document).ready(function () {
 				{
 					targets: '_all',
 					createdCell: function (cell, _cellData, rowMeta) {
-						if (rowMeta.col !== 5) $(cell).addClass('text-center');
+						if (rowMeta.col === 5 || rowMeta.col === 8) return;
+						$(cell).addClass('text-center');
 					}
 				},
 				{
@@ -181,7 +182,7 @@ $(document).ready(function () {
 			return '<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">Settled</span>';
 		}
 		if (hasGameId && !isGameSettled) {
-			return '<button type="button" class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn" title="Edit in Gamebook"><i class="fa fa-info-circle"></i></button>';
+			return '<div class="btn-group"><button type="button" class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn" title="Edit in Gamebook"><i class="fa fa-info-circle"></i></button></div>';
 		}
 		return '';
 	}

@@ -114,14 +114,74 @@
     border: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Header styles — gold bg only; keep original text color */
+/* Header styles — matches Add Charge gold */
 #expense-category-tbl thead th {
-    color: var(--bs-primary);
-    font-weight: 500;
+    color: var(--gd-marker-gold-text) !important;
+    font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
     border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+
+#expense-category-tbl_wrapper .expense-category-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: #faf3dc;
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#expense-category-tbl_wrapper .expense-category-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#expense-category-tbl_wrapper .expense-category-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#expense-category-tbl_wrapper #expense-category-tbl_filter .expense-category-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#expense-category-tbl_wrapper #expense-category-tbl_filter .expense-category-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#expense-category-tbl_wrapper #expense-category-tbl_filter .expense-category-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#expense-category-tbl_wrapper #expense-category-tbl_filter .expense-category-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#expense-category-tbl_wrapper #expense-category-tbl {
+	margin-top: 0 !important;
+}
+#expense-category-tbl_wrapper .dataTables_length,
+#expense-category-tbl_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
 }
 
 /* Row styles */
@@ -159,7 +219,7 @@
 #expense-category-tbl tfoot th {
     padding: 10px;
     font-weight: 600;
-    color: #333;
+    color: var(--gd-marker-gold-text);
     border-top: 2px solid var(--gd-marker-gold-border);
     border-bottom: 1px solid var(--gd-marker-gold-border);
 }
@@ -241,3 +301,57 @@
 								width: 30%;
 							}
 						</style>
+						<script>
+							(function () {
+								function applyExpenseCategoryControlsLayout() {
+									var wrapper = document.getElementById('expense-category-tbl_wrapper');
+									var lengthWrap = document.getElementById('expense-category-tbl_length');
+									var filterWrap = document.getElementById('expense-category-tbl_filter');
+									var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+									var searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+									var controlsHighlight;
+									var filterHighlight;
+									var searchPlaceholder = (window.expenseCategoryTranslations && window.expenseCategoryTranslations.search)
+										? String(window.expenseCategoryTranslations.search).replace(/\s*:?\s*$/, '') + '...'
+										: 'Search...';
+
+									if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+									controlsHighlight = wrapper.querySelector('.expense-category-controls-highlight');
+									if (!controlsHighlight) {
+										controlsHighlight = document.createElement('div');
+										controlsHighlight.className = 'expense-category-controls-highlight';
+										wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+									}
+									if (lengthWrap.parentElement !== controlsHighlight) {
+										controlsHighlight.appendChild(lengthWrap);
+									}
+									if (filterWrap.parentElement !== controlsHighlight) {
+										controlsHighlight.appendChild(filterWrap);
+									}
+
+									filterHighlight = filterWrap.querySelector('.expense-category-filter-highlight');
+									if (!filterHighlight) {
+										filterHighlight = document.createElement('div');
+										filterHighlight.className = 'expense-category-filter-highlight';
+										filterWrap.appendChild(filterHighlight);
+									}
+									if (searchLabel.parentElement !== filterHighlight) {
+										filterHighlight.appendChild(searchLabel);
+									}
+									if (searchInput) {
+										searchInput.setAttribute('placeholder', searchPlaceholder);
+										Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
+											if (node.nodeType === 3) searchLabel.removeChild(node);
+										});
+									}
+								}
+
+								if (window.jQuery) {
+									$(document).on('init.dt draw.dt', '#expense-category-tbl', applyExpenseCategoryControlsLayout);
+									$(applyExpenseCategoryControlsLayout);
+								} else {
+									document.addEventListener('DOMContentLoaded', applyExpenseCategoryControlsLayout);
+								}
+							})();
+						</script>

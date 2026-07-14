@@ -8,6 +8,13 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <style>
+	#modal-new-capital {
+		--gd-marker-gold-solid: #d9b96a;
+		--gd-marker-gold-text: #3a2e12;
+		--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+		--gd-marker-gold-hover: #faf3dc;
+	}
+
 	#modal-new-capital .modal-dialog {
 		max-width: min(1400px, 96vw);
 		width: calc(100% - 2rem);
@@ -113,22 +120,54 @@
 		font-size: 12.5px;
 		border-collapse: collapse;
 		table-layout: auto;
+		border: 1px solid var(--gd-marker-gold-border);
+	}
+
+	/* Cream controls bar (length + search) */
+	#capital-tbl_wrapper > .row:has(.dataTables_length),
+	#capital-tbl_wrapper > .row:has(.dataTables_filter) {
+		background: var(--gd-marker-gold-hover);
+		border: 1px solid var(--gd-marker-gold-border);
+		border-bottom: 0;
+		border-radius: 10px 10px 0 0;
+		padding: 8px 12px;
+		margin-left: 0;
+		margin-right: 0;
+		margin-bottom: -1px;
+		align-items: center;
 	}
 
 /* Header styles */
+#capital-tbl thead tr {
+	background-color: var(--gd-marker-gold-solid);
+}
 #capital-tbl thead th {
-background: #f0dfa8;
-color: #6b4f14;
+background: transparent !important;
+color: var(--gd-marker-gold-text) !important;
 font-weight: 600;
 padding: 8px 8px;
 text-align: left;
 border: none;
+border-bottom: 1px solid var(--gd-marker-gold-border);
 vertical-align: middle;
+box-shadow: none !important;
+}
+
+#capital-tbl.dataTable thead > tr > th.sorting,
+#capital-tbl.dataTable thead > tr > th.sorting_asc,
+#capital-tbl.dataTable thead > tr > th.sorting_desc,
+#capital-tbl.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
 }
 
 /* Row styles */
 #capital-tbl tbody tr {
 border-bottom: 1px solid #eee;
+}
+
+#capital-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
 }
 
 /* Cell styles */
@@ -138,8 +177,9 @@ border-bottom: 1px solid #eee;
 	vertical-align: middle;
 }
 
-#capital-tbl tbody tr:hover {
-background-color: #f5f5f5 !important;
+#capital-tbl tbody tr:hover,
+#capital-tbl tbody tr:hover td {
+background-color: var(--gd-marker-gold-hover) !important;
 }
 
 /* Content-fit columns (sakto sa text); Remarks takes leftover space */
@@ -232,9 +272,32 @@ background-color: #f5f5f5 !important;
 padding: 10px;
 font-weight: 600;
 
-color: #3a2e12;
-background-color: #f5e7bd;
-border-top: 2px solid rgba(154, 113, 26, 0.35);
+color: var(--gd-marker-gold-text);
+background-color: transparent;
+border-top: 2px solid var(--gd-marker-gold-border);
+border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+
+/* Pagination colors */
+#modal-new-capital .dataTables_paginate .page-link {
+	border-color: var(--gd-marker-gold-border) !important;
+	color: var(--gd-marker-gold-text) !important;
+	background-color: #fff !important;
+}
+#modal-new-capital .dataTables_paginate .page-item.active .page-link {
+	background-color: var(--gd-marker-gold-solid) !important;
+	border-color: var(--gd-marker-gold-solid) !important;
+	color: var(--gd-marker-gold-text) !important;
+}
+#modal-new-capital .dataTables_paginate .page-link:hover {
+	background-color: var(--gd-marker-gold-hover) !important;
+	border-color: var(--gd-marker-gold-border) !important;
+	color: var(--gd-marker-gold-text) !important;
+}
+#modal-new-capital .dataTables_paginate .page-item.disabled .page-link {
+	color: rgba(58, 46, 18, 0.4) !important;
+	border-color: var(--gd-marker-gold-border) !important;
+	background-color: #fff !important;
 }
 
 #modal-new-capital .hb-type-grid {

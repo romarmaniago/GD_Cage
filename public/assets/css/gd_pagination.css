@@ -1,0 +1,57 @@
+/**
+ * GD gold pagination colors — DataTables Previous / Next / page numbers only.
+ * Color overrides only; no layout/size changes.
+ */
+
+.dataTables_paginate .page-link,
+#pagination-container .page-link {
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+	background-color: #fff !important;
+}
+
+.dataTables_paginate .page-item.active .page-link,
+#pagination-container .page-item.active .page-link {
+	background-color: var(--gd-marker-gold-solid, #d9b96a) !important;
+	border-color: var(--gd-marker-gold-solid, #d9b96a) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+}
+
+.dataTables_paginate .page-link:hover,
+#pagination-container .page-link:hover {
+	background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+}
+
+.dataTables_paginate .page-item.disabled .page-link,
+#pagination-container .page-item.disabled .page-link {
+	color: rgba(58, 46, 18, 0.4) !important;
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+	background-color: #fff !important;
+}
+
+/* Legacy DataTables Previous/Next (non-Bootstrap) — colors only */
+.dataTables_paginate .paginate_button {
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+}
+
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover {
+	background: var(--gd-marker-gold-solid, #d9b96a) !important;
+	border-color: var(--gd-marker-gold-solid, #d9b96a) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+}
+
+.dataTables_paginate .paginate_button:hover:not(.current):not(.disabled) {
+	background: var(--gd-marker-gold-hover, #faf3dc) !important;
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
+}
+
+.dataTables_paginate .paginate_button.disabled,
+.dataTables_paginate .paginate_button.disabled:hover {
+	color: rgba(58, 46, 18, 0.4) !important;
+	border-color: var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+}

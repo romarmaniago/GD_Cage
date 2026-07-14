@@ -113,7 +113,9 @@ $(document).ready(function() {
 			order: [[0, 'desc']], // Sort by Program Date (descending)
 			columnDefs: [
 				{
-					createdCell: function (cell) {
+					targets: '_all',
+					createdCell: function (cell, _cellData, rowMeta) {
+						if (rowMeta.col === 5 || rowMeta.col === 8) return;
 						$(cell).addClass('text-center');
 					}
 				},
@@ -127,7 +129,8 @@ $(document).ready(function() {
 				{
 					targets: [8], // Action column
 					orderable: false,
-					searchable: false
+					searchable: false,
+					className: 'text-start'
 				}
 			],
 			language: {
@@ -264,11 +267,13 @@ $(document).ready(function() {
 							</span>`;
 					} else if (hasGameId && !isGameSettled) {
 						actionHtml = `
-							<button type="button"
-								class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
-								title="Edit in Gamebook">
-								<i class="fa fa-info-circle"></i>
-							</button>`;
+							<div class="btn-group">
+								<button type="button"
+									class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
+									title="Edit in Gamebook">
+									<i class="fa fa-info-circle"></i>
+								</button>
+							</div>`;
 					}
 
 					dataTable.row.add([

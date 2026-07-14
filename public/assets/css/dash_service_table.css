@@ -6,10 +6,10 @@
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+  border: 1px solid rgba(58, 46, 18, 0.25);
   border-radius: 50%;
-  background: #fff;
-  color: var(--bs-primary);
+  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  color: #1a1205;
   line-height: 1;
   flex-shrink: 0;
   position: relative;
@@ -37,15 +37,32 @@
 
 .dash-service-table-panel .expense-cat-panel-add-btn:hover:not(:disabled),
 [id^="btn-dash-"][id$="-new-record"].expense-cat-panel-add-btn:hover:not(:disabled) {
-  background: var(--bs-primary);
-  color: #fff;
-  border-color: var(--bs-primary);
+  background: linear-gradient(135deg, #5a3d0f 0%, #b8923f 50%, #e6c97a 100%);
+  color: #0f0a02;
+  border-color: rgba(58, 46, 18, 0.35);
 }
 
 .dash-service-table-panel .expense-cat-panel-add-btn:disabled,
 [id^="btn-dash-"][id$="-new-record"].expense-cat-panel-add-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* GD gold table theme */
+.dash-service-modal-body,
+.dash-service-table-panel {
+  --gd-marker-gold-solid: #d9b96a;
+  --gd-marker-gold-text: #3a2e12;
+  --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+  --gd-marker-gold-hover: #faf3dc;
+}
+
+.dash-service-daterange {
+  max-width: 260px;
+  background: #fff;
+  border: 1px solid rgba(58, 46, 18, 0.2);
+  border-radius: 8px;
+  text-align: center;
 }
 
 .dash-service-table-panel .dataTables_wrapper .dash-service-controls-highlight {
@@ -55,8 +72,8 @@
   gap: 12px;
   padding: 8px 12px;
   margin-bottom: -1px;
-  background: #E8EAFB;
-  border: 1px solid #D5DAF6;
+  background: var(--gd-marker-gold-hover, #faf3dc);
+  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
   border-bottom: 0;
   border-radius: 10px 10px 0 0;
 }
@@ -101,6 +118,78 @@
   box-shadow: none;
 }
 
-.dash-service-table-panel .dataTables_wrapper table.dataTable {
+.dash-service-table-panel {
+  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dash-service-table-panel .dataTables_wrapper table.dataTable,
+.dash-service-tbl {
   margin-top: 0 !important;
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+
+.dash-service-table-panel table thead tr,
+.dash-service-tbl thead tr {
+  background-color: var(--gd-marker-gold-solid, #d9b96a);
+}
+
+.dash-service-table-panel table thead th,
+.dash-service-tbl thead th,
+.dash-service-table-panel table.dataTable thead > tr > th.sorting,
+.dash-service-table-panel table.dataTable thead > tr > th.sorting_asc,
+.dash-service-table-panel table.dataTable thead > tr > th.sorting_desc,
+.dash-service-table-panel table.dataTable thead > tr > th.sorting_disabled {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--gd-marker-gold-text, #3a2e12) !important;
+  font-weight: 600;
+  padding: 10px 12px;
+  border: none !important;
+  border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+  box-shadow: none !important;
+}
+
+.dash-service-table-panel table thead th:nth-child(6),
+.dash-service-table-panel table tbody td:nth-child(6),
+.dash-service-tbl thead th:nth-child(6),
+.dash-service-tbl tbody td:nth-child(6) {
+  text-align: right !important;
+  padding-right: 16px;
+}
+
+/* Action icons — left-align so 1-btn and 2-btn rows line up */
+.dash-service-table-panel table thead th:last-child,
+.dash-service-table-panel table tbody td:last-child,
+.dash-service-tbl thead th:last-child,
+.dash-service-tbl tbody td:last-child {
+  text-align: left !important;
+}
+
+.dash-service-table-panel table tbody td:last-child .btn-group,
+.dash-service-tbl tbody td:last-child .btn-group {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.dash-service-table-panel table tbody td,
+.dash-service-tbl tbody td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  color: #666;
+  border-bottom: 1px solid #eee;
+}
+
+.dash-service-table-panel table tbody tr:nth-child(even) td,
+.dash-service-tbl tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
+.dash-service-table-panel table tbody tr:hover,
+.dash-service-table-panel table tbody tr:hover td,
+.dash-service-tbl tbody tr:hover,
+.dash-service-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
 }
