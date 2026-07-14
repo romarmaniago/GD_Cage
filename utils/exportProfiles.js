@@ -58,6 +58,14 @@ const PROFILES = {
 		labelCols: 2,
 		leftAlignCols: [1, 2, 4, 5]
 	},
+	authorizedMasterAccount: {
+		amountCols: [3],
+		signedCols: [3],
+		labelCols: 2,
+		leftAlignCols: [4, 5, 6],
+		centerAlignCols: [1, 2],
+		skipGrandTotal: true
+	},
 	fnbHotel: {
 		amountCols: [6],
 		labelCols: 5,

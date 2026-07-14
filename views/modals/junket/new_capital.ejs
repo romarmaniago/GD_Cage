@@ -9,12 +9,24 @@
 
 <style>
 	#modal-new-capital .modal-dialog {
-		max-width: 1100px;
+		max-width: min(1400px, 96vw);
 		width: calc(100% - 2rem);
 	}
 
 	#modal-new-capital .modal-body {
 		padding: 0.75rem 1rem;
+		overflow-x: hidden;
+	}
+
+	#modal-new-capital .custom-datatable-entries {
+		width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	#modal-new-capital .capital-tbl-scroll {
+		width: 100%;
+		overflow-x: auto;
 	}
 
 	#modal-new-capital .house-balance-filter-row {
@@ -24,8 +36,23 @@
 	#modal-new-capital .house-balance-date-controls {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
+		align-items: flex-start;
 		gap: 12px;
+	}
+
+	#modal-new-capital .hb-date-fields-stack {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	#modal-new-capital .hb-print-export-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin-left: auto;
 	}
 
 	#modal-new-capital .house-balance-filter-row .hb-field-daterange-wrap,
@@ -81,20 +108,22 @@
 	}
 
 	#capital-tbl {
-width: 100%;
-font-size: 13px;
-border-collapse: collapse;
-table-layout: fixed;
-}
+		width: 100% !important;
+		min-width: 0;
+		font-size: 12.5px;
+		border-collapse: collapse;
+		table-layout: auto;
+	}
 
 /* Header styles */
 #capital-tbl thead th {
 background: #f0dfa8;
 color: #6b4f14;
 font-weight: 600;
-padding: 12px 15px;
+padding: 8px 8px;
 text-align: left;
 border: none;
+vertical-align: middle;
 }
 
 /* Row styles */
@@ -104,62 +133,95 @@ border-bottom: 1px solid #eee;
 
 /* Cell styles */
 #capital-tbl td {
-	padding: 12px 15px;
+	padding: 8px 8px;
 	color: #666;
-	vertical-align: top;
+	vertical-align: middle;
 }
 
 #capital-tbl tbody tr:hover {
 background-color: #f5f5f5 !important;
 }
 
-
-
-/* Balance column */
-#capital-tbl td:last-child {
-text-align: right;
-color: #333;
-}
-
-#capital-tbl col.col-encoded {
-	width: 14%;
-}
-
-#capital-tbl col.col-amount {
-	width: 24%;
-}
-
-#capital-tbl col.col-type {
-	width: 12%;
-}
-
-#capital-tbl col.col-remarks {
-	width: 26%;
-}
-
-#capital-tbl col.col-date {
-	width: 16%;
-}
-
-#capital-tbl col.col-action {
-	width: 8%;
-}
-
-#capital-tbl th,
-#capital-tbl td {
+/* Content-fit columns (sakto sa text); Remarks takes leftover space */
+#capital-tbl th:nth-child(1),
+#capital-tbl td:nth-child(1),
+#capital-tbl th:nth-child(2),
+#capital-tbl td:nth-child(2),
+#capital-tbl th:nth-child(3),
+#capital-tbl td:nth-child(3),
+#capital-tbl th:nth-child(4),
+#capital-tbl td:nth-child(4),
+#capital-tbl th:nth-child(6),
+#capital-tbl td:nth-child(6),
+#capital-tbl th:nth-child(7),
+#capital-tbl td:nth-child(7) {
+	width: 1%;
+	white-space: nowrap;
 	overflow: visible;
 	text-overflow: unset;
 }
 
-#capital-tbl th,
-#capital-tbl td:not(:nth-child(4)) {
-	white-space: nowrap;
-	word-break: normal;
+#capital-tbl th:nth-child(1),
+#capital-tbl td:nth-child(1),
+#capital-tbl th:nth-child(2),
+#capital-tbl td:nth-child(2),
+#capital-tbl th:nth-child(4),
+#capital-tbl td:nth-child(4),
+#capital-tbl th:nth-child(6),
+#capital-tbl td:nth-child(6) {
+	text-align: center;
 }
 
-#capital-tbl td:nth-child(4) {
-	white-space: normal;
-	word-break: break-word;
+#capital-tbl th:nth-child(3),
+#capital-tbl td:nth-child(3) {
+	text-align: right;
+}
+
+#capital-tbl th:nth-child(5),
+#capital-tbl td:nth-child(5) {
+	width: 1%;
+	min-width: 64px;
+	max-width: 120px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#capital-tbl th:nth-child(7),
+#capital-tbl td:nth-child(7),
+#capital-tbl td.col-action-cell {
+	width: 1% !important;
+	padding: 6px 6px !important;
+	text-align: center !important;
+	vertical-align: middle !important;
+	white-space: nowrap !important;
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+}
+
+#capital-tbl td.col-action-cell .btn {
+	padding: 0.2rem 0.35rem;
+	line-height: 1;
+	flex: 0 0 auto;
+}
+
+#modal-new-capital .dataTables_wrapper {
+	overflow: visible;
+}
+
+#modal-new-capital .dataTables_scroll,
+#modal-new-capital .dataTables_scrollBody,
+#modal-new-capital .dataTables_scrollHead {
+	overflow: visible !important;
+}
+
+#modal-new-capital #capital-tbl.dataTable {
+	margin: 0 !important;
 }
 
 
@@ -175,8 +237,24 @@ background-color: #f5e7bd;
 border-top: 2px solid rgba(154, 113, 26, 0.35);
 }
 
+#modal-new-capital .hb-type-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, auto));
+	column-gap: 1.25rem;
+	row-gap: 0.5rem;
+	align-items: center;
+}
 
+#modal-new-capital .hb-type-grid .form-check {
+	margin: 0;
+	min-height: 0;
+	padding-left: 1.4rem;
+	white-space: nowrap;
+}
 
+#modal-new-capital .hb-type-grid .form-check-input {
+	margin-top: 0.2rem;
+}
 
 </style>
 
@@ -202,11 +280,21 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 							<div class="row house-balance-filter-row">
 								<div class="col-12">
 									<div class="house-balance-date-controls">
-										<div class="hb-field-daterange-wrap">
-											<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+										<div class="hb-date-fields-stack">
+											<div class="hb-field-daterange-wrap">
+												<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+											</div>
+											<div class="hb-field-program-date-wrap">
+												<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
+											</div>
 										</div>
-										<div class="hb-field-program-date-wrap">
-											<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
+										<div class="hb-print-export-actions">
+											<button type="button" id="btn-capital-print" class="btn btn-sm btn-alt-success">
+												<i class="fa fa-print me-1" aria-hidden="true"></i><%= __('dashboard_new_capital.print') %>
+											</button>
+											<button type="button" id="btn-capital-export" class="btn btn-sm btn-success">
+												<i class="fa fa-file-excel me-1" aria-hidden="true"></i><%= __('dashboard_new_capital.export') %>
+											</button>
 										</div>
 									</div>
 								</div>
@@ -220,23 +308,48 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 								</div>
 							</div>
 							
-							<div class="row mb-2 align-items-center mt-2 justify-content-end g-2">
-								<div class="col-auto">
-									<div class="form-check">
-										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
-										<label class="form-check-label" for="deposit"><%= __('dashboard_new_capital.cash_in') %></label>
-									</div>
-								</div>
-								<div class="col-auto">
-									<div class="form-check">
-										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="withdraw" name="optWithdrawDeposit" value="2" onclick="updateDescription()" required>
-										<label class="form-check-label" for="withdraw"><%= __('dashboard_new_capital.cash_out') %></label>
+							<div class="row mb-2 align-items-center mt-2 justify-content-between g-2">
+								<div class="col-auto flex-grow-1">
+									<div class="hb-type-grid" role="group" aria-label="Transaction type">
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeTransfer" name="optCapitalType" value="Transfer" data-txn="2">
+											<label class="form-check-label" for="hbTypeTransfer"><%= __('dashboard_new_capital.type_transfer') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeDeposit" name="optCapitalType" value="Deposit" data-txn="1">
+											<label class="form-check-label" for="hbTypeDeposit"><%= __('dashboard_new_capital.type_deposit') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeWithdrawal" name="optCapitalType" value="Withdrawal" data-txn="2">
+											<label class="form-check-label" for="hbTypeWithdrawal"><%= __('dashboard_new_capital.type_withdrawal') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeLossAmount" name="optCapitalType" value="Loss Amount" data-txn="2">
+											<label class="form-check-label" for="hbTypeLossAmount"><%= __('dashboard_new_capital.type_loss_amount') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeSettlement" name="optCapitalType" value="Settlement" data-txn="2">
+											<label class="form-check-label" for="hbTypeSettlement"><%= __('dashboard_new_capital.type_settlement') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeFnb" name="optCapitalType" value="F&B" data-txn="2">
+											<label class="form-check-label" for="hbTypeFnb"><%= __('dashboard_new_capital.type_fnb') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeHotel" name="optCapitalType" value="Hotel" data-txn="2">
+											<label class="form-check-label" for="hbTypeHotel"><%= __('dashboard_new_capital.type_hotel') %></label>
+										</div>
+										<div class="form-check">
+											<input class="form-check-input hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="hbTypeIncidental" name="optCapitalType" value="Incidental" data-txn="2">
+											<label class="form-check-label" for="hbTypeIncidental"><%= __('dashboard_new_capital.type_incidental') %></label>
+										</div>
 									</div>
 								</div>
 								<div class="col-auto">
 									<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
 								</div>
 							</div>
+							<input type="hidden" name="optWithdrawDeposit" id="optWithdrawDeposit" value="">
 							
 							<%
 								function sumHouseBalanceServiceTotals(rows) {
@@ -279,36 +392,31 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 							%>
 							<input type="hidden" value="<%= refCashBalStr %>" id="cashbal" name="txtcashbal"/>
 							
-							<input type="hidden" name="description" id="description" value="Cash-in">
+							<input type="hidden" name="description" id="description" value="">
 							
 							<hr class="my-2" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
+							<div class="table-responsive capital-tbl-scroll">
 							<table
 								id="capital-tbl"
 								class="table table-bordered table-hover"
 								style="width:100%"
 							>
-								<colgroup>
-									<col class="col-encoded">
-									<col class="col-amount">
-									<col class="col-type">
-									<col class="col-remarks">
-									<col class="col-date">
-									<col class="col-action">
-								</colgroup>
 								<thead>
 									<tr>
-										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.program_date_col') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.date_time') %></th>
 										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.amount') %></th>
 										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.type') %></th>
 										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.remarks') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.date') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.action') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
+										<th class="d-none d-sm-table-cell text-center"><%= __('dashboard_new_capital.action') %></th>
 									</tr>
 								</thead>
 								<tbody>
 								</tbody>
 							</table>
+							</div>
 						</form>
 					</div>
 					</div>
@@ -388,6 +496,33 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 
 		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
 
+		function getSelectedCapitalType() {
+			const $checked = $('#add_junket_capital .hb-type-check:checked');
+			if (!$checked.length) return null;
+			return {
+				label: $checked.val(),
+				txn: String($checked.data('txn') || ''),
+			};
+		}
+
+		function updateCapitalTypeFields() {
+			const selected = getSelectedCapitalType();
+			if (!selected) {
+				$('#optWithdrawDeposit').val('');
+				$('#description').val('');
+				return;
+			}
+			$('#optWithdrawDeposit').val(selected.txn);
+			$('#description').val('<span class="css-blue">' + selected.label + '</span>');
+		}
+
+		$('#add_junket_capital').on('change', '.hb-type-check', function () {
+			if (this.checked) {
+				$('#add_junket_capital .hb-type-check').not(this).prop('checked', false);
+			}
+			updateCapitalTypeFields();
+		});
+
 		$('#add_junket_capital').on('submit', function(e) {
 			e.preventDefault();
 
@@ -423,13 +558,14 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 				return;
 			}
 
-			const checkedRadio = document.querySelector('input[name="optWithdrawDeposit"]:checked');
-			if (!checkedRadio) {
-				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select Cash-in or Cash-out.' });
+			const selectedType = getSelectedCapitalType();
+			if (!selectedType) {
+				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
 				return;
 			}
+			updateCapitalTypeFields();
 
-			const isCashOutSelected = checkedRadio.value === "2";
+			const isCashOutSelected = selectedType.txn === "2";
 
 			if (isCashOutSelected && txtAmount > cashbal) {
 				Swal.fire({
@@ -441,7 +577,7 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 				return;
 			}
 
-			const typeLabel = isCashOutSelected ? 'Cash-out' : 'Cash-in';
+			const typeLabel = selectedType.label;
 			const amountStr = formatNumberWithCommas(txtAmount);
 
 			SwalConfirm.fire({
@@ -471,10 +607,14 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 	});
 
 	function updateDescription() {
-	  const isCashIn = document.getElementById('deposit').checked;
-	  document.getElementById('description').value = isCashIn ? 
-	  '<span class="css-blue">Cash-in</span>' 
-	  : '<span class="css-blue">Cash-out</span>';
+		const $checked = $('#add_junket_capital .hb-type-check:checked');
+		if (!$checked.length) {
+			$('#description').val('');
+			$('#optWithdrawDeposit').val('');
+			return;
+		}
+		$('#optWithdrawDeposit').val(String($checked.data('txn') || ''));
+		$('#description').val('<span class="css-blue">' + $checked.val() + '</span>');
 	}
 </script>
 

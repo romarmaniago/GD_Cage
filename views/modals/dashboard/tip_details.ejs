@@ -5,7 +5,7 @@
 				<h5 class="modal-title text-white" id="modal-dash-tip-label"><%= __('sidebar.tip') %></h5>
 				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
+			<div class="modal-body dash-tip-page">
 				<div class="dash-tip-settlement-bar mb-3">
 					<div>
 						<div class="dash-tip-settlement-title"><%= __('tip.settlement') %></div>
@@ -23,8 +23,8 @@
 						<% } %>
 					</div>
 				</div>
-				<div class="table-responsive">
-					<table id="dash-tip-table" class="table nowrap small-text mb-0" style="width:100%">
+				<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+					<table id="dash-tip-table" class="table marker-balance-tbl w-100 mb-0">
 						<thead>
 							<tr>
 								<th rowspan="2"><%= __('tip.date_time') %></th>
@@ -32,18 +32,18 @@
 								<th rowspan="2"><%= __('tip.guest') %></th>
 								<th rowspan="2"><%= __('tip.game_no') %></th>
 								<th rowspan="2"><%= __('tip.remarks') %></th>
-								<th colspan="4" class="text-center"><%= __('tip.roller') %></th>
-								<th colspan="4" class="text-center"><%= __('tip.dealer') %></th>
+								<th colspan="4" class="text-center tip-group-head tip-group-head-roller"><%= __('tip.roller') %></th>
+								<th colspan="4" class="text-center tip-group-head tip-group-head-dealer"><%= __('tip.dealer') %></th>
 							</tr>
 							<tr>
-								<th><%= __('tip.transaction') %></th>
-								<th><%= __('tip.amount') %></th>
-								<th><%= __('tip.status') %></th>
-								<th><%= __('tip.name') %></th>
-								<th><%= __('tip.transaction') %></th>
-								<th><%= __('tip.amount') %></th>
-								<th><%= __('tip.status') %></th>
-								<th><%= __('tip.name') %></th>
+								<th class="tip-col tip-col-roller"><%= __('tip.transaction') %></th>
+								<th class="tip-col tip-col-roller"><%= __('tip.amount') %></th>
+								<th class="tip-col tip-col-roller"><%= __('tip.status') %></th>
+								<th class="tip-col tip-col-roller"><%= __('tip.name') %></th>
+								<th class="tip-col tip-col-dealer"><%= __('tip.transaction') %></th>
+								<th class="tip-col tip-col-dealer"><%= __('tip.amount') %></th>
+								<th class="tip-col tip-col-dealer"><%= __('tip.status') %></th>
+								<th class="tip-col tip-col-dealer"><%= __('tip.name') %></th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -58,6 +58,13 @@
 </div>
 
 <style>
+.dash-tip-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
 .dash-tip-settlement-bar {
 	display: flex;
 	flex-wrap: wrap;
@@ -65,30 +72,77 @@
 	justify-content: space-between;
 	gap: 1rem;
 	padding: 0.85rem 1rem;
-	border: 1px solid #bfdbfe;
+	border: 1px solid var(--gd-marker-gold-border);
 	border-radius: 0.5rem;
-	background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
+	background: linear-gradient(180deg, #faf3dc 0%, #fffdf5 100%);
 }
 .dash-tip-settlement-title {
 	font-weight: 600;
-	color: #1d4ed8;
+	color: var(--gd-marker-gold-text);
 }
 #dash-tip-available-balance {
-	color: #1d4ed8;
+	color: var(--gd-marker-gold-text);
+}
+
+.dash-tip-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.dash-tip-page table thead tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.dash-tip-page table thead th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.dash-tip-page table.dataTable thead > tr > th.sorting,
+.dash-tip-page table.dataTable thead > tr > th.sorting_asc,
+.dash-tip-page table.dataTable thead > tr > th.sorting_desc,
+.dash-tip-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+#dash-tip-table {
+	width: 100%;
+	font-size: 13px;
+	border-collapse: collapse;
+	border: 1px solid var(--gd-marker-gold-border);
 }
 #dash-tip-table thead th {
-	background: #f4f6fa;
-	color: #495057;
+	color: var(--gd-marker-gold-text);
 	font-weight: 600;
 	padding: 8px 10px;
-	border-bottom: 2px solid #dee2e6;
+	border: none;
+	border-bottom: 1px solid var(--gd-marker-gold-border);
 	text-align: center;
 	vertical-align: middle;
+}
+#dash-tip-table thead .tip-group-head,
+#dash-tip-table thead .tip-col-roller,
+#dash-tip-table thead .tip-col-dealer {
+	color: var(--gd-marker-gold-text) !important;
+	background: transparent !important;
+}
+#dash-tip-table tbody tr {
+	border-bottom: 1px solid #eee;
+}
+#dash-tip-table tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
 }
 #dash-tip-table tbody td {
 	padding: 8px 10px;
+	color: #666;
 	vertical-align: middle;
 	text-align: center;
+}
+#dash-tip-table tbody tr:hover,
+#dash-tip-table tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
 }
 #dash-tip-table tbody td:nth-child(7),
 #dash-tip-table tbody td:nth-child(11) {

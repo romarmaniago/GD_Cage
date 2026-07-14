@@ -544,14 +544,14 @@ opacity: 0.95;
 	padding-right: 20px;
 }
 
-/*hover/active styles*/
+/*hover/active styles — GD gold */
 .breadcrumb1 a.active, .breadcrumb1 a:hover {
-  background: var(--bs-primary-hover-bg);
-  color: var(--bs-white);
+  background: #c8a24c;
+  color: #000;
 }
 
 .breadcrumb1 a.active:after, .breadcrumb1 a:hover:after {
-  background: var(--bs-primary-hover-bg);
+  background: #c8a24c;
 }
 
 /*adding the arrows for the breadcrumbs using rotated pseudo elements*/
@@ -562,13 +562,13 @@ opacity: 0.95;
 	right: -18px; 
 	width: 36px; 
 	height: 36px;
-  border-color: var(--bs-primary-bg-subtle);
+  border-color: #faf3dc;
 	transform: scale(0.707) rotate(45deg);
 	/*we need to prevent the arrows from getting buried under the next link*/
 	z-index: 1;
 	/*background same as links but the gradient will be rotated to compensate with the transform applied*/
 	box-shadow: 
-		2px -2px 0 2px rgba(var(--bs-primary-rgb), 0.4), 
+		2px -2px 0 2px rgba(200, 162, 76, 0.45), 
 		3px -3px 0 2px rgba(255, 255, 255, 0.1);
 
 	border-radius: 0 5px 0 50px;
@@ -579,22 +579,23 @@ opacity: 0.95;
 }
 
 .flat a, .flat a:after {
-	background: var(--bs-primary-bg-subtle);
-	color: var(--bs-primary);
+	background: #faf3dc;
+	color: #3a2e12;
 	transition: all 0.5s;
 }
 .flat a:before {
-	background: var(--bs-primary);
+	background: #c8a24c;
 	box-shadow: 0 0 0 1px #ccc;
 }
 .flat a:hover, .flat a.active, 
 .flat a:hover:after, .flat a.active:after {
-	background: var(--bs-primary-hover-bg);
-	color: var(--bs-white);
+	background: #c8a24c;
+	color: #000;
 }
 
 .flat a:active, .flat a:active:after {
-    background: var(--bs-primary-active-bg);
+    background: #b8953a;
+    color: #000;
 }
 
 /* Undo Settle breadcrumb (same chevron style, danger color) */

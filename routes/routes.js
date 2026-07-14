@@ -2817,7 +2817,8 @@ pageRouter.post('/add_junket_capital', (req, res) => {
 		txtProgramDate
 	} = req.body;
 	const rawProgramDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
-	let date_now = new Date();
+	const date_now = new Date();
+	let programDate = null;
 	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawProgramDate);
 	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawProgramDate);
 	if (dateOnly || dateTime) {
@@ -2825,34 +2826,20 @@ pageRouter.post('/add_junket_capital', (req, res) => {
 		const y = parts[0];
 		const mo = parts[1];
 		const d = parts[2];
-		let hours = 0;
-		let minutes = 0;
-		let seconds = 0;
-		let ms = 0;
-		if (dateTime) {
-			const tp = rawProgramDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
-			if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-				hours = tp[0];
-				minutes = tp[1];
-			}
-		} else {
-			const now = new Date();
-			hours = now.getHours();
-			minutes = now.getMinutes();
-			seconds = now.getSeconds();
-			ms = now.getMilliseconds();
-		}
-		const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
+		const dt = new Date(y, mo - 1, d);
 		if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
-			date_now = dt;
+			programDate = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 		}
+	}
+	if (!programDate) {
+		return res.status(400).send('Select a valid Program Date before saving.');
 	}
 	let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
 	if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
 		return res.status(400).send('Enter a valid amount greater than zero.');
 	}
-	const query = `INSERT INTO junket_capital(TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-	connection.query(query, [optWithdrawDeposit, txtFullname, description, txtAmount2, Remarks, req.session.user_id, date_now], (err, result) => {
+	const query = `INSERT INTO junket_capital(TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	connection.query(query, [optWithdrawDeposit, txtFullname, description, txtAmount2, Remarks, req.session.user_id, date_now, programDate], (err, result) => {
 		if (err) {
 			console.error('Error inserting junket', err);
 			res.status(500).send('Error inserting junket');
@@ -2880,6 +2867,7 @@ pageRouter.get('/junket_capital_data', (req, res) => {
 			k.ACTIVE,
 			k.ENCODED_BY,
 			k.ENCODED_DT,
+			k.PROGRAM_DATE,
 			k.EDITED_BY,
 			k.EDITED_DT,
 			k.AMOUNT AS capital_amount,
@@ -2888,8 +2876,9 @@ pageRouter.get('/junket_capital_data', (req, res) => {
 			COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
 		FROM junket_capital k
 		LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
-		WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
-		ORDER BY k.ENCODED_DT DESC
+		WHERE k.ACTIVE = 1
+		  AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?
+		ORDER BY COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) DESC, k.ENCODED_DT DESC
 	`;
 
 	connection.query(query, [start_date, end_date], (error, results) => {
@@ -2901,30 +2890,83 @@ pageRouter.get('/junket_capital_data', (req, res) => {
 	});
 });
 
+/** Client omits ACTION (last column). */
+pageRouter.post('/junket_capital/export_xlsx', checkSession, async function (req, res) {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey: 'authorizedMasterAccount',
+			sheetName: 'Authorized Master Account',
+			headers,
+			rows,
+			filename: filename || 'Authorized_Master_Account-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('junket_capital/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
 
 
 // EDIT JUNKET CAPITAL 
-pageRouter.put('/junket_capital/:id', (req, res) => {
-	const id = parseInt(req.params.id);
+pageRouter.put('/junket_capital/:id', checkSession, (req, res) => {
+	if (req.session.permissions === 2 || req.session.permissions === '2') {
+		return res.status(403).send('View-only users cannot edit.');
+	}
+
+	const id = parseInt(req.params.id, 10);
 	const {
-		txtTrans,
-		txtCategory,
-		txtFullname,
-		txtDescription,
 		txtAmount,
-		Remarks
+		Remarks,
+		optWithdrawDeposit,
+		description,
+		txtProgramDate
 	} = req.body;
-	let date_now = new Date();
 
+	if (!id) {
+		return res.status(400).send('Invalid ID');
+	}
 
-	const query = `UPDATE junket_capital SET FULLNAME = ?, AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-	connection.query(query, [txtFullname, txtAmount, Remarks, req.session.user_id, date_now, id], (err, result) => {
+	const rawProgramDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
+	let programDate = null;
+	if (/^\d{4}-\d{2}-\d{2}$/.test(rawProgramDate) || /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawProgramDate)) {
+		const parts = rawProgramDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
+		const y = parts[0];
+		const mo = parts[1];
+		const d = parts[2];
+		const dt = new Date(y, mo - 1, d);
+		if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+			programDate = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+		}
+	}
+	if (!programDate) {
+		return res.status(400).send('Select a valid Program Date.');
+	}
+
+	const amount = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
+	if (!Number.isFinite(amount) || amount <= 0) {
+		return res.status(400).send('Enter a valid amount greater than zero.');
+	}
+
+	const txn = parseInt(optWithdrawDeposit, 10);
+	if (txn !== 1 && txn !== 2) {
+		return res.status(400).send('Select a transaction type.');
+	}
+
+	const date_now = new Date();
+	const query = `UPDATE junket_capital SET TRANSACTION_ID = ?, DESCRIPTION = ?, AMOUNT = ?, REMARKS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`;
+	connection.query(query, [txn, description || '', amount, Remarks || null, programDate, req.session.user_id, date_now, id], (err, result) => {
 		if (err) {
 			console.error('Error updating Junket:', err);
 			res.status(500).send('Error updating Junket');
 			return;
 		}
-
+		if (!result.affectedRows) {
+			return res.status(404).send('Record not found.');
+		}
 		res.send('Junket updated successfully');
 	});
 });

@@ -2231,31 +2231,74 @@ router.get('/month_settle_for_period', async (req, res) => {
 });
 
 // EDIT JUNKET CAPITAL
-router.put('/junket_capital/:id', async (req, res) => {
+router.put('/junket_capital/:id', checkSession, async (req, res) => {
 	try {
-		const id = parseInt(req.params.id);
+		if (req.session.permissions === 2 || req.session.permissions === '2') {
+			return res.status(403).send('View-only users cannot edit.');
+		}
+
+		const id = parseInt(req.params.id, 10);
 		const {
-			txtFullname,
-			txtAmount,
-			Remarks
-		} = req.body;
-
-		let date_now = new Date();
-
-		const query = `
-			UPDATE junket_capital 
-			SET FULLNAME = ?, AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? 
-			WHERE IDNo = ?
-		`;
-
-		await pool.execute(query, [
-			txtFullname,
 			txtAmount,
 			Remarks,
+			optWithdrawDeposit,
+			description,
+			txtProgramDate
+		} = req.body;
+
+		if (!id) {
+			return res.status(400).send('Invalid ID');
+		}
+
+		const rawProgramDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
+		let programDate = null;
+		if (/^\d{4}-\d{2}-\d{2}$/.test(rawProgramDate) || /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawProgramDate)) {
+			const parts = rawProgramDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
+			const y = parts[0];
+			const mo = parts[1];
+			const d = parts[2];
+			const dt = new Date(y, mo - 1, d);
+			if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+				programDate = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+			}
+		}
+		if (!programDate) {
+			return res.status(400).send('Select a valid Program Date.');
+		}
+
+		const amount = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
+		if (!Number.isFinite(amount) || amount <= 0) {
+			return res.status(400).send('Enter a valid amount greater than zero.');
+		}
+
+		const txn = parseInt(optWithdrawDeposit, 10);
+		if (txn !== 1 && txn !== 2) {
+			return res.status(400).send('Select a transaction type.');
+		}
+
+		const desc = description == null ? '' : String(description);
+		const date_now = new Date();
+
+		const query = `
+			UPDATE junket_capital
+			SET TRANSACTION_ID = ?, DESCRIPTION = ?, AMOUNT = ?, REMARKS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
+			WHERE IDNo = ? AND ACTIVE = 1
+		`;
+
+		const [result] = await pool.execute(query, [
+			txn,
+			desc,
+			amount,
+			Remarks || null,
+			programDate,
 			req.session.user_id,
 			date_now,
 			id
 		]);
+
+		if (!result.affectedRows) {
+			return res.status(404).send('Record not found.');
+		}
 
 		res.send('Junket updated successfully');
 	} catch (err) {

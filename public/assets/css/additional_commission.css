@@ -1,20 +1,62 @@
 .additional-commission-panel-body,
 #modal-dash-additional-commission .additional-commission-modal-body {
   overflow-x: auto;
+  --gd-marker-gold-solid: #d9b96a;
+  --gd-marker-gold-text: #3a2e12;
+  --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+  --gd-marker-gold-hover: #faf3dc;
+}
+
+.additional-commission-panel-body table.dataTable,
+#modal-dash-additional-commission .additional-commission-modal-body table.dataTable {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+
+.additional-commission-panel-body table thead tr,
+.additional-commission-panel-body table tfoot tr,
+#modal-dash-additional-commission .additional-commission-modal-body table thead tr,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot tr {
+  background-color: var(--gd-marker-gold-solid);
+}
+
+.additional-commission-panel-body table thead th,
+.additional-commission-panel-body table tfoot th,
+#modal-dash-additional-commission .additional-commission-modal-body table thead th,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot th {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+}
+
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_asc,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_desc,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_disabled,
+#modal-dash-additional-commission .additional-commission-modal-body table.dataTable thead > tr > th.sorting,
+#modal-dash-additional-commission .additional-commission-modal-body table.dataTable thead > tr > th.sorting_asc,
+#modal-dash-additional-commission .additional-commission-modal-body table.dataTable thead > tr > th.sorting_desc,
+#modal-dash-additional-commission .additional-commission-modal-body table.dataTable thead > tr > th.sorting_disabled {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 #additional-commission-tbl {
   width: 100%;
   font-size: 13px;
   border-collapse: collapse;
+  border: 1px solid var(--gd-marker-gold-border);
 }
 
 #additional-commission-tbl thead th {
-  background: var(--bs-primary-bg-subtle);
-  color: var(--bs-primary);
-  font-weight: 500;
+  color: var(--gd-marker-gold-text);
+  font-weight: 600;
   padding: 12px 15px;
   border: none;
+  border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 #additional-commission-tbl thead th.sortable-col {
@@ -24,13 +66,13 @@
 
 #additional-commission-tbl thead th.sortable-col:hover,
 #additional-commission-tbl thead th.sortable-col.is-sorted {
-  background: #dfe6ff;
+  background: rgba(58, 46, 18, 0.08) !important;
 }
 
 #additional-commission-tbl .sort-indicator {
   font-size: 10px;
   margin-left: 4px;
-  color: #6c757d;
+  color: var(--gd-marker-gold-text);
 }
 
 #additional-commission-tbl thead th:nth-child(2),
@@ -105,8 +147,8 @@
   gap: 12px;
   padding: 8px 12px;
   margin-bottom: -1px;
-  background: #E8EAFB;
-  border: 1px solid #D5DAF6;
+  background: #faf3dc;
+  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
   border-bottom: 0;
   border-radius: 10px 10px 0 0;
 }
@@ -178,8 +220,13 @@
   padding-right: 20px;
 }
 
-#additional-commission-tbl tbody tr:hover {
-  background-color: #f5f5f5 !important;
+#additional-commission-tbl tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
+#additional-commission-tbl tbody tr:hover,
+#additional-commission-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover) !important;
 }
 
 #modal-additional-commission .select2-container--default .select2-selection--single {

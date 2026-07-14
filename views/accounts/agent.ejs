@@ -23,9 +23,9 @@
                      </button>
                  </div>
 
-                <div class="card-body">
-                               
-                  <table id="agent-tbl"  class="table  nowrap small-text" style="width:100%">
+                <div class="card-body agent-page">
+                  <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                  <table id="agent-tbl" class="table marker-balance-tbl w-100 mb-0">
 
                     <thead>
                       <tr>
@@ -37,12 +37,13 @@
                         <th ><%= __('agent.remarks') %></th>
                         <th ><%= __('agent.latest_game') %></th>
                         <th ><%= __('agent.status') %></th>
-                        <th ><%= __('agent.action') %></th>
+                        <th class="text-center"><%= __('agent.action') %></th>
                       </tr>
                     </thead>
                     <tbody>
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -84,35 +85,81 @@
 .card-body {
   overflow-x: auto;
 }
+
+/* GD gold table theme — matches markerHistory */
+.agent-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+.agent-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.agent-page table thead tr,
+.agent-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.agent-page table thead th,
+.agent-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.agent-page table.dataTable thead > tr > th.sorting,
+.agent-page table.dataTable thead > tr > th.sorting_asc,
+.agent-page table.dataTable thead > tr > th.sorting_desc,
+.agent-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
 #agent-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    border: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Header styles */
 #agent-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
-    font-weight: 500;
+    color: var(--gd-marker-gold-text);
+    font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Row styles */
 #agent-tbl tbody tr {
     border-bottom: 1px solid #eee;
 }
 
-/* Cell styles */
-    #agent-tbl td {
+#agent-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
+}
+
+#agent-tbl td {
     padding: 12px 15px;
     color: #666;
 }
 
-#agent-tbl tbody tr:hover {
-  background-color: #f5f5f5 !important;
+#agent-tbl tbody tr:hover,
+#agent-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover) !important;
+}
+
+#agent-tbl tfoot th {
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
+    color: var(--gd-marker-gold-text);
+    font-weight: 600;
+    padding: 10px 15px;
+    background-color: transparent;
 }
 
 
@@ -217,19 +264,6 @@
 }
 
 
-/* Footer total row */
-
-
-#agent-tbl tfoot th {
-    padding: 10px;
-    font-weight: 600;
-   
-    color: #333;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
-}
-
-            
             @media (max-width: 768px) {
                 #agent-tbl {
                     font-size: 10px; /* Mas maliit sa mobile */

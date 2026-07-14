@@ -33,8 +33,8 @@
             <div class="col-12 text-muted small py-2">Loading balances…</div>
           </div>
         </div>
-        <div class="card-body pt-0">
-          <div class="table-responsive">
+        <div class="card-body pt-0 jfl-page">
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
             <button
               type="button"
               class="expense-cat-panel-add-btn js-jfl-add d-none"
@@ -45,7 +45,7 @@
             >
               <i class="fa fa-plus" aria-hidden="true"></i>
             </button>
-            <table id="jfl-tbl" class="table nowrap small-text" style="width:100%">
+            <table id="jfl-tbl" class="table marker-balance-tbl w-100 mb-0">
               <thead>
                 <tr>
                   <th>Date and Time</th>
@@ -56,7 +56,7 @@
                   <th>Amount</th>
                   <th>Approved By</th>
                   <th>Remarks</th>
-                  <th>Action</th>
+                  <th class="text-center">Action</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -252,10 +252,10 @@
           </div>
         </div>
 
-        <div class="exchange-history mt-4">
-          <div class="mb-2 fw-bold text-primary">Deposit History</div>
-          <div class="table-responsive">
-            <table id="jflx-deposit-history-tbl" class="table table-bordered table-hover align-middle mb-0 jflx-history-table">
+        <div class="exchange-history mt-4 jfl-page">
+          <div class="mb-2 fw-bold" style="color:var(--gd-marker-gold-text,#3a2e12);">Deposit History</div>
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <table id="jflx-deposit-history-tbl" class="table marker-balance-tbl w-100 mb-0 align-middle jflx-history-table">
               <thead>
                 <tr>
                   <th>#</th>
@@ -325,31 +325,66 @@
 <script src="/assets/js/functions/multipurpose_ledger_exchange.js"></script>
 
 <style>
-  /* #modal-jfl .modal-dialog {
-    max-width: 600px;
-  } */
+  /* GD gold table theme — matches markerHistory */
+  .jfl-page {
+    --gd-marker-gold-solid: #d9b96a;
+    --gd-marker-gold-text: #3a2e12;
+    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+    --gd-marker-gold-hover: #faf3dc;
+  }
+
+  .jfl-page table.dataTable {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+  .jfl-page table thead tr,
+  .jfl-page table tfoot tr {
+    background-color: var(--gd-marker-gold-solid);
+  }
+  .jfl-page table thead th,
+  .jfl-page table tfoot th {
+    background: transparent !important;
+    background-color: transparent !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+  }
+  .jfl-page table.dataTable thead > tr > th.sorting,
+  .jfl-page table.dataTable thead > tr > th.sorting_asc,
+  .jfl-page table.dataTable thead > tr > th.sorting_desc,
+  .jfl-page table.dataTable thead > tr > th.sorting_disabled {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
   #jfl-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    border: 1px solid var(--gd-marker-gold-border);
   }
   #jfl-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
-    font-weight: 500;
+    color: var(--gd-marker-gold-text);
+    font-weight: 600;
     padding: 12px 15px;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
   }
   #jfl-tbl tbody tr {
     border-bottom: 1px solid #eee;
+  }
+  #jfl-tbl tbody tr:nth-child(even) td {
+    background-color: #fbf5e4;
   }
   #jfl-tbl td {
     padding: 12px 15px;
     color: #666;
     vertical-align: top;
   }
-  #jfl-tbl tbody tr:hover {
-    background-color: #f5f5f5 !important;
+  #jfl-tbl tbody tr:hover,
+  #jfl-tbl tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
   }
   .jfl-amount-in {
     color: #198754;
@@ -513,11 +548,31 @@
     background-color: #fff;
     opacity: 1;
   }
+  .jflx-history-table {
+    border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+    font-size: 13px;
+  }
   .jflx-history-table thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
+    color: var(--gd-marker-gold-text, #3a2e12);
     font-size: 0.75rem;
     font-weight: 600;
+    padding: 12px 15px;
+    border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+  }
+  .jflx-history-table tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+  .jflx-history-table tbody tr:nth-child(even) td {
+    background-color: #fbf5e4;
+  }
+  .jflx-history-table tbody td {
+    padding: 12px 15px;
+    color: #666;
+  }
+  .jflx-history-table tbody tr:hover,
+  .jflx-history-table tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
   }
   .jflx-status-returned {
     background: #e89149;
@@ -582,8 +637,8 @@
     gap: 12px;
     padding: 8px 12px;
     margin-bottom: -1px;
-    background: #E8EAFB;
-    border: 1px solid #D5DAF6;
+    background: #faf3dc;
+    border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
   }

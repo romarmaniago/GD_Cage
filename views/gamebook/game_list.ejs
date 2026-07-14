@@ -74,9 +74,9 @@
 										</div>
 									</div>
 								</div>
-								<div class="card-body">
-									
-									<table id="game_list-tbl" class="table  nowrap small-text" style="width:100%">
+								<div class="card-body game-list-page">
+									<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+									<table id="game_list-tbl" class="table marker-balance-tbl w-100 mb-0">
 
 										<thead>
 											<tr>
@@ -161,6 +161,7 @@
 											</tr>
 										</tfoot>
 									</table>
+									</div>
 
 								</div>
 							</div>
@@ -712,41 +713,78 @@ th.col-winloss {
 	color: #dc3545 !important;
 }
 
+/* GD gold table theme — matches markerHistory */
+.game-list-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+.game-list-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.game-list-page table thead tr,
+.game-list-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.game-list-page table thead th,
+.game-list-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.game-list-page table.dataTable thead > tr > th.sorting,
+.game-list-page table.dataTable thead > tr > th.sorting_asc,
+.game-list-page table.dataTable thead > tr > th.sorting_desc,
+.game-list-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
 /* Base table styles */
 #game_list-tbl {
     width: 100%;
     font-size: 11px;
-    border-collapse: separate;
+    border-collapse: collapse;
     border-spacing: 0;
     background-color: #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid var(--gd-marker-gold-border);
 }
 
 /* Header styles */
 #game_list-tbl thead th {
-    background: #f4f6fa;
-    color: #495057;
+    color: var(--gd-marker-gold-text);
     font-weight: 600;
     padding: 12px 15px;
     text-align: center;
     border: none;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 /* Row styles */
 #game_list-tbl tbody tr {
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #eee;
     transition: background-color 0.2s ease;
 }
 
-#game_list-tbl tbody tr:hover {
-    background-color: #f8f9fa !important;
+#game_list-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
+}
+
+#game_list-tbl tbody tr:hover,
+#game_list-tbl tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
 }
 
 /* Cell styles */
 #game_list-tbl td {
     padding: 12px 15px;
-    color: #495057;
+    color: #666;
 }
 
 #game_list-tbl thead th:nth-child(5),
@@ -844,20 +882,20 @@ th.col-winloss {
 #game_list-tbl tfoot th {
     padding: 12px;
     font-weight: 600;
-    color: #495057;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    color: var(--gd-marker-gold-text);
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 /* Highlight row animation */
 @keyframes highlightRow {
-    0% { background-color: #f0f7ff; }
-    50% { background-color: #e3f2fd; }
-    100% { background-color: #f0f7ff; }
+    0% { background-color: #faf3dc; }
+    50% { background-color: #fbf5e4; }
+    100% { background-color: #faf3dc; }
 }
 
 table.dataTable tbody tr.highlight-row {
-    background-color: #f0f7ff !important;
+    background-color: #faf3dc !important;
     position: relative;
 }
 

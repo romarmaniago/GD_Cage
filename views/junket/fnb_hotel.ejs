@@ -65,11 +65,11 @@
 						}) %>
 					</div>
 				</div>
-				<div class="card-body">
+				<div class="card-body fnb-hotel-page">
 					<div class="row mt-4">
 						<div class="col-12">
 							
-							<div class="table-responsive">
+							<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 								<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
 								<button
 									type="button"
@@ -84,7 +84,7 @@
 									<i class="fa fa-plus" aria-hidden="true"></i>
 								</button>
 								<% } %>
-								<table id="fnb-hotel-table" class="table  nowrap small-text" style="width:100%">
+								<table id="fnb-hotel-table" class="table marker-balance-tbl w-100 mb-0">
 									<thead>
 											<tr>
 												<th><%= __('fnb_hotel.program_date') || 'Program Date' %></th>
@@ -95,7 +95,7 @@
 												<th><%= __('fnb_hotel.amount') %></th>
 												<th><%= __('fnb_hotel.payment') %></th>
 												<th><%= __('fnb_hotel.remarks') %></th>
-												<th><%= __('fnb_hotel.action') %></th>
+												<th class="text-center"><%= __('fnb_hotel.action') %></th>
 											</tr>
 									</thead>
 									<tbody>
@@ -111,25 +111,57 @@
 </div>
 
 <style>
-	/* Base table styles */
+/* GD gold table theme — matches markerHistory */
+.fnb-hotel-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+.fnb-hotel-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.fnb-hotel-page table thead tr,
+.fnb-hotel-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.fnb-hotel-page table thead th,
+.fnb-hotel-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.fnb-hotel-page table.dataTable thead > tr > th.sorting,
+.fnb-hotel-page table.dataTable thead > tr > th.sorting_asc,
+.fnb-hotel-page table.dataTable thead > tr > th.sorting_desc,
+.fnb-hotel-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+/* Base table styles */
 #fnb-hotel-table {
     width: 100%;
     font-size: 14px;
-    border-collapse: separate;
+    border-collapse: collapse;
     border-spacing: 0;
     background-color: #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid var(--gd-marker-gold-border);
 }
 
 /* Header styles */
 #fnb-hotel-table thead th {
-    background: #f4f6fa;
-    color: #495057;
+    color: var(--gd-marker-gold-text);
     font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
-    border-bottom: 2px solid #dee2e6;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 #fnb-hotel-table thead th:nth-child(6),
@@ -140,18 +172,23 @@
 
 /* Row styles */
 #fnb-hotel-table tbody tr {
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #eee;
     transition: background-color 0.2s ease;
 }
 
-#fnb-hotel-table tbody tr:hover {
-    background-color: #f8f9fa !important;
+#fnb-hotel-table tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
+}
+
+#fnb-hotel-table tbody tr:hover,
+#fnb-hotel-table tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
 }
 
 /* Cell styles */
 #fnb-hotel-table td {
     padding: 12px 15px;
-    color: #495057;
+    color: #666;
 }
 
 .fnb-hotel-date-filter-wrap {
@@ -249,9 +286,9 @@
 #fnb-hotel-table tfoot th {
     padding: 12px;
     font-weight: 600;
-    color: #495057;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    color: var(--gd-marker-gold-text);
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 .select2-container .select2-selection--single {
@@ -335,8 +372,8 @@
 	gap: 12px;
 	padding: 8px 12px;
 	margin-bottom: 0;
-	background: #E8EAFB;
-	border: 1px solid #D5DAF6;
+	background: #faf3dc;
+	border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 	border-radius: 10px 10px 0 0;
 }
 

@@ -1861,8 +1861,8 @@ function renderGuestPanel(guests, options) {
   }).join('');
 
   const tableHtml = `
-    <div class="table-responsive">
-      <table class="table table-sm mb-0 agency-guest-table">
+    <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+      <table class="table table-sm marker-balance-tbl agency-guest-table w-100 mb-0">
         <thead>
           <tr>
             <th class="agency-guest-col sortable-col" data-sort-key="guest_name">Guest <span class="sort-indicator"></span></th>
@@ -1872,7 +1872,7 @@ function renderGuestPanel(guests, options) {
             <th class="sortable-col" data-sort-key="winloss">Winloss <span class="sort-indicator"></span></th>
             <th class="sortable-col" data-sort-key="rolling">Rolling <span class="sort-indicator"></span></th>
             <th class="sortable-col" data-sort-key="commission">Commission <span class="sort-indicator"></span></th>
-            <th style="width: 96px;"></th>
+            <th class="text-center" style="width: 96px;"></th>
           </tr>
         </thead>
         <tbody>

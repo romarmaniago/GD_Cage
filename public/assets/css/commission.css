@@ -2,6 +2,56 @@
   overflow-x: hidden;
 }
 
+/* GD gold table theme — matches markerHistory */
+.commission-panel-body,
+#modal-dash-commission .commission-modal-body,
+#modal-commission-compare .modal-body {
+  --gd-marker-gold-solid: #d9b96a;
+  --gd-marker-gold-text: #3a2e12;
+  --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+  --gd-marker-gold-hover: #faf3dc;
+}
+
+.commission-panel-body table.dataTable,
+#modal-dash-commission .commission-modal-body table.dataTable,
+#modal-commission-compare table.dataTable {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+.commission-panel-body table thead tr,
+.commission-panel-body table tfoot tr,
+#modal-dash-commission .commission-modal-body table thead tr,
+#modal-dash-commission .commission-modal-body table tfoot tr,
+#modal-commission-compare table thead tr,
+#modal-commission-compare table tfoot tr {
+  background-color: var(--gd-marker-gold-solid);
+}
+.commission-panel-body table thead th,
+.commission-panel-body table tfoot th,
+#modal-dash-commission .commission-modal-body table thead th,
+#modal-dash-commission .commission-modal-body table tfoot th,
+#modal-commission-compare table thead th,
+#modal-commission-compare table tfoot th {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.commission-panel-body table.dataTable thead > tr > th.sorting,
+.commission-panel-body table.dataTable thead > tr > th.sorting_asc,
+.commission-panel-body table.dataTable thead > tr > th.sorting_desc,
+.commission-panel-body table.dataTable thead > tr > th.sorting_disabled,
+#modal-dash-commission .commission-modal-body table.dataTable thead > tr > th.sorting,
+#modal-dash-commission .commission-modal-body table.dataTable thead > tr > th.sorting_asc,
+#modal-dash-commission .commission-modal-body table.dataTable thead > tr > th.sorting_desc,
+#modal-dash-commission .commission-modal-body table.dataTable thead > tr > th.sorting_disabled,
+#modal-commission-compare table.dataTable thead > tr > th.sorting,
+#modal-commission-compare table.dataTable thead > tr > th.sorting_asc,
+#modal-commission-compare table.dataTable thead > tr > th.sorting_desc,
+#modal-commission-compare table.dataTable thead > tr > th.sorting_disabled {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 #commission-tbl_wrapper,
 #commission-tbl_wrapper .dataTables_scroll,
 #commission-tbl_wrapper .dataTables_scrollBody,
@@ -14,6 +64,7 @@
   width: 100% !important;
   font-size: 10px;
   border-collapse: collapse;
+  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
 #commission-tbl.commission-fit-table thead th,
@@ -120,17 +171,18 @@
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
 /* Header styles — readable wrapped labels */
 #commission-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
+    color: var(--gd-marker-gold-text, #3a2e12);
     font-weight: 600;
     font-size: 11px;
     padding: 8px 4px;
     text-align: center;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
     white-space: normal;
     word-break: break-word;
     line-height: 1.25;
@@ -157,24 +209,24 @@
 #commission-tbl thead th.sorting_asc:hover,
 #commission-tbl thead th.sorting_desc:hover,
 #commission-tbl thead th.commission-date-sort-col:hover {
-    background: #dfe6ff !important;
+    background: rgba(58, 46, 18, 0.08) !important;
 }
 
 #commission-tbl thead th.sorting_asc,
 #commission-tbl thead th.sorting_desc,
 #commission-tbl thead th.commission-date-sort-col.sorting_asc,
 #commission-tbl thead th.commission-date-sort-col.sorting_desc {
-    background: #d9eadf !important;
-    color: #1f7a37;
+    background: rgba(58, 46, 18, 0.1) !important;
+    color: var(--gd-marker-gold-text, #3a2e12);
 }
 
 #commission-compare-modal-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
-    font-weight: 500;
+    color: var(--gd-marker-gold-text, #3a2e12);
+    font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
 .commission-daterange-mount {
@@ -387,53 +439,31 @@
     padding-right: 6px !important;
 }
 
-/* Header + Footer Colors - BUY-IN (Blue) */
-#commission-tbl td.col-buyin,
-#commission-tbl th.col-buyin,
-#commission-compare-modal-tbl td.col-buyin,
-#commission-compare-modal-tbl th.col-buyin {
-    background-color: #e4f0fb !important;
-    color: #1565c0 !important;
-    font-weight: 500;
-}
-
-#commission-tbl thead th.col-buyin {
-    font-weight: 500;
+/* Metric columns — gold theme (no blue/green/orange column fills) */
+#commission-tbl thead th.col-buyin,
+#commission-tbl thead th.col-total-rolling,
+#commission-tbl thead th.col-winloss,
+#commission-compare-modal-tbl thead th.col-buyin,
+#commission-compare-modal-tbl thead th.col-total-rolling,
+#commission-compare-modal-tbl thead th.col-winloss {
+    color: var(--gd-marker-gold-text, #3a2e12) !important;
+    font-weight: 600;
 }
 
 #commission-tbl tbody td.col-buyin,
-#commission-tbl tfoot th.col-buyin {
-    font-weight: 600;
-}
-
-/* Header + Footer Colors - ROLLING (Green) */
-#commission-tbl td.col-total-rolling,
-#commission-tbl th.col-total-rolling,
-#commission-compare-modal-tbl td.col-total-rolling,
-#commission-compare-modal-tbl th.col-total-rolling {
-    background-color: #e8f5e9 !important;
-    color: #2e7d32 !important;
-    font-weight: 500;
-}
-
+#commission-tbl tfoot th.col-buyin,
 #commission-tbl tbody td.col-total-rolling,
-#commission-tbl tfoot th.col-total-rolling {
-    font-weight: 600;
-}
-
-/* Header + Footer Colors - WIN/LOSS (Orange) */
-#commission-tbl td.col-winloss,
-#commission-tbl th.col-winloss,
-#commission-compare-modal-tbl td.col-winloss,
-#commission-compare-modal-tbl th.col-winloss {
-    background-color: #fff0e1 !important;
-    color: #ef6c00 !important;
-    font-weight: 500;
-}
-
+#commission-tbl tfoot th.col-total-rolling,
 #commission-tbl tbody td.col-winloss,
-#commission-tbl tfoot th.col-winloss {
+#commission-tbl tfoot th.col-winloss,
+#commission-compare-modal-tbl tbody td.col-buyin,
+#commission-compare-modal-tbl tfoot th.col-buyin,
+#commission-compare-modal-tbl tbody td.col-total-rolling,
+#commission-compare-modal-tbl tfoot th.col-total-rolling,
+#commission-compare-modal-tbl tbody td.col-winloss,
+#commission-compare-modal-tbl tfoot th.col-winloss {
     font-weight: 600;
+    color: #666;
 }
 
 /* Win/Loss sign colors */
@@ -475,7 +505,7 @@
 }
 
 #commission-tbl thead th.commission-compare-col .fa {
-	color: var(--bs-primary);
+	color: var(--gd-marker-gold-text, #3a2e12);
 }
 
 #commission-tbl .commission-compare-cb.form-check-input,
@@ -484,20 +514,20 @@
 	height: 1.15rem;
 	margin: 0;
 	cursor: pointer;
-	border: 2px solid var(--bs-primary, #0d6efd);
+	border: 2px solid var(--gd-marker-gold-solid, #d9b96a);
 	background-color: #fff;
 }
 
 #commission-tbl .commission-compare-cb.form-check-input:checked,
 #commission-tbl .commission-compare-select-all.form-check-input:checked {
-	background-color: var(--bs-primary, #0d6efd);
-	border-color: var(--bs-primary, #0d6efd);
+	background-color: var(--gd-marker-gold-solid, #d9b96a);
+	border-color: var(--gd-marker-gold-solid, #d9b96a);
 }
 
 #commission-tbl .commission-compare-cb.form-check-input:focus,
 #commission-tbl .commission-compare-select-all.form-check-input:focus {
-	border-color: var(--bs-primary, #0d6efd);
-	box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb, 13, 110, 253), 0.25);
+	border-color: var(--gd-marker-gold-solid, #d9b96a);
+	box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.25);
 }
 
 #commission-tbl tbody td:nth-child(8),
@@ -532,9 +562,16 @@
     padding-right: 6px !important;
 }
 
+#commission-tbl tbody tr:nth-child(even) td,
+#commission-compare-modal-tbl tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
 #commission-tbl tbody tr:hover,
-#commission-compare-modal-tbl tbody tr:hover {
-  background-color: #f5f5f5 !important;
+#commission-tbl tbody tr:hover td,
+#commission-compare-modal-tbl tbody tr:hover,
+#commission-compare-modal-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
 }
 
 /* Compare modal — same alignment as main table (no checkbox column) */
@@ -592,18 +629,18 @@
 }
 
 #commission-compare-modal-tbl thead th.commission-compare-sortable-col:hover {
-	background: #dfe6ff !important;
+	background: rgba(58, 46, 18, 0.08) !important;
 }
 
 #commission-compare-modal-tbl thead th.commission-compare-sortable-col.is-active {
-	background: #d9eadf !important;
-	color: #1f7a37 !important;
+	background: rgba(58, 46, 18, 0.1) !important;
+	color: var(--gd-marker-gold-text, #3a2e12) !important;
 }
 
 .commission-compare-sort-indicator {
 	font-size: 10px;
 	margin-left: 4px;
-	color: #6c757d;
+	color: var(--gd-marker-gold-text, #3a2e12);
 }
 
 #commission-compare-modal-tbl tbody tr.commission-compare-first-row {
@@ -645,9 +682,9 @@
 #commission-compare-modal-tbl tfoot th {
     padding: 10px;
     font-weight: 600;
-    color: #333;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    color: var(--gd-marker-gold-text, #3a2e12);
+    border-top: 2px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
 @media (max-width: 768px) {

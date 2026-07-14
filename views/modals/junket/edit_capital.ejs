@@ -1,71 +1,96 @@
-<div class="modal fade" id="modal-edit-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
-	data-keyboard="false" data-backdrop="static">
-	<div class="modal-dialog modal-dialog-popout" role="document">
+<div class="modal fade" id="modal-edit-capital" role="dialog" aria-labelledby="modal-edit-capital-title" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
 		<div class="modal-content">
-			<div class="block block-rounded block-themed block-transparent mb-0">
-				<div class="block-header bg-primary-dark">
-					<h3 class="block-title">Edit Capital</h3>
-					<div class="block-options">
-						<button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
-							<i class="fa fa-fw fa-times"></i>
-						</button>
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-edit-capital-title"><%= __('dashboard_new_capital.edit_title') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="edit_junket_capital">
+				<div class="modal-body">
+					<input type="hidden" name="id" id="edit-capital-id" value="">
+					<input type="hidden" name="optWithdrawDeposit" id="edit-capital-txn" value="">
+					<input type="hidden" name="description" id="edit-capital-description" value="">
+
+					<div class="row mb-2">
+						<div class="col-sm-6">
+							<label class="form-label" for="edit-capital-program-date"><%= __('dashboard_new_capital.program_date') %></label>
+							<input type="text" id="edit-capital-program-date" name="txtProgramDate" class="form-control form-control-sm" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required>
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label" for="edit-capital-amount"><%= __('dashboard_new_capital.junket_balance_amount') %></label>
+							<input type="text" id="edit-capital-amount" name="txtAmount" class="form-control form-control-sm" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off" required>
+						</div>
+					</div>
+
+					<div class="row mb-2">
+						<div class="col-12">
+							<label class="form-label" for="edit-capital-remarks"><%= __('dashboard_new_capital.remarks_placeholder') %></label>
+							<textarea class="form-control form-control-sm" name="Remarks" id="edit-capital-remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
+						</div>
+					</div>
+
+					<div class="hb-type-grid mb-1" role="group" aria-label="Transaction type">
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeTransfer" value="Transfer" data-txn="2">
+							<label class="form-check-label" for="editHbTypeTransfer"><%= __('dashboard_new_capital.type_transfer') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeDeposit" value="Deposit" data-txn="1">
+							<label class="form-check-label" for="editHbTypeDeposit"><%= __('dashboard_new_capital.type_deposit') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeWithdrawal" value="Withdrawal" data-txn="2">
+							<label class="form-check-label" for="editHbTypeWithdrawal"><%= __('dashboard_new_capital.type_withdrawal') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeLossAmount" value="Loss Amount" data-txn="2">
+							<label class="form-check-label" for="editHbTypeLossAmount"><%= __('dashboard_new_capital.type_loss_amount') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeSettlement" value="Settlement" data-txn="2">
+							<label class="form-check-label" for="editHbTypeSettlement"><%= __('dashboard_new_capital.type_settlement') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeFnb" value="F&B" data-txn="2">
+							<label class="form-check-label" for="editHbTypeFnb"><%= __('dashboard_new_capital.type_fnb') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeHotel" value="Hotel" data-txn="2">
+							<label class="form-check-label" for="editHbTypeHotel"><%= __('dashboard_new_capital.type_hotel') %></label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input edit-hb-type-check" style="border-color: #8a92a6 !important;" type="checkbox" id="editHbTypeIncidental" value="Incidental" data-txn="2">
+							<label class="form-check-label" for="editHbTypeIncidental"><%= __('dashboard_new_capital.type_incidental') %></label>
+						</div>
 					</div>
 				</div>
-				<form id="edit_junket_capital">
-					<div class="block-content">
-						<!-- <div class="row mb-2">
-							<div class="col-sm-12">
-								<select class="select2 form-select txtTrans" id="txtTrans" name="txtTrans" style="width: 100%;"
-									data-placeholder="Transaction">
-									<option>--- Transaction ---</option>
-								</select>
-							</div>
-						</div>
-						<div class="row mb-2">
-							<div class="col-sm-12">
-								<select class="select2 form-select txtCategory" id="" name="txtCategory" style="width: 100%;"
-									data-placeholder="Category">
-									<option>--- Category ---</option>
-								</select>
-							</div>
-						</div> -->
-						<input type="hidden" class="form-control" name="id" id="id">
-						<div class="row mb-2">
-							<div class="col-sm-12">
-								<input type="text" class="form-control" name="txtFullname" id="txtFullname" placeholder="Full Name" />
-							</div>
-						</div>
-
-						<!-- <div class="row mb-2">
-							<div class="col-sm-12">
-								<input type="text" class="form-control" name="txtDescription" id="txtDescription"
-									placeholder="Description" />
-							</div>
-						</div> -->
-
-						<div class="row mb-2">
-							<div class="col-sm-12">
-								<input type="text" class="form-control" name="txtAmount" placeholder="Amount" id="txtAmount" />
-							</div>
-						</div>
-
-						<div class="row mb-2">
-							<div class="col-sm-12">
-								<textarea class="form-control" name="Remarks" placeholder="Remarks" id="Remarks" cols="10"
-									rows="5"></textarea>
-							</div>
-						</div>
-					</div>
-					<div class="block-content block-content-full text-end bg-body">
-						<button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
-							Save
-						</button>
-						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-							Close
-						</button>
-					</div>
-				</form>
-			</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-sm btn-primary" id="edit-capital-save-btn" data-view-only-disable>
+						<i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %>
+					</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
+				</div>
+			</form>
 		</div>
 	</div>
 </div>
+
+<style>
+	#modal-edit-capital .hb-type-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, auto));
+		column-gap: 1.25rem;
+		row-gap: 0.5rem;
+		align-items: center;
+	}
+	#modal-edit-capital .hb-type-grid .form-check {
+		margin: 0;
+		min-height: 0;
+		padding-left: 1.4rem;
+		white-space: nowrap;
+	}
+	#modal-edit-capital .hb-type-grid .form-check-input {
+		margin-top: 0.2rem;
+	}
+</style>

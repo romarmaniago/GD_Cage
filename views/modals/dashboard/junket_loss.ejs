@@ -5,7 +5,7 @@
         <h5 class="modal-title text-white" id="modal-dash-junket-loss-label"><%= __('junket_loss.title') %></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body junket-loss-page">
         <div class="junket-loss-filter-bar junket-loss-filter-bar--modal d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <div class="junket-loss-daterange-group d-flex flex-wrap align-items-center gap-2">
             <div class="junket-loss-daterange-wrap">
@@ -32,8 +32,8 @@
           </div>
         </div>
         <%- include('../../partials/junket_loss_type_tabs') %>
-        <div class="table-responsive">
-          <table id="junket-loss-tbl" class="table nowrap small-text mb-0" style="width:100%">
+        <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+          <table id="junket-loss-tbl" class="table marker-balance-tbl w-100 mb-0">
             <thead>
               <tr>
                 <th>Program Date</th>
@@ -87,6 +87,13 @@
 </div>
 
 <style>
+  #modal-dash-junket-loss .junket-loss-page {
+    --gd-marker-gold-solid: #d9b96a;
+    --gd-marker-gold-text: #3a2e12;
+    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+    --gd-marker-gold-hover: #faf3dc;
+  }
+
   #modal-dash-junket-loss .junket-loss-filter-bar--modal {
     padding-left: 0;
     padding-right: 0;
@@ -103,12 +110,41 @@
     gap: 8px;
   }
 
+  #modal-dash-junket-loss table.dataTable {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+  #modal-dash-junket-loss table thead tr,
+  #modal-dash-junket-loss table tfoot tr {
+    background-color: var(--gd-marker-gold-solid);
+  }
+  #modal-dash-junket-loss table thead th,
+  #modal-dash-junket-loss table tfoot th {
+    background: transparent !important;
+    background-color: transparent !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
+  }
+  #modal-dash-junket-loss table.dataTable thead > tr > th.sorting,
+  #modal-dash-junket-loss table.dataTable thead > tr > th.sorting_asc,
+  #modal-dash-junket-loss table.dataTable thead > tr > th.sorting_desc,
+  #modal-dash-junket-loss table.dataTable thead > tr > th.sorting_disabled {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl {
+    border: 1px solid var(--gd-marker-gold-border);
+  }
+
   #modal-dash-junket-loss #junket-loss-tbl thead th {
-    background: #f4f6fa;
-    color: #495057;
+    color: var(--gd-marker-gold-text);
     font-weight: 600;
     padding: 10px 12px;
-    border-bottom: 2px solid #dee2e6;
+    border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
   }
 
   #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(5),
@@ -124,10 +160,11 @@
   }
 
   #modal-dash-junket-loss #junket-loss-tbl tfoot th {
-    background: #f4f6fa;
     font-weight: 700;
     padding: 10px 12px;
-    border-top: 2px solid #dee2e6;
+    color: var(--gd-marker-gold-text);
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
   }
 
   #modal-dash-junket-loss #junket-loss-tbl .text-dash-neg {
@@ -144,18 +181,28 @@
   }
 
   #modal-dash-junket-loss .junket-loss-type-tabs .nav-link:hover {
-    color: #6b4f14;
+    color: #8a6712;
   }
 
   #modal-dash-junket-loss .junket-loss-type-tabs .nav-link.active {
     color: #6b4f14;
-    font-weight: 500;
-    border-bottom-color: #6b4f14;
+    font-weight: 600;
+    border-bottom-color: #c8a24c;
     background: transparent;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl tbody tr:nth-child(even) td {
+    background-color: #fbf5e4;
   }
 
   #modal-dash-junket-loss #junket-loss-tbl tbody td {
     padding: 10px 12px;
+    color: #666;
     vertical-align: middle;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl tbody tr:hover,
+  #modal-dash-junket-loss #junket-loss-tbl tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
   }
 </style>

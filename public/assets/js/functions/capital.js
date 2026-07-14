@@ -18,12 +18,45 @@ function getHouseBalanceTypeDesc(row) {
     return row.capital_description || row.chips_description || '';
 }
 
+function normalizeHouseBalanceTypeLabel(desc) {
+    if (!desc) return '';
+    const text = String(desc).replace(/<[^>]*>/g, '').trim();
+    return text;
+}
+
+var HOUSE_BALANCE_TYPE_LABELS = {
+    'Cash-in': true,
+    'Cash-out': true,
+    'Transfer': true,
+    'Deposit': true,
+    'Withdrawal': true,
+    'Loss Amount': true,
+    'Settlement': true,
+    'F&B': true,
+    'Hotel': true,
+    'Incidental': true
+};
+
 function isHouseCashInOutRow(row) {
-    const desc = getHouseBalanceTypeDesc(row);
-    return desc === '<span class="css-blue">Cash-in</span>' ||
-        desc === '<span class="css-blue">Cash-out</span>' ||
-        desc === 'Cash-in' ||
-        desc === 'Cash-out';
+    const label = normalizeHouseBalanceTypeLabel(getHouseBalanceTypeDesc(row));
+    return !!HOUSE_BALANCE_TYPE_LABELS[label];
+}
+
+function isHouseBalanceCashInType(desc) {
+    const label = normalizeHouseBalanceTypeLabel(desc);
+    return label === 'Cash-in' || label === 'Deposit';
+}
+
+function isHouseBalanceCashOutType(desc) {
+    const label = normalizeHouseBalanceTypeLabel(desc);
+    return label === 'Cash-out' ||
+        label === 'Transfer' ||
+        label === 'Withdrawal' ||
+        label === 'Loss Amount' ||
+        label === 'Settlement' ||
+        label === 'F&B' ||
+        label === 'Hotel' ||
+        label === 'Incidental';
 }
 
 function getDefaultMonthEndRange() {
@@ -128,6 +161,7 @@ function reloadData() {
             
             var dataTable = $('#capital-tbl').DataTable(); // Ensure you have the DataTable reference
             dataTable.clear();
+            window.__capitalEditRows = {};
             var total_in = 0;
             var total_out = 0;
 
@@ -197,29 +231,59 @@ function reloadData() {
                 // Determine if this row represents a Cash Balance entry
                 const isCashBalance =
                     cbal > 0 &&
-                    (typeDesc === '<span class="css-blue">Cash-in</span>' ||
-                     typeDesc === '<span class="css-blue">Cash-out</span>' ||
-                     typeDesc === 'Cash-in' ||
-                     typeDesc === 'Cash-out');
+                    (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc));
 
-                // Show delete button ONLY for Cash Balance rows (and if permissions allow)
+                // Show edit/delete for Cash Balance rows (any non view-only user)
                 let btn = '';
                 const permissions = parseInt($('#user-role').data('permissions'));
+                const canEditCapital = permissions !== 2;
                 if (isCashBalance) {
-                    if (permissions !== 2) {
-                        btn = `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+                    window.__capitalEditRows = window.__capitalEditRows || {};
+                    window.__capitalEditRows[row.IDNo] = {
+                        id: row.IDNo,
+                        amount: cbal,
+                        remarks: row.REMARKS || '',
+                        programDate: (row.PROGRAM_DATE ? String(row.PROGRAM_DATE).slice(0, 10) : '') ||
+                            (row.ENCODED_DT ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD') : ''),
+                        typeLabel: normalizeHouseBalanceTypeLabel(typeDesc),
+                        txn: row.TRANSACTION_ID
+                    };
+                    if (canEditCapital) {
+                        btn =
+                            `<div class="capital-action-btns">` +
+                            `<button type="button" onclick="edit_capital(${row.IDNo})" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled"
+                                        data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
+                                        <i class="fa fa-edit"></i>
+                                  </button>` +
+                            `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
                                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                                         <i class="fa fa-trash-alt"></i>
-                                  </button>`;
+                                  </button>` +
+                            `</div>`;
                     } else {
-                        btn = `<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled
+                        btn =
+                            `<div class="capital-action-btns">` +
+                            `<button type="button" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled" disabled
+                                        data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
+                                        <i class="fa fa-edit"></i>
+                                  </button>` +
+                            `<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled
                                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                                         <i class="fa fa-trash-alt"></i>
-                                  </button>`;
+                                  </button>` +
+                            `</div>`;
                     }
                 }
 
-                var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
+                var formattedProgramDate = '—';
+                if (row.PROGRAM_DATE) {
+                    formattedProgramDate = String(row.PROGRAM_DATE).slice(0, 10);
+                } else if (row.ENCODED_DT) {
+                    formattedProgramDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD');
+                }
+                var formattedDate = row.ENCODED_DT
+                    ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
+                    : '—';
 
                  // Prepare REMARKS with GAME_ID if applicable
                  var remarksText = row.REMARKS || '';
@@ -249,10 +313,10 @@ function reloadData() {
                     combinedChipsText = `Credit Cash :\n${window.fmtAmt ? window.fmtAmt(IOU) : IOU.toLocaleString('en-US')}`;
                 } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) {
                     combinedChipsText = `Junket Expense : ${fmtCapitalAmount(row.capital_amount, 'out')}`;
-                } else if (cbal > 0 && (typeDesc === '<span class="css-blue">Cash-in</span>' || typeDesc === 'Cash-in')) {
-                    combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'in')}`;
-                } else if (cbal > 0 && (typeDesc === '<span class="css-blue">Cash-out</span>' || typeDesc === 'Cash-out')) {
-                    combinedChipsText = `Cash Balance :\n${fmtCapitalAmount(cbal, 'out')}`;
+                } else if (cbal > 0 && isHouseBalanceCashInType(typeDesc)) {
+                    combinedChipsText = fmtCapitalAmount(cbal, 'in');
+                } else if (cbal > 0 && isHouseBalanceCashOutType(typeDesc)) {
+                    combinedChipsText = fmtCapitalAmount(cbal, 'out');
                 } else {
                     combinedChipsText = ''; // Empty string if no valid data to display
                 }
@@ -260,17 +324,21 @@ function reloadData() {
                 // Add row to DataTable only if combinedChipsText is not empty
                 if (combinedChipsText) {
                     dataTable.row.add([
-                        `${fullName}`,
+                        formattedProgramDate,
+                        formattedDate,
                         `${combinedChipsText}`,
                         combinedDescription,
-                        remarks,  // Use the updated REMARKS with GAME_ID
-                        formattedDate,
+                        remarks,
+                        `${fullName}`,
                         btn
                     ]).draw();
                 }
             });
 
             $('.total_balance').text('P' + (total_in - total_out).toLocaleString('en-US'));
+            if ($.fn.DataTable.isDataTable('#capital-tbl')) {
+                $('#capital-tbl').DataTable().columns.adjust();
+            }
         },
         error: function (xhr, status, error) {
             console.error('Error fetching data:', error);
@@ -321,10 +389,20 @@ $(document).ready(function () {
     }
 
     $('#capital-tbl').DataTable({
-        "order": [[4, 'desc']], // Sort by the date column (index 4)
+        "order": [[0, 'desc'], [1, 'desc']], // Program Date, then Date & Time
+        "autoWidth": true,
+        "scrollX": false,
         "columnDefs": [
             {
-                "targets": 4, // Column index for the ENCODED_DT
+                "targets": 0, // PROGRAM DATE
+                "className": "text-center",
+                "createdCell": function (cell) {
+                    $(cell).addClass('text-center');
+                }
+            },
+            {
+                "targets": 1, // DATE & TIME
+                "className": "text-center",
                 "render": function (data, type, row) {
                     if (type === 'sort') {
                         var sortMoment = moment.utc(data);
@@ -338,11 +416,33 @@ $(document).ready(function () {
                     if (dateMoment.isValid()) {
                         return dateMoment.local().format('YYYY-MM-DD HH:mm'); // Display formatted date
                     } else {
-                        return 'Invalid Date';
+                        return data || 'Invalid Date';
                     }
                 },
-                "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                "createdCell": function (cell) {
                     $(cell).addClass('text-center');
+                }
+            },
+            {
+                "targets": 2, // AMOUNT
+                "className": "text-end"
+            },
+            {
+                "targets": 3, // TYPE
+                "className": "text-center"
+            },
+            {
+                "targets": 5, // ENCODED BY
+                "className": "text-center"
+            },
+            {
+                "targets": 6, // ACTION
+                "orderable": false,
+                "searchable": false,
+                "width": "1%",
+                "className": "col-action-cell text-center",
+                "createdCell": function (cell) {
+                    $(cell).addClass('col-action-cell text-center');
                 }
             }
         ]
@@ -350,6 +450,16 @@ $(document).ready(function () {
 
     // Initial data load
     reloadData();
+
+    $(document).off('click.capitalPrint', '#btn-capital-print').on('click.capitalPrint', '#btn-capital-print', function (e) {
+        e.preventDefault();
+        printAuthorizedMasterAccount();
+    });
+
+    $(document).off('click.capitalExport', '#btn-capital-export').on('click.capitalExport', '#btn-capital-export', function (e) {
+        e.preventDefault();
+        exportAuthorizedMasterAccount($(this));
+    });
 });
 
 
@@ -392,13 +502,144 @@ function addCapital() {
     capital_category();
 }
 
-function edit_capital(capital_id, fullname, amount, remarks) {
-    $('#modal-edit-capital').modal('show');
-    $('#id').val(capital_id);
-    $('#txtFullname').val(fullname);
-    $('#txtAmount').val(amount);
-    $('#Remarks').val(remarks);
+function updateEditCapitalTypeFields() {
+    const $checked = $('#edit_junket_capital .edit-hb-type-check:checked');
+    if (!$checked.length) {
+        $('#edit-capital-txn').val('');
+        $('#edit-capital-description').val('');
+        return;
+    }
+    $('#edit-capital-txn').val(String($checked.data('txn') || ''));
+    $('#edit-capital-description').val('<span class="css-blue">' + $checked.val() + '</span>');
 }
+
+function ensureEditCapitalProgramDatePicker(defaultDate) {
+    var el = document.getElementById('edit-capital-program-date');
+    if (!el || typeof flatpickr === 'undefined') return;
+    if (el._flatpickr) {
+        el._flatpickr.destroy();
+    }
+    flatpickr(el, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: defaultDate || new Date(),
+        allowInput: true,
+        disableMobile: true
+    });
+}
+
+function edit_capital(capital_id) {
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
+    if (permissions === 2) {
+        Swal.fire({ icon: 'warning', title: 'View only', text: 'You do not have permission to edit.' });
+        return;
+    }
+
+    const row = (window.__capitalEditRows && window.__capitalEditRows[capital_id]) || null;
+    if (!row) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Record not found. Refresh and try again.' });
+        return;
+    }
+
+    $('#edit-capital-id').val(row.id);
+    $('#edit-capital-amount').val(Number(row.amount || 0).toLocaleString('en-US'));
+    $('#edit-capital-remarks').val(row.remarks || '');
+    ensureEditCapitalProgramDatePicker(row.programDate || null);
+
+    const typeLabel = row.typeLabel || '';
+    $('#edit_junket_capital .edit-hb-type-check').prop('checked', false);
+    if (typeLabel === 'Cash-in') {
+        $('#editHbTypeDeposit').prop('checked', true);
+    } else if (typeLabel === 'Cash-out') {
+        $('#editHbTypeWithdrawal').prop('checked', true);
+    } else {
+        $('#edit_junket_capital .edit-hb-type-check').filter(function () {
+            return $(this).val() === typeLabel;
+        }).prop('checked', true);
+    }
+    updateEditCapitalTypeFields();
+
+    const $saveBtn = $('#edit-capital-save-btn');
+    $saveBtn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i>Save');
+
+    $('#modal-edit-capital').modal('show');
+}
+
+$(document).off('change.editCapitalType', '#edit_junket_capital .edit-hb-type-check')
+    .on('change.editCapitalType', '#edit_junket_capital .edit-hb-type-check', function () {
+        if (this.checked) {
+            $('#edit_junket_capital .edit-hb-type-check').not(this).prop('checked', false);
+        }
+        updateEditCapitalTypeFields();
+    });
+
+$(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCapital', '#edit_junket_capital', function (e) {
+    e.preventDefault();
+
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
+    if (permissions === 2) {
+        Swal.fire({ icon: 'warning', title: 'View only', text: 'You do not have permission to edit.' });
+        return;
+    }
+
+    const id = parseInt($('#edit-capital-id').val(), 10);
+    const programDateVal = ($('#edit-capital-program-date').val() || '').trim();
+    const rawAmount = ($('#edit-capital-amount').val() || '').toString().replace(/,/g, '').trim();
+    const txtAmount = rawAmount === '' ? NaN : parseFloat(rawAmount);
+    const remarks = $('#edit-capital-remarks').val() || '';
+
+    if (!id) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Missing record id.' });
+        return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
+        Swal.fire({ icon: 'warning', title: 'Program Date required', text: 'Select a valid Program Date.' });
+        return;
+    }
+    if (!Number.isFinite(txtAmount) || txtAmount <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Amount required', text: 'Enter a valid amount greater than zero.' });
+        return;
+    }
+
+    updateEditCapitalTypeFields();
+    const txn = ($('#edit-capital-txn').val() || '').trim();
+    const description = ($('#edit-capital-description').val() || '').trim();
+    if (!txn || !description) {
+        Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
+        return;
+    }
+
+    const $btn = $('#edit-capital-save-btn');
+    $btn.prop('disabled', true).html(
+        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...'
+    );
+
+    $.ajax({
+        url: '/junket_capital/' + id,
+        type: 'PUT',
+        data: {
+            txtProgramDate: programDateVal,
+            txtAmount: txtAmount,
+            Remarks: remarks,
+            optWithdrawDeposit: txn,
+            description: description
+        },
+        success: function () {
+            $('#modal-edit-capital').modal('hide');
+            Swal.fire({ icon: 'success', title: 'Updated', text: 'Record updated successfully.', timer: 1200, showConfirmButton: false });
+            if (typeof reloadData === 'function') reloadData();
+        },
+        error: function (xhr) {
+            const msg = (xhr && xhr.responseText) ? String(xhr.responseText).slice(0, 200) : 'Failed to update record.';
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        },
+        complete: function () {
+            $btn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i>Save');
+        }
+    });
+});
 
 function transaction_type() {
     $.ajax({
@@ -465,8 +706,8 @@ function computeTotalCashIn() {
             let totalCashIn = 0;
             
             data.forEach(row => {
-                // CASH-IN: TRANSACTION_ID must equal 1 and capital_description must be exactly "<span class="css-blue">Cash-in</span>"
-                const isCashIn = row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-in</span>';
+                // Cash-in / Deposit rows (TRANSACTION_ID 1)
+                const isCashIn = row.TRANSACTION_ID == 1 && isHouseBalanceCashInType(row.capital_description);
                 
                 if (isCashIn) {
                     totalCashIn += parseFloat(row.capital_amount || 0);
@@ -506,10 +747,9 @@ function computeTotalCashOut() {
             let totalCashOut = 0;
             
             data.forEach(row => {
-                // CASH-OUT: TRANSACTION_ID must equal 2 and capital_description must be exactly "<span class="css-blue">Cash-out</span>"
-                // Also check if TRANSACTION_ID == 1 with Cash-out description as fallback
-                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
-                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
+                // Cash-out / Withdrawal / other out types
+                const isCashOut = isHouseBalanceCashOutType(row.capital_description) &&
+                    (row.TRANSACTION_ID == 2 || row.TRANSACTION_ID == 1);
                 
                 if (isCashOut) {
                     totalCashOut += parseFloat(row.capital_amount || 0);
@@ -1525,6 +1765,11 @@ $(document).ready(function() {
     // Add event listener for when the capital modal is shown
     $('#modal-new-capital').on('shown.bs.modal', function () {
         computeTotalCashOut(); // Refresh the total when modal is opened
+        if ($.fn.DataTable.isDataTable('#capital-tbl')) {
+            setTimeout(function () {
+                $('#capital-tbl').DataTable().columns.adjust();
+            }, 50);
+        }
     });
 
     // Call fetchTotalJunketExpense initially
@@ -1700,6 +1945,168 @@ function getActionButton(id) {
                 <i class="fa fa-trash-alt"></i>
                 </button>`;
     }
+}
+
+function escapeCapitalPrintHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getAuthorizedMasterAccountTablePayload() {
+    if (!$.fn.DataTable.isDataTable('#capital-tbl')) {
+        return { headers: [], rows: [] };
+    }
+    var actionColIndex = 6;
+    var headers = [];
+    $('#capital-tbl thead tr:first th').each(function (i) {
+        if (i === actionColIndex) return;
+        headers.push($(this).text().trim());
+    });
+    var rows = [];
+    $('#capital-tbl').DataTable().rows({ search: 'applied' }).every(function () {
+        var cells = [];
+        $(this.node())
+            .find('td')
+            .each(function (i) {
+                if (i === actionColIndex) return;
+                cells.push($(this).text().replace(/\s+/g, ' ').trim());
+            });
+        if (cells.length) rows.push(cells);
+    });
+    return { headers: headers, rows: rows };
+}
+
+function getAuthorizedMasterAccountExportFilename() {
+    var range = ($('#main-daterange').val() || '').trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
+    var stamp = moment().format('YYYYMMDD-HHmm');
+    if (range) return 'Authorized_Master_Account-' + range + '-' + stamp + '.xlsx';
+    return 'Authorized_Master_Account-' + stamp + '.xlsx';
+}
+
+function printAuthorizedMasterAccount() {
+    var payload = getAuthorizedMasterAccountTablePayload();
+    if (!payload.rows.length) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Print',
+            text: 'No data to print.',
+            confirmButtonColor: '#0d6efd'
+        });
+        return;
+    }
+
+    var rangeLabel = ($('#main-daterange').val() || '').trim();
+    var headerHtml = payload.headers.map(function (h) {
+        return '<th>' + escapeCapitalPrintHtml(h) + '</th>';
+    }).join('');
+    var rowsHtml = payload.rows.map(function (row) {
+        return '<tr>' + row.map(function (cell) {
+            return '<td>' + escapeCapitalPrintHtml(cell) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    var iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    var frameWindow = iframe.contentWindow;
+    var frameDoc = frameWindow.document;
+    frameDoc.open();
+    frameDoc.write([
+        '<!doctype html><html><head><title>Authorized Master Account</title><style>',
+        '@page{size:landscape;margin:10mm;}',
+        'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+        '.print-wrap{width:100%;}',
+        'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+        '.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+        'table{width:100%;border-collapse:collapse;font-size:11px;}',
+        'th,td{border:1px solid #777;padding:6px 8px;vertical-align:middle;}',
+        'th{background:#f0dfa8;color:#6b4f14;text-align:left;font-weight:700;}',
+        'th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2){text-align:center;}',
+        'th:nth-child(3),td:nth-child(3){text-align:right;}',
+        'td{text-align:left;}',
+        '</style></head><body><div class="print-wrap">',
+        '<h2>Authorized Master Account</h2>',
+        '<div class="subtitle">', escapeCapitalPrintHtml(rangeLabel), '</div>',
+        '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+        '</div></body></html>'
+    ].join(''));
+    frameDoc.close();
+
+    var cleanup = function () {
+        setTimeout(function () {
+            if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        }, 300);
+    };
+    frameWindow.onafterprint = cleanup;
+    setTimeout(function () {
+        frameWindow.focus();
+        frameWindow.print();
+        cleanup();
+    }, 250);
+}
+
+function exportAuthorizedMasterAccount($btn) {
+    var payload = getAuthorizedMasterAccountTablePayload();
+    if (!payload.rows.length) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Export',
+            text: 'No data to export.',
+            confirmButtonColor: '#0d6efd'
+        });
+        return;
+    }
+
+    var outName = getAuthorizedMasterAccountExportFilename();
+    $btn.prop('disabled', true);
+    fetch('/junket_capital/export_xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            headers: payload.headers,
+            rows: payload.rows,
+            filename: outName
+        })
+    })
+        .then(function (res) {
+            if (!res.ok) {
+                return res.json().catch(function () { return {}; }).then(function (j) {
+                    throw new Error((j && j.error) ? j.error : 'Export failed');
+                });
+            }
+            return res.blob();
+        })
+        .then(function (blob) {
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = outName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        })
+        .catch(function (err) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: (err && err.message) ? err.message : 'Export failed',
+                confirmButtonColor: '#0d6efd'
+            });
+        })
+        .finally(function () {
+            $btn.prop('disabled', false);
+        });
 }
 
 
