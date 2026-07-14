@@ -128,6 +128,7 @@
 		"game_information": "Game Information"
 	},
 	"game_information": {
+		"categorize_group": "Categorize Group",
 		"on_progress": "On Progress",
 		"empty_table": "No games found",
 		"add_game": "Add Game",
@@ -335,6 +336,7 @@
 		"edit_history_empty": "No edit history.",
 		"edit_history_editor": "Edited by",
 		"encoded_by": "ENCODED BY",
+		"program_date": "PROGRAM DATE",
 		"date_time": "DATE & TIME",
 		"action": "ACTION",
 		"grand_total": "GRAND TOTAL",
@@ -1001,7 +1003,8 @@
 		"remarks_updated": "Remarks updated.",
 		"error_update_remarks": "Could not update remarks.",
 		"tab_all": "All",
-		"tab_total_credit": "Total Credit",
+		"tab_credit_status": "Credit Status",
+		"tab_total_credit": "Credit",
 		"tab_credit": "Cash Credit",
 		"tab_buyin": "Game Credit",
 		"show_balance_section": "Show balance of accounts with credit",

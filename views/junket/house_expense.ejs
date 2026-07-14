@@ -151,6 +151,7 @@
                                             <div class="expense-item-table-wrap">
                                             <table id="expense-item-cat-tbl" class="table table-sm small-text expense-master-tbl expense-item-tbl expense-item-tbl-layout align-middle mb-0" style="width:100%">
                                                 <colgroup>
+                                                    <col class="expense-col-program-date">
                                                     <col class="expense-col-date-time">
                                                     <col class="expense-col-name">
                                                     <col class="expense-col-in-charge">
@@ -161,6 +162,7 @@
                                                 </colgroup>
                                                 <thead>
                                                     <tr>
+                                                        <th class="sortable-col" data-sort-key="program_date"><%= __('house_expense.program_date') %></th>
                                                         <th class="sortable-col" data-sort-key="date_time"><%= __('house_expense.date_time') %></th>
                                                         <th class="expense-name-th sortable-col" data-sort-key="name">
                                                             <span class="house-expense-select-all-slot">
@@ -176,7 +178,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="expense-item-cat-tbody">
-                                                    <tr><td colspan="7" class="text-muted small text-center py-3">Loading...</td></tr>
+                                                    <tr><td colspan="8" class="text-muted small text-center py-3">Loading...</td></tr>
                                                 </tbody>
                                             </table>
                                             <div class="expense-item-table-separator" role="presentation" aria-hidden="true"></div>
@@ -1921,7 +1923,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 table-layout: fixed;
                 width: 100%;
             }
-            .expense-item-tbl-layout col.expense-col-date-time { width: 14%; }
+            .expense-item-tbl-layout col.expense-col-program-date { width: 11%; }
+            .expense-item-tbl-layout col.expense-col-date-time { width: 12%; }
             .expense-item-tbl-layout col.expense-col-name { width: 22%; }
             .expense-item-tbl-layout col.expense-col-in-charge { width: 11%; }
             .expense-item-tbl-layout col.expense-col-receiver { width: 11%; }

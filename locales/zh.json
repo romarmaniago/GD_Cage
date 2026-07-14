@@ -128,6 +128,7 @@
 		"Change_Game_No": "修改游戏编号"
 	},
 	"game_information": {
+		"categorize_group": "分组归类",
 		"on_progress": "开发中",
 		"empty_table": "暂无游戏",
 		"add_game": "添加游戏",
@@ -386,6 +387,7 @@
 		"edit_history_empty": "无编辑记录。",
 		"edit_history_editor": "编辑者",
 		"encoded_by": "编码",
+		"program_date": "节目日期",
 		"date_time": "日期 & 时间",
 		"action": "操作",
 		"grand_total": "总计",
@@ -1045,7 +1047,8 @@
 		"yes_delete": "dashboard_marker.yes_delete",
 		"action": "Action",
 		"tab_all": "全部",
-		"tab_total_credit": "总信用",
+		"tab_credit_status": "信用状态",
+		"tab_total_credit": "信用",
 		"tab_credit": "现金信贷",
 		"tab_buyin": "游戏信用",
 		"show_balance_section": "显示信用账户余额",

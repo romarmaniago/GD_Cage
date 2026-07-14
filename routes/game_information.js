@@ -42,6 +42,12 @@ router.get('/game_information', checkSession, function (req, res) {
 	res.render('game_information/game_information', data);
 });
 
+router.get('/categorize_group', checkSession, function (req, res) {
+	const data = sessions(req, 'game_information');
+	data.permissions = req.session.permissions;
+	res.render('game_information/categorize_group', data);
+});
+
 /** List Gamebook games (read-only). Amounts come from /game_list/:id/record on the client. */
 router.get('/game_information_data', checkSession, async (req, res) => {
 	const isValidYmd = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));

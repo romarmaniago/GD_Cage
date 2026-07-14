@@ -128,6 +128,7 @@
 		"Change_Game_No": "ゲーム番号の変更"
 	},
 	"game_information": {
+		"categorize_group": "グループ分類",
 		"on_progress": "開発中",
 		"empty_table": "ゲームがありません",
 		"add_game": "ゲーム追加",
@@ -384,6 +385,7 @@
 		"edit_history_empty": "編集履歴はありません。",
 		"edit_history_editor": "編集者",
 		"encoded_by": "エンコードされた",
+		"program_date": "プログラム日付",
 		"date_time": "日時",
 		"action": "アクション",
 		"grand_total": "合計",
@@ -1045,7 +1047,8 @@
 		"yes_delete": "dashboard_marker.yes_delete",
 		"action": "Action",
 		"tab_all": "すべて",
-		"tab_total_credit": "合計クレジット",
+		"tab_credit_status": "クレジット状況",
+		"tab_total_credit": "クレジット",
 		"tab_credit": "現金クレジット",
 		"tab_buyin": "ゲームクレジット",
 		"show_balance_section": "クレジット残高を表示",

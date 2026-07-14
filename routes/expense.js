@@ -8,42 +8,19 @@ const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
 const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
 const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 
-function parseEncodedDtFromProgramDate(raw) {
-	const rawDate = raw == null ? '' : String(raw).trim();
-	if (!rawDate) return new Date();
-
-	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
-	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawDate);
-	if (!dateOnly && !dateTime) return new Date();
-
-	const parts = rawDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
+/** YYYY-MM-DD from picker; null if missing/invalid. */
+function parseProgramDate(raw) {
+	const rawDate = raw == null ? '' : String(raw).trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return null;
+	const parts = rawDate.split('-').map((n) => parseInt(n, 10));
 	const y = parts[0];
 	const mo = parts[1];
 	const d = parts[2];
-	let hours = 0;
-	let minutes = 0;
-	let seconds = 0;
-	let ms = 0;
-
-	if (dateTime) {
-		const tp = rawDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
-		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-			hours = tp[0];
-			minutes = tp[1];
-		}
-	} else {
-		const now = new Date();
-		hours = now.getHours();
-		minutes = now.getMinutes();
-		seconds = now.getSeconds();
-		ms = now.getMilliseconds();
-	}
-
-	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
+	const dt = new Date(y, mo - 1, d);
 	if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
-		return dt;
+		return rawDate;
 	}
-	return new Date();
+	return null;
 }
 
 async function insertCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
@@ -478,8 +455,12 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			txtProgramDate
 		} = req.body;
 
-		const date_now = parseEncodedDtFromProgramDate(txtProgramDate);
-		const created_dt = new Date();
+		const programDate = parseProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).json({ error: 'Invalid or missing program date' });
+		}
+		const encoded_dt = new Date();
+		const created_dt = encoded_dt;
 		const category = txtCategory || null;
 		const receiptNo = txtReceiptNo || null;
 		const dateTime = txtDateandTime || null;
@@ -493,8 +474,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 		const query = `
 			INSERT INTO junket_house_expense 
-			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, KM_L, VEHICLE_ID, PHOTO, ENCODED_BY, ENCODED_DT, CREATED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, KM_L, VEHICLE_ID, PHOTO, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CREATED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
 		`;
 
 		// Determine DAILY_SETTLEMENT status based on latest settlement
@@ -540,7 +521,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			vehicleId,
 			receiptFileName,
 			encodedBy,
-			date_now,
+			encoded_dt,
+			programDate,
 			created_dt,
 			dailySettlementStatus
 		]);
@@ -558,7 +540,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			amount,
 			categoryName,
 			encodedBy,
-			date_now
+			encoded_dt
 		);
 
 		res.json({ success: true, id: expenseId });
@@ -680,6 +662,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 						e.ENCODED_BY,
 						e.ENCODED_DT,
+						e.PROGRAM_DATE,
 						e.EDITED_BY,
 						e.EDITED_DT,
 						e.ACTIVE,
@@ -735,6 +718,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
 							e.ENCODED_DT,
+							e.PROGRAM_DATE,
 							e.EDITED_BY,
 							e.EDITED_DT,
 							e.ACTIVE,
@@ -789,6 +773,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 							e.ENCODED_BY,
 							e.ENCODED_DT,
+							e.PROGRAM_DATE,
 							e.EDITED_BY,
 							e.EDITED_DT,
 							e.ACTIVE,
@@ -822,7 +807,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			}
 		}
 
-		// Date range mode: filter by expense encoded date (matches date range picker UI)
+		// Date range mode: filter by expense program date (matches date range picker UI)
 		if (!fromDate || !toDate) {
 			const currentDate = new Date();
 			const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -852,6 +837,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
 				e.ENCODED_BY,
 				e.ENCODED_DT,
+				e.PROGRAM_DATE,
 				e.EDITED_BY,
 				e.EDITED_DT,
 				e.ACTIVE,
@@ -868,9 +854,9 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
 			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			WHERE e.ACTIVE = 1
-				AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
+				AND COALESCE(e.PROGRAM_DATE, DATE(e.ENCODED_DT)) BETWEEN ? AND ?
 			
-			ORDER BY ENCODED_DT DESC
+			ORDER BY COALESCE(e.PROGRAM_DATE, DATE(e.ENCODED_DT)) DESC, e.ENCODED_DT DESC
 		`;
 
 		const [result] = await pool.execute(query, [fromDate, toDate]);
@@ -898,6 +884,7 @@ async function buildHouseExpenseReceipt(expenseId) {
 			e.AMOUNT,
 			e.KM_L,
 			e.ENCODED_DT,
+			e.PROGRAM_DATE,
 			e.CREATED_DT,
 			e.APPROVAL_STATUS,
 			ec.CATEGORY AS category_name,
@@ -923,7 +910,7 @@ async function buildHouseExpenseReceipt(expenseId) {
 		expense_id: row.IDNo,
 		title: '* Expenses *',
 		created_dt: row.CREATED_DT || row.ENCODED_DT,
-		program_date: row.ENCODED_DT,
+		program_date: row.PROGRAM_DATE || row.ENCODED_DT,
 		use_item_format: row.category_parent_id != null,
 		category: row.category_name || '',
 		receipt_no: row.RECEIPT_NO || '',

@@ -96,11 +96,11 @@
             columns: [
                 { data: 'code', defaultContent: '—', render: creditStatusTextColumn },
                 { data: 'agent', defaultContent: '—', render: creditStatusTextColumn },
-                { data: 'guarantor', defaultContent: '—', render: creditStatusTextColumn },
+                { data: 'guest', defaultContent: '—', render: creditStatusTextColumn },
                 {
                     data: 'amount',
                     defaultContent: 0,
-                    className: 'text-end marker-balance-col-amount',
+                    className: 'text-end marker-total-col-amount',
                     render: function (data, type) {
                         var n = data != null ? Number(data) : 0;
                         if (isNaN(n)) n = 0;
@@ -129,7 +129,7 @@
         var accountId = filterAccountId != null
             ? String(filterAccountId)
             : String($('#txtAccountMarker').val() || '').trim();
-        var data = [];
+        var grouped = {};
         var sum = 0;
 
         (rows || []).forEach(function (row) {
@@ -138,19 +138,30 @@
                 if (rowAcc && rowAcc !== accountId) return;
             }
             var amount = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
-            if (!isNaN(amount)) {
-                sum += isMarkerCreditOutTransaction(row) ? Math.abs(amount) : amount;
+            if (isNaN(amount)) amount = 0;
+            if (isMarkerCreditOutTransaction(row)) amount = Math.abs(amount);
+            sum += amount;
+
+            var code = creditStatusTextOrDash(row.AGENT_CODE);
+            var agent = creditStatusTextOrDash(row.AGENT_NAME);
+            var guestRaw = row.GUEST_NAME != null ? String(row.GUEST_NAME).trim() : '';
+            // Per guest when guest exists; no guest → roll up by agent
+            var guestKey = guestRaw || '';
+            var groupKey = [code, agent, guestKey].join('\u0001');
+
+            if (!grouped[groupKey]) {
+                grouped[groupKey] = {
+                    code: code,
+                    agent: agent,
+                    guest: creditStatusTextOrDash(guestRaw),
+                    amount: 0
+                };
             }
-            data.push({
-                code: creditStatusTextOrDash(row.AGENT_CODE),
-                agent: creditStatusTextOrDash(row.AGENT_NAME),
-                guarantor: creditStatusTextOrDash(
-                    (row.GUARANTOR != null && String(row.GUARANTOR).trim() !== '')
-                        ? row.GUARANTOR
-                        : row.GUEST_NAME
-                ),
-                amount: isNaN(amount) ? 0 : amount
-            });
+            grouped[groupKey].amount += amount;
+        });
+
+        var data = Object.keys(grouped).map(function (k) {
+            return grouped[k];
         });
 
         if ($grand.length) $grand.html(formatCreditStatusShortcutAmount(sum));
@@ -161,8 +172,8 @@
                     '<tr>' +
                     '<td>' + escapeHtml(r.code) + '</td>' +
                     '<td>' + escapeHtml(r.agent) + '</td>' +
-                    '<td>' + escapeHtml(r.guarantor) + '</td>' +
-                    '<td class="text-end marker-balance-col-amount">' + formatCreditStatusShortcutAmount(r.amount) + '</td>' +
+                    '<td>' + escapeHtml(r.guest) + '</td>' +
+                    '<td class="text-end marker-total-col-amount">' + formatCreditStatusShortcutAmount(r.amount) + '</td>' +
                     '</tr>'
                 );
             }).join('');
@@ -1644,6 +1655,18 @@
 
         initProgramDatePicker();
 
+        function getGuestLabelsForGuarantor() {
+            var labels = [];
+            if (!$guestSelect.length) return labels;
+            $guestSelect.find('option').each(function () {
+                var val = String($(this).val() || '').trim();
+                var text = String($(this).text() || '').trim();
+                if (!val || !text || text === guestPlaceholder) return;
+                labels.push(text);
+            });
+            return labels;
+        }
+
         function getGuarantorValue() {
             if (!$guarantor.length) return '';
             return String($guarantor.val() || '').trim();
@@ -1701,7 +1724,8 @@
             if (window.CreditGuarantorAutocomplete && typeof window.CreditGuarantorAutocomplete.buildSuggestionList === 'function') {
                 labels = window.CreditGuarantorAutocomplete.buildSuggestionList({
                     accounts: getGuarantorAccountSource(),
-                    historyRows: getGuarantorHistoryRows()
+                    historyRows: getGuarantorHistoryRows(),
+                    guests: getGuestLabelsForGuarantor()
                 });
             }
             if ($guarantor.data('select2')) {
@@ -1738,10 +1762,32 @@
                 creditGuarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField($guarantor[0], {
                     getHistoryRows: function () {
                         return getGuarantorHistoryRows();
+                    },
+                    getGuestLabels: function () {
+                        return getGuestLabelsForGuarantor();
                     }
                 });
             } catch (e) {
                 creditGuarantorAutocomplete = null;
+            }
+        }
+
+        function refreshGuarantorSuggestions(keepValue) {
+            if ($guarantor.is('select')) {
+                rebuildGuarantorSelectOptions(keepValue);
+                return;
+            }
+            if (creditGuarantorAutocomplete && typeof creditGuarantorAutocomplete.refresh === 'function') {
+                creditGuarantorAutocomplete.refresh();
+            }
+        }
+
+        function syncGuarantorFromSelectedGuest() {
+            if (!$guarantor.length || $guarantor.is('select')) return;
+            var guestLabel = getSelectedGuestLabel();
+            if (!guestLabel) return;
+            if (!getGuarantorValue()) {
+                $guarantor.val(guestLabel);
             }
         }
 
@@ -2943,6 +2989,7 @@
         function getMarkerTabPanelSelector(tab) {
             if (tab === 'marker-history') return '#marker-history-wrapper';
             if (tab === 'total') return '#marker-accounts-total-wrapper';
+            if (tab === 'credit-status') return '#marker-credit-status-wrapper';
             return '#marker-accounts-' + tab + '-wrapper';
         }
 
@@ -2960,6 +3007,12 @@
                 }
                 if (tab === 'total' && totalCreditTable && typeof totalCreditTable.columns === 'function') {
                     try { totalCreditTable.columns.adjust(); } catch (e) { /* noop */ }
+                }
+                if (tab === 'credit-status') {
+                    var creditStatusTable = ensureCreditStatusDataTable();
+                    if (creditStatusTable && typeof creditStatusTable.columns === 'function') {
+                        try { creditStatusTable.columns.adjust(); } catch (e) { /* noop */ }
+                    }
                 }
             }
         });

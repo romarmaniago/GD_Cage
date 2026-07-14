@@ -2,6 +2,7 @@ const mysql = require('mysql2/promise');
 require('dotenv').config(); // Load .env variables
 const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategorySchema');
 const { ensureHouseExpenseApprovalSchema } = require('../utils/ensureHouseExpenseApprovalSchema');
+const { ensureHouseExpenseProgramDateSchema } = require('../utils/ensureHouseExpenseProgramDateSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
 const { ensureTipSchema } = require('../utils/ensureTipSchema');
 const { ensureJunketLossSchema } = require('../utils/ensureJunketLossSchema');
@@ -41,6 +42,7 @@ const pool = mysql.createPool({
 		connection.release();
 		await ensureExpenseCategorySchema(pool);
 		await ensureHouseExpenseApprovalSchema(pool);
+		await ensureHouseExpenseProgramDateSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
 		await ensureTipSchema(pool);
 		await ensureJunketLossSchema(pool);

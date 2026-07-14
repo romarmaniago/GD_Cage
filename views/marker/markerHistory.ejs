@@ -20,134 +20,123 @@
 					</button>
 				</div>
 				<div class="card-body marker-history-page">
-					<div class="marker-history-top-grid mb-3">
-						<div class="marker-history-form-panel">
-							<form id="add_marker_settlement_page" action="#" method="POST" class="mb-0">
-								<input type="hidden" id="AgentBalance" name="AgentBalance" />
-								<input type="hidden" id="txtTotalBalanceGuest" name="totalBalanceGuest" />
-								<input type="hidden" id="optFormModeHidden" name="optFormMode" value="" />
-								<input type="hidden" id="optTransTypeHidden" name="optTransType" value="" />
-								<div id="marker-form-fields-wrap">
-									<div id="marker-return-source-wrap" class="d-none" aria-hidden="true">
-										<input type="radio" name="optReturnSource" id="return-source-credit-page" value="credit" />
-										<input type="radio" name="optReturnSource" id="return-source-buyin-page" value="buyin" />
-									</div>
+					<div class="marker-history-form-panel mb-3">
+						<form id="add_marker_settlement_page" action="#" method="POST" class="mb-0">
+							<input type="hidden" id="AgentBalance" name="AgentBalance" />
+							<input type="hidden" id="txtTotalBalanceGuest" name="totalBalanceGuest" />
+							<input type="hidden" id="optFormModeHidden" name="optFormMode" value="" />
+							<input type="hidden" id="optTransTypeHidden" name="optTransType" value="" />
+							<div id="marker-form-fields-wrap">
+								<div id="marker-return-source-wrap" class="d-none" aria-hidden="true">
+									<input type="radio" name="optReturnSource" id="return-source-credit-page" value="credit" />
+									<input type="radio" name="optReturnSource" id="return-source-buyin-page" value="buyin" />
+								</div>
 
-									<div class="row g-2 mb-1">
-										<div class="col-6 col-md-4 col-xl-3">
-											<label class="marker-field-label" for="txtCreditProgramDate"><%= __('dashboard_marker.program_date') %></label>
-											<input type="text" class="form-control form-control-sm marker-field-input" name="txtProgramDate" id="txtCreditProgramDate" required autocomplete="off" placeholder="YYYY-MM-DD" />
-										</div>
+								<div class="row mb-3 d-flex justify-content-center">
+									<span class="section-header text-center"><%= __('dashboard_marker.total_credits_issue') %></span>
+									<div class="col-sm-12 mb-3">
+										<input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" value="<%- Number(totalCreditsIssue || 0).toLocaleString('en-US') %>" readonly />
 									</div>
-
-									<div class="row g-2 mb-1">
-										<div class="col-md-6">
-											<label class="marker-field-label" for="txtAccountMarker"><%= __('dashboard_marker.account') %></label>
-											<select class="js-select2 form-select form-select-sm" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.choose_account') %>">
-												<option value=""><%= __('dashboard_marker.choose_account') %></option>
-											</select>
-										</div>
-										<div class="col-md-6">
-											<label class="marker-field-label" for="txtGuestMarker"><%= __('dashboard_marker.guest') %></label>
-											<select class="js-select2 form-select form-select-sm" name="txtGuestId" id="txtGuestMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.select_guest_optional') %>" disabled>
-												<option value=""><%= __('dashboard_marker.select_guest_optional') %></option>
-											</select>
-										</div>
+								</div>
+								<div class="row mb-1">
+									<div class="col-sm-6">
+										<label class="form-label text-muted small mb-1 text-center">Total Cash Credit</label>
+										<input type="text" class="form-control text-center" id="txtTotalJunketCredit" value="0" readonly />
 									</div>
+									<div class="col-sm-6">
+										<label class="form-label text-muted small mb-1 text-center">Total Game Credit</label>
+										<input type="text" class="form-control text-center" id="txtTotalGameCredit" value="0" readonly />
+									</div>
+								</div>
 
-									<div class="mb-1">
-										<label class="marker-field-label" for="txtGuarantor"><%= __('dashboard_marker.guarantor') %></label>
-										<select class="js-select2 form-select form-select-sm" name="txtGuarantor" id="txtGuarantor" style="width: 100%;" required data-placeholder="<%= __('dashboard_marker.guarantor') %>">
-											<option value=""></option>
+								<div class="row mb-2">
+									<div class="col-sm-3">
+										<label class="form-label text-muted small mb-1" for="txtCreditProgramDate"><%= __('dashboard_marker.program_date') %></label>
+										<input type="text" class="form-control" name="txtProgramDate" id="txtCreditProgramDate" required autocomplete="off" placeholder="YYYY-MM-DD" style="width: 100%;" />
+									</div>
+								</div>
+
+								<div class="row mb-2">
+									<div class="col-sm-4">
+										<label class="form-label text-muted small" for="txtAccountMarker"><%= __('dashboard_marker.account') %></label>
+										<select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.choose_account') %>">
+											<option value=""><%= __('dashboard_marker.choose_account') %></option>
 										</select>
 									</div>
+									<div class="col-sm-4">
+										<label class="form-label text-muted small" for="txtGuestMarker"><%= __('dashboard_marker.guest') %></label>
+										<select class="js-select2 form-select" name="txtGuestId" id="txtGuestMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.select_guest_optional') %>" disabled>
+											<option value=""><%= __('dashboard_marker.select_guest_optional') %></option>
+										</select>
+									</div>
+									<div class="col-sm-4">
+										<label class="form-label text-muted small" for="txtGuarantor"><%= __('dashboard_marker.guarantor') %></label>
+										<input type="text" class="form-control" name="txtGuarantor" id="txtGuarantor" required autocomplete="off" placeholder="<%= __('dashboard_marker.guarantor') %>" />
+									</div>
+								</div>
 
-									<div class="row g-2 mb-1 align-items-end">
-										<div class="col-6 col-md-3">
-											<label class="marker-field-label" id="lbl-marker-amount" for="txtMarkerReturn"><%= __('dashboard_marker.amount') %></label>
-											<input type="text" class="form-control form-control-sm marker-field-input" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" inputmode="decimal" />
-										</div>
-										<div class="col-12 col-md-9">
-											<label class="marker-field-label d-block"><%= __('dashboard_marker.credit_action') %></label>
-											<div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 marker-credit-radios" id="marker-credit-action-wrap">
-												<div class="form-check mb-0">
-													<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-deposit" name="optCreditAction" value="return_deposit" />
-													<label class="form-check-label" for="credit-action-return-deposit"><%= __('dashboard_marker.credit_action_return_deposit') %></label>
-												</div>
-												<div class="form-check mb-0">
-													<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-game-credit" name="optCreditAction" value="game_credit" />
-													<label class="form-check-label" for="credit-action-game-credit"><%= __('dashboard_marker.credit_action_game_credit') %></label>
-												</div>
-												<div class="form-check mb-0">
-													<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-cash" name="optCreditAction" value="return_cash" />
-													<label class="form-check-label" for="credit-action-return-cash"><%= __('dashboard_marker.credit_action_return_cash') %></label>
-												</div>
-												<div class="form-check mb-0">
-													<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-cash-credit" name="optCreditAction" value="cash_credit" />
-													<label class="form-check-label" for="credit-action-cash-credit"><%= __('dashboard_marker.credit_action_cash_credit') %></label>
-												</div>
+								<div class="row mb-2 align-items-end">
+									<div class="col-sm-4">
+										<label class="form-label text-muted small" id="lbl-marker-amount" for="txtMarkerReturn"><%= __('dashboard_marker.amount') %></label>
+										<input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" inputmode="decimal" />
+									</div>
+									<div class="col-sm-8">
+										<label class="form-label text-muted small d-block"><%= __('dashboard_marker.credit_action') %></label>
+										<div class="d-flex flex-wrap align-items-center gap-3 gap-md-4 pt-1" id="marker-credit-action-wrap">
+											<div class="form-check mb-0">
+												<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-deposit" name="optCreditAction" value="return_deposit" />
+												<label class="form-check-label" for="credit-action-return-deposit"><%= __('dashboard_marker.credit_action_return_deposit') %></label>
+											</div>
+											<div class="form-check mb-0">
+												<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-game-credit" name="optCreditAction" value="game_credit" />
+												<label class="form-check-label" for="credit-action-game-credit"><%= __('dashboard_marker.credit_action_game_credit') %></label>
+											</div>
+											<div class="form-check mb-0">
+												<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-cash" name="optCreditAction" value="return_cash" />
+												<label class="form-check-label" for="credit-action-return-cash"><%= __('dashboard_marker.credit_action_return_cash') %></label>
+											</div>
+											<div class="form-check mb-0">
+												<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-cash-credit" name="optCreditAction" value="cash_credit" />
+												<label class="form-check-label" for="credit-action-cash-credit"><%= __('dashboard_marker.credit_action_cash_credit') %></label>
 											</div>
 										</div>
 									</div>
+								</div>
 
-									<div class="d-none" id="marker-issue-balance-row" aria-hidden="true">
-										<div id="marker-issue-field-wrap">
-											<input type="hidden" name="txtMarkerIssue" id="txtMarkerIssue" />
-										</div>
-										<div id="marker-balance-field-wrap">
-											<input type="hidden" name="txtMarkerBalance" id="txtMarkerBalance" />
-										</div>
+								<div class="d-none" id="marker-issue-balance-row" aria-hidden="true">
+									<div id="marker-issue-field-wrap">
+										<input type="hidden" name="txtMarkerIssue" id="txtMarkerIssue" />
 									</div>
-
-									<div class="mb-1">
-										<label class="marker-field-label" for="txtRemarks"><%= __('dashboard_marker.remarks_optional') %></label>
-										<input type="text" class="form-control form-control-sm marker-field-input" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
-									</div>
-
-									<div id="marker-return-trans-type-wrap" class="d-none" aria-hidden="true"></div>
-
-									<div class="d-flex justify-content-start align-items-center gap-2 mt-1">
-										<button type="button" class="btn btn-sm btn-success d-none" id="btn-credits-game-start"><%= __('dashboard_marker.game_start') %></button>
-										<button type="submit" id="submit_marker_settlement" class="btn marker-history-btn-save">
-											<span class="marker-history-btn-save-check" aria-hidden="true">√</span>
-											<%= __('dashboard_marker.save') %>
-										</button>
+									<div id="marker-balance-field-wrap">
+										<input type="hidden" name="txtMarkerBalance" id="txtMarkerBalance" />
 									</div>
 								</div>
-							</form>
-						</div>
 
-						<div class="marker-history-status-panel">
-							<input type="hidden" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" value="<%- Number(totalCreditsIssue || 0).toLocaleString('en-US') %>" />
-							<input type="hidden" id="txtTotalJunketCredit" value="0" />
-							<input type="hidden" id="txtTotalGameCredit" value="0" />
-
-							<div class="marker-status-shell">
-								<div class="marker-status-titlebar">
-									<span>Credit Status List</span>
-									<div class="text-end">
-										<span class="marker-status-total-label">Total Amount</span>
-										<span class="marker-status-grand-total" id="marker-status-grand-display">0</span>
+								<div class="row mb-2">
+									<div class="col-sm-12">
+										<label class="form-label text-muted small" for="txtRemarks"><%= __('dashboard_marker.remarks_optional') %></label>
+										<input type="text" class="form-control" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
 									</div>
 								</div>
-								<table id="marker-credit-status-breakdown-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
-									<thead>
-										<tr>
-											<th class="text-center"><%= __('dashboard_marker.account') %></th>
-											<th class="text-center"><%= __('dashboard_marker.agent') %></th>
-											<th class="text-center"><%= __('dashboard_marker.guarantor') %></th>
-											<th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.amount') %></th>
-										</tr>
-									</thead>
-									<tbody id="marker-credit-status-body"></tbody>
-								</table>
+
+								<div id="marker-return-trans-type-wrap" class="d-none" aria-hidden="true"></div>
+
+								<div class="d-flex justify-content-start align-items-center gap-2 mt-3 mb-2">
+									<button type="button" class="btn btn-sm btn-success d-none" id="btn-credits-game-start"><%= __('dashboard_marker.game_start') %></button>
+									<button type="submit" id="submit_marker_settlement" class="btn marker-history-btn-save">
+										<%= __('dashboard_marker.save') %>
+									</button>
+								</div>
 							</div>
-						</div>
+						</form>
 					</div>
 
 					<ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
 						<li class="nav-item" role="presentation">
-							<button class="nav-link active" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
+							<button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
+						</li>
+						<li class="nav-item" role="presentation">
+							<button class="nav-link" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
 						</li>
 						<li class="nav-item" role="presentation">
 							<button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
@@ -160,7 +149,34 @@
 						</li>
 					</ul>
 
-					<div id="marker-accounts-total-wrapper" class="marker-tab-panel mb-3" data-panel="total">
+					<div id="marker-credit-status-wrapper" class="marker-tab-panel mb-3" data-panel="credit-status">
+						<div class="marker-credit-status-tab-panel">
+							<div class="marker-status-shell">
+								<div class="marker-status-titlebar">
+									<span><%= __('dashboard_marker.tab_credit_status') %></span>
+									<div class="text-end">
+										<span class="marker-status-total-label">Total Amount</span>
+										<span class="marker-status-grand-total" id="marker-status-grand-display">0</span>
+									</div>
+								</div>
+								<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+									<table id="marker-credit-status-breakdown-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
+										<thead>
+											<tr>
+												<th class="text-center"><%= __('dashboard_marker.account') %></th>
+												<th class="text-center"><%= __('dashboard_marker.agent') %></th>
+												<th class="text-center"><%= __('dashboard_marker.guest') %></th>
+												<th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.amount') %></th>
+											</tr>
+										</thead>
+										<tbody id="marker-credit-status-body"></tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div id="marker-accounts-total-wrapper" class="marker-tab-panel mb-3" data-panel="total" style="display: none;">
 						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 							<table id="marker-accounts-total-tbl" class="table marker-balance-tbl marker-total-table nowrap small-text w-100 mb-0">
 								<thead>
@@ -421,62 +437,28 @@ $(document).ready(function() {
 	color: #145a32;
 }
 
-.marker-history-top-grid {
-	display: grid;
-	grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.9fr);
-	gap: 1rem;
-	align-items: start;
-}
-@media (max-width: 991.98px) {
-	.marker-history-top-grid {
-		grid-template-columns: 1fr;
-	}
-}
-
 .marker-history-form-panel {
-	max-width: 42rem;
+	max-width: 100%;
 }
-.marker-field-label {
+#add_marker_settlement_page .select2-container .select2-selection--single {
+	height: calc(1.5em + 0.75rem + 6px) !important;
+	min-height: calc(1.5em + 0.75rem + 6px) !important;
+}
+#add_marker_settlement_page .select2-container--default .select2-selection--single .select2-selection__rendered {
 	display: block;
-	font-size: 0.75rem;
-	font-weight: 500;
-	color: #6c757d;
-	margin-bottom: 0.15rem;
-}
-.marker-history-form-panel .marker-field-input.form-control,
-.marker-history-form-panel .form-control-sm {
-	min-height: 2rem;
-	height: 2rem;
-	padding: 0.25rem 0.5rem;
-	font-size: 0.8125rem;
-	border-color: #dee2e6;
-	border-radius: 0.3rem;
-}
-.marker-credit-radios {
-	min-height: 2rem;
-	padding-top: 0.15rem;
-}
-.marker-credit-radios .form-check-label {
-	font-size: 0.8125rem;
-}
-
-.marker-history-form-panel .select2-container .select2-selection--single {
-	height: 2rem !important;
-	min-height: 2rem !important;
-}
-.marker-history-form-panel .select2-container--default .select2-selection--single .select2-selection__rendered {
-	display: block;
-	height: 2rem !important;
-	line-height: 2rem !important;
-	padding-left: 0.5rem;
-	padding-right: 2rem;
-	font-size: 0.8125rem;
+	height: calc(1.5em + 0.75rem + 6px) !important;
+	line-height: calc(1.5em + 0.75rem + 6px) !important;
+	padding-left: 0.75rem;
+	padding-right: 2.5rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.marker-history-form-panel .select2-container--default .select2-selection--single .select2-selection__arrow {
-	height: 2rem !important;
+#add_marker_settlement_page .select2-container--default .select2-selection--single .select2-selection__arrow {
+	height: calc(1.5em + 0.75rem + 6px) !important;
+}
+#add_marker_settlement_page .select2-container--default .select2-selection--single {
+	position: relative;
 }
 
 .marker-history-btn-save {
@@ -498,16 +480,16 @@ $(document).ready(function() {
 	margin-right: 0.25rem;
 }
 
-/* Credit Status List */
-.marker-history-status-panel {
+/* Credit Status List tab */
+.marker-credit-status-tab-panel {
 	background: #fff;
 	min-width: 0;
 }
-.marker-history-status-panel .marker-status-shell {
+.marker-credit-status-tab-panel .marker-status-shell {
 	border: 1px solid var(--gd-marker-gold-border);
 	overflow: hidden;
 }
-.marker-history-status-panel .marker-status-titlebar {
+.marker-credit-status-tab-panel .marker-status-titlebar {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -518,41 +500,41 @@ $(document).ready(function() {
 	font-size: 0.8125rem;
 	font-weight: 600;
 }
-.marker-history-status-panel .marker-status-total-label {
+.marker-credit-status-tab-panel .marker-status-total-label {
 	display: block;
 	font-size: 0.75rem;
 	font-weight: 600;
 }
-.marker-history-status-panel .marker-status-grand-total {
+.marker-credit-status-tab-panel .marker-status-grand-total {
 	display: block;
 	margin-top: 0.15rem;
 	font-weight: 700;
 	color: #dc3545;
 	font-variant-numeric: tabular-nums;
 }
-.marker-history-status-panel #marker-credit-status-breakdown-tbl {
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl {
 	width: 100% !important;
 	margin-bottom: 0 !important;
 	border: none !important;
 }
-.marker-history-status-panel #marker-credit-status-breakdown-tbl thead th,
-.marker-history-status-panel #marker-credit-status-breakdown-tbl tbody td {
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl thead th,
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody td {
 	padding: 10px 12px;
 	font-size: 0.8125rem;
 	text-align: center;
 	vertical-align: middle;
 	white-space: nowrap;
 }
-.marker-history-status-panel #marker-credit-status-breakdown-tbl tbody td {
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody td {
 	border-left: 0 !important;
 	border-right: 0 !important;
 	border-top: 0 !important;
 }
-.marker-history-status-panel #marker-credit-status-breakdown-tbl tbody tr:nth-child(even) td {
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:nth-child(even) td {
 	background-color: #fbf5e4;
 }
-.marker-history-status-panel #marker-credit-status-breakdown-tbl tbody td.marker-balance-col-amount,
-.marker-history-status-panel #marker-credit-status-breakdown-tbl thead th.marker-balance-col-amount {
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody td.marker-balance-col-amount,
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl thead th.marker-balance-col-amount {
 	text-align: right !important;
 	padding-right: 1.5rem !important;
 	font-variant-numeric: tabular-nums;
@@ -713,9 +695,6 @@ $(document).ready(function() {
 	.dataTables_filter,
 	.dataTables_paginate {
 		display: none !important;
-	}
-	.marker-history-top-grid {
-		grid-template-columns: 1fr;
 	}
 }
 </style>

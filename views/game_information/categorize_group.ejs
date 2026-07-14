@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner py-0">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div id="user-role" data-permissions="<%= permissions %>"></div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="card-title">
+            <div class="breadcrumb1 flat">
+              <a href="/dashboard"><span class="fa fa-home"></span></a>
+              <a href="/game_information"><%= __('sidebar.game_information') %></a>
+              <a href="/categorize_group" class="active"><%= __('game_information.categorize_group') %></a>
+            </div>
+          </h3>
+        </div>
+
+        <div class="card-body categorize-group-page">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/permission_view_only_script') %>
+<%- include('../partials/footer') %>

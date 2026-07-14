@@ -53,6 +53,19 @@
         return labels;
     }
 
+    function buildGuestLabels(guests) {
+        var labels = [];
+        var seen = new Set();
+        (guests || []).forEach(function (row) {
+            if (typeof row === 'string') {
+                pushUnique(labels, seen, row);
+                return;
+            }
+            pushUnique(labels, seen, row.guest_name || row.GUEST_NAME || row.name || row.NAME);
+        });
+        return labels;
+    }
+
     function buildHistoryGuarantors(historyRows, parseRemarks) {
         var labels = [];
         var seen = new Set();
@@ -71,10 +84,14 @@
     function buildSuggestionList(options) {
         options = options || {};
         var historyFirst = buildHistoryGuarantors(options.historyRows, options.parseRemarks);
+        var guestLabels = buildGuestLabels(options.guests);
         var accountLabels = buildAccountLabels(options.accounts);
         var seen = new Set();
         var merged = [];
         historyFirst.forEach(function (label) {
+            pushUnique(merged, seen, label);
+        });
+        guestLabels.forEach(function (label) {
             pushUnique(merged, seen, label);
         });
         accountLabels.forEach(function (label) {
@@ -274,7 +291,8 @@
                 return buildSuggestionList({
                     accounts: window._accountOptionsCache || [],
                     historyRows: typeof options.getHistoryRows === 'function' ? options.getHistoryRows() : [],
-                    parseRemarks: options.parseRemarks
+                    parseRemarks: options.parseRemarks,
+                    guests: typeof options.getGuestLabels === 'function' ? options.getGuestLabels() : (options.guests || [])
                 });
             }
         });
@@ -310,6 +328,7 @@
     window.CreditGuarantorAutocomplete = {
         wire: wire,
         buildSuggestionList: buildSuggestionList,
+        buildGuestLabels: buildGuestLabels,
         buildTipNameSuggestions: buildTipNameSuggestions,
         buildTipStatusSuggestions: buildTipStatusSuggestions,
         initCreditGuarantorField: initCreditGuarantorField,

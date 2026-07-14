@@ -262,6 +262,7 @@ function getHouseExpenseItemSortValue(row, key) {
     }
     if (key === 'description') return String(houseExpenseItemDescriptionColumnText(row) || '').toLowerCase();
     if (key === 'amount') return parseFloat(row.AMOUNT) || 0;
+    if (key === 'program_date') return getHouseExpenseProgramDateSortValue(row);
     if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
     return '';
 }
@@ -281,7 +282,7 @@ function sortHouseExpenseItemRows(rows) {
         if (av < bv) return dir === 'asc' ? -1 : 1;
         if (av > bv) return dir === 'asc' ? 1 : -1;
 
-        return new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
+        return getHouseExpenseProgramDateSortValue(b) - getHouseExpenseProgramDateSortValue(a);
     });
 
     return list;
@@ -338,6 +339,23 @@ function formatHouseExpenseReceiptDateOnly(encodedDt) {
     var m = moment.utc(encodedDt).utcOffset(8);
     if (!m.isValid()) return '';
     return m.format('YYYY-MM-DD');
+}
+
+function formatHouseExpenseProgramDateCell(row) {
+    if (!row) return '-';
+    var raw = row.PROGRAM_DATE != null && row.PROGRAM_DATE !== '' ? row.PROGRAM_DATE : null;
+    if (!raw) {
+        return row.ENCODED_DT ? formatHouseExpenseReceiptDateOnly(row.ENCODED_DT) : '-';
+    }
+    var m = moment.utc(raw).utcOffset(8);
+    if (!m.isValid()) return formatHouseExpenseReceiptDateOnly(raw) || '-';
+    return m.format('YYYY-MM-DD');
+}
+
+function getHouseExpenseProgramDateSortValue(row) {
+    if (!row) return 0;
+    var raw = row.PROGRAM_DATE != null && row.PROGRAM_DATE !== '' ? row.PROGRAM_DATE : row.ENCODED_DT;
+    return new Date(raw || 0).getTime();
 }
 
 function hasHouseExpenseReceiptField(value) {
@@ -893,7 +911,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
         if (!houseExpenseIsAllExplorerFilter(st) && !st.mainCategoryId && !st.mainCategory) {
             $('#expense-item-panel-subtitle').text('');
             $tbody.html(
-                '<tr><td colspan="7" class="text-muted small text-center py-3">Select a main category</td></tr>'
+                '<tr><td colspan="8" class="text-muted small text-center py-3">Select a main category</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
             syncHouseExpenseItemTableSortHeaders();
@@ -907,7 +925,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
 
         if (rows.length === 0) {
             $tbody.html(
-                '<tr><td colspan="7" class="text-center text-muted py-3">' +
+                '<tr><td colspan="8" class="text-center text-muted py-3">' +
                     houseExpenseHtmlEscape(noDataText) +
                     '</td></tr>'
             );
@@ -922,6 +940,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
         var html = rows
             .map(function (row) {
                 var amount = parseFloat(row.AMOUNT) || 0;
+                var formattedProgramDate = formatHouseExpenseProgramDateCell(row);
                 var formattedDate = row.ENCODED_DT
                     ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
                     : '-';
@@ -941,6 +960,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '<tr class="js-expense-entry-row" data-expense-id="' +
                     attrEncode(row.expense_id) +
                     '">' +
+                    '<td class="expense-item-program-date-cell">' +
+                    houseExpenseHtmlEscape(formattedProgramDate) +
+                    '</td>' +
                     '<td class="expense-item-date-cell">' +
                     houseExpenseHtmlEscape(formattedDate) +
                     '</td>' +
@@ -2363,7 +2385,7 @@ $(document).ready(function () {
     });
 
     function getHouseExpensePrintRows() {
-        var actionColIndex = 6;
+        var actionColIndex = 7;
         var headers = [];
         $('#expense-item-cat-tbl thead tr:first th').each(function (i) {
             if (i === actionColIndex) return;
@@ -2388,6 +2410,7 @@ $(document).ready(function () {
                     '',
                     '',
                     '',
+                    '',
                     $(this).find('.expense-item-footer-value').text().trim()
                 ]);
             });
@@ -2405,7 +2428,7 @@ $(document).ready(function () {
             'table{width:100%;border-collapse:collapse;font-size:10px;}',
             'th,td{border:1px solid #777;padding:5px 7px;vertical-align:middle;text-align:left;}',
             'th{background:#d9e1f2;font-weight:700;}',
-            'th:nth-child(5),td:nth-child(5),th:nth-child(6),td:nth-child(6){text-align:right;padding-right:14px;}',
+            'th:nth-child(7),td:nth-child(7){text-align:right;padding-right:14px;}',
             'tbody tr:nth-last-child(-n+3) td{font-weight:700;background:#f4f6fa;}'
         ].join('');
     }
@@ -2490,18 +2513,21 @@ $(document).ready(function () {
             }
             return;
         }
-        var headers = ['Name', 'In-Charge', 'Description', 'Amount', 'Date & Time'];
+        var headers = ['Program Date', 'Date & Time', 'Name', 'In-Charge', 'Receiver', 'Description', 'Amount'];
         var rows = data.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
+            var programDate = formatHouseExpenseProgramDateCell(row);
             var enc = row.ENCODED_DT
                 ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
                 : '';
             return [
+                programDate === '-' ? '' : programDate,
+                enc,
                 row.expense_category || 'N/A',
                 row.DESCRIPTION || row.OIC || '-',
+                row.RECEIVER || '-',
                 houseExpenseItemDescriptionColumnText(row),
-                amount,
-                enc
+                amount
             ];
         });
         var outName = 'Junket_Expenses-export.xlsx';
@@ -2728,7 +2754,7 @@ $(document).ready(function () {
             sortState.sortDir = sortState.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
             sortState.sortKey = key;
-            sortState.sortDir = key === 'date_time' || key === 'amount' ? 'desc' : 'asc';
+            sortState.sortDir = key === 'date_time' || key === 'program_date' || key === 'amount' ? 'desc' : 'asc';
         }
 
         window.houseExpenseItemTableSortState = sortState;

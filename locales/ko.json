@@ -129,6 +129,7 @@
 		"title": "정켓"
 	},
 	"game_information": {
+		"categorize_group": "그룹 분류",
 		"on_progress": "진행 중",
 		"empty_table": "게임이 없습니다",
 		"add_game": "게임 추가",
@@ -386,6 +387,7 @@
 		"edit_history_empty": "편집 기록이 없습니다.",
 		"edit_history_editor": "편집자",
 		"encoded_by": "인코딩된",
+		"program_date": "프로그램 날짜",
 		"date_time": "날짜 & 시간",
 		"action": "작업",
 		"grand_total": "총 합계",
@@ -1045,7 +1047,8 @@
 		"yes_delete": "dashboard_marker.yes_delete",
 		"action": "Action",
 		"tab_all": "전체",
-		"tab_total_credit": "총 크레딧",
+		"tab_credit_status": "크레딧 현황",
+		"tab_total_credit": "크레딧",
 		"tab_credit": "현금 크레딧",
 		"tab_buyin": "게임 크레딧",
 		"show_balance_section": "크레딧 잔액 표시",

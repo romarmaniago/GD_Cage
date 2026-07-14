@@ -56,9 +56,7 @@
                     </div>
                     <div class="col-sm-4">
                         <label class="form-label text-muted small" for="txtGuarantor"><%= __('dashboard_marker.guarantor') %></label>
-                        <select class="js-select2 form-select" name="txtGuarantor" id="txtGuarantor" style="width: 100%;" required data-placeholder="<%= __('dashboard_marker.guarantor') %>">
-                            <option value=""></option>
-                        </select>
+                        <input type="text" class="form-control" name="txtGuarantor" id="txtGuarantor" required autocomplete="off" placeholder="<%= __('dashboard_marker.guarantor') %>" />
                     </div>
                 </div>
                 <div class="row mb-2 align-items-end">
@@ -123,10 +121,13 @@
 
             <hr style="border: none; border-top: 0.2rem solid black;">
 
-            <!-- 4 Tabs: Total Credit (default), Cash Credit, Game Credit, History -->
+            <!-- 5 Tabs: Credit Status (default), Credit, Cash Credit, Game Credit, History -->
             <ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
+                    <button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
@@ -139,7 +140,29 @@
                 </li>
             </ul>
 
-            <div id="marker-accounts-total-wrapper" class="marker-tab-panel mb-3" data-panel="total">
+            <div id="marker-credit-status-wrapper" class="marker-tab-panel mb-3" data-panel="credit-status">
+                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                    <table id="marker-credit-status-breakdown-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th><%= __('dashboard_marker.account') %></th>
+                                <th><%= __('dashboard_marker.agent') %></th>
+                                <th><%= __('dashboard_marker.guest') %></th>
+                                <th class="text-end"><%= __('dashboard_marker.amount') %></th>
+                            </tr>
+                        </thead>
+                        <tbody id="marker-credit-status-body"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="fw-semibold text-end"><%= __('dashboard_marker.total_amount') %></th>
+                                <th class="text-end fw-semibold marker-total-col-amount" id="marker-status-grand-display">0</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div id="marker-accounts-total-wrapper" class="marker-tab-panel mb-3" data-panel="total" style="display: none;">
                 <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
                     <table id="marker-accounts-total-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
                         <thead>
@@ -602,13 +625,16 @@
         }
 
         #marker-accounts-total-wrapper .marker-balance-dt-wrap,
-        #marker-accounts-total-wrapper .marker-balance-card {
+        #marker-accounts-total-wrapper .marker-balance-card,
+        #marker-credit-status-wrapper .marker-balance-dt-wrap,
+        #marker-credit-status-wrapper .marker-balance-card {
             max-width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
 
-        #marker-accounts-total-tbl.dataTable.marker-total-table {
+        #marker-accounts-total-tbl.dataTable.marker-total-table,
+        #marker-credit-status-breakdown-tbl.dataTable.marker-total-table {
             width: 100% !important;
             max-width: 100% !important;
             font-size: 0.8125rem;
@@ -616,7 +642,8 @@
             border: 1px solid var(--gd-marker-gold-border);
         }
 
-        #marker-accounts-total-wrapper .marker-total-table thead th {
+        #marker-accounts-total-wrapper .marker-total-table thead th,
+        #marker-credit-status-wrapper .marker-total-table thead th {
             color: var(--gd-marker-gold-text) !important;
             font-weight: 600;
             font-size: 0.75rem;
@@ -627,7 +654,8 @@
             white-space: nowrap;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tbody td {
+        #marker-accounts-total-wrapper .marker-total-table tbody td,
+        #marker-credit-status-wrapper .marker-total-table tbody td {
             padding: 0.65rem 0.75rem;
             color: #666;
             border-color: #eee !important;
@@ -641,19 +669,23 @@
             max-width: 14rem;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td {
+        #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td,
+        #marker-credit-status-wrapper .marker-total-table tbody tr:nth-child(even) td {
             background-color: #fbf5e4;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(odd) td {
+        #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(odd) td,
+        #marker-credit-status-wrapper .marker-total-table tbody tr:nth-child(odd) td {
             background-color: #fff;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td {
+        #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td,
+        #marker-credit-status-wrapper .marker-total-table tbody tr:hover td {
             background-color: var(--gd-marker-gold-hover) !important;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tfoot th {
+        #marker-accounts-total-wrapper .marker-total-table tfoot th,
+        #marker-credit-status-wrapper .marker-total-table tfoot th {
             border-top: 2px solid var(--gd-marker-gold-border);
             border-bottom: 1px solid var(--gd-marker-gold-border);
             padding: 10px 15px;
@@ -661,7 +693,9 @@
             color: var(--gd-marker-gold-text);
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-amount {
+        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-amount,
+        #marker-credit-status-wrapper .marker-total-table tfoot th.marker-total-col-amount,
+        #marker-credit-status-wrapper .marker-total-table tbody td.marker-total-col-amount {
             font-variant-numeric: tabular-nums;
             padding-right: 1.5rem !important;
             text-align: right !important;
@@ -669,7 +703,10 @@
 
         #marker-accounts-total-wrapper .marker-total-table thead th.sorting,
         #marker-accounts-total-wrapper .marker-total-table thead th.sorting_asc,
-        #marker-accounts-total-wrapper .marker-total-table thead th.sorting_desc {
+        #marker-accounts-total-wrapper .marker-total-table thead th.sorting_desc,
+        #marker-credit-status-wrapper .marker-total-table thead th.sorting,
+        #marker-credit-status-wrapper .marker-total-table thead th.sorting_asc,
+        #marker-credit-status-wrapper .marker-total-table thead th.sorting_desc {
             color: var(--gd-marker-gold-text) !important;
         }
 
@@ -802,15 +839,36 @@
 
 						.select2-container--default .select2-selection--single {
 							border-color: #eee;
-
+							position: relative;
 						}
 
 						.select2-container--default .select2-selection--single .select2-selection__rendered {
-							display: flex;
-							align-items: center;
+							display: block;
 							padding-left: 0.75rem;
+							padding-right: 2.5rem;
 							height: calc(1.5em + 0.75rem + 6px);
-							line-height: 1.5;
+							line-height: calc(1.5em + 0.75rem + 6px);
+							overflow: hidden;
+							text-overflow: ellipsis;
+							white-space: nowrap;
+						}
+
+						#modal-new-marker .select2-container--default .select2-selection--single .select2-selection__clear {
+							position: absolute;
+							right: 1.75rem;
+							top: 50%;
+							transform: translateY(-50%);
+							float: none;
+							margin: 0;
+							padding: 0 0.25rem;
+							line-height: 1;
+							font-size: 1rem;
+							color: #8a92a6;
+							z-index: 2;
+						}
+
+						#modal-new-marker .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+							color: #495057;
 						}
 
 						.select2-container--default .select2-selection--single .select2-selection__arrow {
