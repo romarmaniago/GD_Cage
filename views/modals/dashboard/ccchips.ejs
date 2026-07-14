@@ -8,11 +8,10 @@
             </div>
 
             <div class="modal-body">
-                <div class="row">
-                    <div class="col-sm-4">
-                        <input type="text" id="ccchips-daterange" name="ccchips-daterange" class="form-control"
-                            placeholder="<%= __('modal_cc_chips_history.select_date_range') %>" autocomplete="off" />
-                    </div>
+                <div class="house-expense-daterange-wrap mb-3">
+                    <input type="text" id="ccchips-daterange" name="ccchips-daterange"
+                        class="form-control form-control-sm text-center"
+                        placeholder="<%= __('modal_cc_chips_history.select_date_range') %>" autocomplete="off" />
                 </div>
 
                 <hr style="border: none; border-top: 0.2rem solid black;">
@@ -63,7 +62,6 @@ window.ccChipsHistoryTranslations = {
 <style>
     .modal-lg {
         max-width: 50% !important;
-        /* Adjust percentage as needed */
     }
 
     #modal-new-cc-chips {

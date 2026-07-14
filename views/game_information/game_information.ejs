@@ -20,18 +20,9 @@
 
         <div class="card-body game-information-page">
           <div class="row mb-2">
-            <div class="col-12 col-lg-6">
-              <div id="gi-program-date-wrapper" class="day-selector-wrapper mb-3">
-                <%
-                  const now = new Date();
-                  const pad = value => value.toString().padStart(2, '0');
-                  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-                %>
-                <div class="program-date-picker-row">
-                  <div class="input-group gi-program-date-group" data-today="<%= todayStr %>" data-initial-program-date="<%= todayStr %>">
-                    <input type="text" id="gi-program-date-range-picker" class="form-control text-center" placeholder="Program date range" autocomplete="off" />
-                  </div>
-                </div>
+            <div class="col-12">
+              <div id="gi-program-date-wrapper" class="gi-daterange-wrap house-expense-daterange-wrap mb-3">
+                <input type="text" id="gi-program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
               </div>
             </div>
           </div>
@@ -91,21 +82,51 @@
 	--gd-marker-gold-hover: #faf3dc;
 }
 
-.game-information-page .gi-program-date-group {
-	width: 14.75rem;
-	max-width: 14.75rem;
+.gi-daterange-wrap {
+	width: auto;
+	min-width: 0;
+	max-width: none;
+	flex: 0 0 auto;
+	display: inline-block;
 }
-.game-information-page .gi-program-date-group .flatpickr-wrapper,
-.game-information-page .gi-program-date-group .form-control,
-.game-information-page .gi-program-date-group .flatpickr-input,
-.game-information-page .gi-program-date-group .flatpickr-alt-input {
-	width: 14.75rem !important;
-	max-width: 14.75rem !important;
-	min-width: 0 !important;
-	font-size: 0.8125rem;
-	padding: 0.4rem 0.5rem;
-	height: 2.35rem;
-	line-height: 1.35;
+
+.gi-daterange-wrap .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+.gi-daterange-wrap input.form-control,
+.gi-daterange-wrap .flatpickr-input.form-control {
+	display: inline-block !important;
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+	width: auto !important;
+	min-width: 10rem;
+	max-width: none !important;
+	margin: 0;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
+	text-align: center;
+	cursor: pointer;
+	background: #fff;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+}
+
+.gi-daterange-wrap input.form-control:focus,
+.gi-daterange-wrap .flatpickr-input.form-control:focus {
+	border-color: rgba(58, 46, 18, 0.35);
+	outline: none;
+	box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
 }
 
 .game-information-page table.dataTable {

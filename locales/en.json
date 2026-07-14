@@ -142,7 +142,9 @@
 		"add_success": "Game added to Game Information",
 		"add_failed": "Failed to add game",
 		"cancel": "Cancel",
-		"save": "Save"
+		"save": "Save",
+		"start_date": "game_information.start_date",
+		"end_date": "game_information.end_date"
 	},
 	"footer": {
 		"privacy_policy": "Privacy Policy",
@@ -385,7 +387,8 @@
 		"manual_date_range_hint": "Type date range (e.g. Jun 30, 2026 to Jul 30, 2026) and press Enter",
 		"type_goods": "Goods / Consumables",
 		"type_non_goods": "Non-goods / Services",
-		"settle": "house_expense.settle"
+		"settle": "house_expense.settle",
+		"filter_all": "house_expense.filter_all"
 	},
 	"hotel_booking": {
 		"junket": "Junket",

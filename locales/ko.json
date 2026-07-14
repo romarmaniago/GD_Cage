@@ -143,7 +143,9 @@
 		"add_success": "게임 정보에 추가되었습니다",
 		"add_failed": "추가에 실패했습니다",
 		"cancel": "취소",
-		"save": "저장"
+		"save": "저장",
+		"start_date": "game_information.start_date",
+		"end_date": "game_information.end_date"
 	},
 	"tip": {
 		"new_record": "새 팁",
@@ -443,7 +445,8 @@
 		"date_to": "house_expense.date_to",
 		"date_to_hint": "house_expense.date_to_hint",
 		"start_date": "house_expense.start_date",
-		"end_date": "house_expense.end_date"
+		"end_date": "house_expense.end_date",
+		"filter_all": "house_expense.filter_all"
 	},
 	"hotel_booking": {
 		"junket": "정켓",

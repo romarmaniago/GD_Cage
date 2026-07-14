@@ -142,7 +142,9 @@
 		"add_success": "ゲーム情報に追加しました",
 		"add_failed": "追加に失敗しました",
 		"cancel": "キャンセル",
-		"save": "保存"
+		"save": "保存",
+		"start_date": "game_information.start_date",
+		"end_date": "game_information.end_date"
 	},
 	"tip": {
 		"new_record": "新規チップ",
@@ -441,7 +443,8 @@
 		"date_to": "house_expense.date_to",
 		"date_to_hint": "house_expense.date_to_hint",
 		"start_date": "house_expense.start_date",
-		"end_date": "house_expense.end_date"
+		"end_date": "house_expense.end_date",
+		"filter_all": "house_expense.filter_all"
 	},
 	"hotel_booking": {
 		"junket": "ジャンケット",

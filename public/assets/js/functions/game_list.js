@@ -4198,6 +4198,62 @@ $(document).ready(function () {
 		return a <= b ? { from: a, to: b } : { from: b, to: a };
 	}
 
+	function syncProgramDatePickerDisplay(instance) {
+		if (!instance || !instance.altInput || !window.MonthEndCutoffRange) return;
+		var dates = instance.selectedDates || [];
+		if (dates.length !== 2) return;
+		var fmt = window.MonthEndCutoffRange.formatDisplayDate;
+		if (typeof fmt !== 'function') return;
+
+		if (window.selectedProgramDateRangeMultiDay) {
+			var rng = getProgramDateRangeYmdFromPicker();
+			if (rng && rng.from && rng.to) {
+				var fromParts = rng.from.split('-').map(Number);
+				var toParts = rng.to.split('-').map(Number);
+				instance.altInput.value =
+					fmt(new Date(fromParts[0], fromParts[1] - 1, fromParts[2])) +
+					' to ' +
+					fmt(new Date(toParts[0], toParts[1] - 1, toParts[2]));
+			}
+			return;
+		}
+
+		var d = dates[0];
+		instance.altInput.value = fmt(d);
+	}
+
+	function fitGameListRangePicker(inputId) {
+		if (!window.MonthEndCutoffRange) return;
+		var el = document.getElementById(inputId);
+		if (!el || !el._flatpickr) return;
+		var fp = el._flatpickr;
+		var visible = fp.altInput || fp.input;
+
+		if (inputId === 'program-date-range-picker') {
+			$('#program-date-wrapper').css({ width: '', minWidth: '' });
+			if (visible) {
+				var fpWrap = visible.closest('.flatpickr-wrapper');
+				if (fpWrap) {
+					fpWrap.style.width = '';
+					fpWrap.style.minWidth = '';
+					fpWrap.style.maxWidth = '';
+				}
+				visible.classList.remove('fp-auto-range-width');
+				var multi = $('#program-date-wrapper').hasClass('program-date-multi-day-search');
+				if (multi && typeof window.MonthEndCutoffRange.fitRangeInputWidth === 'function') {
+					window.MonthEndCutoffRange.fitRangeInputWidth(visible);
+				} else if (typeof window.MonthEndCutoffRange.fitSingleDateInputWidth === 'function') {
+					window.MonthEndCutoffRange.fitSingleDateInputWidth(visible);
+				}
+			}
+			return;
+		}
+
+		if (typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+			window.MonthEndCutoffRange.fitRangePickerInstance(fp);
+		}
+	}
+
 	function syncProgramDateMultiDayChrome() {
 		var $w = $('#program-date-wrapper');
 		if (!$w.length) return;
@@ -4209,6 +4265,7 @@ $(document).ready(function () {
 		var rng = getProgramDateRangeYmdFromPicker();
 		var multi = !!(rng && rng.from && rng.to && rng.from !== rng.to);
 		$w.toggleClass('program-date-multi-day-search', multi);
+		fitGameListRangePicker('program-date-range-picker');
 	}
 
 	function buildGameStartCell(gameStartText) {
@@ -4540,6 +4597,9 @@ $(document).ready(function () {
 			// Hide only the emptied top controls row
 			$row.addClass('game-list-dt-top-row-empty').hide();
 		});
+
+		fitGameListRangePicker('program-date-range-picker');
+		fitGameListRangePicker('daterange-picker');
 	}
 
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
@@ -5685,8 +5745,11 @@ $(document).ready(function () {
         var pickerEl = document.getElementById('program-date-range-picker');
         if (pickerEl && pickerEl._flatpickr) {
             pickerEl._flatpickr.setDate([targetDate, targetDate], false);
+            syncProgramDatePickerDisplay(pickerEl._flatpickr);
         }
 
+        syncProgramDateMultiDayChrome();
+        fitGameListRangePicker('program-date-range-picker');
         updateNavigationButtons();
         if (typeof window.reloadGameListByProgramDate === 'function') {
             window.reloadGameListByProgramDate();
@@ -5798,11 +5861,8 @@ $(document).ready(function () {
 
         programDatePicker = flatpickr('#program-date-range-picker', {
             mode: 'range',
-            enableTime: false,
             skipMonthEndCutoff: true,
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'M d, Y',
+            skipAutoRangeWidth: true,
             showMonths: 3,
             defaultMonth: settlementCalStart,
             defaultDate: [anchor, anchor],
@@ -5819,13 +5879,15 @@ $(document).ready(function () {
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
+                syncProgramDatePickerDisplay(instance);
+                fitGameListRangePicker('program-date-range-picker');
             },
             onMonthChange: function (selectedDates, dateStr, instance) {
                 if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
                     window.styleFlatpickrMonthNameClickable(instance);
                 }
             },
-            onChange: function (selectedDates) {
+            onChange: function (selectedDates, dateStr, instance) {
                 if (!selectedDates || selectedDates.length !== 2) {
                     return;
                 }
@@ -5842,6 +5904,8 @@ $(document).ready(function () {
                     window.updateNavigationButtons();
                 }
                 syncProgramDateMultiDayChrome();
+                syncProgramDatePickerDisplay(instance);
+                fitGameListRangePicker('program-date-range-picker');
                 if (typeof window.reloadGameListByProgramDate === 'function') {
                     window.reloadGameListByProgramDate();
                 }
@@ -5865,11 +5929,7 @@ $(document).ready(function () {
             (dateRangeElInit && dateRangeElInit.getAttribute('placeholder')) || 'Select Date';
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
-            enableTime: false,
             skipMonthEndCutoff: true,
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'M d, Y',
             showMonths: 3,
             defaultMonth: dateRangeVisibleStart,
             defaultDate: [],
@@ -5880,6 +5940,7 @@ $(document).ready(function () {
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
+                fitGameListRangePicker('daterange-picker');
                 var filterMode = $('input[name="filter-mode"]:checked').val() || 'program';
                 if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
                     setTimeout(function() {
@@ -5900,6 +5961,7 @@ $(document).ready(function () {
                 }
             },
             onChange: function(selectedDates, dateStr, instance) {
+                fitGameListRangePicker('daterange-picker');
                 if (selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
                     window.reloadData();
                 }
@@ -5917,6 +5979,7 @@ $(document).ready(function () {
     var programDateRangeEl = document.getElementById('program-date-range-picker');
     if (programDateRangeEl && programDateRangeEl._flatpickr) {
         programDateRangeEl._flatpickr.setDate([initialProgramDate, initialProgramDate], false);
+        syncProgramDatePickerDisplay(programDateRangeEl._flatpickr);
     }
     syncProgramDateMultiDayChrome();
     layoutGameListControls();

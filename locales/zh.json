@@ -142,7 +142,9 @@
 		"add_success": "已添加到游戏信息",
 		"add_failed": "添加失败",
 		"cancel": "取消",
-		"save": "保存"
+		"save": "保存",
+		"start_date": "game_information.start_date",
+		"end_date": "game_information.end_date"
 	},
 	"tip": {
 		"new_record": "新增小费",
@@ -443,7 +445,8 @@
 		"date_to": "house_expense.date_to",
 		"date_to_hint": "house_expense.date_to_hint",
 		"start_date": "house_expense.start_date",
-		"end_date": "house_expense.end_date"
+		"end_date": "house_expense.end_date",
+		"filter_all": "house_expense.filter_all"
 	},
 	"hotel_booking": {
 		"junket": "接待",

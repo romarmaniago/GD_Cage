@@ -832,11 +832,28 @@ $(document).ready(function() {
         }
     }
 
+    function commissionApiEndDate(endYmd) {
+        if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+        const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+        const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+        if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+            return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+        }
+        return endYmd;
+    }
+
     function getCommissionDateRangeValue() {
         var el = getCommissionDateInput();
         if (el && el._flatpickr) {
             var fp = el._flatpickr;
+            if (fp.altInput && fp.altInput.value) {
+                return fp.altInput.value.trim();
+            }
             if (fp.selectedDates && fp.selectedDates.length === 2) {
+                if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.formatDisplayDate === 'function') {
+                    return window.MonthEndCutoffRange.formatDisplayDate(fp.selectedDates[0]) + ' to ' +
+                        window.MonthEndCutoffRange.formatDisplayDate(fp.selectedDates[1]);
+                }
                 return moment(fp.selectedDates[0]).format('YYYY-MM-DD') + ' to ' +
                     moment(fp.selectedDates[1]).format('YYYY-MM-DD');
             }
@@ -864,7 +881,14 @@ $(document).ready(function() {
         invalidDateMessage: window.commissionTranslations?.invalid_date || 'Invalid date range.',
         onRangeApplied: function (range) {
             if (!range || !range.start || !range.end) return;
-            commissionSplitOverrideRange = { start: range.start, end: range.end };
+            var fromDate = range.start;
+            var toDate = commissionApiEndDate(range.end);
+            if (fromDate > toDate) {
+                var swap = fromDate;
+                fromDate = toDate;
+                toDate = swap;
+            }
+            commissionSplitOverrideRange = { start: fromDate, end: toDate };
             reloadData();
         }
     })) || { syncFromRange: function () {}, isSyncing: function () { return false; } };

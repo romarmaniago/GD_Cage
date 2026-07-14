@@ -28,16 +28,6 @@
                         </div>
        
                         <div class="card-body">
-                            <%
-                                const now = new Date();
-                                const pad = value => value.toString().padStart(2, '0');
-                                const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-                                const monthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                const formatRangeDisplayDate = (d) => `${monthAbbr[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-                                const monthEndCutoffStartValue = typeof monthEndCutoffStart !== 'undefined' ? monthEndCutoffStart : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth(), 0));
-                                const monthEndCutoffEndValue = typeof monthEndCutoffEnd !== 'undefined' ? monthEndCutoffEnd : formatRangeDisplayDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-                            %>
-
                             <div id="house-expense-dashboard" class="mb-3 house-expense-dashboard-shell">
                                 <div class="row g-3 align-items-stretch" id="house-expense-kpi-row">
                                     <div class="col-12 d-flex align-items-stretch" id="expense-kpi-stack-col">
@@ -85,7 +75,7 @@
                             <div id="house-expense-filter-shell" class="house-expense-filter-shell house-expense-date-filter mb-3">
                                 <div class="house-expense-filter-toolbar">
                                     <div class="house-expense-daterange-group d-flex flex-wrap align-items-center gap-2">
-                                        <div id="daterange-wrapper" class="house-expense-daterange-wrap day-selector-wrapper" data-today="<%= todayStrValue %>" data-range-start="<%= monthEndCutoffStartValue %>" data-range-end="<%= monthEndCutoffEndValue %>">
+                                        <div id="daterange-wrapper" class="house-expense-daterange-wrap">
                                             <input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off" />
                                         </div>
                                         <%- include('../partials/house_expense_daterange_split') %>
@@ -694,7 +684,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     cursor: pointer;
 }
 
-.house-expense-split-daterange {
+.house-expense-split-daterange,
+.junket-loss-split-daterange {
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
@@ -712,32 +703,35 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     white-space: nowrap;
 }
 
-.house-expense-split-daterange .flatpickr-wrapper {
+.house-expense-split-daterange .flatpickr-wrapper,
+.junket-loss-split-daterange .flatpickr-wrapper {
     display: inline-block;
-    width: auto;
-    min-width: 0;
+    width: 7.5rem;
+    min-width: 7.5rem;
 }
 
 .house-expense-split-daterange input.form-control.house-expense-split-date-input,
 .house-expense-split-daterange input.split-date-input,
-.house-expense-split-daterange .flatpickr-input.form-control {
+.house-expense-split-daterange .flatpickr-input.form-control,
+.junket-loss-split-daterange input.split-date-input,
+.junket-loss-split-daterange .flatpickr-input.form-control {
     display: inline-block;
     position: static;
     left: auto;
     top: auto;
-    width: auto;
-    min-width: 0;
-    padding-left: 8px;
-    padding-right: 8px;
-    max-width: none;
+    width: 7.5rem !important;
+    min-width: 7.5rem !important;
+    max-width: 7.5rem !important;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
     margin: 0;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     box-sizing: border-box;
     cursor: pointer;
     text-align: center;
-    field-sizing: content;
+    field-sizing: fixed;
 }
 
 /* Cell styles */

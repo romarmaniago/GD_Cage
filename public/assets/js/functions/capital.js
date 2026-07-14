@@ -1358,10 +1358,65 @@ $(document).ready(function() {
     });
 });
 
-// NN CHIPS HISTORY
+// NN / CC CHIPS HISTORY
+function getChipsHistoryDateRangeValue(pickerId) {
+    var el = document.getElementById(pickerId);
+    if (el && el._flatpickr) {
+        if (el._flatpickr.altInput && el._flatpickr.altInput.value) {
+            return el._flatpickr.altInput.value.trim();
+        }
+        if (el._flatpickr.selectedDates && el._flatpickr.selectedDates.length === 2 && window.MonthEndCutoffRange) {
+            return window.MonthEndCutoffRange.formatDisplayDate(el._flatpickr.selectedDates[0]) +
+                ' to ' +
+                window.MonthEndCutoffRange.formatDisplayDate(el._flatpickr.selectedDates[1]);
+        }
+    }
+    return ($('#' + pickerId).val() || '').trim();
+}
+
+function jumpChipsRangeToCurrentThreeMonths(instance) {
+    if (!instance) return;
+    var current = new Date();
+    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
+}
+
+function bindChipsRangeMonthNameHooks(instance) {
+    if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+        window.setupFlatpickrMonthNameRangeSelect(instance);
+    }
+}
+
+function initChipsHistoryRangePicker(pickerId, onRangeComplete) {
+    var $el = $('#' + pickerId);
+    if (!$el.length) return null;
+    if ($el.hasClass('flatpickr-input') && $el[0]._flatpickr) return $el[0]._flatpickr;
+
+    return flatpickr('#' + pickerId, {
+        mode: 'range',
+        showMonths: 3,
+        onReady: function (selectedDates, dateStr, instance) {
+            jumpChipsRangeToCurrentThreeMonths(instance);
+            bindChipsRangeMonthNameHooks(instance);
+        },
+        onOpen: function (selectedDates, dateStr, instance) {
+            jumpChipsRangeToCurrentThreeMonths(instance);
+            bindChipsRangeMonthNameHooks(instance);
+        },
+        onMonthChange: function (selectedDates, dateStr, instance) {
+            if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+                window.styleFlatpickrMonthNameClickable(instance);
+            }
+        },
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2 && typeof onRangeComplete === 'function') {
+                onRangeComplete();
+            }
+        }
+    });
+}
+
 function loadNNChipsHistory() {
-    const dateRange = $('#nnchips-daterange').val();
-    console.log('NN Chips History Date Range:', dateRange);
+    const dateRange = getChipsHistoryDateRangeValue('nnchips-daterange');
 
     var nnT = window.nnChipsHistoryTranslations || {};
     const resolved = parseCapitalDateRange(dateRange, 'nnchips-daterange');
@@ -1371,7 +1426,6 @@ function loadNNChipsHistory() {
         alert(nnT.please_select_date_range || 'Please select a date range.');
         return;
     }
-    console.log('NN Chips History Start Date:', startDate, 'End Date:', endDate);
 
     // Destroy existing DataTable instance if it exists
     if ($.fn.DataTable.isDataTable('#nn-chips-tbl')) {
@@ -1484,8 +1538,7 @@ function loadNNChipsHistory() {
 
 // CC CHIPS HISTORY
 function loadCCChipsHistory() {
-    const dateRange = $('#ccchips-daterange').val();
-    console.log('CC Chips History Date Range:', dateRange);
+    const dateRange = getChipsHistoryDateRangeValue('ccchips-daterange');
 
     var ccT = window.ccChipsHistoryTranslations || {};
     const resolved = parseCapitalDateRange(dateRange, 'ccchips-daterange');
@@ -1495,7 +1548,6 @@ function loadCCChipsHistory() {
         alert(ccT.please_select_date_range || 'Please select a date range.');
         return;
     }
-    console.log('CC Chips History Start Date:', startDate, 'End Date:', endDate);
 
     // Destroy existing DataTable instance if it exists
     if ($.fn.DataTable.isDataTable('#cc-chips-tbl')) {
@@ -1822,95 +1874,16 @@ $(document).ready(function() {
     });
 
     // -----------------------------
-    // NN Chips History Modal
+    // NN / CC Chips History Modals
     // -----------------------------
-    let nnChipsPicker = null;
-    
     $('#modal-new-nn-chips').on('shown.bs.modal', function () {
-        console.log('NN Chips History Modal shown'); // Debug log
-        
-        // Initialize Flatpickr only if not already initialized
-        const rangeDefaults = getDefaultMonthEndRange();
-        const startOfMonth = rangeDefaults.start;
-        const currentDate = rangeDefaults.end;
-        const jumpNnChipsRangeToCurrentThreeMonths = function(instance) {
-            if (!instance) return;
-            const current = new Date();
-            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-        };
-        
-        if ($('#nnchips-daterange').length > 0) {
-            // Check if Flatpickr is already initialized
-            if (!nnChipsPicker || !$('#nnchips-daterange').hasClass('flatpickr-input')) {
-                nnChipsPicker = flatpickr("#nnchips-daterange", {
-                    mode: "range",
-                    showMonths: 3,
-                    onReady: function(selectedDates, dateStr, instance) {
-                        jumpNnChipsRangeToCurrentThreeMonths(instance);
-                    },
-                    onOpen: function(selectedDates, dateStr, instance) {
-                        jumpNnChipsRangeToCurrentThreeMonths(instance);
-                    },
-                    onChange: function(selectedDates, dateStr) {
-                        console.log('NN Chips History Date changed:', dateStr); // Debug log
-                        if (selectedDates.length === 2) {
-                            loadNNChipsHistory();
-                        }
-                    }
-                });
-            }
-            
-            // Initial load of NN chips history data
-            loadNNChipsHistory();
-        } else {
-            console.error('nnchips-daterange element not found'); // Debug log
-        }
+        initChipsHistoryRangePicker('nnchips-daterange', loadNNChipsHistory);
+        loadNNChipsHistory();
     });
 
-    // -----------------------------
-    // CC Chips History Modal
-    // -----------------------------
-    let ccChipsPicker = null;
-    
     $('#modal-new-cc-chips').on('shown.bs.modal', function () {
-        console.log('CC Chips History Modal shown'); // Debug log
-        
-        // Initialize Flatpickr only if not already initialized
-        const rangeDefaults = getDefaultMonthEndRange();
-        const startOfMonth = rangeDefaults.start;
-        const currentDate = rangeDefaults.end;
-        const jumpCcChipsRangeToCurrentThreeMonths = function(instance) {
-            if (!instance) return;
-            const current = new Date();
-            instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-        };
-        
-        if ($('#ccchips-daterange').length > 0) {
-            // Check if Flatpickr is already initialized
-            if (!ccChipsPicker || !$('#ccchips-daterange').hasClass('flatpickr-input')) {
-                ccChipsPicker = flatpickr("#ccchips-daterange", {
-                    mode: "range",
-                    showMonths: 3,
-                    onReady: function(selectedDates, dateStr, instance) {
-                        jumpCcChipsRangeToCurrentThreeMonths(instance);
-                    },
-                    onOpen: function(selectedDates, dateStr, instance) {
-                        jumpCcChipsRangeToCurrentThreeMonths(instance);
-                    },
-                    onChange: function(selectedDates, dateStr) {
-                        console.log('CC Chips History Date changed:', dateStr); // Debug log
-                        if (selectedDates.length === 2) {
-                            loadCCChipsHistory();
-                        }
-                    }
-                });
-            }
-            
-            // Initial load of CC chips history data
-            loadCCChipsHistory();
-        } else {
-            console.error('ccchips-daterange element not found'); // Debug log
-        }
+        initChipsHistoryRangePicker('ccchips-daterange', loadCCChipsHistory);
+        loadCCChipsHistory();
     });
 });
 

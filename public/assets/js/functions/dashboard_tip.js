@@ -283,10 +283,23 @@ $(document).ready(function () {
 		tipDateStart = range.startAt || range.start || null;
 		tipDateEnd = range.endAt || range.end || null;
 
+		function bindMonthNameHooks(instance) {
+			if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+				window.setupFlatpickrMonthNameRangeSelect(instance);
+			}
+		}
+
 		flatpickr('#dash-tip-daterange', {
 			mode: 'range',
 			defaultDate: tipDateStart && tipDateEnd ? [tipDateStart, tipDateEnd] : undefined,
-			showMonths: 2,
+			showMonths: 3,
+			onReady: function (selectedDates, dateStr, instance) { bindMonthNameHooks(instance); },
+			onOpen: function (selectedDates, dateStr, instance) { bindMonthNameHooks(instance); },
+			onMonthChange: function (selectedDates, dateStr, instance) {
+				if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+					window.styleFlatpickrMonthNameClickable(instance);
+				}
+			},
 			onClose: function (selectedDates) {
 				if (!selectedDates || selectedDates.length === 0) {
 					tipDateStart = null;
@@ -327,8 +340,8 @@ $(document).ready(function () {
 		return formatProgramDateYmd(new Date());
 	}
 
-	function getTipProgramDateValue(inputId) {
-		var el = document.getElementById(inputId);
+	function getTipSettlementProgramDateValue() {
+		var el = document.getElementById('tip-settlement-modal-program-date');
 		if (!el) return '';
 		if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
 			return formatProgramDateYmd(el._flatpickr.selectedDates[0]);
@@ -336,18 +349,16 @@ $(document).ready(function () {
 		return String(el.value || '').trim().slice(0, 10);
 	}
 
-	function ensureTipProgramDatePicker(inputId, defaultDate) {
-		var el = document.getElementById(inputId);
+	function ensureTipSettlementProgramDatePicker(defaultDate) {
+		var el = document.getElementById('tip-settlement-modal-program-date');
 		if (!el) return;
-		var dateVal = defaultDate || getTipProgramDateValue(inputId) || todayProgramDateValue();
+		var dateVal = defaultDate || getTipSettlementProgramDateValue() || todayProgramDateValue();
 		if (typeof flatpickr === 'undefined') {
 			el.value = dateVal;
 			return;
 		}
 		if (el._flatpickr) {
-			try {
-				el._flatpickr.destroy();
-			} catch (e) {}
+			try { el._flatpickr.destroy(); } catch (e) {}
 		}
 		flatpickr(el, {
 			enableTime: false,
@@ -641,11 +652,158 @@ $(document).ready(function () {
 			});
 	}
 
+	function showBsModal(modalId) {
+		var modalEl = document.getElementById(modalId);
+		if (modalEl && window.bootstrap && bootstrap.Modal) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	function hideBsModal(modalId) {
+		var modalEl = document.getElementById(modalId);
+		if (modalEl && window.bootstrap && bootstrap.Modal) {
+			var instance = bootstrap.Modal.getInstance(modalEl);
+			if (instance) instance.hide();
+		}
+	}
+
+	function initTipSelect2($sel) {
+		if (!$sel.length || typeof $sel.select2 !== 'function') return;
+		if ($sel.data('select2')) {
+			try { $sel.select2('destroy'); } catch (e) {}
+		}
+		$sel.select2({
+			placeholder: $sel.data('placeholder') || 'Choose',
+			allowClear: false,
+			dropdownParent: $('#modal-tip-in')
+		});
+	}
+
+	function loadTipInAccounts() {
+		var $sel = $('#tip-in-modal-account');
+		var placeholder = $sel.data('placeholder') || 'Choose account';
+		return $.getJSON('/account_data').then(function (rows) {
+			if ($sel.data('select2')) {
+				try { $sel.select2('destroy'); } catch (e) {}
+			}
+			$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+			(rows || []).forEach(function (a) {
+				var id = a.account_id;
+				if (id == null) return;
+				var parts = [a.agent_code, a.agent_name].filter(Boolean);
+				$sel.append($('<option/>', {
+					value: String(id),
+					text: parts.length ? parts.join(' - ') : 'Account #' + id,
+					'data-agent-id': a.agent_id != null ? String(a.agent_id) : ''
+				}));
+			});
+			initTipSelect2($sel);
+		});
+	}
+
+	function loadTipInGuests(agentId) {
+		var $sel = $('#tip-in-modal-guest');
+		var placeholder = $sel.data('placeholder') || 'Choose guest';
+		var url = agentId
+			? '/guest_data?agentId=' + encodeURIComponent(agentId)
+			: '/guest_data?all=1';
+
+		return $.getJSON(url).then(function (rows) {
+			if ($sel.data('select2')) {
+				try { $sel.select2('destroy'); } catch (e) {}
+			}
+			$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+			(rows || []).forEach(function (g) {
+				var id = g.guest_id;
+				if (id == null) return;
+				var name = (g.guest_name || '').toString().trim() || ('Guest #' + id);
+				$sel.append($('<option/>', { value: String(id), text: name }));
+			});
+			initTipSelect2($sel);
+		});
+	}
+
+	function fetchTipRollerHistory(accountId) {
+		var url = '/tip_roller_history';
+		if (accountId) url += '?accountId=' + encodeURIComponent(accountId);
+		return $.getJSON(url).then(function (data) {
+			tipRollerHistory = Array.isArray(data && data.history) ? data.history : [];
+			return tipRollerHistory;
+		});
+	}
+
+	function refreshTipAutocompletes() {
+		var AC = window.CreditGuarantorAutocomplete;
+		if (!AC) return;
+		if (!tipAutocompleteInstances.length) {
+			tipAutocompleteInstances = [
+				AC.initTipFieldAutocomplete(document.getElementById('tip-in-modal-name'), {
+					fieldType: 'name',
+					getHistoryRows: function () { return tipRollerHistory; }
+				}),
+				AC.initTipFieldAutocomplete(document.getElementById('tip-in-modal-status'), {
+					fieldType: 'status',
+					getHistoryRows: function () { return tipRollerHistory; },
+					defaults: ['Roller', 'GM']
+				}),
+				AC.initTipFieldAutocomplete(document.getElementById('tip-settlement-modal-name'), {
+					fieldType: 'name',
+					getHistoryRows: function () { return tipRollerHistory; }
+				}),
+				AC.initTipFieldAutocomplete(document.getElementById('tip-settlement-modal-status'), {
+					fieldType: 'status',
+					getHistoryRows: function () { return tipRollerHistory; },
+					defaults: ['Roller', 'GM']
+				})
+			].filter(Boolean);
+		}
+		AC.refreshGroup(tipAutocompleteInstances);
+	}
+
+	function clearSelect2Value($sel) {
+		if ($sel.data('select2')) $sel.val('').trigger('change');
+		else $sel.val('');
+	}
+
+	function resetTipInModal() {
+		tipInResetting = true;
+		clearSelect2Value($('#tip-in-modal-account'));
+		clearSelect2Value($('#tip-in-modal-guest'));
+		$('#tip-in-modal-amount, #tip-in-modal-status, #tip-in-modal-name, #tip-in-modal-remarks')
+			.val('')
+			.removeClass('is-invalid');
+		ensureProgramDatePicker('tip-in-modal-program-date', todayProgramDateValue());
+		$('#tip-in-modal-program-date').removeClass('is-invalid');
+		tipInResetting = false;
+	}
+
+	function openTipInModal() {
+		resetTipInModal();
+		showBsModal('modal-tip-in');
+		$.when(loadTipInAccounts(), loadTipInGuests(null), fetchTipRollerHistory(null)).fail(function () {
+			Swal.fire('Error', 'Failed to load account or guest list.', 'error');
+		}).always(refreshTipAutocompletes);
+		setTimeout(function () {
+			$('#tip-in-modal-amount').trigger('focus');
+		}, 200);
+	}
+
+	function onTipInAccountChange() {
+		if (tipInResetting) return;
+		var $accountSel = $('#tip-in-modal-account');
+		var agentId = ($accountSel.find('option:selected').data('agent-id') || '').toString().trim();
+		var accountId = ($accountSel.val() || '').toString().trim();
+		loadTipInGuests(agentId || null).fail(function () {
+			Swal.fire('Error', 'Failed to load guests.', 'error');
+		});
+		fetchTipRollerHistory(accountId || null).then(refreshTipAutocompletes);
+	}
+
 	function resetTipSettlementModal() {
 		$('#tip-settlement-modal-amount, #tip-settlement-modal-status, #tip-settlement-modal-name, #tip-settlement-modal-remarks')
 			.val('')
 			.removeClass('is-invalid');
-		ensureTipProgramDatePicker('tip-settlement-modal-program-date', todayProgramDateValue());
+		ensureTipSettlementProgramDatePicker(todayProgramDateValue());
 		$('#tip-settlement-modal-program-date').removeClass('is-invalid');
 	}
 
@@ -657,12 +815,81 @@ $(document).ready(function () {
 		if (modalEl && window.bootstrap && bootstrap.Modal) {
 			bootstrap.Modal.getOrCreateInstance(modalEl).show();
 		}
-		fetchTipRollerHistory(null).always(function () {
-			refreshTipAutocompletes();
-		});
 		setTimeout(function () {
 			$('#tip-settlement-modal-amount').trigger('focus');
 		}, 200);
+	}
+
+	function submitTipIn(event) {
+		if (event) event.preventDefault();
+
+		var $amountInput = $('#tip-in-modal-amount');
+		var $statusInput = $('#tip-in-modal-status');
+		var $nameInput = $('#tip-in-modal-name');
+		var $programDateInput = $('#tip-in-modal-program-date');
+		var $btn = $('#btn-tip-in-save');
+		var amount = parseSettlementAmount($amountInput.val());
+		var statusVal = ($statusInput.val() || '').toString().trim();
+		var nameVal = ($nameInput.val() || '').toString().trim();
+		var programDate = getProgramDateValue('tip-in-modal-program-date');
+
+		$amountInput.add($statusInput).add($nameInput).add($programDateInput).removeClass('is-invalid');
+
+		if (!programDate || !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
+			$programDateInput.addClass('is-invalid');
+			Swal.fire({ icon: 'warning', title: 'Missing Program Date', text: tipInI18n.missingProgramDate || 'Please select a program date.' });
+			return;
+		}
+		if (Number.isNaN(amount)) {
+			$amountInput.addClass('is-invalid');
+			Swal.fire({ icon: 'warning', title: 'Invalid Amount', text: tipInI18n.invalidAmount || 'Enter a valid amount greater than zero.' });
+			return;
+		}
+		if (!statusVal) {
+			$statusInput.addClass('is-invalid');
+			Swal.fire({ icon: 'warning', title: 'Missing Status', text: tipInI18n.missingStatus || 'Please enter the tip status (Roller or GM).' });
+			return;
+		}
+		if (!nameVal) {
+			$nameInput.addClass('is-invalid');
+			Swal.fire({ icon: 'warning', title: 'Missing Name', text: tipInI18n.missingName || 'Please enter the name.' });
+			return;
+		}
+
+		$btn.prop('disabled', true);
+		$.post('/tip_in', {
+			txtAmount: $amountInput.val(),
+			txtAccountId: ($('#tip-in-modal-account').val() || '').toString().trim(),
+			txtGuestId: ($('#tip-in-modal-guest').val() || '').toString().trim(),
+			txtTipStatus: statusVal,
+			txtRollerName: nameVal,
+			txtProgramDate: programDate,
+			txtRemarks: ($('#tip-in-modal-remarks').val() || '').toString().trim()
+		})
+			.done(function (resp) {
+				if (resp && resp.availableBalance != null) updateAvailableBalance(resp.availableBalance);
+				hideBsModal('modal-tip-in');
+				resetTipInModal();
+				return refreshDashTip();
+			})
+			.then(function () {
+				Swal.fire({
+					icon: 'success',
+					title: 'Saved',
+					text: tipInI18n.saved || 'Roller tip saved successfully.',
+					timer: 1800,
+					showConfirmButton: false
+				});
+			})
+			.fail(function (xhr) {
+				var message = xhr.responseJSON && xhr.responseJSON.message
+					? xhr.responseJSON.message
+					: 'Failed to save roller tip.';
+				Swal.fire({ icon: 'error', title: 'Error', text: message });
+			})
+			.always(function () {
+				$btn.prop('disabled', false);
+			});
 	}
 
 	function submitTipSettlement(event) {
@@ -676,63 +903,33 @@ $(document).ready(function () {
 		var amount = parseSettlementAmount($amountInput.val());
 		var statusVal = ($statusInput.val() || '').toString().trim();
 		var nameVal = ($nameInput.val() || '').toString().trim();
-		var programDate = getTipProgramDateValue('tip-settlement-modal-program-date');
+		var programDate = getTipSettlementProgramDateValue();
 
-		$amountInput.removeClass('is-invalid');
-		$statusInput.removeClass('is-invalid');
-		$nameInput.removeClass('is-invalid');
-		$programDateInput.removeClass('is-invalid');
+		$amountInput.add($statusInput).add($nameInput).add($programDateInput).removeClass('is-invalid');
 
 		if (!programDate || !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
 			$programDateInput.addClass('is-invalid');
-			Swal.fire({
-				icon: 'warning',
-				title: 'Missing Program Date',
-				text: i18n.missingProgramDate || 'Please select a program date.'
-			});
+			Swal.fire({ icon: 'warning', title: 'Missing Program Date', text: i18n.missingProgramDate || 'Please select a program date.' });
 			return;
 		}
-
 		if (Number.isNaN(amount)) {
 			$amountInput.addClass('is-invalid');
-			Swal.fire({
-				icon: 'warning',
-				title: 'Invalid Amount',
-				text: i18n.invalidAmount || 'Enter a valid settlement amount greater than zero.'
-			});
+			Swal.fire({ icon: 'warning', title: 'Invalid Amount', text: i18n.invalidAmount || 'Enter a valid settlement amount greater than zero.' });
 			return;
 		}
-
-		var availableText = ($('#dash-tip-available-balance').text() || '').replace(/,/g, '').trim();
-		var available = Number(availableText) || 0;
-
 		if (amount > available) {
 			$amountInput.addClass('is-invalid');
-			Swal.fire({
-				icon: 'warning',
-				title: 'Invalid Amount',
-				text: i18n.exceedsBalance || 'Settlement amount cannot exceed available roller tip balance.'
-			});
+			Swal.fire({ icon: 'warning', title: 'Invalid Amount', text: i18n.exceedsBalance || 'Settlement amount cannot exceed available roller tip balance.' });
 			return;
 		}
-
 		if (!statusVal) {
 			$statusInput.addClass('is-invalid');
-			Swal.fire({
-				icon: 'warning',
-				title: 'Missing Status',
-				text: i18n.missingStatus || 'Please enter the tip status (Roller or GM).'
-			});
+			Swal.fire({ icon: 'warning', title: 'Missing Status', text: i18n.missingStatus || 'Please enter the tip status (Roller or GM).' });
 			return;
 		}
-
 		if (!nameVal) {
 			$nameInput.addClass('is-invalid');
-			Swal.fire({
-				icon: 'warning',
-				title: 'Missing Name',
-				text: i18n.missingName || 'Please enter the name.'
-			});
+			Swal.fire({ icon: 'warning', title: 'Missing Name', text: i18n.missingName || 'Please enter the name.' });
 			return;
 		}
 
@@ -745,14 +942,8 @@ $(document).ready(function () {
 			txtRemarks: ($('#tip-settlement-modal-remarks').val() || '').toString().trim()
 		})
 			.done(function (resp) {
-				if (resp && resp.availableBalance != null) {
-					updateAvailableBalance(resp.availableBalance);
-				}
-				var modalEl = document.getElementById('modal-tip-settlement');
-				if (modalEl && window.bootstrap && bootstrap.Modal) {
-					var instance = bootstrap.Modal.getInstance(modalEl);
-					if (instance) instance.hide();
-				}
+				if (resp && resp.availableBalance != null) updateAvailableBalance(resp.availableBalance);
+				hideBsModal('modal-tip-settlement');
 				resetTipSettlementModal();
 				return refreshDashTip();
 			})
@@ -790,10 +981,8 @@ $(document).ready(function () {
 
 	$('#btn-dash-tip-in-open').on('click', openTipInModal);
 	$('#btn-dash-tip-settlement-open').on('click', openTipSettlementModal);
-	$('#form-tip-in').on('submit', submitTipIn);
 	$('#form-tip-settlement').on('submit', submitTipSettlement);
-	$('#tip-in-modal-account').on('change', onTipInAccountChange);
-	$('#tip-in-modal-amount, #tip-settlement-modal-amount').on('input', function () {
+	$('#tip-settlement-modal-amount').on('input', function () {
 		var formatted = formatSettlementAmountInput(this.value);
 		if (this.value !== formatted) this.value = formatted;
 	});

@@ -161,7 +161,7 @@
 		};
 	}
 
-	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.hb-field-daterange-wrap,.house-expense-daterange-wrap,.fnb-hotel-daterange-wrap,.junket-loss-daterange-wrap,.additional-commission-daterange-wrap,.house-expense-split-daterange,[id$="-split-daterange-wrapper"],#daterange-wrapper';
+	var RANGE_WRAP_SELECTORS = '.commission-daterange-wrap,.commission-panel-daterange-wrap,.daily-report-list-daterange-wrap,.hb-field-daterange-wrap,.house-expense-daterange-wrap,.fnb-hotel-daterange-wrap,.junket-loss-daterange-wrap,.additional-commission-daterange-wrap,.gi-daterange-wrap,.game-list-daterange-wrap,.house-expense-split-daterange,[id$="-split-daterange-wrapper"],#daterange-wrapper';
 	var DEFAULT_RANGE_SAMPLE = 'Jun 30, 2026 to Jul 30, 2026';
 	var DEFAULT_SINGLE_DATE_SAMPLE = 'Sep 30, 2026';
 

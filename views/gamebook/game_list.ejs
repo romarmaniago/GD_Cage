@@ -45,7 +45,7 @@
 											</div>
 											
 											<!-- Program Date Picker -->
-											<div id="program-date-wrapper" class="day-selector-wrapper">
+											<div id="program-date-wrapper" class="day-selector-wrapper game-list-program-date-wrap">
 											<%
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
@@ -57,7 +57,7 @@
 														<button type="button" id="btn-program-date-prev" class="btn btn-outline-secondary" title="Previous Date">
 															<i class="fa fa-chevron-left"></i>
 														</button>
-														<input type="text" id="program-date-range-picker" class="form-control text-center" placeholder="Program date range" autocomplete="off" />
+														<input type="text" id="program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
 														<button type="button" id="btn-program-date-next" class="btn btn-outline-secondary" title="Next Date">
 															<i class="fa fa-chevron-right"></i>
 														</button>
@@ -66,10 +66,8 @@
 											</div>
 											
 											<!-- Game Start Picker -->
-											<div id="daterange-wrapper" class="day-selector-wrapper" style="display: none;">
-												<div class="input-group">
-													<input type="text" id="daterange-picker" class="form-control text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
-												</div>
+											<div id="daterange-wrapper" class="day-selector-wrapper game-list-daterange-wrap house-expense-daterange-wrap" style="display: none;">
+												<input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
 											</div>
 										</div>
 									</div>
@@ -205,12 +203,52 @@
 }
 
 /* Day selector — aligned inline with DataTables length via layoutGameListControls() */
-.day-selector-wrapper {
-	width: 320px;
-	max-width: 320px;
+.day-selector-wrapper,
+.game-list-daterange-wrap {
+	width: auto;
+	max-width: none;
 	min-width: 0;
 	box-sizing: border-box;
 	margin-bottom: 0;
+}
+
+.game-list-daterange-wrap .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+
+#daterange-wrapper.game-list-daterange-wrap input.form-control,
+#daterange-wrapper.game-list-daterange-wrap .flatpickr-input.form-control {
+	display: inline-block !important;
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+	width: auto !important;
+	min-width: 10rem;
+	max-width: none !important;
+	margin: 0;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
+	text-align: center;
+	cursor: pointer;
+	background: #fff;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+}
+
+#daterange-wrapper.game-list-daterange-wrap input.form-control:focus,
+#daterange-wrapper.game-list-daterange-wrap .flatpickr-input.form-control:focus {
+	border-color: rgba(58, 46, 18, 0.35);
+	outline: none;
+	box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
 }
 
 /* Source mount for date picker — children moved into #game_list-tbl_wrapper by JS */
@@ -247,7 +285,7 @@
 }
 
 #game_list-tbl_wrapper .game-list-controls-highlight .dataTables_length select {
-	height: 38px;
+	height: 34px;
 }
 
 #game_list-tbl_wrapper .game-list-controls-highlight .dataTables_filter {
@@ -285,76 +323,163 @@
 	left: auto;
 	right: auto;
 	bottom: auto;
-}
-
-#program-date-wrapper.is-placed .input-group,
-#daterange-wrapper.is-placed .input-group {
-	height: 38px;
-}
-
-#program-date-wrapper.is-placed #btn-program-date-prev,
-#program-date-wrapper.is-placed #btn-program-date-next {
-	padding: 0 0.75rem;
-}
-
-#program-date-wrapper.is-placed #program-date-range-picker,
-#program-date-wrapper.is-placed .input-group input.flatpickr-alt-input,
-#daterange-wrapper.is-placed #daterange-picker,
-#daterange-wrapper.is-placed .input-group input.flatpickr-alt-input {
-	height: 38px;
-	padding: 0 0.75rem;
-	line-height: 38px;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
 }
 
 #program-date-wrapper .program-date-picker-row {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: 10px;
 	min-width: 0;
-	width: 100%;
-	max-width: 100%;
 }
 
-/* Program Date block: same width as Game Start picker */
-#program-date-wrapper.day-selector-wrapper {
-	width: 320px;
-	max-width: 320px;
+/* Program date: prev | date | next unified pill */
+#program-date-wrapper.game-list-program-date-wrap {
+	width: auto;
+	max-width: none;
 	min-width: 0;
-	box-sizing: border-box;
 }
 
 #program-date-wrapper .input-group {
-	flex: 1 1 0;
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 0;
+	height: 34px;
 	min-width: 0;
-	max-width: 100%;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+	overflow: hidden;
+}
+
+#program-date-wrapper .input-group > input[type="hidden"] {
+	display: none !important;
+	position: absolute !important;
+	width: 0 !important;
+	height: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 0 !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+#program-date-wrapper .input-group > .flatpickr-wrapper {
+	flex: 0 0 auto;
+	width: auto !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+	padding: 0;
+}
+
+#program-date-wrapper #btn-program-date-prev,
+#program-date-wrapper #btn-program-date-next {
+	flex: 0 0 32px;
+	width: 32px;
+	min-width: 32px;
+	height: 34px;
+	padding: 0;
+	margin: 0;
+	border: none;
+	border-radius: 0;
+	background: transparent;
+	color: #5c4a1f;
+	font-size: 0.7rem;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: none;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+#program-date-wrapper #btn-program-date-prev {
+	border-right: 1px solid rgba(58, 46, 18, 0.1);
+}
+
+#program-date-wrapper #btn-program-date-next {
+	border-left: 1px solid rgba(58, 46, 18, 0.1);
+}
+
+#program-date-wrapper #btn-program-date-prev:hover:not(:disabled),
+#program-date-wrapper #btn-program-date-next:hover:not(:disabled) {
+	background: #faf3dc;
+	color: #3a2e12;
+}
+
+#program-date-wrapper #btn-program-date-prev:active:not(:disabled),
+#program-date-wrapper #btn-program-date-next:active:not(:disabled) {
+	background: #f1d48a;
+}
+
+#program-date-wrapper #btn-program-date-prev:focus,
+#program-date-wrapper #btn-program-date-next:focus {
+	outline: none;
+	box-shadow: inset 0 0 0 2px rgba(200, 162, 76, 0.35);
+}
+
+#program-date-wrapper #btn-program-date-prev:disabled,
+#program-date-wrapper #btn-program-date-next:disabled {
+	opacity: 0.35;
+	background: transparent;
+	color: #adb5bd;
 }
 
 #program-date-wrapper #program-date-range-picker,
 #program-date-wrapper .input-group input.flatpickr-input.form-control,
 #program-date-wrapper .input-group input.flatpickr-alt-input {
-	min-width: 0;
-	max-width: 100%;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	flex: 0 0 auto;
+	display: inline-block !important;
+	position: static !important;
+	width: auto !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	height: 34px;
+	margin: 0;
+	padding: 0 0.9rem;
+	border: none !important;
+	border-radius: 0;
+	background: transparent !important;
+	box-shadow: none !important;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 500;
+	color: #333;
+	cursor: pointer;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
 }
 
-/* Multi-day program date range: same outer width (320px); arrows hidden, input fills full bar */
+#program-date-wrapper #program-date-range-picker:focus,
+#program-date-wrapper .input-group input.flatpickr-alt-input:focus {
+	outline: none;
+	box-shadow: none !important;
+	border-color: transparent !important;
+}
+
+/* Multi-day range: hide nav arrows, full pill like other pages */
 #program-date-wrapper.program-date-multi-day-search #btn-program-date-prev,
 #program-date-wrapper.program-date-multi-day-search #btn-program-date-next {
 	display: none !important;
 }
 
-#program-date-wrapper.program-date-multi-day-search .input-group {
-	flex: 1 1 auto;
-	width: 100%;
-	max-width: 100%;
+#program-date-wrapper.program-date-multi-day-search .input-group > .flatpickr-wrapper {
+	flex: 0 0 auto;
+	min-width: 0;
 }
 
-#program-date-wrapper.program-date-multi-day-search #program-date-range-picker,
 #program-date-wrapper.program-date-multi-day-search .input-group input.flatpickr-alt-input {
-	font-size: 0.82rem;
-	padding-left: 0.35rem;
-	padding-right: 0.35rem;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
 }
 
 .game-list-roller-chips-banner {
@@ -492,6 +617,14 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	vertical-align: middle;
 }
 
+/* Game start date filter — standalone pill */
+#daterange-wrapper.is-placed #daterange-picker,
+#daterange-wrapper.is-placed .flatpickr-input.form-control {
+	height: 34px;
+	padding: 0 0.9rem;
+	line-height: 1.35;
+}
+
 .daily-settle-checkbox,
 .merge-settle-checkbox {
 	width: 15px;
@@ -521,64 +654,56 @@ body.open-pool-select-mode .game-list-select-all-slot {
 }
 
 .day-selector-wrapper #btn-program-date-prev,
-.day-selector-wrapper #btn-program-date-next,
-#program-date-wrapper #btn-program-date-prev.btn,
-#program-date-wrapper #btn-program-date-next.btn {
+.day-selector-wrapper #btn-program-date-next {
 	flex: 0 0 auto;
 	min-width: 42px;
 	padding: 0.5rem 0.75rem;
-	border: none !important;
-	background: #fff !important;
-	color: var(--gd-marker-gold-text, #3a2e12) !important;
-	transition: background 0.15s ease, color 0.15s ease;
+	border: none;
+	background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+	color: #495057;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 	font-weight: 500;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-right: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
-	box-shadow: none !important;
+	border-right: 1px solid #e9ecef;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.day-selector-wrapper #btn-program-date-next,
-#program-date-wrapper #btn-program-date-next.btn {
-	border-right: none !important;
-	border-left: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25)) !important;
+.day-selector-wrapper #btn-program-date-next {
+	border-right: none;
+	border-left: 1px solid #e9ecef;
 }
 
 .day-selector-wrapper #btn-program-date-prev:hover:not(:disabled),
-.day-selector-wrapper #btn-program-date-next:hover:not(:disabled),
-#program-date-wrapper #btn-program-date-prev.btn:hover:not(:disabled),
-#program-date-wrapper #btn-program-date-next.btn:hover:not(:disabled) {
-	background: var(--gd-marker-gold-solid, #d9b96a) !important;
-	color: var(--gd-marker-gold-text, #3a2e12) !important;
-	transform: none;
-	box-shadow: none !important;
+.day-selector-wrapper #btn-program-date-next:hover:not(:disabled) {
+	background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+	color: #ffffff;
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
 }
 
 .day-selector-wrapper #btn-program-date-prev:active:not(:disabled),
-.day-selector-wrapper #btn-program-date-next:active:not(:disabled),
-#program-date-wrapper #btn-program-date-prev.btn:active:not(:disabled),
-#program-date-wrapper #btn-program-date-next.btn:active:not(:disabled),
+.day-selector-wrapper #btn-program-date-next:active:not(:disabled) {
+	background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+	transform: translateY(0);
+	box-shadow: 0 2px 4px rgba(13, 110, 253, 0.4);
+}
+
 .day-selector-wrapper #btn-program-date-prev:focus,
-.day-selector-wrapper #btn-program-date-next:focus,
-#program-date-wrapper #btn-program-date-prev.btn:focus,
-#program-date-wrapper #btn-program-date-next.btn:focus {
-	background: var(--gd-marker-gold-solid, #d9b96a) !important;
-	color: var(--gd-marker-gold-text, #3a2e12) !important;
+.day-selector-wrapper #btn-program-date-next:focus {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(217, 185, 106, 0.35) !important;
+	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
 }
 
 .day-selector-wrapper #btn-program-date-prev:disabled,
-.day-selector-wrapper #btn-program-date-next:disabled,
-#program-date-wrapper #btn-program-date-prev.btn:disabled,
-#program-date-wrapper #btn-program-date-next.btn:disabled {
+.day-selector-wrapper #btn-program-date-next:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
 	pointer-events: none;
-	background: #fff !important;
-	color: rgba(58, 46, 18, 0.4) !important;
-	box-shadow: none !important;
+	background: #f8f9fa;
+	color: #adb5bd;
+	box-shadow: none;
 }
 
 .day-selector-wrapper #program-date-range-picker,
@@ -601,40 +726,6 @@ body.open-pool-select-mode .game-list-select-all-slot {
 
 .flatpickr-calendar .cur-month:hover {
 	text-decoration: underline;
-}
-
-.day-selector-wrapper #program-date-range-picker:focus,
-.day-selector-wrapper .input-group input.flatpickr-alt-input:focus {
-	outline: none;
-	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-}
-
-.day-selector-wrapper #program-date-range-picker.flatpickr-input,
-.day-selector-wrapper .input-group input.flatpickr-alt-input {
-	cursor: pointer;
-}
-
-/* Date range picker styling - same as program date picker */
-.day-selector-wrapper #daterange-picker {
-	border: none;
-	text-align: center;
-	font-weight: 600;
-	font-size: 0.95rem;
-	color: #212529;
-	background: #ffffff;
-	flex: 1;
-	padding: 0.5rem 0.75rem;
-	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-	cursor: pointer;
-}
-
-.day-selector-wrapper #daterange-picker:focus {
-	outline: none;
-	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-}
-
-.day-selector-wrapper #daterange-picker.flatpickr-input {
-	cursor: pointer;
 }
 
 .card-body {

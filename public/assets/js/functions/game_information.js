@@ -274,6 +274,16 @@
 		});
 	}
 
+	function giApiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return endYmd;
+	}
+
 	function getDefaultCutoffRange() {
 		if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
 			return window.MonthEndCutoffRange.getMonthEndCutoffRange();
@@ -285,15 +295,22 @@
 		return {
 			defaultDate: [startAt, endAt],
 			startDate: ymd(startAt),
-			endDate: ymd(endAt)
+			endDate: ymd(endAt),
+			endDateApi: ymd(endAt)
 		};
+	}
+
+	function jumpGiRangeToCurrentThreeMonths(instance) {
+		if (!instance) return;
+		var now = new Date();
+		instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
 	}
 
 	function initProgramDatePicker() {
 		var $input = $('#gi-program-date-range-picker');
 		var defaultRange = getDefaultCutoffRange();
 		programFrom = defaultRange.startDate;
-		programTo = defaultRange.endDate;
+		programTo = giApiEndDate(defaultRange.endDateApi || defaultRange.endDate);
 		selectedProgramDate = programFrom;
 
 		if (typeof flatpickr === 'undefined') {
@@ -304,19 +321,29 @@
 
 		flatpickr($input[0], {
 			mode: 'range',
-			enableTime: false,
-			dateFormat: 'Y-m-d',
-			altInput: true,
-			altFormat: 'M j, Y',
-			defaultDate: defaultRange.defaultDate,
+			showMonths: 3,
 			allowInput: false,
-			skipAutoRangeWidth: true,
+			onReady: function (_selectedDates, _dateStr, instance) {
+				jumpGiRangeToCurrentThreeMonths(instance);
+				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+					window.setupFlatpickrMonthNameRangeSelect(instance);
+				}
+			},
+			onOpen: function (_selectedDates, _dateStr, instance) {
+				jumpGiRangeToCurrentThreeMonths(instance);
+				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+					window.setupFlatpickrMonthNameRangeSelect(instance);
+				}
+			},
+			onMonthChange: function (_selectedDates, _dateStr, instance) {
+				if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+					window.styleFlatpickrMonthNameClickable(instance);
+				}
+			},
 			onChange: function (selectedDates) {
 				if (!selectedDates || selectedDates.length !== 2) return;
-				var a = selectedDates[0];
-				var b = selectedDates[1];
-				var d0 = ymd(a);
-				var d1 = ymd(b);
+				var d0 = ymd(selectedDates[0]);
+				var d1 = giApiEndDate(ymd(selectedDates[1]));
 				programFrom = d0 <= d1 ? d0 : d1;
 				programTo = d0 <= d1 ? d1 : d0;
 				selectedProgramDate = programFrom;

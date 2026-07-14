@@ -794,10 +794,16 @@
          try { window.tipInI18n = JSON.parse(inEl.textContent || '{}'); } catch (e) { window.tipInI18n = {}; }
       }
       var el = document.getElementById('tip-settlement-i18n');
-      if (!el) return;
-      try { window.tipSettlementI18n = JSON.parse(el.textContent || '{}'); } catch (e) { window.tipSettlementI18n = {}; }
+      if (el) {
+        try { window.tipSettlementI18n = JSON.parse(el.textContent || '{}'); } catch (e) { window.tipSettlementI18n = {}; }
+      }
+      var tipInEl = document.getElementById('tip-in-i18n');
+      if (tipInEl) {
+        try { window.tipInI18n = JSON.parse(tipInEl.textContent || '{}'); } catch (e) { window.tipInI18n = {}; }
+      }
    })();
 </script>
+<script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
 <script src="/assets/js/functions/dashboard_tip.js"></script>
 
 <%- include('partials/footer') %>
