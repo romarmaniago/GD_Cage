@@ -423,6 +423,7 @@ $(document).ready(function() {
 	--gd-marker-gold-solid: #d9b96a;
 	--gd-marker-gold-text: #3a2e12;
 	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
 }
 
 .marker-history-btn-print {
@@ -533,6 +534,9 @@ $(document).ready(function() {
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:nth-child(even) td {
 	background-color: #fbf5e4;
 }
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
+}
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody td.marker-balance-col-amount,
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl thead th.marker-balance-col-amount {
 	text-align: right !important;
@@ -556,10 +560,33 @@ $(document).ready(function() {
 	background: transparent;
 }
 
-/* Tables — agent.ejs format, gold palette */
+/* Tables — GD gold theme (match Additional / agent gold palette) */
 .marker-history-page table.dataTable {
 	border-collapse: collapse !important;
 	border-spacing: 0 !important;
+}
+
+.marker-history-page table thead tr,
+.marker-history-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+
+.marker-history-page table thead th,
+.marker-history-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+
+.marker-history-page table.dataTable thead > tr > th.sorting,
+.marker-history-page table.dataTable thead > tr > th.sorting_asc,
+.marker-history-page table.dataTable thead > tr > th.sorting_desc,
+.marker-history-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
 }
 
 #marker-history-tbl,
@@ -567,18 +594,18 @@ $(document).ready(function() {
 	width: 100%;
 	font-size: 13px;
 	border-collapse: collapse;
+	border: 1px solid var(--gd-marker-gold-border);
 }
 
 #marker-history-tbl thead th,
 .marker-balance-tbl thead th,
 .marker-history-page table.dataTable thead > tr > th {
-	background: var(--gd-marker-gold-solid) !important;
-	background-color: var(--gd-marker-gold-solid) !important;
 	color: var(--gd-marker-gold-text) !important;
-	font-weight: 500;
+	font-weight: 600;
 	padding: 12px 15px;
 	text-align: left;
 	border: none !important;
+	border-bottom: 1px solid var(--gd-marker-gold-border) !important;
 	box-shadow: none !important;
 }
 
@@ -590,10 +617,17 @@ $(document).ready(function() {
 .marker-balance-tbl td {
 	padding: 12px 15px;
 	color: #666;
+	vertical-align: middle;
+}
+#marker-history-tbl tbody tr:nth-child(even) td,
+.marker-balance-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
 }
 #marker-history-tbl tbody tr:hover,
-.marker-balance-tbl tbody tr:hover {
-	background-color: #f5f5f5 !important;
+#marker-history-tbl tbody tr:hover td,
+.marker-balance-tbl tbody tr:hover,
+.marker-balance-tbl tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
 }
 
 #marker-history-tbl tfoot th,
@@ -601,21 +635,75 @@ $(document).ready(function() {
 .marker-history-page table.dataTable tfoot th {
 	padding: 10px 15px;
 	font-weight: 600;
-	color: #333;
-	background-color: #faf3dc !important;
-	border-top: 2px solid #dee2e6;
+	color: var(--gd-marker-gold-text);
+	background-color: transparent !important;
+	border-top: 2px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid var(--gd-marker-gold-border);
 	border-left: 0 !important;
 	border-right: 0 !important;
-	border-bottom: 0 !important;
 	box-shadow: none !important;
 }
 
 .marker-balance-tbl tr.marker-balance-total-row td {
-	border-top: 2px solid #dee2e6;
-	color: #333;
+	border-top: 2px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
 	font-weight: 600;
 	padding: 10px 15px;
-	background-color: #faf3dc;
+	background-color: #fbf5e4;
+}
+
+/* Cream DataTables controls bar (length + search) */
+.marker-history-page .dataTables_wrapper .marker-history-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 8px 12px;
+	margin: 0;
+	background: #faf3dc;
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+.marker-history-page .dataTables_wrapper .marker-history-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+.marker-history-page .dataTables_wrapper .marker-history-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+.marker-history-page .dataTables_wrapper .marker-history-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.35);
+	border: none;
+	border-radius: 10px;
+}
+.marker-history-page .dataTables_wrapper .marker-history-filter-highlight label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+.marker-history-page .dataTables_wrapper .marker-history-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+}
+.marker-history-page .dataTables_wrapper table.dataTable {
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
+	border-top: 0 !important;
+}
+.marker-history-page .dataTables_wrapper > .row.marker-history-dt-top-row-empty {
+	display: none !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	height: 0 !important;
 }
 
 #marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
@@ -698,3 +786,73 @@ $(document).ready(function() {
 	}
 }
 </style>
+
+<script>
+(function () {
+	var TABLE_IDS = [
+		'marker-accounts-total-tbl',
+		'marker-history-tbl',
+		'marker-accounts-credit-tbl',
+		'marker-accounts-buyin-tbl'
+	];
+
+	function applyMarkerHistoryControlsLayout(tableId) {
+		var wrapper = document.getElementById(tableId + '_wrapper');
+		var lengthWrap = document.getElementById(tableId + '_length');
+		var filterWrap = document.getElementById(tableId + '_filter');
+		var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+		var controlsHighlight;
+		var filterHighlight;
+
+		if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+		controlsHighlight = wrapper.querySelector('.marker-history-controls-highlight');
+		if (!controlsHighlight) {
+			controlsHighlight = document.createElement('div');
+			controlsHighlight.className = 'marker-history-controls-highlight';
+			wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+		}
+		if (lengthWrap.parentElement !== controlsHighlight) {
+			controlsHighlight.appendChild(lengthWrap);
+		}
+		if (filterWrap.parentElement !== controlsHighlight) {
+			controlsHighlight.appendChild(filterWrap);
+		}
+
+		filterHighlight = filterWrap.querySelector('.marker-history-filter-highlight');
+		if (!filterHighlight) {
+			filterHighlight = document.createElement('div');
+			filterHighlight.className = 'marker-history-filter-highlight';
+			filterWrap.appendChild(filterHighlight);
+		}
+		if (searchLabel.parentElement !== filterHighlight) {
+			filterHighlight.appendChild(searchLabel);
+		}
+
+		Array.prototype.forEach.call(wrapper.children, function (row) {
+			if (!row.classList || !row.classList.contains('row')) return;
+			if (row.classList.contains('dt-row') || row.querySelector('table')) return;
+			if (!row.querySelector('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate')) {
+				row.classList.add('marker-history-dt-top-row-empty');
+			}
+		});
+	}
+
+	function applyAllMarkerHistoryControls() {
+		TABLE_IDS.forEach(applyMarkerHistoryControlsLayout);
+	}
+
+	if (window.jQuery) {
+		TABLE_IDS.forEach(function (id) {
+			$(document).on('init.dt draw.dt', '#' + id, function () {
+				applyMarkerHistoryControlsLayout(id);
+			});
+		});
+		$(applyAllMarkerHistoryControls);
+	} else {
+		document.addEventListener('DOMContentLoaded', function () {
+			setTimeout(applyAllMarkerHistoryControls, 0);
+		});
+	}
+})();
+</script>

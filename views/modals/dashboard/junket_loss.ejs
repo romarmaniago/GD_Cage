@@ -24,15 +24,22 @@
             <button type="button" id="btn-junket-loss-export" class="btn btn-sm btn-success">
               <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('junket_loss.export') || 'Export' %>
             </button>
-            <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
-            <button type="button" class="btn btn-sm btn-primary" id="btn-add-junket-loss" data-view-only-disable>
-              <i class="fa fa-plus me-1"></i> <%= __('junket_loss.add') || 'Add Loss Amount' %>
-            </button>
-            <% } %>
           </div>
         </div>
         <%- include('../../partials/junket_loss_type_tabs') %>
         <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+          <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+          <button
+            type="button"
+            class="expense-cat-panel-add-btn js-junket-loss-add d-none"
+            id="btn-add-junket-loss"
+            title="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
+            aria-label="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
+            data-view-only-disable
+          >
+            <i class="fa fa-plus" aria-hidden="true"></i>
+          </button>
+          <% } %>
           <table id="junket-loss-tbl" class="table marker-balance-tbl w-100 mb-0">
             <thead>
               <tr>
@@ -108,6 +115,46 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+  }
+
+  #modal-dash-junket-loss .junket-loss-split-daterange,
+  #modal-dash-junket-loss .house-expense-split-daterange {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 0;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  #modal-dash-junket-loss .junket-loss-split-daterange .flatpickr-wrapper,
+  #modal-dash-junket-loss .house-expense-split-daterange .flatpickr-wrapper {
+    display: inline-block;
+    width: 7.5rem;
+    min-width: 7.5rem;
+  }
+
+  #modal-dash-junket-loss .junket-loss-split-daterange input.split-date-input,
+  #modal-dash-junket-loss .junket-loss-split-daterange .flatpickr-input.form-control,
+  #modal-dash-junket-loss .house-expense-split-daterange input.split-date-input,
+  #modal-dash-junket-loss .house-expense-split-daterange .flatpickr-input.form-control {
+    display: inline-block;
+    position: static;
+    left: auto;
+    top: auto;
+    width: 7.5rem !important;
+    min-width: 7.5rem !important;
+    max-width: 7.5rem !important;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: pointer;
+    text-align: center;
+    field-sizing: fixed;
   }
 
   #modal-dash-junket-loss table.dataTable {
@@ -204,5 +251,83 @@
   #modal-dash-junket-loss #junket-loss-tbl tbody tr:hover,
   #modal-dash-junket-loss #junket-loss-tbl tbody tr:hover td {
     background-color: var(--gd-marker-gold-hover) !important;
+  }
+
+  #modal-dash-junket-loss #btn-add-junket-loss.expense-cat-panel-add-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 50%;
+    line-height: 1;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+
+  #modal-dash-junket-loss #btn-add-junket-loss.expense-cat-panel-add-btn i.fa {
+    font-size: 1rem;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper .junket-loss-controls-highlight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: -1px;
+    background: #faf3dc;
+    border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper .junket-loss-controls-highlight .dataTables_length {
+    margin-top: 4px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper .junket-loss-controls-highlight .dataTables_filter {
+    margin: 0 0 0 auto;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.35);
+    border: none;
+    border-radius: 10px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight label {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper #junket-loss-tbl_filter .junket-loss-filter-highlight label input {
+    margin-left: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper #junket-loss-tbl {
+    margin-top: 0 !important;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper .dataTables_length,
+  #modal-dash-junket-loss #junket-loss-tbl_wrapper .dataTables_filter {
+    padding-left: 0;
+    padding-right: 0;
   }
 </style>

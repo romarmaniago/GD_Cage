@@ -23,16 +23,6 @@
             <button type="button" id="btn-junket-loss-export" class="btn btn-sm btn-success">
               <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('junket_loss.export') || 'Export' %>
             </button>
-            <button
-              type="button"
-              class="expense-cat-panel-add-btn js-junket-loss-add d-none"
-              id="btn-add-junket-loss"
-              title="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
-              aria-label="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
-              data-view-only-disable
-            >
-              <i class="fa fa-plus" aria-hidden="true"></i>
-            </button>
           </div>
         </div>
         <div class="junket-loss-filter-bar">
@@ -50,6 +40,16 @@
         <div class="card-body pt-2 junket-loss-page">
           <%- include('../partials/junket_loss_type_tabs') %>
           <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <button
+              type="button"
+              class="expense-cat-panel-add-btn js-junket-loss-add d-none"
+              id="btn-add-junket-loss"
+              title="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
+              aria-label="<%= __('junket_loss.add') || 'Add Loss Amount' %>"
+              data-view-only-disable
+            >
+              <i class="fa fa-plus" aria-hidden="true"></i>
+            </button>
             <table id="junket-loss-tbl" class="table marker-balance-tbl w-100 mb-0">
               <thead>
                 <tr>
@@ -314,8 +314,8 @@
   .junket-loss-split-daterange .flatpickr-wrapper,
   .house-expense-split-daterange .flatpickr-wrapper {
     display: inline-block;
-    width: auto;
-    min-width: 0;
+    width: 7.5rem;
+    min-width: 7.5rem;
   }
 
   .junket-loss-split-daterange input.split-date-input,
@@ -326,19 +326,19 @@
     position: static;
     left: auto;
     top: auto;
-    width: auto;
-    min-width: 0;
-    padding-left: 8px;
-    padding-right: 8px;
-    max-width: none;
+    width: 7.5rem !important;
+    min-width: 7.5rem !important;
+    max-width: 7.5rem !important;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
     margin: 0;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     box-sizing: border-box;
     cursor: pointer;
     text-align: center;
-    field-sizing: content;
+    field-sizing: fixed;
   }
 
   #btn-add-junket-loss.expense-cat-panel-add-btn {
@@ -449,56 +449,3 @@
     }
   }
 </style>
-
-<script>
-  (function () {
-    function applyJunketLossControlsLayout() {
-      var wrapper = document.getElementById('junket-loss-tbl_wrapper');
-      var lengthWrap = document.getElementById('junket-loss-tbl_length');
-      var filterWrap = document.getElementById('junket-loss-tbl_filter');
-      var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
-      var addBtn = document.getElementById('btn-add-junket-loss');
-      var controlsHighlight;
-      var filterHighlight;
-
-      if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
-
-      controlsHighlight = wrapper.querySelector('.junket-loss-controls-highlight');
-      if (!controlsHighlight) {
-        controlsHighlight = document.createElement('div');
-        controlsHighlight.className = 'junket-loss-controls-highlight';
-        wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
-      }
-      if (lengthWrap.parentElement !== controlsHighlight) {
-        controlsHighlight.appendChild(lengthWrap);
-      }
-      if (filterWrap.parentElement !== controlsHighlight) {
-        controlsHighlight.appendChild(filterWrap);
-      }
-
-      filterHighlight = filterWrap.querySelector('.junket-loss-filter-highlight');
-      if (!filterHighlight) {
-        filterHighlight = document.createElement('div');
-        filterHighlight.className = 'junket-loss-filter-highlight';
-        filterWrap.appendChild(filterHighlight);
-      }
-
-      if (addBtn && addBtn.parentElement !== filterHighlight) {
-        filterHighlight.appendChild(addBtn);
-      }
-      if (searchLabel.parentElement !== filterHighlight) {
-        filterHighlight.appendChild(searchLabel);
-      }
-      if (addBtn) addBtn.classList.remove('d-none');
-    }
-
-    if (window.jQuery) {
-      $(document).on('init.dt draw.dt', '#junket-loss-tbl', applyJunketLossControlsLayout);
-      $(applyJunketLossControlsLayout);
-    } else {
-      document.addEventListener('DOMContentLoaded', function () {
-        setTimeout(applyJunketLossControlsLayout, 0);
-      });
-    }
-  })();
-</script>

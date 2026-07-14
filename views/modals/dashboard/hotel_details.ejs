@@ -5,13 +5,13 @@
 				<h5 class="modal-title text-white" id="modal-dash-hotel-label"><%= __('fnb_hotel.hotel') %></h5>
 				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
+			<div class="modal-body dash-service-modal-body">
 				<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-					<input type="text" id="dash-hotel-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
+					<input type="text" id="dash-hotel-daterange" class="form-control form-control-sm dash-service-daterange" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
 				</div>
 				<div class="table-responsive dash-service-table-panel">
 					<%- include('../../partials/dash_service_add_button', { buttonId: 'btn-dash-hotel-new-record', title: __('fnb_hotel.new_record') }) %>
-					<table id="dash-hotel-table" class="table nowrap small-text mb-0" style="width:100%">
+					<table id="dash-hotel-table" class="table nowrap small-text mb-0 dash-service-tbl" style="width:100%">
 						<thead>
 							<tr>
 								<th><%= __('fnb_hotel.program_date') || 'Program Date' %></th>
@@ -35,25 +35,3 @@
 		</div>
 	</div>
 </div>
-
-<style>
-#dash-hotel-table thead th {
-	background: #f4f6fa;
-	color: #495057;
-	font-weight: 600;
-	padding: 10px 12px;
-	border-bottom: 2px solid #dee2e6;
-}
-#dash-hotel-table thead th:nth-child(6),
-#dash-hotel-table tbody td:nth-child(6) {
-	text-align: right !important;
-	padding-right: 16px;
-}
-#dash-hotel-table tbody td {
-	padding: 10px 12px;
-	vertical-align: middle;
-}
-#dash-hotel-table tbody tr:hover {
-	background-color: #f8f9fa;
-}
-</style>

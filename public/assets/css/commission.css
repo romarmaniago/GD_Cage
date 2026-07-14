@@ -294,13 +294,13 @@
 	background: #fff;
 }
 
-/* Controls bar — no own side border (shell owns the outline) */
+/* Controls bar — pill-style filter box (Show / date / Search) */
 #commission-tbl_wrapper .commission-controls-highlight {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	padding: 8px 12px;
+	padding: 10px 14px;
 	margin: 0;
 	background: #faf3dc;
 	border: none;
@@ -314,9 +314,9 @@
 	display: inline-flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 4px;
+	gap: 6px;
 	flex: 0 1 auto;
-	margin-top: 4px;
+	margin-top: 0;
 	margin-bottom: 0;
 	padding-left: 0;
 	padding-right: 0;
@@ -337,10 +337,10 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	padding: 2px 6px;
-	background: rgba(255, 255, 255, 0.35);
+	padding: 0;
+	background: transparent;
 	border: none;
-	border-radius: 10px;
+	border-radius: 0;
 }
 
 #commission-tbl_wrapper #commission-tbl_filter .commission-filter-highlight label {
@@ -352,28 +352,84 @@
 	color: transparent;
 }
 
+/* Pill-style Search */
 #commission-tbl_wrapper #commission-tbl_filter .commission-filter-highlight label input {
 	margin-left: 0;
-	border: none;
+	border: 1px solid rgba(58, 46, 18, 0.18);
 	outline: none;
-	box-shadow: none;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 	background: #fff;
-	border-radius: 4px;
-	padding: 6px 10px;
+	border-radius: 999px;
+	padding: 0.4rem 1.1rem;
 	font-size: 13px;
+	line-height: 1.35;
+	height: 34px;
 	color: #333;
-	min-width: 160px;
+	min-width: 11rem;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 #commission-tbl_wrapper #commission-tbl_filter .commission-filter-highlight label input:focus {
-	border: none;
+	border-color: rgba(58, 46, 18, 0.35);
 	outline: none;
-	box-shadow: none;
+	box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
 }
 
 #commission-tbl_wrapper #commission-tbl_filter .commission-filter-highlight label input::placeholder {
 	color: #8a92a6;
 	opacity: 1;
+}
+
+/* Pill-style Show entries select */
+#commission-tbl_wrapper .commission-controls-highlight .dataTables_length select {
+	appearance: none;
+	-webkit-appearance: none;
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.7rem center;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	padding: 0.35rem 1.75rem 0.35rem 0.85rem;
+	height: 34px;
+	font-size: 13px;
+	color: #333;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+	cursor: pointer;
+}
+
+#commission-tbl_wrapper .commission-controls-highlight .dataTables_length select:focus {
+	border-color: rgba(58, 46, 18, 0.35);
+	outline: none;
+	box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
+}
+
+/* Pill-style date range inputs */
+#commission-tbl_wrapper .commission-controls-highlight .commission-daterange-wrap input.form-control,
+#commission-tbl_wrapper .commission-controls-highlight .commission-daterange-wrap .flatpickr-input.form-control,
+#commission-tbl_wrapper .commission-controls-highlight .commission-split-daterange input.split-date-input,
+#commission-tbl_wrapper .commission-controls-highlight .commission-split-daterange .flatpickr-input.form-control,
+#commission-tbl_wrapper .commission-controls-highlight .house-expense-split-daterange input.split-date-input,
+#commission-tbl_wrapper .commission-controls-highlight .house-expense-split-daterange .flatpickr-input.form-control {
+	background: #fff !important;
+	border: 1px solid rgba(58, 46, 18, 0.18) !important;
+	border-radius: 999px !important;
+	height: 34px;
+	padding-left: 0.9rem !important;
+	padding-right: 0.9rem !important;
+	font-size: 13px;
+	color: #333;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+	text-align: center;
+}
+
+#commission-tbl_wrapper .commission-controls-highlight .commission-daterange-wrap input.form-control:focus,
+#commission-tbl_wrapper .commission-controls-highlight .commission-daterange-wrap .flatpickr-input.form-control:focus,
+#commission-tbl_wrapper .commission-controls-highlight .commission-split-daterange input.split-date-input:focus,
+#commission-tbl_wrapper .commission-controls-highlight .commission-split-daterange .flatpickr-input.form-control:focus {
+	border-color: rgba(58, 46, 18, 0.35) !important;
+	outline: none;
+	box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35);
 }
 
 /* Table shares shell border — no separate outline (avoids uneven left/right edges) */
@@ -476,6 +532,16 @@
 	text-overflow: clip;
 	white-space: nowrap;
 	box-sizing: border-box;
+	background: #fff;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	text-align: center;
+	cursor: pointer;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 }
 
 .commission-split-daterange,
@@ -505,8 +571,8 @@
 	top: auto;
 	width: auto;
 	min-width: 0;
-	padding-left: 8px;
-	padding-right: 8px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
 	max-width: none;
 	margin: 0;
 	overflow: visible;
@@ -516,6 +582,12 @@
 	cursor: pointer;
 	text-align: center;
 	field-sizing: content;
+	background: #fff;
+	border: 1px solid rgba(58, 46, 18, 0.18);
+	border-radius: 999px;
+	height: 34px;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 }
 
 #commission-tbl thead th:nth-child(1) {
@@ -852,7 +924,7 @@
 }
 
 #commission-tbl_wrapper .dataTables_length select {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 

@@ -58,6 +58,8 @@
   let reportListDateRangePicker = null;
   let reportListSplitDateRange = null;
 
+  let reportListSplitOverrideRange = null;
+
   function initReportListSplitDateRange() {
     if (reportListSplitDateRange) return;
     reportListSplitDateRange = (window.SplitDateRange && SplitDateRange.attach({
@@ -65,7 +67,13 @@
       startId: 'daily-report-list-start-date',
       endId: 'daily-report-list-end-date',
       splitWrapperId: 'daily-report-list-split-daterange-wrapper',
-      invalidDateMessage: 'Invalid date range.'
+      independent: true,
+      invalidDateMessage: 'Invalid date range.',
+      onRangeApplied: function (range) {
+        if (!range || !range.start || !range.end) return;
+        reportListSplitOverrideRange = { from: range.start, to: range.end };
+        loadSubmittedReports();
+      }
     })) || {
       syncFromRange: function () {},
       fitWidths: function () {},
@@ -74,7 +82,7 @@
   }
 
   function syncReportListSplitFromFlatpickr() {
-    if (reportListSplitDateRange) reportListSplitDateRange.syncFromRange();
+    // Start/End are independent from the combined range picker.
   }
 
   function toIsoDate(date) {
@@ -523,6 +531,9 @@
   }
 
   function getSelectedListRange() {
+    if (reportListSplitOverrideRange && reportListSplitOverrideRange.from && reportListSplitOverrideRange.to) {
+      return reportListSplitOverrideRange;
+    }
     const fallback = getCurrentMonthRange();
     if (!reportListDateRangePicker || !Array.isArray(reportListDateRangePicker.selectedDates) || reportListDateRangePicker.selectedDates.length === 0) {
       return fallback;
@@ -858,7 +869,6 @@
         if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
           window.setupFlatpickrMonthNameRangeSelect(instance);
         }
-        setTimeout(syncReportListSplitFromFlatpickr, 0);
       },
       onOpen: (_selectedDates, _dateStr, instance) => {
         jumpToCurrentThreeMonths(instance);
@@ -872,8 +882,8 @@
         }
       },
       onChange: (selectedDates) => {
-        if (selectedDates.length === 2 && (!reportListSplitDateRange || !reportListSplitDateRange.isSyncing())) {
-          syncReportListSplitFromFlatpickr();
+        if (selectedDates.length === 2) {
+          reportListSplitOverrideRange = null;
           loadSubmittedReports();
         }
       }
@@ -1390,7 +1400,6 @@
     const end = parseIsoDateLocal(to);
     if (!reportListDateRangePicker || !start || !end) return;
     reportListDateRangePicker.setDate([start, end], false);
-    syncReportListSplitFromFlatpickr();
   }
 
   function initMatrixView() {

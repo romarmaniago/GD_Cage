@@ -485,7 +485,12 @@ $(document).ready(function() {
 		startId: 'fnb-hotel-start-date',
 		endId: 'fnb-hotel-end-date',
 		splitWrapperId: 'fnb-hotel-split-daterange-wrapper',
-		invalidDateMessage: (window.fnbHotelTranslations && window.fnbHotelTranslations.invalid_date) || 'Invalid date range.'
+		independent: true,
+		invalidDateMessage: (window.fnbHotelTranslations && window.fnbHotelTranslations.invalid_date) || 'Invalid date range.',
+		onRangeApplied: function (range) {
+			if (!range || !range.startDate || !range.endDate) return;
+			applyFnbHotelDateFilter([range.startDate, range.endDate]);
+		}
 	})) || { syncFromRange: function () {}, isSyncing: function () { return false; } };
 
 	function applyFnbHotelDateFilter(selectedDates) {
@@ -508,7 +513,6 @@ $(document).ready(function() {
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 					window.setupFlatpickrMonthNameRangeSelect(instance);
 				}
-				setTimeout(function () { fnbHotelSplitDateRange.syncFromRange(); }, 0);
 			},
 			onOpen: function (_selectedDates, _dateStr, instance) {
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
@@ -522,9 +526,6 @@ $(document).ready(function() {
 			},
 			onChange: function (selectedDates) {
 				if (selectedDates.length === 2) {
-					if (!fnbHotelSplitDateRange.isSyncing()) {
-						fnbHotelSplitDateRange.syncFromRange();
-					}
 					applyFnbHotelDateFilter(selectedDates);
 				}
 			},

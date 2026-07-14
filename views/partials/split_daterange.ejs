@@ -18,11 +18,17 @@
   const wrapClass = typeof splitWrapClass !== 'undefined'
     ? splitWrapClass
     : 'house-expense-daterange-wrap house-expense-split-daterange';
-  const startLabel = (typeof __ === 'function' && __(`${ns}.start_date`)) || 'Start Date';
-  const endLabel = (typeof __ === 'function' && __(`${ns}.end_date`)) || 'End Date';
+  const startLabelRaw = typeof __ === 'function' ? __(`${ns}.start_date`) : '';
+  const endLabelRaw = typeof __ === 'function' ? __(`${ns}.end_date`) : '';
+  const startLabel = (!startLabelRaw || startLabelRaw === `${ns}.start_date` || /start_date$/i.test(startLabelRaw))
+    ? 'Start'
+    : startLabelRaw;
+  const endLabel = (!endLabelRaw || endLabelRaw === `${ns}.end_date` || /end_date$/i.test(endLabelRaw))
+    ? 'End'
+    : endLabelRaw;
 %>
 <div id="<%= prefix %>-split-daterange-wrapper" class="<%= wrapClass %>" data-range-start="<%= splitStart %>" data-range-end="<%= splitEnd %>">
-  <input type="text" id="<%= prefix %>-start-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="<%= splitStart %>" placeholder="<%= startLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= startLabel %>" />
+  <input type="text" id="<%= prefix %>-start-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= startLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= startLabel %>" />
   <span class="house-expense-daterange-separator" aria-hidden="true">to</span>
-  <input type="text" id="<%= prefix %>-end-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="<%= splitEnd %>" placeholder="<%= endLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= endLabel %>" />
+  <input type="text" id="<%= prefix %>-end-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= endLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= endLabel %>" />
 </div>

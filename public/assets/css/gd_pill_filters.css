@@ -1,0 +1,149 @@
+/**
+ * GD pill-style filters — Show entries, Search, date range
+ * Shared across Commission, Additional, Add Charge, Loss Amount,
+ * Credit History, Multipurpose Ledger, Daily Report, Game List, etc.
+ */
+
+/* ---- DataTables Search (pill) ---- */
+div.dataTables_wrapper div.dataTables_filter input,
+.dataTables_wrapper .dataTables_filter input[type="search"],
+.dataTables_wrapper .dataTables_filter input[type="text"],
+[class*="-filter-highlight"] label input,
+[class*="-filter-highlight"] input[type="search"],
+[class*="-filter-highlight"] input[type="text"] {
+  background: #fff !important;
+  border: 1px solid rgba(58, 46, 18, 0.18) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+  padding: 0.4rem 1.1rem !important;
+  height: 34px !important;
+  font-size: 13px !important;
+  line-height: 1.35;
+  color: #333;
+  min-width: 10rem;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+div.dataTables_wrapper div.dataTables_filter input:focus,
+.dataTables_wrapper .dataTables_filter input[type="search"]:focus,
+.dataTables_wrapper .dataTables_filter input[type="text"]:focus,
+[class*="-filter-highlight"] label input:focus,
+[class*="-filter-highlight"] input:focus {
+  border-color: rgba(58, 46, 18, 0.35) !important;
+  box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35) !important;
+  outline: none !important;
+}
+
+div.dataTables_wrapper div.dataTables_filter input::placeholder,
+[class*="-filter-highlight"] input::placeholder {
+  color: #8a92a6;
+  opacity: 1;
+}
+
+/* ---- DataTables length select (pill) ---- */
+div.dataTables_wrapper div.dataTables_length select,
+.dataTables_wrapper .dataTables_length select,
+[class*="-controls-highlight"] .dataTables_length select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  border: 1px solid rgba(58, 46, 18, 0.18) !important;
+  border-radius: 999px !important;
+  padding: 0.35rem 1.75rem 0.35rem 0.85rem !important;
+  height: 34px;
+  font-size: 13px !important;
+  color: #333;
+  box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+  cursor: pointer;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+div.dataTables_wrapper div.dataTables_length select:focus,
+.dataTables_wrapper .dataTables_length select:focus,
+[class*="-controls-highlight"] .dataTables_length select:focus {
+  border-color: rgba(58, 46, 18, 0.35) !important;
+  box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35) !important;
+}
+
+/* ---- Date range / split date inputs (pill) ---- */
+[class*="-daterange-wrap"] input.form-control,
+[class*="-daterange-wrap"] .flatpickr-input.form-control,
+[class*="-daterange"] input.form-control,
+[class*="-daterange"] .flatpickr-input.form-control,
+.house-expense-daterange-wrap input.form-control,
+.house-expense-daterange-wrap .flatpickr-input.form-control,
+.house-expense-split-daterange input.split-date-input,
+.house-expense-split-daterange .flatpickr-input.form-control,
+[class*="-split-daterange"] input.split-date-input,
+[class*="-split-daterange"] .flatpickr-input.form-control,
+[class*="-split-daterange"] input.form-control,
+.dash-service-daterange,
+#daterange-picker,
+input[id$="-daterange"],
+input.split-date-input {
+  background: #fff !important;
+  border: 1px solid rgba(58, 46, 18, 0.18) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+  height: 34px !important;
+  padding-left: 0.9rem !important;
+  padding-right: 0.9rem !important;
+  font-size: 13px !important;
+  color: #333;
+  text-align: center;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[class*="-daterange-wrap"] input.form-control:focus,
+[class*="-daterange-wrap"] .flatpickr-input.form-control:focus,
+[class*="-daterange"] input.form-control:focus,
+.house-expense-daterange-wrap input.form-control:focus,
+.house-expense-split-daterange input.split-date-input:focus,
+[class*="-split-daterange"] input.split-date-input:focus,
+[class*="-split-daterange"] .flatpickr-input.form-control:focus,
+.dash-service-daterange:focus,
+#daterange-picker:focus,
+input[id$="-daterange"]:focus,
+input.split-date-input:focus {
+  border-color: rgba(58, 46, 18, 0.35) !important;
+  box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35) !important;
+  outline: none !important;
+}
+
+/* Item / panel search fields (house expense items, game list account search, etc.) */
+.expense-item-search-wrap input.form-control,
+#expense-item-search,
+#input-account-search,
+.dataTables_wrapper .dataTables_filter #input-account-search {
+  background: #fff !important;
+  border: 1px solid rgba(58, 46, 18, 0.18) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
+  height: 34px !important;
+  padding-left: 0.9rem !important;
+  padding-right: 0.9rem !important;
+  font-size: 13px !important;
+}
+
+.expense-item-search-wrap input.form-control:focus,
+#expense-item-search:focus,
+#input-account-search:focus,
+.dataTables_wrapper .dataTables_filter #input-account-search:focus {
+  border-color: rgba(58, 46, 18, 0.35) !important;
+  box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35) !important;
+  outline: none !important;
+}
+
+/* Soften filter-highlight wrappers so the pill input is the focus */
+[class*="-filter-highlight"] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}

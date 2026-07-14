@@ -5,13 +5,13 @@
 				<h5 class="modal-title text-white" id="modal-dash-fnb-label"><%= __('fnb_hotel.fnb') %></h5>
 				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
-			<div class="modal-body">
+			<div class="modal-body dash-service-modal-body">
 				<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-					<input type="text" id="dash-fnb-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
+					<input type="text" id="dash-fnb-daterange" class="form-control form-control-sm dash-service-daterange" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
 				</div>
 				<div class="table-responsive dash-service-table-panel">
 					<%- include('../../partials/dash_service_add_button', { buttonId: 'btn-dash-fnb-new-record', title: __('fnb_hotel.new_record') }) %>
-					<table id="dash-fnb-table" class="table nowrap small-text mb-0" style="width:100%">
+					<table id="dash-fnb-table" class="table nowrap small-text mb-0 dash-service-tbl" style="width:100%">
 						<thead>
 							<tr>
 								<th><%= __('fnb_hotel.program_date') || 'Program Date' %></th>
@@ -37,23 +37,55 @@
 </div>
 
 <style>
-#dash-fnb-table thead th {
-	background: #f4f6fa;
-	color: #495057;
+.dash-service-modal-body {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+.dash-service-daterange {
+	max-width: 260px;
+	background: #fff;
+	border: 1px solid rgba(58, 46, 18, 0.2);
+	border-radius: 8px;
+	text-align: center;
+}
+.dash-service-table-panel {
+	border: 1px solid var(--gd-marker-gold-border);
+	border-radius: 10px;
+	overflow: hidden;
+}
+.dash-service-tbl {
+	border-collapse: collapse !important;
+}
+.dash-service-tbl thead tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.dash-service-tbl thead th {
+	background: transparent !important;
+	color: var(--gd-marker-gold-text);
 	font-weight: 600;
 	padding: 10px 12px;
-	border-bottom: 2px solid #dee2e6;
+	border: none !important;
+	border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+	box-shadow: none !important;
 }
-#dash-fnb-table thead th:nth-child(6),
-#dash-fnb-table tbody td:nth-child(6) {
+.dash-service-tbl thead th:nth-child(6),
+.dash-service-tbl tbody td:nth-child(6) {
 	text-align: right !important;
 	padding-right: 16px;
 }
-#dash-fnb-table tbody td {
+.dash-service-tbl tbody td {
 	padding: 10px 12px;
 	vertical-align: middle;
+	color: #666;
+	border-bottom: 1px solid #eee;
 }
-#dash-fnb-table tbody tr:hover {
-	background-color: #f8f9fa;
+.dash-service-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
+}
+.dash-service-tbl tbody tr:hover,
+.dash-service-tbl tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
 }
 </style>

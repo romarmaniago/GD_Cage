@@ -2279,7 +2279,12 @@ $(document).ready(function () {
         houseExpenseApplyLoadedData([]);
     }
 
+    var houseExpenseSplitOverrideRange = null;
+
     function houseExpenseResolveDateRange(fpInstance) {
+        if (houseExpenseSplitOverrideRange && houseExpenseSplitOverrideRange.fromDate && houseExpenseSplitOverrideRange.toDate) {
+            return houseExpenseSplitOverrideRange;
+        }
         var pad = function (n) {
             return String(n).padStart(2, '0');
         };
@@ -2583,7 +2588,14 @@ $(document).ready(function () {
         startId: 'house-expense-start-date',
         endId: 'house-expense-end-date',
         splitWrapperId: 'house-expense-split-daterange-wrapper',
-        invalidDateMessage: (window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date range.'
+        independent: true,
+        invalidDateMessage: (window.houseExpenseTranslations && window.houseExpenseTranslations.invalid_date) || 'Invalid date range.',
+        onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            houseExpenseSplitOverrideRange = { fromDate: range.start, toDate: range.end };
+            toggleHouseExpenseBreakdownPanel('daterange');
+            if (typeof window.reloadData === 'function') window.reloadData();
+        }
     })) || { syncFromRange: function () {}, isSyncing: function () { return false; } };
 
     if (document.getElementById('daterange-picker')) {
@@ -2611,7 +2623,6 @@ $(document).ready(function () {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
                 toggleHouseExpenseBreakdownPanel('daterange');
-                setTimeout(function () { houseExpenseSplitDateRange.syncFromRange(); }, 0);
                 if (typeof window.reloadData === 'function') {
                     setTimeout(function () {
                         window.reloadData(false, instance);
@@ -2630,9 +2641,7 @@ $(document).ready(function () {
                 }
             },
             onChange: function (selectedDates) {
-                if (!houseExpenseSplitDateRange.isSyncing()) {
-                    houseExpenseSplitDateRange.syncFromRange();
-                }
+                houseExpenseSplitOverrideRange = null;
                 toggleHouseExpenseBreakdownPanel('daterange');
                 if (selectedDates.length === 2) {
                     if (typeof window.reloadData === 'function') window.reloadData();

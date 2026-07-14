@@ -6,6 +6,8 @@ let junketLossProgramDatePicker = null;
 let junketLossAccountGuestResetting = false;
 let junketLossTypeFilter = 'all';
 let junketLossTypeFilterRegistered = false;
+/** When Start/End split has both dates, this overrides junket-loss-daterange for fetches. */
+let junketLossSplitOverrideRange = null;
 
 function registerJunketLossTypeFilter() {
     if (junketLossTypeFilterRegistered || !$.fn.dataTable || !$.fn.dataTable.ext) return;
@@ -46,6 +48,13 @@ function junketLossApiEndDate(endYmd) {
 }
 
 function resolveJunketLossDateRange(fpInstance) {
+    if (junketLossSplitOverrideRange && junketLossSplitOverrideRange.fromDate && junketLossSplitOverrideRange.toDate) {
+        return {
+            fromDate: junketLossSplitOverrideRange.fromDate,
+            toDate: junketLossSplitOverrideRange.toDate
+        };
+    }
+
     const formatYmdLocal = function (d) {
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -117,7 +126,20 @@ function getJunketLossDateRangeLabel() {
 }
 
 function syncJunketLossSplitFromFlatpickr() {
-    if (junketLossSplitDateRange) junketLossSplitDateRange.syncFromRange();
+    // Start/End are independent from the combined range picker.
+}
+
+function applyJunketLossSplitDateRange(range) {
+    if (!range || !range.start || !range.end) return;
+    let fromDate = range.start;
+    let toDate = junketLossApiEndDate(range.end);
+    if (fromDate > toDate) {
+        const swap = fromDate;
+        fromDate = toDate;
+        toDate = swap;
+    }
+    junketLossSplitOverrideRange = { fromDate: fromDate, toDate: toDate };
+    fetchJunketLossData();
 }
 
 function applyJunketLossDateFilter(fpInstance) {
@@ -483,8 +505,51 @@ function removeJunketLoss(id) {
     });
 }
 
+function applyJunketLossControlsLayout() {
+    var wrapper = document.getElementById('junket-loss-tbl_wrapper');
+    var lengthWrap = document.getElementById('junket-loss-tbl_length');
+    var filterWrap = document.getElementById('junket-loss-tbl_filter');
+    var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+    var addBtn = document.getElementById('btn-add-junket-loss');
+    var controlsHighlight;
+    var filterHighlight;
+
+    if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+    controlsHighlight = wrapper.querySelector('.junket-loss-controls-highlight');
+    if (!controlsHighlight) {
+        controlsHighlight = document.createElement('div');
+        controlsHighlight.className = 'junket-loss-controls-highlight';
+        wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+    }
+    if (lengthWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(lengthWrap);
+    }
+    if (filterWrap.parentElement !== controlsHighlight) {
+        controlsHighlight.appendChild(filterWrap);
+    }
+
+    filterHighlight = filterWrap.querySelector('.junket-loss-filter-highlight');
+    if (!filterHighlight) {
+        filterHighlight = document.createElement('div');
+        filterHighlight.className = 'junket-loss-filter-highlight';
+        filterWrap.appendChild(filterHighlight);
+    }
+
+    if (addBtn && (addBtn.parentElement !== filterHighlight || filterHighlight.firstElementChild !== addBtn)) {
+        filterHighlight.insertBefore(addBtn, filterHighlight.firstChild);
+    }
+    if (searchLabel.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(searchLabel);
+    }
+    if (addBtn) addBtn.classList.remove('d-none');
+}
+
 function ensureJunketLossTable() {
-    if (junketLossTable) return junketLossTable;
+    if (junketLossTable) {
+        applyJunketLossControlsLayout();
+        return junketLossTable;
+    }
     if (!$('#junket-loss-tbl').length || !$.fn.DataTable) return null;
 
     registerJunketLossTypeFilter();
@@ -492,6 +557,7 @@ function ensureJunketLossTable() {
 
     if ($.fn.DataTable.isDataTable('#junket-loss-tbl')) {
         junketLossTable = $('#junket-loss-tbl').DataTable();
+        applyJunketLossControlsLayout();
         return junketLossTable;
     }
 
@@ -556,9 +622,16 @@ function ensureJunketLossTable() {
         ],
         footerCallback: function () {
             updateJunketLossTableTotal(this.api());
+        },
+        initComplete: function () {
+            applyJunketLossControlsLayout();
+        },
+        drawCallback: function () {
+            applyJunketLossControlsLayout();
         }
     });
 
+    applyJunketLossControlsLayout();
     return junketLossTable;
 }
 
@@ -567,11 +640,13 @@ window.refreshJunketLossTableLayout = function () {
     if (junketLossTable) {
         junketLossTable.columns.adjust().draw(false);
     }
+    applyJunketLossControlsLayout();
 };
 
 window.ensureDashboardJunketLossReady = function () {
     ensureJunketLossTable();
     fetchJunketLossData();
+    applyJunketLossControlsLayout();
 };
 
 $(document).ready(function () {
@@ -585,7 +660,11 @@ $(document).ready(function () {
             startId: 'junket-loss-start-date',
             endId: 'junket-loss-end-date',
             splitWrapperId: 'junket-loss-split-daterange-wrapper',
-            invalidDateMessage: 'Invalid date range.'
+            independent: true,
+            invalidDateMessage: 'Invalid date range.',
+            onRangeApplied: function (range) {
+                applyJunketLossSplitDateRange(range);
+            }
         });
 
         junketLossDatePicker = flatpickr('#junket-loss-daterange', {
@@ -597,7 +676,6 @@ $(document).ready(function () {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
                 setTimeout(function () {
-                    syncJunketLossSplitFromFlatpickr();
                     fetchJunketLossData(instance);
                 }, 0);
             },
@@ -614,9 +692,7 @@ $(document).ready(function () {
             },
             onChange: function (selectedDates, _dateStr, instance) {
                 if (selectedDates.length === 2) {
-                    if (!junketLossSplitDateRange || !junketLossSplitDateRange.isSyncing()) {
-                        syncJunketLossSplitFromFlatpickr();
-                    }
+                    junketLossSplitOverrideRange = null;
                     fetchJunketLossData(instance);
                 }
             }
@@ -808,7 +884,7 @@ $(document).ready(function () {
         printJunketLoss();
     });
 
-    $('#btn-add-junket-loss').on('click', function () {
+    $(document).on('click', '#btn-add-junket-loss', function () {
         openJunketLossModal(null);
     });
 

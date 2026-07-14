@@ -1,5 +1,7 @@
 /**
- * Split [start] to [end] date inputs synced with a main flatpickr range picker.
+ * Split [Start] to [End] date inputs.
+ * By default independent from the combined range picker (no two-way sync).
+ * Pass independent: false to restore legacy sync with rangePickerId.
  */
 (function (global) {
 	function parseIsoDateLocal(value) {
@@ -31,9 +33,9 @@
 		var rangePickerId = config.rangePickerId;
 		var startId = config.startId;
 		var endId = config.endId;
-		var splitWrapperId = config.splitWrapperId;
 		var invalidMsg = config.invalidDateMessage || 'Invalid date range.';
 		var minDate = config.minDate || null;
+		var independent = !!config.independent;
 
 		var startEl = document.getElementById(startId);
 		var endEl = document.getElementById(endId);
@@ -43,17 +45,14 @@
 				applySplit: function () { return false; },
 				fitWidths: function () {},
 				isSyncing: function () { return false; },
-				setSyncing: function () {}
+				setSyncing: function () {},
+				getApiValues: function () { return { start: '', end: '' }; }
 			};
 		}
 
 		var syncing = false;
 		var pickersReady = 0;
 		var initialized = false;
-
-		var wrapper = splitWrapperId ? document.getElementById(splitWrapperId) : startEl.closest('[data-range-start]');
-		var defaultStart = wrapper ? wrapper.getAttribute('data-range-start') : '';
-		var defaultEnd = wrapper ? wrapper.getAttribute('data-range-end') : '';
 
 		if (!minDate) {
 			var now = new Date();
@@ -80,7 +79,7 @@
 		}
 
 		function syncFromRange() {
-			if (syncing) return;
+			if (independent || syncing) return;
 			var rangeEl = getRangeEl();
 			if (!rangeEl || !rangeEl._flatpickr || rangeEl._flatpickr.selectedDates.length < 2) return;
 
@@ -104,6 +103,18 @@
 				return false;
 			}
 
+			if (independent) {
+				if (typeof config.onRangeApplied === 'function') {
+					config.onRangeApplied({
+						start: api.start,
+						end: api.end,
+						startDate: startDate,
+						endDate: endDate
+					});
+				}
+				return true;
+			}
+
 			var rangeEl = getRangeEl();
 			if (!rangeEl || !rangeEl._flatpickr) return false;
 
@@ -125,11 +136,14 @@
 			applySplit(false);
 		}
 
-		function pickerReady() {
+		function pickerReady(_selectedDates, _dateStr, instance) {
+			if (instance && instance.altInput) {
+				var ph = (instance.input && instance.input.getAttribute('placeholder')) || '';
+				if (ph) instance.altInput.setAttribute('placeholder', ph);
+			}
 			pickersReady += 1;
 			if (pickersReady < 2) return;
 			initialized = true;
-			syncFromRange();
 			fitWidths(startEl, endEl);
 		}
 
@@ -148,11 +162,9 @@
 		};
 
 		global.flatpickr('#' + startId, Object.assign({}, fpConfig, {
-			defaultDate: defaultStart || undefined,
 			onReady: pickerReady
 		}));
 		global.flatpickr('#' + endId, Object.assign({}, fpConfig, {
-			defaultDate: defaultEnd || undefined,
 			onReady: pickerReady
 		}));
 
@@ -170,7 +182,8 @@
 			applySplit: applySplit,
 			fitWidths: function () { fitWidths(startEl, endEl); },
 			isSyncing: function () { return syncing; },
-			setSyncing: function (value) { syncing = !!value; }
+			setSyncing: function (value) { syncing = !!value; },
+			getApiValues: getApiValues
 		};
 	}
 
