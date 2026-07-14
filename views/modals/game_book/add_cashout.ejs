@@ -1180,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			const amtClass = amount < 0 ? 'text-end text-amount-negative' : 'text-end';
 			const displayAmt = amount < 0 ? formatNegativeAmt(amount) : formatAmt(amount);
 			html += '<tr>' +
-				'<td>' + formatHistoryDate(row.TIP_DATETIME || row.ENCODED_DT) + '</td>' +
+				'<td>' + formatHistoryDate(row.ENCODED_DT) + '</td>' +
 				'<td>' + (row.TRANSACTION || '—') + '</td>' +
 				'<td class="' + amtClass + '">' + displayAmt + '</td>' +
 				'<td>' + (row.STATUS || '—') + '</td>' +

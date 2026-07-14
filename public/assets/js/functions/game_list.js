@@ -1115,7 +1115,7 @@ function renderChangeStatusTipHistoryTable(bodyEl, rows, pendingAmount, pendingS
 			? '(' + Math.round(Math.abs(amount)).toLocaleString('en-US') + ')'
 			: Math.round(amount).toLocaleString('en-US');
 		html += '<tr>' +
-			'<td>' + formatChangeStatusTipHistoryDate(row.TIP_DATETIME || row.ENCODED_DT) + '</td>' +
+			'<td>' + formatChangeStatusTipHistoryDate(row.ENCODED_DT) + '</td>' +
 			'<td>' + (row.TRANSACTION || '—') + '</td>' +
 			'<td class="' + amtClass + '">' + displayAmt + '</td>' +
 			'<td>' + (row.STATUS || '—') + '</td>' +
@@ -2744,7 +2744,10 @@ function isTruthyQueryFlag(value) {
 }
 
 function syncUnreturnedRollerFilterBanner() {
-	var $filterRow = $('#program-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
+	var $filterRow = $('#game_list-tbl_wrapper .game-list-controls-highlight').first();
+	if (!$filterRow.length) {
+		$filterRow = $('#program-date-wrapper').closest('.dataTables_wrapper').find('.row.mb-2').first();
+	}
 	var $banner = $('#game-list-unreturned-roller-banner');
 	var active = !!window.gameListUnreturnedRollerOnly;
 
@@ -4483,6 +4486,62 @@ $(document).ready(function () {
 	const highlightId = getQueryParam('id');
 	window.gameListUnreturnedRollerOnly = isTruthyQueryFlag(getQueryParam('unreturned_roller'));
 
+	function layoutGameListControls() {
+		var $wrapper = $('#game_list-tbl_wrapper');
+		var $length = $('#game_list-tbl_length');
+		var $filter = $('#game_list-tbl_filter');
+		var $programDate = $('#program-date-wrapper');
+		var $daterange = $('#daterange-wrapper');
+
+		if (!$wrapper.length || !$length.length) return;
+
+		var $controls = $wrapper.children('.game-list-controls-highlight');
+		if (!$controls.length) {
+			$controls = $('<div class="game-list-controls-highlight"></div>');
+			$wrapper.prepend($controls);
+		}
+
+		var $left = $controls.children('.game-list-controls-left');
+		if (!$left.length) {
+			$left = $('<div class="game-list-controls-left"></div>');
+			$controls.prepend($left);
+		}
+
+		if ($length.parent()[0] !== $left[0]) {
+			$left.append($length);
+		}
+
+		if ($programDate.length) {
+			$programDate.addClass('is-placed');
+			if ($programDate.parent()[0] !== $left[0] || $programDate.prev()[0] !== $length[0]) {
+				$programDate.detach().insertAfter($length);
+			}
+		}
+
+		if ($daterange.length) {
+			$daterange.addClass('is-placed');
+			var $dateAnchor = $programDate.length ? $programDate : $length;
+			if ($daterange.parent()[0] !== $left[0] || $daterange.prev()[0] !== $dateAnchor[0]) {
+				$daterange.detach().insertAfter($dateAnchor);
+			}
+		}
+
+		if ($filter.length && $filter.parent()[0] !== $controls[0]) {
+			$controls.append($filter);
+		}
+
+		$('.card > .dataTables_wrapper').not('#game_list-tbl_wrapper').hide();
+
+		$wrapper.children('.row').each(function () {
+			var $row = $(this);
+			if ($row.hasClass('dt-row') || $row.find('table').length) return;
+			// Keep bottom row (Showing X entries + pagination)
+			if ($row.find('.dataTables_info, .dataTables_paginate').length) return;
+			// Hide only the emptied top controls row
+			$row.addClass('game-list-dt-top-row-empty').hide();
+		});
+	}
+
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
         $('#game_list-tbl').DataTable().destroy();
     }
@@ -4555,6 +4614,7 @@ $(document).ready(function () {
 		},
 
 		initComplete: function () {
+			layoutGameListControls();
 			var filterDiv = $('#game_list-tbl').closest('.dataTables_wrapper').find('.dataTables_filter');
 			if (filterDiv.length) {
 				var accountSearchHtml = '<label class="me-3 mb-0 d-inline-flex align-items-center gap-2">' +
@@ -4563,6 +4623,7 @@ $(document).ready(function () {
 					'</label>';
 				filterDiv.prepend(accountSearchHtml);
 			}
+			layoutGameListControls();
 			function stopSortBubble(e) {
 				e.stopPropagation();
 			}
@@ -5691,12 +5752,14 @@ $(document).ready(function () {
         if (mode === 'program') {
             $('#program-date-wrapper').show();
             $('#daterange-wrapper').hide();
+            layoutGameListControls();
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
             }
         } else {
             $('#program-date-wrapper').hide();
             $('#daterange-wrapper').show();
+            layoutGameListControls();
             syncProgramDateMultiDayChrome();
             if (dateRangePicker && typeof dateRangePicker.clear === 'function') {
                 dateRangePicker.clear();
@@ -5856,6 +5919,7 @@ $(document).ready(function () {
         programDateRangeEl._flatpickr.setDate([initialProgramDate, initialProgramDate], false);
     }
     syncProgramDateMultiDayChrome();
+    layoutGameListControls();
 
     reloadData();
     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();

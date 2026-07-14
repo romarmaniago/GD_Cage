@@ -2531,7 +2531,7 @@ router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
 			`SELECT
 				t.IDNo,
 				t.AMOUNT,
-				t.TIP_DATETIME,
+				t.ENCODED_DT,
 				t.ROLLER_NAME,
 				t.TIP_STATUS,
 				t.REMARKS,
@@ -2539,7 +2539,7 @@ router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
 				COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS TIP_STATUS_LABEL
 			FROM tip t
 			WHERE t.ACTIVE = 1 AND t.ACCOUNT_ID = ? AND t.TIP_TYPE = ?
-			ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC
+			ORDER BY t.ENCODED_DT DESC, t.IDNo DESC
 			LIMIT 50`,
 			[accountId, tipType]
 		);
@@ -2547,7 +2547,7 @@ router.get('/game_list_cashout_tips/:accountId', async (req, res) => {
 		const history = (tipRows || []).map((row) => ({
 			IDNo: row.IDNo,
 			AMOUNT: parseFloat(row.AMOUNT) || 0,
-			TIP_DATETIME: row.TIP_DATETIME,
+			ENCODED_DT: row.ENCODED_DT,
 			TRANSACTION: tipType === TIP_TYPE_ROLLER ? 'Roller Tip' : 'Dealer Tip',
 			STATUS: row.TIP_STATUS_LABEL || 'Roller',
 			PERSON_NAME: row.PERSON_NAME || '—'
@@ -3890,7 +3890,7 @@ function buildConsolidatedTipReceipt(base, tipRows) {
 
 	const totalTip = totalRoller + totalDealer;
 	const latestDt = rows.reduce((latest, row) => {
-		const candidate = row.TIP_DATETIME || row.ENCODED_DT;
+		const candidate = row.ENCODED_DT;
 		if (!candidate) return latest;
 		if (!latest) return candidate;
 		const candidateMs = receiptEncodedDtMs(candidate) ?? 0;
@@ -3902,7 +3902,7 @@ function buildConsolidatedTipReceipt(base, tipRows) {
 		...base,
 		type: 'tip',
 		title: '* TIP *',
-		encoded_dt: latestDt || rows[rows.length - 1].TIP_DATETIME || rows[rows.length - 1].ENCODED_DT,
+		encoded_dt: latestDt || rows[rows.length - 1].ENCODED_DT,
 		show_buyin: false,
 		show_cashout: false,
 		show_summary: false,
@@ -4124,7 +4124,6 @@ async function buildGameReceipts(gameId) {
 			t.IDNo,
 			t.AMOUNT,
 			t.TIP_TYPE,
-			t.TIP_DATETIME,
 			t.ENCODED_DT,
 			t.ROLLER_NAME,
 			t.TIP_STATUS,
@@ -4133,7 +4132,7 @@ async function buildGameReceipts(gameId) {
 			COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS tip_status_label
 		FROM tip t
 		WHERE t.GAME_ID = ? AND t.ACTIVE = 1
-		ORDER BY t.TIP_DATETIME ASC, t.IDNo ASC`,
+		ORDER BY t.ENCODED_DT ASC, t.IDNo ASC`,
 		[gameId]
 	);
 

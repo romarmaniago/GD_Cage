@@ -86,10 +86,21 @@ $(document).ready(function () {
 			ordering: true,
 			info: true,
 			paging: true,
-			order: [[0, 'desc']],
+			order: [[0, 'desc'], [1, 'desc']],
 			columns: [
 				{
-					data: 'TIP_DATETIME',
+					data: 'PROGRAM_DATE',
+					defaultContent: '',
+					render: function (data, type) {
+						if (!data) return '';
+						if (type === 'sort' || type === 'filter') return String(data).slice(0, 10);
+						if (window.moment) return moment(data).format('YYYY-MM-DD');
+						return String(data).slice(0, 10);
+					}
+				},
+				{
+					data: 'ENCODED_DT',
+					defaultContent: '',
 					render: function (data, type) {
 						if (!data) return '';
 						if (type === 'sort' || type === 'filter') return data;
@@ -244,10 +255,59 @@ $(document).ready(function () {
 		return formatMoney(Number(digits));
 	}
 
+	function formatProgramDateYmd(date) {
+		var d = date instanceof Date ? date : new Date(date);
+		if (Number.isNaN(d.getTime())) return '';
+		var y = d.getFullYear();
+		var m = String(d.getMonth() + 1).padStart(2, '0');
+		var day = String(d.getDate()).padStart(2, '0');
+		return y + '-' + m + '-' + day;
+	}
+
+	function todayProgramDateValue() {
+		return formatProgramDateYmd(new Date());
+	}
+
+	function getTipSettlementProgramDateValue() {
+		var el = document.getElementById('tip-settlement-modal-program-date');
+		if (!el) return '';
+		if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+			return formatProgramDateYmd(el._flatpickr.selectedDates[0]);
+		}
+		return String(el.value || '').trim().slice(0, 10);
+	}
+
+	function ensureTipSettlementProgramDatePicker(defaultDate) {
+		var el = document.getElementById('tip-settlement-modal-program-date');
+		if (!el) return;
+		var dateVal = defaultDate || getTipSettlementProgramDateValue() || todayProgramDateValue();
+		if (typeof flatpickr === 'undefined') {
+			el.value = dateVal;
+			return;
+		}
+		if (el._flatpickr) {
+			try {
+				el._flatpickr.destroy();
+			} catch (e) {}
+		}
+		flatpickr(el, {
+			enableTime: false,
+			dateFormat: 'Y-m-d',
+			altInput: true,
+			altFormat: 'M j, Y',
+			defaultDate: dateVal,
+			allowInput: true,
+			disableMobile: true,
+			closeOnSelect: true
+		});
+	}
+
 	function resetTipSettlementModal() {
 		$('#tip-settlement-modal-amount, #tip-settlement-modal-status, #tip-settlement-modal-name, #tip-settlement-modal-remarks')
 			.val('')
 			.removeClass('is-invalid');
+		ensureTipSettlementProgramDatePicker(todayProgramDateValue());
+		$('#tip-settlement-modal-program-date').removeClass('is-invalid');
 	}
 
 	function openTipSettlementModal() {
@@ -269,14 +329,27 @@ $(document).ready(function () {
 		var $amountInput = $('#tip-settlement-modal-amount');
 		var $statusInput = $('#tip-settlement-modal-status');
 		var $nameInput = $('#tip-settlement-modal-name');
+		var $programDateInput = $('#tip-settlement-modal-program-date');
 		var $btn = $('#btn-tip-settlement-save');
 		var amount = parseSettlementAmount($amountInput.val());
 		var statusVal = ($statusInput.val() || '').toString().trim();
 		var nameVal = ($nameInput.val() || '').toString().trim();
+		var programDate = getTipSettlementProgramDateValue();
 
 		$amountInput.removeClass('is-invalid');
 		$statusInput.removeClass('is-invalid');
 		$nameInput.removeClass('is-invalid');
+		$programDateInput.removeClass('is-invalid');
+
+		if (!programDate || !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
+			$programDateInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'warning',
+				title: 'Missing Program Date',
+				text: i18n.missingProgramDate || 'Please select a program date.'
+			});
+			return;
+		}
 
 		if (Number.isNaN(amount)) {
 			$amountInput.addClass('is-invalid');
@@ -326,6 +399,7 @@ $(document).ready(function () {
 			txtAmount: $amountInput.val(),
 			txtTipStatus: statusVal,
 			txtRollerName: nameVal,
+			txtProgramDate: programDate,
 			txtRemarks: ($('#tip-settlement-modal-remarks').val() || '').toString().trim()
 		})
 			.done(function (resp) {

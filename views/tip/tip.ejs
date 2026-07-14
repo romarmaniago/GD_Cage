@@ -56,6 +56,8 @@
 
               <tr>
 
+                <th rowspan="2"><%= __('tip.program_date') %></th>
+
                 <th rowspan="2"><%= __('tip.date_time') %></th>
 
                 <th rowspan="2"><%= __('tip.account') %></th>
@@ -100,6 +102,7 @@
                 <th></th>
                 <th></th>
                 <th></th>
+                <th></th>
                 <th><%= __('tip.total') || 'TOTAL' %></th>
                 <th></th>
                 <th></th>
@@ -140,6 +143,7 @@
   invalidAmount: __('tip.in_invalid_amount'),
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
+  missingProgramDate: __('tip.missing_program_date'),
   saved: __('tip.in_saved')
 }) %></script>
 <script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
@@ -147,6 +151,7 @@
   exceedsBalance: __('tip.settlement_exceeds_balance'),
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
+  missingProgramDate: __('tip.missing_program_date'),
   saved: __('tip.settlement_saved')
 }) %></script>
 <script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
@@ -300,10 +305,10 @@
 
   #tip-tbl thead tr:nth-child(2) th.tip-col-roller:nth-child(2),
   #tip-tbl thead tr:nth-child(2) th.tip-col-dealer:nth-child(6),
-  #tip-tbl tbody td.tip-col-roller:nth-child(7),
-  #tip-tbl tbody td.tip-col-dealer:nth-child(11),
-  #tip-tbl tfoot th:nth-child(7),
-  #tip-tbl tfoot th:nth-child(11) {
+  #tip-tbl tbody td.tip-col-roller:nth-child(8),
+  #tip-tbl tbody td.tip-col-dealer:nth-child(12),
+  #tip-tbl tfoot th:nth-child(8),
+  #tip-tbl tfoot th:nth-child(12) {
     text-align: right;
   }
 

@@ -81,13 +81,33 @@
   padding-left: 20px;
 }
 
-#additional-commission-tbl thead th:nth-child(5) {
-  text-align: center;
+#additional-commission-tbl thead th:nth-child(1),
+#additional-commission-tbl thead th:nth-child(2) {
+  width: 9rem;
+  white-space: nowrap;
+}
+
+#additional-commission-tbl thead th:nth-child(3) {
+  width: 12rem;
+  max-width: 14rem;
 }
 
 #additional-commission-tbl thead th:nth-child(4) {
   text-align: right;
   padding-right: 20px;
+  width: 7rem;
+  white-space: nowrap;
+}
+
+#additional-commission-tbl thead th:nth-child(5) {
+  text-align: center;
+  width: 6.5rem;
+  white-space: nowrap;
+}
+
+#additional-commission-tbl thead th:nth-child(6) {
+  width: 30%;
+  min-width: 12rem;
 }
 
 #additional-commission-tbl tbody tr {
@@ -144,6 +164,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 8px 12px;
   margin: 0;
@@ -155,6 +176,37 @@
 
 #additional-commission-tbl_wrapper .additional-commission-controls-highlight .dataTables_length {
   margin-top: 4px;
+}
+
+#additional-commission-daterange-mount {
+  display: none;
+}
+
+#additional-commission-tbl_wrapper .additional-commission-daterange-mount.is-placed {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.additional-commission-daterange-wrap {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.additional-commission-daterange-wrap .flatpickr-wrapper {
+  display: block;
+  width: 100%;
+}
+
+.additional-commission-daterange-wrap input.form-control,
+.additional-commission-daterange-wrap .flatpickr-input.form-control {
+  min-width: 220px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid rgba(58, 46, 18, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  height: 34px;
 }
 
 #additional-commission-tbl_wrapper .additional-commission-controls-highlight .dataTables_filter {
@@ -231,13 +283,31 @@
   padding-left: 20px;
 }
 
-#additional-commission-tbl tbody td:nth-child(5) {
-  text-align: center;
+#additional-commission-tbl tbody td:nth-child(1),
+#additional-commission-tbl tbody td:nth-child(2) {
+  white-space: nowrap;
+}
+
+#additional-commission-tbl tbody td:nth-child(3) {
+  max-width: 14rem;
+  overflow-wrap: anywhere;
 }
 
 #additional-commission-tbl tbody td:nth-child(4) {
   text-align: right;
   padding-right: 20px;
+  white-space: nowrap;
+}
+
+#additional-commission-tbl tbody td:nth-child(5) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+#additional-commission-tbl tbody td:nth-child(6) {
+  width: 30%;
+  min-width: 12rem;
+  overflow-wrap: anywhere;
 }
 
 #additional-commission-tbl tbody tr:nth-child(even) td {

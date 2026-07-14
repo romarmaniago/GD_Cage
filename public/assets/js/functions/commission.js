@@ -790,7 +790,6 @@ $(document).ready(function() {
             if (el && el._flatpickr) {
                 window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
             }
-            fitCommissionManualInputWidth();
         }
     }
 

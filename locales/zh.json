@@ -154,6 +154,8 @@
 		"roller": "滚轮",
 		"dealer": "荷官",
 		"date_time": "日期和时间",
+		"program_date": "节目日期",
+		"missing_program_date": "请选择节目日期。",
 		"remarks_optional": "备注（可选）",
 		"choose_game": "选择游戏",
 		"choose_account": "选择账户",

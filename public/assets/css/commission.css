@@ -74,12 +74,13 @@
 #commission-tbl.commission-fit-table tbody td,
 #commission-tbl.commission-fit-table tfoot th {
   vertical-align: middle;
-  line-height: 1.2;
+  line-height: 1.4;
 }
 
+/* Match Additional Commission row height (12px vertical); keep side padding tight for many cols */
 #commission-tbl.commission-fit-table tbody td,
 #commission-tbl.commission-fit-table tfoot th {
-  padding: 4px 3px !important;
+  padding: 12px 4px !important;
 }
 
 #commission-tbl.commission-fit-table tbody td.col-buyin,
@@ -116,7 +117,7 @@
 }
 
 #commission-tbl.commission-fit-table thead th {
-  padding: 8px 4px !important;
+  padding: 12px 4px !important;
   font-size: 11px;
   font-weight: 600;
   white-space: normal;
@@ -124,7 +125,7 @@
   overflow: visible;
   text-overflow: clip;
   hyphens: auto;
-  line-height: 1.25;
+  line-height: 1.4;
   text-align: center;
   vertical-align: middle;
 }
@@ -182,13 +183,13 @@
     color: #000;
     font-weight: 600;
     font-size: 11px;
-    padding: 8px 4px;
+    padding: 12px 4px;
     text-align: center;
     border: none;
     border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
     white-space: normal;
     word-break: break-word;
-    line-height: 1.25;
+    line-height: 1.4;
     overflow: visible;
     text-overflow: clip;
 }
@@ -824,7 +825,7 @@
 /* Footer total row */
 #commission-tbl tfoot th,
 #commission-compare-modal-tbl tfoot th {
-    padding: 10px;
+    padding: 12px 4px;
     font-weight: 600;
     color: var(--gd-marker-gold-text, #3a2e12);
     border-top: 2px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));

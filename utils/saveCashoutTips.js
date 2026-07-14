@@ -107,6 +107,40 @@ async function saveCashoutTips(db, payload) {
 
 	const parsedRollerName = parseRollerName(rollerName);
 	const parsedTipStatus = parseTipStatus(tipStatus);
+
+	let programDate = null;
+	if (payload.programDate) {
+		const raw = String(payload.programDate).trim().slice(0, 10);
+		if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) programDate = raw;
+	}
+	if (!programDate) {
+		const [gameRows] = await db.execute(
+			`SELECT DATE(PROGRAM_DATE) AS PROGRAM_DATE
+			 FROM game_list
+			 WHERE IDNo = ?
+			 LIMIT 1`,
+			[parsedGameId]
+		);
+		if (gameRows && gameRows[0] && gameRows[0].PROGRAM_DATE) {
+			const raw = gameRows[0].PROGRAM_DATE;
+			programDate = raw instanceof Date
+				? [
+						raw.getFullYear(),
+						String(raw.getMonth() + 1).padStart(2, '0'),
+						String(raw.getDate()).padStart(2, '0')
+					].join('-')
+				: String(raw).slice(0, 10);
+		}
+	}
+	if (!programDate) {
+		const d = dateNow instanceof Date ? dateNow : new Date(dateNow);
+		programDate = [
+			d.getFullYear(),
+			String(d.getMonth() + 1).padStart(2, '0'),
+			String(d.getDate()).padStart(2, '0')
+		].join('-');
+	}
+
 	const rows = [];
 	if (roller > 0) rows.push([TIP_TYPE.ROLLER, roller]);
 	if (dealer > 0) rows.push([TIP_TYPE.DEALER, dealer]);
@@ -114,10 +148,10 @@ async function saveCashoutTips(db, payload) {
 	for (const [tipType, amount] of rows) {
 		await db.execute(
 			`INSERT INTO tip (
-				AMOUNT, GAME_ID, ACCOUNT_ID, TIP_TYPE, TIP_DATETIME, CASHOUT_ID,
+				AMOUNT, GAME_ID, ACCOUNT_ID, TIP_TYPE, PROGRAM_DATE, CASHOUT_ID,
 				ROLLER_NAME, TIP_STATUS, ENCODED_BY, ENCODED_DT, ACTIVE
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-			[amount, parsedGameId, parsedAccountId, tipType, dateNow, parsedCashoutId, parsedRollerName, parsedTipStatus, userId, dateNow]
+			[amount, parsedGameId, parsedAccountId, tipType, programDate, parsedCashoutId, parsedRollerName, parsedTipStatus, userId, dateNow]
 		);
 	}
 }

@@ -1465,6 +1465,8 @@
 		"roller": "Roller",
 		"dealer": "Dealer",
 		"date_time": "Date & Time",
+		"program_date": "Program Date",
+		"missing_program_date": "Please select a program date.",
 		"remarks_optional": "Remarks (optional)",
 		"choose_game": "Choose game",
 		"choose_account": "Choose account",

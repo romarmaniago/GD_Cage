@@ -7,6 +7,10 @@
 			</div>
 			<form id="form-tip-in" autocomplete="off">
 				<div class="modal-body">
+					<div class="mb-3">
+						<label class="form-label" for="tip-in-modal-program-date"><%= __('tip.program_date') %></label>
+						<input type="text" class="form-control" id="tip-in-modal-program-date" name="txtProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" required>
+					</div>
 					<div class="row mb-3">
 						<div class="col-sm-6">
 							<label class="form-label" for="tip-in-modal-account"><%= __('tip.account') %></label>

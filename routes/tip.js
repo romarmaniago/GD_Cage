@@ -61,6 +61,25 @@ function parseTipDatetime(raw) {
 	return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function parseProgramDate(value) {
+	const raw = String(value || '').trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+	return raw;
+}
+
+function formatProgramDateValue(value) {
+	if (!value) return null;
+	if (value instanceof Date && !Number.isNaN(value.getTime())) {
+		return [
+			value.getFullYear(),
+			String(value.getMonth() + 1).padStart(2, '0'),
+			String(value.getDate()).padStart(2, '0')
+		].join('-');
+	}
+	const raw = String(value).trim().slice(0, 10);
+	return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+}
+
 function tipTypeLabel(tipType) {
 	switch (Number(tipType)) {
 		case TIP_TYPE.ROLLER:
@@ -98,7 +117,7 @@ async function validateActiveGuest(guestId) {
 
 async function validateActiveGame(gameId) {
 	const [rows] = await pool.execute(
-		`SELECT gl.IDNo, gl.GAME_NO
+		`SELECT gl.IDNo, gl.GAME_NO, DATE(gl.PROGRAM_DATE) AS PROGRAM_DATE
 		 FROM game_list gl
 		 WHERE gl.IDNo = ? AND gl.ACTIVE != 0
 		 LIMIT 1`,
@@ -165,7 +184,7 @@ router.get('/tip_roller_history', checkSession, async (req, res) => {
 			tipSql += ' AND t.ACCOUNT_ID = ?';
 			tipParams.push(accountId);
 		}
-		tipSql += ' ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC LIMIT 50';
+		tipSql += ' ORDER BY t.ENCODED_DT DESC, t.IDNo DESC LIMIT 50';
 
 		const [tipRows] = await pool.execute(tipSql, tipParams);
 		const [settlementRows] = await pool.execute(
@@ -246,7 +265,8 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				t.ACCOUNT_ID,
 				t.GUEST_ID,
 				t.TIP_TYPE,
-				t.TIP_DATETIME,
+				t.ENCODED_DT,
+				COALESCE(DATE(t.PROGRAM_DATE), DATE(gl.PROGRAM_DATE), DATE(t.ENCODED_DT)) AS PROGRAM_DATE,
 				t.ROLLER_NAME,
 				t.TIP_STATUS,
 				t.REMARKS,
@@ -262,7 +282,7 @@ router.get('/tip_data', checkSession, async (req, res) => {
 			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
 			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			 WHERE t.ACTIVE = 1
-			 ORDER BY t.TIP_DATETIME DESC, t.IDNo DESC`
+			 ORDER BY COALESCE(t.PROGRAM_DATE, DATE(t.ENCODED_DT)) DESC, t.ENCODED_DT DESC, t.IDNo DESC`
 		);
 
 		const [tipSettlementRows] = await pool.execute(
@@ -270,6 +290,8 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				ts.IDNo,
 				ts.AMOUNT,
 				ts.SETTLEMENT_DATETIME,
+				ts.ENCODED_DT,
+				COALESCE(DATE(ts.PROGRAM_DATE), DATE(ts.SETTLEMENT_DATETIME)) AS PROGRAM_DATE,
 				ts.REMARKS,
 				ts.ROLLER_NAME,
 				ts.TIP_STATUS,
@@ -282,7 +304,7 @@ router.get('/tip_data', checkSession, async (req, res) => {
 			 FROM tip_settlement ts
 			 LEFT JOIN user_info ui ON ui.IDNo = ts.ENCODED_BY
 			 WHERE ts.ACTIVE = 1
-			 ORDER BY ts.SETTLEMENT_DATETIME DESC, ts.IDNo DESC`
+			 ORDER BY COALESCE(ts.PROGRAM_DATE, DATE(ts.SETTLEMENT_DATETIME)) DESC, ts.SETTLEMENT_DATETIME DESC, ts.IDNo DESC`
 		);
 
 		const formatAccountDisplay = function (agentCode, agentName) {
@@ -309,13 +331,14 @@ router.get('/tip_data', checkSession, async (req, res) => {
 
 		const groups = new Map();
 		(tipRows || []).forEach(function (row) {
-			const dtMs = row.TIP_DATETIME ? new Date(row.TIP_DATETIME).getTime() : 0;
+			const dtMs = row.ENCODED_DT ? new Date(row.ENCODED_DT).getTime() : 0;
 			const key = row.GAME_ID != null
 				? `${row.GAME_ID}|${row.ACCOUNT_ID}|${dtMs}`
 				: `standalone-${row.IDNo}`;
 			if (!groups.has(key)) {
 				groups.set(key, {
-					TIP_DATETIME: row.TIP_DATETIME,
+					ENCODED_DT: row.ENCODED_DT,
+					PROGRAM_DATE: formatProgramDateValue(row.PROGRAM_DATE),
 					GAME_NO: row.GAME_NO,
 					ACCOUNT_DISPLAY: formatAccountDisplay(row.AGENT_CODE, row.AGENT_NAME),
 					GUEST_NAME: row.GUEST_NAME || '-',
@@ -373,7 +396,8 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				group.dealerTipId ||
 				null;
 			data.push({
-				TIP_DATETIME: group.TIP_DATETIME,
+				ENCODED_DT: group.ENCODED_DT,
+				PROGRAM_DATE: group.PROGRAM_DATE,
 				ACCOUNT_DISPLAY: group.ACCOUNT_DISPLAY,
 				GUEST_NAME: group.GUEST_NAME,
 				GAME_NO: group.GAME_NO,
@@ -400,7 +424,8 @@ router.get('/tip_data', checkSession, async (req, res) => {
 			const personName = row.PERSON_NAME || '—';
 			const tipStatus = row.TIP_STATUS_LABEL || 'GM';
 			data.push({
-				TIP_DATETIME: row.SETTLEMENT_DATETIME,
+				ENCODED_DT: row.ENCODED_DT || row.SETTLEMENT_DATETIME,
+				PROGRAM_DATE: formatProgramDateValue(row.PROGRAM_DATE),
 				ACCOUNT_DISPLAY: '—',
 				GUEST_NAME: '—',
 				GAME_NO: '—',
@@ -422,8 +447,11 @@ router.get('/tip_data', checkSession, async (req, res) => {
 		});
 
 		data.sort(function (a, b) {
-			const da = new Date(a.TIP_DATETIME).getTime() || 0;
-			const db = new Date(b.TIP_DATETIME).getTime() || 0;
+			const pa = a.PROGRAM_DATE || '';
+			const pb = b.PROGRAM_DATE || '';
+			if (pb !== pa) return pb.localeCompare(pa);
+			const da = new Date(a.ENCODED_DT).getTime() || 0;
+			const db = new Date(b.ENCODED_DT).getTime() || 0;
 			if (db !== da) return db - da;
 			return String(b.SORT_ID).localeCompare(String(a.SORT_ID));
 		});
@@ -443,11 +471,15 @@ router.post('/tip_in', checkSession, async (req, res) => {
 		const tipStatus = parseTipStatus(req.body.txtTipStatus);
 		const rollerName = parseRollerName(req.body.txtRollerName);
 		const remarks = parseRemarks(req.body.txtRemarks);
+		const programDate = parseProgramDate(req.body.txtProgramDate);
 		const userId = req.session.user_id || null;
 		const dateNow = new Date();
 
 		if (Number.isNaN(amount)) {
 			return res.status(400).json({ message: 'Enter a valid amount greater than zero.' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ message: 'Please select a program date.' });
 		}
 		if (!tipStatus) {
 			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
@@ -478,10 +510,10 @@ router.post('/tip_in', checkSession, async (req, res) => {
 
 		await pool.execute(
 			`INSERT INTO tip (
-				AMOUNT, GAME_ID, ACCOUNT_ID, GUEST_ID, TIP_TYPE, TIP_DATETIME, REMARKS,
+				AMOUNT, GAME_ID, ACCOUNT_ID, GUEST_ID, TIP_TYPE, PROGRAM_DATE, REMARKS,
 				ROLLER_NAME, TIP_STATUS, ENCODED_BY, ENCODED_DT, ACTIVE
 			) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-			[amount, accountId, guestId, TIP_TYPE.ROLLER, dateNow, remarks, rollerName, tipStatus, userId, dateNow]
+			[amount, accountId, guestId, TIP_TYPE.ROLLER, programDate, remarks, rollerName, tipStatus, userId, dateNow]
 		);
 
 		const updatedBalance = await getRollerTipAvailableBalance(pool);
@@ -502,11 +534,15 @@ router.post('/tip_settlement', checkSession, async (req, res) => {
 		const remarks = parseRemarks(req.body.txtRemarks);
 		const tipStatus = parseTipStatus(req.body.txtTipStatus);
 		const rollerName = parseRollerName(req.body.txtRollerName);
+		const programDate = parseProgramDate(req.body.txtProgramDate);
 		const userId = req.session.user_id || null;
 		const dateNow = new Date();
 
 		if (Number.isNaN(amount)) {
 			return res.status(400).json({ message: 'Enter a valid settlement amount greater than zero.' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ message: 'Please select a program date.' });
 		}
 		if (!tipStatus) {
 			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
@@ -527,10 +563,10 @@ router.post('/tip_settlement', checkSession, async (req, res) => {
 
 		await connection.execute(
 			`INSERT INTO tip_settlement (
-				AMOUNT, SETTLEMENT_DATETIME, REMARKS, ROLLER_NAME, TIP_STATUS,
+				AMOUNT, SETTLEMENT_DATETIME, PROGRAM_DATE, REMARKS, ROLLER_NAME, TIP_STATUS,
 				ENCODED_BY, ENCODED_DT, ACTIVE
-			) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-			[amount, dateNow, remarks, rollerName, tipStatus, userId, dateNow]
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			[amount, dateNow, programDate, remarks, rollerName, tipStatus, userId, dateNow]
 		);
 
 		await connection.commit();
@@ -559,9 +595,10 @@ router.post('/add_tip', checkSession, async (req, res) => {
 		const gameId = parseGameId(req.body.txtGameId);
 		const accountId = parseAccountId(req.body.txtAccountId);
 		const tipType = parseTipType(req.body.txtTipType);
-		const tipDatetime = parseTipDatetime(req.body.txtTipDatetime) || new Date();
-		const remarks = parseRemarks(req.body.txtRemarks);
 		const dateNow = new Date();
+		const encodedDt = parseTipDatetime(req.body.txtTipDatetime) || dateNow;
+		const remarks = parseRemarks(req.body.txtRemarks);
+		let programDate = parseProgramDate(req.body.txtProgramDate);
 		const userId = req.session.user_id || null;
 
 		if (Number.isNaN(amount)) {
@@ -586,12 +623,19 @@ router.post('/add_tip', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Invalid or inactive account' });
 		}
 
+		if (!programDate) {
+			programDate = formatProgramDateValue(game.PROGRAM_DATE);
+		}
+		if (!programDate) {
+			programDate = formatProgramDateValue(encodedDt) || formatProgramDateValue(dateNow);
+		}
+
 		await pool.execute(
 			`INSERT INTO tip (
-				AMOUNT, GAME_ID, ACCOUNT_ID, TIP_TYPE, TIP_DATETIME, REMARKS,
+				AMOUNT, GAME_ID, ACCOUNT_ID, TIP_TYPE, PROGRAM_DATE, REMARKS,
 				ENCODED_BY, ENCODED_DT, ACTIVE
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-			[amount, gameId, accountId, tipType, tipDatetime, remarks, userId, dateNow]
+			[amount, gameId, accountId, tipType, programDate, remarks, userId, encodedDt]
 		);
 
 		res.json({ message: 'Saved successfully' });
@@ -608,12 +652,12 @@ router.put('/tip/:id', checkSession, async (req, res) => {
 		const gameId = parseGameId(req.body.txtGameId);
 		const accountId = parseAccountId(req.body.txtAccountId);
 		const tipType = parseTipType(req.body.txtTipType);
-		const tipDatetime = parseTipDatetime(req.body.txtTipDatetime);
 		const remarks = parseRemarks(req.body.txtRemarks);
+		let programDate = parseProgramDate(req.body.txtProgramDate);
 		const dateNow = new Date();
 		const userId = req.session.user_id || null;
 
-		if (!id || !tipType || !tipDatetime) {
+		if (!id || !tipType) {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
 		if (Number.isNaN(amount)) {
@@ -643,12 +687,19 @@ router.put('/tip/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Invalid or inactive account' });
 		}
 
+		if (!programDate) {
+			programDate = formatProgramDateValue(game.PROGRAM_DATE);
+		}
+		if (!programDate) {
+			programDate = formatProgramDateValue(dateNow);
+		}
+
 		await pool.execute(
 			`UPDATE tip
-			 SET AMOUNT = ?, GAME_ID = ?, ACCOUNT_ID = ?, TIP_TYPE = ?, TIP_DATETIME = ?, REMARKS = ?,
+			 SET AMOUNT = ?, GAME_ID = ?, ACCOUNT_ID = ?, TIP_TYPE = ?, PROGRAM_DATE = ?, REMARKS = ?,
 			     EDITED_BY = ?, EDITED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
-			[amount, gameId, accountId, tipType, tipDatetime, remarks, userId, dateNow, id]
+			[amount, gameId, accountId, tipType, programDate, remarks, userId, dateNow, id]
 		);
 
 		res.json({ message: 'Updated successfully' });

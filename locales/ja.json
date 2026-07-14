@@ -154,6 +154,8 @@
 		"roller": "ローラー",
 		"dealer": "ディーラー",
 		"date_time": "日時",
+		"program_date": "プログラム日付",
+		"missing_program_date": "プログラム日付を選択してください。",
 		"remarks_optional": "備考（任意）",
 		"choose_game": "ゲームを選択",
 		"choose_account": "アカウントを選択",

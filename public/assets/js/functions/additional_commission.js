@@ -12,18 +12,22 @@
     const typeCashOut = document.getElementById('additional-commission-type-cashout');
     const typeDeposit = document.getElementById('additional-commission-type-deposit');
     const amountInput = document.getElementById('additional-commission-amount');
+    const programDateInput = document.getElementById('additional-commission-program-date');
     const remarksInput = document.getElementById('additional-commission-remarks');
     const saveButton = document.getElementById('additional-commission-save-btn');
     const addModalEl = document.getElementById('modal-additional-commission');
     const dashListModalEl = document.getElementById('modal-dash-additional-commission');
+    const dateRangeInput = document.getElementById('additional-commission-daterange');
+    const dateRangeMount = document.getElementById('additional-commission-daterange-mount');
 
-    if (!tableBody || !addButton || !form || !recordIdInput || !modalTitle || !agentSelect || !typeCashOut || !typeDeposit || !amountInput || !remarksInput || !saveButton || !addModalEl) {
+    if (!tableBody || !addButton || !form || !recordIdInput || !modalTitle || !agentSelect || !typeCashOut || !typeDeposit || !amountInput || !programDateInput || !remarksInput || !saveButton || !addModalEl) {
       return;
     }
 
     let agents = [];
     let records = [];
-    const sortState = { sortKey: 'date', sortDir: 'desc' };
+    let dateRangePicker = null;
+    const sortState = { sortKey: 'programDate', sortDir: 'desc' };
     const tableHead = document.querySelector('#additional-commission-tbl thead');
     let dataTable = null;
     const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
@@ -37,6 +41,50 @@
         .replace(/'/g, '&#039;');
     }
 
+    function formatYmd(value) {
+      const date = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const pad = (num) => String(num).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function todayProgramDateValue() {
+      return formatYmd(new Date());
+    }
+
+    function getProgramDateValue() {
+      if (programDateInput._flatpickr && programDateInput._flatpickr.selectedDates && programDateInput._flatpickr.selectedDates[0]) {
+        return formatYmd(programDateInput._flatpickr.selectedDates[0]);
+      }
+      return String(programDateInput.value || '').trim().slice(0, 10);
+    }
+
+    function ensureProgramDatePicker(defaultDate) {
+      const dateVal = defaultDate || getProgramDateValue() || todayProgramDateValue();
+      if (typeof flatpickr === 'undefined') {
+        programDateInput.value = dateVal;
+        return;
+      }
+      if (programDateInput._flatpickr) {
+        try {
+          programDateInput._flatpickr.destroy();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      flatpickr(programDateInput, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: dateVal,
+        allowInput: true,
+        disableMobile: true,
+        closeOnSelect: true,
+        appendTo: addModalEl
+      });
+    }
+
     function formatDateTime(value) {
       if (!value) return '';
 
@@ -45,6 +93,22 @@
 
       const pad = (num) => String(num).padStart(2, '0');
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function formatProgramDate(row) {
+      const raw = row && (row.PROGRAM_DATE || row.ENCODED_DT);
+      if (!raw) return '';
+      const ymd = String(raw).slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return escapeHtml(ymd);
+      return formatDateTime(raw).slice(0, 10);
+    }
+
+    function getRowProgramDateValue(row) {
+      const raw = row && (row.PROGRAM_DATE || row.ENCODED_DT);
+      if (!raw) return 0;
+      const ymd = String(raw).slice(0, 10);
+      const parsed = new Date(ymd);
+      return Number.isNaN(parsed.getTime()) ? new Date(raw).getTime() || 0 : parsed.getTime();
     }
 
     function formatAmount(value) {
@@ -164,11 +228,20 @@
       return formatAmount(amount);
     }
 
+    function formatAccountName(row) {
+      const account = String(row && row.account != null ? row.account : '').trim();
+      const name = String(row && row.name != null ? row.name : '').trim();
+      if (account && name) return `${escapeHtml(account)} / ${escapeHtml(name)}`;
+      return escapeHtml(account || name);
+    }
+
     function getSortValue(row, key) {
       if (!row) return '';
+      if (key === 'programDate') return getRowProgramDateValue(row);
       if (key === 'date') return new Date(row.ENCODED_DT || 0).getTime();
-      if (key === 'account') return String(row.account || '').toLowerCase();
-      if (key === 'name') return String(row.name || '').toLowerCase();
+      if (key === 'account') {
+        return `${String(row.account || '').toLowerCase()} / ${String(row.name || '').toLowerCase()}`;
+      }
       if (key === 'amount') return Number(row.AMOUNT) || 0;
       if (key === 'type') return Number(row.TYPE) || 0;
       if (key === 'remarks') return String(row.REMARKS || '').toLowerCase();
@@ -177,7 +250,7 @@
 
     function sortRecords(rows) {
       const list = (rows || []).slice();
-      const key = sortState.sortKey || 'date';
+      const key = sortState.sortKey || 'programDate';
       const dir = sortState.sortDir === 'asc' ? 'asc' : 'desc';
 
       list.sort((a, b) => {
@@ -186,7 +259,7 @@
         if (av < bv) return dir === 'asc' ? -1 : 1;
         if (av > bv) return dir === 'asc' ? 1 : -1;
 
-        const dateDiff = new Date(b.ENCODED_DT || 0).getTime() - new Date(a.ENCODED_DT || 0).getTime();
+        const dateDiff = getRowProgramDateValue(b) - getRowProgramDateValue(a);
         if (dateDiff !== 0) return dateDiff;
         return (Number(b.IDNo) || 0) - (Number(a.IDNo) || 0);
       });
@@ -210,6 +283,22 @@
       });
     }
 
+    function getActiveDateRange() {
+      if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.resolveRangeFromPicker === 'function') {
+        return window.MonthEndCutoffRange.resolveRangeFromPicker(
+          dateRangeInput ? dateRangeInput.value : '',
+          dateRangeInput
+        );
+      }
+      const fallback = window.MonthEndCutoffRange
+        ? window.MonthEndCutoffRange.getMonthEndCutoffRange()
+        : null;
+      return {
+        start: fallback ? fallback.startDate : '',
+        end: fallback ? fallback.endDateApi || fallback.endDate : ''
+      };
+    }
+
     function layoutAdditionalCommissionControls() {
       if (!window.jQuery) return;
 
@@ -230,6 +319,18 @@
       if ($length.length && $length.parent()[0] !== $controlsHighlight[0]) {
         $controlsHighlight.append($length);
       }
+
+      if (dateRangeMount) {
+        if (dateRangeMount.parentElement !== $controlsHighlight[0] || $length.next()[0] !== dateRangeMount) {
+          if ($length.length) {
+            $length.after(dateRangeMount);
+          } else {
+            $controlsHighlight.prepend(dateRangeMount);
+          }
+        }
+        dateRangeMount.classList.add('is-placed');
+      }
+
       if ($filter.length && $filter.parent()[0] !== $controlsHighlight[0]) {
         $controlsHighlight.append($filter);
       }
@@ -263,6 +364,32 @@
       $table.closest('.row.dt-row').show().removeClass('additional-commission-dt-top-row-empty');
     }
 
+    function initDateRangePicker() {
+      if (!dateRangeInput || typeof flatpickr !== 'function') return;
+
+      const config = {
+        mode: 'range',
+        showMonths: 2,
+        onChange: function (selectedDates) {
+          if (selectedDates.length === 2) {
+            loadAdditionalCommissionData();
+          }
+        }
+      };
+
+      if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.patchRangePickerConfig === 'function') {
+        dateRangePicker = flatpickr(dateRangeInput, window.MonthEndCutoffRange.patchRangePickerConfig(config));
+      } else {
+        dateRangePicker = flatpickr(dateRangeInput, config);
+      }
+
+      if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function' && dateRangePicker) {
+        setTimeout(function () {
+          window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
+        }, 0);
+      }
+    }
+
     function initDataTableOnce() {
       if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.DataTable) return null;
 
@@ -290,11 +417,29 @@
             {
               data: null,
               render: (data, type, row) => {
-                return formatDateTime(row.ENCODED_DT);
+                const display = formatProgramDate(row);
+                if (type === 'filter' || type === 'sort') return getRowProgramDateValue(row);
+                return display;
               }
             },
-            { data: null, render: (data, type, row) => escapeHtml(row.account || '') },
-            { data: null, render: (data, type, row) => escapeHtml(row.name || '') },
+            {
+              data: null,
+              render: (data, type, row) => {
+                const display = formatDateTime(row.ENCODED_DT);
+                if (type === 'filter' || type === 'sort') return new Date(row.ENCODED_DT || 0).getTime();
+                return display;
+              }
+            },
+            {
+              data: null,
+              render: (data, type, row) => {
+                const display = formatAccountName(row);
+                if (type === 'filter' || type === 'sort') {
+                  return `${String(row.account || '')} / ${String(row.name || '')}`;
+                }
+                return display;
+              }
+            },
             {
               data: null,
               className: 'text-end',
@@ -314,23 +459,24 @@
                 return escapeHtml(typeLabel);
               }
             },
-            { data: null, render: (data, type, row) => escapeHtml(row.REMARKS || '') },
-            {
-              data: null,
-              className: 'text-center text-nowrap',
-              orderable: false,
-              render: (data, type, row) => {
-                if (type !== 'display') return '';
-                return `
-                  <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
-                    <i class="fa fa-pencil-alt"></i>
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
-                    <i class="fa fa-trash"></i>
-                  </button>
-                `;
-              }
-            }
+            { data: null, className: 'col-remarks', render: (data, type, row) => escapeHtml(row.REMARKS || '') }
+            // Action column (temporarily hidden)
+            // ,{
+            //   data: null,
+            //   className: 'text-center text-nowrap',
+            //   orderable: false,
+            //   render: (data, type, row) => {
+            //     if (type !== 'display') return '';
+            //     return `
+            //       <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
+            //         <i class="fa fa-pencil-alt"></i>
+            //       </button>
+            //       <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
+            //         <i class="fa fa-trash"></i>
+            //       </button>
+            //     `;
+            //   }
+            // }
           ],
           data: []
         });
@@ -351,7 +497,7 @@
         if (dataTable) {
           dataTable.clear().draw(false);
         } else {
-          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No additional commission records found.</td></tr>';
         }
         syncSortHeaders();
         return;
@@ -370,12 +516,13 @@
 
           return `
           <tr>
+            <td>${formatProgramDate(row)}</td>
             <td>${formatDateTime(row.ENCODED_DT)}</td>
-            <td>${escapeHtml(row.account)}</td>
-            <td>${escapeHtml(row.name)}</td>
+            <td>${formatAccountName(row)}</td>
             <td class="text-end ${amountClass}">${formatRowAmount(row)}</td>
             <td>${escapeHtml(typeLabel)}</td>
             <td>${escapeHtml(row.REMARKS)}</td>
+            <!--
             <td class="text-center text-nowrap">
               <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
                 <i class="fa fa-pencil-alt"></i>
@@ -384,6 +531,7 @@
                 <i class="fa fa-trash"></i>
               </button>
             </td>
+            -->
           </tr>
         `;
         }).join('');
@@ -393,7 +541,14 @@
     }
 
     function loadAdditionalCommissionData() {
-      return fetch('/additional_commission_data')
+      const range = getActiveDateRange();
+      const params = new URLSearchParams();
+      if (range && range.start) params.set('start', range.start);
+      if (range && range.end) params.set('end', range.end);
+      const query = params.toString();
+      const url = query ? `/additional_commission_data?${query}` : '/additional_commission_data';
+
+      return fetch(url)
         .then((response) => {
           if (!response.ok) throw new Error('Failed to load additional commission records.');
           return response.json();
@@ -401,7 +556,7 @@
         .then(renderRows)
         .catch((error) => {
           console.error(error);
-          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load records.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load records.</td></tr>';
         });
     }
 
@@ -457,6 +612,8 @@
       form.reset();
       clearTypeSelection();
       amountInput.value = '';
+      remarksInput.value = '';
+      ensureProgramDatePicker(todayProgramDateValue());
       if (window.jQuery) {
         window.jQuery('#additional-commission-agent').val('').trigger('change');
       } else {
@@ -495,6 +652,10 @@
       setSelectedType(row.TYPE);
       amountInput.value = formatAmountInput(String(row.AMOUNT || ''));
       remarksInput.value = row.REMARKS || '';
+      const programDate = row.PROGRAM_DATE
+        ? String(row.PROGRAM_DATE).slice(0, 10)
+        : (row.ENCODED_DT ? formatYmd(row.ENCODED_DT) : todayProgramDateValue());
+      ensureProgramDatePicker(programDate);
 
       if (dashListModalEl) {
         addModalEl.style.zIndex = '1065';
@@ -559,6 +720,7 @@
 
     // Enable DataTables UI (search + show entries).
     initDataTableOnce();
+    initDateRangePicker();
 
     if (!dashListModalEl) {
       loadAdditionalCommissionData();
@@ -576,6 +738,9 @@
             console.error(error);
           }
         }
+        if (dateRangePicker && window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+          window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
+        }
         loadAdditionalCommissionData();
       });
     }
@@ -587,12 +752,12 @@
         const th = event.target.closest('th.sortable-col');
         if (!th) return;
 
-        const key = th.dataset.sortKey || 'date';
+        const key = th.dataset.sortKey || 'programDate';
         if (sortState.sortKey === key) {
           sortState.sortDir = sortState.sortDir === 'asc' ? 'desc' : 'asc';
         } else {
           sortState.sortKey = key;
-          sortState.sortDir = (key === 'date' || key === 'amount') ? 'desc' : 'asc';
+          sortState.sortDir = (key === 'programDate' || key === 'date' || key === 'amount') ? 'desc' : 'asc';
         }
 
         renderRows(records);
@@ -630,12 +795,14 @@
       const selectedAgent = agents.find((agent) => String(agent.agent_id) === String(agentSelect.value));
       const selectedType = getSelectedType();
       const parsedAmount = Number(sanitizeAmountInput(amountInput.value)) || 0;
+      const programDate = getProgramDateValue();
       const editingId = String(recordIdInput.value || '').trim();
       const payload = {
         agentId: agentSelect.value,
         agentName: selectedAgent ? String(selectedAgent.name || '').trim() : '',
         type: selectedType,
         amount: String(parsedAmount),
+        programDate,
         remarks: remarksInput.value.trim()
       };
 
@@ -656,6 +823,13 @@
       if (!parsedAmount) {
         if (typeof Swal !== 'undefined') {
           Swal.fire('Validation', 'Please enter amount.', 'warning');
+        }
+        return;
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire('Validation', 'Please select a program date.', 'warning');
         }
         return;
       }

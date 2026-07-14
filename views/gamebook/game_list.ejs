@@ -45,7 +45,7 @@
 											</div>
 											
 											<!-- Program Date Picker -->
-											<div id="program-date-wrapper" class="day-selector-wrapper mb-3">
+											<div id="program-date-wrapper" class="day-selector-wrapper">
 											<%
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
@@ -66,7 +66,7 @@
 											</div>
 											
 											<!-- Game Start Picker -->
-											<div id="daterange-wrapper" class="day-selector-wrapper mb-3" style="display: none;">
+											<div id="daterange-wrapper" class="day-selector-wrapper" style="display: none;">
 												<div class="input-group">
 													<input type="text" id="daterange-picker" class="form-control text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
 												</div>
@@ -204,14 +204,90 @@
 	text-transform: none;
 }
 
-/* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
+/* Day selector — aligned inline with DataTables length via layoutGameListControls() */
 .day-selector-wrapper {
-	position: relative;
-	top: 83px;      /* positive = pababa, negative = pataas */
-	right: 0;    /* positive = kaliwa, negative = kanan */
-	bottom: 0;
-	left: 120px;
-	width: 320px;     /* Increased width to accommodate buttons */
+	width: 320px;
+	max-width: 320px;
+	min-width: 0;
+	box-sizing: border-box;
+	margin-bottom: 0;
+}
+
+/* Source mount for date picker — children moved into #game_list-tbl_wrapper by JS */
+.card > .dataTables_wrapper:not(#game_list-tbl_wrapper) {
+	display: none;
+}
+
+#game_list-tbl_wrapper .game-list-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 8px 0 12px;
+	margin: 0;
+}
+
+#game_list-tbl_wrapper .game-list-controls-left {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+#game_list-tbl_wrapper .game-list-controls-highlight .dataTables_length {
+	display: inline-flex;
+	align-items: center;
+	margin: 0;
+}
+
+#game_list-tbl_wrapper .game-list-controls-highlight .dataTables_length select {
+	height: 38px;
+}
+
+#game_list-tbl_wrapper .game-list-controls-highlight .dataTables_filter {
+	margin: 0;
+	margin-left: auto;
+}
+
+#game_list-tbl_wrapper > .row:has(.dataTables_info),
+#game_list-tbl_wrapper > .row:has(.dataTables_paginate) {
+	display: flex !important;
+	margin-top: 12px;
+	margin-bottom: 0;
+}
+
+#game_list-tbl_wrapper .dataTables_info,
+#game_list-tbl_wrapper .dataTables_paginate {
+	display: block;
+}
+
+#program-date-wrapper.is-placed,
+#daterange-wrapper.is-placed {
+	position: static;
+	top: auto;
+	left: auto;
+	right: auto;
+	bottom: auto;
+}
+
+#program-date-wrapper.is-placed .input-group,
+#daterange-wrapper.is-placed .input-group {
+	height: 38px;
+}
+
+#program-date-wrapper.is-placed #btn-program-date-prev,
+#program-date-wrapper.is-placed #btn-program-date-next {
+	padding: 0 0.75rem;
+}
+
+#program-date-wrapper.is-placed #program-date-range-picker,
+#program-date-wrapper.is-placed .input-group input.flatpickr-alt-input,
+#daterange-wrapper.is-placed #daterange-picker,
+#daterange-wrapper.is-placed .input-group input.flatpickr-alt-input {
+	height: 38px;
+	padding: 0 0.75rem;
+	line-height: 38px;
 }
 
 #program-date-wrapper .program-date-picker-row {

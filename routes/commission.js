@@ -94,7 +94,7 @@ async function softDeleteLedger(connection, ledgerId, userId, editedDate) {
 
 async function getActiveRecord(connection, id) {
     const [rows] = await connection.execute(
-        `SELECT IDNo, AGENT_ID, AGENT_NAME, TYPE, AMOUNT, ACCOUNT_LEDGER_ID, REMARKS
+        `SELECT IDNo, AGENT_ID, AGENT_NAME, TYPE, AMOUNT, ACCOUNT_LEDGER_ID, REMARKS, PROGRAM_DATE
          FROM additional_commission
          WHERE IDNo = ? AND ACTIVE = 1
          LIMIT 1`,
@@ -103,27 +103,46 @@ async function getActiveRecord(connection, id) {
     return rows[0] || null;
 }
 
+function parseProgramDate(value) {
+    const raw = String(value || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+    const [y, m, d] = raw.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (
+        Number.isNaN(dt.getTime())
+        || dt.getUTCFullYear() !== y
+        || dt.getUTCMonth() + 1 !== m
+        || dt.getUTCDate() !== d
+    ) {
+        return null;
+    }
+    return raw;
+}
+
 function parsePayload(body) {
     const parsedAgentId = parseInt(body.agentId, 10);
     const parsedType = parseInt(body.type, 10);
     const cleanAmount = String(body.amount || '').replace(/,/g, '');
     const parsedAmount = Number(cleanAmount) || 0;
     const trimmedRemarks = String(body.remarks || '').trim();
+    const parsedProgramDate = parseProgramDate(body.programDate || body.program_date);
 
     return {
         parsedAgentId,
         parsedType,
         parsedAmount,
         trimmedRemarks,
+        parsedProgramDate,
         savedAgentName: String(body.agentName || '').trim()
     };
 }
 
-function isValidPayload({ parsedAgentId, parsedType, parsedAmount }) {
+function isValidPayload({ parsedAgentId, parsedType, parsedAmount, parsedProgramDate }) {
     return Boolean(
         parsedAgentId
         && (parsedType === TYPE_DEPOSIT || parsedType === TYPE_CASHOUT)
         && parsedAmount > 0
+        && parsedProgramDate
     );
 }
 
@@ -134,6 +153,7 @@ async function saveAdditionalCommission(connection, {
     parsedType,
     parsedAmount,
     trimmedRemarks,
+    parsedProgramDate,
     userId
 }) {
     const now = new Date();
@@ -169,7 +189,7 @@ async function saveAdditionalCommission(connection, {
 
         await connection.execute(
             `UPDATE additional_commission
-             SET AGENT_ID = ?, AGENT_NAME = ?, TYPE = ?, AMOUNT = ?, ACCOUNT_LEDGER_ID = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+             SET AGENT_ID = ?, AGENT_NAME = ?, TYPE = ?, AMOUNT = ?, ACCOUNT_LEDGER_ID = ?, REMARKS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
              WHERE IDNo = ? AND ACTIVE = 1`,
             [
                 parsedAgentId,
@@ -178,6 +198,7 @@ async function saveAdditionalCommission(connection, {
                 parsedAmount,
                 ledgerId,
                 trimmedRemarks,
+                parsedProgramDate,
                 userId,
                 now,
                 recordId
@@ -189,8 +210,8 @@ async function saveAdditionalCommission(connection, {
 
     const [insertResult] = await connection.execute(
         `INSERT INTO additional_commission
-            (AGENT_ID, AGENT_NAME, TYPE, AMOUNT, ACCOUNT_LEDGER_ID, REMARKS, ENCODED_DT, ENCODED_BY, ACTIVE)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            (AGENT_ID, AGENT_NAME, TYPE, AMOUNT, ACCOUNT_LEDGER_ID, REMARKS, PROGRAM_DATE, ENCODED_DT, ENCODED_BY, ACTIVE)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
             parsedAgentId,
             savedAgentName,
@@ -198,6 +219,7 @@ async function saveAdditionalCommission(connection, {
             parsedAmount,
             ledgerId,
             trimmedRemarks,
+            parsedProgramDate,
             now,
             userId
         ]
@@ -229,6 +251,25 @@ router.get("/commission_panel", checkSession, function (req, res) {
 });
 
 router.get('/additional_commission_data', checkSession, async (req, res) => {
+    const startRaw = String(req.query.start || req.query.fromDate || '').trim().slice(0, 10);
+    const endRaw = String(req.query.end || req.query.toDate || '').trim().slice(0, 10);
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(startRaw) ? startRaw : null;
+    const endDate = /^\d{4}-\d{2}-\d{2}$/.test(endRaw) ? endRaw : null;
+
+    let whereSql = 'WHERE ac.ACTIVE = 1';
+    const params = [];
+
+    if (startDate && endDate) {
+        whereSql += ` AND DATE(COALESCE(ac.PROGRAM_DATE, ac.ENCODED_DT)) BETWEEN ? AND ?`;
+        params.push(startDate, endDate);
+    } else if (startDate) {
+        whereSql += ` AND DATE(COALESCE(ac.PROGRAM_DATE, ac.ENCODED_DT)) >= ?`;
+        params.push(startDate);
+    } else if (endDate) {
+        whereSql += ` AND DATE(COALESCE(ac.PROGRAM_DATE, ac.ENCODED_DT)) <= ?`;
+        params.push(endDate);
+    }
+
     const query = `
         SELECT
             ac.IDNo,
@@ -238,14 +279,15 @@ router.get('/additional_commission_data', checkSession, async (req, res) => {
             ac.TYPE,
             ac.AMOUNT,
             ac.REMARKS,
+            ac.PROGRAM_DATE,
             ac.ENCODED_DT
         FROM additional_commission ac
         LEFT JOIN agent ON agent.IDNo = ac.AGENT_ID
-        WHERE ac.ACTIVE = 1
-        ORDER BY ac.ENCODED_DT DESC, ac.IDNo DESC`;
+        ${whereSql}
+        ORDER BY COALESCE(ac.PROGRAM_DATE, DATE(ac.ENCODED_DT)) DESC, ac.IDNo DESC`;
 
     try {
-        const [rows] = await pool.execute(query);
+        const [rows] = await pool.execute(query, params);
         res.json(rows);
     } catch (error) {
         console.error('Error loading additional commission data:', error);
@@ -297,6 +339,7 @@ router.post('/add_additional_commission', checkSession, async (req, res) => {
             parsedType: payload.parsedType,
             parsedAmount: payload.parsedAmount,
             trimmedRemarks: payload.trimmedRemarks,
+            parsedProgramDate: payload.parsedProgramDate,
             userId: req.session.user_id
         });
         const total = await getAdditionalCommissionTotal(connection);
@@ -347,6 +390,7 @@ router.put('/additional_commission/:id', checkSession, async (req, res) => {
             parsedType: payload.parsedType,
             parsedAmount: payload.parsedAmount,
             trimmedRemarks: payload.trimmedRemarks,
+            parsedProgramDate: payload.parsedProgramDate,
             userId: req.session.user_id
         });
         const total = await getAdditionalCommissionTotal(connection);

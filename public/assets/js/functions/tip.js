@@ -2,12 +2,63 @@ let tipTable;
 let tipInResetting = false;
 let tipRollerHistory = [];
 let tipAutocompleteInstances = [];
+let tipInProgramDatePicker = null;
+let tipSettlementProgramDatePicker = null;
 
 function formatMoney(n) {
 	return (Number(n) || 0).toLocaleString('en-US', {
 		minimumFractionDigits: 0,
 		maximumFractionDigits: 2
 	});
+}
+
+function formatProgramDateYmd(date) {
+	var d = date instanceof Date ? date : new Date(date);
+	if (Number.isNaN(d.getTime())) return '';
+	var y = d.getFullYear();
+	var m = String(d.getMonth() + 1).padStart(2, '0');
+	var day = String(d.getDate()).padStart(2, '0');
+	return y + '-' + m + '-' + day;
+}
+
+function todayProgramDateValue() {
+	return formatProgramDateYmd(new Date());
+}
+
+function getTipProgramDateValue(inputId) {
+	var el = document.getElementById(inputId);
+	if (!el) return '';
+	if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+		return formatProgramDateYmd(el._flatpickr.selectedDates[0]);
+	}
+	return String(el.value || '').trim().slice(0, 10);
+}
+
+function ensureTipProgramDatePicker(inputId, pickerRefName, defaultDate) {
+	var el = document.getElementById(inputId);
+	if (!el) return;
+	var dateVal = defaultDate || getTipProgramDateValue(inputId) || todayProgramDateValue();
+	if (typeof flatpickr === 'undefined') {
+		el.value = dateVal;
+		return;
+	}
+	if (el._flatpickr) {
+		try {
+			el._flatpickr.destroy();
+		} catch (e) {}
+	}
+	var picker = flatpickr(el, {
+		enableTime: false,
+		dateFormat: 'Y-m-d',
+		altInput: true,
+		altFormat: 'M j, Y',
+		defaultDate: dateVal,
+		allowInput: true,
+		disableMobile: true,
+		closeOnSelect: true
+	});
+	if (pickerRefName === 'tipIn') tipInProgramDatePicker = picker;
+	if (pickerRefName === 'tipSettlement') tipSettlementProgramDatePicker = picker;
 }
 
 function parseSettlementAmount(raw) {
@@ -141,6 +192,8 @@ function resetTipInModal() {
 	$('#tip-in-modal-amount, #tip-in-modal-status, #tip-in-modal-name, #tip-in-modal-remarks')
 		.val('')
 		.removeClass('is-invalid');
+	ensureTipProgramDatePicker('tip-in-modal-program-date', 'tipIn', todayProgramDateValue());
+	$('#tip-in-modal-program-date').removeClass('is-invalid');
 	tipInResetting = false;
 }
 
@@ -221,16 +274,29 @@ function submitTipIn(event) {
 	var $amountInput = $('#tip-in-modal-amount');
 	var $statusInput = $('#tip-in-modal-status');
 	var $nameInput = $('#tip-in-modal-name');
+	var $programDateInput = $('#tip-in-modal-program-date');
 	var $btn = $('#btn-tip-in-save');
 	var amount = parseSettlementAmount($amountInput.val());
 	var statusVal = ($statusInput.val() || '').toString().trim();
 	var nameVal = ($nameInput.val() || '').toString().trim();
 	var accountVal = ($('#tip-in-modal-account').val() || '').toString().trim();
 	var guestVal = ($('#tip-in-modal-guest').val() || '').toString().trim();
+	var programDate = getTipProgramDateValue('tip-in-modal-program-date');
 
 	$amountInput.removeClass('is-invalid');
 	$statusInput.removeClass('is-invalid');
 	$nameInput.removeClass('is-invalid');
+	$programDateInput.removeClass('is-invalid');
+
+	if (!programDate || !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
+		$programDateInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Missing Program Date',
+			text: i18n.missingProgramDate || 'Please select a program date.'
+		});
+		return;
+	}
 
 	if (Number.isNaN(amount)) {
 		$amountInput.addClass('is-invalid');
@@ -269,6 +335,7 @@ function submitTipIn(event) {
 		txtGuestId: guestVal,
 		txtTipStatus: statusVal,
 		txtRollerName: nameVal,
+		txtProgramDate: programDate,
 		txtRemarks: ($('#tip-in-modal-remarks').val() || '').toString().trim()
 	})
 		.done(function (resp) {
@@ -319,23 +386,23 @@ function renderAmountCell(value, type) {
 
 function updateTipAmountTotals(api) {
 	const rollerTotal = api
-		.column(6, { search: 'applied' })
+		.column(7, { search: 'applied' })
 		.data()
 		.reduce(function (sum, val) {
 			return sum + (Number(val) || 0);
 		}, 0);
 
 	const dealerTotal = api
-		.column(10, { search: 'applied' })
+		.column(11, { search: 'applied' })
 		.data()
 		.reduce(function (sum, val) {
 			return sum + (Number(val) || 0);
 		}, 0);
 
-	$(api.column(6).footer()).html(
+	$(api.column(7).footer()).html(
 		'<span class="' + (rollerTotal < 0 ? 'tip-amount-negative tip-roller-total' : 'tip-roller-total') + '">' + formatSignedMoney(rollerTotal) + '</span>'
 	);
-	$(api.column(10).footer()).html(
+	$(api.column(11).footer()).html(
 		'<span class="tip-dealer-total">' + formatMoney(dealerTotal) + '</span>'
 	);
 }
@@ -368,6 +435,8 @@ function resetTipSettlementModal() {
 	$('#tip-settlement-modal-amount, #tip-settlement-modal-status, #tip-settlement-modal-name, #tip-settlement-modal-remarks')
 		.val('')
 		.removeClass('is-invalid');
+	ensureTipProgramDatePicker('tip-settlement-modal-program-date', 'tipSettlement', todayProgramDateValue());
+	$('#tip-settlement-modal-program-date').removeClass('is-invalid');
 }
 
 function openTipSettlementModal() {
@@ -393,14 +462,27 @@ function submitTipSettlement(event) {
 	var $amountInput = $('#tip-settlement-modal-amount');
 	var $statusInput = $('#tip-settlement-modal-status');
 	var $nameInput = $('#tip-settlement-modal-name');
+	var $programDateInput = $('#tip-settlement-modal-program-date');
 	var $btn = $('#btn-tip-settlement-save');
 	var amount = parseSettlementAmount($amountInput.val());
 	var statusVal = ($statusInput.val() || '').toString().trim();
 	var nameVal = ($nameInput.val() || '').toString().trim();
+	var programDate = getTipProgramDateValue('tip-settlement-modal-program-date');
 
 	$amountInput.removeClass('is-invalid');
 	$statusInput.removeClass('is-invalid');
 	$nameInput.removeClass('is-invalid');
+	$programDateInput.removeClass('is-invalid');
+
+	if (!programDate || !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) {
+		$programDateInput.addClass('is-invalid');
+		Swal.fire({
+			icon: 'warning',
+			title: 'Missing Program Date',
+			text: i18n.missingProgramDate || 'Please select a program date.'
+		});
+		return;
+	}
 
 	if (Number.isNaN(amount)) {
 		$amountInput.addClass('is-invalid');
@@ -450,6 +532,7 @@ function submitTipSettlement(event) {
 		txtAmount: $amountInput.val(),
 		txtTipStatus: statusVal,
 		txtRollerName: nameVal,
+		txtProgramDate: programDate,
 		txtRemarks: ($('#tip-settlement-modal-remarks').val() || '').toString().trim()
 	})
 		.done(function (resp) {
@@ -504,18 +587,36 @@ $(document).ready(function () {
 
 	tipTable = $('#tip-tbl').DataTable({
 		pageLength: 25,
-		order: [[0, 'desc']],
+		order: [[0, 'desc'], [1, 'desc']],
 		orderCellsTop: true,
 		footerCallback: function () {
 			updateTipAmountTotals(this.api());
 		},
 		columns: [
 			{
-				data: 'TIP_DATETIME',
+				data: 'PROGRAM_DATE',
+				defaultContent: '',
+				render: function (data, type) {
+					if (!data) return '';
+					if (type === 'sort' || type === 'filter') {
+						return String(data).slice(0, 10);
+					}
+					if (window.moment) {
+						return moment(data).format('YYYY-MM-DD');
+					}
+					return String(data).slice(0, 10);
+				}
+			},
+			{
+				data: 'ENCODED_DT',
+				defaultContent: '',
 				render: function (data, type) {
 					if (!data) return '';
 					if (type === 'sort' || type === 'filter') return data;
-					return moment(data).format('YYYY-MM-DD HH:mm');
+					if (window.moment) {
+						return moment(data).format('YYYY-MM-DD HH:mm');
+					}
+					return String(data);
 				}
 			},
 			{ data: 'ACCOUNT_DISPLAY', defaultContent: '-' },

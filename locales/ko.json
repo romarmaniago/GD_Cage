@@ -155,6 +155,8 @@
 		"roller": "롤러",
 		"dealer": "딜러",
 		"date_time": "날짜 및 시간",
+		"program_date": "프로그램 날짜",
+		"missing_program_date": "프로그램 날짜를 선택하세요.",
 		"remarks_optional": "비고 (선택)",
 		"choose_game": "게임 선택",
 		"choose_account": "계정 선택",

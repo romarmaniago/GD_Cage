@@ -106,6 +106,7 @@ async function ensureAdditionalCommissionSchema(pool) {
 				AMOUNT DECIMAL(18, 2) NOT NULL DEFAULT 0.00,
 				ACCOUNT_LEDGER_ID INT NULL DEFAULT NULL,
 				REMARKS VARCHAR(500) NULL DEFAULT NULL,
+				PROGRAM_DATE DATE NULL DEFAULT NULL COMMENT 'User-selected program date (date only)',
 				ENCODED_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 				ENCODED_BY INT NULL DEFAULT NULL,
 				EDITED_DT DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -114,6 +115,7 @@ async function ensureAdditionalCommissionSchema(pool) {
 				PRIMARY KEY (IDNo),
 				KEY idx_additional_commission_agent_id (AGENT_ID),
 				KEY idx_additional_commission_active_dt (ACTIVE, ENCODED_DT),
+				KEY idx_additional_commission_program_date (ACTIVE, PROGRAM_DATE),
 				KEY idx_additional_commission_type (TYPE),
 				KEY idx_additional_commission_ledger_id (ACCOUNT_LEDGER_ID)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -128,7 +130,29 @@ async function ensureAdditionalCommissionSchema(pool) {
 	await addColumnIfMissing(pool, tableName, 'AMOUNT', 'AMOUNT DECIMAL(18, 2) NOT NULL DEFAULT 0.00 AFTER TYPE');
 	await addColumnIfMissing(pool, tableName, 'ACCOUNT_LEDGER_ID', 'ACCOUNT_LEDGER_ID INT NULL DEFAULT NULL AFTER AMOUNT');
 	await addColumnIfMissing(pool, tableName, 'REMARKS', 'REMARKS VARCHAR(500) NULL DEFAULT NULL AFTER ACCOUNT_LEDGER_ID');
-	await addColumnIfMissing(pool, tableName, 'ENCODED_DT', 'ENCODED_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER REMARKS');
+	await addColumnIfMissing(pool, tableName, 'PROGRAM_DATE', 'PROGRAM_DATE DATE NULL DEFAULT NULL COMMENT \'User-selected program date (date only)\' AFTER REMARKS');
+
+	if (await columnExists(pool, tableName, 'PROGRAM_DATE')) {
+		try {
+			await pool.execute(
+				`ALTER TABLE ${tableName}
+				 ADD KEY idx_additional_commission_program_date (ACTIVE, PROGRAM_DATE)`
+			);
+			console.log(`[${tableName}] Added key idx_additional_commission_program_date`);
+		} catch (error) {
+			// Duplicate key name = already exists
+			if (error && error.code !== 'ER_DUP_KEYNAME') throw error;
+		}
+
+		await pool.execute(
+			`UPDATE ${tableName}
+			 SET PROGRAM_DATE = DATE(ENCODED_DT)
+			 WHERE PROGRAM_DATE IS NULL
+			   AND ENCODED_DT IS NOT NULL`
+		);
+	}
+
+	await addColumnIfMissing(pool, tableName, 'ENCODED_DT', 'ENCODED_DT DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER PROGRAM_DATE');
 	await addColumnIfMissing(pool, tableName, 'ENCODED_BY', 'ENCODED_BY INT NULL DEFAULT NULL AFTER ENCODED_DT');
 	await addColumnIfMissing(pool, tableName, 'EDITED_DT', 'EDITED_DT DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP AFTER ENCODED_BY');
 	await addColumnIfMissing(pool, tableName, 'EDITED_BY', 'EDITED_BY INT NULL DEFAULT NULL AFTER EDITED_DT');
