@@ -318,6 +318,14 @@ function formatHouseExpenseReceiptAmount(value) {
     return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+/** Expense amounts shown as red (n) on slip — matches receipt layout. */
+function formatHouseExpenseReceiptAmountParen(value) {
+    var n = Math.abs(Number(value) || 0);
+    var formatted = n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    if (!n) return '0';
+    return '(' + formatted + ')';
+}
+
 function formatHouseExpenseReceiptDateTime(encodedDt) {
     if (!encodedDt) return '';
     var m = moment.utc(encodedDt).utcOffset(8);
@@ -340,9 +348,12 @@ function hasHouseExpenseReceiptField(value) {
 
 function buildHouseExpenseReceiptLegRow(label, value, isTotal) {
     if (!hasHouseExpenseReceiptField(value)) return '';
-    var valueClass = 'her-value' + (isTotal ? ' her-total-value' : '');
+    var valueClass = 'her-value' + (isTotal ? ' her-amount-value' : '');
     var labelClass = 'her-label' + (isTotal ? ' her-total-label' : '');
     var rowClass = isTotal ? ' class="her-total-row"' : '';
+    var display = isTotal
+        ? formatHouseExpenseReceiptAmountParen(value)
+        : formatHouseExpenseReceiptAmount(value);
     return (
         '<tr' +
         rowClass +
@@ -353,7 +364,7 @@ function buildHouseExpenseReceiptLegRow(label, value, isTotal) {
         '</td><td class="' +
         valueClass +
         '">' +
-        formatHouseExpenseReceiptAmount(value) +
+        display +
         '</td></tr>'
     );
 }
@@ -377,7 +388,6 @@ function buildHouseExpenseReceiptSlipHtml(data) {
 
     var programDateDisplay = formatHouseExpenseReceiptDateOnly(data.program_date);
     var detailsRows = '';
-    var amountRows = '';
 
     if (data.use_item_format) {
         detailsRows =
@@ -385,13 +395,8 @@ function buildHouseExpenseReceiptSlipHtml(data) {
             houseExpenseHtmlEscape(programDateDisplay || '') +
             '</td></tr>' +
             buildHouseExpenseReceiptTextLegRow('Approved By :', data.description) +
-            buildHouseExpenseReceiptTextLegRow('Received By :', data.receiver);
-
-        amountRows =
-            buildHouseExpenseReceiptSectionTable(
-                'her-section-amount',
-                buildHouseExpenseReceiptLegRow('Amount :', data.amount, true)
-            ) || '';
+            buildHouseExpenseReceiptTextLegRow('Received By :', data.receiver) +
+            buildHouseExpenseReceiptLegRow('Amount :', data.amount, true);
     } else {
         detailsRows =
             (programDateDisplay
@@ -402,13 +407,8 @@ function buildHouseExpenseReceiptSlipHtml(data) {
             buildHouseExpenseReceiptTextLegRow('- RECEIVER', data.receiver) +
             buildHouseExpenseReceiptTextLegRow('- VEHICLE', data.vehicle) +
             (kmDisplay ? buildHouseExpenseReceiptTextLegRow('- KM/L', kmDisplay) : '') +
-            buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by);
-
-        amountRows =
-            buildHouseExpenseReceiptSectionTable(
-                'her-section-amount',
-                buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true)
-            ) || '';
+            buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by) +
+            buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true);
     }
 
     var detailsTable = detailsRows
@@ -429,13 +429,10 @@ function buildHouseExpenseReceiptSlipHtml(data) {
         houseExpenseHtmlEscape(data.category || '') +
         '</p>' +
         detailsTable +
-        amountRows +
         '</div>' +
         '<div class="house-expense-receipt-slip-actions">' +
-        '<button type="button" class="btn btn-sm btn-outline-primary js-copy-house-expense-receipt-slip-image">' +
-        'Copy image</button>' +
-        '<button type="button" class="btn btn-sm btn-outline-primary js-copy-house-expense-receipt-slip-text">' +
-        'Copy text</button>' +
+        '<button type="button" class="btn house-expense-receipt-copy-btn js-copy-house-expense-receipt-slip">' +
+        'Copy</button>' +
         '</div>' +
         '</div>'
     );
@@ -2784,21 +2781,12 @@ $(document).ready(function () {
     };
 
     $(document)
-        .off('click', '.js-copy-house-expense-receipt-slip-image')
-        .on('click', '.js-copy-house-expense-receipt-slip-image', function (e) {
+        .off('click', '.js-copy-house-expense-receipt-slip')
+        .on('click', '.js-copy-house-expense-receipt-slip', function (e) {
             e.preventDefault();
             var $btn = $(this);
             var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
             copyHouseExpenseReceiptSlipImage(slipBody, $btn);
-        });
-
-    $(document)
-        .off('click', '.js-copy-house-expense-receipt-slip-text')
-        .on('click', '.js-copy-house-expense-receipt-slip-text', function (e) {
-            e.preventDefault();
-            var $btn = $(this);
-            var slipBody = $btn.closest('.house-expense-receipt-slip').find('.house-expense-receipt-slip-body')[0];
-            copyHouseExpenseReceiptSlipTextButton(slipBody, $btn);
         });
 
     $(document)

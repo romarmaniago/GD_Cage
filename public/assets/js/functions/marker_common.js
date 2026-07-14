@@ -42,6 +42,7 @@
             if ($totalIssue.length) $totalIssue.val(formatMarkerHistoryAmount(headerCreditState.overallTotalIssue));
             if ($cash.length) $cash.val(formatMarkerHistoryAmount(headerCreditState.overallCash));
             if ($game.length) $game.val(formatMarkerHistoryAmount(headerCreditState.overallGame));
+            renderCreditStatusBreakdownShortcut(null);
             return;
         }
 
@@ -54,6 +55,126 @@
         if ($totalIssue.length) $totalIssue.val(formatMarkerHistoryAmount(total));
         if ($cash.length) $cash.val(formatMarkerHistoryAmount(cash));
         if ($game.length) $game.val(formatMarkerHistoryAmount(game));
+        renderCreditStatusBreakdownShortcut(accountId);
+    }
+
+    /** Credit Status List panel (sortable DataTable). */
+    function formatCreditStatusShortcutAmount(value) {
+        var n = Math.abs(Number(value) || 0);
+        if (!n) return '0';
+        if (window.fmtOut) return window.fmtOut(n);
+        return '<span style="color:#dc3545 !important;">(' + formatMarkerHistoryAmount(n) + ')</span>';
+    }
+
+    function creditStatusTextOrDash(value) {
+        return value != null && String(value).trim() !== '' ? String(value).trim() : '—';
+    }
+
+    function creditStatusTextColumn(data, type) {
+        var v = creditStatusTextOrDash(data);
+        return (type === 'sort' || type === 'type') ? v : escapeHtml(v);
+    }
+
+    function ensureCreditStatusDataTable() {
+        var selector = '#marker-credit-status-breakdown-tbl';
+        var $table = $(selector);
+        if (!$table.length || typeof $.fn.DataTable === 'undefined') return null;
+        if ($.fn.DataTable.isDataTable(selector)) return $table.DataTable();
+
+        var translations = window.markerTranslations || {};
+        return $table.DataTable({
+            order: [[0, 'asc']],
+            searching: false,
+            paging: false,
+            info: false,
+            autoWidth: false,
+            language: {
+                emptyTable: translations.no_data_available || 'No data available in table',
+                zeroRecords: translations.no_data_available || 'No matching records found'
+            },
+            dom: 't',
+            columns: [
+                { data: 'code', defaultContent: '—', render: creditStatusTextColumn },
+                { data: 'agent', defaultContent: '—', render: creditStatusTextColumn },
+                { data: 'guarantor', defaultContent: '—', render: creditStatusTextColumn },
+                {
+                    data: 'amount',
+                    defaultContent: 0,
+                    className: 'text-end marker-balance-col-amount',
+                    render: function (data, type) {
+                        var n = data != null ? Number(data) : 0;
+                        if (isNaN(n)) n = 0;
+                        if (type === 'sort' || type === 'type') return Math.abs(n);
+                        return formatCreditStatusShortcutAmount(n);
+                    }
+                }
+            ]
+        });
+    }
+
+    function renderCreditStatusBreakdownShortcut(filterAccountId) {
+        var $table = $('#marker-credit-status-breakdown-tbl');
+        var $grand = $('#marker-status-grand-display');
+        if (!$table.length) return;
+
+        var rows = [];
+        try {
+            if (window._markerTotalCreditTable && window._markerTotalCreditTable.rows) {
+                rows = window._markerTotalCreditTable.rows({ search: 'applied' }).data().toArray() || [];
+            }
+        } catch (e) {
+            rows = [];
+        }
+
+        var accountId = filterAccountId != null
+            ? String(filterAccountId)
+            : String($('#txtAccountMarker').val() || '').trim();
+        var data = [];
+        var sum = 0;
+
+        (rows || []).forEach(function (row) {
+            if (accountId) {
+                var rowAcc = row.ACCOUNT_ID != null ? String(row.ACCOUNT_ID) : '';
+                if (rowAcc && rowAcc !== accountId) return;
+            }
+            var amount = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
+            if (!isNaN(amount)) {
+                sum += isMarkerCreditOutTransaction(row) ? Math.abs(amount) : amount;
+            }
+            data.push({
+                code: creditStatusTextOrDash(row.AGENT_CODE),
+                agent: creditStatusTextOrDash(row.AGENT_NAME),
+                guarantor: creditStatusTextOrDash(
+                    (row.GUARANTOR != null && String(row.GUARANTOR).trim() !== '')
+                        ? row.GUARANTOR
+                        : row.GUEST_NAME
+                ),
+                amount: isNaN(amount) ? 0 : amount
+            });
+        });
+
+        if ($grand.length) $grand.html(formatCreditStatusShortcutAmount(sum));
+
+        if (typeof $.fn.DataTable === 'undefined') {
+            var html = data.map(function (r) {
+                return (
+                    '<tr>' +
+                    '<td>' + escapeHtml(r.code) + '</td>' +
+                    '<td>' + escapeHtml(r.agent) + '</td>' +
+                    '<td>' + escapeHtml(r.guarantor) + '</td>' +
+                    '<td class="text-end marker-balance-col-amount">' + formatCreditStatusShortcutAmount(r.amount) + '</td>' +
+                    '</tr>'
+                );
+            }).join('');
+            $('#marker-credit-status-body').html(html);
+            return;
+        }
+
+        var dt = ensureCreditStatusDataTable();
+        if (!dt) return;
+        dt.clear();
+        if (data.length) dt.rows.add(data);
+        dt.draw(false);
     }
 
     function formatWithCommas(value) {
@@ -933,7 +1054,12 @@
                         }
                         if (!window.moment) return data || '—';
                         var dateMoment = parseMarkerHistoryDateString(data);
-                        return dateMoment ? dateMoment.local().format('YYYY-MM-DD HH:mm') : (data || '—');
+                        if (!dateMoment) return data || '—';
+                        // Credit History page only — display M/D/YY HH:mm (storage/API unchanged)
+                        var displayFmt = document.querySelector('.marker-history-page')
+                            ? 'M/D/YY HH:mm'
+                            : 'YYYY-MM-DD HH:mm';
+                        return dateMoment.local().format(displayFmt);
                     }
                 },
                 {
@@ -1523,23 +1649,120 @@
             return String($guarantor.val() || '').trim();
         }
 
+        function clearGuarantorField() {
+            if (!$guarantor.length) return;
+            if ($guarantor.is('select')) {
+                $guarantor.val(null).trigger('change');
+            } else {
+                $guarantor.val('');
+            }
+        }
+
+        function getGuarantorHistoryRows() {
+            try {
+                if (window._markerTotalCreditTable && window._markerTotalCreditTable.rows) {
+                    return window._markerTotalCreditTable.rows().data().toArray();
+                }
+            } catch (e) { /* noop */ }
+            try {
+                if (table && table.rows) return table.rows().data().toArray();
+            } catch (e2) { /* noop */ }
+            return [];
+        }
+
+        function getGuarantorAccountSource() {
+            if (Array.isArray(window._accountOptionsCache) && window._accountOptionsCache.length) {
+                return window._accountOptionsCache;
+            }
+            return allAccountsData || [];
+        }
+
+        function initGuarantorSelect2() {
+            if (!$guarantor.length || typeof $guarantor.select2 !== 'function') return;
+            if (!$guarantor.is('select')) return;
+            if ($guarantor.data('select2')) {
+                try { $guarantor.select2('destroy'); } catch (e) { /* noop */ }
+            }
+            var $parent = typeof dropdownParent === 'string' ? $(dropdownParent) : dropdownParent;
+            var t = window.markerTranslations || {};
+            $guarantor.select2({
+                placeholder: t.guarantor || 'Guarantor',
+                allowClear: true,
+                tags: true,
+                width: '100%',
+                dropdownParent: $parent.length ? $parent : $('body')
+            });
+        }
+
+        function rebuildGuarantorSelectOptions(keepValue) {
+            if (!$guarantor.length || !$guarantor.is('select')) return;
+            var current = keepValue !== undefined ? String(keepValue || '').trim() : getGuarantorValue();
+            var labels = [];
+            if (window.CreditGuarantorAutocomplete && typeof window.CreditGuarantorAutocomplete.buildSuggestionList === 'function') {
+                labels = window.CreditGuarantorAutocomplete.buildSuggestionList({
+                    accounts: getGuarantorAccountSource(),
+                    historyRows: getGuarantorHistoryRows()
+                });
+            }
+            if ($guarantor.data('select2')) {
+                try { $guarantor.select2('destroy'); } catch (e) { /* noop */ }
+            }
+            $guarantor.empty().append($('<option></option>').val(''));
+            (labels || []).forEach(function (label) {
+                var text = String(label || '').trim();
+                if (!text) return;
+                $guarantor.append($('<option></option>').val(text).text(text));
+            });
+            if (current) {
+                var has = false;
+                $guarantor.find('option').each(function () {
+                    if (String($(this).val()) === current) has = true;
+                });
+                if (!has) {
+                    $guarantor.append($('<option></option>').val(current).text(current));
+                }
+            }
+            initGuarantorSelect2();
+            if (current) {
+                $guarantor.val(current).trigger('change');
+            } else {
+                $guarantor.val(null).trigger('change');
+            }
+        }
+
         var creditGuarantorAutocomplete = null;
         function initCreditGuarantorAutocomplete() {
             if (!$guarantor.length || !window.CreditGuarantorAutocomplete) return;
+            if ($guarantor.is('select')) return;
             try {
                 creditGuarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField($guarantor[0], {
                     getHistoryRows: function () {
-                        try {
-                            if (table && table.rows) return table.rows().data().toArray();
-                        } catch (e) {}
-                        return [];
+                        return getGuarantorHistoryRows();
                     }
                 });
             } catch (e) {
                 creditGuarantorAutocomplete = null;
             }
         }
-        initCreditGuarantorAutocomplete();
+
+        function bootstrapGuarantorField() {
+            if ($guarantor.is('select')) {
+                rebuildGuarantorSelectOptions('');
+                if (typeof window.preloadAccounts === 'function') {
+                    window.preloadAccounts().then(function () {
+                        rebuildGuarantorSelectOptions(getGuarantorValue());
+                    }).catch(function () { /* noop */ });
+                }
+                $(document)
+                    .off('draw.dt.markerGuarantor', '#marker-accounts-total-tbl')
+                    .on('draw.dt.markerGuarantor', '#marker-accounts-total-tbl', function () {
+                        rebuildGuarantorSelectOptions(getGuarantorValue());
+                    });
+                return;
+            }
+            initCreditGuarantorAutocomplete();
+        }
+        bootstrapGuarantorField();
 
         function initAccountSelect2() {
             if (typeof $accountSelect.select2 !== 'function') return;
@@ -1902,7 +2125,7 @@
             $(markerBalanceSelector).val('');
             $(remarksSelector).val('');
             setProgramDateValue(todayProgramDateValue());
-            if ($guarantor.length) $guarantor.val('');
+            clearGuarantorField();
             $(totalBalanceGuestSelector).val('');
             if ($accountSelect.data('select2')) {
                 $accountSelect.val(null).trigger('change');
@@ -2070,12 +2293,14 @@
                     } else {
                         updateIssueAndBalanceBySelectedAccount();
                     }
+                    rebuildGuarantorSelectOptions(getGuarantorValue());
                     if (typeof callback === 'function') callback(allAccountsData);
                 }).fail(function (err) {
                     console.error('Error fetching account data:', err);
                     allAccountsData = [];
                     markerBreakdownData = [];
                     refreshAccountOptionsBySource();
+                    rebuildGuarantorSelectOptions(getGuarantorValue());
                     if (typeof callback === 'function') callback([]);
                 });
                 return;
@@ -2563,6 +2788,11 @@
         window._markerReloadBalanceTables = function () {
             updateAccountsBalanceTable();
         };
+        if (totalCreditTable && typeof totalCreditTable.on === 'function') {
+            totalCreditTable.on('draw.dt', function () {
+                renderCreditStatusBreakdownShortcut($('#txtAccountMarker').val() || null);
+            });
+        }
 
         function adjustHistoryTableLayout() {
             if (!table || typeof table.columns !== 'function') return;
@@ -2772,7 +3002,13 @@
                 $('#optTransTypeHidden').val('');
                 $('#txtMarkerReturn').val('');
                 $('#txtRemarks').val('');
-                if ($('#txtGuarantor').length) $('#txtGuarantor').val('');
+                if ($('#txtGuarantor').length) {
+                    if ($('#txtGuarantor').is('select')) {
+                        $('#txtGuarantor').val(null).trigger('change');
+                    } else {
+                        $('#txtGuarantor').val('');
+                    }
+                }
                 if ($('#txtAccountMarker').data('select2')) {
                     $('#txtAccountMarker').val(null).trigger('change');
                 } else {

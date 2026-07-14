@@ -55,8 +55,10 @@
                         </select>
                     </div>
                     <div class="col-sm-4">
-                        <label class="form-label text-muted small"><%= __('dashboard_marker.guarantor') %></label>
-                        <input type="text" class="form-control" name="txtGuarantor" id="txtGuarantor" maxlength="255" autocomplete="off" required placeholder="<%= __('dashboard_marker.guarantor') %>" />
+                        <label class="form-label text-muted small" for="txtGuarantor"><%= __('dashboard_marker.guarantor') %></label>
+                        <select class="js-select2 form-select" name="txtGuarantor" id="txtGuarantor" style="width: 100%;" required data-placeholder="<%= __('dashboard_marker.guarantor') %>">
+                            <option value=""></option>
+                        </select>
                     </div>
                 </div>
                 <div class="row mb-2 align-items-end">
@@ -155,6 +157,13 @@
                             </tr>
                         </thead>
                         <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="5" class="fw-semibold text-end"></th>
+                                <th class="text-end fw-semibold marker-total-col-amount"></th>
+                                <th colspan="4"></th>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -227,6 +236,14 @@
     </div>
 
     <style>
+        /* GD gold table theme — match Credit History page */
+        #modal-new-marker {
+            --gd-marker-gold-solid: #d9b96a;
+            --gd-marker-gold-text: #3a2e12;
+            --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+            --gd-marker-gold-hover: #faf3dc;
+        }
+
         .modal-lg2 {
             max-width: min(98vw, 85rem) !important;
             width: 100%;
@@ -479,33 +496,52 @@
             color: #6b4f14;
         }
 
-        /* Cash Credit / Game Credit — same look as History + narrow Balance */
+        /* Solid gold bar on full header/footer row */
+        #modal-new-marker table.dataTable {
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+        }
+        #modal-new-marker table thead tr,
+        #modal-new-marker table tfoot tr {
+            background-color: var(--gd-marker-gold-solid);
+        }
+        #modal-new-marker table thead th,
+        #modal-new-marker table tfoot th {
+            background: transparent !important;
+            background-color: transparent !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+            border-top: 0 !important;
+            box-shadow: none !important;
+        }
+        #modal-new-marker table.dataTable thead > tr > th.sorting,
+        #modal-new-marker table.dataTable thead > tr > th.sorting_asc,
+        #modal-new-marker table.dataTable thead > tr > th.sorting_desc,
+        #modal-new-marker table.dataTable thead > tr > th.sorting_disabled {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        /* Cash Credit / Game Credit — gold theme + narrow Balance */
         #marker-accounts-credit-tbl.dataTable.marker-balance-table,
         #marker-accounts-buyin-tbl.dataTable.marker-balance-table {
             width: 100% !important;
             max-width: 100% !important;
             font-size: 0.8125rem;
             line-height: 1.45;
-            border-collapse: separate;
-            border-spacing: 0;
             table-layout: fixed;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.375rem;
-            overflow: hidden;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+            border: 1px solid var(--gd-marker-gold-border);
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table thead th,
         #marker-accounts-buyin-wrapper .marker-balance-table thead th {
-            background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
-            color: #1e3a5f;
+            color: var(--gd-marker-gold-text);
             font-weight: 600;
             font-size: 0.75rem;
             letter-spacing: 0.02em;
             text-transform: uppercase;
             padding: 0.65rem 0.75rem;
-            border-bottom: 1px solid #d5e0f0 !important;
-            border-color: #eef2f7 !important;
+            border-bottom: 1px solid var(--gd-marker-gold-border) !important;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table thead th:first-child,
@@ -516,14 +552,14 @@
         #marker-accounts-credit-wrapper .marker-balance-table tbody td,
         #marker-accounts-buyin-wrapper .marker-balance-table tbody td {
             padding: 0.65rem 0.75rem;
-            color: #334155;
-            border-color: #eef2f7 !important;
+            color: #666;
+            border-color: #eee !important;
             vertical-align: top;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(even) td,
         #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(even) td {
-            background-color: #fafbfd;
+            background-color: #fbf5e4;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(odd) td,
@@ -533,12 +569,7 @@
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td,
         #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td {
-            background-color: #f0f6ff !important;
-        }
-
-        #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td:first-child,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td:first-child {
-            box-shadow: inset 3px 0 0 #6b4f14;
+            background-color: var(--gd-marker-gold-hover) !important;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table thead th.marker-balance-col-amount,
@@ -558,11 +589,11 @@
 
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th,
         #marker-accounts-buyin-wrapper .marker-balance-table tfoot th {
-            background-color: #f4f6fa;
-            border-top: 2px solid #dee2e6;
+            border-top: 2px solid var(--gd-marker-gold-border);
+            border-bottom: 1px solid var(--gd-marker-gold-border);
             padding: 0.65rem 0.75rem;
             font-weight: 600;
-            color: #334155;
+            color: var(--gd-marker-gold-text);
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th:first-child,
@@ -582,31 +613,24 @@
             max-width: 100% !important;
             font-size: 0.8125rem;
             line-height: 1.45;
-            border-collapse: separate;
-            border-spacing: 0;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.375rem;
-            overflow: hidden;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+            border: 1px solid var(--gd-marker-gold-border);
         }
 
         #marker-accounts-total-wrapper .marker-total-table thead th {
-            background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
-            color: #1e3a5f;
+            color: var(--gd-marker-gold-text) !important;
             font-weight: 600;
             font-size: 0.75rem;
             letter-spacing: 0.02em;
             text-transform: uppercase;
             padding: 0.65rem 0.75rem;
-            border-bottom: 1px solid #d5e0f0 !important;
-            border-color: #eef2f7 !important;
+            border-bottom: 1px solid var(--gd-marker-gold-border) !important;
             white-space: nowrap;
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody td {
             padding: 0.65rem 0.75rem;
-            color: #334155;
-            border-color: #eef2f7 !important;
+            color: #666;
+            border-color: #eee !important;
             vertical-align: middle;
             white-space: nowrap;
         }
@@ -618,7 +642,7 @@
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td {
-            background-color: #fafbfd;
+            background-color: #fbf5e4;
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(odd) td {
@@ -626,26 +650,37 @@
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td {
-            background-color: #f0f6ff !important;
+            background-color: var(--gd-marker-gold-hover) !important;
         }
 
-        #marker-accounts-total-wrapper .marker-total-table tbody tr:hover td:first-child {
-            box-shadow: inset 3px 0 0 #6b4f14;
+        #marker-accounts-total-wrapper .marker-total-table tfoot th {
+            border-top: 2px solid var(--gd-marker-gold-border);
+            border-bottom: 1px solid var(--gd-marker-gold-border);
+            padding: 10px 15px;
+            font-weight: 600;
+            color: var(--gd-marker-gold-text);
         }
 
-         /* History table — layout + word-wrap + visual polish */
+        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-amount {
+            font-variant-numeric: tabular-nums;
+            padding-right: 1.5rem !important;
+            text-align: right !important;
+        }
+
+        #marker-accounts-total-wrapper .marker-total-table thead th.sorting,
+        #marker-accounts-total-wrapper .marker-total-table thead th.sorting_asc,
+        #marker-accounts-total-wrapper .marker-total-table thead th.sorting_desc {
+            color: var(--gd-marker-gold-text) !important;
+        }
+
+        /* History table — layout + word-wrap + gold theme */
   #modal-new-marker #marker-tbl.dataTable.marker-history-table {
     width: 100% !important;
     max-width: 100% !important;
     font-size: 0.8125rem;
     line-height: 1.45;
-    border-collapse: separate;
-    border-spacing: 0;
     table-layout: fixed;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.375rem;
-    overflow: hidden;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--gd-marker-gold-border);
   }
 
   #modal-new-marker #marker-tbl thead th:not(.marker-history-col-amount),
@@ -661,7 +696,7 @@
     overflow-wrap: break-word;
     word-break: break-word;
     vertical-align: top;
-    border-color: #eef2f7 !important;
+    border-color: #eee !important;
   }
 
   #modal-new-marker #marker-tbl tbody td.marker-history-col-remarks {
@@ -673,15 +708,14 @@
   }
 
   #modal-new-marker #marker-tbl thead th {
-    background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
-    color: #1e3a5f;
+    color: var(--gd-marker-gold-text) !important;
     font-weight: 600;
     font-size: 0.75rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
     padding: 0.65rem 0.75rem;
     text-align: left;
-    border-bottom: 1px solid #d5e0f0 !important;
+    border-bottom: 1px solid var(--gd-marker-gold-border) !important;
   }
 
   #modal-new-marker #marker-tbl thead th.text-center {
@@ -693,7 +727,7 @@
   }
 
   #modal-new-marker #marker-tbl tbody tr:nth-child(even) td {
-    background-color: #fafbfd;
+    background-color: #fbf5e4;
   }
 
   #modal-new-marker #marker-tbl tbody tr:nth-child(odd) td {
@@ -702,7 +736,7 @@
 
   #modal-new-marker #marker-tbl tbody td {
     padding: 0.65rem 0.75rem;
-    color: #334155;
+    color: #666;
   }
 
   #modal-new-marker #marker-tbl thead th.marker-history-col-amount,
@@ -717,15 +751,11 @@
   }
 
   #modal-new-marker #marker-tbl tbody tr {
-    transition: background-color 0.12s ease, box-shadow 0.12s ease;
+    transition: background-color 0.12s ease;
   }
 
   #modal-new-marker #marker-tbl tbody tr:hover td {
-    background-color: #f0f6ff !important;
-  }
-
-  #modal-new-marker #marker-tbl tbody tr:hover td:first-child {
-    box-shadow: inset 3px 0 0 #6b4f14;
+    background-color: var(--gd-marker-gold-hover) !important;
   }
 
 #modal-new-marker .marker-balance-tabs .nav-link {
@@ -735,23 +765,21 @@
   border-bottom: 2px solid transparent;
   padding: 0.5rem 0.75rem;
 }
-#modal-new-marker .marker-balance-tabs .nav-link:hover { color: #6b4f14; }
+#modal-new-marker .marker-balance-tabs .nav-link:hover { color: #8a6712; }
 #modal-new-marker .marker-balance-tabs .nav-link.active {
   color: #6b4f14;
-  font-weight: 500;
-  border-bottom-color: #6b4f14;
+  font-weight: 600;
+  border-bottom-color: #c8a24c;
   background: transparent;
 }
-/* Footer total row */
-
 
 #marker-tbl tfoot th {
     padding: 10px;
     font-weight: 600;
     text-align: right;
-    color: #333;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    color: var(--gd-marker-gold-text);
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 #marker-tbl tfoot td {
