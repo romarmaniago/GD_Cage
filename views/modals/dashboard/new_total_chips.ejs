@@ -14,18 +14,6 @@
             <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
               placeholder="Select date range" autocomplete="off" />
           </div>
-          <div class="col-auto total-chips-program-date-wrap">
-            <input
-              type="text"
-              id="totalChipsProgramDate"
-              name="txtProgramDate"
-              form="add_junket_total_chips"
-              class="form-control input-program-date"
-              placeholder="<%= __('dashboard_total_chips.program_date') %>"
-              autocomplete="off"
-              required
-            />
-          </div>
         </div>
 
         <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
@@ -113,6 +101,22 @@
                 <div class="total-chips-ref-label">CC Chips</div>
                 <div class="total-chips-ref-value total-chips-ref-value--cc" id="ccbalance-display"><%= refCcBalStr %></div>
               </div>
+            </div>
+          </div>
+
+          <!-- Program Date -->
+          <div class="row mb-2">
+            <div class="col-sm-12 total-chips-program-date-wrap">
+              <label class="form-label text-muted small mb-1" for="totalChipsProgramDate"><%= __('dashboard_total_chips.program_date') %></label>
+              <input
+                type="text"
+                id="totalChipsProgramDate"
+                name="txtProgramDate"
+                class="form-control input-program-date"
+                placeholder="<%= __('dashboard_total_chips.program_date') %>"
+                autocomplete="off"
+                required
+              />
             </div>
           </div>
 
@@ -318,13 +322,9 @@
 
   #modal-new-total-chips .total-chips-program-date-wrap input,
   #modal-new-total-chips .total-chips-program-date-wrap .flatpickr-alt-input {
-    width: 11rem;
-    min-width: 11rem;
-    max-width: 11rem;
+    width: 100%;
+    max-width: 17rem;
     font-size: 0.875rem;
-    overflow: visible;
-    text-overflow: clip;
-    white-space: nowrap;
     box-sizing: border-box;
   }
 
