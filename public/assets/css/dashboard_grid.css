@@ -9,6 +9,36 @@ body {
   line-height: 1.45;
 }
 
+/* Golden Dragon theme for every modal linked from the dashboard (loaded only on this page) */
+.modal-content {
+  border: 1px solid rgba(200, 162, 76, 0.35);
+  border-radius: 0.85rem;
+  overflow: hidden;
+}
+
+.modal-header {
+  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+}
+
+.modal-header .modal-title {
+  color: #3a2e12 !important;
+}
+
+.modal-header .btn-close {
+  filter: none !important;
+  opacity: 0.65;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.modal-footer {
+  background: #fdf6e3;
+  border-top: 1px solid rgba(154, 113, 26, 0.25);
+}
+
 /* Sidebar → first card: slightly wider than inter-card g-3, but tighter than default content-inner */
 .main-content .conatiner-fluid.content-inner.dash-grid-wrap,
 .main-content .container-fluid.content-inner.dash-grid-wrap {
