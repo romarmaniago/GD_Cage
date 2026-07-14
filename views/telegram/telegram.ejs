@@ -4,6 +4,34 @@
 		<%- include ('../partials/topbar'); -%>
 		
 		<style>
+			/* GD gold table theme — header bg only; keep original text color */
+			.telegram-settings-page {
+				--gd-marker-gold-solid: #d9b96a;
+				--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+				--gd-marker-gold-hover: #faf3dc;
+			}
+			.telegram-settings-page table.table-vcenter {
+				border: 1px solid var(--gd-marker-gold-border);
+				border-collapse: collapse;
+			}
+			.telegram-settings-page table.table-vcenter thead tr {
+				background-color: var(--gd-marker-gold-solid);
+			}
+			.telegram-settings-page table.table-vcenter thead th {
+				background: transparent !important;
+				color: #000;
+				font-weight: 500;
+				border: none;
+				border-bottom: 1px solid var(--gd-marker-gold-border);
+				padding: 0.5rem 0.5rem;
+			}
+			.telegram-settings-page table.table-vcenter tbody tr:nth-child(even) td {
+				background-color: #fbf5e4;
+			}
+			.telegram-settings-page table.table-vcenter tbody tr:hover td {
+				background-color: var(--gd-marker-gold-hover) !important;
+			}
+
 			.table-vcenter td:nth-child(3) {
 				word-wrap: break-word;
 				word-break: break-word;
@@ -13,9 +41,6 @@
 				padding: 0.35rem 0.5rem;
 				vertical-align: middle;
 				line-height: 1.3;
-			}
-			.table-vcenter thead th {
-				padding: 0.5rem 0.5rem;
 			}
 			.table-vcenter .btn-sm {
 				padding: 0.2rem 0.4rem;
@@ -73,7 +98,7 @@
 									</div>
 								</h3>
 							</div>
-							<div class="card-body">
+							<div class="card-body telegram-settings-page">
 							<div id="telegram-panel-settings" class="telegram-tab-pane" role="tabpanel" aria-labelledby="telegram-tab-settings">
 								<div class="text-center mb-4">
 									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_title') %></h5>
@@ -119,8 +144,8 @@
 										</button>
 									</div>
 									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
-									<div class="table-responsive">
-										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+									<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+										<table class="table marker-balance-tbl table-vcenter w-100 mb-0" style="table-layout: fixed;">
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
@@ -145,8 +170,8 @@
 										</button>
 									</div>
 									<p class="text-muted small mb-3"><%= __('telegram_api.agent_chat_ids_hint') %></p>
-									<div class="table-responsive">
-										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+									<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+										<table class="table marker-balance-tbl table-vcenter w-100 mb-0" style="table-layout: fixed;">
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
@@ -202,8 +227,8 @@
 										</button>
 									</div>
 									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
-									<div class="table-responsive">
-										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+									<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+										<table class="table marker-balance-tbl table-vcenter w-100 mb-0" style="table-layout: fixed;">
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
@@ -259,8 +284,8 @@
 										</button>
 									</div>
 									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
-									<div class="table-responsive">
-										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+									<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+										<table class="table marker-balance-tbl table-vcenter w-100 mb-0" style="table-layout: fixed;">
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>

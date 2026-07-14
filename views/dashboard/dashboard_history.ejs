@@ -20,8 +20,9 @@
 								</h3>
                             </div>
 
-                            <div class="card-body">
-                                <table id="dashboardhistory-tbl" class="table  nowrap small-text" style="width:100%">
+                            <div class="card-body dashboard-history-page">
+                                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                                <table id="dashboardhistory-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
                                     <thead>
                                         <tr>
                                             <th>Period</th>
@@ -40,6 +41,7 @@
                                         
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -53,21 +55,32 @@
   overflow-x: auto;
 }
 
-     /* Base table styles */
- #dashboardhistory-tbl {
+.dashboard-history-page {
+    --gd-marker-gold-solid: #d9b96a;
+    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+    --gd-marker-gold-hover: #faf3dc;
+}
+
+/* Base table styles */
+#dashboardhistory-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    border: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Header styles */
+/* Header styles — gold bg, black labels */
+#dashboardhistory-tbl thead tr {
+    background-color: var(--gd-marker-gold-solid);
+}
 #dashboardhistory-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
+    background: transparent !important;
+    color: #000;
     font-weight: 500;
     padding: 14px 20px;
     text-align: center;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 
 /* Row styles */
@@ -82,8 +95,13 @@
     text-align: center;
 }
 
-#dashboardhistory-tbl tbody tr:hover {
-  background-color: #f5f5f5 !important;
+#dashboardhistory-tbl tbody tr:nth-child(even) td {
+    background-color: #fbf5e4;
+}
+
+#dashboardhistory-tbl tbody tr:hover,
+#dashboardhistory-tbl tbody tr:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
 }
 
 

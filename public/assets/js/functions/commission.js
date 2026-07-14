@@ -680,12 +680,111 @@ $(document).ready(function() {
         return document.getElementById('commission-daterange') || document.getElementById('daterange');
     }
 
+    function layoutCommissionControls() {
+        var $wrapper = $('#commission-tbl_wrapper');
+        var $length = $('#commission-tbl_length');
+        var $filter = $('#commission-tbl_filter');
+        var $table = $('#commission-tbl');
+        var $shell;
+        var $controls;
+        var $filterHighlight;
+        var $filterLabel;
+        var $searchInput;
+
+        if (!$wrapper.length || !$length.length || !$filter.length || !$table.length) return;
+
+        /* Shared shell = one outer border (cream + gold header same width) */
+        $shell = $wrapper.children('.commission-panel-shell');
+        if (!$shell.length) {
+            $shell = $('<div class="commission-panel-shell"></div>');
+            $wrapper.prepend($shell);
+        }
+
+        $controls = $shell.children('.commission-controls-highlight');
+        if (!$controls.length) {
+            $controls = $wrapper.children('.commission-controls-highlight');
+            if (!$controls.length) {
+                $controls = $('<div class="commission-controls-highlight"></div>');
+            }
+            $shell.prepend($controls);
+        }
+
+        if ($table.parent()[0] !== $shell[0]) {
+            $shell.append($table);
+        }
+
+        if ($length.parent()[0] !== $controls[0]) {
+            $controls.append($length);
+        }
+        if ($filter.parent()[0] !== $controls[0]) {
+            $controls.append($filter);
+        }
+
+        placeCommissionDateFilter();
+        placeCommissionCompareSelection();
+
+        $filterHighlight = $filter.children('.commission-filter-highlight');
+        if (!$filterHighlight.length) {
+            $filterHighlight = $('<div class="commission-filter-highlight"></div>');
+            $filter.append($filterHighlight);
+        }
+
+        placeCommissionCompareToolbar($filterHighlight);
+
+        $filterLabel = $filter.children('label');
+        if (!$filterLabel.length) {
+            $filterLabel = $filterHighlight.children('label');
+        }
+        if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
+            $filterHighlight.append($filterLabel);
+        }
+
+        $searchInput = $filterLabel.find('input');
+        if ($searchInput.length) {
+            $searchInput.attr(
+                'placeholder',
+                (window.commissionTranslations && window.commissionTranslations.searchPlaceholder) || 'Search...'
+            );
+            $filterLabel.contents().filter(function () {
+                return this.nodeType === 3;
+            }).remove();
+        }
+
+        /* Only hide emptied top controls row — never .dt-row (holds the table) */
+        $wrapper.children('.row').each(function () {
+            var $row = $(this);
+            if ($row.hasClass('dt-row') || $row.find('table').length) return;
+            if (!$row.find('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate').length) {
+                $row.addClass('commission-dt-top-row-empty').hide().css({
+                    margin: 0,
+                    padding: 0,
+                    height: 0,
+                    overflow: 'hidden'
+                });
+            }
+        });
+
+        /* Match table width to shell — kill DT pixel width overflow */
+        $table.css({ marginTop: 0, marginBottom: 0, width: '100%', maxWidth: '100%' }).show();
+        /* Table lives in shell now — hide leftover empty dt-row wrapper */
+        $wrapper.children('.row.dt-row').each(function () {
+            var $row = $(this);
+            if (!$row.find('table').length) {
+                $row.hide();
+            }
+        });
+    }
+
     function placeCommissionDateFilter() {
         var $mount = $('#commission-daterange-mount');
-        var $length = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
-        if (!$mount.length || !$length.length) return;
-        if ($mount.data('placed')) return;
-        $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        var $length = $('#commission-tbl_length');
+        var $controls = $('#commission-tbl_wrapper').find('.commission-controls-highlight').first();
+        if (!$mount.length || !$length.length || !$controls.length) return;
+        if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $length[0]) {
+            $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        } else {
+            $mount.addClass('is-placed').data('placed', true);
+        }
         if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
             var el = getCommissionDateInput();
             if (el && el._flatpickr) {
@@ -695,24 +794,42 @@ $(document).ready(function() {
         }
     }
 
-    function placeCommissionCompareToolbar() {
+    function placeCommissionCompareToolbar($filterHighlight) {
         var $mount = $('#commission-compare-toolbar-mount');
-        var $filter = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_filter').first();
-        if (!$mount.length || !$filter.length) return;
-        if ($mount.data('placed')) return;
-        $mount.detach().prependTo($filter).addClass('is-placed').data('placed', true);
+        var $filter = $('#commission-tbl_filter');
+        var $target = $filterHighlight && $filterHighlight.length
+            ? $filterHighlight
+            : $filter.find('.commission-filter-highlight');
+        if (!$mount.length) return;
+        if (!$target || !$target.length) {
+            $target = $filter;
+        }
+        if (!$target.length) return;
+        if ($mount.parent()[0] !== $target[0] || $target.children().first()[0] !== $mount[0]) {
+            $mount.detach().prependTo($target).addClass('is-placed').data('placed', true);
+        } else {
+            $mount.addClass('is-placed').data('placed', true);
+        }
     }
 
     function placeCommissionCompareSelection() {
         var $mount = $('#commission-compare-selection-mount');
         var $date = $('#commission-daterange-mount');
-        var $length = $('#commission-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
+        var $length = $('#commission-tbl_length');
+        var $controls = $('#commission-tbl_wrapper').find('.commission-controls-highlight').first();
         if (!$mount.length) return;
-        if ($mount.data('placed')) return;
-        if ($date.length && $date.hasClass('is-placed')) {
-            $mount.detach().insertAfter($date).addClass('is-placed').data('placed', true);
+        if ($date.length && $date.hasClass('is-placed') && $controls.length) {
+            if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $date[0]) {
+                $mount.detach().insertAfter($date).addClass('is-placed').data('placed', true);
+            } else {
+                $mount.addClass('is-placed').data('placed', true);
+            }
         } else if ($length.length) {
-            $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+            if ($mount.parent()[0] !== $length.parent()[0]) {
+                $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+            } else {
+                $mount.addClass('is-placed').data('placed', true);
+            }
         }
     }
 
@@ -872,18 +989,18 @@ $(document).ready(function() {
         }
     },
     "drawCallback": function () {
-        placeCommissionDateFilter();
-        placeCommissionCompareSelection();
-        placeCommissionCompareToolbar();
+        layoutCommissionControls();
         refreshCompareSelectAllHeader();
         refreshCompareCheckboxCells();
         calculateCommissionTotals();
         if ($.fn.DataTable.isDataTable('#commission-tbl')) {
             $('#commission-tbl').DataTable().columns.adjust();
+            $('#commission-tbl').css({ width: '100%', maxWidth: '100%' });
         }
     },
     "language": {
-        "search": (window.commissionTranslations?.search || "Search:"),
+        "search": "",
+        "searchPlaceholder": "Search...",
         "info": (window.commissionTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
         "paginate": {
             "previous": (window.commissionTranslations?.previous || "Previous"),
@@ -893,9 +1010,7 @@ $(document).ready(function() {
     },
 });
 
-    placeCommissionDateFilter();
-    placeCommissionCompareSelection();
-    placeCommissionCompareToolbar();
+    layoutCommissionControls();
 
     function reloadData() {
 
@@ -1165,9 +1280,7 @@ $(document).ready(function() {
             if ($.fn.DataTable.isDataTable('#commission-tbl')) {
                 $('#commission-tbl').DataTable().columns.adjust().draw(false);
             }
-            placeCommissionDateFilter();
-            placeCommissionCompareToolbar();
-            placeCommissionCompareSelection();
+            layoutCommissionControls();
         });
     }
 

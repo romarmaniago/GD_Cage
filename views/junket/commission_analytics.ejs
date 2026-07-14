@@ -25,15 +25,15 @@
 						</button>
 					</div>
 				</div>
-				<div class="card-body pt-2">
+				<div class="card-body pt-2 commission-analytics-page">
 					<div id="commission-analytics-compare-banner" class="alert alert-info py-2 px-3 mb-3 d-none small"></div>
 					<div id="commission-panel-daterange-mount" class="commission-panel-daterange-mount">
 						<div class="commission-panel-daterange-wrap">
 							<input type="text" id="commission-panel-daterange" class="form-control form-control-sm" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
 						</div>
 					</div>
-					<div class="table-responsive">
-						<table id="commission-panel-tbl" class="table nowrap small-text" style="width:100%">
+					<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+						<table id="commission-panel-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
 							<thead>
 								<tr>
 									<th>Ranking #</th>
@@ -161,10 +161,147 @@
 <script src="/assets/js/functions/commission_analytics.js"></script>
 
 <style>
+/* GD gold table theme — same setup as Commission / Additional Commission */
+.commission-analytics-page,
+#modal-commission-panel-transactions .commission-guest-modal-body {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+.commission-analytics-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+
+.commission-analytics-page table thead tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+
+.commission-analytics-page table thead th,
+.commission-analytics-page table.dataTable thead > tr > th.sorting,
+.commission-analytics-page table.dataTable thead > tr > th.sorting_asc,
+.commission-analytics-page table.dataTable thead > tr > th.sorting_desc,
+.commission-analytics-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+}
+
 #commission-panel-tbl {
-	width: 100%;
+	width: 100% !important;
+	max-width: 100% !important;
 	font-size: 13px;
 	border-collapse: collapse;
+	margin: 0 !important;
+	border: none !important;
+	box-sizing: border-box;
+}
+
+/* Shared outer border — cream bar + gold header pantay */
+#commission-panel-tbl_wrapper .commission-analytics-panel-shell {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	border: 1px solid var(--gd-marker-gold-border);
+	border-radius: 10px 10px 0 0;
+	overflow: hidden;
+	background: #fff;
+}
+
+#commission-panel-tbl_wrapper .commission-analytics-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin: 0;
+	background: #faf3dc;
+	border: none;
+	flex-wrap: wrap;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+#commission-panel-tbl_wrapper .commission-analytics-controls-highlight .dataTables_length {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 4px 0 0;
+	padding: 0;
+}
+
+#commission-panel-tbl_wrapper .commission-analytics-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+	padding: 0;
+}
+
+#commission-panel-tbl_wrapper #commission-panel-tbl_filter .commission-analytics-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.35);
+	border-radius: 10px;
+}
+
+#commission-panel-tbl_wrapper #commission-panel-tbl_filter .commission-analytics-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+
+#commission-panel-tbl_wrapper #commission-panel-tbl_filter .commission-analytics-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+
+#commission-panel-tbl_wrapper #commission-panel-tbl_filter .commission-analytics-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+
+#commission-panel-tbl_wrapper > .row.commission-analytics-dt-top-row-empty {
+	display: none !important;
+	margin: 0 !important;
+	height: 0 !important;
+	overflow: hidden !important;
+}
+
+#commission-panel-tbl_wrapper > .row.dt-row:has(table) {
+	display: flex !important;
+	height: auto !important;
+	overflow: visible !important;
+	margin: 0 !important;
+}
+#commission-panel-tbl_wrapper > .row.dt-row:not(:has(table)) {
+	display: none !important;
+	margin: 0 !important;
+	height: 0 !important;
+}
+
+#commission-panel-tbl_wrapper > .row {
+	margin-left: 0;
+	margin-right: 0;
+	margin-bottom: 0;
+}
+
+#commission-panel-tbl_wrapper > .row:has(.dataTables_info),
+#commission-panel-tbl_wrapper > .row:has(.dataTables_paginate) {
+	margin-top: 12px;
 }
 
 .commission-panel-daterange-mount {
@@ -226,12 +363,13 @@
 }
 
 #commission-panel-tbl thead th {
-	background: var(--bs-primary-bg-subtle);
-	color: var(--bs-primary);
+	background: transparent !important;
+	color: #000;
 	font-weight: 500;
 	padding: 12px 15px;
 	text-align: left;
 	border: none;
+	border-bottom: 1px solid var(--gd-marker-gold-border);
 	white-space: nowrap;
 }
 
@@ -267,26 +405,30 @@
 }
 
 #commission-panel-tbl thead th.commission-rank-sortable:hover {
-	background: #dfe6ff !important;
+	background: rgba(58, 46, 18, 0.08) !important;
 }
 
 #commission-panel-tbl thead th.commission-rank-sortable.is-active {
-	background: #d9eadf !important;
-	color: #1f7a37;
+	background: rgba(58, 46, 18, 0.12) !important;
+	color: #000;
 }
 
 .commission-rank-sort-indicator {
 	font-size: 10px;
 	margin-left: 4px;
-	color: #7381a0;
+	color: #3a2e12;
 }
 
 #commission-panel-tbl tbody td.commission-rank-metric-cell.is-active {
-	background: #ecf6ec !important;
+	background: #faf3dc !important;
 }
 
 #commission-panel-tbl tbody tr {
 	border-bottom: 1px solid #eee;
+}
+
+#commission-panel-tbl tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
 }
 
 #commission-panel-tbl td {
@@ -295,12 +437,14 @@
 	white-space: nowrap;
 }
 
-#commission-panel-tbl tbody tr:hover {
-	background-color: #f5f5f5 !important;
+#commission-panel-tbl tbody tr:hover,
+#commission-panel-tbl tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
 }
 
 #commission-panel-tbl_wrapper .dataTables_length label {
-	font-size: 0;
+	font-size: 12px;
+	color: #666;
 }
 
 #commission-panel-tbl_wrapper .dataTables_length select {
@@ -313,13 +457,14 @@
 }
 
 #commission-panel-tbl .js-open-agent-modal {
-	color: var(--bs-primary);
+	color: #8a6712;
 	font-weight: 500;
 	text-decoration: none;
 }
 
 #commission-panel-tbl .js-open-agent-modal:hover {
 	text-decoration: underline;
+	color: #6b4f14;
 }
 
 @media (max-width: 768px) {
@@ -338,13 +483,13 @@
 }
 
 #modal-commission-panel-transactions .modal-header {
-	background: #f4f6fb;
-	border-bottom: 1px solid #e6e9f2;
+	background: #faf3dc;
+	border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
 #modal-commission-panel-transactions .modal-title {
 	font-weight: 700;
-	color: #1f2d3d;
+	color: #3a2e12;
 }
 
 .commission-guest-modal-body {
@@ -353,7 +498,7 @@
 }
 
 .commission-guest-table-shell {
-	border: 1px solid #e8ecf3;
+	border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 	border-radius: 8px;
 	overflow: hidden;
 	display: flex;
@@ -373,8 +518,8 @@
 }
 
 .commission-guest-table-fixed {
-	border-left: 1px solid #e8ecf3;
-	border-right: 1px solid #e8ecf3;
+	border-left: none;
+	border-right: none;
 }
 
 .commission-guest-table-wrap {
@@ -391,12 +536,17 @@
 	font-weight: 500;
 }
 
+#commission-panel-modal-head-table thead tr {
+	background-color: var(--gd-marker-gold-solid, #d9b96a);
+}
+
 #commission-panel-modal-head-table thead th {
-	background: var(--bs-primary-bg-subtle);
-	color: var(--bs-primary);
+	background: transparent !important;
+	color: #000;
 	font-weight: 600;
 	font-size: 13px;
 	border: none;
+	border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 	white-space: nowrap;
 	padding: 10px 12px;
 }
@@ -407,18 +557,18 @@
 }
 
 .commission-sortable-col:hover {
-	background: #dfe6ff !important;
+	background: rgba(58, 46, 18, 0.08) !important;
 }
 
 .commission-sort-indicator {
 	font-size: 10px;
 	margin-left: 4px;
-	color: #6c757d;
+	color: #3a2e12;
 }
 
 #commission-panel-modal-head-table th.commission-panel-modal-col-active-header {
-	background: #d9eadf !important;
-	color: #1f7a37 !important;
+	background: rgba(58, 46, 18, 0.12) !important;
+	color: #000 !important;
 }
 
 #commission-panel-modal-body-table tbody td {
@@ -431,23 +581,23 @@
 }
 
 #commission-panel-modal-body-table tbody tr:nth-child(even) td {
-	background: #f8f9fc;
+	background: #fbf5e4;
 }
 
 #commission-panel-modal-body-table tbody tr:hover td {
-	background: #f7f9ff;
+	background: #faf3dc;
 }
 
 #commission-panel-modal-body-table tbody td.commission-panel-modal-col-active,
 #commission-panel-modal-foot-table tfoot th.commission-panel-modal-col-active {
-	background: #ecf6ec !important;
+	background: #faf3dc !important;
 }
 
 #commission-panel-modal-foot-table tfoot th {
-	background: #f4f6fa;
-	color: #212529;
+	background: var(--gd-marker-gold-solid, #d9b96a);
+	color: #000;
 	font-weight: 700;
-	border-top: 2px solid #dee2e6;
+	border-top: 2px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 	white-space: nowrap;
 	padding: 10px 12px;
 }

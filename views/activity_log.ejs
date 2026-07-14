@@ -43,9 +43,10 @@
                     </div>
                 </div>
        
-                <div class="card-body">
+                <div class="card-body activity-log-page">
        
-                    <table id="activity-logs-table" class="table nowrap small-text" style="width:100%"> 
+                    <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                    <table id="activity-logs-table" class="table marker-balance-tbl nowrap small-text w-100 mb-0"> 
                         <thead>
                             <tr>
                                 <th><%= __('dashboard.date_time') %></th>
@@ -65,6 +66,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    </div>
        
                 </div>
             </div>
@@ -541,20 +543,31 @@
         overflow-x: auto;
     }
     
+    .activity-log-page {
+        --gd-marker-gold-solid: #d9b96a;
+        --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+        --gd-marker-gold-hover: #faf3dc;
+    }
+
     #activity-logs-table {
         width: 100%;
         font-size: 13px;
         border-collapse: collapse;
+        border: 1px solid var(--gd-marker-gold-border);
     }
 
-    /* Header styles */
+    /* Header styles — gold bg, black labels */
+    #activity-logs-table thead tr {
+        background-color: var(--gd-marker-gold-solid);
+    }
     #activity-logs-table thead th {
-        background: var(--bs-primary-bg-subtle);
-        color: var(--bs-primary);
+        background: transparent !important;
+        color: #000;
         font-weight: 600;
         padding: 12px 15px;
         text-align: left;
         border: none;
+        border-bottom: 1px solid var(--gd-marker-gold-border);
         white-space: nowrap;
     }
 
@@ -589,8 +602,13 @@
         text-align: right;
     }
 
-    #activity-logs-table tbody tr:hover {
-        background-color: #f5f5f5 !important;
+    #activity-logs-table tbody tr:nth-child(even) td {
+        background-color: #fbf5e4;
+    }
+
+    #activity-logs-table tbody tr:hover,
+    #activity-logs-table tbody tr:hover td {
+        background-color: var(--gd-marker-gold-hover) !important;
     }
 
     /* Adjust spacing and alignment for date range picker */

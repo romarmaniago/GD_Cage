@@ -15,27 +15,37 @@
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
 									<a href="/user_roles"class="active"><%= __('user_roles.user_roles') %></a>
 								</div></h3>
-								<button class="btn btn-primary" data-bs-toggle="modal"
-									data-bs-target="#modal-new-role">
-									<i class="fa fa-plus" aria-hidden="true"></i> <%= __('user_roles.new_role') %>
-								</button>
 
 							</div>
 
-							<div class="card-body">
+							<div class="card-body settings-page">
+								<button
+									type="button"
+									class="expense-cat-panel-add-btn d-none"
+									id="btn-add-user-role"
+									title="<%= __('user_roles.new_role') %>"
+									aria-label="<%= __('user_roles.new_role') %>"
+									data-bs-toggle="modal"
+									data-bs-target="#modal-new-role"
+									data-view-only-disable
+								>
+									<i class="fa fa-plus" aria-hidden="true"></i>
+								</button>
 								<!-- DataTables -->
-								<table id="userRoleTable" class="table   nowrap small-text" style="width:100%">
+								<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+								<table id="userRoleTable" class="table marker-balance-tbl w-100 mb-0">
 									<thead>
 										<tr>
 											<th class="d-none d-sm-table-cell"><%= __('user_roles.role') %></th>
 											<th class="d-none d-sm-table-cell" style="width: 150px;"><%= __('user_roles.status') %></th>
-											<th class="d-none d-sm-table-cell" style="width: 100px;"><%= __('user_roles.action') %></th>
+											<th class="d-none d-sm-table-cell text-center" style="width: 100px;"><%= __('user_roles.action') %></th>
 										</tr>
 									</thead>
 									<tbody>
 
 									</tbody>
 								</table>
+								</div>
 
 							</div>
 						</div>
@@ -66,25 +76,151 @@
 									.card-body {
   overflow-x: auto;
 }
+
+.settings-page {
+	--gd-marker-gold-solid: #d9b96a;
+	--gd-marker-gold-text: #3a2e12;
+	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+	--gd-marker-gold-hover: #faf3dc;
+}
+.settings-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.settings-page table thead tr,
+.settings-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.settings-page table thead th,
+.settings-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+}
+.settings-page table.dataTable thead > tr > th.sorting,
+.settings-page table.dataTable thead > tr > th.sorting_asc,
+.settings-page table.dataTable thead > tr > th.sorting_desc,
+.settings-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
 									#userRoleTable {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    border: 1px solid var(--gd-marker-gold-border);
 }
 
-/* Header styles */
+/* Header styles — gold bg, black labels */
 #userRoleTable thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
+    color: #000;
     font-weight: 500;
     padding: 12px 15px;
     text-align: left;
     border: none;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+
+/* Circular + beside search (matches gold toolbar sample) */
+#btn-add-user-role.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: #c8a24c;
+	color: #3a2e12;
+	box-shadow: inset 0 1px 2px rgba(58, 46, 18, 0.2);
+	line-height: 1;
+	flex-shrink: 0;
+	position: relative;
+	z-index: 2;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+#btn-add-user-role.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+}
+#btn-add-user-role.expense-cat-panel-add-btn:hover:not(:disabled) {
+	background: #b8923f;
+	color: #000;
+}
+#btn-add-user-role.expense-cat-panel-add-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+#userRoleTable_wrapper .user-roles-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: var(--gd-marker-gold-solid);
+	border: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#userRoleTable_wrapper .user-roles-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#userRoleTable_wrapper .user-roles-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#userRoleTable_wrapper #userRoleTable_filter .user-roles-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#userRoleTable_wrapper #userRoleTable_filter .user-roles-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#userRoleTable_wrapper #userRoleTable_filter .user-roles-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#userRoleTable_wrapper #userRoleTable_filter .user-roles-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#userRoleTable_wrapper #userRoleTable {
+	margin-top: 0 !important;
+}
+#userRoleTable_wrapper .dataTables_length,
+#userRoleTable_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
 }
 
 /* Row styles */
 		#userRoleTable tbody tr {
     border-bottom: 1px solid #eee;
+}
+
+#userRoleTable tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
 }
 
 /* Cell styles */
@@ -93,8 +229,9 @@
     color: #666;
 }
 
-#userRoleTable tbody tr:hover {
-  background-color: #f5f5f5 !important;
+#userRoleTable tbody tr:hover,
+#userRoleTable tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover) !important;
 }
 
 
@@ -112,10 +249,9 @@
 #userRoleTable tfoot th {
     padding: 10px;
     font-weight: 600;
-  
     color: #333;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    border-top: 2px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid var(--gd-marker-gold-border);
 }
 @media (max-width: 768px) {
     #userRoleTable {
@@ -183,3 +319,66 @@
 										}
 									}
 								</style>
+								<script>
+									(function () {
+										function applyUserRolesControlsLayout() {
+											var wrapper = document.getElementById('userRoleTable_wrapper');
+											var lengthWrap = document.getElementById('userRoleTable_length');
+											var filterWrap = document.getElementById('userRoleTable_filter');
+											var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
+											var searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+											var addBtn = document.getElementById('btn-add-user-role');
+											var controlsHighlight;
+											var filterHighlight;
+											var searchPlaceholder = (window.userRolesTranslations && window.userRolesTranslations.search)
+												? String(window.userRolesTranslations.search).replace(/\s*:?\s*$/, '') + '...'
+												: 'Search...';
+
+											if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+
+											controlsHighlight = wrapper.querySelector('.user-roles-controls-highlight');
+											if (!controlsHighlight) {
+												controlsHighlight = document.createElement('div');
+												controlsHighlight.className = 'user-roles-controls-highlight';
+												wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+											}
+											if (lengthWrap.parentElement !== controlsHighlight) {
+												controlsHighlight.appendChild(lengthWrap);
+											}
+											if (filterWrap.parentElement !== controlsHighlight) {
+												controlsHighlight.appendChild(filterWrap);
+											}
+
+											filterHighlight = filterWrap.querySelector('.user-roles-filter-highlight');
+											if (!filterHighlight) {
+												filterHighlight = document.createElement('div');
+												filterHighlight.className = 'user-roles-filter-highlight';
+												filterWrap.appendChild(filterHighlight);
+											}
+
+											if (addBtn && addBtn.parentElement !== filterHighlight) {
+												filterHighlight.appendChild(addBtn);
+											}
+											if (searchLabel.parentElement !== filterHighlight) {
+												filterHighlight.appendChild(searchLabel);
+											}
+											/* Move "Search:" text into the input as placeholder */
+											if (searchInput) {
+												searchInput.setAttribute('placeholder', searchPlaceholder);
+												Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
+													if (node.nodeType === 3) searchLabel.removeChild(node);
+												});
+											}
+											if (addBtn) addBtn.classList.remove('d-none');
+										}
+
+										if (window.jQuery) {
+											$(document).on('init.dt draw.dt', '#userRoleTable', applyUserRolesControlsLayout);
+											$(applyUserRolesControlsLayout);
+										} else {
+											document.addEventListener('DOMContentLoaded', function () {
+												setTimeout(applyUserRolesControlsLayout, 0);
+											});
+										}
+									})();
+								</script>

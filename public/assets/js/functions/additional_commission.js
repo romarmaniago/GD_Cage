@@ -249,6 +249,18 @@
       if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
         $filterHighlight.append($filterLabel);
       }
+
+      /* Only hide the emptied top controls row — never .dt-row (holds the table) */
+      $wrapper.children('.row').each(function () {
+        const $row = window.jQuery(this);
+        if ($row.hasClass('dt-row') || $row.find('table').length) return;
+        if (!$row.find('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate').length) {
+          $row.addClass('additional-commission-dt-top-row-empty').hide();
+        }
+      });
+
+      $table.css({ marginTop: 0, marginBottom: 0 }).show();
+      $table.closest('.row.dt-row').show().removeClass('additional-commission-dt-top-row-empty');
     }
 
     function initDataTableOnce() {

@@ -908,6 +908,69 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     overflow: visible;
     max-height: none;
 }
+
+/* ITEMS panel — match Additional Commission (cream bar + solid gold headers) */
+.expense-explorer-item-col {
+    --gd-marker-gold-solid: #d9b96a;
+    --gd-marker-gold-text: #3a2e12;
+    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+    --gd-marker-gold-hover: #faf3dc;
+}
+.expense-explorer-item-col .expense-cat-panel-head {
+    background: #faf3dc;
+    color: #000;
+    border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+.expense-explorer-item-col .expense-cat-panel-head .text-muted,
+.expense-explorer-item-col .expense-cat-panel-head #expense-item-panel-subtitle {
+    color: #3a2e12 !important;
+}
+.expense-explorer-item-col .expense-cat-panel-add-btn {
+    background: #fff;
+    color: var(--bs-primary);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+    filter: none;
+}
+.expense-explorer-item-col .expense-cat-panel-add-btn:hover:not(:disabled) {
+    background: var(--bs-primary);
+    color: #fff;
+    border-color: var(--bs-primary);
+    filter: none;
+}
+.expense-explorer-item-col #expense-item-cat-tbl thead tr {
+    background-color: var(--gd-marker-gold-solid);
+}
+.expense-explorer-item-col #expense-item-cat-tbl.expense-master-tbl thead th,
+.expense-explorer-item-col #expense-item-cat-tbl thead th {
+    background: transparent !important;
+    color: #000 !important;
+    font-weight: 600;
+    border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col:hover,
+.expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col.is-sorted {
+    background: rgba(58, 46, 18, 0.08) !important;
+    color: #000 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl tbody tr:nth-child(even) td {
+    background-color: #fbf5e4;
+}
+.expense-explorer-item-col #expense-item-cat-tbl.expense-master-tbl tbody tr.js-expense-item-cat-row:hover,
+.expense-explorer-item-col #expense-item-cat-tbl.expense-master-tbl tbody tr.js-expense-item-cat-row:hover td {
+    background-color: var(--gd-marker-gold-hover) !important;
+}
+.expense-explorer-item-col .expense-item-table-separator {
+    border-top-color: var(--gd-marker-gold-border);
+}
+.expense-explorer-item-col .expense-item-footer-summary {
+    background: var(--gd-marker-gold-solid);
+    border: 1px solid var(--gd-marker-gold-border);
+    box-shadow: none;
+}
+.expense-explorer-item-col .expense-item-footer-line {
+    color: #000;
+    border-bottom-color: var(--gd-marker-gold-border);
+}
 .expense-item-table-wrap {
     transform: translateY(0);
 }

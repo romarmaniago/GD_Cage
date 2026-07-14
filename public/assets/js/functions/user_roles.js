@@ -14,7 +14,8 @@ $(document).ready(function() {
             }
         ],
         language: {
-            search: (window.userRolesTranslations?.search || "Search:"),
+            search: "",
+            searchPlaceholder: (window.userRolesTranslations?.search || "Search").replace(/\s*:?\s*$/, "") + "...",
             info: (window.userRolesTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
             paginate: {
                 previous: (window.userRolesTranslations?.previous || "Previous"),

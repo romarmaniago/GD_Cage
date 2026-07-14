@@ -110,12 +110,94 @@ $(document).ready(function () {
         return 0;
     }
 
+    function layoutCommissionAnalyticsControls() {
+        var $wrapper = $('#commission-panel-tbl_wrapper');
+        var $length = $('#commission-panel-tbl_length');
+        var $filter = $('#commission-panel-tbl_filter');
+        var $table = $('#commission-panel-tbl');
+        var $shell;
+        var $controls;
+        var $filterHighlight;
+        var $filterLabel;
+        var $searchInput;
+
+        if (!$wrapper.length || !$length.length || !$filter.length || !$table.length) return;
+
+        $shell = $wrapper.children('.commission-analytics-panel-shell');
+        if (!$shell.length) {
+            $shell = $('<div class="commission-analytics-panel-shell"></div>');
+            $wrapper.prepend($shell);
+        }
+
+        $controls = $shell.children('.commission-analytics-controls-highlight');
+        if (!$controls.length) {
+            $controls = $('<div class="commission-analytics-controls-highlight"></div>');
+            $shell.prepend($controls);
+        }
+
+        if ($table.parent()[0] !== $shell[0]) {
+            $shell.append($table);
+        }
+        if ($length.parent()[0] !== $controls[0]) {
+            $controls.append($length);
+        }
+        if ($filter.parent()[0] !== $controls[0]) {
+            $controls.append($filter);
+        }
+
+        placeCommissionPanelDateFilter();
+
+        $filterHighlight = $filter.children('.commission-analytics-filter-highlight');
+        if (!$filterHighlight.length) {
+            $filterHighlight = $('<div class="commission-analytics-filter-highlight"></div>');
+            $filter.append($filterHighlight);
+        }
+
+        $filterLabel = $filter.children('label');
+        if (!$filterLabel.length) {
+            $filterLabel = $filterHighlight.children('label');
+        }
+        if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
+            $filterHighlight.append($filterLabel);
+        }
+
+        $searchInput = $filterLabel.find('input');
+        if ($searchInput.length) {
+            $searchInput.attr('placeholder', 'Search...');
+            $filterLabel.contents().filter(function () {
+                return this.nodeType === 3;
+            }).remove();
+        }
+
+        /* Only hide emptied top controls row — never .dt-row (holds the table) */
+        $wrapper.children('.row').each(function () {
+            var $row = $(this);
+            if ($row.hasClass('dt-row') || $row.find('table').length) return;
+            if (!$row.find('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate').length) {
+                $row.addClass('commission-analytics-dt-top-row-empty').hide();
+            }
+        });
+
+        $table.css({ marginTop: 0, marginBottom: 0, width: '100%', maxWidth: '100%' }).show();
+        /* Table lives in shell now — hide leftover empty dt-row wrapper */
+        $wrapper.children('.row.dt-row').each(function () {
+            var $row = $(this);
+            if (!$row.find('table').length) {
+                $row.hide();
+            }
+        });
+    }
+
     function placeCommissionPanelDateFilter() {
         var $mount = $('#commission-panel-daterange-mount');
-        var $length = $('#commission-panel-tbl').closest('.dataTables_wrapper').find('.dataTables_length').first();
-        if (!$mount.length || !$length.length) return;
-        if ($mount.data('placed')) return;
-        $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        var $length = $('#commission-panel-tbl_length');
+        var $controls = $('#commission-panel-tbl_wrapper').find('.commission-analytics-controls-highlight').first();
+        if (!$mount.length || !$length.length || !$controls.length) return;
+        if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $length[0]) {
+            $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        } else {
+            $mount.addClass('is-placed').data('placed', true);
+        }
         if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
             var el = document.getElementById('commission-panel-daterange');
             if (el && el._flatpickr) {
@@ -153,17 +235,19 @@ $(document).ready(function () {
             { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' }
         ],
         drawCallback: function () {
-            placeCommissionPanelDateFilter();
+            layoutCommissionAnalyticsControls();
+            $('#commission-panel-tbl').css({ width: '100%', maxWidth: '100%' });
         },
         language: {
-            search: 'Search:',
+            search: '',
+            searchPlaceholder: 'Search...',
             info: 'Showing _START_ to _END_ of _TOTAL_ entries',
             paginate: { previous: 'Previous', next: 'Next' },
             emptyTable: 'No data available in table'
         }
     });
 
-    placeCommissionPanelDateFilter();
+    layoutCommissionAnalyticsControls();
 
     var urlParams = new URLSearchParams(window.location.search);
     var compareFilterFromUrl = (urlParams.get('compare') || '')

@@ -146,7 +146,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  margin-bottom: -1px;
+  margin: 0;
   background: #faf3dc;
   border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
   border-bottom: 0;
@@ -194,8 +194,28 @@
   box-shadow: none;
 }
 
+/* Override DataTables BS5 margin-top: 6px so cream bar sits flush on gold header */
+#additional-commission-tbl_wrapper table.dataTable#additional-commission-tbl,
+#additional-commission-tbl_wrapper #additional-commission-tbl.dataTable,
 #additional-commission-tbl_wrapper #additional-commission-tbl {
   margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-top: 0 !important;
+}
+
+#additional-commission-tbl_wrapper > .row.additional-commission-dt-top-row-empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+}
+
+/* Never collapse the DataTables row that contains the table */
+#additional-commission-tbl_wrapper > .row.dt-row {
+  display: flex !important;
+  height: auto !important;
+  overflow: visible !important;
+  margin: 0 !important;
 }
 
 

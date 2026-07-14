@@ -22,13 +22,13 @@
                                     </h3>
                                 </div>
 
-                                <div class="card-body">
+                                <div class="card-body change-game-no-page">
                                     <div class="row justify-content-center">
                                         <div class="col-lg-6 col-md-8 col-sm-10 text-center">
                                             <!-- Display Current Game Number -->
                                             <div class="d-flex flex-column align-items-center">
-                                                <table id="gameNumberTable" class="table table-bordered table-sm mt-3"
-                                                    style="max-width: 350px; width: 100%;">
+                                                <div class="marker-balance-dt-wrap marker-balance-card mt-3" style="max-width: 350px; width: 100%;">
+                                                <table id="gameNumberTable" class="table marker-balance-tbl table-sm w-100 mb-0">
                                                     <thead>
                                                         <tr>
                                                             <th class="text-center">
@@ -44,6 +44,7 @@
                                                         </tr>
                                                     </tbody>
                                                 </table>
+                                                </div>
 
                                                 <!-- Input and Button Centered -->
                                                 <div class="mt-3 d-flex gap-2">
@@ -65,8 +66,8 @@
 
                                     <div class="card-body">
                                         <!-- Table Log Section -->
-                                        <div class="mt-5">
-                                            <table class="table text-center  nowrap small-text" style="width:100%">
+                                        <div class="mt-5 marker-balance-dt-wrap marker-balance-card table-responsive">
+                                            <table class="table marker-balance-tbl text-center nowrap small-text w-100 mb-0">
                                                 <thead>
                                                     <tr>
                                                         <th>
@@ -260,6 +261,32 @@
                     </script>
                     <style>
                         .card-body {
-  overflow-x: auto;
-}
+                            overflow-x: auto;
+                        }
+                        /* GD gold table theme — gold header, black labels */
+                        .change-game-no-page {
+                            --gd-marker-gold-solid: #d9b96a;
+                            --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+                            --gd-marker-gold-hover: #faf3dc;
+                        }
+                        .change-game-no-page table.marker-balance-tbl {
+                            border: 1px solid var(--gd-marker-gold-border);
+                            border-collapse: collapse;
+                        }
+                        .change-game-no-page table.marker-balance-tbl thead tr {
+                            background-color: var(--gd-marker-gold-solid);
+                        }
+                        .change-game-no-page table.marker-balance-tbl thead th {
+                            background: transparent !important;
+                            color: #000;
+                            font-weight: 500;
+                            border: none;
+                            border-bottom: 1px solid var(--gd-marker-gold-border);
+                        }
+                        .change-game-no-page table.marker-balance-tbl tbody tr:nth-child(even) td {
+                            background-color: #fbf5e4;
+                        }
+                        .change-game-no-page table.marker-balance-tbl tbody tr:hover td {
+                            background-color: var(--gd-marker-gold-hover) !important;
+                        }
                     </style>

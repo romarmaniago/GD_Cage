@@ -63,14 +63,23 @@
 				max-width: 100%;
 				margin-bottom: 0;
 			}
+			#telegram-send-log-table {
+				--gd-marker-gold-solid: #d9b96a;
+				--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
+				--gd-marker-gold-hover: #faf3dc;
+				border: 1px solid var(--gd-marker-gold-border);
+			}
+			#telegram-send-log-table thead tr {
+				background-color: var(--gd-marker-gold-solid);
+			}
 			#telegram-send-log-table thead th {
-				background: var(--bs-primary-bg-subtle);
-				color: var(--bs-primary);
+				background: transparent !important;
+				color: #000;
 				font-weight: 500;
 				padding: 12px 15px;
 				text-align: left;
 				border: none;
-				border-bottom: none;
+				border-bottom: 1px solid var(--gd-marker-gold-border);
 				position: relative;
 			}
 			/* DataTables-like sorting indicators */
@@ -87,7 +96,7 @@
 				transform: translateY(-50%);
 				font-size: 11px;
 				opacity: 0.45;
-				color: var(--bs-primary);
+				color: #000;
 			}
 			#telegram-send-log-table thead th.sorting_asc::after {
 				content: '▲';
@@ -110,12 +119,12 @@
 			#telegram-send-log-table tbody tr:not(.tg-log-row-group-a):not(.tg-log-row-group-b):hover {
 				background-color: #f5f5f5 !important;
 			}
-			/* Alternating row groups — soft blue vs cool white (matches primary header) */
+			/* Alternating row groups — soft gold vs cream (matches gold header) */
 			#telegram-send-log-table {
-				--tg-log-band-a: color-mix(in srgb, var(--bs-primary-bg-subtle, #cfe2ff) 72%, white);
-				--tg-log-band-b: #fafcfe;
-				--tg-log-band-a-hover: color-mix(in srgb, var(--bs-primary-bg-subtle, #cfe2ff) 88%, white);
-				--tg-log-band-b-hover: #f0f3f8;
+				--tg-log-band-a: #fbf5e4;
+				--tg-log-band-b: #fffdf5;
+				--tg-log-band-a-hover: #faf3dc;
+				--tg-log-band-b-hover: #faf3dc;
 			}
 			#telegram-send-log-table tbody tr.tg-log-row-group-a td {
 				background-color: var(--tg-log-band-a);
@@ -247,8 +256,8 @@
 										</div>
 									</div>
 								</div>
-								<div class="tg-log-table-outer">
-									<table class="table table-sm small-text" id="telegram-send-log-table" style="width:100%">
+								<div class="tg-log-table-outer marker-balance-dt-wrap marker-balance-card">
+									<table class="table table-sm small-text marker-balance-tbl w-100 mb-0" id="telegram-send-log-table">
 										<thead>
 											<tr>
 												<th class="tg-log-col-time sorting_desc" data-sort="created_at"><%= __('telegram_api.logs_col_time') %></th>
