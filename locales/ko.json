@@ -129,7 +129,20 @@
 		"title": "정켓"
 	},
 	"game_information": {
-		"on_progress": "진행 중"
+		"on_progress": "진행 중",
+		"empty_table": "게임이 없습니다",
+		"add_game": "게임 추가",
+		"lookup": "조회",
+		"preview": "게임북 미리보기",
+		"add_hint": "기존 게임북 게임 번호를 입력한 후 조회하세요.",
+		"game_not_found": "게임북에서 게임을 찾을 수 없습니다",
+		"already_added": "이 게임은 이미 게임 정보에 추가되어 있습니다",
+		"invalid_game_no": "유효한 게임 번호를 입력하세요",
+		"lookup_failed": "조회에 실패했습니다",
+		"add_success": "게임 정보에 추가되었습니다",
+		"add_failed": "추가에 실패했습니다",
+		"cancel": "취소",
+		"save": "저장"
 	},
 	"tip": {
 		"new_record": "새 팁",
@@ -1355,6 +1368,8 @@
 		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer",
 		"ingame_settlement_title": "modal_change_status.ingame_settlement_title",
 		"ingame_expected_settlement": "modal_change_status.ingame_expected_settlement",
+		"ingame_settlement_buyin": "바이인",
+		"ingame_settlement_cashout": "캐시아웃",
 		"ingame_current_balance": "modal_change_status.ingame_current_balance",
 		"ingame_anticipated_balance": "modal_change_status.ingame_anticipated_balance",
 		"ingame_processing_amount": "modal_change_status.ingame_processing_amount",

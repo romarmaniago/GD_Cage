@@ -128,7 +128,20 @@
 		"Change_Game_No": "修改游戏编号"
 	},
 	"game_information": {
-		"on_progress": "开发中"
+		"on_progress": "开发中",
+		"empty_table": "暂无游戏",
+		"add_game": "添加游戏",
+		"lookup": "查询",
+		"preview": "游戏簿预览",
+		"add_hint": "输入现有游戏簿的游戏编号，然后查询。",
+		"game_not_found": "在游戏簿中未找到该游戏",
+		"already_added": "该游戏已添加到游戏信息",
+		"invalid_game_no": "请输入有效的游戏编号",
+		"lookup_failed": "查询失败",
+		"add_success": "已添加到游戏信息",
+		"add_failed": "添加失败",
+		"cancel": "取消",
+		"save": "保存"
 	},
 	"tip": {
 		"new_record": "新增小费",
@@ -1355,6 +1368,8 @@
 		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer",
 		"ingame_settlement_title": "modal_change_status.ingame_settlement_title",
 		"ingame_expected_settlement": "modal_change_status.ingame_expected_settlement",
+		"ingame_settlement_buyin": "买入",
+		"ingame_settlement_cashout": "兑现",
 		"ingame_current_balance": "modal_change_status.ingame_current_balance",
 		"ingame_anticipated_balance": "modal_change_status.ingame_anticipated_balance",
 		"ingame_processing_amount": "modal_change_status.ingame_processing_amount",

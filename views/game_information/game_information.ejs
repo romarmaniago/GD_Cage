@@ -9,20 +9,69 @@
       <div class="card">
         <div id="user-role" data-permissions="<%= permissions %>"></div>
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="card-title mb-0">
+          <h3 class="card-title">
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
               <a href="/game_information" class="active"><%= __('sidebar.game_information') %></a>
             </div>
           </h3>
         </div>
-        <div class="card-body">
-          <div class="text-center py-5">
-            <div class="mb-3">
-              <i class="fa fa-info-circle" style="font-size: 3rem; color: #c8a24c;"></i>
+
+        <div class="card-body game-information-page">
+          <div class="row mb-2">
+            <div class="col-12 col-lg-6">
+              <div id="gi-program-date-wrapper" class="day-selector-wrapper mb-3">
+                <%
+                  const now = new Date();
+                  const pad = value => value.toString().padStart(2, '0');
+                  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                %>
+                <div class="program-date-picker-row">
+                  <div class="input-group gi-program-date-group" data-today="<%= todayStr %>" data-initial-program-date="<%= todayStr %>">
+                    <input type="text" id="gi-program-date-range-picker" class="form-control text-center" placeholder="Program date range" autocomplete="off" />
+                  </div>
+                </div>
+              </div>
             </div>
-            <h4 class="mb-2"><%= __('sidebar.game_information') %></h4>
-            <p class="text-muted mb-0"><%= __('game_information.on_progress') %></p>
+          </div>
+
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <table id="game_information-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th><%= __('gamelist.program_date_col') %></th>
+                  <th><%= __('gamelist.game_start') %></th>
+                  <th class="text-center"><%= __('gamelist.type') %></th>
+                  <th class="text-center"><%= __('gamelist.game#') %></th>
+                  <th class="text-center"><%= __('gamelist.acct_no') %></th>
+                  <th class="text-center"><%= __('gamelist.guest') %></th>
+                  <th class="text-center"><%= __('gamelist.buyin') %></th>
+                  <th class="text-center"><%= __('gamelist.cash_out') %></th>
+                  <th class="text-center"><%= __('gamelist.win_loss') %></th>
+                  <th class="text-center"><%= __('gamelist.real_rolling') %></th>
+                  <th class="text-center"><%= __('gamelist.game_rate') %></th>
+                  <th class="text-center"><%= __('gamelist.commission') %></th>
+                  <th class="text-center">ADD CHG</th>
+                  <th class="text-center">TOTAL SETTLE</th>
+                  <th class="text-center"><%= __('gamelist.game_end') %></th>
+                </tr>
+              </thead>
+              <tbody class="text-center"></tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="6" class="fw-semibold text-end"><%= __('gamelist.grand_total') %></th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_BUYIN">0.00</th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_CASHOUT">0.00</th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_WINLOSS">0.00</th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_ROLLING">0.00</th>
+                  <th></th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_COMMISSION">0.00</th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_ADD_CHG">0.00</th>
+                  <th class="text-center fw-semibold" id="GI_GRAND_SETTLE">0.00</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </div>
@@ -30,4 +79,133 @@
   </div>
 </div>
 
+<%- include('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
+
+<style>
+.game-information-page {
+	--gd-marker-gold-solid: #e8d5a3;
+	--gd-marker-gold-border: #c8a24c;
+	--gd-marker-gold-text: #5c4a1f;
+	--gd-marker-gold-hover: #faf3dc;
+}
+
+.game-information-page .gi-program-date-group {
+	width: 14.75rem;
+	max-width: 14.75rem;
+}
+.game-information-page .gi-program-date-group .flatpickr-wrapper,
+.game-information-page .gi-program-date-group .form-control,
+.game-information-page .gi-program-date-group .flatpickr-input,
+.game-information-page .gi-program-date-group .flatpickr-alt-input {
+	width: 14.75rem !important;
+	max-width: 14.75rem !important;
+	min-width: 0 !important;
+	font-size: 0.8125rem;
+	padding: 0.4rem 0.5rem;
+	height: 2.35rem;
+	line-height: 1.35;
+}
+
+.game-information-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.game-information-page table thead tr,
+.game-information-page table tfoot tr {
+	background-color: var(--gd-marker-gold-solid);
+}
+.game-information-page table thead th,
+.game-information-page table tfoot th {
+	background: transparent !important;
+	background-color: transparent !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.game-information-page table.dataTable thead > tr > th.sorting,
+.game-information-page table.dataTable thead > tr > th.sorting_asc,
+.game-information-page table.dataTable thead > tr > th.sorting_desc,
+.game-information-page table.dataTable thead > tr > th.sorting_disabled {
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+.game-information-page .marker-balance-tbl {
+	width: 100%;
+	font-size: 13px;
+	border-collapse: collapse;
+	border: 1px solid var(--gd-marker-gold-border);
+}
+.game-information-page .marker-balance-tbl thead th {
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
+	padding: 12px 15px;
+	border: none;
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+.game-information-page .marker-balance-tbl tbody tr { border-bottom: 1px solid #eee; }
+.game-information-page .marker-balance-tbl tbody tr:last-child td,
+.game-information-page .marker-balance-tbl tbody td.dataTables_empty {
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+}
+.game-information-page .marker-balance-tbl tfoot tr th {
+	border-top: 2px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
+	padding: 10px 15px;
+}
+.game-information-page .marker-balance-tbl td { padding: 12px 15px; color: #666; }
+.game-information-page .marker-balance-tbl tbody tr:hover { background-color: var(--gd-marker-gold-hover) !important; }
+
+.game-information-page .marker-balance-dt-wrap,
+.game-information-page .marker-balance-card {
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+#game_information-tbl.dataTable.marker-total-table,
+#game_information-tbl.marker-total-table {
+	width: 100% !important;
+}
+.game-information-page .marker-total-table thead th,
+.game-information-page .marker-total-table tbody td {
+	white-space: nowrap;
+	vertical-align: middle;
+	font-size: 0.875rem;
+}
+.game-information-page .marker-total-table thead th {
+	color: var(--gd-marker-gold-text) !important;
+	font-weight: 600;
+	border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+}
+.game-information-page .marker-total-table tbody tr:nth-child(even) td {
+	background-color: #fbf5e4;
+}
+.game-information-page .marker-total-table tbody tr:hover td {
+	background-color: var(--gd-marker-gold-hover) !important;
+}
+.game-information-page .marker-total-table tfoot tr th {
+	border-top: 2px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid var(--gd-marker-gold-border);
+	color: var(--gd-marker-gold-text);
+	font-weight: 600;
+	padding: 10px 15px;
+}
+.game-information-page .marker-total-table thead th.sorting,
+.game-information-page .marker-total-table thead th.sorting_asc,
+.game-information-page .marker-total-table thead th.sorting_desc {
+	color: var(--gd-marker-gold-text) !important;
+}
+</style>
+
+<script type="application/json" id="game-information-i18n"><%- JSON.stringify({
+  onGame: __('gamelist.on_game'),
+  endGame: __('gamelist.end_game'),
+  live: __('gamelist.live'),
+  telebet: __('gamelist.telebet'),
+  emptyTable: __('game_information.empty_table')
+}) %></script>
+<script src="/assets/js/functions/game_information.js"></script>

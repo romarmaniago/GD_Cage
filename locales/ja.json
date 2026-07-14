@@ -128,7 +128,20 @@
 		"Change_Game_No": "ゲーム番号の変更"
 	},
 	"game_information": {
-		"on_progress": "開発中"
+		"on_progress": "開発中",
+		"empty_table": "ゲームがありません",
+		"add_game": "ゲーム追加",
+		"lookup": "検索",
+		"preview": "ゲームブックプレビュー",
+		"add_hint": "既存のゲームブックのゲーム番号を入力し、検索してください。",
+		"game_not_found": "ゲームブックにゲームが見つかりません",
+		"already_added": "このゲームは既にゲーム情報に追加されています",
+		"invalid_game_no": "有効なゲーム番号を入力してください",
+		"lookup_failed": "検索に失敗しました",
+		"add_success": "ゲーム情報に追加しました",
+		"add_failed": "追加に失敗しました",
+		"cancel": "キャンセル",
+		"save": "保存"
 	},
 	"tip": {
 		"new_record": "新規チップ",
@@ -1355,6 +1368,8 @@
 		"cutoff_tip_dealer": "modal_change_status.cutoff_tip_dealer",
 		"ingame_settlement_title": "modal_change_status.ingame_settlement_title",
 		"ingame_expected_settlement": "modal_change_status.ingame_expected_settlement",
+		"ingame_settlement_buyin": "バイイン",
+		"ingame_settlement_cashout": "キャッシュアウト",
 		"ingame_current_balance": "modal_change_status.ingame_current_balance",
 		"ingame_anticipated_balance": "modal_change_status.ingame_anticipated_balance",
 		"ingame_processing_amount": "modal_change_status.ingame_processing_amount",

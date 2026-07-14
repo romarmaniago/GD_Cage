@@ -225,13 +225,44 @@ function isCutoffSplitEnabled(body) {
 	);
 }
 
-function buildCutoffParentCashoutLegs(body, parentTransType) {
+/**
+ * Remaining CC on cut-off: thousands continue to the new game; sub-thousand
+ * remainder is cashed out as Deposit into the account (not buy-in).
+ * e.g. 999 → {0, 999}; 2000 → {2000, 0}; 1250 → {1000, 250}
+ */
+function splitCutoffRemainingCc(remainingCc) {
+	const amount = Math.max(0, parseChipAmount(remainingCc));
+	const transferCc = Math.floor(amount / 1000) * 1000;
+	const depositCc = Math.round((amount - transferCc) * 100) / 100;
+	return { transferCc, depositCc };
+}
+
+/** NN + thousands-portion of Remaining CC — transferred parent mop → new-game buy-in. */
+function buildCutoffTransferLegs(body, parentTransType) {
 	const nn = parseChipAmount(body.txtCutoffRemainingNN || body.txtCutoffBuyInNN);
 	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
-	if (nn + cc <= 0) {
+	const { transferCc } = splitCutoffRemainingCc(cc);
+	if (nn + transferCc <= 0) {
 		return [];
 	}
-	return [{ nn, cc, transType: parentTransType }];
+	return [{ nn, cc: transferCc, transType: parentTransType }];
+}
+
+/** Sub-thousand Remaining CC → cashout as Deposit (account credit). */
+function buildCutoffCcDepositCashoutLegs(body) {
+	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
+	const { depositCc } = splitCutoffRemainingCc(cc);
+	if (depositCc <= 0) {
+		return [];
+	}
+	return [{ nn: 0, cc: depositCc, transType: 2 }];
+}
+
+function buildCutoffParentCashoutLegs(body, parentTransType) {
+	return [
+		...buildCutoffTransferLegs(body, parentTransType),
+		...buildCutoffCcDepositCashoutLegs(body)
+	];
 }
 
 function buildCutoffSplitBuyInLegs(body) {
@@ -246,7 +277,7 @@ function buildCutoffSplitBuyInLegs(body) {
 }
 
 function buildCutoffNewGameBuyInLegs(body, parentTransType) {
-	const legs = buildCutoffParentCashoutLegs(body, parentTransType);
+	const legs = buildCutoffTransferLegs(body, parentTransType);
 	legs.push(...buildCutoffSplitBuyInLegs(body));
 	return legs;
 }
@@ -288,19 +319,65 @@ function buildInGameSplitBuyInLegs(body) {
 	].filter((leg) => leg.nn + leg.cc > 0);
 }
 
-function buildInGameCommissionBuyInLeg(payment) {
-	const total = Math.max(0, parseChipAmount(payment));
-	if (total <= 0) {
+function buildInGameCommissionBuyInLeg(buyInAmount) {
+	const buyIn = Math.max(0, Math.round(parseChipAmount(buyInAmount)));
+	if (buyIn <= 0) {
 		return null;
 	}
-	const nn = Math.floor(total / 1000) * 1000;
-	const cc = total - nn;
-	return { nn, cc, transType: 1 };
+	// Deposit mop: funded from the commission just deposited into the account.
+	return { nn: buyIn, cc: 0, transType: 2 };
 }
 
-function buildInGameNewGameBuyInLegs(body, parentTransType, commissionPayment) {
+function parseInGameSettlementSplit(body, expectedPayment) {
+	const expected = Math.round(Math.max(0, parseChipAmount(expectedPayment)));
+	const hasBuyInField = body?.txtInGameSettlementBuyIn != null && String(body.txtInGameSettlementBuyIn).trim() !== '';
+	const hasCashOutField = body?.txtInGameSettlementCashOut != null && String(body.txtInGameSettlementCashOut).trim() !== '';
+
+	let buyIn;
+	let cashOut;
+	if (!hasBuyInField && !hasCashOutField) {
+		buyIn = Math.floor(expected / 1000) * 1000;
+		cashOut = expected - buyIn;
+	} else {
+		buyIn = Math.round(parseChipAmount(body.txtInGameSettlementBuyIn));
+		cashOut = Math.round(parseChipAmount(body.txtInGameSettlementCashOut));
+	}
+
+	if (expected <= 0) {
+		if (buyIn === 0 && cashOut === 0) {
+			return { buyIn: 0, cashOut: 0, expected: 0 };
+		}
+		const err = new Error('Buy-in and Cash-out must be empty when Expected Settlement is zero or negative.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	if (!Number.isFinite(buyIn) || !Number.isFinite(cashOut) || buyIn < 0 || cashOut < 0) {
+		const err = new Error('Please enter valid Buy-in and Cash-out amounts.');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	if (buyIn > 0 && buyIn % 1000 !== 0) {
+		const err = new Error('Settlement Buy-in must be in thousands (e.g. 1,000 / 2,000 / 17,000).');
+		err.statusCode = 400;
+		throw err;
+	}
+
+	if (Math.abs(buyIn + cashOut - expected) > 0.001) {
+		const err = new Error(
+			`Buy-in + Cash-out must equal Expected Settlement (${expected.toLocaleString('en-US')}).`
+		);
+		err.statusCode = 400;
+		throw err;
+	}
+
+	return { buyIn, cashOut, expected };
+}
+
+function buildInGameNewGameBuyInLegs(body, parentTransType, commissionBuyInAmount) {
 	const legs = buildInGameParentCashoutLegs(body, parentTransType);
-	const commissionLeg = buildInGameCommissionBuyInLeg(commissionPayment);
+	const commissionLeg = buildInGameCommissionBuyInLeg(commissionBuyInAmount);
 	if (commissionLeg) {
 		legs.push(commissionLeg);
 	}
@@ -601,8 +678,10 @@ async function insertCutoffBuyinLeg(db, {
 }
 
 /**
- * CUT OFF: end parent game, cashout buy-in on parent, last rolling on parent (ROLLING + roller return),
- * create continuation game with same buy-in and roller chips.
+ * CUT OFF: end parent game, cashout remaining on parent (thousands continue;
+ * sub-thousand Remaining CC → Deposit to account; Remaining CC thousands →
+ * rolling on previous game), last rolling on parent, create continuation game
+ * with thousands buy-in + roller chips.
  */
 async function performGameCutoff(db, params) {
 	const {
@@ -727,6 +806,23 @@ async function performGameCutoff(db, params) {
 		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`;
+
+	// 2b. Remaining CC thousands → rolling on previous game (CC counts via CAGE_TYPE 4)
+	const parentTransferCcForRolling = parentCashoutLegs.reduce(
+		(sum, leg) => sum + Math.floor(Math.max(0, leg.cc || 0) / 1000) * 1000,
+		0
+	);
+	if (parentTransferCcForRolling > 0) {
+		await db.execute(rollingRecordSQL, [
+			parentGameId,
+			dateNow,
+			4,
+			0,
+			parentTransferCcForRolling,
+			encodedBy,
+			dateNow
+		]);
+	}
 
 	// 3. Last rolling → ROLLING column (CAGE_TYPE 4) + roller return on parent
 	// NN portion: CAGE_TYPE 4 adds to rolling; CC-only excess uses CC roller return (also adds to rolling)
@@ -1019,6 +1115,44 @@ async function performInGameSettlement(db, params) {
 		transType: figures.settlementTransType,
 		skipLedger: true
 	});
+
+	// Deposit full settlement/commission to account first, then buy-in uses that balance.
+	const totalSettlementPayment = Math.round(Math.max(0, parseChipAmount(figures.payment)));
+	if (totalSettlementPayment > 0) {
+		await db.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, 1, 5, 'COMMISSION', ?, ?, ?)`,
+			[parentAccountId, parentGameId, totalSettlementPayment, encodedBy, dateNow]
+		);
+		const [agentRows] = await db.execute(agentQuery, [parentAccountId]);
+		if (agentRows.length > 0 && agentRows[0].agent_id) {
+			const cashTxnSQL = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			const cashRemark = `Game - ${parentGameId}`;
+			await db.execute(cashTxnSQL, [
+				parentGameId,
+				agentRows[0].agent_id,
+				totalSettlementPayment.toString(),
+				'Commission Deposit',
+				1,
+				cashRemark,
+				encodedBy,
+				dateNow
+			]);
+			await db.execute(cashTxnSQL, [
+				parentGameId,
+				agentRows[0].agent_id,
+				totalSettlementPayment.toString(),
+				'Commission',
+				2,
+				cashRemark,
+				encodedBy,
+				dateNow
+			]);
+		}
+	}
 
 	for (const leg of parentCashoutLegs) {
 		await insertCutoffCashoutLeg(db, {
@@ -3909,6 +4043,7 @@ async function computeInGameSettlementFigures(db, gameId, body) {
 		commissionGross: projected.commissionGross,
 		servicesTotal,
 		payment: projected.payment,
+		settlementSplit: parseInGameSettlementSplit(body, projected.payment),
 		settlementTransType: 1,
 		projectedRolling: projected.projectedRolling,
 		projectedWinLoss: projected.projectedWinLoss
@@ -4439,22 +4574,6 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 		const isCutoffRequest =
 			txtWasCutoff === '1' || txtWasCutoff === 1 || String(txtWasCutoff || '').toLowerCase() === 'true';
 		if (isCutoffRequest) {
-			const [cutoffGuardRows] = await pool.execute(
-				`SELECT CUTOFF_PARENT_GAME_ID, CUTOFF_CONTINUED_GAME_ID
-				 FROM game_list WHERE IDNo = ? LIMIT 1`,
-				[id]
-			);
-			if (cutoffGuardRows.length > 0) {
-				const continuedId = parseInt(cutoffGuardRows[0].CUTOFF_CONTINUED_GAME_ID, 10);
-				const parentId = parseInt(cutoffGuardRows[0].CUTOFF_PARENT_GAME_ID, 10);
-				if (
-					(!Number.isNaN(continuedId) && continuedId > 0) ||
-					(!Number.isNaN(parentId) && parentId > 0)
-				) {
-					return res.status(400).json({ error: 'This game cannot be cut off again.' });
-				}
-			}
-
 			const programDate = parseGameListProgramDate(txtCutoffProgramDate);
 			if (!normalizeSettlementDateYmd(programDate)) {
 				return res.status(400).json({ error: 'Program date is required for cut off.' });
@@ -4532,7 +4651,11 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				const parentTransType = await resolveParentTransType(connection, id, initialMop);
 				const settlementFigures = await computeInGameSettlementFigures(connection, id, req.body);
 				const cashoutLegs = buildInGameParentCashoutLegs(req.body, parentTransType);
-				const buyInLegs = buildInGameNewGameBuyInLegs(req.body, parentTransType, settlementFigures.payment);
+				const buyInLegs = buildInGameNewGameBuyInLegs(
+					req.body,
+					parentTransType,
+					settlementFigures.settlementSplit.buyIn
+				);
 
 				const settleResult = await performInGameSettlement(connection, {
 					parentGameId: id,

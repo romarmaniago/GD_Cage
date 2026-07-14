@@ -1,4 +1,4 @@
-<div class="modal fade" id="modal-change_status" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+<div class="modal fade" id="modal-change_status" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
 	<div class="modal-dialog modal-dialog-centered change-status-modal-dialog">
 		<div class="change-status-modal-cluster">
 		<div class="modal-content change-status-main-content">
@@ -211,6 +211,14 @@
 								placeholder="CC Chips" autocomplete="off" />
 							<label class="form-label mb-0"><%= __('modal_change_status.ingame_expected_settlement') %></label>
 							<div id="txtInGameExpectedSettlement" class="form-control text-center ingame-settlement-input ingame-expected-settlement">—</div>
+							<label class="form-label mb-0" for="txtInGameSettlementBuyIn"><%= __('modal_change_status.ingame_settlement_buyin') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameSettlementBuyIn" id="txtInGameSettlementBuyIn"
+								placeholder="<%= __('modal_change_status.ingame_settlement_buyin') %>" autocomplete="off" />
+							<label class="form-label mb-0" for="txtInGameSettlementCashOut"><%= __('modal_change_status.ingame_settlement_cashout') %></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center ingame-settlement-input" name="txtInGameSettlementCashOut" id="txtInGameSettlementCashOut"
+								placeholder="<%= __('modal_change_status.ingame_settlement_cashout') %>" autocomplete="off" />
 						</div>
 					</div>
 				</div>
@@ -284,6 +292,7 @@
 				</div>
 			</div>
 		</div>
+
 		<div class="modal-footer">
 			<button type="submit" class="btn btn-sm btn-primary" id="submit-status-btn">
 				<%= __('modal_change_status.save') %>
@@ -420,13 +429,13 @@
 							<div class="change-status-tip-proc-col">
 								<div class="ingame-processing-head-cell">Status</div>
 								<div class="change-status-tip-meta-body">
-									<input type="text" class="form-control form-control-sm text-center change-status-tip-meta-input" id="change-status-tip-dealer-status" placeholder="Roller / GM" autocomplete="off" />
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-meta-input" id="change-status-tip-dealer-status" name="txtTipDealerStatus" placeholder="Roller / GM" autocomplete="off" form="edit_status" />
 								</div>
 							</div>
 							<div class="change-status-tip-proc-col">
 								<div class="ingame-processing-head-cell">Name</div>
 								<div class="change-status-tip-meta-body">
-									<input type="text" class="form-control form-control-sm text-center change-status-tip-name-input" id="change-status-tip-dealer-name" placeholder="Name" autocomplete="off" />
+									<input type="text" class="form-control form-control-sm text-center change-status-tip-name-input" id="change-status-tip-dealer-name" name="txtTipDealerName" placeholder="Name" autocomplete="off" form="edit_status" />
 								</div>
 							</div>
 						</div>
@@ -591,6 +600,8 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 
 #modal-change_status .ingame-meta-grid #txtInGameLastRolling,
 #modal-change_status .ingame-meta-grid #txtInGameExpectedSettlement,
+#modal-change_status .ingame-meta-grid #txtInGameSettlementBuyIn,
+#modal-change_status .ingame-meta-grid #txtInGameSettlementCashOut,
 #modal-change_status .ingame-meta-grid #txtCutoffLastRolling {
 	grid-column: 2 / -1;
 	width: 100%;
@@ -618,12 +629,14 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	align-items: center;
 	justify-content: center;
 	padding: 0.75rem;
+	pointer-events: auto;
 }
 
 #modal-change_status .change-status-modal-dialog {
 	max-width: calc(100vw - 1.5rem);
 	width: max-content;
 	margin: 0 auto;
+	pointer-events: auto;
 }
 
 #modal-change_status .change-status-modal-cluster {
@@ -632,6 +645,7 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	justify-content: center;
 	gap: 0.75rem;
 	margin: 0 auto;
+	pointer-events: auto;
 }
 
 #modal-change_status .change-status-main-content {
@@ -652,6 +666,9 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	flex-shrink: 0;
 	align-self: flex-start;
 	min-height: 0;
+	position: relative;
+	pointer-events: auto;
+	z-index: 2;
 }
 
 #modal-change_status .change-status-side-panels.change-status-side-panels-empty,
@@ -713,12 +730,14 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	pointer-events: auto;
 }
 
 #modal-change_status .change-status-tip-name-input,
 #modal-change_status .change-status-tip-meta-input {
 	width: 100%;
 	min-width: 0;
+	pointer-events: auto;
 }
 
 #modal-change_status .change-status-tip-history-tbl th {

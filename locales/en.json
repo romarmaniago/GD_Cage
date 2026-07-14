@@ -128,7 +128,20 @@
 		"game_information": "Game Information"
 	},
 	"game_information": {
-		"on_progress": "On Progress"
+		"on_progress": "On Progress",
+		"empty_table": "No games found",
+		"add_game": "Add Game",
+		"lookup": "Lookup",
+		"preview": "Gamebook preview",
+		"add_hint": "Enter an existing Gamebook Game #, then Lookup.",
+		"game_not_found": "Game not found in Gamebook",
+		"already_added": "This game is already in Game Information",
+		"invalid_game_no": "Enter a valid Game #",
+		"lookup_failed": "Lookup failed",
+		"add_success": "Game added to Game Information",
+		"add_failed": "Failed to add game",
+		"cancel": "Cancel",
+		"save": "Save"
 	},
 	"footer": {
 		"privacy_policy": "Privacy Policy",
@@ -1320,6 +1333,8 @@
 		"cutoff_last_rolling_label": "Last Rolling",
 		"ingame_settlement_title": "In-Game Settlement",
 		"ingame_expected_settlement": "Expected Settlement",
+		"ingame_settlement_buyin": "Buy-in",
+		"ingame_settlement_cashout": "Cash-out",
 		"ingame_current_balance": "Current Balance Of Account",
 		"ingame_anticipated_balance": "Anticipated Balance Of Account",
 		"ingame_processing_amount": "Processing Amount",

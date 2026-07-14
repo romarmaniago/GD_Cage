@@ -1,7 +1,7 @@
 /**
  * Shared SweetAlert2 confirmation dialog with two-column CSS Grid layout.
- * Text values left-align from the value column start. Amounts right-align inside
- * a shared fixed-width box so trailing digits and commas line up evenly.
+ * Labels right-align. Text values left-align from the value column start. Amounts
+ * right-align inside a shared fixed-width box so trailing digits and commas line up evenly.
  */
 (function (window) {
     'use strict';
@@ -9,8 +9,8 @@
     var COL_WIDTH = '180px';
     var VALUE_PAD = 'white-space:nowrap;padding:2px 0;overflow:visible;';
     var GRID_STYLE = 'display:inline-grid;grid-template-columns:' + COL_WIDTH + ' ' + COL_WIDTH +
-        ';column-gap:12px;row-gap:4px;justify-content:center;justify-items:start;align-items:baseline;';
-    var LABEL_STYLE = 'font-weight:600;text-align:left;' + VALUE_PAD;
+        ';column-gap:12px;row-gap:4px;justify-content:center;justify-items:stretch;align-items:baseline;';
+    var LABEL_STYLE = 'font-weight:600;text-align:right;' + VALUE_PAD;
     var VALUE_TEXT_STYLE = 'text-align:left;' + VALUE_PAD;
     var VALUE_AMOUNT_BASE = 'display:inline-block;text-align:right;font-variant-numeric:tabular-nums;' + VALUE_PAD;
     var SEPARATOR_WIDTH_CH = 0.45;
