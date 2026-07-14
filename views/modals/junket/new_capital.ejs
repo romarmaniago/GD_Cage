@@ -496,6 +496,15 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 
 		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
 
+		var HOUSE_BALANCE_ACTIVE_TYPES = {
+			'Deposit': true,
+			'Withdrawal': true
+		};
+
+		function isHouseBalanceTypeActive(label) {
+			return !!(label && HOUSE_BALANCE_ACTIVE_TYPES[String(label)]);
+		}
+
 		function getSelectedCapitalType() {
 			const $checked = $('#add_junket_capital .hb-type-check:checked');
 			if (!$checked.length) return null;
@@ -561,6 +570,16 @@ border-top: 2px solid rgba(154, 113, 26, 0.35);
 			const selectedType = getSelectedCapitalType();
 			if (!selectedType) {
 				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
+				return;
+			}
+			/* Only Deposit / Withdrawal are live; other types are on process for now */
+			if (!isHouseBalanceTypeActive(selectedType.label)) {
+				Swal.fire({
+					icon: 'info',
+					title: 'On process',
+					text: 'on process',
+					confirmButtonText: 'OK'
+				});
 				return;
 			}
 			updateCapitalTypeFields();

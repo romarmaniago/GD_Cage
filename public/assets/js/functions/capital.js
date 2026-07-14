@@ -502,6 +502,15 @@ function addCapital() {
     capital_category();
 }
 
+var HOUSE_BALANCE_ACTIVE_TYPES = {
+    'Deposit': true,
+    'Withdrawal': true
+};
+
+function isHouseBalanceTypeActive(label) {
+    return !!(label && HOUSE_BALANCE_ACTIVE_TYPES[String(label)]);
+}
+
 function updateEditCapitalTypeFields() {
     const $checked = $('#edit_junket_capital .edit-hb-type-check:checked');
     if (!$checked.length) {
@@ -606,8 +615,19 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
     updateEditCapitalTypeFields();
     const txn = ($('#edit-capital-txn').val() || '').trim();
     const description = ($('#edit-capital-description').val() || '').trim();
+    const selectedTypeLabel = ($('#edit_junket_capital .edit-hb-type-check:checked').val() || '').trim();
     if (!txn || !description) {
         Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
+        return;
+    }
+    /* Only Deposit / Withdrawal are live; other types are on process for now */
+    if (!isHouseBalanceTypeActive(selectedTypeLabel)) {
+        Swal.fire({
+            icon: 'info',
+            title: 'On process',
+            text: 'on process',
+            confirmButtonText: 'OK'
+        });
         return;
     }
 
