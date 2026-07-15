@@ -261,10 +261,10 @@
     <style>
         /* GD gold table theme — match Credit History page */
         #modal-new-marker {
-            --gd-marker-gold-solid: #d9b96a;
-            --gd-marker-gold-text: #3a2e12;
-            --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-            --gd-marker-gold-hover: #faf3dc;
+            --gd-marker-gold-solid: rgba(200, 162, 76, 0.07);
+            --gd-marker-gold-text: #4a3208;
+            --gd-marker-gold-border: rgba(200, 162, 76, 0.28);
+            --gd-marker-gold-hover: #f6f3ec;
         }
 
         .modal-lg2 {
@@ -436,8 +436,8 @@
         #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter input:focus,
         #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter input:focus {
             outline: none;
-            border-color: #6b4f14;
-            box-shadow: 0 0 0 0.2rem rgba(154, 113, 26, 0.15);
+            border-color: var(--gd-dash-jade, #6b4a12);
+            box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.18);
         }
 
         @media (min-width: 768px) {
@@ -505,8 +505,8 @@
         #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link,
         #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link,
         #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link {
-            background: #6b4f14;
-            border-color: #6b4f14;
+            background: var(--gd-dash-jade, #6b4a12);
+            border-color: var(--gd-dash-jade, #6b4a12);
             color: #fff;
         }
 
@@ -516,7 +516,7 @@
         #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-link:hover {
             background: #f1f5f9;
             border-color: #cbd5e1;
-            color: #6b4f14;
+            color: var(--gd-dash-jade, #6b4a12);
         }
 
         /* Solid gold bar on full header/footer row */
@@ -582,7 +582,7 @@
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(even) td,
         #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(even) td {
-            background-color: #fbf5e4;
+            background-color: #f4f1ea;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(odd) td,
@@ -671,7 +671,7 @@
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(even) td,
         #marker-credit-status-wrapper .marker-total-table tbody tr:nth-child(even) td {
-            background-color: #fbf5e4;
+            background-color: #f4f1ea;
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody tr:nth-child(odd) td,
@@ -764,7 +764,7 @@
   }
 
   #modal-new-marker #marker-tbl tbody tr:nth-child(even) td {
-    background-color: #fbf5e4;
+    background-color: #f4f1ea;
   }
 
   #modal-new-marker #marker-tbl tbody tr:nth-child(odd) td {
@@ -802,11 +802,11 @@
   border-bottom: 2px solid transparent;
   padding: 0.5rem 0.75rem;
 }
-#modal-new-marker .marker-balance-tabs .nav-link:hover { color: #8a6712; }
+#modal-new-marker .marker-balance-tabs .nav-link:hover { color: var(--gd-dash-jade-light, #c8a24c); }
 #modal-new-marker .marker-balance-tabs .nav-link.active {
-  color: #6b4f14;
+  color: var(--gd-dash-jade-dark, #4a3208);
   font-weight: 600;
-  border-bottom-color: #c8a24c;
+  border-bottom-color: var(--gd-dash-jade, #6b4a12);
   background: transparent;
 }
 
@@ -823,7 +823,7 @@
     padding: 15px;
     font-weight: 600;
     text-align: right;
-    color: #6b4f14;
+    color: var(--gd-dash-jade, #6b4a12);
 }
 
 .select2-container .select2-selection--single {

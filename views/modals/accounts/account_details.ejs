@@ -522,7 +522,7 @@ body.guest-portal-child-open .modal-backdrop.show {
     filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.22));
 }
 #modal-account-details .modal-body {
-    background: #f8fafd;
+    background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%));
 }
 #modal-account-details .card {
     border: 1px solid #e8edf5;
@@ -607,18 +607,20 @@ body.guest-portal-child-open .modal-backdrop.show {
     overflow: hidden;
 }
 #modal-account-details #accountDetails thead th {
-    background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
-    color: #1e3a5f;
-    border-bottom: 1px solid #d5e0f0;
+    color: #5c5346 !important;
+    background: rgba(200, 162, 76, 0.07) !important;
+    background-color: rgba(200, 162, 76, 0.07) !important;
+    background-image: none !important;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.22);
     font-size: 11px;
     letter-spacing: 0.02em;
     text-transform: uppercase;
 }
 #modal-account-details #accountDetails tbody tr:nth-child(even) td {
-    background-color: #fafbfd;
+    background-color: rgba(200, 162, 76, 0.05);
 }
 #modal-account-details #accountDetails tbody tr:hover td {
-    background-color: #f0f6ff !important;
+    background-color: rgba(200, 162, 76, 0.14) !important;
 }
 #modal-account-details #accountDetails tbody td:nth-child(3),
 #modal-credit-details #credit-details-table tbody td:nth-child(2) {
@@ -636,13 +638,17 @@ body.guest-portal-child-open .modal-backdrop.show {
     position: sticky;
     top: 0;
     z-index: 3;
+    color: #5c5346 !important;
+    background: rgba(200, 162, 76, 0.07) !important;
+    background-color: rgba(200, 162, 76, 0.07) !important;
+    background-image: none !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollBody {
     max-height: 56vh;
 }
 #modal-account-details .modal-footer {
-    border-top: 1px solid #edf1f7;
-    background: #fbfcff;
+    border-top: 1px solid rgba(200, 162, 76, 0.28);
+    background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%));
 }
 .change-photo-preview {
     width: 100%;
@@ -658,8 +664,8 @@ body.guest-portal-child-open .modal-backdrop.show {
 .change-photo-dropzone.is-scanning {
     cursor: wait;
     pointer-events: none;
-    background-color: rgba(154, 113, 26, 0.04);
-    border-color: #6b4f14 !important;
+    background-color: rgba(200, 162, 76, 0.06);
+    border-color: #6b4a12 !important;
 }
 .change-photo-loading {
     position: absolute;
@@ -674,8 +680,8 @@ body.guest-portal-child-open .modal-backdrop.show {
     border-radius: inherit;
 }
 .change-photo-dropzone.drag-over {
-    background-color: rgba(154, 113, 26, 0.08);
-    border-color: #6b4f14 !important;
+    background-color: rgba(200, 162, 76, 0.1);
+    border-color: #6b4a12 !important;
 }
 .border-dashed { border-style: dashed !important; }
 
@@ -771,7 +777,7 @@ body.guest-portal-child-open .modal-backdrop.show {
     background-color: #f0f6ff !important;
 }
 #modal-credit-details .marker-history-table tbody tr:hover td:first-child {
-    box-shadow: inset 3px 0 0 #6b4f14;
+    box-shadow: inset 3px 0 0 #6b4a12;
 }
 #modal-credit-details .dataTables_wrapper .dataTables_info,
 #modal-credit-details .dataTables_wrapper .dataTables_length label,
@@ -890,14 +896,17 @@ body.guest-portal-child-open .modal-backdrop.show {
     border-collapse: collapse;
 }
 
-/* Header styles */
+/* Header styles — same as .is-light-body .dash-kv-group-title.is-muted */
 #accountDetails thead th {
-    background: #f0dfa8;
-    color: #6b4f14;
+    color: #5c5346 !important;
+    background: rgba(200, 162, 76, 0.07) !important;
+    background-color: rgba(200, 162, 76, 0.07) !important;
+    background-image: none !important;
     font-weight: 500;
     padding: 12px 15px;
     text-align: left;
     border: none;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.22);
 }
 
 /* Row styles */
@@ -912,7 +921,7 @@ body.guest-portal-child-open .modal-backdrop.show {
 }
 
 #accountDetails tbody tr:hover {
-  background-color: #f5f5f5 !important;
+  background-color: rgba(200, 162, 76, 0.14) !important;
 }
 
 
@@ -930,10 +939,9 @@ body.guest-portal-child-open .modal-backdrop.show {
 #accountDetails tfoot th {
     padding: 10px;
     font-weight: 600;
-  
-    color: #333;
-    background-color: #f4f6fa;
-    border-top: 2px solid #dee2e6;
+    color: #4a3208;
+    background-color: rgba(200, 162, 76, 0.12);
+    border-top: 2px solid rgba(200, 162, 76, 0.28);
 }
 @media (max-width: 768px) {
     #accountDetails {

@@ -10,18 +10,114 @@ body {
 }
 
 /* Golden Dragon theme for every modal linked from the dashboard (loaded only on this page) */
+:root {
+  /* Modal "muted" table-header tone — neutral warm gray, no competing color */
+  --dash-wl-muted-color: #5c5346;
+  --dash-wl-muted-bg: rgba(0, 0, 0, 0.035);
+  --dash-wl-muted-border: rgba(200, 162, 76, 0.3);
+  /* Same as aside.sidebar.gd-sidebar (sidebar.ejs) — untouched, dashboard cards keep the gold body */
+  --gd-sidebar-bg-top: #fbf0d4;
+  --gd-sidebar-bg-bottom: #f6e4b8;
+  --dash-wl-body-bg: linear-gradient(160deg, #fbf0d4 0%, #f6e4b8 100%);
+  /* Modal body — off-white/ecru, no tinted color wash */
+  --dash-modal-body-bg: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%);
+  /* Gold accent — the only accent color for every modal linked from the dashboard (trim/active states only) */
+  --gd-dash-jade: #6b4a12;
+  --gd-dash-jade-light: #c8a24c;
+  --gd-dash-jade-dark: #4a3208;
+  --gd-dash-jade-soft: rgba(200, 162, 76, 0.14);
+  --gd-dash-jade-border: rgba(200, 162, 76, 0.4);
+}
+
 .modal-content {
-  border: 1px solid rgba(200, 162, 76, 0.35);
+  border: 1px solid var(--gd-dash-jade-border);
   border-radius: 0.85rem;
   overflow: hidden;
+  background: var(--dash-modal-body-bg) !important;
+}
+
+/* Modal body — match gd-sidebar background exactly */
+.modal-body,
+.modal-body.dash-service-modal-body,
+.modal-body.dash-tip-page,
+.modal-body.winloss-details-page,
+.modal-body.junket-loss-page,
+.modal-body.modal-dash-house-expense-body,
+#modal-account-details .modal-body,
+#modal-dash-commission .commission-modal-body,
+#modal-commission-compare .modal-body,
+#modal-dash-additional-commission .additional-commission-modal-body {
+  background: var(--dash-modal-body-bg) !important;
+}
+
+/* Table headers — same bg as Win / Lose is-muted (no solid cream/gold) */
+.modal table thead tr,
+.modal table tfoot tr,
+.modal-body table thead tr,
+.modal-body table tfoot tr,
+.modal-content table thead tr,
+.modal-content table tfoot tr {
+  background: var(--dash-wl-muted-bg) !important;
+  background-color: var(--dash-wl-muted-bg) !important;
+}
+
+.modal table thead th,
+.modal table tfoot th,
+.modal-body table thead th,
+.modal-body table tfoot th,
+.modal-content table thead th,
+.modal-content table tfoot th,
+.modal table.dataTable thead > tr > th.sorting,
+.modal table.dataTable thead > tr > th.sorting_asc,
+.modal table.dataTable thead > tr > th.sorting_desc,
+.modal table.dataTable thead > tr > th.sorting_disabled,
+.modal-body table.dataTable thead > tr > th.sorting,
+.modal-body table.dataTable thead > tr > th.sorting_asc,
+.modal-body table.dataTable thead > tr > th.sorting_desc,
+.modal-body table.dataTable thead > tr > th.sorting_disabled,
+#modal-dash-commission .commission-modal-body table thead th,
+#modal-dash-commission .commission-modal-body table tfoot th,
+#modal-commission-compare table thead th,
+#modal-commission-compare table tfoot th,
+#modal-dash-additional-commission .additional-commission-modal-body table thead th,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot th,
+.dash-service-table-panel table thead th,
+.dash-service-tbl thead th,
+.daily-report-winloss-panel table thead th,
+.daily-report-winloss-panel table tfoot th,
+#modal-dash-house-expense .expense-explorer-item-col #expense-item-cat-tbl thead th,
+#modal-account-details #accountDetails thead th,
+#modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
+  color: var(--dash-wl-muted-color) !important;
+  background: var(--dash-wl-muted-bg) !important;
+  background-color: var(--dash-wl-muted-bg) !important;
+  background-image: none !important;
+  border-bottom-color: var(--dash-wl-muted-border) !important;
+}
+
+/* Override solid gold thead rows used by commission/service/etc. on dashboard */
+#modal-dash-commission .commission-modal-body table thead tr,
+#modal-dash-commission .commission-modal-body table tfoot tr,
+#modal-commission-compare table thead tr,
+#modal-commission-compare table tfoot tr,
+#modal-dash-additional-commission .additional-commission-modal-body table thead tr,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot tr,
+.dash-service-table-panel table thead tr,
+.dash-service-tbl thead tr,
+.daily-report-winloss-panel table thead tr,
+.daily-report-winloss-panel table tfoot tr,
+#modal-dash-house-expense .expense-explorer-item-col #expense-item-cat-tbl thead tr {
+  background: var(--dash-wl-muted-bg) !important;
+  background-color: var(--dash-wl-muted-bg) !important;
 }
 
 .modal-header {
-  background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
-  border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+  background: #f6f3ec !important;
+  border-bottom: 2px solid #c8a24c;
 }
 
-.modal-header .modal-title {
+.modal-header .modal-title,
+.modal-header .block-title {
   color: #3a2e12 !important;
 }
 
@@ -35,8 +131,74 @@ body {
 }
 
 .modal-footer {
-  background: #fdf6e3;
-  border-top: 1px solid rgba(154, 113, 26, 0.25);
+  background: var(--dash-modal-body-bg) !important;
+  border-top: 1px solid var(--gd-dash-jade-border);
+}
+
+/* Save/submit CTAs — charcoal instead of gold, so the gold trim stays reserved for borders/accents */
+.modal .btn-primary,
+.modal .btn-primary:not(:disabled):not(.disabled) {
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+.modal .btn-primary:hover,
+.modal .btn-primary:focus {
+  filter: brightness(1.15);
+  color: #fff !important;
+}
+
+/* Dashboard modals — inner panels, now jade instead of gold-brown */
+.modal,
+.modal-content {
+  --gd-marker-gold-hover: var(--gd-dash-jade-soft);
+}
+
+.modal .capital-controls-highlight,
+.modal .commission-controls-highlight,
+.modal .additional-commission-controls-highlight,
+.modal .dash-tip-settlement-bar,
+.modal .winloss-details-summary,
+.modal [class*="controls-highlight"] {
+  background: transparent !important;
+  border-color: var(--gd-dash-jade-border) !important;
+}
+
+.modal .table,
+.modal table.dataTable {
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(200, 162, 76, 0.05);
+  --bs-table-hover-bg: rgba(200, 162, 76, 0.14);
+}
+
+.modal table tbody td,
+.modal table tbody tr,
+.modal .dataTables_empty {
+  background-color: transparent !important;
+}
+
+.modal table tbody tr:nth-child(even) td {
+  background-color: rgba(200, 162, 76, 0.05) !important;
+}
+
+.modal table tbody tr:hover td,
+.modal table tbody tr:hover {
+  background-color: rgba(200, 162, 76, 0.14) !important;
+}
+
+.modal table tfoot th,
+.modal table tfoot td {
+  background-color: rgba(200, 162, 76, 0.12) !important;
+  color: #4a3208 !important;
+}
+
+#modal-account-details #accountDetails tbody tr:nth-child(even) td {
+  background-color: rgba(200, 162, 76, 0.05) !important;
+}
+
+#modal-account-details #accountDetails tbody tr:hover td {
+  background-color: rgba(200, 162, 76, 0.14) !important;
 }
 
 /* Sidebar → first card: slightly wider than inter-card g-3, but tighter than default content-inner */
@@ -570,7 +732,8 @@ body {
 }
 
 .dash-line-qv-list-item.is-active {
-  background: #f3f7ff;
+  background: var(--gd-dash-jade-soft);
+  box-shadow: inset 3px 0 0 var(--gd-dash-jade);
 }
 
 .dash-line-qv-list-name {
@@ -613,8 +776,9 @@ body {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: #64748b;
-  border-bottom: 1px solid #edf0f7;
+  color: var(--dash-wl-muted-color, #7a6a4a);
+  background: var(--dash-wl-muted-bg, rgba(0, 0, 0, 0.04));
+  border-bottom: 1px solid var(--dash-wl-muted-border, rgba(154, 113, 26, 0.2));
   padding: 8px 6px;
   white-space: nowrap;
   text-align: center;
@@ -646,11 +810,12 @@ body {
 }
 
 #dash-on-game-details-tbl thead th {
-  background: var(--bs-primary-bg-subtle);
-  color: var(--bs-primary);
+  color: var(--dash-wl-muted-color, #7a6a4a);
+  background: var(--dash-wl-muted-bg, rgba(0, 0, 0, 0.04));
   font-weight: 500;
   padding: 12px 15px;
   border: none;
+  border-bottom: 1px solid var(--dash-wl-muted-border, rgba(154, 113, 26, 0.2));
 }
 
 #dash-on-game-details-tbl thead th:nth-child(-n+4) {
@@ -1028,7 +1193,7 @@ body {
 }
 
 .dash-card.gd-dash-panel.is-light-body > .card-body {
-  background: linear-gradient(160deg, #fbf0d4 0%, #f6e4b8 100%);
+  background: var(--dash-wl-body-bg, linear-gradient(160deg, #fbf0d4 0%, #f6e4b8 100%));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
@@ -1040,9 +1205,9 @@ body {
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv-group-title.is-muted {
-  color: #7a6a4a;
-  background: rgba(0, 0, 0, 0.04);
-  border-bottom-color: rgba(154, 113, 26, 0.2);
+  color: var(--dash-wl-muted-color, #7a6a4a);
+  background: var(--dash-wl-muted-bg, rgba(0, 0, 0, 0.04));
+  border-bottom-color: var(--dash-wl-muted-border, rgba(154, 113, 26, 0.2));
 }
 
 .dash-card.gd-dash-panel.is-light-body.is-headerless > .card-body > .dash-kv-group-title:first-child {
@@ -1164,14 +1329,14 @@ body {
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-card-actions .btn-outline-primary {
-  color: #6b4f14;
-  border-color: rgba(154, 113, 26, 0.5);
+  color: var(--gd-dash-jade);
+  border-color: var(--gd-dash-jade-border);
   background: transparent;
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-card-actions .btn-outline-primary:hover {
-  color: #1a1205;
-  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  color: #fff;
+  background: linear-gradient(135deg, var(--gd-dash-jade-dark) 0%, var(--gd-dash-jade) 50%, var(--gd-dash-jade-light) 100%);
   border-color: transparent;
 }
 

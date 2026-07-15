@@ -3,11 +3,12 @@
 <%- include('partials/sidebar') %>
 <%- include('partials/topbar') %>
 
-<link rel="stylesheet" href="/assets/css/dashboard_grid.css">
 <link rel="stylesheet" href="/assets/css/daily_report_winloss.css">
 <link rel="stylesheet" href="/assets/css/dash_service_table.css">
 <link rel="stylesheet" href="/assets/css/commission.css">
 <link rel="stylesheet" href="/assets/css/additional_commission.css">
+<!-- Loaded last so modal th / gold vars override panel-specific table themes -->
+<link rel="stylesheet" href="/assets/css/dashboard_grid.css">
 
 <div class="conatiner-fluid content-inner py-3 dash-grid-wrap">
    <div id="user-role" data-permissions="<%= permissions %>"></div>
