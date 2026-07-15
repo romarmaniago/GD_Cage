@@ -56,34 +56,6 @@
   const dailyReportModal = dailyReportModalEl ? new bootstrap.Modal(dailyReportModalEl) : null;
   let dailyReportDatePicker = null;
   let reportListDateRangePicker = null;
-  let reportListSplitDateRange = null;
-
-  let reportListSplitOverrideRange = null;
-
-  function initReportListSplitDateRange() {
-    if (reportListSplitDateRange) return;
-    reportListSplitDateRange = (window.SplitDateRange && SplitDateRange.attach({
-      rangePickerId: 'daily-report-list-daterange',
-      startId: 'daily-report-list-start-date',
-      endId: 'daily-report-list-end-date',
-      splitWrapperId: 'daily-report-list-split-daterange-wrapper',
-      independent: true,
-      invalidDateMessage: 'Invalid date range.',
-      onRangeApplied: function (range) {
-        if (!range || !range.start || !range.end) return;
-        reportListSplitOverrideRange = { from: range.start, to: range.end };
-        loadSubmittedReports();
-      }
-    })) || {
-      syncFromRange: function () {},
-      fitWidths: function () {},
-      isSyncing: function () { return false; }
-    };
-  }
-
-  function syncReportListSplitFromFlatpickr() {
-    // Start/End are independent from the combined range picker.
-  }
 
   function toIsoDate(date) {
     const y = date.getFullYear();
@@ -531,9 +503,6 @@
   }
 
   function getSelectedListRange() {
-    if (reportListSplitOverrideRange && reportListSplitOverrideRange.from && reportListSplitOverrideRange.to) {
-      return reportListSplitOverrideRange;
-    }
     const fallback = getCurrentMonthRange();
     if (!reportListDateRangePicker || !Array.isArray(reportListDateRangePicker.selectedDates) || reportListDateRangePicker.selectedDates.length === 0) {
       return fallback;
@@ -676,14 +645,7 @@
         window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
       }
     }
-    fitReportListSplitWidths();
     applyDailyReportControlsLayout();
-  }
-
-  function fitReportListSplitWidths() {
-    if (reportListSplitDateRange && typeof reportListSplitDateRange.fitWidths === 'function') {
-      reportListSplitDateRange.fitWidths();
-    }
   }
 
   function destroyMatrixDataTable() {
@@ -851,7 +813,6 @@
 
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
-    initReportListSplitDateRange();
     const monthRange = getCurrentMonthRange();
     const jumpToCurrentThreeMonths = (instance) => {
       if (!instance) return;
@@ -883,7 +844,6 @@
       },
       onChange: (selectedDates) => {
         if (selectedDates.length === 2) {
-          reportListSplitOverrideRange = null;
           loadSubmittedReports();
         }
       }

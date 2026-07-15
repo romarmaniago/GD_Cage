@@ -75,14 +75,53 @@
 	}
 
 	#modal-new-capital .house-balance-form-row {
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.65rem;
+	}
+
+	#modal-new-capital .hb-form-label {
+		display: block;
+		margin-bottom: 0.25rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--gd-marker-gold-text);
+	}
+
+	/* Shared input look (match date range / other dashboard forms) */
+	#modal-new-capital .hb-form-control,
+	#modal-new-capital .hb-field-program-date-wrap input,
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-alt-input,
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-input.form-control,
+	#modal-new-capital .hb-field-daterange-wrap input,
+	#modal-new-capital .hb-field-daterange-wrap .flatpickr-alt-input,
+	#modal-new-capital .hb-field-daterange-wrap .flatpickr-input.form-control {
+		background: #fff;
+		border: 1px solid rgba(58, 46, 18, 0.2);
+		border-radius: 8px;
+		font-size: 0.875rem;
+		color: #3a2e12;
+		box-sizing: border-box;
+	}
+
+	#modal-new-capital .hb-form-control:focus,
+	#modal-new-capital .hb-field-program-date-wrap input:focus,
+	#modal-new-capital .hb-field-program-date-wrap .flatpickr-alt-input:focus,
+	#modal-new-capital .hb-field-daterange-wrap input:focus,
+	#modal-new-capital .hb-field-daterange-wrap .flatpickr-alt-input:focus {
+		border-color: var(--gd-marker-gold-solid);
+		box-shadow: 0 0 0 0.2rem rgba(217, 185, 106, 0.25);
+		outline: 0;
 	}
 
 	#modal-new-capital .hb-field-amount {
-		width: 12.5rem;
-		min-width: 12.5rem;
-		max-width: 16rem;
-		font-size: 0.875rem;
+		width: 100%;
+		min-width: 0;
+		max-width: 18rem;
+	}
+
+	#modal-new-capital .hb-field-remarks {
+		width: 100%;
+		min-height: 2.5rem;
+		resize: vertical;
 	}
 
 	/* Match shared MonthEndCutoffRange / date_range_picker.css auto-width behavior */
@@ -92,15 +131,10 @@
 		width: auto;
 		min-width: 10rem;
 		max-width: none;
-		font-size: 0.875rem;
 		overflow: visible;
 		text-overflow: clip;
 		white-space: nowrap;
-		box-sizing: border-box;
 		field-sizing: content;
-		background: #fff;
-		border: 1px solid rgba(58, 46, 18, 0.2);
-		border-radius: 8px;
 		text-align: center;
 	}
 
@@ -110,11 +144,9 @@
 		width: auto;
 		min-width: 0;
 		max-width: none;
-		font-size: 0.875rem;
 		overflow: visible;
 		text-overflow: clip;
 		white-space: nowrap;
-		box-sizing: border-box;
 		text-align: center;
 		field-sizing: content;
 		cursor: pointer;
@@ -401,12 +433,14 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 									</div>
 								</div>
 							</div>
-							<div class="row g-2 align-items-center house-balance-form-row">
-								<div class="col-auto">
-									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+							<div class="row g-2 house-balance-form-row">
+								<div class="col-sm-4">
+									<label class="hb-form-label" for="txtAmount"><%= __('dashboard_new_capital.junket_balance_amount') %></label>
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-form-control hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
 								</div>
-								<div class="col-12">
-									<textarea class="form-control form-control-sm" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
+								<div class="col-sm-8">
+									<label class="hb-form-label" for="capitalRemarks"><%= __('dashboard_new_capital.remarks_placeholder') %></label>
+									<textarea class="form-control form-control-sm hb-form-control hb-field-remarks" id="capitalRemarks" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" rows="2"></textarea>
 								</div>
 							</div>
 							

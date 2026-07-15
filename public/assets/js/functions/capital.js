@@ -373,10 +373,10 @@ function reloadData() {
                     cbal > 0 &&
                     (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc));
 
-                // Show edit/delete for Cash Balance rows (any non view-only user)
+                // Show edit/delete for Cash Balance rows (Super Admin only)
                 let btn = '';
                 const permissions = parseInt($('#user-role').data('permissions'));
-                const canEditCapital = permissions !== 2;
+                const isSuperAdmin = permissions === 0;
                 if (isCashBalance) {
                     window.__capitalEditRows = window.__capitalEditRows || {};
                     window.__capitalEditRows[row.IDNo] = {
@@ -388,7 +388,7 @@ function reloadData() {
                         typeLabel: normalizeHouseBalanceTypeLabel(typeDesc),
                         txn: row.TRANSACTION_ID
                     };
-                    if (canEditCapital) {
+                    if (isSuperAdmin) {
                         btn =
                             `<div class="capital-action-btns">` +
                             `<button type="button" onclick="edit_capital(${row.IDNo})" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled"
@@ -396,18 +396,6 @@ function reloadData() {
                                         <i class="fa fa-edit"></i>
                                   </button>` +
                             `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
-                                        data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-                                        <i class="fa fa-trash-alt"></i>
-                                  </button>` +
-                            `</div>`;
-                    } else {
-                        btn =
-                            `<div class="capital-action-btns">` +
-                            `<button type="button" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled" disabled
-                                        data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
-                                        <i class="fa fa-edit"></i>
-                                  </button>` +
-                            `<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled
                                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                                         <i class="fa fa-trash-alt"></i>
                                   </button>` +
@@ -693,6 +681,12 @@ $(document).ready(function () {
 
 // Archive capital function
 function archive_capital(id) {
+    const permissions = parseInt($('#user-role').data('permissions'), 10);
+    if (permissions !== 0) {
+        Swal.fire({ icon: 'warning', title: 'Forbidden', text: 'Only Super Admin can delete.' });
+        return;
+    }
+
     console.log(`Attempting to deleted capital and total chips with ID: ${id}`); // Log ID
 
     SwalConfirm.fire({
@@ -769,8 +763,8 @@ function ensureEditCapitalProgramDatePicker(defaultDate) {
 
 function edit_capital(capital_id) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
-    if (permissions === 2) {
-        Swal.fire({ icon: 'warning', title: 'View only', text: 'You do not have permission to edit.' });
+    if (permissions !== 0) {
+        Swal.fire({ icon: 'warning', title: 'Forbidden', text: 'Only Super Admin can edit.' });
         return;
     }
 
@@ -816,8 +810,8 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
     e.preventDefault();
 
     const permissions = parseInt($('#user-role').data('permissions'), 10);
-    if (permissions === 2) {
-        Swal.fire({ icon: 'warning', title: 'View only', text: 'You do not have permission to edit.' });
+    if (permissions !== 0) {
+        Swal.fire({ icon: 'warning', title: 'Forbidden', text: 'Only Super Admin can edit.' });
         return;
     }
 
@@ -2151,7 +2145,7 @@ function fetchTotalJunketExpense() {
 
 function getActionButton(id) {
     const permissions = parseInt($('#user-role').data('permissions'));
-    if (permissions !== 2) {
+    if (permissions === 0) {
         return `<button type="button" onclick="archive_capital(${id})" 
                 class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
                 data-bs-toggle="tooltip" 
@@ -2159,16 +2153,8 @@ function getActionButton(id) {
                 data-bs-original-title="Archive">
                 <i class="fa fa-trash-alt"></i>
                 </button>`;
-    } else {
-        return `<button type="button" 
-                class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" 
-                disabled
-                data-bs-toggle="tooltip" 
-                aria-label="Archive" 
-                data-bs-original-title="Archive">
-                <i class="fa fa-trash-alt"></i>
-                </button>`;
     }
+    return '';
 }
 
 function escapeCapitalPrintHtml(value) {

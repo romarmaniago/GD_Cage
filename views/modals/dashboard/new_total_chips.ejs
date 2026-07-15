@@ -9,13 +9,6 @@
       </div>
 
       <div class="modal-body">
-        <div class="row mb-2 g-2 align-items-center total-chips-top-date-row">
-          <div class="col-auto total-chips-history-date-wrap">
-            <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
-              placeholder="Select date range" autocomplete="off" />
-          </div>
-        </div>
-
         <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
           <%
             function sumServiceTotals(rows) {
@@ -237,7 +230,12 @@
         </form>
 
         <hr style="border: none; border-top: 0.2rem solid black; margin-top: 20px; margin-bottom: 20px;">
-        
+
+        <div id="total-chips-daterange-mount" class="total-chips-history-date-wrap">
+          <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
+            placeholder="Select date range" autocomplete="off" />
+        </div>
+
         <table id="total-chips-history-tbl" class="table table-bordered table-responsive"
             style="font-size: 13px !important;">
           <thead>
@@ -304,8 +302,29 @@
     max-width: 90% !important;
   }
 
-  #modal-new-total-chips .total-chips-top-date-row {
+  #modal-new-total-chips #total-chips-daterange-mount:not(.is-placed) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  #modal-new-total-chips #total-chips-history-tbl_wrapper > .row:has(.dataTables_length) > [class*="col-"]:first-child {
+    display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  #modal-new-total-chips #total-chips-daterange-mount.is-placed {
+    display: inline-block;
+    margin: 0;
+    flex: 0 0 auto;
   }
 
   #modal-new-total-chips .total-chips-history-date-wrap input,
@@ -782,6 +801,21 @@ $(document).ready(function() {
   });
 
   // 8) Combined NN and CC Chips History
+  function resetTotalChipsDateFilterMount() {
+    const $mount = $('#total-chips-daterange-mount');
+    if (!$mount.length) return;
+    $mount.detach().removeClass('is-placed').removeData('placed');
+    $mount.insertBefore('#total-chips-history-tbl');
+  }
+
+  function placeTotalChipsDateFilter() {
+    const $mount = $('#total-chips-daterange-mount');
+    const $length = $('#total-chips-history-tbl_wrapper .dataTables_length').first();
+    if (!$mount.length || !$length.length) return;
+    if ($mount.data('placed') && $mount.prev()[0] === $length[0]) return;
+    $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+  }
+
   function loadTotalChipsHistory() {
     const dateRange = $('#total-chips-daterange').val();
     console.log('Total Chips History Date Range:', dateRange);
@@ -821,7 +855,8 @@ $(document).ready(function() {
     }
     console.log('Total Chips History Start:', startNorm, 'End:', endNorm);
 
-    // Destroy existing DataTable instance if it exists
+    // Move date filter out of the wrapper before destroy so it is not removed
+    resetTotalChipsDateFilterMount();
     if ($.fn.DataTable.isDataTable('#total-chips-history-tbl')) {
       $('#total-chips-history-tbl').DataTable().destroy();
     }
@@ -981,6 +1016,7 @@ $(document).ready(function() {
           $('#total-chips-amount-sum').text(netTotal.toLocaleString('en-US'));
         }
       });
+      placeTotalChipsDateFilter();
     }).catch(function(error) {
       console.error('Error loading chips history:', error);
     });

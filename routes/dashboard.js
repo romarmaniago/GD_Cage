@@ -2263,12 +2263,9 @@ router.get('/month_settle_for_period', async (req, res) => {
 	}
 });
 
-// EDIT JUNKET CAPITAL
-router.put('/junket_capital/:id', checkSession, async (req, res) => {
+// EDIT JUNKET CAPITAL (Super Admin only)
+router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, res) => {
 	try {
-		if (req.session.permissions === 2 || req.session.permissions === '2') {
-			return res.status(403).send('View-only users cannot edit.');
-		}
 
 		const id = parseInt(req.params.id, 10);
 		const {
@@ -2340,8 +2337,8 @@ router.put('/junket_capital/:id', checkSession, async (req, res) => {
 	}
 });
 
-// DELETE JUNKET CAPITAL AND TOTAL CHIPS
-router.put('/junket_capital/remove/:id', async (req, res) => {
+// DELETE JUNKET CAPITAL AND TOTAL CHIPS (Super Admin only)
+router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
 		let date_now = new Date();

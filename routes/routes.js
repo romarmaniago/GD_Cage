@@ -2911,10 +2911,10 @@ pageRouter.post('/junket_capital/export_xlsx', checkSession, async function (req
 
 
 
-// EDIT JUNKET CAPITAL 
+// EDIT JUNKET CAPITAL (Super Admin only)
 pageRouter.put('/junket_capital/:id', checkSession, (req, res) => {
-	if (req.session.permissions === 2 || req.session.permissions === '2') {
-		return res.status(403).send('View-only users cannot edit.');
+	if (req.session.permissions !== 0 && req.session.permissions !== '0') {
+		return res.status(403).send('Only Super Admin can edit.');
 	}
 
 	const id = parseInt(req.params.id, 10);
@@ -2972,8 +2972,12 @@ pageRouter.put('/junket_capital/:id', checkSession, (req, res) => {
 });
 
 
-// DELETE JUNKET CAPITAL AND TOTAL CHIPS
+// DELETE JUNKET CAPITAL AND TOTAL CHIPS (Super Admin only)
 pageRouter.put('/junket_capital/remove/:id', (req, res) => {
+	if (req.session.permissions !== 0 && req.session.permissions !== '0') {
+		return res.status(403).send('Only Super Admin can delete.');
+	}
+
 	const id = parseInt(req.params.id);
 	let date_now = new Date();
 
