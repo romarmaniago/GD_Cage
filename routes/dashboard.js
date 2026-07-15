@@ -1207,7 +1207,31 @@ function parseEncodedDtFromProgramDate(raw) {
 	return new Date();
 }
 
-// ADD JUNKET CAPITAL
+/** YYYY-MM-DD from Authorized Master program-date picker; null if missing/invalid. */
+function parseJunketCapitalProgramDate(raw) {
+	const rawDate = raw == null ? '' : String(raw).trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return null;
+	const parts = rawDate.split('-').map((n) => parseInt(n, 10));
+	const y = parts[0];
+	const mo = parts[1];
+	const d = parts[2];
+	const dt = new Date(y, mo - 1, d);
+	if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
+		return rawDate;
+	}
+	return null;
+}
+
+function normalizeJunketCapitalDateRange(startDate, endDate) {
+	const start = String(startDate || '').trim().slice(0, 10);
+	const end = String(endDate || '').trim().slice(0, 10);
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+		return null;
+	}
+	return start <= end ? { start, end } : { start: end, end: start };
+}
+
+// ADD JUNKET CAPITAL (Authorized Master Account)
 router.post('/add_junket_capital', async (req, res) => {
 	try {
 		const {
@@ -1219,7 +1243,13 @@ router.post('/add_junket_capital', async (req, res) => {
 			txtProgramDate = null
 		} = req.body;
 
-		let date_now = parseEncodedDtFromProgramDate(txtProgramDate);
+		const programDate = parseJunketCapitalProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).send('Select a valid Program Date before saving.');
+		}
+
+		// ENCODED_DT = actual save time; PROGRAM_DATE = user-selected business date (same as house expense / routes.js).
+		const date_now = new Date();
 		let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
 		if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
 			return res.status(400).send('Enter a valid amount greater than zero.');
@@ -1227,9 +1257,9 @@ router.post('/add_junket_capital', async (req, res) => {
 
 		const query = `
 			INSERT INTO junket_capital(
-				TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, 
-				REMARKS, ENCODED_BY, ENCODED_DT
-			) VALUES (?, ?, ?, ?, ?, ?, ?)
+				TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT,
+				REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`;
 
 		const [insertResult] = await pool.execute(query, [
@@ -1239,7 +1269,8 @@ router.post('/add_junket_capital', async (req, res) => {
 			txtAmount2,
 			Remarks,
 			req.session?.user_id ?? null,
-			date_now
+			date_now,
+			programDate
 		]);
 
 		const transactionConfig = {
@@ -1283,9 +1314,9 @@ router.post('/add_junket_capital', async (req, res) => {
 
 router.get('/junket_capital_data', async (req, res) => {
 	try {
-		const { start_date, end_date } = req.query;
+		const range = normalizeJunketCapitalDateRange(req.query.start_date, req.query.end_date);
 
-		if (!start_date || !end_date) {
+		if (!range) {
 			return res.status(400).json({ error: 'start_date and end_date are required' });
 		}
 
@@ -1296,6 +1327,7 @@ router.get('/junket_capital_data', async (req, res) => {
 				k.ACTIVE,
 				k.ENCODED_BY,
 				k.ENCODED_DT,
+				DATE_FORMAT(k.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 				k.EDITED_BY,
 				k.EDITED_DT,
 				k.AMOUNT AS capital_amount,
@@ -1305,11 +1337,12 @@ router.get('/junket_capital_data', async (req, res) => {
 				'junket_capital' AS REMARKS_SOURCE
 			FROM junket_capital k
 			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
-			WHERE k.ACTIVE = 1 AND DATE(k.ENCODED_DT) BETWEEN ? AND ?
-			ORDER BY k.ENCODED_DT DESC
+			WHERE k.ACTIVE = 1
+			  AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?
+			ORDER BY COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) DESC, k.ENCODED_DT DESC
 		`;
 
-		const [results] = await pool.execute(query, [start_date, end_date]);
+		const [results] = await pool.execute(query, [range.start, range.end]);
 
 		res.json(results);
 	} catch (err) {

@@ -78,28 +78,144 @@ function getDefaultMonthEndRange() {
     };
 }
 
+/** Expand end date to month-end only for month-end-cutoff day (2nd-to-last), same as house expense. */
+function capitalApiEndDate(endYmd) {
+    if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+    var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+    var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+        return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+    }
+    return String(endYmd).slice(0, 10);
+}
+
+function formatCapitalYmd(d) {
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+/** Client-side PROGRAM DATE filter bounds (same pattern as dashboard F&B / hotel / tip). */
+var capitalDateStart = null;
+var capitalDateEnd = null;
+var capitalDateFilterRegistered = false;
+
+function ymdToLocalDate(ymd) {
+    if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+    var parts = String(ymd).slice(0, 10).split('-').map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+}
+
+function setCapitalFilterDates(selectedDates) {
+    if (!selectedDates || selectedDates.length === 0) {
+        capitalDateStart = null;
+        capitalDateEnd = null;
+        return;
+    }
+    if (selectedDates.length === 1) {
+        capitalDateStart = selectedDates[0];
+        capitalDateEnd = selectedDates[0];
+        return;
+    }
+    var start = selectedDates[0];
+    var end = selectedDates[1];
+    if (start > end) {
+        var tmp = start;
+        start = end;
+        end = tmp;
+    }
+    capitalDateStart = start;
+    var endYmd = formatCapitalYmd(end);
+    var expanded = capitalApiEndDate(endYmd);
+    capitalDateEnd = expanded !== endYmd ? ymdToLocalDate(expanded) : end;
+}
+
+function registerCapitalDateFilter() {
+    if (capitalDateFilterRegistered || !$.fn.dataTable || !$.fn.dataTable.ext) return;
+    capitalDateFilterRegistered = true;
+    $.fn.dataTable.ext.search.push(function (settings, data) {
+        if (!settings || !settings.nTable || settings.nTable.id !== 'capital-tbl') return true;
+        if (!capitalDateStart || !capitalDateEnd) return true;
+        var ymd = String(data[0] || '').trim().slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return true;
+        var rowDate = ymdToLocalDate(ymd);
+        if (!rowDate) return true;
+        var start = new Date(
+            capitalDateStart.getFullYear(),
+            capitalDateStart.getMonth(),
+            capitalDateStart.getDate(),
+            0, 0, 0, 0
+        );
+        var end = new Date(
+            capitalDateEnd.getFullYear(),
+            capitalDateEnd.getMonth(),
+            capitalDateEnd.getDate(),
+            23, 59, 59, 999
+        );
+        return rowDate >= start && rowDate <= end;
+    });
+}
+
+function applyCapitalDateFilterDraw() {
+    if ($.fn.DataTable.isDataTable('#capital-tbl')) {
+        $('#capital-tbl').DataTable().draw();
+    }
+}
+
 function parseCapitalDateRange(dateRange, pickerId) {
-    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.resolveRangeFromPicker === 'function') {
-        return window.MonthEndCutoffRange.resolveRangeFromPicker(dateRange, pickerId);
+    var el = pickerId ? document.getElementById(pickerId) : null;
+    var fp = el && el._flatpickr;
+
+    // Prefer flatpickr selectedDates (reliable with altInput + DOM moves into DataTable bar)
+    if (fp && fp.selectedDates && fp.selectedDates.length >= 2) {
+        var start = formatCapitalYmd(fp.selectedDates[0]);
+        var endRaw = formatCapitalYmd(fp.selectedDates[1]);
+        var end = capitalApiEndDate(endRaw);
+        if (start > end) {
+            return { rangeStr: dateRange || '', start: end, end: start, endDisplay: start };
+        }
+        return { rangeStr: dateRange || '', start: start, end: end, endDisplay: endRaw };
+    }
+    if (fp && fp.selectedDates && fp.selectedDates.length === 1) {
+        var single = capitalApiEndDate(formatCapitalYmd(fp.selectedDates[0]));
+        return { rangeStr: dateRange || '', start: single, end: single, endDisplay: single };
     }
 
-    let rangeStr = (dateRange || '').trim();
-    if (!rangeStr) {
-        const fallback = getDefaultMonthEndRange();
-        rangeStr = `${fallback.startDisplay} to ${fallback.endDisplay}`;
+    // Do not use resolveRangeFromPicker().end — it always expands to month-end and breaks filtering.
+    if (window.MonthEndCutoffRange) {
+        var rangeStr = (dateRange || '').trim();
+        if (!rangeStr || !/\s+to\s+/i.test(rangeStr)) {
+            var fallback = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+            rangeStr = fallback.startDisplay + ' to ' + fallback.endDisplay;
+        }
+        var parsed = window.MonthEndCutoffRange.parseRangeString(rangeStr);
+        var startApi = window.MonthEndCutoffRange.toApiDate(parsed.start);
+        var endSelected = window.MonthEndCutoffRange.toApiDate(parsed.end);
+        var endApi = capitalApiEndDate(endSelected);
+        if (startApi && endApi) {
+            if (startApi > endApi) {
+                return { rangeStr: rangeStr, start: endApi, end: startApi, endDisplay: startApi };
+            }
+            return { rangeStr: rangeStr, start: startApi, end: endApi, endDisplay: endSelected };
+        }
+    }
+
+    let rangeStrFallback = (dateRange || '').trim();
+    if (!rangeStrFallback) {
+        const fallbackRange = getDefaultMonthEndRange();
+        rangeStrFallback = `${fallbackRange.startDisplay} to ${fallbackRange.endDisplay}`;
     }
 
     let startDate;
     let endDate;
-    if (rangeStr.indexOf(' to ') > -1) {
-        [startDate, endDate] = rangeStr.split(' to ');
+    if (rangeStrFallback.indexOf(' to ') > -1) {
+        [startDate, endDate] = rangeStrFallback.split(' to ');
     } else {
-        startDate = rangeStr;
-        endDate = rangeStr;
+        startDate = rangeStrFallback;
+        endDate = rangeStrFallback;
     }
 
     return {
-        rangeStr: rangeStr,
+        rangeStr: rangeStrFallback,
         start: startDate,
         end: endDate,
         endDisplay: endDate,
@@ -132,13 +248,30 @@ function renderCapitalRemarksCell(row, displayText, suffixHtml) {
 function reloadData() {
     const dateRange = $('#main-daterange').val();
     const resolved = parseCapitalDateRange(dateRange, 'main-daterange');
-    const startDate = resolved.start;
-    const endDate = resolved.end;
+    let startDate = resolved.start;
+    let endDate = resolved.end;
 
-    if (!startDate || !endDate) {
+    if (window.MonthEndCutoffRange) {
+        startDate = window.MonthEndCutoffRange.toApiDate(startDate) || startDate;
+        endDate = capitalApiEndDate(window.MonthEndCutoffRange.toApiDate(endDate) || endDate);
+    }
+    startDate = String(startDate || '').trim().slice(0, 10);
+    endDate = String(endDate || '').trim().slice(0, 10);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
         alert('Please select a valid date range.');
         return;
     }
+    if (startDate > endDate) {
+        var swap = startDate;
+        startDate = endDate;
+        endDate = swap;
+    }
+
+    // Keep client PROGRAM DATE filter in sync with the picker (dashboard F&B pattern).
+    capitalDateStart = ymdToLocalDate(startDate);
+    capitalDateEnd = ymdToLocalDate(endDate);
+    applyCapitalDateFilterDraw();
 
     // Ipakita ang loading overlay at simulate progress...
     $('#modal-new-capital .loading-overlay').show();
@@ -155,10 +288,17 @@ function reloadData() {
     }, 100); // Adjust interval time for smoother effect (100ms = smoother)
    
     $.ajax({
-        url: `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(), // Prevent caching
+        url: '/junket_capital_data?start_date=' + encodeURIComponent(startDate) +
+            '&end_date=' + encodeURIComponent(endDate) +
+            '&_=' + Date.now(),
         method: 'GET',
         success: function (data) {
-            
+            if (!Array.isArray(data)) {
+                console.error('junket_capital_data: expected array', data);
+                applyCapitalDateFilterDraw();
+                return;
+            }
+
             var dataTable = $('#capital-tbl').DataTable(); // Ensure you have the DataTable reference
             dataTable.clear();
             window.__capitalEditRows = {};
@@ -331,18 +471,21 @@ function reloadData() {
                         remarks,
                         `${fullName}`,
                         btn
-                    ]).draw();
+                    ]);
                 }
             });
 
+            // Single draw applies client-side PROGRAM DATE filter (like dashboard F&B).
+            dataTable.draw();
             $('.total_balance').text('P' + (total_in - total_out).toLocaleString('en-US'));
             if ($.fn.DataTable.isDataTable('#capital-tbl')) {
                 $('#capital-tbl').DataTable().columns.adjust();
             }
         },
         error: function (xhr, status, error) {
-            console.error('Error fetching data:', error);
-            // Add more robust error handling here
+            console.error('Error fetching data:', error, xhr && xhr.responseText);
+            // Still apply client filter so picker range stays accurate even if fetch fails.
+            applyCapitalDateFilterDraw();
         },
         complete: function () {
             // Ensure progress reaches 100% before hiding the overlay
@@ -357,19 +500,39 @@ function reloadData() {
 }
 
 $(document).ready(function () {
+    registerCapitalDateFilter();
+
     const mainDatePickerConfig = {
         mode: "range",
         showMonths: 2,
         onReady: function (selectedDates, dateStr, instance) {
             const current = new Date();
             instance.jumpToDate(new Date(current.getFullYear(), current.getMonth(), 1), false);
+            if (selectedDates && selectedDates.length >= 2) {
+                setCapitalFilterDates(selectedDates);
+            }
         },
         onOpen: function (selectedDates, dateStr, instance) {
             const current = new Date();
             instance.jumpToDate(new Date(current.getFullYear(), current.getMonth(), 1), false);
         },
+        // Instant client PROGRAM DATE filter while picking (same idea as dashboard F&B).
         onChange: function (selectedDates) {
             if (selectedDates.length === 2) {
+                setCapitalFilterDates(selectedDates);
+                applyCapitalDateFilterDraw();
+            }
+        },
+        // Fetch from server when range is committed (onClose), like junket loss / house expense.
+        onClose: function (selectedDates) {
+            if (!selectedDates || selectedDates.length === 0) {
+                setCapitalFilterDates(null);
+                applyCapitalDateFilterDraw();
+                return;
+            }
+            if (selectedDates.length >= 2) {
+                setCapitalFilterDates(selectedDates);
+                applyCapitalDateFilterDraw();
                 reloadData();
             }
         },
@@ -383,6 +546,65 @@ $(document).ready(function () {
         }));
         $('#main-daterange').val(`${rangeDefaults.startDisplay} to ${rangeDefaults.endDisplay}`);
     }
+
+    // Seed filter bounds from default month-end cutoff range.
+    (function seedCapitalFilterFromPicker() {
+        var el = document.getElementById('main-daterange');
+        var fp = el && el._flatpickr;
+        if (fp && fp.selectedDates && fp.selectedDates.length >= 2) {
+            setCapitalFilterDates(fp.selectedDates);
+            return;
+        }
+        var fallback = getDefaultMonthEndRange();
+        capitalDateStart = ymdToLocalDate(fallback.start);
+        capitalDateEnd = ymdToLocalDate(capitalApiEndDate(fallback.end));
+    })();
+
+    function layoutCapitalTableControls() {
+        var wrapper = document.getElementById('capital-tbl_wrapper');
+        var lengthWrap = document.getElementById('capital-tbl_length');
+        var filterWrap = document.getElementById('capital-tbl_filter');
+        var dateSlot = document.getElementById('capital-daterange-slot');
+        var dateWrap = document.querySelector('#capital-tbl_wrapper .hb-field-daterange-wrap')
+            || (dateSlot ? dateSlot.querySelector('.hb-field-daterange-wrap') : null)
+            || document.querySelector('#modal-new-capital .hb-field-daterange-wrap');
+        var controlsHighlight;
+        var searchLabel;
+        var searchInput;
+
+        if (!wrapper || !lengthWrap || !filterWrap) return;
+
+        controlsHighlight = wrapper.querySelector('.capital-controls-highlight');
+        if (!controlsHighlight) {
+            controlsHighlight = document.createElement('div');
+            controlsHighlight.className = 'capital-controls-highlight';
+            wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+        }
+
+        if (lengthWrap.parentElement !== controlsHighlight) {
+            controlsHighlight.appendChild(lengthWrap);
+        }
+        if (dateWrap && dateWrap.parentElement !== controlsHighlight) {
+            controlsHighlight.appendChild(dateWrap);
+        }
+        if (dateSlot) {
+            dateSlot.classList.add('is-placed');
+        }
+        if (filterWrap.parentElement !== controlsHighlight) {
+            controlsHighlight.appendChild(filterWrap);
+        }
+
+        searchLabel = filterWrap.querySelector('label');
+        searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+        if (searchInput) {
+            searchInput.setAttribute('placeholder', 'Search...');
+            Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
+                if (node.nodeType === 3) searchLabel.removeChild(node);
+            });
+        }
+    }
+    window.layoutCapitalTableControls = layoutCapitalTableControls;
+
     // Ensure DataTable remains initialized with the required configuration
     if ($.fn.DataTable.isDataTable('#capital-tbl')) {
         $('#capital-tbl').DataTable().destroy();
@@ -392,6 +614,12 @@ $(document).ready(function () {
         "order": [[0, 'desc'], [1, 'desc']], // Program Date, then Date & Time
         "autoWidth": true,
         "scrollX": false,
+        "drawCallback": function () {
+            layoutCapitalTableControls();
+        },
+        "initComplete": function () {
+            layoutCapitalTableControls();
+        },
         "columnDefs": [
             {
                 "targets": 0, // PROGRAM DATE
@@ -1840,6 +2068,9 @@ $(document).ready(function() {
         if ($.fn.DataTable.isDataTable('#capital-tbl')) {
             setTimeout(function () {
                 $('#capital-tbl').DataTable().columns.adjust();
+                if (typeof window.layoutCapitalTableControls === 'function') {
+                    window.layoutCapitalTableControls();
+                }
             }, 50);
         }
     });

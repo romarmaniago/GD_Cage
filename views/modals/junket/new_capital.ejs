@@ -43,7 +43,7 @@
 	#modal-new-capital .house-balance-date-controls {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-start;
+		align-items: center;
 		gap: 12px;
 	}
 
@@ -62,7 +62,6 @@
 		margin-left: auto;
 	}
 
-	#modal-new-capital .house-balance-filter-row .hb-field-daterange-wrap,
 	#modal-new-capital .house-balance-filter-row .hb-field-program-date-wrap {
 		flex: 0 0 auto;
 		width: auto;
@@ -86,6 +85,7 @@
 		font-size: 0.875rem;
 	}
 
+	/* Match shared MonthEndCutoffRange / date_range_picker.css auto-width behavior */
 	#modal-new-capital .hb-field-daterange-wrap input,
 	#modal-new-capital .hb-field-daterange-wrap .flatpickr-alt-input,
 	#modal-new-capital .hb-field-daterange-wrap .flatpickr-input.form-control {
@@ -97,6 +97,11 @@
 		text-overflow: clip;
 		white-space: nowrap;
 		box-sizing: border-box;
+		field-sizing: content;
+		background: #fff;
+		border: 1px solid rgba(58, 46, 18, 0.2);
+		border-radius: 8px;
+		text-align: center;
 	}
 
 	#modal-new-capital .hb-field-program-date-wrap input,
@@ -123,18 +128,50 @@
 		border: 1px solid var(--gd-marker-gold-border);
 	}
 
-	/* Cream controls bar (length + search) */
-	#capital-tbl_wrapper > .row:has(.dataTables_length),
-	#capital-tbl_wrapper > .row:has(.dataTables_filter) {
+	/* Cream controls bar (length + date range + search) */
+	#capital-tbl_wrapper .capital-controls-highlight {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
 		background: var(--gd-marker-gold-hover);
 		border: 1px solid var(--gd-marker-gold-border);
 		border-bottom: 0;
 		border-radius: 10px 10px 0 0;
 		padding: 8px 12px;
-		margin-left: 0;
-		margin-right: 0;
 		margin-bottom: -1px;
-		align-items: center;
+	}
+
+	#capital-tbl_wrapper .capital-controls-highlight .dataTables_length {
+		margin: 0;
+		margin-top: 4px;
+	}
+
+	#capital-tbl_wrapper .capital-controls-highlight .hb-field-daterange-wrap {
+		flex: 0 1 auto;
+		margin: 0 auto 0 0;
+	}
+
+	#capital-tbl_wrapper .capital-controls-highlight .dataTables_filter {
+		margin: 0 0 0 auto;
+	}
+
+	#capital-tbl_wrapper > .row:has(.dataTables_length),
+	#capital-tbl_wrapper > .row:has(.dataTables_filter) {
+		display: none !important;
+	}
+
+	#capital-tbl_wrapper #capital-tbl {
+		margin-top: 0 !important;
+	}
+
+	#modal-new-capital .capital-daterange-slot:not(.is-placed) {
+		margin-bottom: 0.5rem;
+	}
+
+	#modal-new-capital .capital-daterange-slot.is-placed {
+		display: contents;
 	}
 
 /* Header styles */
@@ -344,9 +381,6 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 								<div class="col-12">
 									<div class="house-balance-date-controls">
 										<div class="hb-date-fields-stack">
-											<div class="hb-field-daterange-wrap">
-												<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
-											</div>
 											<div class="hb-field-program-date-wrap">
 												<input type="text" id="capitalProgramDate" name="txtProgramDate" class="form-control form-control-sm input-program-date" placeholder="<%= __('dashboard_new_capital.program_date') %>" autocomplete="off" required/>
 											</div>
@@ -459,6 +493,11 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 							
 							<hr class="my-2" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
+							<div id="capital-daterange-slot" class="capital-daterange-slot">
+								<div class="hb-field-daterange-wrap">
+									<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+								</div>
+							</div>
 							<div class="table-responsive capital-tbl-scroll">
 							<table
 								id="capital-tbl"
