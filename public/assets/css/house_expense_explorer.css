@@ -1,5 +1,12 @@
 /* House expense explorer styles (shared: page + dashboard modal) */
 
+/* Dashboard modal only: swap the bootstrap blue --bs-primary for the gold trim used everywhere else in this modal */
+#modal-dash-house-expense {
+  --bs-primary: #6b4a12;
+  --bs-primary-rgb: 200, 162, 76;
+  --bs-primary-bg-subtle: rgba(200, 162, 76, 0.14);
+}
+
 .modal-dash-house-expense-dialog {
   max-width: min(97vw, 104rem) !important;
   width: min(97vw, 104rem);
@@ -269,6 +276,27 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     margin-left: auto;
 }
 
+#modal-dash-house-expense #btn-house-expense-print {
+    background: transparent;
+    border: 1px solid rgba(200, 162, 76, 0.5);
+    color: #6b4a12;
+}
+#modal-dash-house-expense #btn-house-expense-print:hover {
+    background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+    border-color: transparent;
+    color: #fff;
+}
+#modal-dash-house-expense #btn-house-expense-export {
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 600;
+}
+#modal-dash-house-expense #btn-house-expense-export:hover {
+    filter: brightness(1.15);
+    color: #fff;
+}
+
 #daterange-wrapper,
 .house-expense-split-daterange,
 [id$="-split-daterange-wrapper"],
@@ -460,7 +488,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-dash-kpi-meta {
     margin-top: 0.35rem;
     line-height: 1.35;
-    color: #3b59ed;
+    color: #6b4a12;
     font-weight: 600;
 }
 .expense-dash-graph {
@@ -649,8 +677,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #3a2e12;
-    background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
-    border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+    background: #f6f3ec;
+    border-bottom: 2px solid #c8a24c;
 }
 
 .expense-cat-panel-head .text-muted,
