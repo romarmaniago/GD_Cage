@@ -6,9 +6,9 @@
 				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-					<input type="text" id="dash-delivery-daterange" class="form-control form-control-sm" style="max-width: 260px;" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
-				</div>
+			<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+				<input type="text" id="dash-delivery-daterange" class="form-control form-control-sm dash-service-daterange" placeholder="<%= __('fnb_hotel.date') %>" autocomplete="off" readonly>
+			</div>
 				<div class="table-responsive dash-service-table-panel">
 					<%- include('../../partials/dash_service_add_button', { buttonId: 'btn-dash-delivery-new-record', title: __('fnb_hotel.new_record') }) %>
 					<table id="dash-delivery-table" class="table nowrap small-text mb-0" style="width:100%">
