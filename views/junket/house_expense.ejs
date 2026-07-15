@@ -2048,12 +2048,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl thead th {
                 text-align: center !important;
             }
-            .expense-item-tbl thead th:nth-child(3),
-            .expense-item-tbl tbody td:nth-child(3) {
-                padding-right: 0.65rem;
-            }
             .expense-item-tbl thead th:nth-child(4),
             .expense-item-tbl tbody td:nth-child(4) {
+                padding-right: 0.65rem;
+            }
+            .expense-item-tbl thead th:nth-child(5),
+            .expense-item-tbl tbody td:nth-child(5) {
                 padding-left: 0.65rem;
             }
             .expense-item-tbl tbody td,
@@ -2076,14 +2076,14 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 padding-right: 0.35rem;
                 white-space: nowrap;
             }
-            .expense-item-tbl tbody td:nth-child(2) .d-inline-flex {
+            .expense-item-tbl tbody td:nth-child(3) .d-inline-flex {
                 justify-content: center;
                 width: 100%;
                 flex-wrap: nowrap;
                 max-width: 100%;
                 min-width: 0;
             }
-            .expense-item-tbl tbody td:nth-child(2) .d-inline-flex > span:last-child {
+            .expense-item-tbl tbody td:nth-child(3) .d-inline-flex > span:last-child {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -2094,7 +2094,8 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
                 display: flex;
                 justify-content: flex-start;
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
+                gap: 0.15rem;
             }
             @media (min-width: 992px) {
                 .expense-explorer-main-col {

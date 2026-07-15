@@ -69,37 +69,39 @@
 }
 
 /* Proportional column distribution (sums to 100%) */
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 14%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 22%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 11%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 11%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 20%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 11%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-program-date { width: 10%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 12%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 18%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 10%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 10%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 16%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 10%; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 11rem; }
-
-#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(3),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3) {
-  padding-right: 0.65rem;
-}
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(4),
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(4) {
-  padding-left: 0.65rem;
+  padding-right: 0.5rem;
+}
+
+#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(5),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5) {
+  padding-left: 0.5rem;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th {
   white-space: nowrap;
   font-size: 0.68rem;
-  padding: 0.45rem 0.3rem;
-  line-height: 1.2;
+  padding: 0.3rem 0.25rem;
+  line-height: 1.15;
   vertical-align: middle;
   text-align: center !important;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td {
   vertical-align: middle;
-  padding: 0.35rem 0.3rem;
-  font-size: 0.78rem;
+  padding: 0.2rem 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
   text-align: center !important;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,17 +110,18 @@
   overflow-wrap: normal;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-date-cell {
-  font-size: 0.72rem;
+#modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-date-cell,
+#modal-dash-house-expense .expense-item-tbl-layout tbody td.expense-item-program-date-cell {
+  font-size: 0.7rem;
   letter-spacing: -0.01em;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2),
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(5) {
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(6) {
   max-width: 0;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2) .d-inline-flex {
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3) .d-inline-flex {
   justify-content: center;
   width: 100%;
   flex-wrap: nowrap;
@@ -126,7 +129,7 @@
   min-width: 0;
 }
 
-#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2) .d-inline-flex > span:last-child {
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(3) .d-inline-flex > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -139,8 +142,8 @@
   width: 11rem;
   max-width: 11rem;
   min-width: 10rem;
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
   overflow: hidden;
   text-align: left !important;
   white-space: nowrap;
@@ -151,13 +154,13 @@
   max-width: 11rem;
   min-width: 10rem;
   text-align: left !important;
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 0.15rem;
@@ -165,7 +168,7 @@
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn {
-  padding: 0.18rem 0.3rem;
+  padding: 0.12rem 0.28rem;
   line-height: 1;
   flex: 0 0 auto;
 }
@@ -1073,12 +1076,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-item-tbl thead th {
     text-align: center !important;
 }
-.expense-item-tbl thead th:nth-child(3),
-.expense-item-tbl tbody td:nth-child(3) {
-    padding-right: 0.65rem;
-}
 .expense-item-tbl thead th:nth-child(4),
 .expense-item-tbl tbody td:nth-child(4) {
+    padding-right: 0.65rem;
+}
+.expense-item-tbl thead th:nth-child(5),
+.expense-item-tbl tbody td:nth-child(5) {
     padding-left: 0.65rem;
 }
 .expense-item-tbl tbody td,
@@ -1101,14 +1104,14 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     padding-right: 0.35rem;
     white-space: nowrap;
 }
-.expense-item-tbl tbody td:nth-child(2) .d-inline-flex {
+.expense-item-tbl tbody td:nth-child(3) .d-inline-flex {
     justify-content: center;
     width: 100%;
     flex-wrap: nowrap;
     max-width: 100%;
     min-width: 0;
 }
-.expense-item-tbl tbody td:nth-child(2) .d-inline-flex > span:last-child {
+.expense-item-tbl tbody td:nth-child(3) .d-inline-flex > span:last-child {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1119,7 +1122,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
     display: flex;
     justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.15rem;
 }
 #expense-item-cat-tbl .house-expense-actions .btn i.fa,
