@@ -370,10 +370,10 @@
 	width: 2.25rem;
 	height: 2.25rem;
 	padding: 0;
-	border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+	border-color: transparent;
 	border-radius: 50%;
-	background: #fff;
-	color: var(--bs-primary);
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	color: #fff;
 	line-height: 1;
 	flex-shrink: 0;
 	position: relative;
@@ -390,9 +390,7 @@
 }
 
 #btn-fnb-hotel-new-record.expense-cat-panel-add-btn:hover:not(:disabled) {
-	background: var(--bs-primary);
-	color: #fff;
-	border-color: var(--bs-primary);
+	filter: brightness(0.92);
 }
 
 #btn-fnb-hotel-new-record.expense-cat-panel-add-btn:disabled {

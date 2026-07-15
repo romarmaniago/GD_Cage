@@ -578,19 +578,11 @@ body.guest-portal-child-open .modal-backdrop.show {
 }
 #modal-account-details #btn-game-history,
 #modal-account-details #btn-guest-portal-game-start,
-#modal-account-details .text-end.mb-4 .btn.btn-primary {
-    background: #16a34a;
-    border-color: #16a34a;
-    color: #fff;
-}
-#modal-account-details #btn-credit {
-    background: #4155ff;
-    border-color: #4155ff;
-    color: #fff;
-}
+#modal-account-details .text-end.mb-4 .btn.btn-primary,
+#modal-account-details #btn-credit,
 #modal-account-details #btn-passport-details {
-    background: #0b2b66;
-    border-color: #0b2b66;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    border-color: transparent;
     color: #fff;
 }
 #modal-account-details .text-end.mb-4 .btn:hover {
@@ -790,12 +782,22 @@ body.guest-portal-child-open .modal-backdrop.show {
     min-width: 11rem;
 }
 .passport-details-header {
-    background: #4155FF;
-    color: #fff;
+    background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+    border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+    color: #3a2e12;
 }
 .passport-details-header .modal-title,
 .passport-details-header .modal-title i {
-    color: #fff !important;
+    color: #3a2e12 !important;
+}
+.passport-details-header .btn-close,
+.passport-details-header .btn-close-white {
+    filter: none;
+    opacity: 0.65;
+}
+.passport-details-header .btn-close:hover,
+.passport-details-header .btn-close-white:hover {
+    opacity: 1;
 }
 .passport-empty-icon { font-size: 4rem; opacity: 0.5; }
 .passport-image-wrapper {

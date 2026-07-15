@@ -13,13 +13,10 @@
 							<div id="user-role" data-permissions="<%= permissions %>"></div>
 							<div class="card-header d-flex justify-content-between align-items-center">
 
-								<h3 class="card-title"><div class="breadcrumb1 flat">
-									<a href="/dashboard" ><span class="fa fa-home"></span></a>
-									<a href="/expense_category"class="active"><%= __('expense_category.expense_category') %></a>
-								</div></h3>
-								<button type="button" class="btn btn-primary" onclick="addExpenseCategory()">
-									<i class="fa fa-plus" aria-hidden="true"></i> <%= __('expense_category.new_category') %>
-								</button>
+							<h3 class="card-title"><div class="breadcrumb1 flat">
+								<a href="/dashboard" ><span class="fa fa-home"></span></a>
+								<a href="/expense_category"class="active"><%= __('expense_category.expense_category') %></a>
+							</div></h3>
 
 							</div>
 
@@ -141,6 +138,31 @@
 }
 #expense-category-tbl_wrapper .expense-category-controls-highlight .dataTables_filter {
 	margin: 0 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+#btn-add-expense-category.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border-color: transparent;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	color: #fff;
+	line-height: 1;
+	flex-shrink: 0;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+#btn-add-expense-category.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+}
+#btn-add-expense-category.expense-cat-panel-add-btn:hover:not(:disabled) {
+	filter: brightness(0.92);
 }
 #expense-category-tbl_wrapper #expense-category-tbl_filter .expense-category-filter-highlight {
 	display: inline-flex;
@@ -315,30 +337,42 @@
 										? String(window.expenseCategoryTranslations.search).replace(/\s*:?\s*$/, '') + '...'
 										: 'Search...';
 
-									if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
+								if (!wrapper || !lengthWrap || !filterWrap || !searchLabel) return;
 
-									controlsHighlight = wrapper.querySelector('.expense-category-controls-highlight');
-									if (!controlsHighlight) {
-										controlsHighlight = document.createElement('div');
-										controlsHighlight.className = 'expense-category-controls-highlight';
-										wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
-									}
-									if (lengthWrap.parentElement !== controlsHighlight) {
-										controlsHighlight.appendChild(lengthWrap);
-									}
-									if (filterWrap.parentElement !== controlsHighlight) {
-										controlsHighlight.appendChild(filterWrap);
-									}
+								controlsHighlight = wrapper.querySelector('.expense-category-controls-highlight');
+								if (!controlsHighlight) {
+									controlsHighlight = document.createElement('div');
+									controlsHighlight.className = 'expense-category-controls-highlight';
+									wrapper.insertBefore(controlsHighlight, wrapper.firstChild);
+								}
+								if (lengthWrap.parentElement !== controlsHighlight) {
+									controlsHighlight.appendChild(lengthWrap);
+								}
+								if (filterWrap.parentElement !== controlsHighlight) {
+									controlsHighlight.appendChild(filterWrap);
+								}
 
-									filterHighlight = filterWrap.querySelector('.expense-category-filter-highlight');
-									if (!filterHighlight) {
-										filterHighlight = document.createElement('div');
-										filterHighlight.className = 'expense-category-filter-highlight';
-										filterWrap.appendChild(filterHighlight);
-									}
-									if (searchLabel.parentElement !== filterHighlight) {
-										filterHighlight.appendChild(searchLabel);
-									}
+								if (!controlsHighlight.querySelector('#btn-add-expense-category')) {
+									var addBtn = document.createElement('button');
+									addBtn.type = 'button';
+									addBtn.id = 'btn-add-expense-category';
+									addBtn.className = 'expense-cat-panel-add-btn';
+									addBtn.title = '<%= __("expense_category.new_category") %>';
+									addBtn.setAttribute('aria-label', '<%= __("expense_category.new_category") %>');
+									addBtn.onclick = function () { addExpenseCategory(); };
+									addBtn.innerHTML = '<i class="fa fa-plus" aria-hidden="true"></i>';
+									filterWrap.insertBefore(addBtn, filterWrap.firstChild);
+								}
+
+								filterHighlight = filterWrap.querySelector('.expense-category-filter-highlight');
+								if (!filterHighlight) {
+									filterHighlight = document.createElement('div');
+									filterHighlight.className = 'expense-category-filter-highlight';
+									filterWrap.appendChild(filterHighlight);
+								}
+								if (searchLabel.parentElement !== filterHighlight) {
+									filterHighlight.appendChild(searchLabel);
+								}
 									if (searchInput) {
 										searchInput.setAttribute('placeholder', searchPlaceholder);
 										Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {

@@ -277,12 +277,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 }
 
 #modal-dash-house-expense #btn-house-expense-print {
-    background: transparent;
-    border: 1px solid rgba(200, 162, 76, 0.5);
-    color: #6b4a12;
-}
-#modal-dash-house-expense #btn-house-expense-print:hover {
-    background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
     border-color: transparent;
     color: #fff;
 }
@@ -692,10 +687,10 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     width: 2.25rem;
     height: 2.25rem;
     padding: 0;
-    border: 1px solid rgba(58, 46, 18, 0.25);
+    border-color: transparent;
     border-radius: 50%;
-    background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
-    color: #1a1205;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    color: #fff;
     line-height: 1;
     flex-shrink: 0;
     position: relative;
@@ -720,10 +715,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     z-index: 2;
 }
 .expense-cat-panel-add-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #7d5618 0%, #d4ae5a 50%, #f5dc9a 100%);
-    color: #0f0a02;
-    border-color: rgba(58, 46, 18, 0.35);
-    filter: brightness(1.04);
+    filter: brightness(0.92);
 }
 .expense-cat-panel-add-btn:disabled {
     opacity: 0.45;
@@ -969,16 +961,13 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     color: #3a2e12 !important;
 }
 .expense-explorer-item-col .expense-cat-panel-add-btn {
-    background: #fff;
-    color: var(--bs-primary);
-    border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    color: #fff;
+    border-color: transparent;
     filter: none;
 }
 .expense-explorer-item-col .expense-cat-panel-add-btn:hover:not(:disabled) {
-    background: var(--bs-primary);
-    color: #fff;
-    border-color: var(--bs-primary);
-    filter: none;
+    filter: brightness(0.92);
 }
 .expense-explorer-item-col #expense-item-cat-tbl thead tr {
     background-color: var(--gd-marker-gold-solid);

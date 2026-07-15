@@ -832,16 +832,16 @@ body.uikit .btn-download {
 }
 .bg-gradient-primary:hover,
 .bg-gradient-primary:focus {
-  background: linear-gradient(135deg, #000000 0%, #01081A 50%, #3F597C 100%) !important;
+  filter: brightness(0.92);
   color: #ffffff !important;
 }
 .bg-gradient-secondary {
-  background: linear-gradient(135deg, #564428 0%, #9D8559 50%, #EACC90 100%) !important;
+  background: linear-gradient(135deg, #3a3a3f 0%, #5a5a62 50%, #7a7a84 100%) !important;
   color: #ffffff !important;
 }
 .bg-gradient-secondary:hover,
 .bg-gradient-secondary:focus {
-  background: linear-gradient(135deg, #44341f 0%, #8a734c 50%, #d6b477 100%) !important;
+  filter: brightness(0.92);
   color: #ffffff !important;
 }
 

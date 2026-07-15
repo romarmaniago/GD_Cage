@@ -1162,8 +1162,8 @@ body {
 }
 
 .dash-card.gd-dash-panel .dash-card-actions .btn-primary-subtle {
-  color: #1a1205;
-  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  color: #fff;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
   border: none;
   font-weight: 600;
 }
@@ -1317,27 +1317,21 @@ body {
 }
 
 .dash-card.gd-dash-panel .dash-card-actions .btn-outline-primary {
-  color: var(--gd-dash-gold-light);
-  border-color: rgba(200, 162, 76, 0.45);
-  background: transparent;
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
 .dash-card.gd-dash-panel .dash-card-actions .btn-outline-primary:hover {
-  color: #1a1205;
-  background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%);
+  color: #fff;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
   border-color: transparent;
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-card-actions .btn-outline-primary {
-  color: var(--gd-dash-jade);
-  border-color: var(--gd-dash-jade-border);
-  background: transparent;
-}
-
-.dash-card.gd-dash-panel.is-light-body .dash-card-actions .btn-outline-primary:hover {
   color: #fff;
-  background: linear-gradient(135deg, var(--gd-dash-jade-dark) 0%, var(--gd-dash-jade) 50%, var(--gd-dash-jade-light) 100%);
   border-color: transparent;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
 /* Golden Dragon — Main Cage Rolling Check & W/L Check matrix panel */
@@ -1381,26 +1375,20 @@ body {
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-print {
-  color: var(--gd-dash-gold-light);
-  border: 1px solid rgba(200, 162, 76, 0.45);
-  background: transparent;
-}
-
-.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-print:hover {
-  color: #1a1205;
-  background: rgba(241, 212, 138, 0.9);
+  color: #fff;
   border-color: transparent;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-export {
-  color: #1a1205;
+  color: #fff;
   border: 0;
-  background: linear-gradient(135deg, #c8a24c 0%, #f1d48a 100%);
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-export:hover {
-  color: #0f0a02;
-  filter: brightness(1.05);
+  color: #fff;
+  filter: brightness(0.92);
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-foot,
@@ -1517,15 +1505,9 @@ body {
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .btn-dash-matrix-print {
-  color: #3a2e12;
-  border: 1px solid rgba(58, 46, 18, 0.35);
-  background: transparent;
-}
-
-.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .btn-dash-matrix-print:hover {
-  color: #1a1205;
-  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
   border-color: transparent;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
 /* Uniform gold table — header AND data rows share the same tone instead of the mixed excel-style tints */

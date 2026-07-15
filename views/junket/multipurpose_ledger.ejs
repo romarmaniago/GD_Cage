@@ -17,7 +17,7 @@
             </div>
           </h3>
           <div class="d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" class="btn btn-sm" id="btn-jfl-money-exchange" style="background-color:#E89149;border-color:#d67d35;color:#fff;">
+            <button type="button" class="btn btn-sm" id="btn-jfl-money-exchange" style="background:linear-gradient(135deg,#52525b 0%,#71717a 100%);border-color:transparent;color:#fff;">
               <i class="fa fa-exchange me-1"></i> Money Exchange
             </button>
             <button type="button" id="btn-jfl-print" class="btn btn-sm btn-alt-success">
@@ -602,10 +602,10 @@
     width: 2.25rem;
     height: 2.25rem;
     padding: 0;
-    border: none;
+    border-color: transparent;
     border-radius: 50%;
-    background: #fff;
-    color: var(--bs-primary);
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    color: #fff;
     line-height: 1;
     flex-shrink: 0;
     position: relative;
@@ -619,8 +619,7 @@
   }
 
   #btn-add-jfl.expense-cat-panel-add-btn:hover:not(:disabled) {
-    background: var(--bs-primary);
-    color: #fff;
+    filter: brightness(0.92);
   }
 
   #btn-add-jfl.expense-cat-panel-add-btn:focus,

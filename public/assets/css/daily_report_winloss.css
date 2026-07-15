@@ -269,10 +269,10 @@
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
-  border: none;
+  border-color: transparent;
   border-radius: 50%;
-  background: #fff;
-  color: var(--bs-primary);
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+  color: #fff;
   line-height: 1;
   flex-shrink: 0;
   position: relative;
@@ -286,8 +286,7 @@
 }
 
 #btn-add-daily-report.expense-cat-panel-add-btn:hover:not(:disabled) {
-  background: var(--bs-primary);
-  color: #fff;
+  filter: brightness(0.92);
 }
 
 #daily-report-view-table_wrapper .daily-report-controls-highlight {
