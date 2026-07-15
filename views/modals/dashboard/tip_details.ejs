@@ -20,6 +20,9 @@
 								placeholder="<%= __('tip.date_time') %>" autocomplete="off" readonly>
 						</div>
 						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+						<button type="button" class="btn btn-sm btn-success" id="btn-dash-tip-in-open" data-view-only-disable>
+							<%= __('tip.in') %>
+						</button>
 						<button type="button" class="btn btn-sm btn-primary" id="btn-dash-tip-settlement-open" data-view-only-disable>
 							<%= __('tip.settle') %>
 						</button>
