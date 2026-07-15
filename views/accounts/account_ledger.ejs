@@ -10,9 +10,9 @@
 				<div class="container-fluid content-inner py-0">
 					<div class="row">
 						<div class="col-sm-12">
-							<div class="card">
+							<div class="card" style="background: linear-gradient(180deg, #faf8f4 0%, #f5f2ec 100%); border: 1px solid #e0dcd4;">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
-								<div class="card-header d-flex justify-content-between align-items-center">
+								<div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%); border-bottom: 1px solid rgba(200, 162, 76, 0.25);">
 									<h3 class="card-title"><div class="breadcrumb1 flat">
 										<a href="/dashboard" ><span class="fa fa-home"></span></a>
 										<a href="#" >Accounts</a>
@@ -82,12 +82,12 @@
 				  padding-left: 0.75rem;
 				}
 
-				/* GD gold table theme */
+				/* Cream/light gray theme */
 				.account-ledger-page {
-					--gd-marker-gold-solid: #d9b96a;
-					--gd-marker-gold-text: #3a2e12;
-					--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-					--gd-marker-gold-hover: #faf3dc;
+					--gd-marker-gold-solid: #f5f5f5;
+					--gd-marker-gold-text: #555;
+					--gd-marker-gold-border: #e0e0e0;
+					--gd-marker-gold-hover: #f9f8f5;
 				}
 
 				.account-ledger-page table.dataTable {
@@ -146,7 +146,7 @@
 				}
 
 				#account-tbl tbody tr:nth-child(even) td {
-					background-color: #fbf5e4;
+					background-color: #faf9f6;
 				}
 
 				#account-tbl td {

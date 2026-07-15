@@ -4,6 +4,32 @@ body {
   background-color: #333333;
 }
 
+/* Hide all scrollbars on dashboard while keeping scroll functionality */
+.dash-grid-wrap,
+.dash-grid-wrap *,
+.dash-rolling-scroll,
+.dash-wl-scroll,
+.dash-matrix-scroll,
+.dash-matrix-wrap,
+.dash-line-qv-panel-body,
+.dash-beyond-chips-history-wrap,
+.dash-line-qv-modal-dialog .modal-body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dash-grid-wrap::-webkit-scrollbar,
+.dash-grid-wrap *::-webkit-scrollbar,
+.dash-rolling-scroll::-webkit-scrollbar,
+.dash-wl-scroll::-webkit-scrollbar,
+.dash-matrix-scroll::-webkit-scrollbar,
+.dash-matrix-wrap::-webkit-scrollbar,
+.dash-line-qv-panel-body::-webkit-scrollbar,
+.dash-beyond-chips-history-wrap::-webkit-scrollbar,
+.dash-line-qv-modal-dialog .modal-body::-webkit-scrollbar {
+  display: none;
+}
+
 .dash-grid-wrap {
   font-size: 13px;
   line-height: 1.45;
@@ -1275,6 +1301,10 @@ body {
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand .dash-kv-label,
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand .dash-kv-value {
   color: #3a2e12;
+}
+
+.dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand .dash-kv-value .text-dash-neg {
+  color: #3a2e12 !important;
 }
 
 .dash-panel-narrow .dash-kv-company {

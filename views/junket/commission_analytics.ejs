@@ -162,6 +162,21 @@
 <script src="/assets/js/functions/commission_analytics.js"></script>
 
 <style>
+/* Card — cream gradient */
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+	border-radius: 0.85rem;
+	overflow: hidden;
+}
+.card-header {
+	background: #f6f3ec !important;
+	border-bottom: 2px solid #c8a24c;
+}
+.card-header .card-title {
+	color: #3a2e12 !important;
+}
+
 /* GD gold table theme — same setup as Commission / Additional Commission */
 .commission-analytics-page,
 #modal-commission-panel-transactions .commission-guest-modal-body {
@@ -177,7 +192,7 @@
 }
 
 .commission-analytics-page table thead tr {
-	background-color: var(--gd-marker-gold-solid);
+	background-color: #f5f5f5 !important;
 }
 
 .commission-analytics-page table thead th,
@@ -185,8 +200,8 @@
 .commission-analytics-page table.dataTable thead > tr > th.sorting_asc,
 .commission-analytics-page table.dataTable thead > tr > th.sorting_desc,
 .commission-analytics-page table.dataTable thead > tr > th.sorting_disabled {
-	background: transparent !important;
-	background-color: transparent !important;
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
 	box-shadow: none !important;
 }
 
@@ -200,12 +215,12 @@
 	box-sizing: border-box;
 }
 
-/* Shared outer border — cream bar + gold header pantay */
+/* Shared outer border */
 #commission-panel-tbl_wrapper .commission-analytics-panel-shell {
 	width: 100%;
 	max-width: 100%;
 	box-sizing: border-box;
-	border: 1px solid var(--gd-marker-gold-border);
+	border: 1px solid #e0e0e0;
 	border-radius: 10px 10px 0 0;
 	overflow: hidden;
 	background: #fff;
@@ -218,8 +233,8 @@
 	gap: 12px;
 	padding: 8px 12px;
 	margin: 0;
-	background: #faf3dc;
-	border: none;
+	background: #fff;
+	border-bottom: 1px solid #e0e0e0;
 	flex-wrap: wrap;
 	width: 100%;
 	box-sizing: border-box;
@@ -364,13 +379,13 @@
 }
 
 #commission-panel-tbl thead th {
-	background: transparent !important;
-	color: #000;
+	background: #f5f5f5 !important;
+	color: #555;
 	font-weight: 500;
 	padding: 12px 15px;
 	text-align: left;
 	border: none;
-	border-bottom: 1px solid var(--gd-marker-gold-border);
+	border-bottom: 1px solid #e0e0e0;
 	white-space: nowrap;
 }
 
@@ -406,22 +421,22 @@
 }
 
 #commission-panel-tbl thead th.commission-rank-sortable:hover {
-	background: rgba(58, 46, 18, 0.08) !important;
+	background: #ececec !important;
 }
 
 #commission-panel-tbl thead th.commission-rank-sortable.is-active {
-	background: rgba(58, 46, 18, 0.12) !important;
-	color: #000;
+	background: #ececec !important;
+	color: #333;
 }
 
 .commission-rank-sort-indicator {
 	font-size: 10px;
 	margin-left: 4px;
-	color: #3a2e12;
+	color: #555;
 }
 
 #commission-panel-tbl tbody td.commission-rank-metric-cell.is-active {
-	background: #faf3dc !important;
+	background: #f6f3ec !important;
 }
 
 #commission-panel-tbl tbody tr {
@@ -429,7 +444,10 @@
 }
 
 #commission-panel-tbl tbody tr:nth-child(even) td {
-	background-color: #fbf5e4;
+	background-color: #f4f1ea;
+}
+#commission-panel-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff;
 }
 
 #commission-panel-tbl td {
@@ -440,7 +458,7 @@
 
 #commission-panel-tbl tbody tr:hover,
 #commission-panel-tbl tbody tr:hover td {
-	background-color: var(--gd-marker-gold-hover) !important;
+	background-color: #f6f3ec !important;
 }
 
 #commission-panel-tbl_wrapper .dataTables_length label {
@@ -484,8 +502,8 @@
 }
 
 #modal-commission-panel-transactions .modal-header {
-	background: #faf3dc;
-	border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	background: #f6f3ec;
+	border-bottom: 2px solid #c8a24c;
 }
 
 #modal-commission-panel-transactions .modal-title {
@@ -499,7 +517,7 @@
 }
 
 .commission-guest-table-shell {
-	border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	border: 1px solid #e0e0e0;
 	border-radius: 8px;
 	overflow: hidden;
 	display: flex;
@@ -538,16 +556,16 @@
 }
 
 #commission-panel-modal-head-table thead tr {
-	background-color: var(--gd-marker-gold-solid, #d9b96a);
+	background-color: #f5f5f5;
 }
 
 #commission-panel-modal-head-table thead th {
-	background: transparent !important;
-	color: #000;
+	background: #f5f5f5 !important;
+	color: #555;
 	font-weight: 600;
 	font-size: 13px;
 	border: none;
-	border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	border-bottom: 1px solid #e0e0e0;
 	white-space: nowrap;
 	padding: 10px 12px;
 }
@@ -558,18 +576,18 @@
 }
 
 .commission-sortable-col:hover {
-	background: rgba(58, 46, 18, 0.08) !important;
+	background: #ececec !important;
 }
 
 .commission-sort-indicator {
 	font-size: 10px;
 	margin-left: 4px;
-	color: #3a2e12;
+	color: #555;
 }
 
 #commission-panel-modal-head-table th.commission-panel-modal-col-active-header {
-	background: rgba(58, 46, 18, 0.12) !important;
-	color: #000 !important;
+	background: #ececec !important;
+	color: #333 !important;
 }
 
 #commission-panel-modal-body-table tbody td {
@@ -582,23 +600,27 @@
 }
 
 #commission-panel-modal-body-table tbody tr:nth-child(even) td {
-	background: #fbf5e4;
+	background: #f4f1ea;
+}
+
+#commission-panel-modal-body-table tbody tr:nth-child(odd) td {
+	background: #fff;
 }
 
 #commission-panel-modal-body-table tbody tr:hover td {
-	background: #faf3dc;
+	background: #f6f3ec;
 }
 
 #commission-panel-modal-body-table tbody td.commission-panel-modal-col-active,
 #commission-panel-modal-foot-table tfoot th.commission-panel-modal-col-active {
-	background: #faf3dc !important;
+	background: #f6f3ec !important;
 }
 
 #commission-panel-modal-foot-table tfoot th {
-	background: var(--gd-marker-gold-solid, #d9b96a);
-	color: #000;
+	background: #f5f5f5;
+	color: #555;
 	font-weight: 700;
-	border-top: 2px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	border-top: 1px solid #e0e0e0;
 	white-space: nowrap;
 	padding: 10px 12px;
 }

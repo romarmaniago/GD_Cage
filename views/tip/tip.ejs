@@ -165,12 +165,21 @@
     overflow-x: auto;
   }
 
-  /* GD gold table theme — matches markerHistory */
-  .tip-page {
-    --gd-marker-gold-solid: #d9b96a;
-    --gd-marker-gold-text: #3a2e12;
-    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-    --gd-marker-gold-hover: #faf3dc;
+  /* Cream/light-gray theme */
+  .card {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border: 1px solid rgba(200, 162, 76, 0.4) !important;
+  }
+  .card-header {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+  }
+  .marker-balance-card {
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    padding: 0 !important;
   }
 
   .tip-settlement-bar {
@@ -180,14 +189,14 @@
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem 1.1rem;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 0.5rem;
-    background: linear-gradient(180deg, #faf3dc 0%, #fffdf5 100%);
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
   }
 
   .tip-settlement-balance {
     font-weight: 600;
-    color: var(--gd-marker-gold-text);
+    color: #555;
     font-size: 1.05rem;
   }
 
@@ -243,12 +252,12 @@
   }
   .tip-page table thead tr,
   .tip-page table tfoot tr {
-    background-color: var(--gd-marker-gold-solid);
+    background-color: #f5f5f5 !important;
   }
   .tip-page table thead th,
   .tip-page table tfoot th {
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
     border-left: 0 !important;
     border-right: 0 !important;
     border-top: 0 !important;
@@ -258,23 +267,25 @@
   .tip-page table.dataTable thead > tr > th.sorting_asc,
   .tip-page table.dataTable thead > tr > th.sorting_desc,
   .tip-page table.dataTable thead > tr > th.sorting_disabled {
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
   }
 
   #tip-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid #e0e0e0 !important;
   }
 
   #tip-tbl thead th {
-    color: var(--gd-marker-gold-text);
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    color: #555 !important;
     font-weight: 600;
     padding: 12px 15px;
     border: none;
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid #e0e0e0 !important;
     text-align: center;
     vertical-align: middle;
   }
@@ -282,9 +293,9 @@
   #tip-tbl thead .tip-group-head {
     text-align: center !important;
     font-weight: 600;
-    color: var(--gd-marker-gold-text) !important;
-    background: transparent !important;
-    border-bottom: 1px solid #3a2e12;
+    color: #555 !important;
+    background: #f5f5f5 !important;
+    border-bottom: 1px solid #ccc;
   }
 
   #tip-tbl thead .tip-group-head-dealer {
@@ -295,12 +306,15 @@
 
   #tip-tbl thead .tip-col-roller,
   #tip-tbl thead .tip-col-dealer {
-    color: var(--gd-marker-gold-text) !important;
-    background: transparent !important;
+    color: #555 !important;
+    background: #f5f5f5 !important;
   }
 
   #tip-tbl tbody tr:nth-child(even) td {
-    background-color: #fbf5e4;
+    background-color: #f4f1ea !important;
+  }
+  #tip-tbl tbody tr:nth-child(odd) td {
+    background-color: #fff !important;
   }
 
   #tip-tbl thead tr:nth-child(2) th.tip-col-roller:nth-child(2),
@@ -314,16 +328,17 @@
 
   #tip-tbl tfoot .tip-roller-total,
   #tip-tbl tfoot .tip-dealer-total {
-    color: var(--gd-marker-gold-text);
+    color: #555;
     font-weight: 600;
   }
 
   #tip-tbl tfoot th {
     padding: 10px 15px;
     font-weight: 600;
-    color: var(--gd-marker-gold-text);
-    border-top: 2px solid var(--gd-marker-gold-border);
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    background: #f5f5f5 !important;
+    color: #555 !important;
+    border-top: 1px solid #e0e0e0 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
     text-align: center;
     vertical-align: middle;
   }
@@ -349,13 +364,13 @@
   }
 
   #tip-tbl td.remarks-editor-td:hover .remarks-editor-clickable {
-    background: var(--gd-marker-gold-hover);
+    background: #f6f3ec;
     border-radius: 4px;
   }
 
   #tip-tbl tbody tr:hover,
   #tip-tbl tbody tr:hover td {
-    background-color: var(--gd-marker-gold-hover) !important;
+    background-color: #f6f3ec !important;
   }
 
   #tip-tbl .tip-amount-negative {

@@ -55,11 +55,21 @@
   overflow-x: auto;
 }
 
-.dashboard-history-page {
-    --gd-marker-gold-solid: #d9b96a;
-    --gd-marker-gold-text: #3a2e12;
-    --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-    --gd-marker-gold-hover: #faf3dc;
+/* Cream/light-gray theme */
+.card {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border: 1px solid rgba(200, 162, 76, 0.4) !important;
+}
+.card-header {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+}
+.marker-balance-card {
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    padding: 0 !important;
 }
 
 .dashboard-history-page table.dataTable {
@@ -71,8 +81,8 @@
 .dashboard-history-page table.dataTable thead > tr > th.sorting_asc,
 .dashboard-history-page table.dataTable thead > tr > th.sorting_desc,
 .dashboard-history-page table.dataTable thead > tr > th.sorting_disabled {
-    background: transparent !important;
-    background-color: transparent !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
     box-shadow: none !important;
 }
 
@@ -81,21 +91,21 @@
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid #e0e0e0 !important;
 }
 
-/* Header styles — matches Add Charge gold */
+/* Header styles */
 #dashboardhistory-tbl thead tr {
-    background-color: var(--gd-marker-gold-solid);
+    background-color: #f5f5f5 !important;
 }
 #dashboardhistory-tbl thead th {
-    background: transparent !important;
-    color: var(--gd-marker-gold-text) !important;
+    background: #f5f5f5 !important;
+    color: #555 !important;
     font-weight: 600;
     padding: 14px 20px;
     text-align: center;
     border: none;
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid #e0e0e0 !important;
 }
 
 #dashboardhistory-tbl_wrapper .dashboard-history-controls-highlight {
@@ -105,8 +115,8 @@
     gap: 12px;
     padding: 8px 12px;
     margin-bottom: -1px;
-    background: #faf3dc;
-    border: 1px solid var(--gd-marker-gold-border);
+    background: #fff;
+    border: 1px solid #e8ecf1;
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
 }
@@ -171,12 +181,15 @@
 }
 
 #dashboardhistory-tbl tbody tr:nth-child(even) td {
-    background-color: #fbf5e4;
+    background-color: #f4f1ea !important;
+}
+#dashboardhistory-tbl tbody tr:nth-child(odd) td {
+    background-color: #fff !important;
 }
 
 #dashboardhistory-tbl tbody tr:hover,
 #dashboardhistory-tbl tbody tr:hover td {
-    background-color: var(--gd-marker-gold-hover) !important;
+    background-color: #f6f3ec !important;
 }
 
 
@@ -195,10 +208,10 @@
     padding: 14px 20px;
     font-weight: 600;
     text-align: center;
-    color: var(--gd-marker-gold-text);
-    background-color: transparent;
-    border-top: 2px solid var(--gd-marker-gold-border);
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    background: #f5f5f5 !important;
+    color: #555 !important;
+    border-top: 1px solid #e0e0e0 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
 }
 @media (max-width: 768px) {
     #dashboardhistory-tbl {

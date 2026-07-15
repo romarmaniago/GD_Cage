@@ -62,4 +62,22 @@
 		<script src="/assets/js/datatables/cage_category_tables_datatables.min.js"></script>
 		<script src="/assets/js/functions/cage_category.js"></script>
 
+		<style>
+			.block { background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%); border: 1px solid rgba(200, 162, 76, 0.4); border-radius: 0.85rem; overflow: hidden; }
+			.block-header-default { background: #f6f3ec !important; border-bottom: 2px solid #c8a24c; }
+			.block-title { color: #3a2e12 !important; }
+			#cage-category-tbl { width: 100%; font-size: 13px; border-collapse: collapse; border: 1px solid #e0e0e0; }
+			#cage-category-tbl thead tr { background-color: #f5f5f5; }
+			#cage-category-tbl thead th { background: #f5f5f5 !important; color: #555; font-weight: 600; padding: 12px 15px; border: none; border-bottom: 1px solid #e0e0e0; box-shadow: none !important; }
+			#cage-category-tbl tbody tr { border-bottom: 1px solid #eee; }
+			#cage-category-tbl tbody tr:nth-child(even) td { background-color: #f4f1ea; }
+			#cage-category-tbl tbody tr:nth-child(odd) td { background-color: #fff; }
+			#cage-category-tbl td { padding: 12px 15px; color: #666; }
+			#cage-category-tbl tbody tr:hover, #cage-category-tbl tbody tr:hover td { background-color: #f6f3ec !important; }
+			#cage-category-tbl th, #cage-category-tbl td { white-space: nowrap; }
+			.dataTables_length label { font-size: 0; }
+			.dataTables_length select { font-size: 12px; }
+			.dataTables_wrapper .row { margin-bottom: 15px; font-size: 12px; }
+		</style>
+
 		<%- include ('../partials/footer_html'); -%>

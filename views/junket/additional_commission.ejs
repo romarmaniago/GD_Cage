@@ -32,3 +32,88 @@
 
 <%- include('../partials/footer') %>
 <script src="/assets/js/functions/additional_commission.js"></script>
+
+<style>
+/* Card — cream gradient (page-specific override) */
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+	border-radius: 0.85rem;
+	overflow: hidden;
+}
+.card-header {
+	background: #f6f3ec !important;
+	border-bottom: 2px solid #c8a24c;
+}
+.card-header .card-title {
+	color: #3a2e12 !important;
+}
+
+/* Table header — light gray */
+.additional-commission-panel-body table thead tr {
+	background-color: #f5f5f5 !important;
+}
+.additional-commission-panel-body table thead th,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_asc,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_desc,
+.additional-commission-panel-body table.dataTable thead > tr > th.sorting_disabled {
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
+}
+#additional-commission-tbl thead th {
+	color: #555 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+}
+#additional-commission-tbl thead th.sortable-col:hover,
+#additional-commission-tbl thead th.sortable-col.is-sorted {
+	background: #ececec !important;
+}
+#additional-commission-tbl .sort-indicator {
+	color: #555 !important;
+}
+
+/* Controls bar */
+#additional-commission-tbl_wrapper .additional-commission-controls-highlight {
+	background: #fff !important;
+	border: 1px solid #e0e0e0 !important;
+	border-bottom: 0 !important;
+}
+
+/* Table border */
+#additional-commission-tbl {
+	border: 1px solid #e0e0e0 !important;
+}
+
+/* Row colors */
+#additional-commission-tbl tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+#additional-commission-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff;
+}
+#additional-commission-tbl tbody tr:hover,
+#additional-commission-tbl tbody tr:hover td {
+	background-color: #f6f3ec !important;
+}
+
+/* Footer — light gray */
+.additional-commission-panel-body table tfoot tr {
+	background-color: #f5f5f5 !important;
+}
+.additional-commission-panel-body table tfoot th {
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	border-top: 1px solid #e0e0e0 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+}
+
+/* Hide scrollbar on Select2 */
+.select2-results__options {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+.select2-results__options::-webkit-scrollbar {
+	display: none;
+}
+</style>

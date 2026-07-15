@@ -121,17 +121,17 @@
 .css-blue {
     max-width: 100%;
     font-family: Inter, sans-serif;
-    font-size: 0.75rem; /* Slightly smaller font */
+    font-size: 0.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 24px; /* Reduced height for a badge-like appearance */
+    height: 24px;
     cursor: unset;
     vertical-align: middle;
     box-sizing: border-box;
-    padding: 2px 10px; /* Reduced padding for a thinner look */
-    color: rgb(32, 174, 243);
-    background-color: rgba(32, 174, 243, 0.12);
+    padding: 2px 10px;
+    color: #2e7d32;
+    background-color: rgba(46, 125, 50, 0.12);
     white-space: nowrap;
     transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
     outline: 0px;
@@ -839,5 +839,17 @@ body:has(.gd-sidebar) .btn-info {
 
 .btn:active:not(.btn-close):not([data-bs-dismiss="modal"]):not(.btn-close-white):not(:disabled):not(.disabled) {
     filter: brightness(0.85) !important;
+}
+
+/* Hide scrollbar on Select2 dropdowns globally */
+.select2-results__options {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    overflow: -moz-scrollbars-none;
+}
+.select2-results__options::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 

@@ -76,49 +76,56 @@
   overflow-x: auto;
 }
 
-.settings-page {
-	--gd-marker-gold-solid: #d9b96a;
-	--gd-marker-gold-text: #3a2e12;
-	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-	--gd-marker-gold-hover: #faf3dc;
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+	border-radius: 0.85rem;
+	overflow: hidden;
 }
+.card-header {
+	background: #f6f3ec !important;
+	border-bottom: 2px solid #c8a24c;
+}
+.card-header .card-title {
+	color: #3a2e12 !important;
+}
+
 .settings-page table.dataTable {
 	border-collapse: collapse !important;
 	border-spacing: 0 !important;
 }
 .settings-page table thead tr,
 .settings-page table tfoot tr {
-	background-color: var(--gd-marker-gold-solid);
+	background-color: #f5f5f5;
 }
 .settings-page table thead th,
 .settings-page table tfoot th {
-	background: transparent !important;
-	background-color: transparent !important;
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
 	box-shadow: none !important;
 }
 .settings-page table.dataTable thead > tr > th.sorting,
 .settings-page table.dataTable thead > tr > th.sorting_asc,
 .settings-page table.dataTable thead > tr > th.sorting_desc,
 .settings-page table.dataTable thead > tr > th.sorting_disabled {
-	background: transparent !important;
-	background-color: transparent !important;
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
 }
 
 								#expense-category-tbl {
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid #e0e0e0;
 }
 
-/* Header styles — matches Add Charge gold */
 #expense-category-tbl thead th {
-    color: var(--gd-marker-gold-text) !important;
+    color: #555 !important;
     font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid #e0e0e0;
 }
 
 #expense-category-tbl_wrapper .expense-category-controls-highlight {
@@ -128,8 +135,8 @@
 	gap: 12px;
 	padding: 8px 12px;
 	margin-bottom: -1px;
-	background: #faf3dc;
-	border: 1px solid var(--gd-marker-gold-border);
+	background: #fff;
+	border: 1px solid #e0e0e0;
 	border-bottom: 0;
 	border-radius: 10px 10px 0 0;
 }
@@ -212,10 +219,12 @@
 }
 
 #expense-category-tbl tbody tr:nth-child(even) td {
-	background-color: #fbf5e4;
+	background-color: #f4f1ea;
+}
+#expense-category-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff;
 }
 
-/* Cell styles */
 #expense-category-tbl td {
     padding: 12px 15px;
     color: #666;
@@ -223,7 +232,7 @@
 
 #expense-category-tbl tbody tr:hover,
 #expense-category-tbl tbody tr:hover td {
-  background-color: var(--gd-marker-gold-hover) !important;
+  background-color: #f6f3ec !important;
 }
 
 
@@ -241,9 +250,10 @@
 #expense-category-tbl tfoot th {
     padding: 10px;
     font-weight: 600;
-    color: var(--gd-marker-gold-text);
-    border-top: 2px solid var(--gd-marker-gold-border);
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    color: #555;
+    background: #f5f5f5 !important;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 @media (max-width: 768px) {
     #expense-category-tbl {

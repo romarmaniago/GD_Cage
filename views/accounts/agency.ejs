@@ -11,9 +11,9 @@
 				<div class="container-fluid content-inner py-0">
 					<div class="row">
 						<div class="col-sm-12">
-							<div class="card">
+							<div class="card" style="background: linear-gradient(180deg, #faf8f4 0%, #f5f2ec 100%); border: 1px solid #e0dcd4;">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
-								<div class="card-header d-flex justify-content-between align-items-center">
+								<div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%); border-bottom: 1px solid rgba(200, 162, 76, 0.25);">
 									<h3 class="card-title"><div class="breadcrumb1 flat">
 										<a href="/dashboard" ><span class="fa fa-home"></span></a>
 										
@@ -482,23 +482,23 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-guest-table {
-  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+  border: 1px solid #e0e0e0;
   border-collapse: collapse;
 }
 
 .agency-guest-table thead tr {
-  background-color: var(--gd-marker-gold-solid, #d9b96a);
+  background-color: #f5f5f5;
 }
 
 .agency-guest-table thead th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--gd-marker-gold-text, #3a2e12);
+  color: #555;
   font-weight: 600;
   background: transparent !important;
   border: none;
-  border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+  border-bottom: 1px solid #e0e0e0;
   padding: 10px 8px;
   white-space: nowrap;
   text-align: center;
@@ -514,7 +514,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-guest-table tbody tr:nth-child(even) td {
-  background-color: #fbf5e4;
+  background-color: #faf9f6;
 }
 
 .agency-guest-table tbody tr:last-child td {
@@ -535,18 +535,18 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-guest-table thead th.sortable-col:hover,
 .agency-guest-table thead th.sortable-col.is-sorted {
-  color: var(--gd-marker-gold-text, #3a2e12);
-  background: rgba(58, 46, 18, 0.08) !important;
+  color: #555;
+  background: rgba(0, 0, 0, 0.04) !important;
 }
 
 .agency-guest-table .sort-indicator {
   font-size: 10px;
   margin-left: 4px;
-  color: var(--gd-marker-gold-text, #3a2e12);
+  color: #555;
 }
 
 .agency-guest-table thead th.sortable-col.is-sorted .sort-indicator {
-  color: var(--gd-marker-gold-text, #3a2e12);
+  color: #555;
 }
 
 .agency-guest-table tbody td.agency-guest-membership-col {
@@ -582,7 +582,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-guest-plus-btn {
-  color: #8a6712 !important;
+  color: #777 !important;
   text-decoration: none !important;
   font-size: 13px;
   line-height: 1;
@@ -590,12 +590,12 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-guest-plus-btn:hover,
 .agency-guest-plus-btn:focus {
-  color: #3a2e12 !important;
+  color: #555 !important;
 }
 
 .agency-guest-remarks-link {
   font: inherit;
-  color: #8a6712 !important;
+  color: #777 !important;
   font-weight: inherit !important;
   text-decoration: none !important;
   background: transparent;
@@ -605,7 +605,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-guest-remarks-link:hover,
 .agency-guest-remarks-link:focus {
-  color: #3a2e12 !important;
+  color: #555 !important;
 }
 
 .panel-list-label {
@@ -792,10 +792,10 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-line-stats .agency-stat-card {
   background: #fff;
-  border: 1px solid #edf0f7;
+  border: 1px solid #e0dcd4;
   border-radius: 14px;
   padding: 14px 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .agency-stat-label {
@@ -835,19 +835,19 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   background: #46627f !important;
 }
 
-/* GD gold theme — matches markerHistory */
+/* Cream/light gray theme */
 .agency-page {
-  --gd-marker-gold-solid: #d9b96a;
-  --gd-marker-gold-text: #3a2e12;
-  --gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-  --gd-marker-gold-hover: #faf3dc;
-  --agency-accent: #8a6712;
-  --agency-accent-dark: #3a2e12;
-  --agency-accent-soft: #faf3dc;
+  --gd-marker-gold-solid: #f5f5f5;
+  --gd-marker-gold-text: #555;
+  --gd-marker-gold-border: #e0e0e0;
+  --gd-marker-gold-hover: #f9f8f5;
+  --agency-accent: #777;
+  --agency-accent-dark: #555;
+  --agency-accent-soft: #f9f8f5;
   --agency-text: #666;
-  --agency-text-strong: #3a2e12;
-  --agency-muted: #6b5a2e;
-  --agency-border: rgba(58, 46, 18, 0.25);
+  --agency-text-strong: #555;
+  --agency-muted: #888;
+  --agency-border: #e0dcd4;
   --agency-danger: #b42318;
 }
 
@@ -859,7 +859,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-page .agency-card:hover {
-  background: #fffdf5;
+  background: #faf9f6;
 }
 
 .agency-page .agency-panels .panel-box {
@@ -868,7 +868,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-page .panel-header {
-  background: #faf3dc;
+  background: #f5f5f5;
   border-bottom-color: var(--agency-border);
 }
 
@@ -880,12 +880,12 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-page button.panel-title-sortable:hover,
 .agency-page button.panel-title-sortable:focus {
-  color: #8a6712;
+  color: #555;
 }
 
 .agency-page button.panel-title-sortable:hover .panel-title-sort-indicator,
 .agency-page button.panel-title-sortable:focus .panel-title-sort-indicator {
-  color: #8a6712;
+  color: #555;
 }
 
 .agency-page .agency-guest-table thead th {
@@ -954,8 +954,8 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-page .agency-guest-search-input:focus {
-  border-color: var(--gd-marker-gold-solid);
-  box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.25);
+  border-color: #ccc;
+  box-shadow: 0 0 0 0.15rem rgba(0, 0, 0, 0.08);
 }
 
 .agency-page .selection-summary-chip {

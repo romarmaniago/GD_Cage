@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/assets/css/house_expense_explorer.css">
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=2">
 <%- include('../partials/loader') %>
 
 
@@ -513,6 +513,23 @@
             .card-body {
   overflow-x: auto;
 }
+
+.card {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border: 1px solid rgba(200, 162, 76, 0.4) !important;
+    border-radius: 0.85rem;
+    overflow: hidden;
+}
+
+.card-header {
+    background: #f6f3ec !important;
+    border-bottom: 2px solid #c8a24c;
+}
+
+.card-header .card-title {
+    color: #3a2e12 !important;
+}
+
            #expense-tbl {
     --gd-marker-gold-solid: #d9b96a;
     --gd-marker-gold-text: #3a2e12;
@@ -521,22 +538,28 @@
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid #e0e0e0;
 }
 
 /* Header styles */
 #expense-tbl thead tr,
 #expense-tbl tfoot tr {
-    background-color: var(--gd-marker-gold-solid);
+    background-color: #f5f5f5;
 }
 
-#expense-tbl thead th {
-    background: transparent !important;
-    color: var(--gd-marker-gold-text);
+#expense-tbl thead th,
+#expense-tbl.dataTable thead > tr > th.sorting,
+#expense-tbl.dataTable thead > tr > th.sorting_asc,
+#expense-tbl.dataTable thead > tr > th.sorting_desc,
+#expense-tbl.dataTable thead > tr > th.sorting_disabled {
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    color: #555;
     font-weight: 600;
     padding: 12px 15px;
     border: none !important;
-    border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    box-shadow: none !important;
 }
 
 #expense-tbl thead th:nth-child(1),
@@ -569,7 +592,19 @@
     border-bottom: 1px solid #eee;
 }
 #expense-tbl tbody tr:nth-child(even) td {
-    background-color: #fbf5e4;
+    background-color: #f4f1ea;
+}
+#expense-tbl tbody tr:nth-child(odd) td {
+    background-color: #fff;
+}
+#expense-tbl tbody tr:hover td {
+    background-color: #f6f3ec !important;
+}
+#expense-tbl tfoot th {
+    background-color: #f5f5f5 !important;
+    color: #555;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .breadcrumb1.flat a.breadcrumb-crumb-armed,
@@ -742,7 +777,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 
 #expense-tbl tbody tr:hover,
 #expense-tbl tbody tr:hover td {
-  background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
+  background-color: #f6f3ec !important;
 }
 
 
@@ -766,10 +801,10 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 #expense-tbl tfoot th {
     padding: 10px;
     font-weight: 600;
-    color: var(--gd-marker-gold-text, #3a2e12);
-    background-color: transparent;
-    border-top: 2px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
-    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+    color: #555;
+    background-color: #f5f5f5 !important;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
             
@@ -1272,22 +1307,22 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             .breakdown-modal-table-fixed {
-                border-left: 1px solid var(--gd-marker-gold-border);
-                border-right: 1px solid var(--gd-marker-gold-border);
+                border-left: 1px solid #e0e0e0;
+                border-right: 1px solid #e0e0e0;
             }
 
             #breakdown-modal-head-table thead tr {
-                background-color: var(--gd-marker-gold-solid);
+                background-color: #f5f5f5;
             }
 
             #breakdown-modal-head-table thead th {
-                background: transparent !important;
-                color: var(--gd-marker-gold-text);
+                background: #f5f5f5 !important;
+                color: #555;
                 font-weight: 600;
                 padding: 10px 12px;
                 text-align: left;
                 border: none;
-                border-bottom: 1px solid var(--gd-marker-gold-border);
+                border-bottom: 1px solid #e0e0e0;
                 white-space: nowrap;
             }
 
@@ -1297,17 +1332,17 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             #breakdown-modal-head-table thead th.sortable-col:hover {
-                background: rgba(58, 46, 18, 0.08) !important;
+                background: #ececec !important;
             }
 
             #breakdown-modal-head-table .sort-indicator {
                 font-size: 10px;
                 margin-left: 4px;
-                color: var(--gd-marker-gold-text);
+                color: #555;
             }
 
             .breakdown-modal-table-shell {
-                border: 1px solid var(--gd-marker-gold-border);
+                border: 1px solid #e0e0e0;
                 border-radius: 8px;
                 overflow: hidden;
                 display: flex;
@@ -1323,15 +1358,15 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             #breakdown-modal-foot-table tfoot tr {
-                background-color: var(--gd-marker-gold-solid);
+                background-color: #f5f5f5;
             }
 
             #breakdown-modal-foot-table tfoot th {
-                background: transparent;
-                border-top: 2px solid var(--gd-marker-gold-border);
-                border-bottom: 1px solid var(--gd-marker-gold-border);
+                background: #f5f5f5;
+                border-top: 1px solid #e0e0e0;
+                border-bottom: 1px solid #e0e0e0;
                 padding: 10px 12px;
-                color: var(--gd-marker-gold-text);
+                color: #555;
                 font-weight: 700;
             }
 
@@ -1340,12 +1375,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             #breakdown-modal-body-table tbody tr:nth-child(even) td {
-                background-color: #fbf5e4;
+                background-color: #f4f1ea;
+            }
+
+            #breakdown-modal-body-table tbody tr:nth-child(odd) td {
+                background-color: #fff;
             }
 
             #breakdown-modal-body-table tbody tr:hover,
             #breakdown-modal-body-table tbody tr:hover td {
-                background-color: var(--gd-marker-gold-hover) !important;
+                background-color: #f6f3ec !important;
             }
 
             #breakdown-modal-body-table td {
@@ -1392,13 +1431,13 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
 
             #modal-expense-breakdown-details .modal-header {
-                background: #faf3dc;
-                border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+                background: #f6f3ec;
+                border-bottom: 2px solid #c8a24c;
             }
 
             #modal-expense-breakdown-details .modal-title {
                 font-weight: 700;
-                color: var(--gd-marker-gold-text, #3a2e12);
+                color: #3a2e12;
             }
 
             /* Force single scroll container: rows area only */
@@ -1428,18 +1467,18 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-table-panel-head {
                 padding: 0.55rem 0.85rem;
-                background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
-                border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+                background: #f5f5f5;
+                border-bottom: 1px solid #e0e0e0;
             }
             .expense-table-panel-title {
                 font-size: 0.72rem;
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
-                color: #3a2e12;
+                color: #555;
             }
             #expense-item-panel-subtitle {
-                color: rgba(58, 46, 18, 0.72) !important;
+                color: #888 !important;
                 transition: opacity 0.2s ease;
             }
             .expense-table-panel-body {
@@ -1687,9 +1726,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 font-weight: 700;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
-                color: #3a2e12;
-                background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
-                border-bottom: 1px solid rgba(58, 46, 18, 0.25);
+                color: #555;
+                background: #f5f5f5;
+                border-bottom: 1px solid #e0e0e0;
             }
             .expense-cat-panel-add-btn {
                 display: inline-flex;
@@ -2133,6 +2172,58 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                     max-height: 360px;
                 }
             }
+
+/* Page-only overrides: panel headers + item table headers → light gray */
+.expense-cat-panel-head {
+    background: #f5f5f5 !important;
+    color: #555 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+.expense-cat-panel-head .text-muted,
+.expense-cat-panel-head #expense-item-panel-subtitle {
+    color: #888 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl thead tr {
+    background-color: #f5f5f5 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl.expense-master-tbl thead th,
+.expense-explorer-item-col #expense-item-cat-tbl thead th {
+    background: #f5f5f5 !important;
+    color: #555 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col:hover,
+.expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col.is-sorted {
+    background: #ececec !important;
+    color: #333 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl tbody tr:nth-child(even) td {
+    background-color: #f4f1ea !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl tbody tr:nth-child(odd) td {
+    background-color: #fff !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl.expense-master-tbl tbody tr.js-expense-item-cat-row:hover td {
+    background-color: #f6f3ec !important;
+}
+.expense-explorer-item-col .expense-item-footer-summary {
+    background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+    border: 1px solid rgba(58, 46, 18, 0.2) !important;
+    box-shadow: 0 1px 2px rgba(58, 46, 18, 0.12) !important;
+}
+.expense-explorer-item-col .expense-item-footer-line {
+    color: #3a2e12 !important;
+    border-bottom-color: rgba(58, 46, 18, 0.18) !important;
+}
+
+/* Hide scrollbar on Select2 dropdowns */
+.select2-results__options {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.select2-results__options::-webkit-scrollbar {
+    display: none;
+}
                      </style>
 
  

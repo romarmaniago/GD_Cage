@@ -417,13 +417,45 @@ $(document).ready(function() {
 	color: #495057;
 }
 
+.select2-results__options {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+.select2-results__options::-webkit-scrollbar {
+	display: none;
+}
+
 .card-body { overflow-x: auto; }
 
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+	border-radius: 0.85rem;
+	overflow: hidden;
+}
+
+.card-header {
+	background: #f6f3ec !important;
+	border-bottom: 2px solid #c8a24c;
+}
+
+.card-header .card-title {
+	color: #3a2e12 !important;
+}
+
+.marker-history-page .marker-balance-card {
+	border-radius: 0.5rem;
+	border: 1px solid rgba(15, 23, 42, 0.08);
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+	padding: 0.65rem 0.30rem 0.5rem 0.75rem;
+}
+
 .marker-history-page {
-	--gd-marker-gold-solid: #d9b96a;
-	--gd-marker-gold-text: #3a2e12;
-	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-	--gd-marker-gold-hover: #faf3dc;
+	--gd-marker-gold-solid: rgba(200, 162, 76, 0.07);
+	--gd-marker-gold-text: #4a3208;
+	--gd-marker-gold-border: rgba(200, 162, 76, 0.28);
+	--gd-marker-gold-hover: #f6f3ec;
 }
 
 .marker-history-btn-print {
@@ -436,6 +468,7 @@ $(document).ready(function() {
 
 .marker-history-form-panel {
 	max-width: 100%;
+	background: transparent;
 }
 #add_marker_settlement_page .select2-container .select2-selection--single {
 	height: calc(1.5em + 0.75rem + 6px) !important;
@@ -478,11 +511,14 @@ $(document).ready(function() {
 
 /* Credit Status List tab */
 .marker-credit-status-tab-panel {
-	background: #fff;
+	background: transparent;
 	min-width: 0;
 }
 .marker-credit-status-tab-panel .marker-status-shell {
-	border: 1px solid var(--gd-marker-gold-border);
+	border-radius: 0.5rem;
+	border: 1px solid rgba(15, 23, 42, 0.08);
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
 	overflow: hidden;
 }
 .marker-credit-status-tab-panel .marker-status-titlebar {
@@ -490,11 +526,12 @@ $(document).ready(function() {
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.75rem;
-	background: var(--gd-marker-gold-solid);
-	color: var(--gd-marker-gold-text);
+	background: #f5f5f5;
+	color: #555;
 	padding: 10px 12px;
 	font-size: 0.8125rem;
 	font-weight: 600;
+	border-bottom: 1px solid #e0e0e0;
 }
 .marker-credit-status-tab-panel .marker-status-total-label {
 	display: block;
@@ -527,10 +564,13 @@ $(document).ready(function() {
 	border-top: 0 !important;
 }
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:nth-child(even) td {
-	background-color: #fbf5e4;
+	background-color: #f4f1ea;
+}
+.marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff;
 }
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody tr:hover td {
-	background-color: var(--gd-marker-gold-hover) !important;
+	background-color: #f6f3ec !important;
 }
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl tbody td.marker-balance-col-amount,
 .marker-credit-status-tab-panel #marker-credit-status-breakdown-tbl thead th.marker-balance-col-amount {
@@ -555,19 +595,17 @@ $(document).ready(function() {
 	background: transparent;
 }
 
-/* Tables — GD gold theme (match Additional / agent gold palette) */
+/* Tables — GD gold theme (match dashboard modal white card) */
 .marker-history-page table.dataTable {
 	border-collapse: collapse !important;
 	border-spacing: 0 !important;
 }
 
-.marker-history-page table thead tr,
-.marker-history-page table tfoot tr {
-	background-color: var(--gd-marker-gold-solid);
+.marker-history-page table thead tr {
+	background-color: #f5f5f5 !important;
 }
 
-.marker-history-page table thead th,
-.marker-history-page table tfoot th {
+.marker-history-page table thead th {
 	background: transparent !important;
 	background-color: transparent !important;
 	border-left: 0 !important;
@@ -589,19 +627,24 @@ $(document).ready(function() {
 	width: 100%;
 	font-size: 13px;
 	border-collapse: collapse;
-	border: 1px solid var(--gd-marker-gold-border);
+	border: 1px solid rgba(200, 162, 76, 0.28);
 }
 
 #marker-history-tbl thead th,
 .marker-balance-tbl thead th,
 .marker-history-page table.dataTable thead > tr > th {
-	color: var(--gd-marker-gold-text) !important;
+	color: #555 !important;
 	font-weight: 600;
-	padding: 12px 15px;
+	font-size: 0.75rem;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	padding: 0.65rem 0.75rem;
 	text-align: left;
 	border: none !important;
-	border-bottom: 1px solid var(--gd-marker-gold-border) !important;
+	border-bottom: 1px solid #e0e0e0 !important;
 	box-shadow: none !important;
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
 }
 
 #marker-history-tbl tbody tr,
@@ -610,56 +653,63 @@ $(document).ready(function() {
 }
 #marker-history-tbl td,
 .marker-balance-tbl td {
-	padding: 12px 15px;
+	padding: 0.65rem 0.75rem;
 	color: #666;
 	vertical-align: middle;
+	border-color: #eee !important;
 }
 #marker-history-tbl tbody tr:nth-child(even) td,
 .marker-balance-tbl tbody tr:nth-child(even) td {
-	background-color: #fbf5e4;
+	background-color: #f4f1ea;
 }
-#marker-history-tbl tbody tr:hover,
+#marker-history-tbl tbody tr:nth-child(odd) td,
+.marker-balance-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff;
+}
 #marker-history-tbl tbody tr:hover td,
-.marker-balance-tbl tbody tr:hover,
 .marker-balance-tbl tbody tr:hover td {
-	background-color: var(--gd-marker-gold-hover) !important;
+	background-color: #f6f3ec !important;
 }
 
 #marker-history-tbl tfoot th,
 .marker-balance-tbl tfoot th,
 .marker-history-page table.dataTable tfoot th {
-	padding: 10px 15px;
+	padding: 0.65rem 0.75rem;
 	font-weight: 600;
-	color: var(--gd-marker-gold-text);
-	background-color: transparent !important;
-	border-top: 2px solid var(--gd-marker-gold-border);
-	border-bottom: 1px solid var(--gd-marker-gold-border);
+	color: #555;
+	background-color: #f5f5f5 !important;
+	border-top: 1px solid #e0e0e0;
+	border-bottom: 1px solid #e0e0e0;
 	border-left: 0 !important;
 	border-right: 0 !important;
 	box-shadow: none !important;
 }
-
-.marker-balance-tbl tr.marker-balance-total-row td {
-	border-top: 2px solid var(--gd-marker-gold-border);
-	color: var(--gd-marker-gold-text);
-	font-weight: 600;
-	padding: 10px 15px;
-	background-color: #fbf5e4;
+.marker-history-page table tfoot tr {
+	background-color: #f5f5f5 !important;
 }
 
-/* Cream DataTables controls bar (length + search) */
+.marker-balance-tbl tr.marker-balance-total-row td {
+	border-top: 2px solid rgba(200, 162, 76, 0.28);
+	color: #4a3208;
+	font-weight: 600;
+	padding: 0.65rem 0.75rem;
+	background-color: rgba(200, 162, 76, 0.07) !important;
+}
+
+/* DataTables controls bar (length + search) */
 .marker-history-page .dataTables_wrapper .marker-history-controls-highlight {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 12px;
-	padding: 8px 12px;
+	padding: 0.5rem 0 0.5rem 0.55rem;
 	margin: 0;
-	background: #faf3dc;
-	border: 1px solid var(--gd-marker-gold-border);
+	background: #fff;
+	border: 1px solid #e8ecf1;
 	border-bottom: 0;
-	border-radius: 10px 10px 0 0;
+	border-radius: 0.375rem 0.375rem 0 0;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .marker-history-page .dataTables_wrapper .marker-history-controls-highlight .dataTables_length {
 	margin-top: 4px;
@@ -672,9 +722,9 @@ $(document).ready(function() {
 	align-items: center;
 	gap: 8px;
 	padding: 2px 6px;
-	background: rgba(255, 255, 255, 0.35);
+	background: transparent;
 	border: none;
-	border-radius: 10px;
+	border-radius: 0.375rem;
 }
 .marker-history-page .dataTables_wrapper .marker-history-filter-highlight label {
 	display: inline-flex;
@@ -683,11 +733,20 @@ $(document).ready(function() {
 	margin: 0;
 }
 .marker-history-page .dataTables_wrapper .marker-history-filter-highlight label input {
-	margin-left: 0;
-	border: none;
-	outline: none;
-	box-shadow: none;
+	margin-left: 0.35rem;
+	padding: 0.4rem 0.65rem;
+	font-size: 0.8125rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 0.375rem;
 	background: #fff;
+	color: #334155;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+	outline: none;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.marker-history-page .dataTables_wrapper .marker-history-filter-highlight label input:focus {
+	border-color: #6b4a12;
+	box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.18);
 }
 .marker-history-page .dataTables_wrapper table.dataTable {
 	margin-top: 0 !important;
@@ -704,8 +763,42 @@ $(document).ready(function() {
 #marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
 #marker-history-tbl .marker-history-remarks-actions .btn { padding: 0.2rem 0.45rem; }
 
-.dataTables_length label { font-size: 0; }
-.dataTables_length select { font-size: 12px; }
+.marker-history-page .dataTables_length label {
+	font-size: 0.8125rem;
+	color: #64748b;
+	font-weight: 500;
+	gap: 0.35rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+}
+.marker-history-page .dataTables_length select {
+	display: inline-block;
+	min-width: 4.25rem;
+	padding: 0.3rem 2rem 0.3rem 0.55rem;
+	font-size: 0.8125rem;
+	line-height: 1.4;
+	color: #334155;
+	background-color: #fff;
+	border: 1px solid #cbd5e1;
+	border-radius: 0.375rem;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.marker-history-page .dataTables_filter label {
+	font-size: 0.8125rem;
+	color: #64748b;
+	font-weight: 500;
+	gap: 0.35rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+}
+.marker-history-page .dataTables_info {
+	font-size: 0.8125rem;
+	color: #64748b;
+	padding-top: 0.35rem !important;
+}
 .dataTables_wrapper .row {
 	margin-bottom: 15px;
 	font-size: 12px;
@@ -745,6 +838,30 @@ $(document).ready(function() {
 #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-amount {
 	font-variant-numeric: tabular-nums;
 	padding-right: 1.5rem !important;
+}
+
+.marker-history-page .dataTables_paginate .pagination {
+	margin-bottom: 0;
+	gap: 0.2rem;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+.marker-history-page .dataTables_paginate .page-link {
+	font-size: 0.8125rem;
+	padding: 0.3rem 0.55rem;
+	border-radius: 0.3rem;
+	border-color: #e2e8f0;
+	color: #475569;
+}
+.marker-history-page .dataTables_paginate .page-item.active .page-link {
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	border-color: transparent;
+	color: #fff;
+}
+.marker-history-page .dataTables_paginate .page-link:hover {
+	background: #e9ecef;
+	border-color: #dee2e6;
+	color: #333;
 }
 
 @media (max-width: 768px) {

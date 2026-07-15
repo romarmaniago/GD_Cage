@@ -113,37 +113,46 @@
 </div>
 
 <style>
-/* GD gold table theme — matches markerHistory */
-.fnb-hotel-page {
-	--gd-marker-gold-solid: #d9b96a;
-	--gd-marker-gold-text: #3a2e12;
-	--gd-marker-gold-border: rgba(58, 46, 18, 0.25);
-	--gd-marker-gold-hover: #faf3dc;
+/* Cream/light-gray table theme */
+.card {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border: 1px solid rgba(200, 162, 76, 0.4) !important;
+}
+.card-header {
+    background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+    border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+}
+.marker-balance-card {
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    padding: 0 !important;
 }
 
 .fnb-hotel-page table.dataTable {
-	border-collapse: collapse !important;
-	border-spacing: 0 !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
 }
 .fnb-hotel-page table thead tr,
 .fnb-hotel-page table tfoot tr {
-	background-color: var(--gd-marker-gold-solid);
+    background-color: #f5f5f5 !important;
 }
 .fnb-hotel-page table thead th,
 .fnb-hotel-page table tfoot th {
-	background: transparent !important;
-	background-color: transparent !important;
-	border-left: 0 !important;
-	border-right: 0 !important;
-	border-top: 0 !important;
-	box-shadow: none !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
+    box-shadow: none !important;
 }
 .fnb-hotel-page table.dataTable thead > tr > th.sorting,
 .fnb-hotel-page table.dataTable thead > tr > th.sorting_asc,
 .fnb-hotel-page table.dataTable thead > tr > th.sorting_desc,
 .fnb-hotel-page table.dataTable thead > tr > th.sorting_disabled {
-	background: transparent !important;
-	background-color: transparent !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
 }
 
 /* Base table styles */
@@ -153,17 +162,19 @@
     border-collapse: collapse;
     border-spacing: 0;
     background-color: #ffffff;
-    border: 1px solid var(--gd-marker-gold-border);
+    border: 1px solid #e0e0e0 !important;
 }
 
 /* Header styles */
 #fnb-hotel-table thead th {
-    color: var(--gd-marker-gold-text);
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    color: #555 !important;
     font-weight: 600;
     padding: 12px 15px;
     text-align: left;
     border: none;
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    border-bottom: 1px solid #e0e0e0 !important;
 }
 
 #fnb-hotel-table thead th:nth-child(6),
@@ -189,12 +200,15 @@
 }
 
 #fnb-hotel-table tbody tr:nth-child(even) td {
-	background-color: #fbf5e4;
+    background-color: #f4f1ea !important;
+}
+#fnb-hotel-table tbody tr:nth-child(odd) td {
+    background-color: #fff !important;
 }
 
 #fnb-hotel-table tbody tr:hover,
 #fnb-hotel-table tbody tr:hover td {
-    background-color: var(--gd-marker-gold-hover) !important;
+    background-color: #f6f3ec !important;
 }
 
 /* Cell styles */
@@ -245,7 +259,7 @@
     text-align: center;
     cursor: pointer;
     background: #fff;
-    border: 1px solid rgba(58, 46, 18, 0.2);
+    border: 1px solid #e0e0e0;
     border-radius: 8px;
     font-size: 13px;
     height: 34px;
@@ -303,7 +317,7 @@
     text-align: center;
     field-sizing: fixed;
     background: #fff;
-    border: 1px solid rgba(58, 46, 18, 0.2);
+    border: 1px solid #e0e0e0;
     border-radius: 8px;
     font-size: 13px;
     height: 34px;
@@ -321,9 +335,10 @@
 #fnb-hotel-table tfoot th {
     padding: 12px;
     font-weight: 600;
-    color: var(--gd-marker-gold-text);
-    border-top: 2px solid var(--gd-marker-gold-border);
-    border-bottom: 1px solid var(--gd-marker-gold-border);
+    background: #f5f5f5 !important;
+    color: #555 !important;
+    border-top: 1px solid #e0e0e0 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
 }
 
 .select2-container .select2-selection--single {
@@ -406,8 +421,8 @@
 	gap: 12px;
 	padding: 8px 12px;
 	margin: 0;
-	background: #faf3dc;
-	border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	background: #fff;
+	border: 1px solid #e8ecf1;
 	border-bottom: 0;
 	border-radius: 10px 10px 0 0;
 }
