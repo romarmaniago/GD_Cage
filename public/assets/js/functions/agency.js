@@ -1124,7 +1124,7 @@ function renderPage(data, page = 1, perPage = 30) {
       <!-- Idagdag ang hidden input para sa memo -->
       <input type="hidden" class="hidden-memo" value="${row.REMARKS || ''}">
 
-      <div class="agency-card-body py-3 px-2">
+      <div class="agency-card-body">
         <a 
           href="#" 
           onclick="selectAgencyLine(${row.IDNo}, this); return false;" 

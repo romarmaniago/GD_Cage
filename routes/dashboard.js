@@ -1315,10 +1315,7 @@ router.post('/add_junket_capital', async (req, res) => {
 router.get('/junket_capital_data', async (req, res) => {
 	try {
 		const range = normalizeJunketCapitalDateRange(req.query.start_date, req.query.end_date);
-
-		if (!range) {
-			return res.status(400).json({ error: 'start_date and end_date are required' });
-		}
+		const hasRange = !!range;
 
 		const query = `
 			SELECT
@@ -1338,11 +1335,12 @@ router.get('/junket_capital_data', async (req, res) => {
 			FROM junket_capital k
 			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
 			WHERE k.ACTIVE = 1
-			  AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?
+			  ${hasRange ? 'AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?' : ''}
 			ORDER BY COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) DESC, k.ENCODED_DT DESC
 		`;
 
-		const [results] = await pool.execute(query, [range.start, range.end]);
+		const params = hasRange ? [range.start, range.end] : [];
+		const [results] = await pool.execute(query, params);
 
 		res.json(results);
 	} catch (err) {

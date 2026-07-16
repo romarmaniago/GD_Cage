@@ -2854,11 +2854,7 @@ pageRouter.post('/add_junket_capital', (req, res) => {
 pageRouter.get('/junket_capital_data', (req, res) => {
 	// Get the start_date and end_date from the query parameters
 	const { start_date, end_date } = req.query;
-
-	// Validate if start_date and end_date are provided
-	if (!start_date || !end_date) {
-		return res.status(400).json({ error: 'start_date and end_date are required' });
-	}
+	const hasRange = !!(start_date && end_date);
 
 	const query = `
 		SELECT
@@ -2877,11 +2873,11 @@ pageRouter.get('/junket_capital_data', (req, res) => {
 		FROM junket_capital k
 		LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
 		WHERE k.ACTIVE = 1
-		  AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?
+		  ${hasRange ? 'AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?' : ''}
 		ORDER BY COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) DESC, k.ENCODED_DT DESC
 	`;
 
-	connection.query(query, [start_date, end_date], (error, results) => {
+	connection.query(query, hasRange ? [start_date, end_date] : [], (error, results) => {
 		if (error) {
 			console.error('Error executing query:', error);
 			return res.status(500).json({ error: 'Database error' });

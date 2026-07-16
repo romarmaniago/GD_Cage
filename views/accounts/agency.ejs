@@ -128,7 +128,7 @@
 													</div>
 												</div>
 												<div class="panel-body">
-													<div id="agency-grid" class="row gx-2 gy-2"></div>
+													<div id="agency-grid" class="agency-line-list"></div>
 												</div>
 											</div>
 										</div>
@@ -385,7 +385,7 @@
   border: 0;
   border-bottom: 1px solid #edf0f7;
   border-radius: 0;
-  min-height: 36px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -393,11 +393,13 @@
   position: relative;
   margin-bottom: 0;
   background: transparent;
-  padding: 5px 8px;
+  padding: 6px 8px;
 }
 
-#agency-grid {
+#agency-grid,
+.agency-line-list {
   border-top: 1px solid #edf0f7;
+  margin: 0;
 }
 
 .agency-panels .panel-box {
@@ -409,7 +411,7 @@
 
 .panel-header {
   border-bottom: 1px solid #edf0f7;
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .panel-title {
@@ -445,12 +447,13 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .panel-body {
-  padding: 8px;
+  padding: 0;
   min-height: 400px;
 }
 
 .panel-empty-state {
   min-height: 360px;
+  margin: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -468,13 +471,13 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .panel-list-item {
-  min-height: 36px;
+  min-height: 34px;
   border-bottom: 1px solid #edf0f7;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 6px 8px;
 }
 
 .panel-list-item:last-child {
@@ -871,7 +874,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-page .panel-header {
-  background: #f5f5f5;
+  background: #faf3dc;
   border-bottom-color: var(--agency-border);
 }
 
@@ -962,7 +965,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 }
 
 .agency-page .selection-summary-chip {
-  background: var(--agency-accent-soft);
+  background: #faf3dc;
   border-color: var(--agency-border);
 }
 

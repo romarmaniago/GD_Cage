@@ -551,9 +551,16 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 							
 							<hr class="my-2" style="border-color: #dee2e6;">
 							<div class="custom-datatable-entries">
-							<div id="capital-daterange-slot" class="capital-daterange-slot">
+							<div class="capital-daterange-slot" id="capital-daterange-slot">
 								<div class="hb-field-daterange-wrap">
-									<input type="text" id="main-daterange" name="daterange" class="form-control form-control-sm input-daterange" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+									<input
+										type="text"
+										id="capital-daterange"
+										class="form-control form-control-sm"
+										placeholder="<%= __('fnb_hotel.date') %>"
+										autocomplete="off"
+										readonly
+									>
 								</div>
 							</div>
 							<div class="table-responsive capital-tbl-scroll">
