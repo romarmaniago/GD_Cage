@@ -961,6 +961,7 @@
 		"type_fnb": "餐饮",
 		"type_hotel": "酒店",
 		"type_incidental": "杂项",
+		"type_expenses": "费用",
 		"print": "打印",
 		"export": "导出",
 		"export_error": "导出失败",

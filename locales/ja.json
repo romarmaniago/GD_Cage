@@ -961,6 +961,7 @@
 		"type_fnb": "F&B",
 		"type_hotel": "ホテル",
 		"type_incidental": "雑費",
+		"type_expenses": "経費",
 		"print": "印刷",
 		"export": "エクスポート",
 		"export_error": "エクスポートに失敗しました",

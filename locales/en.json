@@ -910,6 +910,7 @@
 		"type_fnb": "F&B",
 		"type_hotel": "Hotel",
 		"type_incidental": "Incidental",
+		"type_expenses": "Expenses",
 		"print": "Print",
 		"export": "Export",
 		"export_error": "Export failed",

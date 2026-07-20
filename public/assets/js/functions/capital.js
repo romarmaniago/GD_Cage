@@ -34,7 +34,8 @@ var HOUSE_BALANCE_TYPE_LABELS = {
     'Settlement': true,
     'F&B': true,
     'Hotel': true,
-    'Incidental': true
+    'Incidental': true,
+    'Expenses': true
 };
 
 function isHouseCashInOutRow(row) {
@@ -56,7 +57,8 @@ function isHouseBalanceCashOutType(desc) {
         label === 'Settlement' ||
         label === 'F&B' ||
         label === 'Hotel' ||
-        label === 'Incidental';
+        label === 'Incidental' ||
+        label === 'Expenses';
 }
 
 function getDefaultMonthEndRange() {

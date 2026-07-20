@@ -961,6 +961,7 @@
 		"type_fnb": "F&B",
 		"type_hotel": "호텔",
 		"type_incidental": "부대비용",
+		"type_expenses": "경비",
 		"print": "인쇄",
 		"export": "내보내기",
 		"export_error": "내보내기 실패",
