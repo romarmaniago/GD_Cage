@@ -1,6 +1,7 @@
 /**
  * Split [Start] to [End] date inputs — manual text entry (no calendar picker).
  * By default independent from the combined range picker (no two-way sync).
+ * Inputs stay empty with a "Date" placeholder unless fillDefaults: true.
  * Pass independent: false to restore legacy sync with rangePickerId.
  */
 (function (global) {
@@ -59,6 +60,7 @@
 		var splitWrapperId = config.splitWrapperId;
 		var invalidMsg = config.invalidDateMessage || 'Invalid date range.';
 		var independent = !!config.independent;
+		var fillDefaults = config.fillDefaults === true;
 
 		var startEl = document.getElementById(startId);
 		var endEl = document.getElementById(endId);
@@ -174,9 +176,14 @@
 			}
 		}
 
-		var defaults = getDefaultRange(startEl, splitWrapperId);
-		if (!getDisplayValue(startEl) && defaults.start) startEl.value = defaults.start;
-		if (!getDisplayValue(endEl) && defaults.end) endEl.value = defaults.end;
+		if (fillDefaults) {
+			var defaults = getDefaultRange(startEl, splitWrapperId);
+			if (!getDisplayValue(startEl) && defaults.start) startEl.value = defaults.start;
+			if (!getDisplayValue(endEl) && defaults.end) endEl.value = defaults.end;
+		} else {
+			if (!getDisplayValue(startEl)) startEl.value = '';
+			if (!getDisplayValue(endEl)) endEl.value = '';
+		}
 
 		startEl.setAttribute('inputmode', 'text');
 		endEl.setAttribute('inputmode', 'text');

@@ -230,12 +230,6 @@
       var monthStart = dashboardCutoffRange.startAt;
       var monthEnd = dashboardCutoffRange.endAt;
       var dashPeriodLabel = fmtMd(monthStart) + ' \u2013 ' + fmtMd(monthEnd);
-      var dashSplitMonthAbbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      var formatDashSplitDate = function(d) {
-         return dashSplitMonthAbbr[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
-      };
-      var dashSplitStartDisplay = formatDashSplitDate(monthStart);
-      var dashSplitEndDisplay = formatDashSplitDate(monthEnd);
       var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate());
       var dashboardDateTo = monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate());
@@ -436,9 +430,7 @@
                            <%- include('partials/split_daterange', {
                               splitPrefix: 'dash-rolling-check',
                               splitLocaleNs: 'house_expense',
-                              splitWrapClass: 'dash-rolling-check-split-daterange house-expense-split-daterange',
-                              splitRangeStartValue: dashSplitStartDisplay,
-                              splitRangeEndValue: dashSplitEndDisplay
+                              splitWrapClass: 'dash-rolling-check-split-daterange house-expense-split-daterange'
                            }) %>
                         </div>
                         <div class="dash-matrix-actions d-flex align-items-center gap-1 flex-shrink-0">
