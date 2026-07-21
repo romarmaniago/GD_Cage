@@ -626,7 +626,9 @@ $(document).ready(function () {
         var lengthWrap = document.getElementById('capital-tbl_length');
         var filterWrap = document.getElementById('capital-tbl_filter');
         var rangeSlot = document.getElementById('capital-daterange-slot');
+        var printExportSlot = document.getElementById('capital-print-export-slot');
         var controlsHighlight;
+        var filterHighlight;
         var searchLabel;
         var searchInput;
 
@@ -652,6 +654,21 @@ $(document).ready(function () {
 
         searchLabel = filterWrap.querySelector('label');
         searchInput = searchLabel ? searchLabel.querySelector('input') : null;
+
+        filterHighlight = filterWrap.querySelector('.capital-filter-highlight');
+        if (!filterHighlight) {
+            filterHighlight = document.createElement('div');
+            filterHighlight.className = 'capital-filter-highlight';
+            filterWrap.appendChild(filterHighlight);
+        }
+        if (printExportSlot && printExportSlot.parentElement !== filterHighlight) {
+            filterHighlight.insertBefore(printExportSlot, filterHighlight.firstChild);
+            printExportSlot.classList.add('is-placed');
+        }
+        if (searchLabel && searchLabel.parentElement !== filterHighlight) {
+            filterHighlight.appendChild(searchLabel);
+        }
+
         if (searchInput) {
             searchInput.setAttribute('placeholder', 'Search...');
             Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
