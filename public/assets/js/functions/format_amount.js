@@ -87,4 +87,29 @@
     window.fmtOut = function (value, options) { return formatDirectionalAmount(value, 'out', Object.assign({ html: true }, options || {})); };
     window.fmtIn = function (value, options) { return formatDirectionalAmount(value, 'in', Object.assign({ html: true, showPositiveSign: true }, options || {})); };
     window.fmtSigned = function (value, options) { return formatSignedAmount(value, Object.assign({ html: true }, options || {})); };
+
+    /**
+     * Service / Add Charge list amount.
+     * Signed values show + / -. Legacy positive JUNKET rows are treated as outflow (-).
+     */
+    window.formatServiceChargeAmount = function (value, sourceType, options) {
+        options = options || {};
+        var n = toNumber(value);
+        if (n > 0 && String(sourceType || '').toUpperCase() === 'JUNKET') {
+            n = -n;
+        }
+        var abs = Math.abs(n);
+        var hasDecimals = abs % 1 !== 0;
+        var formatted = abs.toLocaleString('en-US', {
+            minimumFractionDigits: hasDecimals ? 2 : (options.minimumFractionDigits || 0),
+            maximumFractionDigits: hasDecimals ? 2 : (options.maximumFractionDigits || 0)
+        });
+        if (n > 0) {
+            return '<span class="' + (options.positiveClass || 'text-success') + '">+' + formatted + '</span>';
+        }
+        if (n < 0) {
+            return '<span class="' + (options.negativeClass || 'text-danger') + '" style="color:#dc3545 !important;">-' + formatted + '</span>';
+        }
+        return formatted;
+    };
 })(window);

@@ -338,4 +338,13 @@
 #dash-soa-history-tbl .soa-total-row th {
   background: #f7efd8;
   font-weight: 700;
+  border-bottom-width: 1px;
+}
+
+#dash-soa-history-tbl .soa-total-row .soa-total-label {
+  text-align: left;
+}
+
+#dash-soa-history-tbl .soa-total-row .soa-total-rest {
+  border-left: 0;
 }

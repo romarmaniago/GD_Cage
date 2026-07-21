@@ -503,7 +503,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 							<div class="row g-2 house-balance-form-row">
 								<div class="col-sm-4">
 									<label class="hb-form-label" for="txtAmount"><%= __('dashboard_new_capital.junket_balance_amount') %></label>
-									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-form-control hb-field-amount" placeholder="+ / - Amount" title="Use + for dagdag, - for bawas" onkeypress="return onlyCapitalSignedAmountKey(event)" data-type="signed-amount" autocomplete="off"/>
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-form-control hb-field-amount" onkeypress="return onlyCapitalSignedAmountKey(event)" data-type="signed-amount" autocomplete="off"/>
 								</div>
 								<div class="col-sm-8">
 									<label class="hb-form-label" for="capitalRemarks"><%= __('dashboard_new_capital.remarks_placeholder') %></label>

@@ -179,10 +179,10 @@
         const programDate = formatDateDisplay(row.soa_date || '');
         return `
           <tr>
+            <td class="soa-col-program-date">${programDate}</td>
             <td class="soa-col-category">${escapeHtml(category)}</td>
             <td class="soa-col-amount text-end">${formatAmtHtml(row.amount)}</td>
             <td class="soa-col-remarks remarks-editor-td">${renderRemarksCell(row)}</td>
-            <td class="soa-col-program-date">${programDate}</td>
             <td class="soa-col-action text-center">
               <div class="d-inline-flex gap-1">
                 <button type="button" class="btn btn-sm btn-outline-primary js-soa-edit"
@@ -293,7 +293,7 @@
     if (els.editProgramDate) els.editProgramDate.value = formatDateInput(row.soaDate || '');
     const instance = bootstrap.Modal.getOrCreateInstance(els.editModal);
     instance.show();
-    els.editModal.addEventListener('shown.bs.modal', () => els.editCategory?.focus(), { once: true });
+    els.editModal.addEventListener('shown.bs.modal', () => els.editProgramDate?.focus(), { once: true });
   }
 
   async function openSoaModal() {
@@ -306,7 +306,7 @@
 
     showModal();
     await loadHistory(period.from, period.to);
-    els.modal?.addEventListener('shown.bs.modal', () => els.category?.focus(), { once: true });
+    els.modal?.addEventListener('shown.bs.modal', () => els.programDate?.focus(), { once: true });
   }
 
   function bind() {
@@ -366,7 +366,7 @@
           refreshDashboardSoaTotal(dateFrom, dateTo)
         ]);
         if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', timer: 900, showConfirmButton: false });
-        els.category?.focus();
+        els.programDate?.focus();
       } catch (err) {
         console.error('save soa:', err);
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save SOA.' });

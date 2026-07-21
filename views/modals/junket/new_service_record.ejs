@@ -15,26 +15,18 @@
             <label for="new-services-program-date" class="form-label"><%= __('fnb_hotel.program_date') || 'Program Date' %></label>
             <input type="text" id="new-services-program-date" class="form-control" autocomplete="off" placeholder="YYYY-MM-DD" required />
           </div>
-          <div class="col-sm-6">
-            <label for="new-transaction-type" class="form-label"><%= __('fnb_hotel.transaction_type') %></label>
-            <select id="new-transaction-type" class="form-control">
-              <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
-              <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
-              <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
-            </select>
-          </div>
         </div>
 
         <div class="row mb-3" id="new-services-account-wrapper">
           <div class="col-sm-6">
             <label for="new-services-account" class="form-label"><%= __('fnb_hotel.account') %></label>
-            <select id="new-services-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
+            <select id="new-services-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>">
               <option value=""><%= __('fnb_hotel.choose_account') %></option>
             </select>
           </div>
           <div class="col-sm-6">
             <label for="new-services-guest" class="form-label"><%= __('fnb_hotel.guest') %></label>
-            <select id="new-services-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
+            <select id="new-services-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>">
               <option value=""><%= __('fnb_hotel.select_guest_optional') %></option>
             </select>
           </div>
@@ -43,7 +35,7 @@
         <div class="row mb-3 align-items-end">
           <div class="col-sm-5">
             <label for="new-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
-            <input type="text" id="new-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
+            <input type="text" id="new-services-amount" class="form-control" data-type="signed-amount" autocomplete="off" />
             <div id="deposit-balance" class="text-muted small mt-1" style="display:none">
               <%= __('fnb_hotel.available_balance') %> <span id="deposit-balance-value">0</span>
             </div>
