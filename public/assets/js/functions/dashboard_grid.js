@@ -1,51 +1,6 @@
 (() => {
   const beyondChipsEls = {};
   let lastGridPayload = null;
-  let dashRollingCheckSplitDateRange = null;
-
-  function dashRollingCheckApiEndDate(endYmd) {
-    if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
-    const parts = String(endYmd).slice(0, 10).split('-').map(Number);
-    const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
-    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
-      return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
-    }
-    return endYmd;
-  }
-
-  function applyDashRollingCheckDateRange(from, to) {
-    const fromEl = document.getElementById('dash-date-from');
-    const toEl = document.getElementById('dash-date-to');
-    if (fromEl) fromEl.value = from;
-    if (toEl) toEl.value = to;
-    loadGridData();
-  }
-
-  function initDashRollingCheckSplitDateRange() {
-    if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
-      dashRollingCheckSplitDateRange = { fitWidths: function () {} };
-      return;
-    }
-
-    dashRollingCheckSplitDateRange = window.SplitDateRange.attach({
-      startId: 'dash-rolling-check-start-date',
-      endId: 'dash-rolling-check-end-date',
-      splitWrapperId: 'dash-rolling-check-split-daterange-wrapper',
-      independent: true,
-      invalidDateMessage: 'Invalid date range.',
-      onRangeApplied: function (range) {
-        if (!range || !range.start || !range.end) return;
-        let from = range.start;
-        let to = dashRollingCheckApiEndDate(range.end);
-        if (from > to) {
-          const swap = from;
-          from = to;
-          to = swap;
-        }
-        applyDashRollingCheckDateRange(from, to);
-      }
-    });
-  }
 
   function cacheBeyondChipsEls() {
     beyondChipsEls.modal = document.getElementById('modal-dash-beyond-chips');
@@ -1596,7 +1551,6 @@
     initRollingRemarks();
     initWlRemarks();
     initDashMatrixPrintExport();
-    initDashRollingCheckSplitDateRange();
     loadGridData();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
