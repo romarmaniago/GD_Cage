@@ -1,144 +1,182 @@
 <style>
-    #modal-settlement .form-group {
-        display: flex;
-        align-items: center;
-        margin-bottom: 0.5rem;
+    #modal-settlement .settlement-receipt-dialog {
+        --bs-modal-width: 460px;
+        max-width: 460px;
     }
 
-    #modal-settlement .form-label {
-        flex: 1;
-        font-size: 0.875rem;
+    #modal-settlement .settlement-receipt-body {
         position: relative;
-        margin-right: 1rem;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000;
     }
 
-    #modal-settlement .form-label::after {
-        content: ":";
-        position: absolute;
-        right: -1rem;
+    #modal-settlement .settlement-receipt-grid {
+        --settlement-receipt-col-gap: 0.45rem;
+        max-width: 380px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(7rem, auto) auto 1fr;
+        column-gap: var(--settlement-receipt-col-gap);
+        row-gap: 0.18rem;
+        align-items: baseline;
+        justify-content: center;
     }
 
-    #modal-settlement .form-input {
-        width: 150px;
-        font-size: 0.875rem;
-        padding: 0.375rem 0.75rem;
-        border: none;
-        border-bottom: 1px solid #ced4da;
-        box-shadow: none;
+    #modal-settlement .settlement-receipt-section {
+        display: contents;
+    }
+
+    #modal-settlement .settlement-receipt-row {
+        display: contents;
+    }
+
+    #modal-settlement .settlement-receipt-label {
+        grid-column: 1;
         text-align: right;
+        font-weight: 700;
+        font-size: 0.95rem;
     }
 
-    #modal-settlement .form-check-label {
-        font-size: 0.875rem;
+    #modal-settlement .settlement-receipt-colon {
+        grid-column: 2;
+        font-weight: 700;
+        font-size: 0.95rem;
     }
 
-    #modal-settlement .header-logo {
-        max-width: 340px;
+    #modal-settlement .settlement-receipt-value-col {
+        grid-column: 3;
+        text-align: left;
+        font-size: 0.95rem;
+        min-width: 0;
     }
 
-    #modal-settlement .block-content.header-with-logo {
+    #modal-settlement .settlement-receipt-prefix-ghost {
+        visibility: hidden;
+        white-space: pre;
+        font-weight: 700;
+    }
+
+    #modal-settlement .settlement-receipt-value-col--amount {
+        white-space: nowrap;
+    }
+
+    #modal-settlement .settlement-receipt-value-col.is-bold {
+        font-weight: 700;
+    }
+
+    #modal-settlement .settlement-receipt-amount.is-negative {
+        color: #dc3545;
+        font-weight: 700;
+    }
+
+    #modal-settlement .settlement-receipt-row--payment {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        column-gap: var(--settlement-receipt-col-gap);
+        background: #ffe5e0;
+        border-radius: 0.15rem;
+        padding: 0.35rem 0;
+        margin-top: 0.35rem;
+        align-items: baseline;
+    }
+
+    #modal-settlement .settlement-receipt-row--payment .settlement-receipt-label {
+        padding-left: 0.5rem;
+    }
+
+    #modal-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
+        padding-right: 0.5rem;
+    }
+
+    #modal-settlement .settlement-receipt-input {
+        width: auto;
+        min-width: 4rem;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font-size: inherit;
+        font-family: inherit;
+        font-weight: inherit;
+        color: inherit;
+        text-align: left;
+        box-shadow: none;
+        outline: none;
+    }
+
+    #modal-settlement .settlement-receipt-input:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
+    #modal-settlement #winLoss,
+    #modal-settlement #rolling {
+        font-weight: 700;
+    }
+
+    #modal-settlement .settlement-copy-row {
+        display: none !important;
+    }
+
+    #modal-settlement .settlement-copy-row.is-visible {
+        display: flex !important;
+    }
+
+    #modal-settlement .modal-content,
+    #modal-settlement .modal-body,
+    #modal-settlement .modal-footer {
+        background: #fff !important;
+    }
+
+    #modal-settlement .modal-body {
         position: relative;
-        justify-content: flex-start;
     }
 
-    #modal-settlement .settlement-title {
+    #modal-settlement .settlement-receipt-watermark {
         position: absolute;
-        right: 2rem;
-        margin: 0 !important;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        max-width: 22rem;
+        max-height: 22rem;
+        background: url("/assets/images/gd-background-logo22.png") center center / contain no-repeat;
+        opacity: 0.14;
+        pointer-events: none;
+        z-index: 0;
+        user-select: none;
     }
 
-    #modal-settlement .block-content {
-        padding: 2rem;
+    #modal-settlement #settlement-receipt-copy-area {
+        position: relative;
+        overflow: hidden;
+        padding: 0.75rem 0.5rem 0.35rem;
+        border-radius: 0.2rem;
+        min-height: 18rem;
     }
 
-    #modal-settlement .small-input-group {
-        margin-bottom: 0.5rem;
-        margin-left: 23rem;
+    #modal-settlement #settlement-receipt-copy-area > *:not(.settlement-receipt-watermark) {
+        position: relative;
+        z-index: 1;
     }
 
-    #modal-settlement .row {
-        margin-bottom: 0.5rem;
+    #modal-settlement .settlement-extra-opts {
+        max-width: 380px;
+        margin: 0.75rem auto 0;
+        text-align: left;
     }
-    #modal-settlement .settled-image {
-        display: block; /* Initially hide images */
-        width: 300px; /* Ensure the size is set */
-        position: absolute; /* Maintain position if necessary */
-        left: 7%;
-        top: 60%;
-        opacity: 0.9;
-        transform: translateY(-50%);
+
+    #modal-settlement .settlement-extra-opts .form-check-label {
+        font-size: 0.82rem;
     }
-    #modal-settlement .text-primary {
-        color: #0665d0  !important;
-    }
-    #modal-settlement .custom-ok-btn {
-        background-color: #00563f !important;
-        color: white !important;
+
+    #modal-settlement #settlement-service-rows {
+        display: none;
     }
 
     #modal-settlement .receipt-print-only { display: none; }
-
-    #modal-settlement .receipt-print-content {
-        width: 100%;
-        max-width: 200mm;
-        margin: 0 auto;
-        color: #000;
-        font-family: Arial, sans-serif;
-        font-size: 6mm;
-        line-height: 1.3;
-    }
-
-    #modal-settlement .receipt-brand {
-        text-align: center;
-        font-weight: 700;
-        font-size: 7.5mm;
-        margin: 0;
-        letter-spacing: 0.3px;
-    }
-
-    #modal-settlement .receipt-subtitle {
-        text-align: center;
-        font-weight: 700;
-        font-size: 6.4mm;
-        margin: 4mm 0 0;
-    }
-
-    #modal-settlement .receipt-datetime {
-        text-align: center;
-        font-weight: 700;
-        font-size: 5.6mm;
-        margin: 2mm 0 4mm;
-    }
-
-    #modal-settlement .receipt-line {
-        border-top: 1px solid #000;
-        width: 104mm;
-        margin: 4mm auto;
-    }
-
-    #modal-settlement .receipt-row {
-        display: grid;
-        grid-template-columns: 42mm 42mm;
-        justify-content: center;
-        align-items: baseline;
-        column-gap: 18mm;
-        width: 100%;
-        margin: 1mm auto;
-    }
-
-    #modal-settlement .receipt-row span:first-child {
-        text-align: right;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    #modal-settlement .receipt-row span:last-child {
-        text-align: left;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    #modal-settlement .receipt-total span { font-size: 7mm; }
 
     #modal-settlement .settlement-cutoff-tabs {
         margin: 0;
@@ -201,236 +239,206 @@
         #modal-settlement #add_settlement,
         #modal-settlement .modal-header,
         #modal-settlement .settlement-cutoff-tabs,
-        #modal-settlement .header-with-logo,
-        #modal-settlement .settled-image,
-        #modal-settlement .modal-footer {
+        #modal-settlement .modal-footer,
+        #modal-settlement .settlement-extra-opts {
             display: none !important;
         }
     }
 
-
-
-
-
-
-
 </style>
-<!-- jQuery -->
 
-
-<!-- SweetAlert2 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-
-<!-- SweetAlert2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-
-<div class="modal fade" id="modal-settlement" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+<div class="modal fade" id="modal-settlement" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="modal-settlement-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered settlement-receipt-dialog">
         <div class="modal-content">
-            <div class="block block-rounded block-themed block-transparent mb-0">
-                <div class="modal-header bg-primary">
-                    <h3 class="block-title text-white"><%= __('modal_settlement.settlement') %> - <span id="settlement-agent-code"></span></h3>
-                    <!-- <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button> -->
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modal-settlement-label"><%= __('modal_settlement.settlement') %> - <span id="settlement-agent-code"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <ul class="nav nav-tabs settlement-cutoff-tabs" id="settlement-cutoff-tabs" role="tablist" style="display: none;">
+                <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link" id="settlement-tab-original" data-settlement-view="original" role="tab">Original</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link active" id="settlement-tab-total" data-settlement-view="total" role="tab">Total</button>
+                </li>
+            </ul>
+
+            <div id="settlement-cutoff-notice" class="alert alert-warning py-2 mb-0 mx-3 mt-2" style="display: none;" role="alert">
+                <small id="settlement-cutoff-notice-text"></small>
+            </div>
+
+            <form id="add_settlement">
+                <input type="hidden" name="txtSettlementBalance" id="SettlementBalance">
+                <input type="hidden" name="game_id_settle">
+                <input type="hidden" name="txtCutoffLinkedGameIds" id="txtCutoffLinkedGameIds" value="">
+                <input type="hidden" name="txtAccountIDSettle">
+                <input type="hidden" id="fb" name="txtFNB" value="0">
+                <input type="hidden" id="rollingSettlement" name="txtRollingSettlement" value="0">
+                <input type="hidden" id="payment" name="txtPayment" value="0">
+                <span id="date" class="visually-hidden" aria-hidden="true"></span>
+                <span id="time" class="visually-hidden" aria-hidden="true"></span>
+                <span id="accNo" class="visually-hidden" aria-hidden="true"></span>
+                <div id="settlement-service-rows"></div>
+
+                <div class="modal-body">
+                    <div id="settlement-receipt-copy-area" class="settlement-receipt-body">
+                        <div class="settlement-receipt-watermark" aria-hidden="true"></div>
+
+                        <div class="settlement-receipt-grid">
+            <div class="settlement-receipt-section">
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label"><%= __('modal_settlement.acc_no') %></span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col is-bold">
+                        <span id="accNoPrefix"></span><span id="accNoName"></span>
+                    </span>
                 </div>
-
-                <ul class="nav nav-tabs settlement-cutoff-tabs" id="settlement-cutoff-tabs" role="tablist" style="display: none;">
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" id="settlement-tab-original" data-settlement-view="original" role="tab">Original</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link active" id="settlement-tab-total" data-settlement-view="total" role="tab">Total</button>
-                    </li>
-                </ul>
-
-                <div id="settlement-cutoff-notice" class="alert alert-warning py-2 mb-0" style="display: none;" role="alert">
-                    <small id="settlement-cutoff-notice-text"></small>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label"><%= __('modal_settlement.game_no') %></span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col is-bold" id="gameNo"></span>
                 </div>
-
-                <div class="block-content text-center d-flex align-items-center header-with-logo">
-                    <img src="/assets/images/demoLogo.png" alt="Demo CAGE-X Logo" class="img-fluid header-logo me-3" style="margin-left: 2rem;">
-                    <h2 class="text-muted mb-0 settlement-title"><%= __('modal_settlement.settlement_spacing') %></h2>
-                </div>
-              
-                <img src="/login/images/settled-image.png" class="settled-image" id="settledImage-modal" alt="Settled Stamp">
-
-
-
-             
-
-<form id="add_settlement">
-    <div class="block-content">
-         <input type="hidden" name="txtSettlementBalance" id="SettlementBalance" class="">
-        <input type="hidden" name="game_id_settle" class="">
-        <input type="hidden" name="txtCutoffLinkedGameIds" id="txtCutoffLinkedGameIds" value="">
-        <input type="hidden" name="txtAccountIDSettle" class="">
-
-        <!-- ACC No. and Game No. -->
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="accNo"><%= __('modal_settlement.acc_no') %> :&nbsp;</label>
-                    <span id="accNo" style="margin-left: 3rem ;"></span>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Date &amp; Time</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col is-bold" id="dateTime"></span>
                 </div>
             </div>
-            <div class="col-sm-6">
-                <div class="form-group" style="margin-left: -1rem;">
-                    <label for="gameNo"><%= __('modal_settlement.game_no') %> :&nbsp;</label>
-                    <span id="gameNo" style="margin-left: 8rem ;"></span>
-                </div>
-            </div>
-        </div>
 
-        <!-- Date and Time -->
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <div class="form-group">
-                    <label for="date"><%= __('modal_settlement.date') %> :&nbsp;</label>
-                    <span id="date" style="margin-left: 4.5rem ;"></span>
+            <div class="settlement-receipt-section">
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Buy In</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="buyIn" name="txtBuyIn" readonly></span>
+                    </span>
                 </div>
-            </div>
-            <div class="col-sm-6">
-                <div class="form-group" style="margin-left: -1rem;">
-                    <label for="time"><%= __('modal_settlement.time') %> :&nbsp;</label>
-                    <span id="time" style="margin-left: 10.3rem ;"></span>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Cash Out</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="chipsReturn" name="txtChipsReturn" readonly></span>
+                    </span>
                 </div>
-            </div>
-        </div>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Win / Loss</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="winLoss" name="txtWinLoss" readonly></span>
+                    </span>
+                </div>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Rolling</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rolling" name="txtRolling" readonly></span>
+                    </span>
+                </div>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Rate</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingRate" name="txtRollingRate" readonly></span>
+                    </span>
+                </div>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Settlement</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount" id="rollingSettlementDisplay"><span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"></span></span>
+                </div>
+                <div class="settlement-receipt-row">
+                    <span class="settlement-receipt-label">Add Charge</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount" id="addChargeDisplay"><span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount">0</span></span>
+                </div>
+                <div class="settlement-receipt-row settlement-receipt-row--payment">
+                    <span class="settlement-receipt-label">Payment</span>
+                    <span class="settlement-receipt-colon">:</span>
+                    <span class="settlement-receipt-value-col settlement-receipt-value-col--amount" id="paymentDisplay"><span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"></span></span>
+                </div>
+                        </div>
+                    </div>
 
-        <hr>
+                    <div class="settlement-extra-opts">
+                        <div class="row mb-2 deposit-cashout-row g-2 align-items-center">
+                            <div class="col-6 col-sm-6">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="1" id="deposit" name="txtTransType">
+                                    <label class="form-check-label" for="deposit"><%= __('modal_settlement.deposit') %></label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-6">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="5" id="cashOut" name="txtTransType">
+                                    <label class="form-check-label" for="cashOut"><%= __('modal_settlement.cash_out') %></label>
+                                </div>
+                            </div>
+                        </div>
 
-        <!-- Form Fields -->
-        <div class="row mb-2">
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="buyIn"><%= __('modal_settlement.buyin') %></label>
-                    <input class="form-input ms-2" type="text" id="buyIn" name="txtBuyIn" style="font-weight: bold;" readonly>
+                        <div class="row mb-0 settlement-telegram-opts g-2 align-items-center" id="settlement-telegram-opts" style="display: none;">
+                            <div class="col-6 col-sm-6">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendAgent" name="send_telegram_agent">
+                                    <label class="form-check-label" for="settleSendAgent"><%= __('modal_settlement.send_to_agent') %></label>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-6">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendCage" name="send_telegram_cage">
+                                    <label class="form-check-label" for="settleSendCage"><%= __('modal_settlement.send_to_cage') %></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="chipsReturn"><%= __('modal_settlement.chips_return') %></label>
-                    <input class="form-input ms-2" type="text" id="chipsReturn" name="txtChipsReturn" readonly>
-                </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="winLoss"><%= __('modal_settlement.win_loss') %></label>
-                    <input class="form-input ms-2 text-primary" type="text" id="winLoss" name="txtWinLoss" readonly>
-                </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="rolling"><%= __('modal_settlement.rolling') %></label>
-                    <input class="form-input ms-2" type="text" id="rolling" name="txtRolling" readonly>
-                </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="rollingRate"><%= __('modal_settlement.rate') %></label>
-                    <input class="form-input ms-2" type="text" id="rollingRate" name="txtRollingRate" readonly>
-                </div>
-            </div>
-            <div class="col-sm-12">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label" for="rollingSettlement"><%= __('modal_settlement.settlement_form') %></label>
-                    <input class="form-input ms-2" type="text" id="rollingSettlement" style="font-weight: bold;" name="txtRollingSettlement" readonly>
-                </div>
-            </div>
-            <div id="settlement-service-rows"></div>
-            <input type="hidden" id="fb" name="txtFNB" value="0">
-            <div class="col-sm-12 mb-4">
-                <div class="form-group d-flex align-items-center small-input-group">
-                    <label class="form-label align-left" for="payment"><%= __('modal_settlement.payment') %></label>
-                    <input class="form-input ms-2 bg-warning" style="font-weight: bold;" type="text" id="payment" name="txtPayment">
-                </div>
-            </div>
-        </div>
 
-        <!-- Radio + Telegram opts: same col widths so columns line up (2×2 grid) -->
-        <div class="row mb-2 deposit-cashout-row g-2 align-items-center">
-            <div class="col-6 col-sm-6">
-                <div class="form-check mb-0">
-                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="1" id="deposit" name="txtTransType">
-                    <label class="form-check-label" for="deposit">
-                        <span class="d-flex align-items-center">
-                            <%= __('modal_settlement.deposit') %>
-                        </span>
-                    </label>
+                <div class="modal-footer flex-column align-items-end gap-2">
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
+                        <button type="button" id="edit-settlement-btn" class="btn btn-sm btn-alt-secondary">Edit</button>
+                        <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
+                        <button type="button" id="close-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_settlement.close') %></button>
+                    </div>
+                    <div class="settlement-copy-row">
+                        <button type="button" class="btn btn-sm btn-primary js-copy-settlement-slip-image">Copy image</button>
+                        <button type="button" class="btn btn-sm btn-primary js-copy-settlement-slip-text">Copy text</button>
+                    </div>
                 </div>
-            </div>
-            <div class="col-6 col-sm-6">
-                <div class="form-check mb-0">
-                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="5" id="cashOut" name="txtTransType">
-                    <label class="form-check-label" for="cashOut">
-                        <span class="d-flex align-items-center">
-                            <%= __('modal_settlement.cash_out') %>
-                        </span>
-                    </label>
+            </form>
+
+            <div class="receipt-print-only">
+                <div class="receipt-print-content">
+                    <p class="receipt-brand">GOLDEN DRAGON</p>
+                    <p class="receipt-subtitle">Finished Game</p>
+                    <div class="receipt-line"></div>
+                    <p class="receipt-datetime" id="printReceiptDateTime"></p>
+
+                    <div class="receipt-row"><span>Account :</span><span id="printReceiptAccount">0</span></div>
+                    <div class="receipt-row"><span>Name :</span><span id="printReceiptName">0</span></div>
+                    <div class="receipt-row"><span>Buy In :</span><span id="printReceiptBuyIn">0</span></div>
+                    <div class="receipt-row"><span>Cash Out :</span><span id="printReceiptCashOut">0</span></div>
+                    <div class="receipt-line"></div>
+
+                    <div class="receipt-row"><span>W/L :</span><span id="printReceiptWinLoss">0</span></div>
+                    <div class="receipt-row"><span>Rolling :</span><span id="printReceiptRolling">0</span></div>
+                    <div class="receipt-line"></div>
+
+                    <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
+                    <div id="printReceiptServices"></div>
+                    <div class="receipt-row"><span>Incidental :</span><span id="printReceiptIncidential">0</span></div>
+                    <div class="receipt-line"></div>
+
+                    <div class="receipt-row receipt-total"><span>Total :</span><span id="printReceiptTotal">0</span></div>
+                    <div class="receipt-line"></div>
                 </div>
-            </div>
-        </div>
-
-        <div class="row mb-2 settlement-telegram-opts g-2 align-items-center" id="settlement-telegram-opts" style="display: none;">
-            <div class="col-6 col-sm-6">
-                <div class="form-check mb-0">
-                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendAgent" name="send_telegram_agent">
-                    <label class="form-check-label" for="settleSendAgent"><%= __('modal_settlement.send_to_agent') %></label>
-                </div>
-            </div>
-            <div class="col-6 col-sm-6">
-                <div class="form-check mb-0">
-                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendCage" name="send_telegram_cage">
-                    <label class="form-check-label" for="settleSendCage"><%= __('modal_settlement.send_to_cage') %></label>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal-footer">
-        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
-        <button type="button" id="edit-settlement-btn" class="btn btn-sm btn-alt-secondary">Edit</button>
-        <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
-        <button type="button" id="close-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-            <%= __('modal_settlement.close') %>
-        </button>
-    </div>
-</form>
-
-<div class="receipt-print-only">
-    <div class="receipt-print-content">
-        <p class="receipt-brand">GOLDEN DRAGON</p>
-        <p class="receipt-subtitle">Finished Game</p>
-        <div class="receipt-line"></div>
-        <p class="receipt-datetime" id="printReceiptDateTime"></p>
-
-        <div class="receipt-row"><span>Account :</span><span id="printReceiptAccount">0</span></div>
-        <div class="receipt-row"><span>Name :</span><span id="printReceiptName">0</span></div>
-        <div class="receipt-row"><span>Buy In :</span><span id="printReceiptBuyIn">0</span></div>
-        <div class="receipt-row"><span>Cash Out :</span><span id="printReceiptCashOut">0</span></div>
-        <div class="receipt-line"></div>
-
-        <div class="receipt-row"><span>W/L :</span><span id="printReceiptWinLoss">0</span></div>
-        <div class="receipt-row"><span>Rolling :</span><span id="printReceiptRolling">0</span></div>
-        <div class="receipt-line"></div>
-
-        <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
-        <div id="printReceiptServices"></div>
-        <div class="receipt-row"><span>Incidental :</span><span id="printReceiptIncidential">0</span></div>
-        <div class="receipt-line"></div>
-
-        <div class="receipt-row receipt-total"><span>Total :</span><span id="printReceiptTotal">0</span></div>
-        <div class="receipt-line"></div>
-    </div>
-</div>
-
-
             </div>
         </div>
     </div>
 </div>
 
-
-    <script>
-        $(document).ready(function() {
+<script>
+$(document).ready(function() {
     var settlementDoneSwal = {
         title: 'Done',
         savedOnly: 'Done.',
@@ -479,6 +487,81 @@
             maximumFractionDigits: 2
         });
     }
+
+    function formatSettlementDueDisplay(value) {
+        var num = parseAmount(value);
+        if (!num) {
+            return { text: '0', negative: false };
+        }
+        return {
+            text: '(' + formatAmount(Math.abs(num)) + ')',
+            negative: true
+        };
+    }
+
+    function formatSettlementRateDisplay(value) {
+        var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+        if (!raw) {
+            return '';
+        }
+        return raw.indexOf('%') !== -1 ? raw : raw + '%';
+    }
+
+    function syncSettlementDateTimeDisplay($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var dateText = cleanValue($modal.find('#date').text());
+        var timeText = cleanValue($modal.find('#time').text());
+        var formatted = formatReceiptDateTime(dateText, timeText);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateText) && timeText) {
+            var parts = dateText.split('-');
+            formatted = parts[0] + '-' + parseInt(parts[1], 10) + '-' + parseInt(parts[2], 10) + ' ' + timeText;
+        }
+        $modal.find('#dateTime').text(formatted);
+    }
+    window.syncSettlementDateTimeDisplay = syncSettlementDateTimeDisplay;
+
+    function refreshSettlementReceiptDisplay($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        syncSettlementDateTimeDisplay($modal);
+
+        var settlementDisplay = formatSettlementDueDisplay($modal.find('#rollingSettlement').val());
+        $modal.find('#rollingSettlementDisplay .settlement-receipt-amount')
+            .text(settlementDisplay.text)
+            .toggleClass('is-negative', settlementDisplay.negative);
+
+        var paymentDisplay = formatSettlementDueDisplay($modal.find('#payment').val());
+        $modal.find('#paymentDisplay .settlement-receipt-amount')
+            .text(paymentDisplay.text)
+            .toggleClass('is-negative', paymentDisplay.negative);
+
+        $modal.find('#addChargeDisplay .settlement-receipt-amount').text(formatAmount($modal.find('#fb').val()));
+
+        var $rate = $modal.find('#rollingRate');
+        if ($rate.prop('readonly')) {
+            $rate.val(formatSettlementRateDisplay($rate.val()));
+        }
+    }
+    window.refreshSettlementReceiptDisplay = refreshSettlementReceiptDisplay;
+
+    function setSettlementAccountDisplay($modal, agentCode, agentName) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var code = String(agentCode == null ? '' : agentCode).trim();
+        var name = String(agentName == null ? '' : agentName).trim();
+        var full = code ? (code + (name ? ' - ' + name : '')) : (name || 'N/A');
+        var prefix = code ? (code + ' - ') : '';
+        $modal.find('#accNo').text(full);
+        $modal.find('#accNoPrefix').text(prefix);
+        $modal.find('#accNoName').text(name);
+        $modal.find('.settlement-receipt-prefix-ghost').text(prefix);
+    }
+    window.setSettlementAccountDisplay = setSettlementAccountDisplay;
+
+    function updateSettlementCopyButtons($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var show = Number($modal.data('is-settled')) === 1;
+        $modal.find('.settlement-copy-row').toggleClass('is-visible', show).attr('aria-hidden', show ? 'false' : 'true');
+    }
+    window.updateSettlementCopyButtons = updateSettlementCopyButtons;
 
     function formatInputWithCommas($input) {
         var raw = String($input.val() || '').replace(/,/g, '').trim();
@@ -545,10 +628,6 @@
             minimumFractionDigits: 0,
             maximumFractionDigits: 4
         }));
-    }
-
-    function readFieldText(selector) {
-        return cleanValue($(selector).val() || $(selector).text());
     }
 
     function formatReceiptDateTime(dateText, timeText) {
@@ -644,6 +723,7 @@
 
         $modal.find('#fb').val(formatAmount(servicesTotal));
         $modal.find('#payment').val(formatAmount(payment));
+        refreshSettlementReceiptDisplay($modal);
     }
 
     /** Edit mode: Settlement = Rolling × (Rate ÷ 100), pareho ng commission % sa game list */
@@ -709,13 +789,24 @@
         if (snapshot.transType) {
             $modal.find('input[name="txtTransType"][value="' + snapshot.transType + '"]').prop('checked', true);
         }
+        refreshSettlementReceiptDisplay($modal);
     }
 
     function setSettlementEditMode($modal, enabled) {
         var isSettled = Number($modal.data('is-settled')) === 1;
         var fakeActive = Number($modal.data('fake-settle-active')) === 1;
         $modal.data('edit-mode', enabled ? 1 : 0);
-        $modal.find('#submit-settlement-btn').toggle(!enabled && !isSettled);
+        var $settleBtn = $modal.find('#submit-settlement-btn');
+        if (enabled) {
+            $settleBtn.hide();
+        } else {
+            $settleBtn.show();
+            if (isSettled) {
+                $settleBtn.prop('disabled', true).text('Settled');
+            } else {
+                $settleBtn.prop('disabled', false).text('Settle');
+            }
+        }
         $modal.find('.deposit-cashout-row').toggle(!enabled && !isSettled);
         // Habang Edit: palaging fake slip — Agent/Cage. Unsettled + Done na may fake: show bago mag-Settle.
         $modal.find('#settlement-telegram-opts').toggle(
@@ -724,21 +815,29 @@
         $modal.find('#close-settlement-btn').toggle(!enabled);
         $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
 
-        $modal.find('#buyIn, #chipsReturn, #winLoss, #rollingSettlement, #payment')
-            .prop('readonly', true);
+        if (enabled) {
+            var rateRaw = String($modal.find('#rollingRate').val() || '').replace(/%/g, '').trim();
+            $modal.find('#rollingRate').val(rateRaw);
+        }
+
+        $modal.find('#buyIn, #chipsReturn, #winLoss').prop('readonly', true);
         $modal.find('.settlement-service-amount').prop('readonly', true);
         $modal.find('#rolling, #rollingRate').prop('readonly', !enabled);
+        refreshSettlementReceiptDisplay($modal);
+        updateSettlementCopyButtons($modal);
     }
 
     $('#modal-settlement').on('shown.bs.modal', function() {
         $(this).removeData('settlement-snapshot');
         $(this).find('#settleSendAgent, #settleSendCage').prop('checked', false);
         setSettlementEditMode($(this), false);
+        updateSettlementCopyButtons($(this));
     });
 
     $('#modal-settlement').on('hidden.bs.modal', function() {
         $(this).removeData('settlement-snapshot');
         setSettlementEditMode($(this), false);
+        updateSettlementCopyButtons($(this));
     });
 
     $('#edit-settlement-btn').on('click', function() {
@@ -851,6 +950,32 @@
         syncServiceTotalAndPayment($modal);
         updateReceiptPrintData($modal);
         openReceiptPrintWindow($modal);
+    });
+
+    $('#modal-settlement').on('click', '.js-copy-settlement-slip-image', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var slipBody = document.getElementById('settlement-receipt-copy-area');
+        if (typeof window.copyGameReceiptSlipImage === 'function') {
+            window.copyGameReceiptSlipImage(slipBody, $btn);
+            return;
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Image copy is not available.', confirmButtonText: 'OK' });
+        }
+    });
+
+    $('#modal-settlement').on('click', '.js-copy-settlement-slip-text', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var slipBody = document.getElementById('settlement-receipt-copy-area');
+        if (typeof window.copyGameReceiptSlipTextButton === 'function') {
+            window.copyGameReceiptSlipTextButton(slipBody, $btn);
+            return;
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Text copy is not available.', confirmButtonText: 'OK' });
+        }
     });
 });
 </script>

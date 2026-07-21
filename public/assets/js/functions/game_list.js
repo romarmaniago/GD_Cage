@@ -10756,7 +10756,16 @@ function applySettlementSettleButtonLock($modal) {
 	var $notice = $modal.find('#settlement-cutoff-notice');
 	if (Number($modal.data('is-settled')) === 1) {
 		$notice.hide();
+		$btn.show().prop('disabled', true).text('Settled');
+		if (typeof window.updateSettlementCopyButtons === 'function') {
+			window.updateSettlementCopyButtons($modal);
+		}
 		return;
+	}
+
+	$btn.prop('disabled', false).text('Settle');
+	if (typeof window.updateSettlementCopyButtons === 'function') {
+		window.updateSettlementCopyButtons($modal);
 	}
 
 	var lockMeta = $modal.data('settlementLockMeta');
@@ -10913,6 +10922,9 @@ function applySettlementMetricsToForm(metrics, gameNoText, rollingRate) {
 	$('#rolling').val(formatSettlementDisplayAmount(metrics.total_rolling_chips));
 	$('#rollingRate').val(rollingRate != null ? rollingRate : metrics.RollingRate);
 	$('#rollingSettlement').val(formatSettlementDisplayAmount(metrics.net));
+	if (typeof window.refreshSettlementReceiptDisplay === 'function') {
+		window.refreshSettlementReceiptDisplay($('#modal-settlement'));
+	}
 }
 
 function computeGameSettlementMetricsFromRows(dataRows) {
@@ -11074,6 +11086,10 @@ function settlement_history(record_id, acc_id) {
     $settlementModal.find('#settlement-tab-total').addClass('active');
     $settlementModal.find('#settlement-telegram-opts').hide();
     $('#settlement-agent-code').text('');
+    $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
+    if (typeof window.updateSettlementCopyButtons === 'function') {
+        window.updateSettlementCopyButtons($settlementModal);
+    }
     $settlementModal.modal('show');
     // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
     $settlementModal.find('.deposit-cashout-row').show();
@@ -11131,6 +11147,9 @@ function settlement_history(record_id, acc_id) {
         var net = parseFloat($('#rollingSettlement').val().replace(/,/g, '')) || 0;
         var payment = net - fb;
         $('#payment').val(payment.toLocaleString('en-US'));
+        if (typeof window.refreshSettlementReceiptDisplay === 'function') {
+            window.refreshSettlementReceiptDisplay($('#modal-settlement'));
+        }
     }
 
     function applySettlementTab(viewMode) {
@@ -11153,6 +11172,9 @@ function settlement_history(record_id, acc_id) {
                     var viewEnded = moment(viewMetrics.meta.GAME_ENDED);
                     $('#date').text(viewEnded.format('YYYY-MM-DD'));
                     $('#time').text(viewEnded.format('HH:mm'));
+                    if (typeof window.syncSettlementDateTimeDisplay === 'function') {
+                        window.syncSettlementDateTimeDisplay($settlementModal);
+                    }
                 }
             }
             loadServicesTotal([viewGameId]);
@@ -11161,6 +11183,9 @@ function settlement_history(record_id, acc_id) {
             if (primaryDt) {
                 $('#date').text(primaryDt.date);
                 $('#time').text(primaryDt.time);
+                if (typeof window.syncSettlementDateTimeDisplay === 'function') {
+                    window.syncSettlementDateTimeDisplay($settlementModal);
+                }
             }
             applySettlementMetricsToForm(merged, formatSettlementGameNoDisplay(gameIds));
             if (merged) {
@@ -11266,13 +11291,23 @@ function settlement_history(record_id, acc_id) {
                 var timeStr = currentDateTime.format('HH:mm');
                 $('#date').text(dateStr);
                 $('#time').text(timeStr);
+                if (typeof window.syncSettlementDateTimeDisplay === 'function') {
+                    window.syncSettlementDateTimeDisplay($settlementModal);
+                }
                 $settlementModal.data('settlementPrimaryDateTime', { date: dateStr, time: timeStr });
 
                 var accNo = (primaryData[0].agent_code || '') + ' - ' + (primaryData[0].agent_name || '');
                 var account_id = primaryData[0].ACCOUNT_ID;
 
-                $('#accNo').text(accNo || 'N/A');
+                if (typeof window.setSettlementAccountDisplay === 'function') {
+                    window.setSettlementAccountDisplay($settlementModal, primaryData[0].agent_code, primaryData[0].agent_name);
+                } else {
+                    $('#accNo').text(accNo || 'N/A');
+                }
                 setGameListModalAccountLabel('#settlement-agent-code', primaryData[0].agent_code, primaryData[0].guest_name);
+                if (typeof window.refreshSettlementReceiptDisplay === 'function') {
+                    window.refreshSettlementReceiptDisplay($settlementModal);
+                }
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
 
@@ -11283,19 +11318,23 @@ function settlement_history(record_id, acc_id) {
                 $settlementModal.find('#settleSendAgent, #settleSendCage').prop('checked', false);
 
                 if (settledFlag) {
-                    $settlementModal.find('#submit-settlement-btn').prop('disabled', true).hide();
-                    $settlementModal.find('#settledImage-modal').show();
+                    $settlementModal.find('#submit-settlement-btn').prop('disabled', true).text('Settled').show();
                     isSettled = true;
                     $settlementModal.find('.deposit-cashout-row').hide();
                     $settlementModal.find('#settlement-telegram-opts').hide();
                     $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
+                    if (typeof window.updateSettlementCopyButtons === 'function') {
+                        window.updateSettlementCopyButtons($settlementModal);
+                    }
                 } else {
-                    $settlementModal.find('#submit-settlement-btn').show();
-                    $settlementModal.find('#settledImage-modal').hide();
+                    $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
                     isSettled = false;
                     $settlementModal.find('.deposit-cashout-row').show();
                     $settlementModal.find('#settlement-telegram-opts').toggle(fakeSettleFlag);
                     applySettlementSettleButtonLock($settlementModal);
+                    if (typeof window.updateSettlementCopyButtons === 'function') {
+                        window.updateSettlementCopyButtons($settlementModal);
+                    }
                 }
 
                 applySettlementTab('total');
@@ -11461,7 +11500,12 @@ function settlement_history(record_id, acc_id) {
             title: 'Confirm Settlement',
             subtitle: 'Confirm Settlement:',
             rows: settlementRows,
-            message: 'Are you sure you want to proceed?'
+            message: 'Are you sure you want to proceed?',
+            modalStack: true,
+            confirmButtonText: 'Yes, Confirm',
+            cancelButtonText: 'Cancel',
+            allowOutsideClick: false,
+            allowEscapeKey: false
         }).then((result) => {
             if (result.isConfirmed) {
                 // User confirmed, proceed with transaction
@@ -11480,27 +11524,24 @@ function settlement_history(record_id, acc_id) {
                         Swal.fire({
                             icon: 'success',
                             title: 'The settlement has been successfully settled.',
-                            text: '',
                             confirmButtonText: 'OK',
                             allowOutsideClick: false,
-                            allowEscapeKey: false,
-                            customClass: {
-                                confirmButton: 'custom-ok-btn'
-                            }
+                            allowEscapeKey: false
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 // Set the flag to true
                                 isSettled = true;
+                                $settlementModal.data('is-settled', 1);
                                 console.log('Settlement processed. Setting isSettled to true.');
-                                // Disable and hide the 'Save' button
-                                $('#submit-settlement-btn').prop('disabled', true).hide();
+                                $('#submit-settlement-btn').prop('disabled', true).text('Settled').show();
+                                if (typeof window.updateSettlementCopyButtons === 'function') {
+                                    window.updateSettlementCopyButtons($('#modal-settlement'));
+                                }
                                 // Hide modal only after SweetAlert confirmation
                                 $('#modal-settlement').modal('hide');
                                 window.location.reload();
                                 // Reset the form
                                 $('#add_settlement')[0].reset();
-                                // Show the settled image
-                                $('#settledImage-modal').show();
                             }
                         });
                     },
@@ -11512,10 +11553,7 @@ function settlement_history(record_id, acc_id) {
                             text: 'There was an error saving the settlement.',
                             confirmButtonText: 'OK',
                             allowOutsideClick: false,
-                            allowEscapeKey: false,
-                            customClass: {
-                                confirmButton: 'custom-ok-btn'
-                            }
+                            allowEscapeKey: false
                         });
                         $btn.prop('disabled', false).text(defaultSettleLabel); // Re-enable button and reset text
                     },
