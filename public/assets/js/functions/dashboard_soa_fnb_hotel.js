@@ -10,17 +10,24 @@
   function cacheEls() {
     els.modal = $('modal-dash-soa-fnb-hotel');
     els.form = $('dash-soa-fnb-hotel-form');
-    els.periodLabel = $('dash-soa-period-label');
     els.dateFrom = $('dash-soa-date-from');
     els.dateTo = $('dash-soa-date-to');
+    els.category = $('dash-soa-category');
     els.amount = $('dash-soa-amount');
+    els.remarks = $('dash-soa-remarks');
+    els.programDate = $('dash-soa-program-date');
+    els.saveBtn = $('btn-dash-soa-save');
     els.historyBody = $('dash-soa-history-body');
+    els.historyTotal = $('dash-soa-history-total');
     els.historyTable = $('dash-soa-history-tbl');
 
     els.editModal = $('modal-dash-soa-fnb-hotel-edit');
     els.editForm = $('dash-soa-edit-form');
     els.editId = $('dash-soa-edit-id');
+    els.editCategory = $('dash-soa-edit-category');
     els.editAmount = $('dash-soa-edit-amount');
+    els.editRemarks = $('dash-soa-edit-remarks');
+    els.editProgramDate = $('dash-soa-edit-program-date');
 
     els.dashDateFrom = $('dash-date-from');
     els.dashDateTo = $('dash-date-to');
@@ -43,14 +50,54 @@
 
   function toIsoDateOnly(d) {
     if (!d) return '';
-    const parts = String(d).split('-');
-    if (parts.length === 3) return d;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(d).trim())) return String(d).trim();
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return '';
     const y = dt.getFullYear();
     const m = String(dt.getMonth() + 1).padStart(2, '0');
     const day = String(dt.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  function parseManualDate(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+
+    const match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (match) {
+      const y = Number(match[1]);
+      const m = Number(match[2]);
+      const d = Number(match[3]);
+      const dt = new Date(y, m - 1, d);
+      if (
+        Number.isNaN(dt.getTime()) ||
+        dt.getFullYear() !== y ||
+        dt.getMonth() !== m - 1 ||
+        dt.getDate() !== d
+      ) {
+        return '';
+      }
+      return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.toApiDate === 'function') {
+      const api = window.MonthEndCutoffRange.toApiDate(text);
+      if (api) return String(api).slice(0, 10);
+    }
+
+    return '';
+  }
+
+  function formatDateDisplay(iso) {
+    const match = String(iso || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return escapeHtml(iso || '—');
+    return `${match[1]}/${match[2]}/${match[3]}`;
+  }
+
+  function formatDateInput(iso) {
+    const match = String(iso || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return '';
+    return `${match[1]}/${match[2]}/${match[3]}`;
   }
 
   function formatAmountInput(value) {
@@ -68,9 +115,13 @@
 
   function formatAmtHtml(n) {
     const v = Math.round(Number(n) || 0);
-    // SOA is shown as negative on the dashboard card.
     const abs = Math.abs(v).toLocaleString('en-US');
     return `<span class="text-dash-neg">(${abs})</span>`;
+  }
+
+  function setHistoryTotal(total) {
+    if (!els.historyTotal) return;
+    els.historyTotal.innerHTML = formatAmtHtml(total);
   }
 
   function getDashboardPeriod() {
@@ -94,33 +145,53 @@
         recordId: row.id
       });
     }
-    return remarks ? escapeHtml(remarks) : '<span class="text-muted">—</span>';
+    return remarks
+      ? `<span class="text-break">${escapeHtml(remarks)}</span>`
+      : '<span class="text-muted">—</span>';
+  }
+
+  function clearAddForm() {
+    if (els.category) els.category.value = '';
+    if (els.amount) els.amount.value = '';
+    if (els.remarks) els.remarks.value = '';
+    if (els.programDate) els.programDate.value = '';
   }
 
   async function loadHistory(dateFrom, dateTo) {
     if (!els.historyBody) return;
-    els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Loading...</td></tr>';
+    els.historyBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Loading...</td></tr>';
+    setHistoryTotal(0);
 
     try {
       const q = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
       const data = await fetchJson(`/soa_fnb_hotel_history?${q}`);
       const entries = Array.isArray(data.entries) ? data.entries : [];
+      const total = Number(data.total || 0);
 
       if (!entries.length) {
-        els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No entries for this period</td></tr>';
+        els.historyBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">No entries for this period</td></tr>';
+        setHistoryTotal(0);
         return;
       }
 
       els.historyBody.innerHTML = entries.map((row) => {
-        const dateTxt = row.soa_date || (row.encoded_dt || '—');
+        const category = row.category || '—';
+        const programDate = formatDateDisplay(row.soa_date || '');
         return `
           <tr>
-            <td class="soa-col-date">${escapeHtml(dateTxt)}</td>
-            <td class="soa-col-amount text-end">${escapeHtml(Number(row.amount || 0).toLocaleString('en-US'))}</td>
+            <td class="soa-col-category">${escapeHtml(category)}</td>
+            <td class="soa-col-amount text-end">${formatAmtHtml(row.amount)}</td>
             <td class="soa-col-remarks remarks-editor-td">${renderRemarksCell(row)}</td>
+            <td class="soa-col-program-date">${programDate}</td>
             <td class="soa-col-action text-center">
               <div class="d-inline-flex gap-1">
-                <button type="button" class="btn btn-sm btn-outline-primary js-soa-edit" data-id="${escapeAttr(row.id)}" data-amount="${escapeAttr(row.amount)}" title="Edit" aria-label="Edit">
+                <button type="button" class="btn btn-sm btn-outline-primary js-soa-edit"
+                  data-id="${escapeAttr(row.id)}"
+                  data-category="${escapeAttr(row.category || '')}"
+                  data-amount="${escapeAttr(row.amount)}"
+                  data-remarks="${escapeAttr(row.remarks || '')}"
+                  data-date="${escapeAttr(row.soa_date || '')}"
+                  title="Edit" aria-label="Edit">
                   <i class="fa fa-pencil-alt" aria-hidden="true"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-danger js-soa-delete" data-id="${escapeAttr(row.id)}" title="Delete" aria-label="Delete">
@@ -130,9 +201,11 @@
             </td>
           </tr>`;
       }).join('');
+      setHistoryTotal(total);
     } catch (err) {
       console.error('loadHistory soa:', err);
-      els.historyBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Unable to load history</td></tr>';
+      els.historyBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Unable to load history</td></tr>';
+      setHistoryTotal(0);
     }
   }
 
@@ -147,7 +220,6 @@
 
     if (els.panel) {
       els.panel.dataset.serviceSettle = String(total);
-      // Recompute anticipated totals using current WL rate.
       const rate = Number(els.panel.dataset.wlRate);
       const winLoss = Number(els.panel.dataset.winLoss) || 0;
       const companyExpense = Number(els.panel.dataset.companyExpense) || 0;
@@ -172,23 +244,23 @@
     }
   }
 
-  async function saveSoa(soaDate, amount) {
+  async function saveSoa(category, amount, remarks, programDate) {
     const res = await fetch('/add_soa_fnb_hotel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ soa_date: soaDate, amount })
+      body: JSON.stringify({ category, amount, remarks, soa_date: programDate })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Unable to save SOA.');
   }
 
-  async function updateSoaEntry(id, amount) {
+  async function updateSoaEntry(id, category, amount, remarks, programDate) {
     const res = await fetch('/update_soa_fnb_hotel', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ id, amount })
+      body: JSON.stringify({ id, category, amount, remarks, soa_date: programDate })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Unable to update SOA.');
@@ -212,13 +284,16 @@
     instance.show();
   }
 
-  function showEditModal(id, amount) {
+  function showEditModal(row) {
     if (!els.editModal || typeof bootstrap === 'undefined') return;
-    els.editId.value = String(id || '');
-    els.editAmount.value = formatAmountInput(Math.round(Number(amount) || 0));
+    els.editId.value = String(row.id || '');
+    if (els.editCategory) els.editCategory.value = row.category || '';
+    if (els.editAmount) els.editAmount.value = formatAmountInput(Math.round(Number(row.amount) || 0));
+    if (els.editRemarks) els.editRemarks.value = row.remarks || '';
+    if (els.editProgramDate) els.editProgramDate.value = formatDateInput(row.soaDate || '');
     const instance = bootstrap.Modal.getOrCreateInstance(els.editModal);
     instance.show();
-    els.editModal.addEventListener('shown.bs.modal', () => els.editAmount?.focus(), { once: true });
+    els.editModal.addEventListener('shown.bs.modal', () => els.editCategory?.focus(), { once: true });
   }
 
   async function openSoaModal() {
@@ -227,19 +302,26 @@
 
     if (els.dateFrom) els.dateFrom.value = period.from;
     if (els.dateTo) els.dateTo.value = period.to;
-    if (els.periodLabel) {
-      els.periodLabel.value = `${period.from} to ${period.to}`;
-    }
-    if (els.amount) els.amount.value = '';
+    clearAddForm();
 
     showModal();
     await loadHistory(period.from, period.to);
-    els.modal?.addEventListener('shown.bs.modal', () => els.amount?.focus(), { once: true });
+    els.modal?.addEventListener('shown.bs.modal', () => els.category?.focus(), { once: true });
   }
 
   function bind() {
     cacheEls();
     if (!els.form || !els.modal) return;
+
+    [els.remarks, els.editRemarks].forEach((el) => {
+      if (!el) return;
+      el.removeAttribute('readonly');
+      el.removeAttribute('disabled');
+      if (el.tagName === 'INPUT') {
+        el.type = 'text';
+        el.removeAttribute('inputmode');
+      }
+    });
 
     document.addEventListener('click', (e) => {
       const link = e.target.closest('.js-open-soa-fnb-hotel');
@@ -256,25 +338,35 @@
       e.preventDefault();
       const dateFrom = els.dateFrom?.value || '';
       const dateTo = els.dateTo?.value || '';
+      const category = String(els.category?.value || '').trim();
       const amount = parseAmount(els.amount?.value);
-      const saveBtn = els.form.querySelector('[type="submit"]');
+      const remarks = String(els.remarks?.value || '').trim();
+      const programDate = parseManualDate(els.programDate?.value);
+      const saveBtn = els.saveBtn || els.form.querySelector('[type="submit"]');
 
-      if (!dateTo) return;
+      if (!category) {
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a service category label.' });
+        return;
+      }
       if (Number.isNaN(amount) || amount === 0) {
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+        return;
+      }
+      if (!programDate) {
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid program date (YYYY/MM/DD).' });
         return;
       }
 
       if (saveBtn) saveBtn.disabled = true;
       try {
-        // We store the SOA under the period end-date to represent the settlement for this period.
-        await saveSoa(dateTo, amount);
-        if (els.amount) els.amount.value = '';
+        await saveSoa(category, amount, remarks, programDate);
+        clearAddForm();
         await Promise.all([
           loadHistory(dateFrom, dateTo),
           refreshDashboardSoaTotal(dateFrom, dateTo)
         ]);
         if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', timer: 900, showConfirmButton: false });
+        els.category?.focus();
       } catch (err) {
         console.error('save soa:', err);
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save SOA.' });
@@ -287,7 +379,13 @@
       const editBtn = e.target.closest('.js-soa-edit');
       if (editBtn) {
         e.preventDefault();
-        showEditModal(editBtn.dataset.id, editBtn.dataset.amount);
+        showEditModal({
+          id: editBtn.dataset.id,
+          category: editBtn.dataset.category,
+          amount: editBtn.dataset.amount,
+          remarks: editBtn.dataset.remarks,
+          soaDate: editBtn.dataset.date
+        });
         return;
       }
 
@@ -334,20 +432,31 @@
     els.editForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = els.editId?.value || '';
+      const category = String(els.editCategory?.value || '').trim();
       const amount = parseAmount(els.editAmount?.value);
+      const remarks = String(els.editRemarks?.value || '').trim();
+      const programDate = parseManualDate(els.editProgramDate?.value);
       const saveBtn = els.editForm.querySelector('[type="submit"]');
       const dateFrom = els.dateFrom?.value || '';
       const dateTo = els.dateTo?.value || '';
 
       if (!id) return;
+      if (!category) {
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a service category label.' });
+        return;
+      }
       if (Number.isNaN(amount) || amount === 0) {
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+        return;
+      }
+      if (!programDate) {
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid program date (YYYY/MM/DD).' });
         return;
       }
 
       if (saveBtn) saveBtn.disabled = true;
       try {
-        await updateSoaEntry(id, amount);
+        await updateSoaEntry(id, category, amount, remarks, programDate);
         if (els.editModal && typeof bootstrap !== 'undefined') {
           bootstrap.Modal.getOrCreateInstance(els.editModal).hide();
         }
@@ -367,4 +476,3 @@
 
   document.addEventListener('DOMContentLoaded', bind);
 })();
-
