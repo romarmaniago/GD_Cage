@@ -461,14 +461,14 @@
 }
 
 #modal-dash-winloss-report {
-  --bs-modal-margin: 0.5rem;
+  --bs-modal-margin: 1.25rem;
 }
 
 #modal-dash-winloss-report .dash-winloss-report-dialog {
-  max-width: calc(100vw - 1rem) !important;
-  width: calc(100vw - 1rem) !important;
-  max-height: calc(100vh - 1rem);
-  margin: 0.5rem auto;
+  max-width: min(calc(100vw - 2rem), 98rem) !important;
+  width: min(calc(100vw - 2rem), 98rem) !important;
+  max-height: calc(100vh - 2.5rem);
+  margin: 1.25rem auto;
 }
 
 #modal-dash-winloss-report .daily-report-winloss-toolbar {
