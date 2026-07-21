@@ -3796,6 +3796,7 @@ router.get('/soa_fnb_hotel_history', checkSession, async (req, res) => {
 			`SELECT
 				sfh.IDNo AS id,
 				DATE_FORMAT(sfh.SOA_DATE, '%Y-%m-%d') AS soa_date,
+				sfh.CATEGORY AS category,
 				sfh.AMOUNT AS amount,
 				sfh.REMARKS AS remarks,
 				DATE_FORMAT(sfh.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
@@ -3840,9 +3841,17 @@ router.get('/soa_fnb_hotel_total', checkSession, async (req, res) => {
 router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 	try {
 		const soaDate = String(req.body.soa_date || '').trim();
+		const category = String(req.body.category || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
-		if (!soaDate) {
-			return res.status(400).json({ message: 'SOA date is required.' });
+		if (!category) {
+			return res.status(400).json({ message: 'Service category label is required.' });
+		}
+		if (category.length > 100) {
+			return res.status(400).json({ message: 'Service category label is too long.' });
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
+			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
 		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
 			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
@@ -3854,8 +3863,8 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 		await pool.execute(
 			`INSERT INTO soa_fnb_hotel
 				(SOA_DATE, CATEGORY, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
-			 VALUES (?, 'SOA', ?, NULL, ?, ?, 1)`,
-			[soaDate, parsedAmount, userId, now]
+			 VALUES (?, ?, ?, ?, ?, ?, 1)`,
+			[soaDate, category, parsedAmount, remarks || null, userId, now]
 		);
 
 		res.json({ success: true, message: 'SOA saved successfully.' });
@@ -3868,9 +3877,21 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.body.id, 10);
+		const soaDate = String(req.body.soa_date || req.body.program_date || '').trim();
+		const category = String(req.body.category || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
 		if (!id || id < 1) {
 			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+		if (!category) {
+			return res.status(400).json({ message: 'Service category label is required.' });
+		}
+		if (category.length > 100) {
+			return res.status(400).json({ message: 'Service category label is too long.' });
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
+			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
 		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
 			return res.status(400).json({ message: 'Please enter a valid amount.' });
@@ -3880,9 +3901,9 @@ router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 		const now = new Date();
 		const [result] = await pool.execute(
 			`UPDATE soa_fnb_hotel
-			 SET AMOUNT = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET CATEGORY = ?, AMOUNT = ?, REMARKS = ?, SOA_DATE = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
-			[parsedAmount, userId, now, id]
+			[category, parsedAmount, remarks || null, soaDate, userId, now, id]
 		);
 
 		if (!result.affectedRows) {
