@@ -182,8 +182,37 @@
 
 #additional-commission-tbl_wrapper .additional-commission-daterange-mount.is-placed {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
   margin-left: 8px;
+}
+
+.additional-commission-split-daterange,
+.additional-commission-split-daterange .house-expense-daterange-separator {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.additional-commission-split-daterange input.split-date-input {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: 7.5rem;
+  max-width: none !important;
+  text-align: center;
+  background: #fff;
+  border: 1px solid rgba(58, 46, 18, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  height: 34px;
+  cursor: text;
+}
+
+#additional-commission-tbl_wrapper .additional-commission-controls-highlight .additional-commission-split-daterange input.split-date-input:focus {
+  border-color: #c8a24c;
+  box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.25);
 }
 
 .additional-commission-daterange-wrap {

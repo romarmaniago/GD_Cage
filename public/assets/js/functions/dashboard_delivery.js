@@ -5,6 +5,7 @@ $(document).ready(function () {
 	var deliveryDateStart = null;
 	var deliveryDateEnd = null;
 	var flatpickrReady = false;
+	var deliverySplitDateRange = null;
 	var t = window.fnbHotelTranslations || {};
 
 	function formatDateForDisplay(value) {
@@ -248,16 +249,75 @@ $(document).ready(function () {
 		});
 	}
 
+	function apiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return String(endYmd).slice(0, 10);
+	}
+
+	function ymdToLocalDate(ymd) {
+		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+		var parts = String(ymd).slice(0, 10).split('-').map(Number);
+		return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+	}
+
+	function setDeliveryFilterDatesFromApi(startYmd, endYmd) {
+		var startDate = ymdToLocalDate(startYmd);
+		var endDate = ymdToLocalDate(apiEndDate(endYmd));
+		if (!startDate || !endDate) return;
+		if (startDate > endDate) {
+			var swap = startDate;
+			startDate = endDate;
+			endDate = swap;
+		}
+		deliveryDateStart = startDate;
+		deliveryDateEnd = endDate;
+		if (dataTable) dataTable.draw();
+	}
+
+	function initDeliverySplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			deliverySplitDateRange = { fitWidths: function () {} };
+			return;
+		}
+
+		deliverySplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'dash-delivery-daterange',
+			startId: 'dash-delivery-start-date',
+			endId: 'dash-delivery-end-date',
+			splitWrapperId: 'dash-delivery-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				setDeliveryFilterDatesFromApi(range.start, range.end);
+			}
+		});
+	}
+
 	function initDateRangePicker() {
 		if (flatpickrReady || typeof flatpickr !== 'function') return;
 		var range = getDefaultDateRange();
 		deliveryDateStart = range.startAt || range.start || null;
 		deliveryDateEnd = range.endAt || range.end || null;
 
+		initDeliverySplitDateRange();
+
 		flatpickr('#dash-delivery-daterange', {
 			mode: 'range',
 			defaultDate: deliveryDateStart && deliveryDateEnd ? [deliveryDateStart, deliveryDateEnd] : undefined,
 			showMonths: 2,
+			onChange: function (selectedDates) {
+				if (selectedDates.length === 2) {
+					deliveryDateStart = selectedDates[0];
+					deliveryDateEnd = selectedDates[1];
+					if (dataTable) dataTable.draw();
+				}
+			},
 			onClose: function (selectedDates) {
 				if (!selectedDates || selectedDates.length === 0) {
 					deliveryDateStart = null;
@@ -285,6 +345,9 @@ $(document).ready(function () {
 	$('#modal-dash-delivery').on('shown.bs.modal', function () {
 		if (typeof window.layoutDashServiceTableControls === 'function') {
 			window.layoutDashServiceTableControls('dash-delivery-table', 'btn-dash-delivery-new-record');
+		}
+		if (deliverySplitDateRange && typeof deliverySplitDateRange.fitWidths === 'function') {
+			deliverySplitDateRange.fitWidths();
 		}
 		if (dataTable) {
 			try {

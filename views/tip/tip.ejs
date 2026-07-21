@@ -44,6 +44,17 @@
               </div>
             </div>
             <div class="tip-settlement-actions">
+              <div class="tip-daterange-group">
+                <div class="house-expense-daterange-wrap">
+                  <input type="text" id="tip-daterange" class="form-control form-control-sm text-center"
+                    placeholder="<%= __('tip.date_time') %>" autocomplete="off" readonly>
+                </div>
+                <%- include('../partials/split_daterange', {
+                  splitPrefix: 'tip',
+                  splitLocaleNs: 'house_expense',
+                  splitWrapClass: 'tip-daterange-wrap tip-split-daterange house-expense-split-daterange'
+                }) %>
+              </div>
               <button type="button" class="btn btn-success btn-sm" id="btn-tip-in-open"><%= __('tip.in') %></button>
               <button type="button" class="btn btn-primary btn-sm" id="btn-tip-settlement-open"><%= __('tip.settle') %></button>
             </div>
@@ -203,7 +214,42 @@
   .tip-settlement-actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
+  }
+
+  .tip-daterange-group {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-right: 0.25rem;
+  }
+
+  .tip-split-daterange {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .tip-split-daterange input.split-date-input {
+    display: inline-block;
+    width: auto;
+    min-width: 0;
+    padding-left: 0.7rem !important;
+    padding-right: 0.7rem !important;
+    max-width: none;
+    margin: 0;
+    font-size: 12px !important;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: text;
+    text-align: center;
+    field-sizing: content;
   }
 
   #modal-tip-settlement .form-control.is-invalid {

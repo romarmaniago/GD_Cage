@@ -1625,6 +1625,48 @@ body {
   border-radius: 0;
 }
 
+.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input {
+  font-size: 11px !important;
+  padding: 0.15rem 0.55rem !important;
+  height: auto !important;
+  min-height: 1.55rem !important;
+  width: auto;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(241, 212, 138, 0.28) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  color: var(--gd-dash-gold-light, #f1d48a) !important;
+  cursor: text;
+  text-align: center;
+  field-sizing: content;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input::placeholder {
+  color: rgba(241, 212, 138, 0.45) !important;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input:focus {
+  background: rgba(0, 0, 0, 0.48) !important;
+  border-color: rgba(241, 212, 138, 0.55) !important;
+  box-shadow: 0 0 0 0.12rem rgba(200, 162, 76, 0.22) !important;
+  color: var(--gd-dash-gold-light, #f1d48a) !important;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange .house-expense-daterange-separator {
+  font-size: 11px;
+  color: var(--gd-dash-gold-muted, #eacc90);
+  font-weight: 500;
+}
+
 @media (max-width: 991.98px) {
   .dash-dual-matrix {
     flex-direction: column;

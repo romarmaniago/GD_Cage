@@ -204,7 +204,42 @@ $(document).ready(function () {
                 window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
             }
         }
+        if (commissionPanelSplitDateRange && typeof commissionPanelSplitDateRange.fitWidths === 'function') {
+            commissionPanelSplitDateRange.fitWidths();
+        }
     }
+
+    function commissionPanelApiEndDate(endYmd) {
+        if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+        var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+        var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+        if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+            return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+        }
+        return endYmd;
+    }
+
+    var commissionPanelSplitOverrideRange = null;
+    var commissionPanelSplitDateRange = (window.SplitDateRange && SplitDateRange.attach({
+        rangePickerId: 'commission-panel-daterange',
+        startId: 'commission-panel-start-date',
+        endId: 'commission-panel-end-date',
+        splitWrapperId: 'commission-panel-split-daterange-wrapper',
+        independent: true,
+        invalidDateMessage: 'Invalid date range.',
+        onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            var fromDate = range.start;
+            var toDate = commissionPanelApiEndDate(range.end);
+            if (fromDate > toDate) {
+                var swap = fromDate;
+                fromDate = toDate;
+                toDate = swap;
+            }
+            commissionPanelSplitOverrideRange = { start: fromDate, end: toDate };
+            loadRankingData();
+        }
+    })) || { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
 
     function getCommissionPanelDateRangeValue() {
         var el = document.getElementById('commission-panel-daterange');
@@ -283,6 +318,9 @@ $(document).ready(function () {
     }
 
     function getCommissionAnalyticsExportFilename() {
+        if (commissionPanelSplitOverrideRange && commissionPanelSplitOverrideRange.start && commissionPanelSplitOverrideRange.end) {
+            return 'CommissionAnalytics_' + commissionPanelSplitOverrideRange.start + '_to_' + commissionPanelSplitOverrideRange.end + '.xlsx';
+        }
         var dr = document.getElementById('commission-panel-daterange');
         if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
             var pad = function (n) {
@@ -872,22 +910,28 @@ $(document).ready(function () {
     });
 
     function loadRankingData() {
-        var dateRange = getCommissionPanelDateRangeValue();
-        if (!dateRange) return;
-
         var start;
         var end;
-        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
-            var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
-            start = apiRange.start;
-            end = apiRange.end;
-        } else if (dateRange.includes(' to ')) {
-            var parts = dateRange.split(' to ');
-            start = parts[0];
-            end = parts[1];
+
+        if (commissionPanelSplitOverrideRange && commissionPanelSplitOverrideRange.start && commissionPanelSplitOverrideRange.end) {
+            start = commissionPanelSplitOverrideRange.start;
+            end = commissionPanelSplitOverrideRange.end;
         } else {
-            start = dateRange;
-            end = dateRange;
+            var dateRange = getCommissionPanelDateRangeValue();
+            if (!dateRange) return;
+
+            if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.parseRangeToApiDates === 'function') {
+                var apiRange = window.MonthEndCutoffRange.parseRangeToApiDates(dateRange);
+                start = apiRange.start;
+                end = apiRange.end;
+            } else if (dateRange.includes(' to ')) {
+                var parts = dateRange.split(' to ');
+                start = parts[0];
+                end = parts[1];
+            } else {
+                start = dateRange;
+                end = dateRange;
+            }
         }
 
         $.ajax({
@@ -1063,6 +1107,7 @@ $(document).ready(function () {
         var dim = instance.utils.getDaysInMonth(m, y);
         var start = new Date(y, m, 1);
         var end = new Date(y, m, dim);
+        commissionPanelSplitOverrideRange = null;
         instance.setDate([start, end], false);
         loadRankingData();
     }
@@ -1094,7 +1139,10 @@ $(document).ready(function () {
             applyFullMonthRangeForVisibleLeft(instance);
         },
         onClose: function (selectedDates) {
-            if (selectedDates.length === 2) loadRankingData();
+            if (selectedDates.length === 2) {
+                commissionPanelSplitOverrideRange = null;
+                loadRankingData();
+            }
         }
     };
     if (compareStartFromUrl && compareEndFromUrl) {

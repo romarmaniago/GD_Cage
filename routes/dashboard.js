@@ -3797,6 +3797,7 @@ router.get('/soa_fnb_hotel_history', checkSession, async (req, res) => {
 				sfh.IDNo AS id,
 				DATE_FORMAT(sfh.SOA_DATE, '%Y-%m-%d') AS soa_date,
 				sfh.AMOUNT AS amount,
+				sfh.REMARKS AS remarks,
 				DATE_FORMAT(sfh.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
 			 FROM soa_fnb_hotel sfh
 			 WHERE sfh.ACTIVE = 1

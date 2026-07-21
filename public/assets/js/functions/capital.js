@@ -1,12 +1,79 @@
 function fmtCapitalAmount(value, direction) {
-    if (window.AmountFormat) {
-        return window.AmountFormat.formatDirectionalAmount(value, direction, { html: true, showPositiveSign: direction === 'in' });
-    }
     const n = Math.abs(parseFloat(value) || 0);
-    if (direction === 'out') return '<span class="text-danger">(' + n.toLocaleString('en-US') + ')</span>';
-    if (direction === 'in') return '<span class="text-success">+' + n.toLocaleString('en-US') + '</span>';
-    return n.toLocaleString('en-US');
+    const formatted = (window.AmountFormat && window.AmountFormat.formatCommas)
+        ? window.AmountFormat.formatCommas(n)
+        : n.toLocaleString('en-US');
+    // Service-category deductions use leading minus (e.g. -10,000), not accounting parentheses.
+    if (direction === 'out') return '<span class="text-danger">-' + formatted + '</span>';
+    if (direction === 'in') {
+        if (window.AmountFormat) {
+            return window.AmountFormat.formatDirectionalAmount(value, 'in', { html: true, showPositiveSign: true });
+        }
+        return '<span class="text-success">+' + formatted + '</span>';
+    }
+    return formatted;
 }
+
+/** Allow digits and a leading + / - (direction) for house-balance amount fields. */
+function onlyCapitalSignedAmountKey(evt) {
+    var code = evt.which ? evt.which : evt.keyCode;
+    if (code <= 31) return true;
+    var ch = String.fromCharCode(code);
+    if (ch >= '0' && ch <= '9') return true;
+    if (ch === '+' || ch === '-') {
+        var el = evt.target;
+        return !el || el.selectionStart === 0;
+    }
+    return false;
+}
+
+function formatCapitalSignedAmountInput(value) {
+    var raw = String(value == null ? '' : value);
+    var sign = '';
+    if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+        sign = raw.charAt(0);
+        raw = raw.slice(1);
+    }
+    var digits = raw.replace(/[^\d]/g, '');
+    if (!digits) return sign;
+    return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Amount sign drives direction: + / unsigned = dagdag (txn 1), - = bawas (txn 2).
+ * Backend still stores absolute AMOUNT with TRANSACTION_ID.
+ */
+function parseCapitalSignedAmount(value) {
+    var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+    if (!raw || raw === '+' || raw === '-') {
+        return { ok: false };
+    }
+    var signChar = '';
+    if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+        signChar = raw.charAt(0);
+        raw = raw.slice(1);
+    }
+    var n = parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) {
+        return { ok: false };
+    }
+    var isOut = signChar === '-';
+    return {
+        ok: true,
+        abs: n,
+        isOut: isOut,
+        txn: isOut ? '2' : '1',
+        display: (isOut ? '-' : '+') + n.toLocaleString('en-US')
+    };
+}
+
+function houseBalanceDirectionFromTxn(txn) {
+    return parseInt(txn, 10) === 1 ? 'in' : 'out';
+}
+
+window.onlyCapitalSignedAmountKey = onlyCapitalSignedAmountKey;
+window.formatCapitalSignedAmountInput = formatCapitalSignedAmountInput;
+window.parseCapitalSignedAmount = parseCapitalSignedAmount;
 
 function fmtCapitalSigned(value) {
     if (window.fmtSigned) return window.fmtSigned(value);
@@ -100,6 +167,7 @@ function formatCapitalYmd(d) {
 var capitalDateStart = null;
 var capitalDateEnd = null;
 var capitalDateFilterRegistered = false;
+var capitalSplitDateRange = null;
 
 function ymdToLocalDate(ymd) {
     if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
@@ -129,6 +197,20 @@ function setCapitalFilterDates(selectedDates) {
     var endYmd = formatCapitalYmd(end);
     var expanded = capitalApiEndDate(endYmd);
     capitalDateEnd = expanded !== endYmd ? ymdToLocalDate(expanded) : end;
+}
+
+function setCapitalFilterDatesFromApi(startYmd, endYmd) {
+    var startDate = ymdToLocalDate(startYmd);
+    var endExpanded = capitalApiEndDate(endYmd);
+    var endDate = ymdToLocalDate(endExpanded);
+    if (!startDate || !endDate) return;
+    if (startDate > endDate) {
+        var tmp = startDate;
+        startDate = endDate;
+        endDate = tmp;
+    }
+    capitalDateStart = startDate;
+    capitalDateEnd = endDate;
 }
 
 function registerCapitalDateFilter() {
@@ -212,6 +294,35 @@ function initCapitalRangePicker() {
             if (selectedDates.length === 2) {
                 applyCapitalDateFilterDraw();
             }
+        }
+    });
+}
+
+function initCapitalSplitDateRange() {
+    if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+        capitalSplitDateRange = { fitWidths: function () {} };
+        return;
+    }
+
+    registerCapitalDateFilter();
+    capitalSplitDateRange = window.SplitDateRange.attach({
+        rangePickerId: 'capital-daterange',
+        startId: 'capital-start-date',
+        endId: 'capital-end-date',
+        splitWrapperId: 'capital-split-daterange-wrapper',
+        independent: true,
+        invalidDateMessage: 'Invalid date range.',
+        onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            var from = range.start;
+            var to = capitalApiEndDate(range.end);
+            if (from > to) {
+                var swap = from;
+                from = to;
+                to = swap;
+            }
+            setCapitalFilterDatesFromApi(from, to);
+            applyCapitalDateFilterDraw();
         }
     });
 }
@@ -467,10 +578,8 @@ function reloadData() {
                     combinedChipsText = `Credit Cash :\n${window.fmtAmt ? window.fmtAmt(IOU) : IOU.toLocaleString('en-US')}`;
                 } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) {
                     combinedChipsText = `Junket Expense : ${fmtCapitalAmount(row.capital_amount, 'out')}`;
-                } else if (cbal > 0 && isHouseBalanceCashInType(typeDesc)) {
-                    combinedChipsText = fmtCapitalAmount(cbal, 'in');
-                } else if (cbal > 0 && isHouseBalanceCashOutType(typeDesc)) {
-                    combinedChipsText = fmtCapitalAmount(cbal, 'out');
+                } else if (cbal > 0 && (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc))) {
+                    combinedChipsText = fmtCapitalAmount(cbal, houseBalanceDirectionFromTxn(row.TRANSACTION_ID));
                 } else {
                     combinedChipsText = ''; // Empty string if no valid data to display
                 }
@@ -517,7 +626,6 @@ $(document).ready(function () {
         var lengthWrap = document.getElementById('capital-tbl_length');
         var filterWrap = document.getElementById('capital-tbl_filter');
         var rangeSlot = document.getElementById('capital-daterange-slot');
-        var rangeWrap = rangeSlot ? rangeSlot.querySelector('.hb-field-daterange-wrap') : null;
         var controlsHighlight;
         var searchLabel;
         var searchInput;
@@ -537,9 +645,9 @@ $(document).ready(function () {
         if (filterWrap.parentElement !== controlsHighlight) {
             controlsHighlight.appendChild(filterWrap);
         }
-        if (rangeWrap && rangeWrap.parentElement !== controlsHighlight) {
-            controlsHighlight.insertBefore(rangeWrap, filterWrap);
-            if (rangeSlot) rangeSlot.classList.add('is-placed');
+        if (rangeSlot && rangeSlot.parentElement !== controlsHighlight) {
+            controlsHighlight.insertBefore(rangeSlot, filterWrap);
+            rangeSlot.classList.add('is-placed');
         }
 
         searchLabel = filterWrap.querySelector('label');
@@ -550,6 +658,16 @@ $(document).ready(function () {
                 if (node.nodeType === 3) searchLabel.removeChild(node);
             });
         }
+
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+            var rangeEl = document.getElementById('capital-daterange');
+            if (rangeEl && rangeEl._flatpickr) {
+                window.MonthEndCutoffRange.fitRangePickerInstance(rangeEl._flatpickr);
+            }
+        }
+        if (capitalSplitDateRange && typeof capitalSplitDateRange.fitWidths === 'function') {
+            capitalSplitDateRange.fitWidths();
+        }
     }
     window.layoutCapitalTableControls = layoutCapitalTableControls;
 
@@ -558,6 +676,7 @@ $(document).ready(function () {
         $('#capital-tbl').DataTable().destroy();
     }
 
+    initCapitalSplitDateRange();
     initCapitalRangePicker();
 
     $('#capital-tbl').DataTable({
@@ -687,8 +806,15 @@ function addCapital() {
 }
 
 var HOUSE_BALANCE_ACTIVE_TYPES = {
+    'Transfer': true,
     'Deposit': true,
-    'Withdrawal': true
+    'Withdrawal': true,
+    'Loss Amount': true,
+    'Settlement': true,
+    'F&B': true,
+    'Hotel': true,
+    'Incidental': true,
+    'Expenses': true
 };
 
 function isHouseBalanceTypeActive(label) {
@@ -737,7 +863,8 @@ function edit_capital(capital_id) {
     }
 
     $('#edit-capital-id').val(row.id);
-    $('#edit-capital-amount').val(Number(row.amount || 0).toLocaleString('en-US'));
+    var editSign = parseInt(row.txn, 10) === 2 ? '-' : '+';
+    $('#edit-capital-amount').val(editSign + Number(row.amount || 0).toLocaleString('en-US'));
     $('#edit-capital-remarks').val(row.remarks || '');
     ensureEditCapitalProgramDatePicker(row.programDate || null);
 
@@ -779,8 +906,7 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
 
     const id = parseInt($('#edit-capital-id').val(), 10);
     const programDateVal = ($('#edit-capital-program-date').val() || '').trim();
-    const rawAmount = ($('#edit-capital-amount').val() || '').toString().replace(/,/g, '').trim();
-    const txtAmount = rawAmount === '' ? NaN : parseFloat(rawAmount);
+    const parsedAmount = parseCapitalSignedAmount($('#edit-capital-amount').val());
     const remarks = $('#edit-capital-remarks').val() || '';
 
     if (!id) {
@@ -791,29 +917,24 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
         Swal.fire({ icon: 'warning', title: 'Program Date required', text: 'Select a valid Program Date.' });
         return;
     }
-    if (!Number.isFinite(txtAmount) || txtAmount <= 0) {
-        Swal.fire({ icon: 'warning', title: 'Amount required', text: 'Enter a valid amount greater than zero.' });
+    if (!parsedAmount.ok) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Amount required',
+            text: 'Enter a valid amount with + (dagdag) or - (bawas), e.g. +5,000 or -5,000.'
+        });
         return;
     }
 
     updateEditCapitalTypeFields();
-    const txn = ($('#edit-capital-txn').val() || '').trim();
     const description = ($('#edit-capital-description').val() || '').trim();
     const selectedTypeLabel = ($('#edit_junket_capital .edit-hb-type-check:checked').val() || '').trim();
-    if (!txn || !description) {
+    if (!description || !isHouseBalanceTypeActive(selectedTypeLabel)) {
         Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
         return;
     }
-    /* Only Deposit / Withdrawal are live; other types are on process for now */
-    if (!isHouseBalanceTypeActive(selectedTypeLabel)) {
-        Swal.fire({
-            icon: 'info',
-            title: 'On process',
-            text: 'on process',
-            confirmButtonText: 'OK'
-        });
-        return;
-    }
+    // Amount +/- drives Capital In (1) / Out (2)
+    $('#edit-capital-txn').val(parsedAmount.txn);
 
     const $btn = $('#edit-capital-save-btn');
     $btn.prop('disabled', true).html(
@@ -825,9 +946,9 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
         type: 'PUT',
         data: {
             txtProgramDate: programDateVal,
-            txtAmount: txtAmount,
+            txtAmount: parsedAmount.abs,
             Remarks: remarks,
-            optWithdrawDeposit: txn,
+            optWithdrawDeposit: parsedAmount.txn,
             description: description
         },
         success: function () {
@@ -910,8 +1031,8 @@ function computeTotalCashIn() {
             let totalCashIn = 0;
             
             data.forEach(row => {
-                // Cash-in / Deposit rows (TRANSACTION_ID 1)
-                const isCashIn = row.TRANSACTION_ID == 1 && isHouseBalanceCashInType(row.capital_description);
+                // Direction comes from TRANSACTION_ID (amount +/-), not type label alone
+                const isCashIn = row.TRANSACTION_ID == 1 && isHouseCashInOutRow(row);
                 
                 if (isCashIn) {
                     totalCashIn += parseFloat(row.capital_amount || 0);
@@ -951,9 +1072,8 @@ function computeTotalCashOut() {
             let totalCashOut = 0;
             
             data.forEach(row => {
-                // Cash-out / Withdrawal / other out types
-                const isCashOut = isHouseBalanceCashOutType(row.capital_description) &&
-                    (row.TRANSACTION_ID == 2 || row.TRANSACTION_ID == 1);
+                // Direction comes from TRANSACTION_ID (amount +/-), not type label alone
+                const isCashOut = row.TRANSACTION_ID == 2 && isHouseCashInOutRow(row);
                 
                 if (isCashOut) {
                     totalCashOut += parseFloat(row.capital_amount || 0);
@@ -1543,6 +1663,82 @@ $(document).ready(function() {
 });
 
 // NN / CC CHIPS HISTORY
+var nnChipsManualRange = null;
+var ccChipsManualRange = null;
+var nnChipsSplitDateRange = null;
+var ccChipsSplitDateRange = null;
+
+function resolveChipsHistoryDates(pickerId, manualRange) {
+    if (manualRange && manualRange.start && manualRange.end) {
+        var start = manualRange.start;
+        var end = manualRange.end;
+        if (start > end) {
+            return { start: end, end: start };
+        }
+        return { start: start, end: end };
+    }
+
+    const dateRange = getChipsHistoryDateRangeValue(pickerId);
+    const resolved = parseCapitalDateRange(dateRange, pickerId);
+    return { start: resolved.start, end: resolved.end };
+}
+
+function initNnChipsSplitDateRange() {
+    if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+        nnChipsSplitDateRange = { fitWidths: function () {} };
+        return;
+    }
+
+    nnChipsSplitDateRange = window.SplitDateRange.attach({
+        rangePickerId: 'nnchips-daterange',
+        startId: 'nnchips-start-date',
+        endId: 'nnchips-end-date',
+        splitWrapperId: 'nnchips-split-daterange-wrapper',
+        independent: true,
+        invalidDateMessage: 'Invalid date range.',
+        onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            var from = range.start;
+            var to = capitalApiEndDate(range.end);
+            if (from > to) {
+                var swap = from;
+                from = to;
+                to = swap;
+            }
+            nnChipsManualRange = { start: from, end: to };
+            loadNNChipsHistory();
+        }
+    });
+}
+
+function initCcChipsSplitDateRange() {
+    if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+        ccChipsSplitDateRange = { fitWidths: function () {} };
+        return;
+    }
+
+    ccChipsSplitDateRange = window.SplitDateRange.attach({
+        rangePickerId: 'ccchips-daterange',
+        startId: 'ccchips-start-date',
+        endId: 'ccchips-end-date',
+        splitWrapperId: 'ccchips-split-daterange-wrapper',
+        independent: true,
+        invalidDateMessage: 'Invalid date range.',
+        onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            var from = range.start;
+            var to = capitalApiEndDate(range.end);
+            if (from > to) {
+                var swap = from;
+                from = to;
+                to = swap;
+            }
+            ccChipsManualRange = { start: from, end: to };
+            loadCCChipsHistory();
+        }
+    });
+}
+
 function getChipsHistoryDateRangeValue(pickerId) {
     var el = document.getElementById(pickerId);
     if (el && el._flatpickr) {
@@ -1573,7 +1769,14 @@ function bindChipsRangeMonthNameHooks(instance) {
 function initChipsHistoryRangePicker(pickerId, onRangeComplete) {
     var $el = $('#' + pickerId);
     if (!$el.length) return null;
-    if ($el.hasClass('flatpickr-input') && $el[0]._flatpickr) return $el[0]._flatpickr;
+    if ($el.hasClass('flatpickr-input') && $el[0]._flatpickr) {
+        if (pickerId === 'nnchips-daterange' && !nnChipsSplitDateRange) initNnChipsSplitDateRange();
+        if (pickerId === 'ccchips-daterange' && !ccChipsSplitDateRange) initCcChipsSplitDateRange();
+        return $el[0]._flatpickr;
+    }
+
+    if (pickerId === 'nnchips-daterange') initNnChipsSplitDateRange();
+    if (pickerId === 'ccchips-daterange') initCcChipsSplitDateRange();
 
     return flatpickr('#' + pickerId, {
         mode: 'range',
@@ -1592,18 +1795,20 @@ function initChipsHistoryRangePicker(pickerId, onRangeComplete) {
             }
         },
         onChange: function (selectedDates) {
-            if (selectedDates.length === 2 && typeof onRangeComplete === 'function') {
-                onRangeComplete();
+            if (selectedDates.length === 2) {
+                if (pickerId === 'nnchips-daterange') nnChipsManualRange = null;
+                if (pickerId === 'ccchips-daterange') ccChipsManualRange = null;
+                if (typeof onRangeComplete === 'function') {
+                    onRangeComplete();
+                }
             }
         }
     });
 }
 
 function loadNNChipsHistory() {
-    const dateRange = getChipsHistoryDateRangeValue('nnchips-daterange');
-
     var nnT = window.nnChipsHistoryTranslations || {};
-    const resolved = parseCapitalDateRange(dateRange, 'nnchips-daterange');
+    const resolved = resolveChipsHistoryDates('nnchips-daterange', nnChipsManualRange);
     const startDate = resolved.start;
     const endDate = resolved.end;
     if (!startDate || !endDate) {
@@ -1722,10 +1927,8 @@ function loadNNChipsHistory() {
 
 // CC CHIPS HISTORY
 function loadCCChipsHistory() {
-    const dateRange = getChipsHistoryDateRangeValue('ccchips-daterange');
-
     var ccT = window.ccChipsHistoryTranslations || {};
-    const resolved = parseCapitalDateRange(dateRange, 'ccchips-daterange');
+    const resolved = resolveChipsHistoryDates('ccchips-daterange', ccChipsManualRange);
     const startDate = resolved.start;
     const endDate = resolved.end;
     if (!startDate || !endDate) {
@@ -2067,11 +2270,17 @@ $(document).ready(function() {
     // -----------------------------
     $('#modal-new-nn-chips').on('shown.bs.modal', function () {
         initChipsHistoryRangePicker('nnchips-daterange', loadNNChipsHistory);
+        if (nnChipsSplitDateRange && typeof nnChipsSplitDateRange.fitWidths === 'function') {
+            nnChipsSplitDateRange.fitWidths();
+        }
         loadNNChipsHistory();
     });
 
     $('#modal-new-cc-chips').on('shown.bs.modal', function () {
         initChipsHistoryRangePicker('ccchips-daterange', loadCCChipsHistory);
+        if (ccChipsSplitDateRange && typeof ccChipsSplitDateRange.fitWidths === 'function') {
+            ccChipsSplitDateRange.fitWidths();
+        }
         loadCCChipsHistory();
     });
 });

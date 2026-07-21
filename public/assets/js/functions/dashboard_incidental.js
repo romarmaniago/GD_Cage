@@ -5,6 +5,7 @@ $(document).ready(function () {
 	var incidentalDateStart = null;
 	var incidentalDateEnd = null;
 	var flatpickrReady = false;
+	var incidentalSplitDateRange = null;
 	var t = window.fnbHotelTranslations || {};
 
 	function formatDateForDisplay(value) {
@@ -246,16 +247,75 @@ $(document).ready(function () {
 		});
 	}
 
+	function apiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return String(endYmd).slice(0, 10);
+	}
+
+	function ymdToLocalDate(ymd) {
+		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+		var parts = String(ymd).slice(0, 10).split('-').map(Number);
+		return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+	}
+
+	function setIncidentalFilterDatesFromApi(startYmd, endYmd) {
+		var startDate = ymdToLocalDate(startYmd);
+		var endDate = ymdToLocalDate(apiEndDate(endYmd));
+		if (!startDate || !endDate) return;
+		if (startDate > endDate) {
+			var swap = startDate;
+			startDate = endDate;
+			endDate = swap;
+		}
+		incidentalDateStart = startDate;
+		incidentalDateEnd = endDate;
+		if (dataTable) dataTable.draw();
+	}
+
+	function initIncidentalSplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			incidentalSplitDateRange = { fitWidths: function () {} };
+			return;
+		}
+
+		incidentalSplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'dash-incidental-daterange',
+			startId: 'dash-incidental-start-date',
+			endId: 'dash-incidental-end-date',
+			splitWrapperId: 'dash-incidental-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				setIncidentalFilterDatesFromApi(range.start, range.end);
+			}
+		});
+	}
+
 	function initDateRangePicker() {
 		if (flatpickrReady || typeof flatpickr !== 'function') return;
 		var range = getDefaultDateRange();
 		incidentalDateStart = range.startAt || range.start || null;
 		incidentalDateEnd = range.endAt || range.end || null;
 
+		initIncidentalSplitDateRange();
+
 		flatpickr('#dash-incidental-daterange', {
 			mode: 'range',
 			defaultDate: incidentalDateStart && incidentalDateEnd ? [incidentalDateStart, incidentalDateEnd] : undefined,
 			showMonths: 2,
+			onChange: function (selectedDates) {
+				if (selectedDates.length === 2) {
+					incidentalDateStart = selectedDates[0];
+					incidentalDateEnd = selectedDates[1];
+					if (dataTable) dataTable.draw();
+				}
+			},
 			onClose: function (selectedDates) {
 				if (!selectedDates || selectedDates.length === 0) {
 					incidentalDateStart = null;
@@ -283,6 +343,9 @@ $(document).ready(function () {
 	$('#modal-dash-incidental').on('shown.bs.modal', function () {
 		if (typeof window.layoutDashServiceTableControls === 'function') {
 			window.layoutDashServiceTableControls('dash-incidental-table', 'btn-dash-incidental-new-record');
+		}
+		if (incidentalSplitDateRange && typeof incidentalSplitDateRange.fitWidths === 'function') {
+			incidentalSplitDateRange.fitWidths();
 		}
 		if (dataTable) {
 			try {

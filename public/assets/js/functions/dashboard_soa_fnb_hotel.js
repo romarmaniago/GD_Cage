@@ -86,9 +86,20 @@
     return data;
   }
 
+  function renderRemarksCell(row) {
+    const remarks = row.remarks != null ? String(row.remarks) : '';
+    if (window.RemarksEditor) {
+      return window.RemarksEditor.renderCell(remarks, {
+        source: 'soa_fnb_hotel',
+        recordId: row.id
+      });
+    }
+    return remarks ? escapeHtml(remarks) : '<span class="text-muted">—</span>';
+  }
+
   async function loadHistory(dateFrom, dateTo) {
     if (!els.historyBody) return;
-    els.historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">Loading...</td></tr>';
+    els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">Loading...</td></tr>';
 
     try {
       const q = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
@@ -96,7 +107,7 @@
       const entries = Array.isArray(data.entries) ? data.entries : [];
 
       if (!entries.length) {
-        els.historyBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">No entries for this period</td></tr>';
+        els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No entries for this period</td></tr>';
         return;
       }
 
@@ -104,11 +115,12 @@
         const dateTxt = row.soa_date || (row.encoded_dt || '—');
         return `
           <tr>
-            <td>${escapeHtml(dateTxt)}</td>
-            <td class="text-end">${escapeHtml(Number(row.amount || 0).toLocaleString('en-US'))}</td>
-            <td class="text-center">
-              <div class="text-center">
-                <button type="button" class="btn btn-sm btn-outline-primary js-soa-edit me-1" data-id="${escapeAttr(row.id)}" data-amount="${escapeAttr(row.amount)}" title="Edit" aria-label="Edit">
+            <td class="soa-col-date">${escapeHtml(dateTxt)}</td>
+            <td class="soa-col-amount text-end">${escapeHtml(Number(row.amount || 0).toLocaleString('en-US'))}</td>
+            <td class="soa-col-remarks remarks-editor-td">${renderRemarksCell(row)}</td>
+            <td class="soa-col-action text-center">
+              <div class="d-inline-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-primary js-soa-edit" data-id="${escapeAttr(row.id)}" data-amount="${escapeAttr(row.amount)}" title="Edit" aria-label="Edit">
                   <i class="fa fa-pencil-alt" aria-hidden="true"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-danger js-soa-delete" data-id="${escapeAttr(row.id)}" title="Delete" aria-label="Delete">
@@ -120,7 +132,7 @@
       }).join('');
     } catch (err) {
       console.error('loadHistory soa:', err);
-      els.historyBody.innerHTML = '<tr><td colspan="3" class="text-danger text-center py-3">Unable to load history</td></tr>';
+      els.historyBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center py-3">Unable to load history</td></tr>';
     }
   }
 

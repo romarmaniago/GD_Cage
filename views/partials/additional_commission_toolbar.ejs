@@ -8,6 +8,11 @@
       autocomplete="off"
     />
   </div>
+  <%- include('split_daterange', {
+    splitPrefix: 'additional-commission',
+    splitLocaleNs: 'commission',
+    splitWrapClass: 'additional-commission-daterange-wrap additional-commission-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+  }) %>
 </div>
 <button
   type="button"

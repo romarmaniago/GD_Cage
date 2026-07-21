@@ -56,6 +56,8 @@
   const dailyReportModal = dailyReportModalEl ? new bootstrap.Modal(dailyReportModalEl) : null;
   let dailyReportDatePicker = null;
   let reportListDateRangePicker = null;
+  let dailyReportSplitOverrideRange = null;
+  let dailyReportSplitDateRange = null;
 
   function toIsoDate(date) {
     const y = date.getFullYear();
@@ -502,7 +504,24 @@
     }
   }
 
+  function dailyReportApiEndDate(endYmd) {
+    if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+    const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+    const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+      return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+    }
+    return endYmd;
+  }
+
   function getSelectedListRange() {
+    if (dailyReportSplitOverrideRange && dailyReportSplitOverrideRange.from && dailyReportSplitOverrideRange.to) {
+      return {
+        from: dailyReportSplitOverrideRange.from,
+        to: dailyReportSplitOverrideRange.to
+      };
+    }
+
     const fallback = getCurrentMonthRange();
     if (!reportListDateRangePicker || !Array.isArray(reportListDateRangePicker.selectedDates) || reportListDateRangePicker.selectedDates.length === 0) {
       return fallback;
@@ -645,7 +664,38 @@
         window.MonthEndCutoffRange.fitRangePickerInstance(el._flatpickr);
       }
     }
+    if (dailyReportSplitDateRange && typeof dailyReportSplitDateRange.fitWidths === 'function') {
+      dailyReportSplitDateRange.fitWidths();
+    }
     applyDailyReportControlsLayout();
+  }
+
+  function initDailyReportSplitDateRange() {
+    if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+      dailyReportSplitDateRange = { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
+      return;
+    }
+
+    dailyReportSplitDateRange = window.SplitDateRange.attach({
+      rangePickerId: 'daily-report-list-daterange',
+      startId: 'daily-report-start-date',
+      endId: 'daily-report-end-date',
+      splitWrapperId: 'daily-report-split-daterange-wrapper',
+      independent: true,
+      invalidDateMessage: 'Invalid date range.',
+      onRangeApplied: function (range) {
+        if (!range || !range.start || !range.end) return;
+        let from = range.start;
+        let to = dailyReportApiEndDate(range.end);
+        if (from > to) {
+          const swap = from;
+          from = to;
+          to = swap;
+        }
+        dailyReportSplitOverrideRange = { from, to };
+        loadSubmittedReports();
+      }
+    });
   }
 
   function destroyMatrixDataTable() {
@@ -844,6 +894,7 @@
       },
       onChange: (selectedDates) => {
         if (selectedDates.length === 2) {
+          dailyReportSplitOverrideRange = null;
           loadSubmittedReports();
         }
       }
@@ -1353,6 +1404,7 @@
 
   function setReportListDateRange(from, to) {
     if (!from || !to) return;
+    dailyReportSplitOverrideRange = null;
     if (!reportListDateRangePicker) {
       initReportListDateRangePicker();
     }
@@ -1365,6 +1417,7 @@
   function initMatrixView() {
     if (!isMatrixView) return;
     if (reportListDateRange) {
+      initDailyReportSplitDateRange();
       initReportListDateRangePicker();
     }
     initMatrixCellEditing();

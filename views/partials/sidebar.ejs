@@ -11,7 +11,11 @@ aside.sidebar.gd-sidebar {
     --gd-sidebar-text-subtle: #7a6a4a;
     --gd-sidebar-border: rgba(154, 113, 26, 0.3);
     --gd-sidebar-gold-gradient: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
-    --gd-sidebar-hover-bg: rgba(154, 113, 26, 0.14);
+    --gd-sidebar-gold-gradient-selected: linear-gradient(160deg, #796a45 0%, #5c4818 100%);
+    --gd-sidebar-hover-base: #8a92a6;
+    --gd-sidebar-hover-bg: rgba(58, 65, 82, 0.28);
+    --gd-sidebar-hover-text: #2f3544;
+    --gd-sidebar-hover-border: rgba(47, 53, 68, 0.75);
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -105,48 +109,80 @@ aside.sidebar.gd-sidebar .nav-item.static-item .nav-link.static-item {
     opacity: 0.95;
 }
 
-aside.sidebar.gd-sidebar .nav-link:hover,
-aside.sidebar.gd-sidebar .nav-link:focus {
-    color: var(--gd-sidebar-gold-dark) !important;
+aside.sidebar.gd-sidebar .nav-link:hover:not(.active):not(.bg-gradient-primary),
+aside.sidebar.gd-sidebar .nav-link:focus:not(.active):not(.bg-gradient-primary) {
+    color: var(--gd-sidebar-hover-text) !important;
     background: var(--gd-sidebar-hover-bg) !important;
-    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.6) !important;
+    box-shadow: inset 3px 0 0 var(--gd-sidebar-hover-border) !important;
 }
 
-aside.sidebar.gd-sidebar .nav-link.active,
-aside.sidebar.gd-sidebar .nav-link.open,
-aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"],
-aside.sidebar.gd-sidebar .nav-link.bg-gradient-primary {
+/* Default badge — standalone links (Gamebook, Tip, Winloss, etc.) */
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item:not(.static-item):not(:has(> .sub-nav)) > .nav-link:not(.active):not(.bg-gradient-primary) {
     color: #1a1205 !important;
     background: var(--gd-sidebar-gold-gradient) !important;
     box-shadow: 0 4px 12px rgba(200, 162, 76, 0.28) !important;
 }
 
-aside.sidebar.gd-sidebar .nav-link.active .icon,
-aside.sidebar.gd-sidebar .nav-link.open .icon,
-aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"] .icon,
-aside.sidebar.gd-sidebar .nav-link.bg-gradient-primary .icon,
-aside.sidebar.gd-sidebar .nav-link.active .right-icon,
-aside.sidebar.gd-sidebar .nav-link.open .right-icon,
-aside.sidebar.gd-sidebar .nav-link[aria-expanded="true"] .right-icon {
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item:not(.static-item):not(:has(> .sub-nav)) > .nav-link:not(.active):not(.bg-gradient-primary) .icon,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item:not(.static-item):not(:has(> .sub-nav)) > .nav-link:not(.active):not(.bg-gradient-primary) .right-icon {
     color: #1a1205 !important;
+}
+
+/* Dropdown parent badge — Accounts, Junket, Settlement, etc. */
+aside.sidebar.gd-sidebar .nav-item > .nav-link.open,
+aside.sidebar.gd-sidebar .nav-item > .nav-link[aria-expanded="true"] {
+    color: #1a1205 !important;
+    background: var(--gd-sidebar-gold-gradient) !important;
+    box-shadow: 0 4px 12px rgba(200, 162, 76, 0.28) !important;
+}
+
+aside.sidebar.gd-sidebar .nav-item > .nav-link.open .icon,
+aside.sidebar.gd-sidebar .nav-item > .nav-link[aria-expanded="true"] .icon,
+aside.sidebar.gd-sidebar .nav-item > .nav-link.open .right-icon,
+aside.sidebar.gd-sidebar .nav-item > .nav-link[aria-expanded="true"] .right-icon {
+    color: #1a1205 !important;
+}
+
+/* Selected standalone button — Dashboard, Gamebook, Tip, etc. */
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.active,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.bg-gradient-primary,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.active.bg-gradient-primary {
+    color: #f6f0e0 !important;
+    background: var(--gd-sidebar-gold-gradient-selected) !important;
+    box-shadow: inset 3px 0 0 rgba(44, 34, 12, 0.9), 0 2px 8px rgba(44, 34, 12, 0.18) !important;
+}
+
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.active .icon,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.bg-gradient-primary .icon,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.active .right-icon,
+aside.sidebar.gd-sidebar .navbar-nav > .nav-item > .nav-link.bg-gradient-primary .right-icon {
+    color: #f6f0e0 !important;
 }
 
 aside.sidebar.gd-sidebar .sub-nav .nav-link {
     color: var(--gd-sidebar-text-subtle) !important;
 }
 
-aside.sidebar.gd-sidebar .sub-nav .nav-link:hover,
-aside.sidebar.gd-sidebar .sub-nav .nav-link:focus {
-    color: var(--gd-sidebar-gold-dark) !important;
-    background: rgba(154, 113, 26, 0.1) !important;
-    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.45) !important;
+aside.sidebar.gd-sidebar .sub-nav .nav-link:hover:not(.active):not(.bg-gradient-primary),
+aside.sidebar.gd-sidebar .sub-nav .nav-link:focus:not(.active):not(.bg-gradient-primary) {
+    color: var(--gd-sidebar-hover-text) !important;
+    background: rgba(58, 65, 82, 0.18) !important;
+    box-shadow: inset 3px 0 0 rgba(47, 53, 68, 0.6) !important;
 }
 
+/* Selected dropdown item — ~2x darker than Accounts badge */
 aside.sidebar.gd-sidebar .sub-nav .nav-link.active,
-aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary {
-    color: var(--gd-sidebar-gold-dark) !important;
-    background: rgba(154, 113, 26, 0.1) !important;
-    box-shadow: inset 3px 0 0 rgba(154, 113, 26, 0.45) !important;
+aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary,
+aside.sidebar.gd-sidebar .sub-nav .nav-link.active.bg-gradient-primary,
+aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary.text-white {
+    color: #f6f0e0 !important;
+    background: var(--gd-sidebar-gold-gradient-selected) !important;
+    box-shadow: inset 3px 0 0 rgba(44, 34, 12, 0.9), 0 2px 8px rgba(44, 34, 12, 0.18) !important;
+}
+
+aside.sidebar.gd-sidebar .sub-nav .nav-link.active .icon,
+aside.sidebar.gd-sidebar .sub-nav .nav-link.bg-gradient-primary .icon {
+    color: #f6f0e0 !important;
 }
 
 /* Pag nasa History page, hindi i-highlight ang Monthly Settle parent */
@@ -294,7 +330,7 @@ aside.sidebar.gd-sidebar .sub-nav {
             </li> -->
 
               <li class="nav-item">
-                <a class="nav-link open" href="/game_list">
+                <a class="nav-link <%= (currentPage === 'game_list' || currentPage === 'game_record') ? 'active bg-gradient-primary' : '' %>" href="/game_list">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M21.9964 8.37513H17.7618C15.7911 8.37859 14.1947 9.93514 14.1911 11.8566C14.1884 13.7823 15.7867 15.3458 17.7618 15.3484H22V15.6543C22 19.0136 19.9636 21 16.5173 21H7.48356C4.03644 21 2 19.0136 2 15.6543V8.33786C2 4.97862 4.03644 3 7.48356 3H16.5138C19.96 3 21.9964 4.97862 21.9964 8.33786V8.37513ZM6.73956 8.36733H12.3796H12.3831H12.3902C12.8124 8.36559 13.1538 8.03019 13.152 7.61765C13.1502 7.20598 12.8053 6.87318 12.3831 6.87491H6.73956C6.32 6.87664 5.97956 7.20858 5.97778 7.61852C5.976 8.03019 6.31733 8.36559 6.73956 8.36733Z" fill="currentColor"/>
@@ -384,7 +420,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                   </ul>
               </li>
               <li class="nav-item">
-                <a class="nav-link open" href="/tip">
+                <a class="nav-link <%= currentPage === 'tip' ? 'active bg-gradient-primary' : '' %>" href="/tip">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M12 2V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
@@ -402,7 +438,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                 </a>
               </li>
               <li class="nav-item nav-item-gapped">
-                <a class="nav-link <%= currentPage === 'game_information' ? 'active bg-gradient-primary text-white' : 'open' %>" href="/game_information">
+                <a class="nav-link <%= currentPage === 'game_information' ? 'active bg-gradient-primary' : '' %>" href="/game_information">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="currentColor"/>
@@ -414,7 +450,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                 </a>
               </li>
               <li class="nav-item nav-item-gapped">
-                <a class="nav-link open" href="/multipurpose_ledger">
+                <a class="nav-link <%= currentPage === 'multipurpose_ledger' ? 'active bg-gradient-primary' : '' %>" href="/multipurpose_ledger">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <path opacity="0.4" d="M8 2V5" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -440,7 +476,7 @@ aside.sidebar.gd-sidebar .sub-nav {
                 </a>
               </li> -->
               <li class="nav-item nav-item-gapped">
-                <a class="nav-link open" href="/table_daily_report_winloss">
+                <a class="nav-link <%= (currentPage === 'table_daily_report_winloss' || currentPage === 'table_daily_report_rolling') ? 'active bg-gradient-primary' : '' %>" href="/table_daily_report_winloss">
                     <i class="icon">
                       <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path opacity="0.4" d="M16.6756 2H7.33333C3.92889 2 2 3.92889 2 7.33333V16.6667C2 20.0711 3.92889 22 7.33333 22H16.6756C20.08 22 22 20.0711 22 16.6667V7.33333C22 3.92889 20.08 2 16.6756 2Z" fill="currentColor"/>

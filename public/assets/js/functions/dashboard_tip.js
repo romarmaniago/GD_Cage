@@ -5,6 +5,7 @@ $(document).ready(function () {
 	var tipDateStart = null;
 	var tipDateEnd = null;
 	var flatpickrReady = false;
+	var tipSplitDateRange = null;
 	var tipInResetting = false;
 	var tipRollerHistory = [];
 	var tipAutocompleteInstances = [];
@@ -51,6 +52,41 @@ $(document).ready(function () {
 			startAt: new Date(y, m, 0),
 			endAt: new Date(y, m + 1, 0)
 		};
+	}
+
+	function tipApiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return String(endYmd).slice(0, 10);
+	}
+
+	function ymdToLocalDate(ymd) {
+		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+		var parts = String(ymd).slice(0, 10).split('-').map(Number);
+		return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+	}
+
+	function setTipFilterDatesFromApi(startYmd, endYmd) {
+		var startDate = ymdToLocalDate(startYmd);
+		var endExpanded = tipApiEndDate(endYmd);
+		var endDate = ymdToLocalDate(endExpanded);
+		if (!startDate || !endDate) return;
+		if (startDate > endDate) {
+			var swap = startDate;
+			startDate = endDate;
+			endDate = swap;
+		}
+		tipDateStart = startDate;
+		tipDateEnd = endDate;
+		if (tipTable) tipTable.draw();
+	}
+
+	function applyTipFilterDraw() {
+		if (tipTable) tipTable.draw();
 	}
 
 	function updateAvailableBalance(amount) {
@@ -116,6 +152,16 @@ $(document).ready(function () {
 			Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
 				if (node.nodeType === 3) searchLabel.removeChild(node);
 			});
+		}
+
+		if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+			var rangeEl = document.getElementById('dash-tip-daterange');
+			if (rangeEl && rangeEl._flatpickr) {
+				window.MonthEndCutoffRange.fitRangePickerInstance(rangeEl._flatpickr);
+			}
+		}
+		if (tipSplitDateRange && typeof tipSplitDateRange.fitWidths === 'function') {
+			tipSplitDateRange.fitWidths();
 		}
 
 		Array.prototype.forEach.call(wrapper.children, function (row) {
@@ -277,11 +323,31 @@ $(document).ready(function () {
 
 	window.reloadDashTipData = refreshDashTip;
 
+	function initTipSplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			tipSplitDateRange = { fitWidths: function () {} };
+			return;
+		}
+
+		tipSplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'dash-tip-daterange',
+			startId: 'dash-tip-start-date',
+			endId: 'dash-tip-end-date',
+			splitWrapperId: 'dash-tip-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				setTipFilterDatesFromApi(range.start, range.end);
+			}
+		});
+	}
+
 	function initDateRangePicker() {
 		if (flatpickrReady || typeof flatpickr !== 'function') return;
 		var range = getDefaultDateRange();
-		tipDateStart = range.startAt || range.start || null;
-		tipDateEnd = range.endAt || range.end || null;
+		tipDateStart = range.startAt || range.start || range.startDate || null;
+		tipDateEnd = range.endAt || range.end || range.endDate || null;
 
 		function bindMonthNameHooks(instance) {
 			if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
@@ -289,15 +355,30 @@ $(document).ready(function () {
 			}
 		}
 
+		initTipSplitDateRange();
+
 		flatpickr('#dash-tip-daterange', {
 			mode: 'range',
 			defaultDate: tipDateStart && tipDateEnd ? [tipDateStart, tipDateEnd] : undefined,
 			showMonths: 3,
-			onReady: function (selectedDates, dateStr, instance) { bindMonthNameHooks(instance); },
+			onReady: function (selectedDates, dateStr, instance) {
+				bindMonthNameHooks(instance);
+				if (selectedDates && selectedDates.length === 2) {
+					tipDateStart = selectedDates[0];
+					tipDateEnd = selectedDates[1];
+				}
+			},
 			onOpen: function (selectedDates, dateStr, instance) { bindMonthNameHooks(instance); },
 			onMonthChange: function (selectedDates, dateStr, instance) {
 				if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
 					window.styleFlatpickrMonthNameClickable(instance);
+				}
+			},
+			onChange: function (selectedDates) {
+				if (selectedDates.length === 2) {
+					tipDateStart = selectedDates[0];
+					tipDateEnd = selectedDates[1];
+					applyTipFilterDraw();
 				}
 			},
 			onClose: function (selectedDates) {
@@ -308,7 +389,7 @@ $(document).ready(function () {
 					tipDateStart = selectedDates[0];
 					tipDateEnd = selectedDates[1];
 				}
-				if (tipTable) tipTable.draw();
+				applyTipFilterDraw();
 			}
 		});
 		flatpickrReady = true;
@@ -826,6 +907,9 @@ $(document).ready(function () {
 	});
 	$('#modal-dash-tip').on('shown.bs.modal', function () {
 		layoutDashTipControls();
+		if (tipSplitDateRange && typeof tipSplitDateRange.fitWidths === 'function') {
+			tipSplitDateRange.fitWidths();
+		}
 	});
 
 	$('#btn-dash-tip-in-open').on('click', openTipInModal);

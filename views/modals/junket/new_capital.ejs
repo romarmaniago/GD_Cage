@@ -185,9 +185,53 @@
 		margin-top: 4px;
 	}
 
-	#capital-tbl_wrapper .capital-controls-highlight .hb-field-daterange-wrap {
+	#capital-tbl_wrapper .capital-controls-highlight .capital-daterange-slot.is-placed {
+		display: inline-flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 8px;
 		flex: 0 1 auto;
 		margin: 0 auto 0 0;
+	}
+
+	#capital-tbl_wrapper .capital-controls-highlight .hb-field-daterange-wrap {
+		flex: 0 0 auto;
+		margin: 0;
+	}
+
+	#modal-new-capital .capital-split-daterange {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex-shrink: 0;
+		min-width: 0;
+	}
+
+	#modal-new-capital .capital-split-daterange input.split-date-input {
+		font-size: 12px !important;
+		height: 30px !important;
+		padding: 0.15rem 0.55rem !important;
+		width: auto;
+		min-width: 0;
+		background: #fff !important;
+		border: 1px solid rgba(200, 162, 76, 0.22) !important;
+		border-radius: 999px !important;
+		box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04) !important;
+		color: #4a3208 !important;
+		cursor: text;
+		text-align: center;
+		field-sizing: content;
+	}
+
+	#modal-new-capital .capital-split-daterange input.split-date-input:focus {
+		border-color: rgba(200, 162, 76, 0.45) !important;
+		box-shadow: 0 0 0 0.15rem rgba(217, 185, 106, 0.35) !important;
+	}
+
+	#modal-new-capital .capital-split-daterange .house-expense-daterange-separator {
+		font-size: 12px;
+		color: #6b5630;
+		font-weight: 500;
 	}
 
 	#capital-tbl_wrapper .capital-controls-highlight .dataTables_filter {
@@ -205,10 +249,14 @@
 
 	#modal-new-capital .capital-daterange-slot:not(.is-placed) {
 		margin-bottom: 0.5rem;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	#modal-new-capital .capital-daterange-slot.is-placed {
-		display: contents;
+		display: inline-flex;
 	}
 
 /* Header styles */
@@ -455,7 +503,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 							<div class="row g-2 house-balance-form-row">
 								<div class="col-sm-4">
 									<label class="hb-form-label" for="txtAmount"><%= __('dashboard_new_capital.junket_balance_amount') %></label>
-									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-form-control hb-field-amount" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control form-control-sm hb-form-control hb-field-amount" placeholder="+ / - Amount" title="Use + for dagdag, - for bawas" onkeypress="return onlyCapitalSignedAmountKey(event)" data-type="signed-amount" autocomplete="off"/>
 								</div>
 								<div class="col-sm-8">
 									<label class="hb-form-label" for="capitalRemarks"><%= __('dashboard_new_capital.remarks_placeholder') %></label>
@@ -566,6 +614,11 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 										readonly
 									>
 								</div>
+								<%- include('../../partials/split_daterange', {
+									splitPrefix: 'capital',
+									splitLocaleNs: 'house_expense',
+									splitWrapClass: 'capital-split-daterange house-expense-split-daterange'
+								}) %>
 							</div>
 							<div class="table-responsive capital-tbl-scroll">
 							<table
@@ -668,8 +721,15 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 		$('#modal-new-capital').on('shown.bs.modal', refreshHouseBalanceCashLimit);
 
 		var HOUSE_BALANCE_ACTIVE_TYPES = {
+			'Transfer': true,
 			'Deposit': true,
-			'Withdrawal': true
+			'Withdrawal': true,
+			'Loss Amount': true,
+			'Settlement': true,
+			'F&B': true,
+			'Hotel': true,
+			'Incidental': true,
+			'Expenses': true
 		};
 
 		function isHouseBalanceTypeActive(label) {
@@ -707,20 +767,16 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 			e.preventDefault();
 
 			const $form = $(this);
-
-			function formatNumberWithCommas(x) {
-				return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-			}
-
-			const rawAmount = ($('#txtAmount').val() || '').toString().replace(/,/g, '').trim();
-			const txtAmount = rawAmount === '' ? NaN : parseFloat(rawAmount);
+			const parsedAmount = (typeof parseCapitalSignedAmount === 'function')
+				? parseCapitalSignedAmount($('#txtAmount').val())
+				: { ok: false };
 			const cashbal = parseFloat(($('#cashbal').val() || '0').toString().replace(/,/g, '')) || 0;
 
-			if (!Number.isFinite(txtAmount) || txtAmount <= 0) {
+			if (!parsedAmount.ok) {
 				Swal.fire({
 					icon: 'warning',
 					title: 'Amount required',
-					text: 'Enter a valid amount greater than zero in Junket Balance Amount.',
+					text: 'Enter a valid amount with + (dagdag) or - (bawas), e.g. +5,000 or -5,000.',
 					confirmButtonText: 'OK'
 				});
 				return;
@@ -739,43 +795,32 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 			}
 
 			const selectedType = getSelectedCapitalType();
-			if (!selectedType) {
+			if (!selectedType || !isHouseBalanceTypeActive(selectedType.label)) {
 				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
 				return;
 			}
-			/* Only Deposit / Withdrawal are live; other types are on process for now */
-			if (!isHouseBalanceTypeActive(selectedType.label)) {
-				Swal.fire({
-					icon: 'info',
-					title: 'On process',
-					text: 'on process',
-					confirmButtonText: 'OK'
-				});
-				return;
-			}
 			updateCapitalTypeFields();
+			// Amount +/- drives Capital In (1) / Out (2); category checkbox is the type label only
+			$('#optWithdrawDeposit').val(parsedAmount.txn);
 
-			const isCashOutSelected = selectedType.txn === "2";
-
-			if (isCashOutSelected && txtAmount > cashbal) {
+			if (parsedAmount.isOut && parsedAmount.abs > cashbal) {
 				Swal.fire({
 					icon: 'error',
 					title: 'Insufficient Balance',
-					text: 'The amount exceeds the available cash balance of ' + formatNumberWithCommas(cashbal) + '.',
+					text: 'The amount exceeds the available cash balance of ' + cashbal.toLocaleString('en-US') + '.',
 					confirmButtonText: 'OK'
 				});
 				return;
 			}
 
 			const typeLabel = selectedType.label;
-			const amountStr = formatNumberWithCommas(txtAmount);
 
 			SwalConfirm.fire({
 				title: 'Confirm transaction',
 				rows: [
 					['Program Date', programDateVal],
 					['Type', typeLabel],
-					['Amount', amountStr]
+					['Amount', parsedAmount.display]
 				],
 				message: 'Save this house balance record?',
 				confirmButtonText: 'Yes'
@@ -783,6 +828,9 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 				if (!result.isConfirmed) {
 					return;
 				}
+				// Backend stores absolute amount; direction is TRANSACTION_ID from sign
+				$('#txtAmount').val(parsedAmount.abs);
+				$('#optWithdrawDeposit').val(parsedAmount.txn);
 				var $btn = $form.find("button[type='submit']");
 				$btn.prop('disabled', true).html(
 					'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
@@ -811,15 +859,14 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 
 <script>
 	$(document).ready(function () {
-		$("input[data-type='number']").keyup(function (event) {
-			// skip for arrow keys
-			if (event.which >= 37 && event.which <= 40) {
-				event.preventDefault();
-			}
+		$(document).on('keyup input', 'input[data-type="signed-amount"], #txtAmount.hb-field-amount, #edit-capital-amount', function () {
 			var $this = $(this);
-			var num = $this.val().replace(/,/gi, "");
-			var num2 = num.split(/(?=(?:\d{3})+$)/).join(",");
-			$this.val(num2);
+			var formatted = (typeof formatCapitalSignedAmountInput === 'function')
+				? formatCapitalSignedAmountInput($this.val())
+				: $this.val();
+			if ($this.val() !== formatted) {
+				$this.val(formatted);
+			}
 		});
 	});
 

@@ -5,6 +5,7 @@ $(document).ready(function () {
 	var hotelDateStart = null;
 	var hotelDateEnd = null;
 	var flatpickrReady = false;
+	var hotelSplitDateRange = null;
 	var t = window.fnbHotelTranslations || {};
 
 	function formatDateForDisplay(value) {
@@ -246,16 +247,75 @@ $(document).ready(function () {
 		});
 	}
 
+	function apiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return String(endYmd).slice(0, 10);
+	}
+
+	function ymdToLocalDate(ymd) {
+		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+		var parts = String(ymd).slice(0, 10).split('-').map(Number);
+		return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+	}
+
+	function setHotelFilterDatesFromApi(startYmd, endYmd) {
+		var startDate = ymdToLocalDate(startYmd);
+		var endDate = ymdToLocalDate(apiEndDate(endYmd));
+		if (!startDate || !endDate) return;
+		if (startDate > endDate) {
+			var swap = startDate;
+			startDate = endDate;
+			endDate = swap;
+		}
+		hotelDateStart = startDate;
+		hotelDateEnd = endDate;
+		if (dataTable) dataTable.draw();
+	}
+
+	function initHotelSplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			hotelSplitDateRange = { fitWidths: function () {} };
+			return;
+		}
+
+		hotelSplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'dash-hotel-daterange',
+			startId: 'dash-hotel-start-date',
+			endId: 'dash-hotel-end-date',
+			splitWrapperId: 'dash-hotel-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				setHotelFilterDatesFromApi(range.start, range.end);
+			}
+		});
+	}
+
 	function initDateRangePicker() {
 		if (flatpickrReady || typeof flatpickr !== 'function') return;
 		var range = getDefaultDateRange();
 		hotelDateStart = range.startAt || range.start || null;
 		hotelDateEnd = range.endAt || range.end || null;
 
+		initHotelSplitDateRange();
+
 		flatpickr('#dash-hotel-daterange', {
 			mode: 'range',
 			defaultDate: hotelDateStart && hotelDateEnd ? [hotelDateStart, hotelDateEnd] : undefined,
 			showMonths: 2,
+			onChange: function (selectedDates) {
+				if (selectedDates.length === 2) {
+					hotelDateStart = selectedDates[0];
+					hotelDateEnd = selectedDates[1];
+					if (dataTable) dataTable.draw();
+				}
+			},
 			onClose: function (selectedDates) {
 				if (!selectedDates || selectedDates.length === 0) {
 					hotelDateStart = null;
@@ -283,6 +343,9 @@ $(document).ready(function () {
 	$('#modal-dash-hotel').on('shown.bs.modal', function () {
 		if (typeof window.layoutDashServiceTableControls === 'function') {
 			window.layoutDashServiceTableControls('dash-hotel-table', 'btn-dash-hotel-new-record');
+		}
+		if (hotelSplitDateRange && typeof hotelSplitDateRange.fitWidths === 'function') {
+			hotelSplitDateRange.fitWidths();
 		}
 		if (dataTable) {
 			try {

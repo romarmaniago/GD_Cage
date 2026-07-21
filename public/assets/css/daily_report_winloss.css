@@ -189,6 +189,7 @@
 
 .daily-report-daterange-mount.is-placed {
   display: inline-flex;
+  flex-wrap: wrap;
 }
 
 .daily-report-list-daterange-wrap {
@@ -257,7 +258,7 @@
   text-overflow: clip;
   white-space: nowrap;
   box-sizing: border-box;
-  cursor: pointer;
+  cursor: text;
   text-align: center;
   field-sizing: content;
 }
@@ -432,13 +433,31 @@
 
 #daily-report-modal .daily-report-entries-table thead th,
 #daily-report-modal .daily-report-entries-table tbody td {
-  width: 50%;
-  text-align: center;
   vertical-align: middle;
+  overflow: hidden;
+}
+
+#daily-report-modal .daily-report-entries-table thead th:first-child,
+#daily-report-modal .daily-report-entries-table tbody td:first-child {
+  width: auto;
+  text-align: left;
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+#daily-report-modal .daily-report-entries-table thead th:not(:first-child),
+#daily-report-modal .daily-report-entries-table tbody td:not(:first-child) {
+  width: 7.5rem;
+  text-align: center;
 }
 
 #daily-report-modal .daily-report-entries-table .form-control {
   text-align: center;
+  max-width: 100%;
 }
 
 #modal-dash-winloss-report {

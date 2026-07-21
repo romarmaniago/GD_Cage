@@ -1,5 +1,5 @@
 /**
- * Split [Start] to [End] date inputs.
+ * Split [Start] to [End] date inputs — manual text entry (no calendar picker).
  * By default independent from the combined range picker (no two-way sync).
  * Pass independent: false to restore legacy sync with rangePickerId.
  */
@@ -11,21 +11,44 @@
 	}
 
 	function getDisplayValue(el) {
-		if (!el) return '';
-		if (el._flatpickr && el._flatpickr.altInput && el._flatpickr.altInput.value) {
-			return el._flatpickr.altInput.value.trim();
-		}
-		return (el.value || '').trim();
+		return el ? String(el.value || '').trim() : '';
 	}
 
 	function fitWidths(startEl, endEl) {
 		if (!global.MonthEndCutoffRange) return;
-		if (startEl && startEl._flatpickr) {
-			global.MonthEndCutoffRange.fitSingleDatePickerInstance(startEl._flatpickr);
+		if (typeof global.MonthEndCutoffRange.fitSingleDateInputWidth === 'function') {
+			if (startEl) global.MonthEndCutoffRange.fitSingleDateInputWidth(startEl);
+			if (endEl) global.MonthEndCutoffRange.fitSingleDateInputWidth(endEl);
+			return;
 		}
-		if (endEl && endEl._flatpickr) {
-			global.MonthEndCutoffRange.fitSingleDatePickerInstance(endEl._flatpickr);
+	}
+
+	function getWrapper(startEl, splitWrapperId) {
+		if (splitWrapperId) {
+			return document.getElementById(splitWrapperId);
 		}
+		return startEl ? startEl.closest('[id$="-split-daterange-wrapper"]') : null;
+	}
+
+	function getDefaultRange(startEl, splitWrapperId) {
+		var wrap = getWrapper(startEl, splitWrapperId);
+		if (!wrap) return { start: '', end: '' };
+		return {
+			start: String(wrap.getAttribute('data-range-start') || '').trim(),
+			end: String(wrap.getAttribute('data-range-end') || '').trim()
+		};
+	}
+
+	function normalizeManualDateInput(el) {
+		if (!el || !global.MonthEndCutoffRange) return;
+		var raw = getDisplayValue(el);
+		if (!raw) return;
+		var api = global.MonthEndCutoffRange.toApiDate(raw);
+		if (!api) return;
+		var parts = String(api).slice(0, 10).split('-').map(Number);
+		var dt = new Date(parts[0], parts[1] - 1, parts[2]);
+		if (isNaN(dt.getTime())) return;
+		el.value = global.MonthEndCutoffRange.formatDisplayDate(dt);
 	}
 
 	function attach(config) {
@@ -33,13 +56,13 @@
 		var rangePickerId = config.rangePickerId;
 		var startId = config.startId;
 		var endId = config.endId;
+		var splitWrapperId = config.splitWrapperId;
 		var invalidMsg = config.invalidDateMessage || 'Invalid date range.';
-		var minDate = config.minDate || null;
 		var independent = !!config.independent;
 
 		var startEl = document.getElementById(startId);
 		var endEl = document.getElementById(endId);
-		if (!startEl || !endEl || typeof global.flatpickr !== 'function') {
+		if (!startEl || !endEl) {
 			return {
 				syncFromRange: function () {},
 				applySplit: function () { return false; },
@@ -51,15 +74,7 @@
 		}
 
 		var syncing = false;
-		var pickersReady = 0;
 		var initialized = false;
-
-		if (!minDate) {
-			var now = new Date();
-			var pad = function (n) { return String(n).padStart(2, '0'); };
-			var earliest = new Date(now.getFullYear() - 1, 0, 1);
-			minDate = earliest.getFullYear() + '-' + pad(earliest.getMonth() + 1) + '-' + pad(earliest.getDate());
-		}
 
 		function getRangeEl() {
 			return rangePickerId ? document.getElementById(rangePickerId) : null;
@@ -84,14 +99,21 @@
 			if (!rangeEl || !rangeEl._flatpickr || rangeEl._flatpickr.selectedDates.length < 2) return;
 
 			syncing = true;
-			if (startEl._flatpickr) startEl._flatpickr.setDate(rangeEl._flatpickr.selectedDates[0], false);
-			if (endEl._flatpickr) endEl._flatpickr.setDate(rangeEl._flatpickr.selectedDates[1], false);
+			var selected = rangeEl._flatpickr.selectedDates;
+			if (global.MonthEndCutoffRange) {
+				startEl.value = global.MonthEndCutoffRange.formatDisplayDate(selected[0]);
+				endEl.value = global.MonthEndCutoffRange.formatDisplayDate(selected[1]);
+			}
 			syncing = false;
 			setTimeout(function () { fitWidths(startEl, endEl); }, 0);
 		}
 
 		function applySplit(showAlert) {
 			if (!initialized || syncing) return false;
+
+			normalizeManualDateInput(startEl);
+			normalizeManualDateInput(endEl);
+			fitWidths(startEl, endEl);
 
 			var api = getApiValues();
 			if (!api.start || !api.end) return false;
@@ -132,50 +154,44 @@
 
 		function onSplitChanged() {
 			if (!initialized || syncing) return;
+			applySplit(false);
+		}
+
+		function onBlur() {
+			if (!initialized || syncing) return;
+			normalizeManualDateInput(this);
 			fitWidths(startEl, endEl);
 			applySplit(false);
 		}
 
-		function pickerReady(_selectedDates, _dateStr, instance) {
-			if (instance && instance.altInput) {
-				var ph = (instance.input && instance.input.getAttribute('placeholder')) || '';
-				if (ph) instance.altInput.setAttribute('placeholder', ph);
-			}
-			pickersReady += 1;
-			if (pickersReady < 2) return;
-			initialized = true;
-			fitWidths(startEl, endEl);
-		}
-
-		var fpConfig = {
-			enableTime: false,
-			altInput: true,
-			altFormat: 'M j, Y',
-			dateFormat: 'Y-m-d',
-			minDate: minDate,
-			onChange: onSplitChanged,
-			onClose: function (_selectedDates, _dateStr, instance) {
-				if (global.MonthEndCutoffRange) {
-					global.MonthEndCutoffRange.fitSingleDatePickerInstance(instance);
-				}
-			}
-		};
-
-		global.flatpickr('#' + startId, Object.assign({}, fpConfig, {
-			onReady: pickerReady
-		}));
-		global.flatpickr('#' + endId, Object.assign({}, fpConfig, {
-			onReady: pickerReady
-		}));
-
 		function onKeydown(e) {
 			if (e.key === 'Enter') {
 				e.preventDefault();
+				normalizeManualDateInput(startEl);
+				normalizeManualDateInput(endEl);
+				fitWidths(startEl, endEl);
 				applySplit(true);
 			}
 		}
+
+		var defaults = getDefaultRange(startEl, splitWrapperId);
+		if (!getDisplayValue(startEl) && defaults.start) startEl.value = defaults.start;
+		if (!getDisplayValue(endEl) && defaults.end) endEl.value = defaults.end;
+
+		startEl.setAttribute('inputmode', 'text');
+		endEl.setAttribute('inputmode', 'text');
+		startEl.removeAttribute('readonly');
+		endEl.removeAttribute('readonly');
+
+		startEl.addEventListener('blur', onBlur);
+		endEl.addEventListener('blur', onBlur);
+		startEl.addEventListener('change', onSplitChanged);
+		endEl.addEventListener('change', onSplitChanged);
 		startEl.addEventListener('keydown', onKeydown);
 		endEl.addEventListener('keydown', onKeydown);
+
+		initialized = true;
+		fitWidths(startEl, endEl);
 
 		return {
 			syncFromRange: syncFromRange,

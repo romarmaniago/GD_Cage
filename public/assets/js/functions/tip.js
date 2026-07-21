@@ -4,6 +4,9 @@ let tipRollerHistory = [];
 let tipAutocompleteInstances = [];
 let tipInProgramDatePicker = null;
 let tipSettlementProgramDatePicker = null;
+let tipPageDateStart = null;
+let tipPageDateEnd = null;
+let tipPageSplitDateRange = null;
 
 function formatMoney(n) {
 	return (Number(n) || 0).toLocaleString('en-US', {
@@ -384,6 +387,78 @@ function renderAmountCell(value, type) {
 	return '<span class="' + cls + '">' + formatSignedMoney(n) + '</span>';
 }
 
+function getTipPageDefaultDateRange() {
+	if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+		return window.MonthEndCutoffRange.getMonthEndCutoffRange();
+	}
+	const now = new Date();
+	const y = now.getFullYear();
+	const m = now.getMonth();
+	return {
+		startAt: new Date(y, m, 0),
+		endAt: new Date(y, m + 1, 0)
+	};
+}
+
+function tipPageApiEndDate(endYmd) {
+	if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+	const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+	const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+	if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+		return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+	}
+	return String(endYmd).slice(0, 10);
+}
+
+function tipPageYmdToLocalDate(ymd) {
+	if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+	const parts = String(ymd).slice(0, 10).split('-').map(Number);
+	return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+}
+
+function setTipPageFilterDatesFromSelectedDates(selectedDates) {
+	if (!selectedDates || selectedDates.length === 0) {
+		tipPageDateStart = null;
+		tipPageDateEnd = null;
+		return;
+	}
+	if (selectedDates.length === 1) {
+		tipPageDateStart = selectedDates[0];
+		tipPageDateEnd = selectedDates[0];
+		return;
+	}
+	let start = selectedDates[0];
+	let end = selectedDates[1];
+	if (start > end) {
+		const swap = start;
+		start = end;
+		end = swap;
+	}
+	tipPageDateStart = start;
+	const endYmd = formatProgramDateYmd(end);
+	const expanded = tipPageApiEndDate(endYmd);
+	tipPageDateEnd = expanded !== endYmd ? tipPageYmdToLocalDate(expanded) : end;
+}
+
+function setTipPageFilterDatesFromApi(startYmd, endYmd) {
+	let startDate = tipPageYmdToLocalDate(startYmd);
+	let endDate = tipPageYmdToLocalDate(tipPageApiEndDate(endYmd));
+	if (!startDate || !endDate) return;
+	if (startDate > endDate) {
+		const swap = startDate;
+		startDate = endDate;
+		endDate = swap;
+	}
+	tipPageDateStart = startDate;
+	tipPageDateEnd = endDate;
+}
+
+function applyTipPageDateFilterDraw() {
+	if ($.fn.DataTable.isDataTable('#tip-tbl')) {
+		$('#tip-tbl').DataTable().draw();
+	}
+}
+
 function updateTipAmountTotals(api) {
 	const rollerTotal = api
 		.column(7, { search: 'applied' })
@@ -429,6 +504,68 @@ function fetchTipData() {
 
 function refreshTipPage() {
 	return $.when(fetchRollerBalance(), fetchTipData());
+}
+
+function initTipPageSplitDateRange() {
+	if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+		tipPageSplitDateRange = { fitWidths: function () {} };
+		return;
+	}
+	tipPageSplitDateRange = window.SplitDateRange.attach({
+		rangePickerId: 'tip-daterange',
+		startId: 'tip-start-date',
+		endId: 'tip-end-date',
+		splitWrapperId: 'tip-split-daterange-wrapper',
+		independent: true,
+		invalidDateMessage: 'Invalid date range.',
+		onRangeApplied: function (range) {
+			if (!range || !range.start || !range.end) return;
+			setTipPageFilterDatesFromApi(range.start, range.end);
+			applyTipPageDateFilterDraw();
+		}
+	});
+}
+
+function initTipPageDateRangePicker() {
+	if (!$('#tip-daterange').length || typeof flatpickr === 'undefined') return;
+	const el = document.getElementById('tip-daterange');
+	if (el && el._flatpickr) return;
+
+	const range = getTipPageDefaultDateRange();
+	const start = range.startAt || range.start || range.startDate || null;
+	const end = range.endAt || range.end || range.endDate || null;
+	setTipPageFilterDatesFromSelectedDates(start && end ? [start, end] : []);
+
+	initTipPageSplitDateRange();
+
+	flatpickr('#tip-daterange', {
+		mode: 'range',
+		defaultDate: start && end ? [start, end] : undefined,
+		showMonths: 3,
+		onReady: function (selectedDates, _dateStr, instance) {
+			if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+				window.setupFlatpickrMonthNameRangeSelect(instance);
+			}
+			setTipPageFilterDatesFromSelectedDates(selectedDates);
+			applyTipPageDateFilterDraw();
+		},
+		onOpen: function (_selectedDates, _dateStr, instance) {
+			if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
+				window.setupFlatpickrMonthNameRangeSelect(instance);
+			}
+		},
+		onMonthChange: function (_selectedDates, _dateStr, instance) {
+			if (typeof window.styleFlatpickrMonthNameClickable === 'function') {
+				window.styleFlatpickrMonthNameClickable(instance);
+			}
+		},
+		onChange: function (selectedDates) {
+			if (selectedDates.length === 2) {
+				setTipPageFilterDatesFromSelectedDates(selectedDates);
+				applyTipPageDateFilterDraw();
+			}
+		}
+	});
 }
 
 function resetTipSettlementModal() {
@@ -585,6 +722,17 @@ $(document).ready(function () {
 		}
 	}
 
+	$.fn.dataTable.ext.search.push(function (settings, data) {
+		if (!settings || !settings.nTable || settings.nTable.id !== 'tip-tbl') return true;
+		if (!tipPageDateStart || !tipPageDateEnd) return true;
+		const rawDate = data && data[0];
+		const rowDate = tipPageYmdToLocalDate(String(rawDate || '').trim().slice(0, 10));
+		if (!rowDate) return true;
+		const start = new Date(tipPageDateStart.getFullYear(), tipPageDateStart.getMonth(), tipPageDateStart.getDate(), 0, 0, 0, 0);
+		const end = new Date(tipPageDateEnd.getFullYear(), tipPageDateEnd.getMonth(), tipPageDateEnd.getDate(), 23, 59, 59, 999);
+		return rowDate >= start && rowDate <= end;
+	});
+
 	tipTable = $('#tip-tbl').DataTable({
 		pageLength: 25,
 		order: [[0, 'desc'], [1, 'desc']],
@@ -722,6 +870,8 @@ $(document).ready(function () {
 		Swal.fire('Error', 'Failed to load tip records.', 'error');
 	});
 
+	initTipPageDateRangePicker();
+
 	initTipAutocompletes();
 	fetchTipRollerHistory(null).always(function () {
 		refreshTipAutocompletes();
@@ -734,4 +884,7 @@ $(document).ready(function () {
 	$('#form-tip-settlement').on('submit', submitTipSettlement);
 	wireTipInAmountInput();
 	wireTipSettlementAmountInput();
+	if (tipPageSplitDateRange && typeof tipPageSplitDateRange.fitWidths === 'function') {
+		tipPageSplitDateRange.fitWidths();
+	}
 });

@@ -28,7 +28,7 @@
     : endLabelRaw;
 %>
 <div id="<%= prefix %>-split-daterange-wrapper" class="<%= wrapClass %>" data-range-start="<%= splitStart %>" data-range-end="<%= splitEnd %>">
-  <input type="text" id="<%= prefix %>-start-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= startLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= startLabel %>" />
+  <input type="text" id="<%= prefix %>-start-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= splitStart %>" title="Type date, e.g. <%= splitStart %>" autocomplete="off" spellcheck="false" aria-label="<%= startLabel %>" />
   <span class="house-expense-daterange-separator" aria-hidden="true">to</span>
-  <input type="text" id="<%= prefix %>-end-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= endLabel %>" autocomplete="off" spellcheck="false" aria-label="<%= endLabel %>" />
+  <input type="text" id="<%= prefix %>-end-date" class="form-control form-control-sm text-center split-date-input house-expense-split-date-input" value="" placeholder="<%= splitEnd %>" title="Type date, e.g. <%= splitEnd %>" autocomplete="off" spellcheck="false" aria-label="<%= endLabel %>" />
 </div>

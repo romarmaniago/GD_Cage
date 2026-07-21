@@ -5,6 +5,7 @@ $(document).ready(function () {
 	var fnbDateStart = null;
 	var fnbDateEnd = null;
 	var flatpickrReady = false;
+	var fnbSplitDateRange = null;
 	var t = window.fnbHotelTranslations || {};
 
 	function formatDateForDisplay(value) {
@@ -249,16 +250,75 @@ $(document).ready(function () {
 		});
 	}
 
+	function apiEndDate(endYmd) {
+		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
+		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+		}
+		return String(endYmd).slice(0, 10);
+	}
+
+	function ymdToLocalDate(ymd) {
+		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
+		var parts = String(ymd).slice(0, 10).split('-').map(Number);
+		return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0, 0);
+	}
+
+	function setFnbFilterDatesFromApi(startYmd, endYmd) {
+		var startDate = ymdToLocalDate(startYmd);
+		var endDate = ymdToLocalDate(apiEndDate(endYmd));
+		if (!startDate || !endDate) return;
+		if (startDate > endDate) {
+			var swap = startDate;
+			startDate = endDate;
+			endDate = swap;
+		}
+		fnbDateStart = startDate;
+		fnbDateEnd = endDate;
+		if (dataTable) dataTable.draw();
+	}
+
+	function initFnbSplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			fnbSplitDateRange = { fitWidths: function () {} };
+			return;
+		}
+
+		fnbSplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'dash-fnb-daterange',
+			startId: 'dash-fnb-start-date',
+			endId: 'dash-fnb-end-date',
+			splitWrapperId: 'dash-fnb-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				setFnbFilterDatesFromApi(range.start, range.end);
+			}
+		});
+	}
+
 	function initDateRangePicker() {
 		if (flatpickrReady || typeof flatpickr !== 'function') return;
 		var range = getDefaultDateRange();
 		fnbDateStart = range.startAt || range.start || null;
 		fnbDateEnd = range.endAt || range.end || null;
 
+		initFnbSplitDateRange();
+
 		flatpickr('#dash-fnb-daterange', {
 			mode: 'range',
 			defaultDate: fnbDateStart && fnbDateEnd ? [fnbDateStart, fnbDateEnd] : undefined,
 			showMonths: 2,
+			onChange: function (selectedDates) {
+				if (selectedDates.length === 2) {
+					fnbDateStart = selectedDates[0];
+					fnbDateEnd = selectedDates[1];
+					if (dataTable) dataTable.draw();
+				}
+			},
 			onClose: function (selectedDates) {
 				if (!selectedDates || selectedDates.length === 0) {
 					fnbDateStart = null;
@@ -295,6 +355,9 @@ $(document).ready(function () {
 	$('#modal-dash-fnb').on('shown.bs.modal', function () {
 		if (typeof window.layoutDashServiceTableControls === 'function') {
 			window.layoutDashServiceTableControls('dash-fnb-table', 'btn-dash-fnb-new-record');
+		}
+		if (fnbSplitDateRange && typeof fnbSplitDateRange.fitWidths === 'function') {
+			fnbSplitDateRange.fitWidths();
 		}
 		if (dataTable) {
 			try {

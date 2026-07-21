@@ -86,6 +86,14 @@ const REMARKS_TABLES = {
 		column: 'REMARKS',
 		activeCol: 'ACTIVE',
 		activeValue: 1
+	},
+	soa_fnb_hotel: {
+		table: 'soa_fnb_hotel',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1,
+		editedByCol: 'UPDATED_BY',
+		editedDtCol: 'UPDATED_DT'
 	}
 };
 

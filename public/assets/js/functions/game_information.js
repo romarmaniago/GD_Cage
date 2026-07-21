@@ -137,6 +137,22 @@
 	var selectedProgramDate = null;
 	var programFrom = null;
 	var programTo = null;
+	var giSplitOverrideRange = null;
+	var giSplitDateRange = null;
+
+	function applyGiProgramRange(fromDate, toDate) {
+		var from = fromDate;
+		var to = toDate;
+		if (from > to) {
+			var swap = from;
+			from = to;
+			to = swap;
+		}
+		programFrom = from;
+		programTo = to;
+		selectedProgramDate = from;
+		reloadData();
+	}
 
 	function resetGrandTotals() {
 		$('#GI_GRAND_BUYIN, #GI_GRAND_CASHOUT, #GI_GRAND_WINLOSS, #GI_GRAND_ROLLING, #GI_GRAND_COMMISSION, #GI_GRAND_ADD_CHG, #GI_GRAND_SETTLE').text('0.00');
@@ -154,7 +170,10 @@
 
 	function buildQuery() {
 		var q = {};
-		if (programFrom && programTo) {
+		if (giSplitOverrideRange && giSplitOverrideRange.start && giSplitOverrideRange.end) {
+			q.programFrom = giSplitOverrideRange.start;
+			q.programTo = giSplitOverrideRange.end;
+		} else if (programFrom && programTo) {
 			q.programFrom = programFrom;
 			q.programTo = programTo;
 		} else if (selectedProgramDate) {
@@ -306,6 +325,35 @@
 		instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
 	}
 
+	function initGiSplitDateRange() {
+		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+			giSplitDateRange = { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
+			return;
+		}
+
+		giSplitDateRange = window.SplitDateRange.attach({
+			rangePickerId: 'gi-program-date-range-picker',
+			startId: 'game-information-start-date',
+			endId: 'game-information-end-date',
+			splitWrapperId: 'game-information-split-daterange-wrapper',
+			independent: true,
+			invalidDateMessage: 'Invalid date range.',
+			onRangeApplied: function (range) {
+				if (!range || !range.start || !range.end) return;
+				var fromDate = range.start;
+				var toDate = giApiEndDate(range.end);
+				giSplitOverrideRange = { start: fromDate, end: toDate };
+				applyGiProgramRange(fromDate, toDate);
+			}
+		});
+	}
+
+	window.fitGiSplitDateWidths = function () {
+		if (giSplitDateRange && typeof giSplitDateRange.fitWidths === 'function') {
+			giSplitDateRange.fitWidths();
+		}
+	};
+
 	function initProgramDatePicker() {
 		var $input = $('#gi-program-date-range-picker');
 		var defaultRange = getDefaultCutoffRange();
@@ -342,12 +390,10 @@
 			},
 			onChange: function (selectedDates) {
 				if (!selectedDates || selectedDates.length !== 2) return;
+				giSplitOverrideRange = null;
 				var d0 = ymd(selectedDates[0]);
 				var d1 = giApiEndDate(ymd(selectedDates[1]));
-				programFrom = d0 <= d1 ? d0 : d1;
-				programTo = d0 <= d1 ? d1 : d0;
-				selectedProgramDate = programFrom;
-				reloadData();
+				applyGiProgramRange(d0, d1);
 			}
 		});
 
@@ -356,6 +402,7 @@
 
 	$(function () {
 		initDataTable();
+		initGiSplitDateRange();
 		initProgramDatePicker();
 	});
 })();

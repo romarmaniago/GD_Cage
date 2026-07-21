@@ -19,12 +19,15 @@
         </div>
 
         <div class="card-body game-information-page">
-          <div class="row mb-2">
-            <div class="col-12">
-              <div id="gi-program-date-wrapper" class="gi-daterange-wrap house-expense-daterange-wrap mb-3">
-                <input type="text" id="gi-program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
-              </div>
+          <div id="gi-daterange-mount" class="gi-daterange-mount">
+            <div id="gi-program-date-wrapper" class="gi-daterange-wrap house-expense-daterange-wrap">
+              <input type="text" id="gi-program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
             </div>
+            <%- include('../partials/split_daterange', {
+              splitPrefix: 'game-information',
+              splitLocaleNs: 'game_information',
+              splitWrapClass: 'gi-daterange-wrap gi-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+            }) %>
           </div>
 
           <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
@@ -137,6 +140,48 @@
 	border-color: #bbb;
 	outline: none;
 	box-shadow: 0 0 0 0.15rem rgba(0, 0, 0, 0.08);
+}
+
+.gi-daterange-mount {
+	display: none;
+}
+
+#game_information-tbl_wrapper .gi-controls-highlight .gi-daterange-mount.is-placed {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-left: 8px;
+}
+
+.gi-split-daterange,
+.gi-split-daterange .house-expense-daterange-separator {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 6px;
+}
+
+.gi-split-daterange input.split-date-input {
+	display: inline-block !important;
+	width: auto !important;
+	min-width: 7.5rem;
+	max-width: none !important;
+	text-align: center;
+	cursor: text;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+#game_information-tbl_wrapper .gi-controls-highlight .gi-split-daterange input.split-date-input:focus {
+	border-color: #c8a24c;
+	box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.25);
 }
 
 .game-information-page table.dataTable {
@@ -312,6 +357,7 @@
 		var wrapper = document.getElementById('game_information-tbl_wrapper');
 		var lengthWrap = document.getElementById('game_information-tbl_length');
 		var filterWrap = document.getElementById('game_information-tbl_filter');
+		var dateMount = document.getElementById('gi-daterange-mount');
 		var searchLabel = filterWrap ? filterWrap.querySelector('label') : null;
 		var searchInput = searchLabel ? searchLabel.querySelector('input') : null;
 		var controlsHighlight;
@@ -327,6 +373,16 @@
 		}
 		if (lengthWrap.parentElement !== controlsHighlight) {
 			controlsHighlight.appendChild(lengthWrap);
+		}
+		if (dateMount) {
+			if (dateMount.parentElement !== controlsHighlight || dateMount.previousElementSibling !== lengthWrap) {
+				if (lengthWrap.nextSibling) {
+					controlsHighlight.insertBefore(dateMount, lengthWrap.nextSibling);
+				} else {
+					controlsHighlight.appendChild(dateMount);
+				}
+			}
+			dateMount.classList.add('is-placed');
 		}
 		if (filterWrap.parentElement !== controlsHighlight) {
 			controlsHighlight.appendChild(filterWrap);
@@ -346,6 +402,16 @@
 			Array.prototype.slice.call(searchLabel.childNodes).forEach(function (node) {
 				if (node.nodeType === 3) searchLabel.removeChild(node);
 			});
+		}
+
+		if (window.fitGiSplitDateWidths) {
+			window.fitGiSplitDateWidths();
+		}
+		if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+			var pickerEl = document.getElementById('gi-program-date-range-picker');
+			if (pickerEl && pickerEl._flatpickr) {
+				window.MonthEndCutoffRange.fitRangePickerInstance(pickerEl._flatpickr);
+			}
 		}
 	}
 

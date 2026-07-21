@@ -32,6 +32,11 @@
 						<div class="commission-panel-daterange-wrap">
 							<input type="text" id="commission-panel-daterange" class="form-control form-control-sm" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
 						</div>
+						<%- include('../partials/split_daterange', {
+							splitPrefix: 'commission-panel',
+							splitLocaleNs: 'commission',
+							splitWrapClass: 'commission-panel-daterange-wrap commission-panel-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+						}) %>
 					</div>
 					<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
 						<table id="commission-panel-tbl" class="table marker-balance-tbl nowrap small-text w-100 mb-0">
@@ -330,6 +335,30 @@
 
 .commission-panel-daterange-mount.is-placed {
 	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.commission-panel-split-daterange,
+.commission-panel-split-daterange .house-expense-daterange-separator {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 6px;
+}
+
+.commission-panel-split-daterange input.split-date-input {
+	display: inline-block !important;
+	width: auto !important;
+	min-width: 7.5rem;
+	max-width: none !important;
+	cursor: text;
+}
+
+#commission-panel-tbl_wrapper .commission-analytics-controls-highlight .commission-panel-split-daterange input.split-date-input:focus {
+	border-color: #c8a24c;
+	box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.25);
 }
 
 .commission-panel-daterange-wrap {

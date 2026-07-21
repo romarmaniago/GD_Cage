@@ -2,6 +2,11 @@
   <div class="daily-report-list-daterange-wrap">
     <input type="text" class="form-control form-control-sm" id="daily-report-list-daterange" placeholder="Select date range" autocomplete="off">
   </div>
+  <%- include('split_daterange', {
+    splitPrefix: 'daily-report',
+    splitLocaleNs: 'house_expense',
+    splitWrapClass: 'daily-report-list-daterange-wrap daily-report-split-daterange house-expense-split-daterange'
+  }) %>
 </div>
 <div class="daily-report-table-wrap marker-balance-dt-wrap marker-balance-card">
   <table id="daily-report-view-table" class="table marker-balance-tbl w-100 mb-0">

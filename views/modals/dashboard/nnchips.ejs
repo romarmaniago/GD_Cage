@@ -8,10 +8,17 @@
             </div>
 
             <div class="modal-body">
-                <div class="house-expense-daterange-wrap mb-3">
-                    <input type="text" id="nnchips-daterange" name="nnchips-daterange"
-                        class="form-control form-control-sm text-center"
-                        placeholder="<%= __('modal_nn_chips_history.select_date_range') %>" autocomplete="off" />
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3 nn-chips-daterange-group">
+                    <div class="house-expense-daterange-wrap">
+                        <input type="text" id="nnchips-daterange" name="nnchips-daterange"
+                            class="form-control form-control-sm text-center"
+                            placeholder="<%= __('modal_nn_chips_history.select_date_range') %>" autocomplete="off" />
+                    </div>
+                    <%- include('../../partials/split_daterange', {
+                        splitPrefix: 'nnchips',
+                        splitLocaleNs: 'house_expense',
+                        splitWrapClass: 'nn-chips-daterange-wrap nn-chips-split-daterange house-expense-split-daterange'
+                    }) %>
                 </div>
 
                 <hr style="border: none; border-top: 0.2rem solid black;">
@@ -69,6 +76,32 @@ window.nnChipsHistoryTranslations = {
         --gd-marker-gold-text: #4a3208;
         --gd-marker-gold-border: rgba(200, 162, 76, 0.28);
         --gd-marker-gold-hover: #f6f3ec;
+    }
+
+    .nn-chips-daterange-group {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .nn-chips-split-daterange,
+    #modal-new-nn-chips .house-expense-split-daterange {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-shrink: 0;
+        min-width: 0;
+    }
+
+    .nn-chips-split-daterange input.split-date-input,
+    #modal-new-nn-chips .house-expense-split-daterange input.split-date-input {
+        font-size: 12px !important;
+        height: 30px !important;
+        padding: 0.15rem 0.55rem !important;
+        width: auto;
+        min-width: 0;
+        cursor: text;
+        text-align: center;
+        field-sizing: content;
     }
 
     #nn-chips-tbl {

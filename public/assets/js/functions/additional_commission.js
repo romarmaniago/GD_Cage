@@ -27,6 +27,8 @@
     let agents = [];
     let records = [];
     let dateRangePicker = null;
+    let additionalCommissionSplitOverrideRange = null;
+    let additionalCommissionSplitDateRange = null;
     const sortState = { sortKey: 'programDate', sortDir: 'desc' };
     const tableHead = document.querySelector('#additional-commission-tbl thead');
     let dataTable = null;
@@ -283,7 +285,23 @@
       });
     }
 
+    function additionalCommissionApiEndDate(endYmd) {
+      if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
+      const parts = String(endYmd).slice(0, 10).split('-').map(Number);
+      const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+      if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+        return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
+      }
+      return endYmd;
+    }
+
     function getActiveDateRange() {
+      if (additionalCommissionSplitOverrideRange && additionalCommissionSplitOverrideRange.start && additionalCommissionSplitOverrideRange.end) {
+        return {
+          start: additionalCommissionSplitOverrideRange.start,
+          end: additionalCommissionSplitOverrideRange.end
+        };
+      }
       if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.resolveRangeFromPicker === 'function') {
         return window.MonthEndCutoffRange.resolveRangeFromPicker(
           dateRangeInput ? dateRangeInput.value : '',
@@ -362,6 +380,41 @@
 
       $table.css({ marginTop: 0, marginBottom: 0 }).show();
       $table.closest('.row.dt-row').show().removeClass('additional-commission-dt-top-row-empty');
+
+      if (dateRangePicker && window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+        window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
+      }
+      if (additionalCommissionSplitDateRange && typeof additionalCommissionSplitDateRange.fitWidths === 'function') {
+        additionalCommissionSplitDateRange.fitWidths();
+      }
+    }
+
+    function initAdditionalCommissionSplitDateRange() {
+      if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
+        additionalCommissionSplitDateRange = { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
+        return;
+      }
+
+      additionalCommissionSplitDateRange = window.SplitDateRange.attach({
+        rangePickerId: 'additional-commission-daterange',
+        startId: 'additional-commission-start-date',
+        endId: 'additional-commission-end-date',
+        splitWrapperId: 'additional-commission-split-daterange-wrapper',
+        independent: true,
+        invalidDateMessage: 'Invalid date range.',
+        onRangeApplied: function (range) {
+          if (!range || !range.start || !range.end) return;
+          let fromDate = range.start;
+          let toDate = additionalCommissionApiEndDate(range.end);
+          if (fromDate > toDate) {
+            const swap = fromDate;
+            fromDate = toDate;
+            toDate = swap;
+          }
+          additionalCommissionSplitOverrideRange = { start: fromDate, end: toDate };
+          loadAdditionalCommissionData();
+        }
+      });
     }
 
     function initDateRangePicker() {
@@ -372,6 +425,7 @@
         showMonths: 2,
         onChange: function (selectedDates) {
           if (selectedDates.length === 2) {
+            additionalCommissionSplitOverrideRange = null;
             loadAdditionalCommissionData();
           }
         }
@@ -720,6 +774,7 @@
 
     // Enable DataTables UI (search + show entries).
     initDataTableOnce();
+    initAdditionalCommissionSplitDateRange();
     initDateRangePicker();
 
     if (!dashListModalEl) {
@@ -740,6 +795,9 @@
         }
         if (dateRangePicker && window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
           window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
+        }
+        if (additionalCommissionSplitDateRange && typeof additionalCommissionSplitDateRange.fitWidths === 'function') {
+          additionalCommissionSplitDateRange.fitWidths();
         }
         loadAdditionalCommissionData();
       });

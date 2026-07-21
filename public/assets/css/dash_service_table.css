@@ -56,12 +56,44 @@
   --gd-marker-gold-hover: #faf3dc;
 }
 
+.dash-service-daterange-group {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.dash-service-daterange-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .dash-service-daterange {
   max-width: 260px;
   background: #fff;
   border: 1px solid rgba(58, 46, 18, 0.2);
   border-radius: 8px;
   text-align: center;
+}
+
+.dash-service-split-daterange,
+.dash-service-modal-body .house-expense-split-daterange {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.dash-service-split-daterange input.split-date-input,
+.dash-service-modal-body .house-expense-split-daterange input.split-date-input {
+  font-size: 12px !important;
+  height: 30px !important;
+  padding: 0.15rem 0.55rem !important;
+  width: auto;
+  min-width: 0;
+  cursor: text;
+  text-align: center;
+  field-sizing: content;
 }
 
 .dash-service-table-panel .dataTables_wrapper .dash-service-controls-highlight {
@@ -191,4 +223,42 @@
 .dash-service-tbl tbody tr:hover,
 .dash-service-tbl tbody tr:hover td {
   background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
+}
+
+/* SOA (F&B, Hotel) history table — compact fixed columns */
+#dash-soa-history-tbl {
+  table-layout: fixed;
+  width: 100%;
+}
+
+#dash-soa-history-tbl th,
+#dash-soa-history-tbl td {
+  vertical-align: middle;
+  padding: 0.35rem 0.5rem;
+}
+
+#dash-soa-history-tbl .soa-col-date {
+  width: 6.75rem;
+  white-space: nowrap;
+}
+
+#dash-soa-history-tbl .soa-col-amount {
+  width: 5.5rem;
+  white-space: nowrap;
+}
+
+#dash-soa-history-tbl .soa-col-remarks {
+  width: auto;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+#dash-soa-history-tbl .soa-col-action {
+  width: 5.25rem;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#dash-soa-history-tbl .soa-col-action .btn {
+  padding: 0.15rem 0.4rem;
 }
