@@ -1,0 +1,242 @@
+<div class="modal fade" id="modal-gi-manual-game" tabindex="-1" aria-labelledby="modal-gi-manual-game-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-gi-manual-game-label"><%= __('game_information.add_game') %></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="gi-manual-game-form">
+        <div class="modal-body gi-manual-game-body">
+          <input type="hidden" id="gi-manual-id" value="" />
+
+          <div class="gi-manual-form-grid">
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-program-date"><%= __('gamelist.program_date') %></label>
+              <input type="text" class="form-control" id="gi-manual-program-date" autocomplete="off" required />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-game-start"><%= __('gamelist.game_start') %></label>
+              <input type="text" class="form-control" id="gi-manual-game-start" autocomplete="off" placeholder="YYYY-MM-DD HH:mm" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-game-type"><%= __('gamelist.type') %></label>
+              <select class="form-select" id="gi-manual-game-type">
+                <option value="LIVE"><%= __('gamelist.live') %></option>
+                <option value="TELEBET"><%= __('gamelist.telebet') %></option>
+              </select>
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-game-no"><%= __('gamelist.game#') %></label>
+              <input type="text" class="form-control" id="gi-manual-game-no" autocomplete="off" required />
+            </div>
+
+            <div class="gi-manual-field gi-manual-field-account">
+              <label class="form-label" for="gi-manual-account"><%= __('gamelist.acct_no') %> / Name</label>
+              <select id="gi-manual-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose account">
+                <option value="">Choose account</option>
+              </select>
+            </div>
+            <div class="gi-manual-field gi-manual-field-guest">
+              <label class="form-label" for="gi-manual-guest"><%= __('gamelist.guest') %></label>
+              <select id="gi-manual-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose guest" disabled>
+                <option value="">Choose guest</option>
+              </select>
+            </div>
+            <div class="gi-manual-field gi-manual-field-buy-in">
+              <label class="form-label" for="gi-manual-buy-in"><%= __('gamelist.buyin') %></label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-buy-in" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-win-loss"><%= __('gamelist.win_loss') %></label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-win-loss" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-cash-out"><%= __('gamelist.cash_out') %></label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-cash-out" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-rolling"><%= __('gamelist.real_rolling') %></label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-rolling" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-rate-pair">
+              <div class="gi-manual-field gi-manual-field-rate-type">
+                <label class="form-label" for="gi-manual-commission-type">TYPE</label>
+                <select class="form-select" id="gi-manual-commission-type">
+                  <option value="1">Rolling</option>
+                  <option value="2">Shared</option>
+                  <option value="3">Lossing</option>
+                </select>
+              </div>
+              <div class="gi-manual-field gi-manual-field-rate-pct">
+                <label class="form-label" for="gi-manual-commission-pct">%</label>
+                <input type="text" class="form-control text-end" id="gi-manual-commission-pct" inputmode="decimal" autocomplete="off" value="1.5" />
+              </div>
+            </div>
+
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-commission"><%= __('gamelist.commission') %></label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-commission" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-add-charge">ADD CHG</label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-add-charge" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-settlement">TOTAL SETTLE</label>
+              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-settlement" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-game-end"><%= __('gamelist.game_end') %></label>
+              <input type="text" class="form-control" id="gi-manual-game-end" autocomplete="off" placeholder="YYYY-MM-DD HH:mm" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary btn-sm" id="gi-manual-save-btn" data-view-only-disable><%= __('game_information.save') %></button>
+          <button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal"><%= __('game_information.cancel') %></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  #modal-gi-manual-game .gi-manual-game-body {
+    padding: 1rem 1.25rem 0.75rem;
+  }
+
+  #modal-gi-manual-game .gi-manual-form-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.85rem 0.75rem;
+  }
+
+  #modal-gi-manual-game .gi-manual-field {
+    min-width: 0;
+    grid-column: span 2;
+  }
+
+  #modal-gi-manual-game .gi-manual-field-account,
+  #modal-gi-manual-game .gi-manual-field-guest {
+    grid-column: span 3;
+  }
+
+  #modal-gi-manual-game .gi-manual-field-buy-in {
+    grid-column: span 2;
+  }
+
+  #modal-gi-manual-game .gi-manual-rate-pair {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  #modal-gi-manual-game .gi-manual-rate-pair .gi-manual-field {
+    grid-column: auto;
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .form-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #3a2e12;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .form-control,
+  #modal-gi-manual-game .gi-manual-game-body .form-select {
+    width: 100%;
+    min-height: 36px;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #212529;
+    background-color: #fff;
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .form-control:focus,
+  #modal-gi-manual-game .gi-manual-game-body .form-select:focus {
+    border-color: #c8a24c;
+    box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.2);
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .flatpickr-input.form-control {
+    background-color: #fff;
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .gi-manual-amount.text-end {
+    font-variant-numeric: tabular-nums;
+  }
+
+  #modal-gi-manual-game .gi-manual-game-body .gi-manual-amount.text-end::placeholder {
+    text-align: right;
+    color: #8a92a6;
+  }
+
+  #modal-gi-manual-game .select2-container {
+    display: block;
+    width: 100% !important;
+  }
+
+  #modal-gi-manual-game .select2-container .select2-selection--single {
+    min-height: 36px;
+    height: 36px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #fff;
+  }
+
+  #modal-gi-manual-game .select2-container--default.select2-container--focus .select2-selection--single,
+  #modal-gi-manual-game .select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #c8a24c;
+    box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.2);
+  }
+
+  #modal-gi-manual-game .select2-container--default .select2-selection--single .select2-selection__rendered {
+    padding-left: 0.6rem;
+    padding-right: 2.25rem;
+    line-height: 34px;
+    color: #212529;
+    font-size: 0.875rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #modal-gi-manual-game .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 34px;
+    right: 0.3rem;
+  }
+
+  #modal-gi-manual-game .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8a92a6;
+  }
+
+  @media (max-width: 767.98px) {
+    #modal-gi-manual-game .gi-manual-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #modal-gi-manual-game .gi-manual-field,
+    #modal-gi-manual-game .gi-manual-field-account,
+    #modal-gi-manual-game .gi-manual-field-guest,
+    #modal-gi-manual-game .gi-manual-field-buy-in,
+    #modal-gi-manual-game .gi-manual-rate-pair {
+      grid-column: span 1;
+    }
+
+    #modal-gi-manual-game .gi-manual-rate-pair {
+      grid-column: span 2;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+    }
+  }
+</style>

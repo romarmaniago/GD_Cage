@@ -31,6 +31,18 @@
           </div>
 
           <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+            <button
+              type="button"
+              class="expense-cat-panel-add-btn"
+              id="btn-add-gi-manual-game"
+              title="<%= __('game_information.add_game') %>"
+              aria-label="<%= __('game_information.add_game') %>"
+              data-view-only-disable
+            >
+              <i class="fa fa-plus" aria-hidden="true"></i>
+            </button>
+            <% } %>
             <table id="game_information-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
               <thead>
                 <tr>
@@ -49,6 +61,9 @@
                   <th class="text-center">ADD CHG</th>
                   <th class="text-center">TOTAL SETTLE</th>
                   <th class="text-center"><%= __('gamelist.game_end') %></th>
+                  <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+                  <th class="text-center"><%= __('gamelist.action') %></th>
+                  <% } %>
                 </tr>
               </thead>
               <tbody class="text-center"></tbody>
@@ -64,6 +79,9 @@
                   <th class="text-center fw-semibold" id="GI_GRAND_ADD_CHG">0.00</th>
                   <th class="text-center fw-semibold" id="GI_GRAND_SETTLE">0.00</th>
                   <th></th>
+                  <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+                  <th></th>
+                  <% } %>
                 </tr>
               </tfoot>
             </table>
@@ -310,6 +328,9 @@
 	border: none;
 	border-radius: 10px;
 }
+#game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight .expense-cat-panel-add-btn {
+	flex-shrink: 0;
+}
 #game_information-tbl_wrapper #game_information-tbl_filter .gi-filter-highlight label {
 	margin: 0;
 	display: inline-flex;
@@ -342,6 +363,39 @@
 	padding-left: 0;
 	padding-right: 0;
 }
+
+#btn-add-gi-manual-game.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	color: #fff;
+	line-height: 1;
+	cursor: pointer;
+}
+
+#btn-add-gi-manual-game.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+	line-height: 1;
+	pointer-events: none;
+}
+
+.gi-manual-actions {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.gi-manual-actions .btn {
+	padding: 2px 8px;
+	line-height: 1.2;
+}
 </style>
 
 <script type="application/json" id="game-information-i18n"><%- JSON.stringify({
@@ -349,8 +403,18 @@
   endGame: __('gamelist.end_game'),
   live: __('gamelist.live'),
   telebet: __('gamelist.telebet'),
-  emptyTable: __('game_information.empty_table')
+  emptyTable: __('game_information.empty_table'),
+  addGame: __('game_information.add_game'),
+  editGame: __('game_information.edit_game'),
+  deleteGame: __('game_information.delete_game'),
+  deleteConfirm: __('game_information.delete_confirm'),
+  saved: __('game_information.add_success'),
+  updated: __('game_information.update_success'),
+  deleted: __('game_information.delete_success'),
+  saveFailed: __('game_information.add_failed'),
+  cancel: __('game_information.cancel')
 }) %></script>
+<%- include('../modals/game_information/manual_game') %>
 <script>
 (function () {
 	function applyGiControlsLayout() {
@@ -396,6 +460,12 @@
 		}
 		if (searchLabel.parentElement !== filterHighlight) {
 			filterHighlight.appendChild(searchLabel);
+		}
+		var addBtn = document.getElementById('btn-add-gi-manual-game');
+		if (addBtn && filterHighlight && searchLabel) {
+			if (addBtn.parentElement !== filterHighlight || addBtn.nextElementSibling !== searchLabel) {
+				filterHighlight.insertBefore(addBtn, searchLabel);
+			}
 		}
 		if (searchInput) {
 			searchInput.setAttribute('placeholder', 'Search...');
