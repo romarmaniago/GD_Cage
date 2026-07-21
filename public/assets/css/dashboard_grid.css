@@ -2468,11 +2468,13 @@ body {
   }
 }
 
-#modal-dash-beyond-chips-edit {
+#modal-dash-beyond-chips-edit,
+#modal-dash-cage-manual-cash-edit {
   z-index: 1060;
 }
 
-#modal-dash-beyond-chips-edit ~ .modal-backdrop {
+#modal-dash-beyond-chips-edit ~ .modal-backdrop,
+#modal-dash-cage-manual-cash-edit ~ .modal-backdrop {
   z-index: 1055;
 }
 
@@ -2510,6 +2512,69 @@ body {
 
 .dash-beyond-chips-history-tbl .dash-beyond-chips-actions .btn,
 .dash-beyond-chips-history-tbl .js-beyond-chips-actions .btn {
+  padding: 0.1rem 0.35rem;
+  line-height: 1.2;
+}
+
+/* Cage manual cash (USD / GCASH) — compact fitted layout */
+.modal-dash-cage-manual-cash-dialog {
+  max-width: 34rem;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-form {
+  display: grid;
+  grid-template-columns: 8.5rem 6.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: end;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-form .form-label {
+  line-height: 1.2;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-wrapper {
+  width: 100%;
+}
+
+#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-alt-input,
+#modal-dash-cage-manual-cash .cage-manual-cash-add-date .flatpickr-input.form-control {
+  width: 100%;
+}
+
+#dash-cage-manual-cash-history-tbl {
+  table-layout: fixed;
+  width: 100%;
+}
+
+#dash-cage-manual-cash-history-tbl th,
+#dash-cage-manual-cash-history-tbl td {
+  vertical-align: middle;
+  padding: 0.35rem 0.45rem;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-date {
+  width: 9rem;
+  white-space: nowrap;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-amount {
+  width: 5.25rem;
+  white-space: nowrap;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-remarks {
+  width: auto;
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-action {
+  width: 4.75rem;
+  white-space: nowrap;
+}
+
+#dash-cage-manual-cash-history-tbl .cage-manual-cash-col-action .btn {
   padding: 0.1rem 0.35rem;
   line-height: 1.2;
 }

@@ -218,8 +218,14 @@
 
       var grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
 
-      var usdBalance = pickCurrency(sqlCurrencyPending, 'USD');
-      var gcashBalance = pickCurrency(sqlCurrencyPending, 'GCASH');
+      function pickManualCash(rows, code) {
+         if (!rows || !rows.length) return 0;
+         var row = rows.find(function (r) { return String(r.CURRENCY || '').toUpperCase() === String(code).toUpperCase(); });
+         return row ? (+row.total || 0) : 0;
+      }
+
+      var usdBalance = pickManualCash(sqlCageManualCash, 'USD');
+      var gcashBalance = pickManualCash(sqlCageManualCash, 'GCASH');
       var phpBalance = cashBalance;
       var cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance;
       var cageBalanceDiff = houseBalance - cageBalanceTotal;
@@ -256,10 +262,19 @@
                      <a href="/activity_log">Cage Balance</a>
                      <span class="dash-card-meta"><%= nowStampDisplay %></span>
                   </div>
-                  <div class="card-body">
+                  <div class="card-body" id="dash-cage-cash-panel"
+                     data-php-balance="<%= phpBalance %>"
+                     data-chips-balance="<%= totalChipsBalance %>"
+                     data-house-balance="<%= houseBalance %>">
                      <div class="dash-kv-group-title is-warn">Cash</div>
-                     <div class="dash-kv"><span class="dash-kv-label">USD $</span><span class="dash-kv-value"><%- fmtAmt(usdBalance) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">GCASH</span><span class="dash-kv-value"><%- fmtAmt(gcashBalance) %></span></div>
+                     <div class="dash-kv">
+                        <span class="dash-kv-label">USD $</span>
+                        <span class="dash-kv-value"><a href="#" class="dash-card-link js-open-cage-manual-cash" data-currency="USD" data-view-only-disable id="dash-cage-usd-total"><%- fmtAmt(usdBalance) %></a></span>
+                     </div>
+                     <div class="dash-kv">
+                        <span class="dash-kv-label">GCASH</span>
+                        <span class="dash-kv-value"><a href="#" class="dash-card-link js-open-cage-manual-cash" data-currency="GCASH" data-view-only-disable id="dash-cage-gcash-total"><%- fmtAmt(gcashBalance) %></a></span>
+                     </div>
                      <div class="dash-kv"><span class="dash-kv-label">PHP ₱</span><span class="dash-kv-value"><%- fmtAmt(phpBalance) %></span></div>
                      <div class="dash-kv-group-title is-warn">Chips</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-nn-chips" data-bs-toggle="modal" data-view-only-disable>NN</a></span><span class="dash-kv-value"><%- fmtAmt(nnChipsBalance) %></span></div>
@@ -272,7 +287,7 @@
 
                <div class="dash-cage-balance-diff">
                   <span class="dash-kv-label">The difference</span>
-                  <span class="dash-kv-value"><%- fmtAmt(cageBalanceDiff) %></span>
+                  <span class="dash-kv-value" id="dash-cage-balance-diff-value"><%- fmtAmt(cageBalanceDiff) %></span>
                </div>
 
                <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
@@ -721,6 +736,7 @@
 <%- include ('modals/junket/edit_capital') %>
 <%- include ('modals/dashboard/new_total_chips') %>
 <%- include ('modals/dashboard/beyond_chips') %>
+<%- include ('modals/dashboard/cage_manual_cash') %>
 <%- include ('modals/dashboard/soa_fnb_hotel') %>
 <%- include ('modals/dashboard/rolling_remarks') %>
 <%- include ('modals/dashboard/wl_remarks') %>
@@ -770,6 +786,7 @@
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
 <script src="/assets/js/functions/dashboard_grid.js?v=5"></script>
+<script src="/assets/js/functions/dashboard_cage_cash_manual.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
 <script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/dashboard_service_balance.js"></script>

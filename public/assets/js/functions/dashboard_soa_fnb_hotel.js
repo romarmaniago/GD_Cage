@@ -59,6 +59,55 @@
     return `${y}-${m}-${day}`;
   }
 
+  function formatYmd(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  function todayProgramDateValue() {
+    return formatYmd(new Date());
+  }
+
+  function getProgramDateValue(el) {
+    if (!el) return '';
+    if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+      return formatYmd(el._flatpickr.selectedDates[0]);
+    }
+    const manual = parseManualDate(el.value);
+    if (manual) return manual;
+    return String(el.value || '').trim().slice(0, 10);
+  }
+
+  function ensureProgramDatePicker(el, defaultDate) {
+    if (!el) return;
+    const dateVal = defaultDate || getProgramDateValue(el) || todayProgramDateValue();
+    if (typeof flatpickr === 'undefined') {
+      el.value = dateVal;
+      return;
+    }
+    if (el._flatpickr) {
+      try { el._flatpickr.destroy(); } catch (e) { /* ignore */ }
+    }
+    flatpickr(el, {
+      enableTime: false,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'M j, Y',
+      defaultDate: dateVal,
+      allowInput: true,
+      disableMobile: true,
+      closeOnSelect: true
+    });
+  }
+
+  function focusProgramDateInput(el) {
+    if (!el) return;
+    const target = el._flatpickr && el._flatpickr.altInput ? el._flatpickr.altInput : el;
+    target.focus();
+  }
+
   function parseManualDate(raw) {
     const text = String(raw || '').trim();
     if (!text) return '';
@@ -154,7 +203,7 @@
     if (els.category) els.category.value = '';
     if (els.amount) els.amount.value = '';
     if (els.remarks) els.remarks.value = '';
-    if (els.programDate) els.programDate.value = '';
+    ensureProgramDatePicker(els.programDate, todayProgramDateValue());
   }
 
   async function loadHistory(dateFrom, dateTo) {
@@ -290,10 +339,10 @@
     if (els.editCategory) els.editCategory.value = row.category || '';
     if (els.editAmount) els.editAmount.value = formatAmountInput(Math.round(Number(row.amount) || 0));
     if (els.editRemarks) els.editRemarks.value = row.remarks || '';
-    if (els.editProgramDate) els.editProgramDate.value = formatDateInput(row.soaDate || '');
+    ensureProgramDatePicker(els.editProgramDate, toIsoDateOnly(row.soaDate || '') || todayProgramDateValue());
     const instance = bootstrap.Modal.getOrCreateInstance(els.editModal);
     instance.show();
-    els.editModal.addEventListener('shown.bs.modal', () => els.editProgramDate?.focus(), { once: true });
+    els.editModal.addEventListener('shown.bs.modal', () => focusProgramDateInput(els.editProgramDate), { once: true });
   }
 
   async function openSoaModal() {
@@ -306,7 +355,7 @@
 
     showModal();
     await loadHistory(period.from, period.to);
-    els.modal?.addEventListener('shown.bs.modal', () => els.programDate?.focus(), { once: true });
+    els.modal?.addEventListener('shown.bs.modal', () => focusProgramDateInput(els.programDate), { once: true });
   }
 
   function bind() {
@@ -320,6 +369,16 @@
       if (el.tagName === 'INPUT') {
         el.type = 'text';
         el.removeAttribute('inputmode');
+      }
+    });
+
+    els.modal?.addEventListener('show.bs.modal', () => {
+      ensureProgramDatePicker(els.programDate, todayProgramDateValue());
+    });
+
+    els.editModal?.addEventListener('show.bs.modal', () => {
+      if (els.editProgramDate && !els.editId?.value) {
+        ensureProgramDatePicker(els.editProgramDate, todayProgramDateValue());
       }
     });
 
@@ -341,11 +400,11 @@
       const category = String(els.category?.value || '').trim();
       const amount = parseAmount(els.amount?.value);
       const remarks = String(els.remarks?.value || '').trim();
-      const programDate = parseManualDate(els.programDate?.value);
+      const programDate = getProgramDateValue(els.programDate);
       const saveBtn = els.saveBtn || els.form.querySelector('[type="submit"]');
 
       if (!category) {
-        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a service category label.' });
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter SOA.' });
         return;
       }
       if (Number.isNaN(amount) || amount === 0) {
@@ -353,7 +412,7 @@
         return;
       }
       if (!programDate) {
-        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid program date (YYYY/MM/DD).' });
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please select a valid program date.' });
         return;
       }
 
@@ -366,7 +425,7 @@
           refreshDashboardSoaTotal(dateFrom, dateTo)
         ]);
         if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', timer: 900, showConfirmButton: false });
-        els.programDate?.focus();
+        focusProgramDateInput(els.programDate);
       } catch (err) {
         console.error('save soa:', err);
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save SOA.' });
@@ -435,14 +494,14 @@
       const category = String(els.editCategory?.value || '').trim();
       const amount = parseAmount(els.editAmount?.value);
       const remarks = String(els.editRemarks?.value || '').trim();
-      const programDate = parseManualDate(els.editProgramDate?.value);
+      const programDate = getProgramDateValue(els.editProgramDate);
       const saveBtn = els.editForm.querySelector('[type="submit"]');
       const dateFrom = els.dateFrom?.value || '';
       const dateTo = els.dateTo?.value || '';
 
       if (!id) return;
       if (!category) {
-        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a service category label.' });
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter SOA.' });
         return;
       }
       if (Number.isNaN(amount) || amount === 0) {
@@ -450,7 +509,7 @@
         return;
       }
       if (!programDate) {
-        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid program date (YYYY/MM/DD).' });
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please select a valid program date.' });
         return;
       }
 

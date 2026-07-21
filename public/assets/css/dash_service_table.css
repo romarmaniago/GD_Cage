@@ -231,11 +231,23 @@
   width: calc(100% - 1.5rem);
 }
 
-#modal-dash-soa-fnb-hotel .soa-add-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.5rem 0.6rem;
+#modal-dash-soa-fnb-hotel .soa-add-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.65rem;
+  align-items: end;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-wrapper,
+#modal-dash-soa-fnb-hotel-edit .flatpickr-wrapper {
+  display: block;
+  width: 100%;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-input.form-control,
+#modal-dash-soa-fnb-hotel-edit .flatpickr-input.form-control {
+  width: 100%;
 }
 
 #modal-dash-soa-fnb-hotel .soa-add-field {
@@ -244,28 +256,30 @@
   min-width: 0;
 }
 
+#modal-dash-soa-fnb-hotel .soa-add-program-date {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 #modal-dash-soa-fnb-hotel .soa-add-category {
-  flex: 1 1 8.5rem;
-  min-width: 8rem;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 #modal-dash-soa-fnb-hotel .soa-add-amount {
-  flex: 0 0 5.5rem;
-  width: 5.5rem;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 #modal-dash-soa-fnb-hotel .soa-add-remarks {
-  flex: 1 1 7.5rem;
-  min-width: 7rem;
-}
-
-#modal-dash-soa-fnb-hotel .soa-add-program-date {
-  flex: 0 0 7rem;
-  width: 7rem;
+  grid-column: 2;
+  grid-row: 2;
 }
 
 #modal-dash-soa-fnb-hotel .soa-add-save {
-  flex: 0 0 auto;
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: end;
 }
 
 #modal-dash-soa-fnb-hotel .soa-add-save .form-label {
@@ -273,7 +287,7 @@
 }
 
 #btn-dash-soa-save {
-  min-width: 4.25rem;
+  min-width: 4.5rem;
   height: calc(1.5em + 0.5rem + 2px);
   padding-left: 0.9rem;
   padding-right: 0.9rem;

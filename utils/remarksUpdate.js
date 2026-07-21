@@ -94,6 +94,12 @@ const REMARKS_TABLES = {
 		activeValue: 1,
 		editedByCol: 'UPDATED_BY',
 		editedDtCol: 'UPDATED_DT'
+	},
+	cage_manual_cash: {
+		table: 'cage_manual_cash',
+		column: 'REMARKS',
+		activeCol: 'ACTIVE',
+		activeValue: 1
 	}
 };
 

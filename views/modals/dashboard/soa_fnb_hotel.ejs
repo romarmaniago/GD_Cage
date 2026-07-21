@@ -11,22 +11,22 @@
           <input type="hidden" id="dash-soa-date-from">
           <input type="hidden" id="dash-soa-date-to">
 
-          <div class="soa-add-row mb-3">
+          <div class="soa-add-form mb-3">
             <div class="soa-add-field soa-add-program-date">
               <label for="dash-soa-program-date" class="form-label small text-muted mb-1">Program Date</label>
-              <input type="text" class="form-control form-control-sm" id="dash-soa-program-date" placeholder="YYYY/MM/DD" autocomplete="off" spellcheck="false" required>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-program-date" autocomplete="off" spellcheck="false" required>
             </div>
             <div class="soa-add-field soa-add-category">
-              <label for="dash-soa-category" class="form-label small text-muted mb-1">Service Category</label>
-              <input type="text" class="form-control form-control-sm" id="dash-soa-category" placeholder="e.g. F&amp;B, Hotel" maxlength="100" autocomplete="off" required>
+              <label for="dash-soa-category" class="form-label small text-muted mb-1">SOA</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-category" maxlength="100" autocomplete="off" required>
             </div>
             <div class="soa-add-field soa-add-amount">
               <label for="dash-soa-amount" class="form-label small text-muted mb-1">Amount</label>
-              <input type="text" class="form-control form-control-sm" id="dash-soa-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-amount" inputmode="numeric" autocomplete="off" required>
             </div>
             <div class="soa-add-field soa-add-remarks">
               <label for="dash-soa-remarks" class="form-label small text-muted mb-1">Remarks</label>
-              <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-remarks" name="soa_remarks" placeholder="Any remarks" maxlength="500" autocomplete="off" spellcheck="true">
+              <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-remarks" name="soa_remarks" maxlength="500" autocomplete="off" spellcheck="true">
             </div>
             <div class="soa-add-field soa-add-save">
               <label class="form-label small text-muted mb-1">&nbsp;</label>
@@ -39,7 +39,7 @@
               <thead>
                 <tr>
                   <th class="soa-col-program-date">Program Date</th>
-                  <th class="soa-col-category">Service Category</th>
+                  <th class="soa-col-category">SOA</th>
                   <th class="soa-col-amount text-end">Amount</th>
                   <th class="soa-col-remarks">Remarks</th>
                   <th class="soa-col-action text-center">Action</th>
@@ -81,19 +81,19 @@
           <input type="hidden" id="dash-soa-edit-id">
           <div class="mb-2">
             <label for="dash-soa-edit-program-date" class="form-label small text-muted mb-1">Program Date</label>
-            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-program-date" placeholder="YYYY/MM/DD" autocomplete="off" spellcheck="false" required>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-program-date" autocomplete="off" spellcheck="false" required>
           </div>
           <div class="mb-2">
-            <label for="dash-soa-edit-category" class="form-label small text-muted mb-1">Service Category</label>
-            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-category" placeholder="e.g. F&amp;B, Hotel" maxlength="100" autocomplete="off" required>
+            <label for="dash-soa-edit-category" class="form-label small text-muted mb-1">SOA</label>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-category" maxlength="100" autocomplete="off" required>
           </div>
           <div class="mb-2">
             <label for="dash-soa-edit-amount" class="form-label small text-muted mb-1">Amount</label>
-            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-amount" inputmode="numeric" autocomplete="off" required>
           </div>
           <div>
             <label for="dash-soa-edit-remarks" class="form-label small text-muted mb-1">Remarks</label>
-            <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-edit-remarks" name="soa_edit_remarks" placeholder="Any remarks" maxlength="500" autocomplete="off" spellcheck="true">
+            <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-edit-remarks" name="soa_edit_remarks" maxlength="500" autocomplete="off" spellcheck="true">
           </div>
         </div>
         <div class="modal-footer py-2">

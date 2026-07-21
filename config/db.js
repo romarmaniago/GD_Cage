@@ -19,6 +19,7 @@ const { ensureDashboardWlShareSchema } = require('../utils/ensureDashboardWlShar
 const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettlementCleanup');
 const { ensureAdditionalCommissionSchema } = require('../utils/ensureAdditionalCommissionSchema');
 const { ensureBeyondChipsSchema } = require('../utils/ensureBeyondChipsSchema');
+const { ensureCageManualCashSchema } = require('../utils/ensureCageManualCashSchema');
 const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardCheckRemarksSchema');
 const { ensureSoaFnbHotelSchema } = require('../utils/ensureSoaFnbHotelSchema');
 const { ensureCreditSchema, backfillCreditFromLedger } = require('../utils/ensureCreditSchema');
@@ -59,6 +60,7 @@ const pool = mysql.createPool({
 		await ensureDashboardWlShareSchema(pool);
 		await ensureAdditionalCommissionSchema(pool);
 		await ensureBeyondChipsSchema(pool);
+		await ensureCageManualCashSchema(pool);
 		await ensureSoaFnbHotelSchema(pool);
 		await ensureDashboardCheckRemarksSchema(pool);
 		await ensureCreditSchema(pool);
