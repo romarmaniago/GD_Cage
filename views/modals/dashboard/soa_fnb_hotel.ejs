@@ -1,5 +1,5 @@
 <div class="modal fade" id="modal-dash-soa-fnb-hotel" tabindex="-1" aria-labelledby="modal-dash-soa-fnb-hotel-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
-  <div class="modal-dialog modal-dialog-centered modal-md">
+  <div class="modal-dialog modal-dialog-centered modal-dash-soa-dialog">
     <div class="modal-content">
       <div class="modal-header bg-primary py-2">
         <h5 class="modal-title text-white mb-0" id="modal-dash-soa-fnb-hotel-label">SOA (F&amp;B, Hotel)</h5>
@@ -11,14 +11,26 @@
           <input type="hidden" id="dash-soa-date-from">
           <input type="hidden" id="dash-soa-date-to">
 
-          <div class="row g-2 align-items-end mb-3">
-            <div class="col-auto">
-              <label class="form-label small text-muted mb-1">Period</label>
-              <input type="text" class="form-control form-control-sm" id="dash-soa-period-label" readonly tabindex="-1" value="—" style="min-width: 170px;">
+          <div class="soa-add-form mb-3">
+            <div class="soa-add-field soa-add-program-date">
+              <label for="dash-soa-program-date" class="form-label small text-muted mb-1">Program Date</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-program-date" autocomplete="off" spellcheck="false" required>
             </div>
-            <div class="col">
-              <label for="dash-soa-amount" class="form-label small text-muted mb-1">Add SOA Amount</label>
-              <input type="text" class="form-control form-control-sm" id="dash-soa-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+            <div class="soa-add-field soa-add-category">
+              <label for="dash-soa-category" class="form-label small text-muted mb-1">SOA</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-category" maxlength="100" autocomplete="off" required>
+            </div>
+            <div class="soa-add-field soa-add-amount">
+              <label for="dash-soa-amount" class="form-label small text-muted mb-1">Amount</label>
+              <input type="text" class="form-control form-control-sm" id="dash-soa-amount" inputmode="numeric" autocomplete="off" required>
+            </div>
+            <div class="soa-add-field soa-add-remarks">
+              <label for="dash-soa-remarks" class="form-label small text-muted mb-1">Remarks</label>
+              <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-remarks" name="soa_remarks" maxlength="500" autocomplete="off" spellcheck="true">
+            </div>
+            <div class="soa-add-field soa-add-save">
+              <label class="form-label small text-muted mb-1">&nbsp;</label>
+              <button type="submit" class="btn btn-sm btn-primary" id="btn-dash-soa-save">Save</button>
             </div>
           </div>
 
@@ -26,7 +38,8 @@
             <table class="table table-sm table-bordered table-striped mb-0" id="dash-soa-history-tbl">
               <thead>
                 <tr>
-                  <th class="soa-col-date">Date</th>
+                  <th class="soa-col-program-date">Program Date</th>
+                  <th class="soa-col-category">SOA</th>
                   <th class="soa-col-amount text-end">Amount</th>
                   <th class="soa-col-remarks">Remarks</th>
                   <th class="soa-col-action text-center">Action</th>
@@ -34,15 +47,21 @@
               </thead>
               <tbody id="dash-soa-history-body">
                 <tr>
-                  <td colspan="4" class="text-muted text-center py-3">Loading...</td>
+                  <td colspan="5" class="text-muted text-center py-3">Loading...</td>
                 </tr>
               </tbody>
+              <tfoot id="dash-soa-history-foot">
+                <tr class="soa-total-row">
+                  <th colspan="2" class="soa-total-label">TOTAL</th>
+                  <th class="soa-col-amount text-end" id="dash-soa-history-total">0</th>
+                  <th colspan="2" class="soa-total-rest"></th>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
 
         <div class="modal-footer py-2">
-          <button type="submit" class="btn btn-sm btn-primary">Save</button>
           <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </form>
@@ -54,14 +73,28 @@
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content">
       <div class="modal-header bg-primary py-2">
-        <h5 class="modal-title text-white mb-0" id="modal-dash-soa-fnb-hotel-edit-label">Edit Amount</h5>
+        <h5 class="modal-title text-white mb-0" id="modal-dash-soa-fnb-hotel-edit-label">Edit SOA Entry</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form id="dash-soa-edit-form">
         <div class="modal-body py-3">
           <input type="hidden" id="dash-soa-edit-id">
-          <label for="dash-soa-edit-amount" class="form-label small text-muted mb-1">Amount</label>
-          <input type="text" class="form-control form-control-sm" id="dash-soa-edit-amount" placeholder="0" inputmode="numeric" autocomplete="off" required>
+          <div class="mb-2">
+            <label for="dash-soa-edit-program-date" class="form-label small text-muted mb-1">Program Date</label>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-program-date" autocomplete="off" spellcheck="false" required>
+          </div>
+          <div class="mb-2">
+            <label for="dash-soa-edit-category" class="form-label small text-muted mb-1">SOA</label>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-category" maxlength="100" autocomplete="off" required>
+          </div>
+          <div class="mb-2">
+            <label for="dash-soa-edit-amount" class="form-label small text-muted mb-1">Amount</label>
+            <input type="text" class="form-control form-control-sm" id="dash-soa-edit-amount" inputmode="numeric" autocomplete="off" required>
+          </div>
+          <div>
+            <label for="dash-soa-edit-remarks" class="form-label small text-muted mb-1">Remarks</label>
+            <input type="text" class="form-control form-control-sm soa-remarks-input" id="dash-soa-edit-remarks" name="soa_edit_remarks" maxlength="500" autocomplete="off" spellcheck="true">
+          </div>
         </div>
         <div class="modal-footer py-2">
           <button type="submit" class="btn btn-sm btn-primary">Save</button>
@@ -71,4 +104,3 @@
     </div>
   </div>
 </div>
-

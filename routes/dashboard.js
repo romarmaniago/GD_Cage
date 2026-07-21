@@ -962,6 +962,17 @@ let sqlServiceSettle = `
 		const [ReturnRollerCCChipsResult] = await pool.execute(sqlReturnRollerCCChips);
 		const [UnreturnedRollerChipsResult] = await pool.execute(sqlUnreturnedRollerChips);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
+		let CageManualCashResult = [];
+		try {
+			[CageManualCashResult] = await pool.execute(
+				`SELECT UPPER(CURRENCY) AS CURRENCY, COALESCE(SUM(AMOUNT), 0) AS total
+				 FROM cage_manual_cash
+				 WHERE ACTIVE = 1
+				 GROUP BY UPPER(CURRENCY)`
+			);
+		} catch (cageManualCashErr) {
+			console.error('cage_manual_cash totals query:', cageManualCashErr.message || cageManualCashErr);
+		}
 
 		const dashboardMonthKey = currentMonthKey();
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
@@ -998,6 +1009,7 @@ let sqlServiceSettle = `
 			sqlMxPhpDepositOut: MxPhpDepositOutResult,
 			sqlMxCashNet: MxCashNetResult,
 			sqlCurrencyPending: CurrencyPendingResult,
+			sqlCageManualCash: CageManualCashResult,
 			dashboardWlSharePct,
 			dashboardWlShareDefault: DEFAULT_DASHBOARD_WL_SHARE_PCT,
 			dashboardMonthKey,
@@ -3781,6 +3793,163 @@ router.delete('/delete_beyond_chips', checkSession, async (req, res) => {
 	}
 });
 
+function normalizeCageManualCurrency(raw) {
+	const currency = String(raw || '').trim().toUpperCase();
+	return currency === 'USD' || currency === 'GCASH' ? currency : '';
+}
+
+router.get('/cage_manual_cash_totals', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			`SELECT UPPER(CURRENCY) AS currency, COALESCE(SUM(AMOUNT), 0) AS total
+			 FROM cage_manual_cash
+			 WHERE ACTIVE = 1
+			 GROUP BY UPPER(CURRENCY)`
+		);
+		const totals = { USD: 0, GCASH: 0 };
+		(rows || []).forEach((row) => {
+			const code = normalizeCageManualCurrency(row.currency);
+			if (code) totals[code] = Number(row.total) || 0;
+		});
+		res.json({ totals });
+	} catch (error) {
+		console.error('cage_manual_cash_totals:', error);
+		res.status(500).json({ message: 'Error loading cage cash totals.' });
+	}
+});
+
+router.get('/cage_manual_cash_history', checkSession, async (req, res) => {
+	try {
+		const currency = normalizeCageManualCurrency(req.query.currency);
+		const reportDate = String(req.query.report_date || '').trim();
+		if (!currency) {
+			return res.status(400).json({ message: 'Currency is required.' });
+		}
+		if (!reportDate) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+
+		const [rows] = await pool.execute(
+			`SELECT
+				cmc.IDNo AS id,
+				cmc.AMOUNT AS amount,
+				cmc.REMARKS AS remarks,
+				DATE_FORMAT(cmc.REPORT_DATE, '%Y-%m-%d') AS report_date,
+				DATE_FORMAT(cmc.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
+			 FROM cage_manual_cash cmc
+			 WHERE cmc.ACTIVE = 1
+				AND UPPER(cmc.CURRENCY) = ?
+				AND cmc.REPORT_DATE = ?
+			 ORDER BY cmc.ENCODED_DT DESC, cmc.IDNo DESC`,
+			[currency, reportDate]
+		);
+
+		const entries = rows || [];
+		const total = entries.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+		res.json({ entries, total });
+	} catch (error) {
+		console.error('cage_manual_cash_history:', error);
+		res.status(500).json({ message: 'Error loading cage cash history.' });
+	}
+});
+
+router.post('/add_cage_manual_cash', checkSession, async (req, res) => {
+	try {
+		const currency = normalizeCageManualCurrency(req.body.currency);
+		const reportDate = String(req.body.report_date || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
+		const parsedAmount = Number(req.body.amount);
+
+		if (!currency) {
+			return res.status(400).json({ message: 'Currency is required.' });
+		}
+		if (!reportDate) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO cage_manual_cash
+				(CURRENCY, REPORT_DATE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, 1)`,
+			[currency, reportDate, parsedAmount, remarks || null, userId, now]
+		);
+
+		res.json({ success: true, message: 'Entry saved successfully.' });
+	} catch (error) {
+		console.error('add_cage_manual_cash:', error);
+		res.status(500).json({ message: 'Error saving entry.' });
+	}
+});
+
+router.put('/update_cage_manual_cash', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
+		const parsedAmount = Number(req.body.amount);
+
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+			return res.status(400).json({ message: 'Please enter a valid amount.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		const [result] = await pool.execute(
+			`UPDATE cage_manual_cash
+			 SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[parsedAmount, remarks || null, userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'Entry updated successfully.' });
+	} catch (error) {
+		console.error('update_cage_manual_cash:', error);
+		res.status(500).json({ message: 'Error updating entry.' });
+	}
+});
+
+router.delete('/delete_cage_manual_cash', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.body.id, 10);
+
+		if (!id || id < 1) {
+			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		const [result] = await pool.execute(
+			`UPDATE cage_manual_cash
+			 SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[userId, now, id]
+		);
+
+		if (!result.affectedRows) {
+			return res.status(404).json({ message: 'Entry not found.' });
+		}
+
+		res.json({ success: true, message: 'Entry deleted successfully.' });
+	} catch (error) {
+		console.error('delete_cage_manual_cash:', error);
+		res.status(500).json({ message: 'Error deleting entry.' });
+	}
+});
+
 // -------------------------
 // SOA (F&B, Hotel) - custom DB
 // -------------------------
@@ -3796,6 +3965,7 @@ router.get('/soa_fnb_hotel_history', checkSession, async (req, res) => {
 			`SELECT
 				sfh.IDNo AS id,
 				DATE_FORMAT(sfh.SOA_DATE, '%Y-%m-%d') AS soa_date,
+				sfh.CATEGORY AS category,
 				sfh.AMOUNT AS amount,
 				sfh.REMARKS AS remarks,
 				DATE_FORMAT(sfh.ENCODED_DT, '%Y-%m-%d %H:%i') AS encoded_dt
@@ -3840,9 +4010,17 @@ router.get('/soa_fnb_hotel_total', checkSession, async (req, res) => {
 router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 	try {
 		const soaDate = String(req.body.soa_date || '').trim();
+		const category = String(req.body.category || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
-		if (!soaDate) {
-			return res.status(400).json({ message: 'SOA date is required.' });
+		if (!category) {
+			return res.status(400).json({ message: 'SOA is required.' });
+		}
+		if (category.length > 100) {
+			return res.status(400).json({ message: 'SOA label is too long.' });
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
+			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
 		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
 			return res.status(400).json({ message: 'Please enter a valid amount to add.' });
@@ -3854,8 +4032,8 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 		await pool.execute(
 			`INSERT INTO soa_fnb_hotel
 				(SOA_DATE, CATEGORY, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, ACTIVE)
-			 VALUES (?, 'SOA', ?, NULL, ?, ?, 1)`,
-			[soaDate, parsedAmount, userId, now]
+			 VALUES (?, ?, ?, ?, ?, ?, 1)`,
+			[soaDate, category, parsedAmount, remarks || null, userId, now]
 		);
 
 		res.json({ success: true, message: 'SOA saved successfully.' });
@@ -3868,9 +4046,21 @@ router.post('/add_soa_fnb_hotel', checkSession, async (req, res) => {
 router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.body.id, 10);
+		const soaDate = String(req.body.soa_date || req.body.program_date || '').trim();
+		const category = String(req.body.category || '').trim();
+		const remarks = String(req.body.remarks != null ? req.body.remarks : '').trim().slice(0, 500);
 		const parsedAmount = Number(req.body.amount);
 		if (!id || id < 1) {
 			return res.status(400).json({ message: 'Invalid entry.' });
+		}
+		if (!category) {
+			return res.status(400).json({ message: 'SOA is required.' });
+		}
+		if (category.length > 100) {
+			return res.status(400).json({ message: 'SOA label is too long.' });
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(soaDate)) {
+			return res.status(400).json({ message: 'Please enter a valid program date (YYYY-MM-DD).' });
 		}
 		if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
 			return res.status(400).json({ message: 'Please enter a valid amount.' });
@@ -3880,9 +4070,9 @@ router.put('/update_soa_fnb_hotel', checkSession, async (req, res) => {
 		const now = new Date();
 		const [result] = await pool.execute(
 			`UPDATE soa_fnb_hotel
-			 SET AMOUNT = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET CATEGORY = ?, AMOUNT = ?, REMARKS = ?, SOA_DATE = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ? AND ACTIVE = 1`,
-			[parsedAmount, userId, now, id]
+			[category, parsedAmount, remarks || null, soaDate, userId, now, id]
 		);
 
 		if (!result.affectedRows) {

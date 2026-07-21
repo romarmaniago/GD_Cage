@@ -192,6 +192,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const parsedTransactionId = parseInt(transaction_id, 10);
 		const parsedGuestId = parseInt(guest_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
+		const absAmt = Math.abs(amt);
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
 		const resolvedCategory = await resolveActiveServiceCategory(service_type);
 		const programDate = parseProgramDate(program_date);
@@ -204,6 +205,9 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		}
 		if (!parsedAccountId) {
 			return res.status(400).json({ error: 'Account is required' });
+		}
+		if (!Number.isFinite(amt) || amt === 0) {
+			return res.status(400).json({ error: 'Amount is required' });
 		}
 
 		const resolvedGameId = Number.isNaN(parsedGameId) ? null : parsedGameId;
@@ -232,7 +236,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				insertResult.insertId,
 				resolvedAgentId,
-				amt.toString(),
+				absAmt.toString(),
 				resolvedCategory,
 				cashType,
 				remarks || '',
@@ -245,7 +249,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			await pool.execute(
 				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[parsedAccountId, resolvedGameId, amt, encodedBy, now]
+				[parsedAccountId, resolvedGameId, absAmt, encodedBy, now]
 			);
 
 			if (sourceType === 'GUEST') {
@@ -265,7 +269,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 						const TELEGRAM_ID = getAgentTelegramChatId(accountRows[0]);
 
 						if (TELEGRAM_ID) {
-							const formattedAmount = amt.toLocaleString('en-US');
+							const formattedAmount = absAmt.toLocaleString('en-US');
 							const serviceLabel = resolvedCategory;
 							const date_nowTG = now.toLocaleDateString();
 							const updated_time = now.toLocaleTimeString();
@@ -273,8 +277,9 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 							const serviceLine = remarksText
 								? `Service: ${serviceLabel} - ${remarksText}`
 								: `Service: ${serviceLabel}`;
+							const signLabel = amt < 0 ? '-' : '+';
 
-							const text = `Demo Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+							const text = `Demo Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${signLabel}${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 							await sendTelegramMessage(text, TELEGRAM_ID);
 							await sendTelegramToAdditionalChats(text);

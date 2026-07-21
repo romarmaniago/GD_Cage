@@ -196,21 +196,10 @@ $(document).ready(function() {
 
 				services.forEach(function(service) {
 					const amt = Number(service.AMOUNT) || 0;
-					const hasDecimals = amt % 1 !== 0;
-					const formattedAmt = hasDecimals
-						? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-						: amt.toLocaleString('en-US');
-					const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
-					const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
-					const displayAmt = isJunketSource
-						? (window.fmtOut ? window.fmtOut(amt) : '(' + formattedAmt + ')')
-						: formattedAmt;
 					const hasGameId = !!service.GAME_ID;
 					const isGameSettled = hasGameId && service.game_settled === 1;
 					const canEdit = !hasGameId;
 					const canDelete = !hasGameId;
-
-					const amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
 
 					const agentCode = String(service.agent_code || '').trim();
 					const agentName = String(service.agent_name || '').trim();
@@ -219,7 +208,9 @@ $(document).ready(function() {
 						: escapeHtml(agentCode || agentName || '-');
 					const guestHtml = escapeHtml(String(service.guest_name || '').trim() || '-');
 					const serviceTypeHtml = service.SERVICE_TYPE || '';
-					const amountHtml = `<span class="${amountClass}">${displayAmt}</span>`;
+					const amountHtml = typeof window.formatServiceChargeAmount === 'function'
+						? window.formatServiceChargeAmount(amt, service.SOURCE_TYPE)
+						: String(amt);
 					const paymentHtml = paymentLabel(service.TRANSACTION_ID);
 					const remarksHtml = window.RemarksEditor
 						? window.RemarksEditor.renderCell(service.REMARKS || '', {

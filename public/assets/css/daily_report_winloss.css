@@ -465,8 +465,8 @@
 }
 
 #modal-dash-winloss-report .dash-winloss-report-dialog {
-  max-width: min(calc(100vw - 4rem), 94rem) !important;
-  width: min(calc(100vw - 4rem), 94rem) !important;
+  max-width: min(calc(100vw - 2rem), 98rem) !important;
+  width: min(calc(100vw - 2rem), 98rem) !important;
   max-height: calc(100vh - 2.5rem);
   margin: 1.25rem auto;
 }
@@ -525,10 +525,15 @@
   width: 100% !important;
 }
 
-#modal-dash-winloss-report #daily-report-view-table thead th {
+#modal-dash-winloss-report #daily-report-view-table thead th,
+#modal-dash-winloss-report #daily-report-view-table thead th.daily-report-date-col,
+#modal-dash-winloss-report #daily-report-view-table thead th.daily-report-amount-col,
+#modal-dash-winloss-report #daily-report-view-table thead th.daily-report-total-col {
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
   font-size: 10px;
   line-height: 1.2;
-  padding: 6px 6px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -551,6 +556,14 @@
   overflow: visible;
   text-overflow: clip;
   white-space: nowrap;
+}
+
+#modal-dash-winloss-report #daily-report-view-table td.daily-report-amount-col,
+#modal-dash-winloss-report #daily-report-view-table td.daily-report-total-col,
+#modal-dash-winloss-report #daily-report-view-table tfoot th.daily-report-amount-col,
+#modal-dash-winloss-report #daily-report-view-table tfoot th.daily-report-total-col {
+  text-align: right;
+  padding-right: 6px;
 }
 
 #modal-dash-winloss-report #daily-report-view-table td.daily-report-amount-col,

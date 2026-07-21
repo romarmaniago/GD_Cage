@@ -1,0 +1,139 @@
+<div class="modal fade" id="modal-dash-cage-manual-cash" tabindex="-1" aria-labelledby="modal-dash-cage-manual-cash-label" aria-hidden="true" data-bs-backdrop="static" data-bs-focus="false">
+
+  <div class="modal-dialog modal-dialog-centered modal-md modal-dash-cage-manual-cash-dialog">
+
+    <div class="modal-content">
+
+      <div class="modal-header bg-primary py-2">
+
+        <h5 class="modal-title text-white mb-0" id="modal-dash-cage-manual-cash-label">USD $</h5>
+
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+      </div>
+
+      <form id="dash-cage-manual-cash-form">
+
+        <div class="modal-body py-3">
+
+          <input type="hidden" id="dash-cage-manual-cash-currency" value="">
+
+          <div class="cage-manual-cash-add-form mb-3">
+            <div class="cage-manual-cash-add-date">
+              <label for="dash-cage-manual-cash-program-date" class="form-label small text-muted mb-1">Program Date</label>
+              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-program-date" autocomplete="off" spellcheck="false" required>
+            </div>
+            <div class="cage-manual-cash-add-amount">
+              <label for="dash-cage-manual-cash-amount" class="form-label small text-muted mb-1" id="dash-cage-manual-cash-amount-label">Add Amount</label>
+              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-amount" inputmode="numeric" autocomplete="off" required>
+            </div>
+            <div class="cage-manual-cash-add-remarks">
+              <label for="dash-cage-manual-cash-remarks" class="form-label small text-muted mb-1">Remarks</label>
+              <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-remarks" name="cage_manual_cash_remarks" maxlength="500" autocomplete="off" spellcheck="true">
+            </div>
+          </div>
+
+          <div class="table-responsive dash-beyond-chips-history-wrap">
+
+            <table class="table table-sm table-bordered table-striped mb-0 dash-beyond-chips-history-tbl" id="dash-cage-manual-cash-history-tbl">
+
+              <thead>
+
+                <tr>
+                  <th class="cage-manual-cash-col-date">Program Date</th>
+                  <th class="cage-manual-cash-col-amount text-end">Amount</th>
+                  <th class="cage-manual-cash-col-remarks">Remarks</th>
+                  <th class="cage-manual-cash-col-action text-center">Action</th>
+                </tr>
+
+              </thead>
+
+              <tbody id="dash-cage-manual-cash-history-body">
+
+                <tr>
+
+                  <td colspan="4" class="text-muted text-center py-3">Loading...</td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+        <div class="modal-footer py-2">
+
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<div class="modal fade" id="modal-dash-cage-manual-cash-edit" tabindex="-1" aria-labelledby="modal-dash-cage-manual-cash-edit-label" aria-hidden="true" data-bs-backdrop="static">
+
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+
+    <div class="modal-content">
+
+      <div class="modal-header bg-primary py-2">
+
+        <h5 class="modal-title text-white mb-0" id="modal-dash-cage-manual-cash-edit-label">Edit Entry</h5>
+
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+
+      </div>
+
+      <form id="dash-cage-manual-cash-edit-form">
+
+        <div class="modal-body py-3">
+
+          <input type="hidden" id="dash-cage-manual-cash-edit-id">
+
+          <div class="mb-2">
+
+            <label for="dash-cage-manual-cash-edit-amount" class="form-label small text-muted mb-1">Amount</label>
+
+            <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-edit-amount" inputmode="numeric" autocomplete="off" required>
+
+          </div>
+
+          <div>
+
+            <label for="dash-cage-manual-cash-edit-remarks" class="form-label small text-muted mb-1">Remarks</label>
+
+            <input type="text" class="form-control form-control-sm" id="dash-cage-manual-cash-edit-remarks" name="cage_manual_cash_edit_remarks" maxlength="500" autocomplete="off" spellcheck="true">
+
+          </div>
+
+        </div>
+
+        <div class="modal-footer py-2">
+
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</div>
+
+

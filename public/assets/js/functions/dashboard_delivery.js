@@ -203,16 +203,9 @@ $(document).ready(function () {
 					if (!isDeliveryServiceType(service.SERVICE_TYPE)) return;
 
 					var amt = Number(service.AMOUNT) || 0;
-					var hasDecimals = amt % 1 !== 0;
-					var formattedAmt = hasDecimals
-						? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-						: amt.toLocaleString('en-US');
-					var isJunketSource = service.SOURCE_TYPE === 'JUNKET';
-					var isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
-					var displayAmt = isJunketSource
-						? (window.fmtOut ? window.fmtOut(amt) : '(' + formattedAmt + ')')
-						: formattedAmt;
-					var amountClass = isJunketSource ? 'text-danger' : (isSettle ? 'text-primary' : '');
+					var amountHtml = typeof window.formatServiceChargeAmount === 'function'
+						? window.formatServiceChargeAmount(amt, service.SOURCE_TYPE)
+						: String(amt);
 					var agentCode = String(service.agent_code || '').trim();
 					var agentName = String(service.agent_name || '').trim();
 					var agentHtml = agentCode && agentName
@@ -232,7 +225,7 @@ $(document).ready(function () {
 						agentHtml,
 						guestHtml,
 						escapeHtml(service.SERVICE_TYPE || ''),
-						'<span class="' + amountClass + '">' + displayAmt + '</span>',
+						amountHtml,
 						paymentLabel(service.TRANSACTION_ID),
 						window.RemarksEditor
 							? window.RemarksEditor.renderCell(service.REMARKS || '', { source: 'game_services', recordId: service.IDNo })

@@ -35,22 +35,12 @@
 	}
 
 	function getProgramDateYmd(row) {
-		var raw = row.PROGRAM_DATE;
-		if (!raw && row.GAME_DATE_START) raw = row.GAME_DATE_START;
-		return ymd(raw);
+		return ymd(row.PROGRAM_DATE);
 	}
 
 	function formatGameStart(dt) {
 		if (!dt || typeof moment === 'undefined') return '—';
 		return moment.utc(dt).utcOffset(8).format('YYYY-MM-DD HH:mm');
-	}
-
-	function formatGameEnd(row) {
-		var status = parseInt(row.game_status, 10);
-		if (status === 2) return t('onGame', 'ON GAME');
-		if (status === 3) return 'PENDING';
-		if (status === 1 && row.GAME_ENDED) return formatGameStart(row.GAME_ENDED);
-		return t('endGame', 'END GAME');
 	}
 
 	function commissionBadge(row) {
@@ -63,75 +53,6 @@
 		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '">' + label + '</span>';
 	}
 
-	function computeTotals(records) {
-		var total_buy_in = 0;
-		var total_nn_init = 0;
-		var total_cc_init = 0;
-		var total_nn = 0;
-		var total_cc = 0;
-		var total_cash_out_nn = 0;
-		var total_cash_out_cc = 0;
-		var total_rolling = 0;
-		var total_rolling_nn = 0;
-		var total_rolling_real = 0;
-		var total_rolling_nn_real = 0;
-		var total_rolling_cc_real = 0;
-		var total_roller_return_cc = 0;
-
-		(records || []).forEach(function (res) {
-			var cage = parseInt(res.CAGE_TYPE, 10);
-			if (cage === 1 && (total_nn_init !== 0 || total_cc_init !== 0)) {
-				total_buy_in += parseFloat(res.AMOUNT) || 0;
-				total_nn += parseFloat(res.NN_CHIPS) || 0;
-				total_cc += parseFloat(res.CC_CHIPS) || 0;
-			}
-			if (total_nn_init === 0 && total_cc_init === 0 && cage === 1) {
-				total_nn_init += parseFloat(res.NN_CHIPS) || 0;
-				total_cc_init += parseFloat(res.CC_CHIPS) || 0;
-			}
-			if (cage === 2) {
-				total_cash_out_nn += parseFloat(res.NN_CHIPS) || 0;
-				total_cash_out_cc += parseFloat(res.CC_CHIPS) || 0;
-			}
-			if (cage === 3) {
-				total_rolling += parseFloat(res.AMOUNT) || 0;
-				total_rolling_nn += parseFloat(res.NN_CHIPS) || 0;
-			}
-			if (cage === 4) {
-				total_rolling_real += parseFloat(res.AMOUNT) || 0;
-				total_rolling_nn_real += parseFloat(res.NN_CHIPS) || 0;
-				total_rolling_cc_real += parseFloat(res.CC_CHIPS) || 0;
-			}
-			if (cage === 5) {
-				var rollerTxn = parseInt(res.ROLLER_TRANSACTION, 10) || 1;
-				if (rollerTxn === 2) {
-					total_roller_return_cc += parseFloat(res.ROLLER_CC_CHIPS) || 0;
-				}
-			}
-		});
-
-		var total_initial = total_nn_init + total_cc_init;
-		var total_buy_in_chips = total_nn + total_cc;
-		var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-		var total_amount = total_buy_in_chips + total_initial;
-		var total_rolling_chips =
-			total_rolling_nn +
-			total_roller_return_cc +
-			total_rolling +
-			total_rolling_real +
-			total_rolling_nn_real +
-			total_rolling_cc_real -
-			total_cash_out_nn;
-		var WinLoss = total_amount - total_cash_out_chips;
-
-		return {
-			buyin: total_amount,
-			cashout: total_cash_out_chips,
-			winloss: WinLoss,
-			rolling: total_rolling_chips
-		};
-	}
-
 	var dataTable = null;
 	var reloadGeneration = 0;
 	var selectedProgramDate = null;
@@ -139,6 +60,101 @@
 	var programTo = null;
 	var giSplitOverrideRange = null;
 	var giSplitDateRange = null;
+	var manualGamesById = {};
+	var giAccountGuestResetting = false;
+
+	function hasActionColumn() {
+		return $('#game_information-tbl thead th').length > 15;
+	}
+
+	function emptyActionCell() {
+		return hasActionColumn() ? '' : null;
+	}
+
+	function formatManualGameEnd(row) {
+		return formatGameStart(row.GAME_ENDED);
+	}
+
+	function buildManualActionCell(manualId) {
+		if (!hasActionColumn()) return '';
+		return (
+			'<div class="gi-manual-actions">' +
+			'<button type="button" class="btn btn-sm btn-alt-primary gi-manual-edit" data-id="' + manualId + '" title="' + t('editGame', 'Edit') + '" data-view-only-disable>' +
+			'<i class="fa fa-pencil"></i></button>' +
+			'<button type="button" class="btn btn-sm btn-alt-danger gi-manual-delete" data-id="' + manualId + '" title="' + t('deleteGame', 'Delete') + '" data-view-only-disable>' +
+			'<i class="fa fa-trash"></i></button>' +
+			'</div>'
+		);
+	}
+
+	function sanitizeAmountInput(value) {
+		return String(value || '').replace(/[^\d.-]/g, '');
+	}
+
+	function formatAmountInput(value) {
+		var cleaned = sanitizeAmountInput(value);
+		if (!cleaned || cleaned === '-' || cleaned === '.') return cleaned;
+		var negative = cleaned.charAt(0) === '-';
+		if (negative) cleaned = cleaned.slice(1);
+		var parts = cleaned.split('.');
+		var integerPart = parts[0] || '0';
+		var decimalPart = parts.length > 1 ? parts[1].slice(0, 2) : '';
+		var formattedInteger = Number(integerPart || 0).toLocaleString('en-US');
+		var out = decimalPart !== '' ? formattedInteger + '.' + decimalPart : formattedInteger;
+		return negative ? '-' + out : out;
+	}
+
+	function parseAmountInput(value) {
+		var clean = String(value || '').replace(/,/g, '').trim();
+		if (clean === '' || Number.isNaN(Number(clean))) return 0;
+		return Number(clean);
+	}
+
+	function displayAmountInput(value) {
+		if (value === null || value === undefined || value === '') return '';
+		if (parseAmountInput(value) === 0) return '';
+		return formatAmountInput(value);
+	}
+
+	function addRowToTable(row, grand) {
+		manualGamesById[row.manual_id] = row;
+		var addChg = parseFloat(row.ADD_CHARGE) || 0;
+		var net = parseFloat(row.COMMISSION) || 0;
+		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
+		var gameType =
+			String(row.GAME_TYPE || '').toUpperCase() === 'TELEBET'
+				? t('telebet', 'TELEBET')
+				: t('live', 'LIVE');
+
+		grand.buyin += parseFloat(row.BUY_IN) || 0;
+		grand.cashout += parseFloat(row.CASH_OUT) || 0;
+		grand.winloss += parseFloat(row.WIN_LOSS) || 0;
+		grand.rolling += parseFloat(row.ROLLING) || 0;
+		grand.commission += net;
+		grand.addChg += addChg;
+		grand.settle += settle;
+
+		var cells = [
+			ymd(row.PROGRAM_DATE) || '—',
+			formatGameStart(row.GAME_START),
+			gameType,
+			row.GAME_NO || '—',
+			row.ACCOUNT_TEXT || '—',
+			row.GUEST_NAME || '—',
+			fmtAmt(row.BUY_IN),
+			fmtAmt(row.CASH_OUT, 'out'),
+			fmtAmt(row.WIN_LOSS, 'signed'),
+			fmtAmt(row.ROLLING, 'signed'),
+			commissionBadge(row),
+			fmtAmt(net, 'out'),
+			fmtAmt(addChg, 'out'),
+			fmtAmt(settle, 'out'),
+			formatManualGameEnd(row)
+		];
+		var actionCell = buildManualActionCell(row.manual_id);
+		if (actionCell !== '') cells.push(actionCell);
+		dataTable.row.add(cells);
+	}
 
 	function applyGiProgramRange(fromDate, toDate) {
 		var from = fromDate;
@@ -187,6 +203,9 @@
 		var gen = ++reloadGeneration;
 		dataTable.clear().draw();
 		resetGrandTotals();
+		manualGamesById = {};
+
+		var grand = { buyin: 0, cashout: 0, winloss: 0, rolling: 0, commission: 0, addChg: 0, settle: 0 };
 
 		$.ajax({
 			url: '/game_information_data',
@@ -195,79 +214,11 @@
 			success: function (rows) {
 				if (gen !== reloadGeneration) return;
 				rows = Array.isArray(rows) ? rows : [];
-				if (!rows.length) return;
-
-				var pending = rows.length;
-				var grand = { buyin: 0, cashout: 0, winloss: 0, rolling: 0, commission: 0, addChg: 0, settle: 0 };
-
 				rows.forEach(function (row) {
-					$.ajax({
-						url: '/game_list/' + row.game_list_id + '/record',
-						method: 'GET',
-						success: function (records) {
-							if (gen !== reloadGeneration) return;
-							var totals = computeTotals(records);
-							var addChg = parseFloat(row.ADD_CHG) || 0;
-							var net = 0;
-							var pct = parseFloat(row.COMMISSION_PERCENTAGE) || 0;
-							var cType = parseInt(row.COMMISSION_TYPE, 10);
-							if (cType === 1 || cType === 3) {
-								net = Math.round((totals.rolling * pct) / 100);
-							} else if (cType === 2) {
-								net = Math.round((totals.winloss * pct) / 100);
-							}
-							var settle = net - addChg;
-
-							grand.buyin += totals.buyin;
-							grand.cashout += totals.cashout;
-							grand.winloss += totals.winloss;
-							grand.rolling += totals.rolling;
-							grand.commission += net;
-							grand.addChg += addChg;
-							grand.settle += settle;
-
-							var acct =
-								(row.agent_code || '') +
-								(row.agent_name ? ' - ' + row.agent_name : '');
-							var programDate = getProgramDateYmd(row) || '—';
-							var gameType =
-								String(row.GAME_TYPE || '').toUpperCase() === 'TELEBET'
-									? t('telebet', 'TELEBET')
-									: t('live', 'LIVE');
-
-							dataTable.row.add([
-								programDate,
-								formatGameStart(row.GAME_DATE_START),
-								gameType,
-								row.game_list_id,
-								acct || '—',
-								row.guest_name || '—',
-								fmtAmt(totals.buyin),
-								fmtAmt(totals.cashout, 'out'),
-								fmtAmt(totals.winloss, 'signed'),
-								fmtAmt(totals.rolling, 'signed'),
-								commissionBadge(row),
-								fmtAmt(net, 'out'),
-								fmtAmt(addChg, 'out'),
-								fmtAmt(settle, 'out'),
-								formatGameEnd(row)
-							]);
-
-							pending--;
-							if (pending === 0) {
-								dataTable.draw();
-								setGrandTotals(grand);
-							}
-						},
-						error: function () {
-							pending--;
-							if (pending === 0) {
-								dataTable.draw();
-								setGrandTotals(grand);
-							}
-						}
-					});
+					addRowToTable(row, grand);
 				});
+				dataTable.draw();
+				setGrandTotals(grand);
 			},
 			error: function (xhr) {
 				console.error('game_information_data failed', xhr);
@@ -400,9 +351,408 @@
 		reloadData();
 	}
 
+	function getManualModalEl() {
+		return document.getElementById('modal-gi-manual-game');
+	}
+
+	function showManualModal() {
+		var el = getManualModalEl();
+		if (!el) return;
+		if (window.bootstrap && bootstrap.Modal) {
+			bootstrap.Modal.getOrCreateInstance(el).show();
+			return;
+		}
+		$('#modal-gi-manual-game').modal('show');
+	}
+
+	function hideManualModal() {
+		var el = getManualModalEl();
+		if (!el) return;
+		if (window.bootstrap && bootstrap.Modal) {
+			var instance = bootstrap.Modal.getInstance(el);
+			if (instance) {
+				instance.hide();
+				return;
+			}
+		}
+		$('#modal-gi-manual-game').modal('hide');
+	}
+
+	function destroyFlatpickr(el) {
+		if (el && el._flatpickr) {
+			try { el._flatpickr.destroy(); } catch (e) { /* ignore */ }
+		}
+	}
+
+	function initManualDatePicker(el, options) {
+		if (!el) return;
+		destroyFlatpickr(el);
+		if (typeof flatpickr === 'undefined') return;
+		flatpickr(el, options || {});
+	}
+
+	function getDefaultGameRatePct(commissionType) {
+		var type = parseInt(commissionType, 10);
+		if (type === 1) return 1.5;
+		if (type === 2 || type === 3) return 50;
+		return 1.5;
+	}
+
+	function setDefaultGameRatePct() {
+		var pct = getDefaultGameRatePct($('#gi-manual-commission-type').val());
+		$('#gi-manual-commission-pct').val(formatAmountInput(pct));
+	}
+
+	function initManualDateTimePicker(el, defaultDate) {
+		initManualDatePicker(el, {
+			enableTime: true,
+			dateFormat: 'Y-m-d H:i',
+			allowInput: true,
+			defaultDate: defaultDate || null
+		});
+	}
+
+	function initGiAccountSelect() {
+		var $sel = $('#gi-manual-account');
+		if (!$sel.length || typeof $sel.select2 !== 'function') return;
+		if ($sel.data('select2')) {
+			try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+		}
+		$sel.select2({
+			placeholder: $sel.data('placeholder') || 'Choose account',
+			allowClear: true,
+			dropdownParent: $('#modal-gi-manual-game')
+		});
+	}
+
+	function initGiGuestSelect() {
+		var $sel = $('#gi-manual-guest');
+		if (!$sel.length || typeof $sel.select2 !== 'function') return;
+		if ($sel.data('select2')) {
+			try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+		}
+		$sel.select2({
+			placeholder: $sel.data('placeholder') || 'Choose guest',
+			allowClear: true,
+			dropdownParent: $('#modal-gi-manual-game')
+		});
+	}
+
+	function clearGiGuestOptions() {
+		var $sel = $('#gi-manual-guest');
+		if (!$sel.length) return;
+		var placeholder = $sel.data('placeholder') || 'Choose guest';
+		if ($sel.data('select2')) {
+			try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+		}
+		$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+		$sel.val('').prop('disabled', true);
+		initGiGuestSelect();
+	}
+
+	function loadGiAccounts(selectedId) {
+		var $sel = $('#gi-manual-account');
+		var placeholder = $sel.data('placeholder') || 'Choose account';
+		return $.getJSON('/account_data').then(function (rows) {
+			if ($sel.data('select2')) {
+				try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+			}
+			$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+			(rows || []).forEach(function (a) {
+				var id = a.account_id;
+				if (id == null) return;
+				var parts = [a.agent_code, a.agent_name].filter(Boolean);
+				var label = parts.length ? parts.join(' - ') : 'Account #' + id;
+				$sel.append(
+					$('<option/>', {
+						value: String(id),
+						text: label,
+						'data-agent-id': a.agent_id != null ? String(a.agent_id) : ''
+					})
+				);
+			});
+			initGiAccountSelect();
+			if (selectedId) {
+				$sel.val(String(selectedId)).trigger('change.select2');
+			}
+		});
+	}
+
+	function loadGiGuests(agentId, selectedId) {
+		var $sel = $('#gi-manual-guest');
+		var placeholder = $sel.data('placeholder') || 'Choose guest';
+
+		clearGiGuestOptions();
+		if (!agentId) {
+			return $.Deferred().resolve().promise();
+		}
+
+		return $.getJSON('/guest_data?agentId=' + encodeURIComponent(agentId)).then(function (rows) {
+			if ($sel.data('select2')) {
+				try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+			}
+			$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+			(rows || []).forEach(function (g) {
+				var id = g.guest_id;
+				if (id == null) return;
+				var name = (g.guest_name || '').toString().trim() || ('Guest #' + id);
+				$sel.append($('<option/>', { value: String(id), text: name }));
+			});
+			$sel.prop('disabled', false);
+			initGiGuestSelect();
+			if (selectedId) {
+				$sel.val(String(selectedId)).trigger('change.select2');
+			}
+		});
+	}
+
+	function parseGiSelectId(value) {
+		var raw = String(value || '').trim();
+		if (!raw) return null;
+		var n = parseInt(raw, 10);
+		return Number.isFinite(n) && n > 0 ? n : null;
+	}
+
+	function onGiAccountChange() {
+		if (giAccountGuestResetting) return;
+		var $accountSel = $('#gi-manual-account');
+		var accountId = ($accountSel.val() || '').toString().trim();
+		var agentId = accountId
+			? ($accountSel.find('option:selected').data('agent-id') || '').toString().trim()
+			: '';
+		loadGiGuests(agentId || null).fail(function () {
+			notifyError('Failed to load guests.');
+		});
+	}
+
+	function resetGiAccountGuestFields() {
+		giAccountGuestResetting = true;
+		var $accountSel = $('#gi-manual-account');
+		if ($accountSel.data('select2')) {
+			$accountSel.val('').trigger('change.select2');
+		} else {
+			$accountSel.val('');
+		}
+		clearGiGuestOptions();
+		giAccountGuestResetting = false;
+	}
+
+	function loadGiAccountGuestFields(row) {
+		var accountId = row && row.ACCOUNT_ID ? row.ACCOUNT_ID : null;
+		var guestId = row && row.GUEST_ID ? row.GUEST_ID : null;
+
+		giAccountGuestResetting = true;
+		clearGiGuestOptions();
+		return loadGiAccounts(accountId).then(function () {
+			var $accountSel = $('#gi-manual-account');
+			var selectedAccountId = ($accountSel.val() || '').toString().trim();
+			if (!selectedAccountId) {
+				giAccountGuestResetting = false;
+				return;
+			}
+			var agentId = ($accountSel.find('option:selected').data('agent-id') || '').toString().trim();
+			return loadGiGuests(agentId || null, guestId);
+		}).always(function () {
+			giAccountGuestResetting = false;
+		});
+	}
+
+	function resetManualForm() {
+		$('#gi-manual-id').val('');
+		$('#modal-gi-manual-game-label').text(t('addGame', 'Add Game'));
+		$('#gi-manual-game-no').val('');
+		resetGiAccountGuestFields();
+		$('#gi-manual-game-type').val('LIVE');
+		$('#gi-manual-commission-type').val('1');
+		$('.gi-manual-amount').val('');
+		setDefaultGameRatePct();
+
+		var today = ymd(new Date());
+		var now = new Date();
+		initManualDatePicker(document.getElementById('gi-manual-program-date'), {
+			enableTime: false,
+			dateFormat: 'Y-m-d',
+			allowInput: true,
+			defaultDate: today
+		});
+		initManualDateTimePicker(document.getElementById('gi-manual-game-start'), now);
+		initManualDateTimePicker(document.getElementById('gi-manual-game-end'), now);
+	}
+
+	function fillManualForm(row) {
+		$('#gi-manual-id').val(row.manual_id);
+		$('#modal-gi-manual-game-label').text(t('editGame', 'Edit Game'));
+		$('#gi-manual-game-no').val(row.GAME_NO || '');
+		$('#gi-manual-game-type').val(String(row.GAME_TYPE || 'LIVE').toUpperCase() === 'TELEBET' ? 'TELEBET' : 'LIVE');
+		$('#gi-manual-commission-type').val(String(row.COMMISSION_TYPE || '1'));
+		$('#gi-manual-buy-in').val(displayAmountInput(row.BUY_IN));
+		$('#gi-manual-cash-out').val(displayAmountInput(row.CASH_OUT));
+		$('#gi-manual-win-loss').val(displayAmountInput(row.WIN_LOSS));
+		$('#gi-manual-rolling').val(displayAmountInput(row.ROLLING));
+		$('#gi-manual-commission').val(displayAmountInput(row.COMMISSION));
+		$('#gi-manual-add-charge').val(displayAmountInput(row.ADD_CHARGE));
+		$('#gi-manual-settlement').val(displayAmountInput(row.TOTAL_SETTLEMENT));
+		$('#gi-manual-commission-pct').val(formatAmountInput(row.COMMISSION_PERCENTAGE));
+
+		initManualDatePicker(document.getElementById('gi-manual-program-date'), {
+			enableTime: false,
+			dateFormat: 'Y-m-d',
+			allowInput: true,
+			defaultDate: ymd(row.PROGRAM_DATE) || ymd(new Date())
+		});
+		initManualDateTimePicker(document.getElementById('gi-manual-game-start'), row.GAME_START || null);
+		initManualDateTimePicker(document.getElementById('gi-manual-game-end'), row.GAME_ENDED || null);
+	}
+
+	function openGiManualModal(row) {
+		resetManualForm();
+		if (row) fillManualForm(row);
+		showManualModal();
+		if (row) {
+			loadGiAccountGuestFields(row).fail(function () {
+				notifyError('Failed to load account or guest list.');
+			});
+			return;
+		}
+		loadGiAccounts().fail(function () {
+			notifyError('Failed to load accounts.');
+		});
+	}
+
+	function getManualPickerValue(id) {
+		var el = document.getElementById(id);
+		if (!el) return '';
+		if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
+			if (id === 'gi-manual-program-date') return ymd(el._flatpickr.selectedDates[0]);
+			return el._flatpickr.formatDate(el._flatpickr.selectedDates[0], 'Y-m-d H:i');
+		}
+		return String(el.value || '').trim();
+	}
+
+	function collectManualPayload() {
+		return {
+			programDate: getManualPickerValue('gi-manual-program-date'),
+			gameStart: getManualPickerValue('gi-manual-game-start'),
+			gameType: $('#gi-manual-game-type').val(),
+			gameNo: $('#gi-manual-game-no').val(),
+			accountId: parseGiSelectId($('#gi-manual-account').val()),
+			guestId: parseGiSelectId($('#gi-manual-guest').val()),
+			buyIn: parseAmountInput($('#gi-manual-buy-in').val()),
+			cashOut: parseAmountInput($('#gi-manual-cash-out').val()),
+			winLoss: parseAmountInput($('#gi-manual-win-loss').val()),
+			rolling: parseAmountInput($('#gi-manual-rolling').val()),
+			commissionType: $('#gi-manual-commission-type').val(),
+			commissionPercentage: parseAmountInput($('#gi-manual-commission-pct').val()),
+			commission: parseAmountInput($('#gi-manual-commission').val()),
+			addCharge: parseAmountInput($('#gi-manual-add-charge').val()),
+			totalSettlement: parseAmountInput($('#gi-manual-settlement').val()),
+			gameEnded: getManualPickerValue('gi-manual-game-end')
+		};
+	}
+
+	function notifySuccess(message) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'success', title: 'Success', text: message, timer: 1400, showConfirmButton: false });
+			return;
+		}
+		alert(message);
+	}
+
+	function notifyError(message) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'error', title: 'Error', text: message });
+			return;
+		}
+		alert(message);
+	}
+
+	function saveManualGame(e) {
+		if (e) e.preventDefault();
+		var manualId = $('#gi-manual-id').val();
+		var payload = collectManualPayload();
+		var url = manualId ? '/game_information_data/' + manualId : '/game_information_data';
+		var method = manualId ? 'PUT' : 'POST';
+
+		$.ajax({
+			url: url,
+			method: method,
+			contentType: 'application/json',
+			data: JSON.stringify(payload),
+			success: function () {
+				hideManualModal();
+				notifySuccess(manualId ? t('updated', 'Updated successfully') : t('saved', 'Saved successfully'));
+				reloadData();
+			},
+			error: function (xhr) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) || t('saveFailed', 'Failed to save game');
+				notifyError(msg);
+			}
+		});
+	}
+
+	function deleteManualGame(manualId) {
+		var runDelete = function () {
+			$.ajax({
+				url: '/game_information_data/remove/' + manualId,
+				method: 'PUT',
+				success: function () {
+					notifySuccess(t('deleted', 'Deleted successfully'));
+					reloadData();
+				},
+				error: function (xhr) {
+					var msg = (xhr.responseJSON && xhr.responseJSON.error) || t('saveFailed', 'Failed to delete game');
+					notifyError(msg);
+				}
+			});
+		};
+
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({
+				icon: 'warning',
+				title: t('deleteConfirm', 'Delete this game?'),
+				showCancelButton: true,
+				confirmButtonText: 'Delete',
+				cancelButtonText: t('cancel', 'Cancel')
+			}).then(function (result) {
+				if (result.isConfirmed) runDelete();
+			});
+			return;
+		}
+		if (window.confirm(t('deleteConfirm', 'Delete this game?'))) runDelete();
+	}
+
+	function initManualGameHandlers() {
+		$(document).on('click', '#btn-add-gi-manual-game', function () {
+			openGiManualModal(null);
+		});
+
+		$(document).on('click', '.gi-manual-edit', function () {
+			var manualId = $(this).data('id');
+			var row = manualGamesById[manualId];
+			if (!row) return;
+			openGiManualModal(row);
+		});
+
+		$(document).on('change', '#gi-manual-account', onGiAccountChange);
+
+		$(document).on('click', '.gi-manual-delete', function () {
+			var manualId = $(this).data('id');
+			if (!manualId) return;
+			deleteManualGame(manualId);
+		});
+
+		$(document).on('change', '#gi-manual-commission-type', setDefaultGameRatePct);
+		$(document).on('input', '.gi-manual-amount, #gi-manual-commission-pct', function () {
+			var formatted = formatAmountInput($(this).val());
+			$(this).val(formatted);
+		});
+		$(document).on('submit', '#gi-manual-game-form', saveManualGame);
+	}
+
 	$(function () {
 		initDataTable();
 		initGiSplitDateRange();
 		initProgramDatePicker();
+		initManualGameHandlers();
 	});
 })();

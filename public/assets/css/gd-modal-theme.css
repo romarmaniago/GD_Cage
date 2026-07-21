@@ -83,6 +83,7 @@ body:has(.gd-sidebar) #modal-house-expense-add-category .form-label,
 body:has(.gd-sidebar) #modal-house-expense-edit-category .form-label,
 body:has(.gd-sidebar) #modal-house-expense-add-vehicle .form-label,
 body:has(.gd-sidebar) #modal-house-expense-edit-vehicle .form-label,
+body:has(.gd-sidebar) #modal-gi-manual-game .form-label,
 body:has(.gd-sidebar) #house-expense-new-cat-preset-label {
   color: #3a2e12 !important;
 }

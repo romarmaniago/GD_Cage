@@ -225,25 +225,100 @@
   background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
 }
 
-/* SOA (F&B, Hotel) history table — compact fixed columns */
+/* SOA (F&B, Hotel) modal */
+.modal-dash-soa-dialog {
+  max-width: 44rem;
+  width: calc(100% - 1.5rem);
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.65rem;
+  align-items: end;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-wrapper,
+#modal-dash-soa-fnb-hotel-edit .flatpickr-wrapper {
+  display: block;
+  width: 100%;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-program-date .flatpickr-input.form-control,
+#modal-dash-soa-fnb-hotel-edit .flatpickr-input.form-control {
+  width: 100%;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-program-date {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-category {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-amount {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-remarks {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-save {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: end;
+}
+
+#modal-dash-soa-fnb-hotel .soa-add-save .form-label {
+  line-height: 1.2;
+}
+
+#btn-dash-soa-save {
+  min-width: 4.5rem;
+  height: calc(1.5em + 0.5rem + 2px);
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
+}
+
+#modal-dash-soa-fnb-hotel .soa-remarks-input,
+#modal-dash-soa-fnb-hotel-edit .soa-remarks-input {
+  resize: none;
+}
+
+/* SOA history table — compact fitted columns */
 #dash-soa-history-tbl {
   table-layout: fixed;
   width: 100%;
+  font-size: 0.8125rem;
 }
 
 #dash-soa-history-tbl th,
 #dash-soa-history-tbl td {
   vertical-align: middle;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.45rem;
 }
 
-#dash-soa-history-tbl .soa-col-date {
-  width: 6.75rem;
-  white-space: nowrap;
+#dash-soa-history-tbl .soa-col-category {
+  width: 22%;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 #dash-soa-history-tbl .soa-col-amount {
-  width: 5.5rem;
+  width: 5.75rem;
   white-space: nowrap;
 }
 
@@ -253,12 +328,37 @@
   word-break: break-word;
 }
 
+#dash-soa-history-tbl .soa-col-program-date {
+  width: 6.75rem;
+  white-space: nowrap;
+}
+
 #dash-soa-history-tbl .soa-col-action {
-  width: 5.25rem;
+  width: 4.75rem;
   white-space: nowrap;
   text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 
 #dash-soa-history-tbl .soa-col-action .btn {
-  padding: 0.15rem 0.4rem;
+  padding: 0.12rem 0.35rem;
+}
+
+#dash-soa-history-tbl .soa-col-action .d-inline-flex {
+  gap: 0.2rem !important;
+}
+
+#dash-soa-history-tbl .soa-total-row th {
+  background: #f7efd8;
+  font-weight: 700;
+  border-bottom-width: 1px;
+}
+
+#dash-soa-history-tbl .soa-total-row .soa-total-label {
+  text-align: left;
+}
+
+#dash-soa-history-tbl .soa-total-row .soa-total-rest {
+  border-left: 0;
 }

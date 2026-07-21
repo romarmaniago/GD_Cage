@@ -7,7 +7,6 @@ $(function () {
 	const $accountSelect = $('#new-services-account');
 	const $guestSelect = $('#new-services-guest');
 	const $accountWrapper = $('#new-services-account-wrapper');
-	const $transactionType = $('#new-transaction-type');
 	const $paymentMethods = $('#new-services-payment-methods');
 	const $agentInput = $('#new-services-agent-id');
 	const $gameInput = $('#new-services-game-id');
@@ -17,6 +16,7 @@ $(function () {
 	const $serviceTypeValue = $('#new-services-type-value');
 	const $serviceTypeList = $('#new-services-type-list');
 	const $programDate = $('#new-services-program-date');
+	const $amountInput = $('#new-services-amount');
 	let depositBalance = 0;
 	let programDatePicker = null;
 
@@ -66,7 +66,6 @@ $(function () {
 	}
 
 	function resetForm() {
-		$transactionType.val('');
 		if ($accountSelect.data('select2')) {
 			$accountSelect.val('').trigger('change');
 		} else {
@@ -77,37 +76,48 @@ $(function () {
 		$gameInput.val('');
 		$serviceTypeValue.val('');
 		$serviceTypeList.html('<span class="new-services-type-placeholder text-muted small">' + escapeHtml(t.select_service || 'Select service') + '</span>');
-		$('#new-services-amount').val('');
+		$amountInput.val('');
 		$('#new-services-remarks').val('');
 		$('input[name="new-services-transaction"]').prop('checked', false);
 		$paymentMethods.show();
+		$accountSelect.prop('disabled', false);
+		$guestSelect.prop('disabled', !$accountSelect.val());
 		ensureProgramDatePicker(todayProgramDateValue());
 	}
 
-	function toggleAccountByTransactionType() {
-		const type = $transactionType.val();
-		const isActive = type === 'GUEST' || type === 'JUNKET';
-
+	function enableAccountFields() {
 		$accountWrapper.show();
-		if (isActive) {
-			$accountSelect.prop('disabled', false);
-			$guestSelect.prop('disabled', !$accountSelect.val());
-			$paymentMethods.show();
-		} else {
-			if ($accountSelect.data('select2')) {
-				$accountSelect.val('').trigger('change');
-			} else {
-				$accountSelect.val('');
-			}
-			resetGuestSelect();
-			$accountSelect.prop('disabled', true);
-			$agentInput.val('');
-			$gameInput.val('');
-			depositBalance = 0;
-			updateBalanceHint();
-			$paymentMethods.hide();
-			$('input[name="new-services-transaction"]').prop('checked', false);
+		$accountSelect.prop('disabled', false);
+		$guestSelect.prop('disabled', !$accountSelect.val());
+		$paymentMethods.show();
+	}
+
+	function formatSignedAmountInput(value) {
+		var raw = String(value == null ? '' : value);
+		var sign = '';
+		if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+			sign = raw.charAt(0);
+			raw = raw.slice(1);
 		}
+		raw = raw.replace(/[^\d.]/g, '');
+		var parts = raw.split('.');
+		if (parts.length > 2) {
+			raw = parts[0] + '.' + parts.slice(1).join('');
+			parts = raw.split('.');
+		}
+		var intPart = parts[0] || '';
+		var decPart = parts[1];
+		var formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+		var formatted = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+		if (!formatted && !sign) return '';
+		return sign + formatted;
+	}
+
+	function parseSignedAmount(value) {
+		var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+		if (!raw || raw === '+' || raw === '-') return NaN;
+		var n = parseFloat(raw);
+		return Number.isFinite(n) ? n : NaN;
 	}
 
 	function initAccountSelect2() {
@@ -214,7 +224,7 @@ $(function () {
 			$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
 			initAccountSelect2();
 		} finally {
-			toggleAccountByTransactionType();
+			enableAccountFields();
 		}
 	}
 
@@ -298,7 +308,7 @@ $(function () {
 		resetForm();
 		ensureProgramDatePicker(todayProgramDateValue());
 		initGuestSelect2();
-		toggleAccountByTransactionType();
+		enableAccountFields();
 		// apply dashboard preset (if any)
 		const preset = window.__dashServicePresetType || '';
 		window.__dashServicePresetType = null;
@@ -306,7 +316,7 @@ $(function () {
 			populateAccounts(),
 			populateServiceTypeCheckboxes(preset)
 		]);
-		toggleAccountByTransactionType();
+		enableAccountFields();
 	});
 
 	$serviceTypeList.on('change', 'input[type="radio"][name="new-services-type"]', function () {
@@ -370,21 +380,9 @@ $(function () {
 	});
 
 	$('input[name="new-services-transaction"]').on('change', updateBalanceHint);
-	$transactionType.on('change', toggleAccountByTransactionType);
 
-	$('#new-services-amount').on('input', function () {
-		const $input = $(this);
-		let raw = $input.val() || '';
-		raw = raw.replace(/[^\d.]/g, '');
-		const parts = raw.split('.');
-		if (parts.length > 2) {
-			raw = parts[0] + '.' + parts.slice(1).join('');
-		}
-		const intPart = raw.split('.')[0];
-		const decPart = raw.split('.')[1];
-		const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-		const formatted = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
-		$input.val(formatted);
+	$amountInput.on('input', function () {
+		$(this).val(formatSignedAmountInput($(this).val()));
 	});
 
 	$saveBtn.on('click', async function () {
@@ -392,20 +390,16 @@ $(function () {
 		const agentId = $agentInput.val();
 		const gameId = $gameInput.val();
 		const serviceType = ($serviceTypeValue.val() || '').trim();
-		const amountRaw = $('#new-services-amount').val().replace(/,/g, '').trim();
-		const amount = parseFloat(amountRaw) || 0;
+		const amount = parseSignedAmount($amountInput.val());
 		const remarks = $('#new-services-remarks').val().trim();
 		const transactionId = $('input[name="new-services-transaction"]:checked').val();
-		const sourceType = $transactionType.val();
 		const guestId = ($guestSelect.val() || '').trim();
 		const programDate = getProgramDateValue();
+		// + amount = addition (GUEST), - amount = bawas (JUNKET)
+		const sourceType = amount < 0 ? 'JUNKET' : 'GUEST';
 
 		if (!programDate) {
 			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_program_date || 'Select a program date.' });
-			return;
-		}
-		if (!sourceType) {
-			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
 			return;
 		}
 		if (!serviceType) {
@@ -417,7 +411,11 @@ $(function () {
 			return;
 		}
 		if (!transactionId) {
-			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_transaction_type || 'Select a transaction type.' });
+			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_transaction_type || 'Select cash or deposit.' });
+			return;
+		}
+		if (!Number.isFinite(amount) || amount === 0) {
+			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.amount_must_be_greater || 'Enter an amount with + (addition) or - (bawas).' });
 			return;
 		}
 
