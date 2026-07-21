@@ -34,6 +34,37 @@ function ensureModalAppendedToBody($modal) {
 	}
 }
 
+function resetOrphanedModalBackdrops() {
+	if (document.querySelectorAll('.modal.show').length) {
+		return;
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.remove();
+	});
+	document.body.classList.remove('modal-open');
+	document.body.style.removeProperty('overflow');
+	document.body.style.removeProperty('padding-right');
+	$('body').removeClass('guest-portal-child-open');
+	$('#modal-account-details').removeClass('guest-portal-parent-hidden');
+}
+
+window.resetOrphanedModalBackdrops = resetOrphanedModalBackdrops;
+
+function showAccountDetailsModal() {
+	var $accountModal = $('#modal-account-details');
+	if (!$accountModal.length || $accountModal.hasClass('show')) {
+		return;
+	}
+	resetOrphanedModalBackdrops();
+	ensureModalAppendedToBody($accountModal);
+	var modalEl = $accountModal[0];
+	if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+		bootstrap.Modal.getOrCreateInstance(modalEl, { focus: false, backdrop: 'static', keyboard: false }).show();
+		return;
+	}
+	$accountModal.modal('show');
+}
+
 function isGuestPortalOpen() {
 	var $modal = $('#modal-account-details');
 	return $modal.length && $modal.hasClass('show');
@@ -121,8 +152,6 @@ var totalAmount = 0;
 var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
 var currentAccountBalance = 0;
-var accountDetailsDataTable = null;
-var currentAccountDetailsId = null;
 var lastSavedAgentRemarks = '';
 var currentLedgerAgencyId = null;
 var selectedTransferAccountIds = {};
@@ -1417,10 +1446,10 @@ function account_details(account_id_data, agent_code, account_name) {
             remarksElErr.value = '';
             lastSavedAgentRemarks = '';
         }
-    });
+	});
 
 
-	$('#modal-account-details').modal('show');
+	showAccountDetailsModal();
     
     $('#agent_code').text(agent_code);
 	$('#account_name').text(account_name);
@@ -1437,13 +1466,17 @@ function account_details(account_id_data, agent_code, account_name) {
 
 	account_id = account_id_data;
 
-	accountDetailsDataTable = getOrInitAccountDetailsDataTable();
-	accountDetailsDataTable.search('');
-	accountDetailsDataTable.columns().search('');
-	currentAccountDetailsId = account_id_data;
-
-	reloadDataDetails();
+	try {
+		accountDetailsDataTable = getOrInitAccountDetailsDataTable();
+		accountDetailsDataTable.search('');
+		accountDetailsDataTable.columns().search('');
+		currentAccountDetailsId = account_id_data;
+		reloadDataDetails();
+	} catch (err) {
+		console.error('Error initializing account details table:', err);
+	}
 }
+window.account_details = account_details;
 
 function isJunketFundsTransferDesc(transactionDesc) {
 	const normalized = String(transactionDesc || '').trim().toUpperCase();

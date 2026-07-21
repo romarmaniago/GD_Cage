@@ -851,6 +851,16 @@ th.col-winloss {
 	white-space: nowrap !important;
 }
 
+#game_list-tbl td.col-acct-no .game-list-acct-link {
+	color: #0d6efd;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+#game_list-tbl .js-game-list-add-chg {
+	cursor: pointer;
+}
+
 #game_list-tbl td.col-guest .game-list-cell-truncate,
 #game_list-tbl td.col-guest .game-list-guest-link {
 	display: inline;
@@ -1458,128 +1468,18 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 					<script>
 						$(document).ready(function () {
-							function initializeDataTable() {
-								if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
-									$('#game_list-tbl').DataTable().destroy();
+							function applyNegativeStyle(selector, value) {
+								var element = $('#game_list-tbl tfoot ' + selector);
+								if (value < 0) {
+									element.css('color', '#dc3545');
+								} else {
+									element.css('color', '');
 								}
-
-								const translations = window.gamelistTranslations || {};
-								$('#game_list-tbl').DataTable({
-									"ajax": {
-										"url": "/game_list_data",
-										"dataSrc": function (json) {
-											console.log("Data received from server:", json);
-											return json.data || []; // Default to empty array if no data
-										}
-									},
-									"columns": [
-										{ "data": "program_date", "defaultContent": "-" },
-										{ "data": "game_start_date" },
-										{ "data": "game_type" },
-										{ "data": "game_no" },
-										{ "data": "acct_no" },
-										{ "data": "guest", "defaultContent": "-" },
-										{ "data": "buy_in" },
-										{ "data": "chips_return" },
-										{ "data": "win_loss" },
-										{ "data": "total_rolling" },
-										{ "data": "game_rate" },
-										{ "data": "commission" },
-										{ "data": "add_chg", "defaultContent": "-" },
-										{ "data": "total_settle", "defaultContent": "-" },
-										{ "data": "game_end_date_time" },
-										{ "data": "roller_chips" },
-										{ "data": "history" }
-									],
-									"language": {
-										"search": translations.search || "Search:",
-										"info": translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
-										"paginate": {
-											"previous": translations.previous || "Previous",
-											"next": translations.next || "Next"
-										}
-									},
-									"drawCallback": function () {
-										calculateTotal();
-										var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
-										$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
-									}
-								});
 							}
 
-
-							initializeDataTable();
-
-							// Set default "From" date to the 1st day of the current month
-							var currentDate = new Date();
-							var firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-							var today = new Date();
-
-							// Function to format the date as "dd mmm yyyy" (e.g., 01 Sept 2024)
-							var formatDate = function (date) {
-								var day = ("0" + date.getDate()).slice(-2); // Add leading zero for day
-								var monthNames = ["Jan,", "Feb,", "Mar,", "Apr,", "May,", "Jun,", "Jul,", "Aug,", "Sep,", "Oct,", "Nov,", "Dec,"];
-								var month = monthNames[date.getMonth()]; // Get the month abbreviation
-								var year = date.getFullYear(); // Get the full year
-								return day + ' ' + month + ' ' + year; // Return the formatted date as "dd mmm yyyy"
-							};
-
-							// Set default values to date inputs
-							$('#from-date').val(formatDate(firstDayOfMonth));
-							$('#to-date').val(formatDate(today));
-
-							// Custom filtering function which will filter data based on the "From" and "To" dates
-							$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-								// Get the values from the "From" and "To" date inputs
-								var minDate = $('#from-date').val() ? new Date($('#from-date').val()) : null;
-								var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
-
-								// Get the game start date from the table data (Column index for "GAME START")
-								var gameStartDate = new Date(data[1]);
-
-								// Get the game end date from the table data (Column index for "GAME END DATE & TIME")
-								var gameEndDate = new Date(data[14]);
-
-								// Strip the time portion of the date by setting time to midnight (for date-only comparison)
-								if (minDate !== null) {
-									minDate.setHours(0, 0, 0, 0); // Set minDate to midnight
-								}
-								if (maxDate !== null) {
-									maxDate.setHours(23, 59, 59, 999); // Set maxDate to the end of the day
-								}
-								gameStartDate.setHours(0, 0, 0, 0); // Strip the time portion of the gameStartDate
-								gameEndDate.setHours(0, 0, 0, 0); // Strip the time portion of the gameEndDate
-
-								// Apply the date filtering logic for both GAME START and GAME END DATE
-								if ((minDate === null && maxDate === null) || // No date filtering
-									(minDate === null && (gameStartDate <= maxDate || gameEndDate <= maxDate)) || // Only max date is provided
-									(minDate <= gameStartDate && maxDate === null) || // Only min date is provided
-									(minDate <= gameStartDate && gameStartDate <= maxDate) || // Both dates are within range (GAME START)
-									(minDate <= gameEndDate && gameEndDate <= maxDate)) { // Both dates are within range (GAME END)
-									return true; // If within range or no date filter, include the row
-								}
-								return false; // Exclude the row if it doesn't match the filter
-							});
-
-							// Account Search is handled in game_list.js: when value is entered, table shows one row per account with totals (not each game)
-
-							// Re-draw the DataTable whenever the date inputs change
-							$('#from-date, #to-date').change(function () {
-								$('#game_list-tbl').DataTable().draw();
-							});
-
-							// Re-draw when Account Search input changes
-							$(document).on('keyup input', '#input-account-search', function () {
-								if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
-									$('#game_list-tbl').DataTable().draw();
-								}
-							});
-
-							// Trigger the initial draw to apply the default date filtering on page load
-							$('#game_list-tbl').DataTable().draw();
-
-
 							function calculateTotal() {
+								if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+
 								var totalAmount = 0;
 								var totalRolling = 0;
 								var totalChipsReturn = 0;
@@ -1588,55 +1488,31 @@ table.dataTable tbody tr.highlight-row {
 								var totalCommission = 0;
 								var totalAddChg = 0;
 								var totalSettle = 0;
-
 								var table = $('#game_list-tbl').DataTable();
-								var parseCell = window.parseListAmount || function (v) { return parseFloat(String(v || '').replace(/[^0-9.-]/g, '')) || 0; };
+								var parseCell = window.parseListAmount || function (v) {
+									return parseFloat(String(v || '').replace(/[^0-9.-]/g, '')) || 0;
+								};
 
-								table.rows({ page: 'current' }).every(function () {
+								table.rows({ page: 'current', search: 'applied' }).every(function () {
 									var data = this.data();
-
-									var amountIndex = 6;
-									var rollingIndex = 9;
-									var rollerChipsIndex = 15;
-									var chipsReturnIndex = 7;
-									var winLossIndex = 8;
-									var commissionIndex = 11;
-									var addChgIndex = 12;
-									var totalSettleIndex = 13;
-
-									totalAmount += parseCell(data[amountIndex] || '0');
-									totalRolling += parseCell(data[rollingIndex] || '0');
-									totalRollerChips += parseCell(data[rollerChipsIndex] || '0');
-									totalChipsReturn += parseCell(data[chipsReturnIndex] || '0');
-									totalCommission += parseCell(data[commissionIndex] || '0');
-									totalAddChg += parseCell(data[addChgIndex] || '0');
-									totalSettle += parseCell(data[totalSettleIndex] || '0');
-									totalWinLoss += parseCell(data[winLossIndex] || '0', { signed: true });
+									totalAmount += parseCell(data[6] || '0');
+									totalChipsReturn += parseCell(data[7] || '0');
+									totalWinLoss += parseCell(data[8] || '0', { signed: true });
+									totalRolling += parseCell(data[9] || '0');
+									totalCommission += parseCell(data[11] || '0');
+									totalAddChg += parseCell(data[12] || '0');
+									totalSettle += parseCell(data[13] || '0');
+									totalRollerChips += parseCell(data[15] || '0');
 								});
 
-								var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedRollerChips = totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-								var formattedCommission = window.formatListAmount
-									? window.formatListAmount(totalCommission, 'out')
-									: totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedAddChg = totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedTotalSettle = window.formatListAmount
-									? window.formatListAmount(totalSettle, 'out')
-									: totalSettle.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedWinLoss = window.formatListAmount
-									? window.formatListAmount(totalWinLoss, 'signed')
-									: totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
-								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
-								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
-								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
-								$('#game_list-tbl tfoot #GRAND_COMMISSION').html(formattedCommission);
-								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(formattedAddChg);
-								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formattedTotalSettle);
-								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formattedWinLoss);
+								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+								$('#game_list-tbl tfoot #GRAND_COMMISSION').html(window.formatListAmount ? window.formatListAmount(totalCommission, 'out') : totalCommission.toLocaleString('en-US'));
+								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(window.formatListAmount ? window.formatListAmount(totalSettle, 'out') : totalSettle.toLocaleString('en-US'));
+								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(window.formatListAmount ? window.formatListAmount(totalWinLoss, 'signed') : totalWinLoss.toLocaleString('en-US'));
 
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
 								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
@@ -1646,29 +1522,11 @@ table.dataTable tbody tr.highlight-row {
 								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
 
-							// Attach events to recalculate totals on search and draw
-							$('#game_list-tbl').on('search.dt draw.dt', function () {
-								// console.log("Search or draw event triggered");
-								calculateTotal();
-							});
+							$('#game_list-tbl').on('search.dt draw.dt', calculateTotal);
+
+							var permissions = parseInt($('#user-role').data('permissions'), 10);
+							$('.wrap .button').prop('disabled', permissions === 2);
 						});
-						function applyNegativeStyle(selector, value) {
-							var element = $('#game_list-tbl tfoot ' + selector);
-							if (value < 0) {
-								element.css('color', '#dc3545');
-							} else {
-								element.css('color', ''); // Reset to default color
-							}
-						}
-
-
-						const permissions = parseInt($('#user-role').data('permissions'));
-
-						if (permissions === 2) {
-							$('.wrap .button').prop('disabled', true);
-						} else {
-							$('.wrap .button').prop('disabled', false);
-						}
 					</script>
 
 					<script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
