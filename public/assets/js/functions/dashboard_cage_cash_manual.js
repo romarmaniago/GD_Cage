@@ -112,17 +112,40 @@
 		return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
-	function formatAmountInput(value) {
-		var cleaned = String(value ?? '').replace(/[^\d]/g, '');
-		if (!cleaned) return '';
-		return Number(cleaned).toLocaleString('en-US');
+	function formatSignedAmountInput(value) {
+		var raw = String(value ?? '');
+		var sign = '';
+		if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+			sign = raw.charAt(0);
+			raw = raw.slice(1);
+		}
+		var cleaned = raw.replace(/[^\d]/g, '');
+		if (!cleaned) return sign || '';
+		return sign + Number(cleaned).toLocaleString('en-US');
 	}
 
-	function parseAmount(raw) {
+	function parseSignedAmount(raw) {
 		var cleaned = String(raw ?? '').replace(/,/g, '').trim();
-		if (cleaned === '' || cleaned === '-') return 0;
+		if (!cleaned || cleaned === '+' || cleaned === '-') return NaN;
 		var n = Number(cleaned);
 		return Number.isFinite(n) ? n : NaN;
+	}
+
+	function formatSignedAmountCell(value) {
+		if (typeof window.formatServiceChargeAmount === 'function') {
+			return window.formatServiceChargeAmount(value);
+		}
+		var n = Number(value) || 0;
+		if (n > 0) return '<span class="text-success">+' + Math.abs(n).toLocaleString('en-US') + '</span>';
+		if (n < 0) return '<span class="text-danger">-' + Math.abs(n).toLocaleString('en-US') + '</span>';
+		return '0';
+	}
+
+	function signedAmountInputFromNumber(value) {
+		var n = Math.round(Number(value) || 0);
+		if (n === 0) return '';
+		var sign = n < 0 ? '-' : '+';
+		return sign + Math.abs(n).toLocaleString('en-US');
 	}
 
 	function formatAmount(value) {
@@ -217,7 +240,7 @@
 		els.historyBody.innerHTML = entries.map(function (row) {
 			return '<tr>' +
 				'<td class="cage-manual-cash-col-date">' + escapeHtml(formatReportDate(row.report_date || row.encoded_dt)) + '</td>' +
-				'<td class="cage-manual-cash-col-amount text-end">' + escapeHtml(formatAmount(row.amount)) + '</td>' +
+				'<td class="cage-manual-cash-col-amount text-end">' + formatSignedAmountCell(row.amount) + '</td>' +
 				'<td class="cage-manual-cash-col-remarks remarks-editor-td">' + renderRemarksCell(row) + '</td>' +
 				'<td class="cage-manual-cash-col-action text-center js-cage-manual-cash-actions">' + renderActionCell(row.id, row.amount, row.remarks) + '</td>' +
 				'</tr>';
@@ -261,7 +284,7 @@
 	function openEditModal(id, amount, remarks) {
 		if (!els.editModal || !els.editId || !els.editAmount || typeof bootstrap === 'undefined') return;
 		els.editId.value = String(id);
-		els.editAmount.value = formatAmountInput(Math.round(Number(amount) || 0));
+		els.editAmount.value = signedAmountInputFromNumber(amount);
 		if (els.editRemarks) els.editRemarks.value = remarks != null ? String(remarks) : '';
 		releaseParentFocusTrap();
 		var editInstance = bootstrap.Modal.getOrCreateInstance(els.editModal);
@@ -356,11 +379,11 @@
 		});
 
 		els.amount && els.amount.addEventListener('input', function (e) {
-			e.target.value = formatAmountInput(e.target.value);
+			e.target.value = formatSignedAmountInput(e.target.value);
 		});
 
 		els.editAmount && els.editAmount.addEventListener('input', function (e) {
-			e.target.value = formatAmountInput(e.target.value);
+			e.target.value = formatSignedAmountInput(e.target.value);
 		});
 
 		els.historyTable && els.historyTable.addEventListener('click', function (e) {
@@ -381,7 +404,7 @@
 			e.preventDefault();
 			var currency = els.currencyInput ? els.currencyInput.value : '';
 			var reportDate = getProgramDateValue();
-			var amount = parseAmount(els.amount ? els.amount.value : '');
+			var amount = parseSignedAmount(els.amount ? els.amount.value : '');
 			var remarks = String(els.remarks ? els.remarks.value : '').trim();
 			var saveBtn = els.form.querySelector('[type="submit"]');
 
@@ -390,7 +413,7 @@
 				return;
 			}
 			if (Number.isNaN(amount) || amount === 0) {
-				if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+				if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount (+ to add, - to deduct).' });
 				return;
 			}
 
@@ -412,7 +435,7 @@
 		els.editForm && els.editForm.addEventListener('submit', async function (e) {
 			e.preventDefault();
 			var id = els.editId ? els.editId.value : '';
-			var amount = parseAmount(els.editAmount ? els.editAmount.value : '');
+			var amount = parseSignedAmount(els.editAmount ? els.editAmount.value : '');
 			var remarks = String(els.editRemarks ? els.editRemarks.value : '').trim();
 			var saveBtn = els.editForm.querySelector('[type="submit"]');
 			var currency = els.currencyInput ? els.currencyInput.value : '';
@@ -420,7 +443,7 @@
 
 			if (!id) return;
 			if (Number.isNaN(amount) || amount === 0) {
-				if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+				if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount (+ to add, - to deduct).' });
 				return;
 			}
 
