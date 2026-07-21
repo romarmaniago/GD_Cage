@@ -281,49 +281,137 @@ body {
 }
 
 .dash-panel-narrow .dash-kv.is-grand .dash-kv-value {
-  font-size: 0.95rem;
-}
-
-/* Cage Balance + Main — enlarged content so this stack's height levels with the Anticipated Profit column */
-#dash-cage-main-panel .dash-kv {
-  padding: 0.65rem 0.75rem;
-}
-
-#dash-cage-main-panel .dash-kv .dash-kv-label,
-#dash-cage-main-panel .dash-kv .dash-kv-value {
   font-size: 13px;
 }
 
-#dash-cage-main-panel .dash-kv-group-title {
-  padding: 0.6rem 0.75rem;
-  font-size: 12px;
-}
-
-#dash-cage-main-panel > .card-header,
-#dash-cage-main-panel .card-header {
-  padding: 0.6rem 0.85rem;
-  font-size: 13px;
-}
-
+/* Cage Balance + Main — fonts, stack layout, diff alignment (height locked in JS) */
 #dash-cage-main-panel {
   display: flex;
   flex-direction: column;
 }
 
+#dash-cage-main-panel .dash-kv .dash-kv-label,
+#dash-cage-main-panel .dash-kv .dash-kv-value,
+#dash-cage-main-panel .dash-kv .dash-kv-label a,
+#dash-cage-main-panel .dash-kv .dash-kv-value a,
+#dash-cage-main-panel .dash-card-link {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+#dash-cage-main-panel .card-header {
+  padding: 0.6rem 0.85rem;
+  font-size: 13px;
+}
+
+#dash-cage-main-panel > .card:first-of-type {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+#dash-cage-main-panel > .card:first-of-type .dash-kv {
+  padding: 0.65rem 0.75rem;
+}
+
+#dash-cage-main-panel > .card:first-of-type .dash-kv-group-title {
+  padding: 0.6rem 0.75rem;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
 #dash-cage-main-panel > .card:last-child {
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
+#dash-cage-main-panel > .card:first-of-type > .card-body,
 #dash-cage-main-panel > .card:last-child > .card-body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+}
+
+#dash-cage-main-panel > .card:last-child #dash-service-category-rows-main {
+  display: contents;
+}
+
+/* Evenly fill card height — no empty gaps, no inner scroll */
+#dash-cage-main-panel > .card:first-of-type .dash-kv,
+#dash-cage-main-panel > .card:first-of-type .dash-kv-group-title,
+#dash-cage-main-panel > .card:last-child .dash-kv,
+#dash-cage-main-panel > .card:last-child .dash-kv-group-title {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#dash-cage-main-panel > .card:first-of-type .dash-kv-group-title,
+#dash-cage-main-panel > .card:last-child .dash-kv-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #dash-cage-main-panel > .card:last-child .dash-card-actions {
-  margin-top: auto;
+  flex: 0 0 auto;
+}
+
+/* Current Time W/L + Rolling + On Game + Anticipated Profit — match Cage Balance font sizes; keep narrow padding so card size stays fixed */
+#dash-anticipated-panel .dash-current-time-wl > .card-header,
+#dash-anticipated-panel .dash-current-time-rolling > .card-header,
+#dash-anticipated-panel .dash-anticipated-profit > .card-header {
+  font-size: 13px;
+  line-height: 1.15;
+  /* keep standard narrow header padding (do not copy Cage Balance padding bump) */
+  padding: 0.45rem 0.65rem;
+}
+
+#dash-anticipated-panel .dash-current-time-wl .dash-kv,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv,
+#dash-anticipated-panel .dash-on-game .dash-kv,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv {
+  /* slightly tighter than 0.45rem so 13px text keeps original card footprint */
+  padding: 0.38rem 0.65rem;
+}
+
+#dash-anticipated-panel .dash-current-time-wl .dash-kv .dash-kv-label,
+#dash-anticipated-panel .dash-current-time-wl .dash-kv .dash-kv-value,
+#dash-anticipated-panel .dash-current-time-wl .dash-kv .dash-kv-label a,
+#dash-anticipated-panel .dash-current-time-wl .dash-kv .dash-kv-value a,
+#dash-anticipated-panel .dash-current-time-wl .dash-card-link,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv .dash-kv-label,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv .dash-kv-value,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv .dash-kv-label a,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv .dash-kv-value a,
+#dash-anticipated-panel .dash-current-time-rolling .dash-card-link,
+#dash-anticipated-panel .dash-on-game .dash-kv .dash-kv-label,
+#dash-anticipated-panel .dash-on-game .dash-kv .dash-kv-value,
+#dash-anticipated-panel .dash-on-game .dash-kv .dash-kv-label a,
+#dash-anticipated-panel .dash-on-game .dash-kv .dash-kv-value a,
+#dash-anticipated-panel .dash-on-game .dash-card-link,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-label,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-value,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-label a,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-value a,
+#dash-anticipated-panel .dash-anticipated-profit .dash-card-link {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+#dash-anticipated-panel .dash-current-time-wl .dash-kv-group-title,
+#dash-anticipated-panel .dash-current-time-rolling .dash-kv-group-title,
+#dash-anticipated-panel .dash-anticipated-profit .dash-kv-group-title,
+#dash-anticipated-panel .dash-on-game .dash-kv-group-title {
+  font-size: 13px;
+  line-height: 1.15;
+  padding: 0.38rem 0.65rem;
 }
 
 .dash-panel-narrow .dash-card-actions {
@@ -1290,7 +1378,7 @@ body {
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-total.dash-kv-balance-total .dash-kv-value {
-  font-size: 1.15rem;
+  font-size: 13px;
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand {
@@ -1315,7 +1403,7 @@ body {
 .dash-panel-narrow .dash-kv-company .dash-kv-label,
 .dash-panel-narrow .dash-kv-company .dash-kv-value,
 .dash-panel-narrow .dash-kv-company .dash-kv-value .dash-card-link {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -1540,28 +1628,28 @@ body {
   background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
 }
 
-/* Uniform gold table — header AND data rows share the same tone instead of the mixed excel-style tints */
+/* Uniform cream table — data rows use #F5E7BD (headers keep distinct gold accents below) */
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body > .card-body {
-  background: #f0dfa8;
+  background: #F5E7BD;
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body {
-  --gd-dash-matrix-body: #f0dfa8;
-  --gd-dash-matrix-body-alt: #f0dfa8;
-  --rolling-excel-date: #f0dfa8;
-  --rolling-excel-casino: #f0dfa8;
-  --rolling-excel-subhead: #f0dfa8;
-  --rolling-excel-gold: #f0dfa8;
-  --rolling-excel-diff: #f0dfa8;
-  --rolling-excel-remarks: #f0dfa8;
-  --rolling-excel-today: #f0dfa8;
+  --gd-dash-matrix-body: #F5E7BD;
+  --gd-dash-matrix-body-alt: #F5E7BD;
+  --rolling-excel-date: #F5E7BD;
+  --rolling-excel-casino: #F5E7BD;
+  --rolling-excel-subhead: #F5E7BD;
+  --rolling-excel-gold: #F5E7BD;
+  --rolling-excel-diff: #F5E7BD;
+  --rolling-excel-remarks: #F5E7BD;
+  --rolling-excel-today: #F5E7BD;
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-preview .dash-rolling-body-cell,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-wl-row.is-preview .dash-wl-body-cell,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-preview:hover .dash-rolling-body-cell,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-wl-row.is-preview:hover .dash-wl-body-cell {
-  background: #f0dfa8;
+  background: #F5E7BD;
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .dash-rolling-row.is-total .dash-rolling-body-cell,
@@ -1590,7 +1678,7 @@ body {
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-casino,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-remarks {
-  background: #f5e7bd;
+  background: #F5E7BD;
 }
 
 .dash-top-row .dash-dual-matrix-panel-col {
@@ -1623,48 +1711,6 @@ body {
 
 .dash-dual-matrix-col.is-rolling .dash-section-header {
   border-radius: 0;
-}
-
-.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input {
-  font-size: 11px !important;
-  padding: 0.15rem 0.55rem !important;
-  height: auto !important;
-  min-height: 1.55rem !important;
-  width: auto;
-  min-width: 0;
-  background: rgba(0, 0, 0, 0.32) !important;
-  border: 1px solid rgba(241, 212, 138, 0.28) !important;
-  border-radius: 999px !important;
-  box-shadow: none !important;
-  color: var(--gd-dash-gold-light, #f1d48a) !important;
-  cursor: text;
-  text-align: center;
-  field-sizing: content;
-}
-
-.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input::placeholder {
-  color: rgba(241, 212, 138, 0.45) !important;
-}
-
-.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange input.split-date-input:focus {
-  background: rgba(0, 0, 0, 0.48) !important;
-  border-color: rgba(241, 212, 138, 0.55) !important;
-  box-shadow: 0 0 0 0.12rem rgba(200, 162, 76, 0.22) !important;
-  color: var(--gd-dash-gold-light, #f1d48a) !important;
-}
-
-.dash-dual-matrix-col.is-rolling .dash-section-header .dash-rolling-check-split-daterange .house-expense-daterange-separator {
-  font-size: 11px;
-  color: var(--gd-dash-gold-muted, #eacc90);
-  font-weight: 500;
 }
 
 @media (max-width: 991.98px) {

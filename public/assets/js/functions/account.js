@@ -1,5 +1,32 @@
 var account_id;
 var creditDetailsRequestSeq = 0;
+var GUEST_DEFAULT_PROFILE = '/assets/images/guest-default-profile.webp';
+
+function isDefaultGuestPhoto(photo) {
+	if (photo == null) return true;
+	var name = String(photo).trim();
+	if (!name) return true;
+	var lower = name.toLowerCase();
+	return lower === 'default.jpg'
+		|| lower === 'default.png'
+		|| lower === 'default.webp'
+		|| lower === 'default';
+}
+
+function guestProfilePhotoUrl(photo) {
+	if (isDefaultGuestPhoto(photo)) return GUEST_DEFAULT_PROFILE;
+	return '/PassportUpload/' + encodeURIComponent(String(photo).trim());
+}
+
+function setGuestProfilePhoto(imgEl, photo) {
+	if (!imgEl) return;
+	var url = guestProfilePhotoUrl(photo);
+	imgEl.onerror = function () {
+		imgEl.onerror = null;
+		imgEl.src = GUEST_DEFAULT_PROFILE;
+	};
+	imgEl.src = url;
+}
 
 function ensureModalAppendedToBody($modal) {
 	if ($modal && $modal.length && $modal.parent().length && !$modal.parent().is('body')) {
@@ -1372,12 +1399,8 @@ function account_details(account_id_data, agent_code, account_name) {
                 lastSavedAgentRemarks = ar;
             }
 
-            // Check for passport photo
-            if (account.PASSPORTPHOTO && account.PASSPORTPHOTO !== 'DEFAULT.jpg') {
-                document.getElementById('account_photo').src = `/PassportUpload/${account.PASSPORTPHOTO}`;
-            } else {
-                document.getElementById('account_photo').src = '/PassportUpload/DEFAULT.png';
-            }
+            // Check for passport photo (fallback to default webp if missing/corrupt)
+            setGuestProfilePhoto(document.getElementById('account_photo'), account.PASSPORTPHOTO);
         } else {
             console.log('No data found for this account');
             const remarksElEmpty = document.getElementById('agent_remarks_notice');
@@ -1685,10 +1708,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 	  if (acct) {
 		document.getElementById('agent_code_alt').textContent   = acct.agent_code   || 'N/A';
 		document.getElementById('account_name_alt').textContent = acct.account_name || 'N/A';
-		document.getElementById('account_photo_alt').src =
-		  (acct.PASSPORTPHOTO && acct.PASSPORTPHOTO!=='DEFAULT.jpg')
-			? `/PassportUpload/${acct.PASSPORTPHOTO}`
-			: '/PassportUpload/DEFAULT.png';
+		setGuestProfilePhoto(document.getElementById('account_photo_alt'), acct.PASSPORTPHOTO);
 	  }
 	} catch (err) {
 	  console.error("Error fetching passport/photo:", err);

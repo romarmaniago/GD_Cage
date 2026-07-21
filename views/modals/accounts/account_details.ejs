@@ -2,16 +2,17 @@
 <div class="modal fade" id="modal-account-details" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-primary justify-content-center position-relative guest-portal-header">
+            <div class="modal-header justify-content-center position-relative guest-portal-header">
                 <div class="guest-portal-title-wrap text-center" id="staticBackdropLiveLabel">
                     <img
                         class="guest-portal-logo"
-                        src="/assets/images/qwe1-removebg-preview.png"
-                        alt="Guest Portal"
+                        src="/assets/images/gd-background-logo22.png"
+                        alt="Golden Dragon"
                         decoding="async"
                     >
+                    <h5 class="guest-portal-title mb-0">GUEST PORTAL</h5>
                 </div>
-                <button type="button" class="btn-close btn-close-white position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
@@ -34,7 +35,7 @@
                                         <div class="d-flex justify-content-center align-items-center">
                                             <div class="profile-img-edit position-relative d-flex justify-content-center align-items-center flex-wrap">
                                                 <!-- Primary account photo -->
-                                                <img id="account_photo" src="../../assets/images/avatars/01.png" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100"> 
+                                                <img id="account_photo" src="/assets/images/guest-default-profile.webp" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100" onerror="this.onerror=null;this.src='/assets/images/guest-default-profile.webp';"> 
                                                 <!-- Iba pang avatar options... -->
                                                 <button type="button" class="upload-icone bg-primary account-photo-upload-label p-0 d-inline-flex align-items-center justify-content-center" id="btn-open-change-photo" title="Change photo">
                                                     <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24" pointer-events="none">
@@ -49,7 +50,7 @@
                                         <table id="dataTable" class="table table-vcenter table-hover" style="background-color: #f9f9f9; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                                             <thead>
                                                 <tr>
-                                                    <th class="text-center bg-secondary text-white" style="width: 100%; font-size: 12px; padding: 10px 0;"><%= __('modal_account_details.total_balance') %></th>
+                                                    <th class="text-center" style="width: 100%; font-size: 12px; padding: 10px 0; background-color: #F5E7BD; color: #1a1a1a;"><%= __('modal_account_details.total_balance') %></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -485,41 +486,37 @@ body.guest-portal-child-open .modal-backdrop.show {
     overflow: hidden;
     box-shadow: 0 14px 36px rgba(15, 23, 42, 0.22);
 }
-#modal-account-details .modal-header.bg-primary {
-    /* Dark header so the gold logo stays readable */
-    background: linear-gradient(90deg, #0b1020 0%, #131c35 100%) !important;
-    padding-top: 0.8rem;
-    padding-bottom: 0.8rem;
-}
 #modal-account-details .guest-portal-header {
-    padding-top: 0.55rem;
-    padding-bottom: 0.55rem;
-}
-#modal-account-details .guest-portal-header::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.28;
-    background:
-        radial-gradient(900px 160px at 50% -20px, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%),
-        radial-gradient(260px 260px at 14% 30%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%),
-        radial-gradient(240px 240px at 86% 45%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 70%);
+    background-color: #F5E7BD !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 96px;
+    min-height: 96px;
 }
 #modal-account-details .guest-portal-title-wrap {
     line-height: 1.1;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 1rem;
 }
 #modal-account-details .guest-portal-logo {
     display: block;
-    margin: 0 auto;
-    height: 56px;
-    max-width: min(88vw, 720px);
-    width: auto;
-    object-fit: contain;
-    filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.22));
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+#modal-account-details .guest-portal-title {
+    margin: 0;
+    color: #1a1a1a;
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1.2;
 }
 #modal-account-details .modal-body {
     background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%));
@@ -544,6 +541,8 @@ body.guest-portal-child-open .modal-backdrop.show {
 #modal-account-details #dataTable th {
     font-size: 11px;
     letter-spacing: 0.03em;
+    background-color: #F5E7BD !important;
+    color: #1a1a1a !important;
 }
 #modal-account-details .form-check {
     margin-bottom: 0.35rem;

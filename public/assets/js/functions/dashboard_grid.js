@@ -1493,20 +1493,63 @@
     }
   }
 
+  function setCageBalanceHeight(el, px) {
+    const value = px === '' ? '' : `${px}px`;
+    el.style.height = value;
+    el.style.minHeight = value;
+    el.style.maxHeight = value;
+  }
+
+  function syncCageDiffAlignment() {
+    const cageMainPanel = document.getElementById('dash-cage-main-panel');
+    const anticipated = document.getElementById('dash-anticipated-panel');
+    if (!cageMainPanel || !anticipated) return;
+
+    const cageBalance = cageMainPanel.querySelector('.card');
+    const leftDiff = cageMainPanel.querySelector('.dash-cage-balance-diff');
+    const rightDiff = anticipated.querySelectorAll('.dash-cage-balance-diff')[1];
+    if (!cageBalance || !leftDiff || !rightDiff) return;
+
+    if (window.innerWidth < 992) {
+      setCageBalanceHeight(cageBalance, '');
+      return;
+    }
+
+    setCageBalanceHeight(cageBalance, '');
+    void cageBalance.offsetHeight;
+
+    const stackGap = parseFloat(getComputedStyle(cageMainPanel).rowGap || getComputedStyle(cageMainPanel).gap) || 0;
+    const targetHeight = Math.round(
+      rightDiff.getBoundingClientRect().top - cageMainPanel.getBoundingClientRect().top - stackGap
+    );
+    if (targetHeight <= 0) return;
+
+    setCageBalanceHeight(cageBalance, targetHeight);
+    void cageBalance.offsetHeight;
+
+    const delta = Math.round(rightDiff.getBoundingClientRect().top - leftDiff.getBoundingClientRect().top);
+    if (delta !== 0) {
+      setCageBalanceHeight(cageBalance, Math.max(0, targetHeight + delta));
+    }
+  }
+
   function syncMatrixPanelHeight() {
     const ref = document.getElementById('dash-anticipated-panel');
     const panel = document.getElementById('dash-dual-matrix-panel');
     const cageMainPanel = document.getElementById('dash-cage-main-panel');
     if (!ref) return;
 
-    if (window.innerWidth < 1200) {
+    if (window.innerWidth < 992) {
       if (panel) panel.style.height = '';
       if (cageMainPanel) cageMainPanel.style.height = '';
+      syncCageDiffAlignment();
       return;
     }
 
-    if (panel) panel.style.height = `${ref.offsetHeight}px`;
-    if (cageMainPanel) cageMainPanel.style.height = `${ref.offsetHeight}px`;
+    const heightPx = `${ref.offsetHeight}px`;
+    if (panel) panel.style.height = heightPx;
+    if (cageMainPanel) cageMainPanel.style.height = heightPx;
+    requestAnimationFrame(syncCageDiffAlignment);
   }
 
   function initMatrixPanelHeightSync() {
@@ -1516,14 +1559,15 @@
     syncMatrixPanelHeight();
 
     if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(() => syncMatrixPanelHeight());
-      ro.observe(ref);
+      new ResizeObserver(() => syncMatrixPanelHeight()).observe(ref);
     }
 
     window.addEventListener('resize', () => {
       syncMatrixPanelHeight();
       syncDualMatrixRowHeights();
     });
+
+    window.setTimeout(syncMatrixPanelHeight, 200);
   }
 
   async function loadGridData() {

@@ -321,7 +321,7 @@
                data-month-key="<%= dashboardMonthKey || '' %>"
                data-wl-rate="<%= wlSharePct %>"
                data-wl-default="<%= dashboardWlShareDefault || 65 %>">
-               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body dash-current-time-wl">
                   <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
                      <span>Current Time W/L</span>
                   </div>
@@ -340,7 +340,7 @@
                   <span class="dash-kv-value">0</span>
                </div>
 
-               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body dash-current-time-rolling">
                   <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
                      <span>Current Time Rolling</span>
                   </div>
@@ -357,7 +357,7 @@
                   <span class="dash-kv-value">0</span>
                </div>
 
-               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body is-headerless">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body is-headerless dash-on-game">
                   <div class="card-body">
                      <div class="dash-kv-group-title is-warn d-flex justify-content-between align-items-center">
                         <span>On Game</span>
@@ -375,7 +375,7 @@
                   </div>
                </div>
 
-               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
+               <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body dash-anticipated-profit">
                   <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center flex-wrap gap-1">
                      <span>Anticipated Profit</span>
                      <span class="dash-card-meta"><%= dashPeriodLabel %></span>
@@ -769,7 +769,7 @@
 <script src="/assets/js/functions/reset.js"></script>
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
-<script src="/assets/js/functions/dashboard_grid.js"></script>
+<script src="/assets/js/functions/dashboard_grid.js?v=5"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
 <script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/dashboard_service_balance.js"></script>
