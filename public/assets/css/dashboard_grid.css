@@ -1713,6 +1713,132 @@ body {
   border-radius: 0;
 }
 
+/* Main Cage Rolling Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
+.dash-dual-matrix-col.is-rolling .dash-section-header {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.dash-dual-matrix-col.is-rolling #dash-rolling-root {
+  font-size: 13px;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-casino-group,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-gold-group,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-beyond-chips,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell .dash-card-link,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell .dash-card-link,
+.dash-dual-matrix-col.is-rolling .dash-card-link {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+/* Main Cage Rolling Check — center-align header + cell text; lock body row height to original standard */
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-date,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-buyin,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-cashout,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-rolling,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-beyond-chips,
+.dash-dual-matrix-col.is-rolling .dash-rolling-head-cell.is-remarks {
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem 0.35rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-date,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-casino,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-gold,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-remarks,
+.dash-dual-matrix-col.is-rolling .dash-rolling-row.is-total .dash-rolling-body-cell.is-date.is-total-label {
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem 0.35rem;
+  min-height: 1.65rem;
+  height: 1.65rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dash-dual-matrix-col.is-rolling #dash-rolling-root > .dash-rolling-row {
+  min-height: 1.65rem;
+  flex: 1 1 0;
+}
+
+/* W/L Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
+.dash-dual-matrix-col.is-wl .dash-section-header {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.dash-dual-matrix-col.is-wl #dash-wl-root {
+  font-size: 13px;
+}
+
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-gold,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-gold small,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell .dash-card-link,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell .dash-card-link,
+.dash-dual-matrix-col.is-wl .dash-card-link {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+/* W/L Check — center-align header + cell text; keep "The difference" on one line; lock body row height */
+.dash-dual-matrix-col.is-wl .dash-wl-head-excel,
+.dash-dual-matrix-col.is-wl .dash-wl-row {
+  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
+}
+
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-date,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-casino,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-gold,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-diff,
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-remarks {
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem 0.35rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-date,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-casino,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-gold,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-remarks,
+.dash-dual-matrix-col.is-wl .dash-wl-row.is-total .dash-wl-body-cell.is-date.is-total-label {
+  justify-content: center;
+  text-align: center;
+  padding: 0.25rem 0.35rem;
+  min-height: 1.65rem;
+  height: 1.65rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dash-dual-matrix-col.is-wl .dash-wl-head-cell.is-diff {
+  white-space: nowrap;
+}
+
+.dash-dual-matrix-col.is-wl #dash-wl-root > .dash-wl-row {
+  min-height: 1.65rem;
+  flex: 1 1 0;
+}
+
 @media (max-width: 991.98px) {
   .dash-dual-matrix {
     flex-direction: column;
