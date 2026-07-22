@@ -41,19 +41,20 @@
           </div>
         </div>
 
-        <div class="row mb-3 align-items-end">
-          <div class="col-sm-5">
+        <div class="row mb-3">
+          <div class="col-sm-6">
             <label for="edit-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
             <input type="text" id="edit-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
             <div id="edit-deposit-balance" class="text-muted small mt-1" style="display:none">
               <%= __('fnb_hotel.available_balance') %> <span id="edit-deposit-balance-value">0</span>
             </div>
           </div>
-          <div class="col-sm-7">
-            <label class="form-label"><%= __('fnb_hotel.service_type') %></label>
-            <div id="edit-services-type-list" class="edit-services-type-list" role="group" aria-label="<%= __('fnb_hotel.service_type') %>">
-              <span class="edit-services-type-placeholder text-muted small"><%= __('fnb_hotel.select_service') %></span>
-            </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label"><%= __('fnb_hotel.service_type') %></label>
+          <div id="edit-services-type-list" class="edit-services-type-list" role="group" aria-label="<%= __('fnb_hotel.service_type') %>">
+            <span class="edit-services-type-placeholder text-muted small"><%= __('fnb_hotel.select_service') %></span>
           </div>
         </div>
 
@@ -148,28 +149,65 @@
   }
 
   #modal-services-edit-record .edit-services-type-list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem 1rem;
+    align-items: stretch;
     min-height: calc(1.5em + 0.75rem + 2px);
-    padding: 0.35rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+    background-color: #fff;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
+  #modal-services-edit-record .edit-services-type-list .form-check,
   #modal-services-edit-record .edit-services-type-list .form-check-inline {
-    margin-right: 0;
+    display: grid;
+    grid-template-columns: 1.125rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.45rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 2rem;
+    margin: 0;
+    padding: 0.3rem 0;
+    float: none;
   }
 
   #modal-services-edit-record .edit-services-type-list .form-check-input {
+    float: none !important;
+    grid-column: 1;
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0 !important;
+    position: static;
     border-color: #8a92a6 !important;
   }
 
   #modal-services-edit-record .edit-services-type-list .form-check-label {
+    grid-column: 2;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+    line-height: 1.3;
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   #modal-services-edit-record .edit-services-type-placeholder {
+    grid-column: 1 / -1;
     line-height: calc(1.5em + 0.75rem + 2px);
+  }
+
+  @media (max-width: 575.98px) {
+    #modal-services-edit-record .edit-services-type-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.15rem 0.75rem;
+    }
   }
 </style>
 
