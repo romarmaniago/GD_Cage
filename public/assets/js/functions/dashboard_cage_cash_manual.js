@@ -129,8 +129,10 @@
 			return window.formatServiceChargeAmount(value);
 		}
 		var n = Number(value) || 0;
-		if (n > 0) return '<span class="text-success">+' + Math.abs(n).toLocaleString('en-US') + '</span>';
-		if (n < 0) return '<span class="text-danger">-' + Math.abs(n).toLocaleString('en-US') + '</span>';
+		if (n > 0) return Math.abs(n).toLocaleString('en-US');
+		if (n < 0) {
+			return '<span class="text-danger" style="color:#dc3545 !important;">(' + Math.abs(n).toLocaleString('en-US') + ')</span>';
+		}
 		return '0';
 	}
 

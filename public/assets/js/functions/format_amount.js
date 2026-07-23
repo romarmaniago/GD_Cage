@@ -85,12 +85,14 @@
     window.commaAmount = window.fmtAmt;
     window.formatWithCommas = window.fmtAmt;
     window.fmtOut = function (value, options) { return formatDirectionalAmount(value, 'out', Object.assign({ html: true }, options || {})); };
-    window.fmtIn = function (value, options) { return formatDirectionalAmount(value, 'in', Object.assign({ html: true, showPositiveSign: true }, options || {})); };
+    // Positive: plain text (no + / green). Pass showPositiveSign: true to opt into legacy + style.
+    window.fmtIn = function (value, options) { return formatDirectionalAmount(value, 'in', Object.assign({ html: true }, options || {})); };
     window.fmtSigned = function (value, options) { return formatSignedAmount(value, Object.assign({ html: true }, options || {})); };
 
     /**
-     * Service / Add Charge list amount.
-     * Signed values show + / -. Legacy positive JUNKET rows are treated as outflow (-).
+     * Service / Add Charge / signed list amount.
+     * Positive: plain text. Negative: accounting (x,xxx) in red.
+     * Legacy positive JUNKET rows are treated as outflow.
      */
     window.formatServiceChargeAmount = function (value, sourceType, options) {
         options = options || {};
@@ -105,10 +107,13 @@
             maximumFractionDigits: hasDecimals ? 2 : (options.maximumFractionDigits || 0)
         });
         if (n > 0) {
-            return '<span class="' + (options.positiveClass || 'text-success') + '">+' + formatted + '</span>';
+            if (options.showPositiveSign) {
+                return '<span class="' + (options.positiveClass || 'text-success') + '">+' + formatted + '</span>';
+            }
+            return formatted;
         }
         if (n < 0) {
-            return '<span class="' + (options.negativeClass || 'text-danger') + '" style="color:#dc3545 !important;">-' + formatted + '</span>';
+            return '<span class="' + (options.negativeClass || 'text-danger') + '" style="color:#dc3545 !important;">(' + formatted + ')</span>';
         }
         return formatted;
     };

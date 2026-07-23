@@ -3,14 +3,15 @@ function fmtCapitalAmount(value, direction) {
     const formatted = (window.AmountFormat && window.AmountFormat.formatCommas)
         ? window.AmountFormat.formatCommas(n)
         : n.toLocaleString('en-US');
-    // Service-category deductions use leading minus (e.g. -10,000), not accounting parentheses.
-    if (direction === 'out') return '<span class="text-danger">-' + formatted + '</span>';
-    if (direction === 'in') {
-        if (window.AmountFormat) {
-            return window.AmountFormat.formatDirectionalAmount(value, 'in', { html: true, showPositiveSign: true });
+    // Negative / bawas: accounting style (1,000) in red
+    if (direction === 'out') {
+        if (window.AmountFormat && window.AmountFormat.formatAmountNegativeHtml) {
+            return window.AmountFormat.formatAmountNegativeHtml(n);
         }
-        return '<span class="text-success">+' + formatted + '</span>';
+        return '<span class="text-danger" style="color:#dc3545 !important;">(' + formatted + ')</span>';
     }
+    // Positive amounts: plain text (no + / green)
+    if (direction === 'in') return formatted;
     return formatted;
 }
 
