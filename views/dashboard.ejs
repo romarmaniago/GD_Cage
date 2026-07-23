@@ -227,7 +227,8 @@
       var usdBalance = pickManualCash(sqlCageManualCash, 'USD');
       var gcashBalance = pickManualCash(sqlCageManualCash, 'GCASH');
       var phpBalance = cashBalance;
-      var cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance;
+      // USD/GCASH are manual entries — keep them on display, but exclude from The difference
+      var cageBalanceTotal = phpBalance + totalChipsBalance;
       var cageBalanceDiff = houseBalance - cageBalanceTotal;
 
       var nowStamp = new Date();

@@ -96,13 +96,6 @@
 		});
 	}
 
-	function focusProgramDateInput() {
-		var el = els.programDate;
-		if (!el) return;
-		var target = el._flatpickr && el._flatpickr.altInput ? el._flatpickr.altInput : el;
-		target.focus();
-	}
-
 	function formatReportDate(iso) {
 		if (!iso) return '—';
 		var parts = String(iso).split('-');
@@ -176,13 +169,13 @@
 		}
 	}
 
-	function recalcDiff(usdTotal, gcashTotal) {
+	function recalcDiff() {
 		if (!els.panel || !els.diffValue) return;
 		var php = Number(els.panel.dataset.phpBalance) || 0;
 		var chips = Number(els.panel.dataset.chipsBalance) || 0;
 		var house = Number(els.panel.dataset.houseBalance) || 0;
-		var cageTotal = (Number(usdTotal) || 0) + (Number(gcashTotal) || 0) + php + chips;
-		els.diffValue.innerHTML = formatAmtHtml(house - cageTotal);
+		// USD/GCASH are manual — exclude from The difference
+		els.diffValue.innerHTML = formatAmtHtml(house - (php + chips));
 	}
 
 	function updateDashboardTotals(totals) {
@@ -191,7 +184,7 @@
 		var gcash = Number(totals.GCASH) || 0;
 		if (els.usdTotal) els.usdTotal.innerHTML = formatAmtHtml(usd);
 		if (els.gcashTotal) els.gcashTotal.innerHTML = formatAmtHtml(gcash);
-		recalcDiff(usd, gcash);
+		recalcDiff();
 	}
 
 	async function fetchTotals() {
@@ -277,7 +270,7 @@
 		getModalInstance().show();
 		loadHistory(currency, reportDate);
 		els.modal.addEventListener('shown.bs.modal', function () {
-			focusProgramDateInput();
+			if (els.amount) els.amount.focus();
 		}, { once: true });
 	}
 

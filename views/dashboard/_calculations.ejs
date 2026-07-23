@@ -183,7 +183,8 @@ const grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
 const usdBalance = pickCurrency(sqlCurrencyPending, 'USD');
 const gcashBalance = pickCurrency(sqlCurrencyPending, 'GCASH');
 const phpBalance = cashBalance;
-const cageBalanceTotal = usdBalance + gcashBalance + phpBalance + totalChipsBalance;
+// USD/GCASH are manual entries — keep them on display, but exclude from The difference
+const cageBalanceTotal = phpBalance + totalChipsBalance;
 const cageBalanceDiff = houseBalance - cageBalanceTotal;
 
 const nowStamp = new Date();
