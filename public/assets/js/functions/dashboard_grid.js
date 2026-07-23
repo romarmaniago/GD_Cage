@@ -781,6 +781,7 @@
     };
     set('dash-actual-buyin', t.buy_in);
     set('dash-actual-cashout', -Math.abs(t.cash_out || 0));
+    set('dash-actual-beyond-chips', t.beyond_chips);
     set('dash-actual-wl', t.wl_total);
     set('dash-actual-rolling', t.rolling);
     set('dash-actual-gaming-wl', t.wl_total);

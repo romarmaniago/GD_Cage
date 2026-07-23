@@ -57,13 +57,98 @@
 		return formatYmd(new Date());
 	}
 
+	function getProgramDateInputValue(el) {
+		el = el || els.programDate;
+		if (!el) return '';
+		if (el._flatpickr && el._flatpickr.altInput) {
+			return String(el._flatpickr.altInput.value || '').trim();
+		}
+		return String(el.value || '').trim();
+	}
+
+	function isValidDateParts(y, m, d) {
+		var dt = new Date(y, m - 1, d);
+		return (
+			!Number.isNaN(dt.getTime()) &&
+			dt.getFullYear() === y &&
+			dt.getMonth() === m - 1 &&
+			dt.getDate() === d
+		);
+	}
+
+	function toIsoFromParts(y, m, d) {
+		if (!isValidDateParts(y, m, d)) return '';
+		return String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+	}
+
+	function parseManualDate(raw) {
+		var text = String(raw || '').trim();
+		if (!text) return '';
+
+		var isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+		if (isoMatch) {
+			return toIsoFromParts(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+		}
+
+		var ymdMatch = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+		if (ymdMatch) {
+			return toIsoFromParts(Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3]));
+		}
+
+		var slashMatch = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+		if (slashMatch) {
+			var a = Number(slashMatch[1]);
+			var b = Number(slashMatch[2]);
+			var y = Number(slashMatch[3]);
+			if (a > 12) return toIsoFromParts(y, b, a);
+			if (b > 12) return toIsoFromParts(y, a, b);
+			return toIsoFromParts(y, a, b);
+		}
+
+		if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.toApiDate === 'function') {
+			var api = window.MonthEndCutoffRange.toApiDate(text);
+			if (api) return String(api).slice(0, 10);
+		}
+
+		return '';
+	}
+
+	function formatDateInput(iso) {
+		var match = String(iso || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+		if (!match) return '';
+		return match[1] + '/' + match[2] + '/' + match[3];
+	}
+
 	function getProgramDateValue(el) {
 		el = el || els.programDate;
 		if (!el) return '';
+		var manual = parseManualDate(getProgramDateInputValue(el));
+		if (manual) return manual;
 		if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
 			return formatYmd(el._flatpickr.selectedDates[0]);
 		}
-		return String(el.value || '').trim().slice(0, 10);
+		return parseManualDate(el.value) || '';
+	}
+
+	function syncProgramDateInput(el) {
+		el = el || els.programDate;
+		if (!el) return '';
+		var parsed = parseManualDate(getProgramDateInputValue(el));
+		if (!parsed) return '';
+		if (el._flatpickr) {
+			el._flatpickr.setDate(parsed, false);
+		} else {
+			el.value = formatDateInput(parsed);
+		}
+		return parsed;
+	}
+
+	function reloadHistoryForProgramDate() {
+		var currency = els.currencyInput ? els.currencyInput.value : '';
+		var reportDate = syncProgramDateInput(els.programDate) || getProgramDateValue(els.programDate);
+		if (currency && reportDate) {
+			loadHistory(currency, reportDate);
+		}
 	}
 
 	function ensureProgramDatePicker(defaultDate) {
@@ -71,27 +156,35 @@
 		if (!el) return;
 		var dateVal = defaultDate || getProgramDateValue(el) || todayProgramDateValue();
 		if (typeof flatpickr === 'undefined') {
-			el.value = dateVal;
+			el.value = formatDateInput(dateVal) || dateVal;
 			return;
 		}
 		if (el._flatpickr) {
-			try { el._flatpickr.destroy(); } catch (e) { /* ignore */ }
+			el._flatpickr.setDate(dateVal, false);
+			return;
 		}
 		flatpickr(el, {
 			enableTime: false,
-			dateFormat: 'Y-m-d',
-			altInput: true,
-			altFormat: 'M j, Y',
+			dateFormat: 'Y/m/d',
 			defaultDate: dateVal,
 			allowInput: true,
 			disableMobile: true,
 			closeOnSelect: true,
-			onChange: function (_selectedDates, _dateStr, instance) {
-				var currency = els.currencyInput ? els.currencyInput.value : '';
-				var reportDate = getProgramDateValue(instance.input);
-				if (currency && reportDate) {
-					loadHistory(currency, reportDate);
-				}
+			onReady: function (_selectedDates, _dateStr, instance) {
+				var input = instance.input;
+				if (!input || input.dataset.boundCageCashDateBlur === '1') return;
+				input.dataset.boundCageCashDateBlur = '1';
+				input.addEventListener('blur', function () {
+					syncProgramDateInput(input);
+					reloadHistoryForProgramDate();
+				});
+			},
+			onClose: function (_selectedDates, _dateStr, instance) {
+				syncProgramDateInput(instance.input);
+				reloadHistoryForProgramDate();
+			},
+			onChange: function () {
+				reloadHistoryForProgramDate();
 			}
 		});
 	}
@@ -265,7 +358,7 @@
 		if (els.modalTitle) els.modalTitle.textContent = label;
 		if (els.currencyInput) els.currencyInput.value = currency;
 		ensureProgramDatePicker(reportDate);
-		if (els.amountLabel) els.amountLabel.textContent = 'Add ' + label;
+		if (els.amountLabel) els.amountLabel.textContent = 'Amount';
 		if (els.amount) els.amount.value = '';
 		if (els.remarks) els.remarks.value = '';
 
@@ -344,7 +437,7 @@
 		if (!result.isConfirmed) return;
 
 		var currency = els.currencyInput ? els.currencyInput.value : '';
-		var reportDate = getProgramDateValue();
+		var reportDate = syncProgramDateInput(els.programDate) || getProgramDateValue(els.programDate);
 
 		try {
 			await deleteEntry(id);
@@ -398,7 +491,7 @@
 		els.form.addEventListener('submit', async function (e) {
 			e.preventDefault();
 			var currency = els.currencyInput ? els.currencyInput.value : '';
-			var reportDate = getProgramDateValue();
+			var reportDate = syncProgramDateInput(els.programDate) || getProgramDateValue(els.programDate);
 			var amount = parseSignedAmount(els.amount ? els.amount.value : '');
 			var remarks = String(els.remarks ? els.remarks.value : '').trim();
 			var saveBtn = els.form.querySelector('[type="submit"]');
@@ -434,7 +527,7 @@
 			var remarks = String(els.editRemarks ? els.editRemarks.value : '').trim();
 			var saveBtn = els.editForm.querySelector('[type="submit"]');
 			var currency = els.currencyInput ? els.currencyInput.value : '';
-			var reportDate = getProgramDateValue();
+			var reportDate = syncProgramDateInput(els.programDate) || getProgramDateValue(els.programDate);
 
 			if (!id) return;
 			if (Number.isNaN(amount) || amount === 0) {

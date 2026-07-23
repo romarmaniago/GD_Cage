@@ -1570,11 +1570,6 @@ body {
   color: #2c2418;
 }
 
-.dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-wl-body-cell {
-  background: rgba(241, 212, 138, 0.42);
-  color: #2c2418;
-}
-
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-row.is-today .dash-rolling-body-cell,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-wl-row.is-today .dash-wl-body-cell {
   background: var(--rolling-excel-today);
@@ -1676,8 +1671,8 @@ body {
   --rolling-excel-remarks: #e8d08c;
 }
 
-.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-casino,
-.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-body-cell.is-col-remarks {
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-row:not(.is-total) .dash-wl-body-cell.is-col-casino,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body.is-wl .dash-wl-row:not(.is-total) .dash-wl-body-cell.is-col-remarks {
   background: #F5E7BD;
 }
 
@@ -2422,10 +2417,6 @@ body {
 
 .dash-wl-row {
   border-bottom: none;
-}
-
-.dash-wl-row:not(.is-today):not(.is-total):not(.is-preview):hover .dash-wl-body-cell {
-  background: #f8fafc;
 }
 
 .dash-wl-body-cell {

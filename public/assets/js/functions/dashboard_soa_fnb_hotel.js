@@ -70,63 +70,105 @@
     return formatYmd(new Date());
   }
 
+  function getProgramDateInputValue(el) {
+    if (!el) return '';
+    if (el._flatpickr && el._flatpickr.altInput) {
+      return String(el._flatpickr.altInput.value || '').trim();
+    }
+    return String(el.value || '').trim();
+  }
+
   function getProgramDateValue(el) {
     if (!el) return '';
+    const manual = parseManualDate(getProgramDateInputValue(el));
+    if (manual) return manual;
     if (el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates[0]) {
       return formatYmd(el._flatpickr.selectedDates[0]);
     }
-    const manual = parseManualDate(el.value);
-    if (manual) return manual;
-    return String(el.value || '').trim().slice(0, 10);
+    return parseManualDate(el.value) || '';
+  }
+
+  function syncProgramDateInput(el) {
+    if (!el) return '';
+    const parsed = parseManualDate(getProgramDateInputValue(el));
+    if (!parsed) return '';
+    if (el._flatpickr) {
+      el._flatpickr.setDate(parsed, false);
+    } else {
+      el.value = formatDateInput(parsed);
+    }
+    return parsed;
   }
 
   function ensureProgramDatePicker(el, defaultDate) {
     if (!el) return;
     const dateVal = defaultDate || getProgramDateValue(el) || todayProgramDateValue();
     if (typeof flatpickr === 'undefined') {
-      el.value = dateVal;
+      el.value = formatDateInput(dateVal) || dateVal;
       return;
     }
     if (el._flatpickr) {
-      try { el._flatpickr.destroy(); } catch (e) { /* ignore */ }
+      el._flatpickr.setDate(dateVal, false);
+      return;
     }
     flatpickr(el, {
       enableTime: false,
-      dateFormat: 'Y-m-d',
-      altInput: true,
-      altFormat: 'M j, Y',
+      dateFormat: 'Y/m/d',
       defaultDate: dateVal,
       allowInput: true,
       disableMobile: true,
-      closeOnSelect: true
+      closeOnSelect: true,
+      onReady(_selectedDates, _dateStr, instance) {
+        const input = instance.input;
+        if (!input || input.dataset.boundSoaDateBlur === '1') return;
+        input.dataset.boundSoaDateBlur = '1';
+        input.addEventListener('blur', () => {
+          syncProgramDateInput(input);
+        });
+      },
+      onClose(_selectedDates, _dateStr, instance) {
+        syncProgramDateInput(instance.input);
+      }
     });
   }
 
-  function focusProgramDateInput(el) {
-    if (!el) return;
-    const target = el._flatpickr && el._flatpickr.altInput ? el._flatpickr.altInput : el;
-    target.focus();
+  function isValidDateParts(y, m, d) {
+    const dt = new Date(y, m - 1, d);
+    return (
+      !Number.isNaN(dt.getTime()) &&
+      dt.getFullYear() === y &&
+      dt.getMonth() === m - 1 &&
+      dt.getDate() === d
+    );
+  }
+
+  function toIsoFromParts(y, m, d) {
+    if (!isValidDateParts(y, m, d)) return '';
+    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
   function parseManualDate(raw) {
     const text = String(raw || '').trim();
     if (!text) return '';
 
-    const match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
-    if (match) {
-      const y = Number(match[1]);
-      const m = Number(match[2]);
-      const d = Number(match[3]);
-      const dt = new Date(y, m - 1, d);
-      if (
-        Number.isNaN(dt.getTime()) ||
-        dt.getFullYear() !== y ||
-        dt.getMonth() !== m - 1 ||
-        dt.getDate() !== d
-      ) {
-        return '';
-      }
-      return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) {
+      return toIsoFromParts(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+    }
+
+    const ymdMatch = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (ymdMatch) {
+      return toIsoFromParts(Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3]));
+    }
+
+    const slashMatch = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (slashMatch) {
+      const a = Number(slashMatch[1]);
+      const b = Number(slashMatch[2]);
+      const y = Number(slashMatch[3]);
+      if (a > 12) return toIsoFromParts(y, b, a);
+      if (b > 12) return toIsoFromParts(y, a, b);
+      return toIsoFromParts(y, a, b);
     }
 
     if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.toApiDate === 'function') {
@@ -342,7 +384,6 @@
     ensureProgramDatePicker(els.editProgramDate, toIsoDateOnly(row.soaDate || '') || todayProgramDateValue());
     const instance = bootstrap.Modal.getOrCreateInstance(els.editModal);
     instance.show();
-    els.editModal.addEventListener('shown.bs.modal', () => focusProgramDateInput(els.editProgramDate), { once: true });
   }
 
   async function openSoaModal() {
@@ -355,7 +396,6 @@
 
     showModal();
     await loadHistory(period.from, period.to);
-    els.modal?.addEventListener('shown.bs.modal', () => focusProgramDateInput(els.programDate), { once: true });
   }
 
   function bind() {
@@ -400,7 +440,7 @@
       const category = String(els.category?.value || '').trim();
       const amount = parseAmount(els.amount?.value);
       const remarks = String(els.remarks?.value || '').trim();
-      const programDate = getProgramDateValue(els.programDate);
+      const programDate = syncProgramDateInput(els.programDate) || getProgramDateValue(els.programDate);
       const saveBtn = els.saveBtn || els.form.querySelector('[type="submit"]');
 
       if (!category) {
@@ -425,7 +465,7 @@
           refreshDashboardSoaTotal(dateFrom, dateTo)
         ]);
         if (window.Swal) Swal.fire({ icon: 'success', title: 'Saved', timer: 900, showConfirmButton: false });
-        focusProgramDateInput(els.programDate);
+        els.category?.focus();
       } catch (err) {
         console.error('save soa:', err);
         if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save SOA.' });
@@ -494,7 +534,7 @@
       const category = String(els.editCategory?.value || '').trim();
       const amount = parseAmount(els.editAmount?.value);
       const remarks = String(els.editRemarks?.value || '').trim();
-      const programDate = getProgramDateValue(els.editProgramDate);
+      const programDate = syncProgramDateInput(els.editProgramDate) || getProgramDateValue(els.editProgramDate);
       const saveBtn = els.editForm.querySelector('[type="submit"]');
       const dateFrom = els.dateFrom?.value || '';
       const dateTo = els.dateTo?.value || '';
