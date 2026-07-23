@@ -75,15 +75,26 @@
   width: 100%;
 }
 
-/* Proportional column distribution (sums to 100%) */
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-program-date { width: 10%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 12%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 18%; }
+/* Proportional column distribution — date cols need rem min-widths so headers don't collide */
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-program-date { width: 9.25rem; min-width: 9.25rem; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-date-time { width: 9.75rem; min-width: 9.75rem; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-name { width: 16%; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-in-charge { width: 10%; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-receiver { width: 10%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 16%; }
-#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 10%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-description { width: 14%; }
+#modal-dash-house-expense .expense-item-tbl-layout col.expense-col-amount { width: 7.5rem; min-width: 7rem; }
 #modal-dash-house-expense .expense-item-tbl-layout col.expense-col-action { width: 11rem; }
+
+#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(1),
+#modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(2),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(1),
+#modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(2) {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 #modal-dash-house-expense .expense-item-tbl-layout thead th:nth-child(4),
 #modal-dash-house-expense .expense-item-tbl-layout tbody td:nth-child(4) {
@@ -98,10 +109,12 @@
 #modal-dash-house-expense .expense-item-tbl-layout thead th {
   white-space: nowrap;
   font-size: 0.68rem;
-  padding: 0.3rem 0.25rem;
+  padding: 0.35rem 0.5rem;
   line-height: 1.15;
   vertical-align: middle;
   text-align: center !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout tbody td {
@@ -784,12 +797,14 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     color: #64748b;
     font-weight: 600;
     font-size: 0.78rem;
-    padding: 0.55rem 0.65rem;
+    padding: 0.55rem 0.75rem;
     border: none !important;
     border-bottom: 1px solid #e2e8f0 !important;
     box-shadow: none !important;
     white-space: nowrap;
     text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 #expense-item-cat-tbl th:last-child,
 #expense-item-cat-tbl td:last-child {
