@@ -230,6 +230,29 @@
       return formatAmount(amount);
     }
 
+    function updateAdditionalCommissionTableTotal(api) {
+      const totalEl = document.getElementById('additional-commission-total-amount');
+      if (!totalEl) return;
+
+      let total = 0;
+      if (api) {
+        api.rows({ search: 'applied' }).every(function () {
+          const row = this.data();
+          total += Number(row && row.AMOUNT) || 0;
+        });
+      } else {
+        total = (records || []).reduce(function (sum, row) {
+          return sum + (Number(row && row.AMOUNT) || 0);
+        }, 0);
+      }
+
+      if (!total) {
+        totalEl.textContent = '0';
+        return;
+      }
+      totalEl.innerHTML = '<span class="text-danger fw-bold">' + formatAmount(total) + '</span>';
+    }
+
     function formatAccountName(row) {
       const account = String(row && row.account != null ? row.account : '').trim();
       const name = String(row && row.name != null ? row.name : '').trim();
@@ -532,7 +555,10 @@
             //   }
             // }
           ],
-          data: []
+          data: [],
+          footerCallback: function () {
+            updateAdditionalCommissionTableTotal(this.api());
+          }
         });
 
         $table.on('init.dt draw.dt', layoutAdditionalCommissionControls);
@@ -552,6 +578,7 @@
           dataTable.clear().draw(false);
         } else {
           tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No additional commission records found.</td></tr>';
+          updateAdditionalCommissionTableTotal(null);
         }
         syncSortHeaders();
         return;
@@ -589,6 +616,7 @@
           </tr>
         `;
         }).join('');
+        updateAdditionalCommissionTableTotal(null);
       }
 
       syncSortHeaders();

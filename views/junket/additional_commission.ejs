@@ -97,7 +97,7 @@
 	background-color: #f6f3ec !important;
 }
 
-/* Footer — light gray */
+/* Footer — light gray, bold, aligned with Amount column */
 .additional-commission-panel-body table tfoot tr {
 	background-color: #f5f5f5 !important;
 }
@@ -106,6 +106,14 @@
 	color: #555 !important;
 	border-top: 1px solid #e0e0e0 !important;
 	border-bottom: 1px solid #e0e0e0 !important;
+	font-weight: 700 !important;
+	padding: 12px 15px;
+}
+#additional-commission-tbl tfoot th:nth-child(1),
+#additional-commission-tbl tfoot th:nth-child(2),
+#additional-commission-tbl tfoot #additional-commission-total-amount {
+	text-align: right;
+	padding-right: 20px;
 }
 
 /* Hide scrollbar on Select2 */

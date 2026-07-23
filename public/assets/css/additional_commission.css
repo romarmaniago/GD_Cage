@@ -14,22 +14,51 @@
 }
 
 .additional-commission-panel-body table thead tr,
-.additional-commission-panel-body table tfoot tr,
-#modal-dash-additional-commission .additional-commission-modal-body table thead tr,
-#modal-dash-additional-commission .additional-commission-modal-body table tfoot tr {
+#modal-dash-additional-commission .additional-commission-modal-body table thead tr {
   background-color: var(--gd-marker-gold-solid);
 }
 
+.additional-commission-panel-body table tfoot tr,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot tr {
+  background-color: #f5f5f5 !important;
+}
+
 .additional-commission-panel-body table thead th,
-.additional-commission-panel-body table tfoot th,
-#modal-dash-additional-commission .additional-commission-modal-body table thead th,
-#modal-dash-additional-commission .additional-commission-modal-body table tfoot th {
+#modal-dash-additional-commission .additional-commission-modal-body table thead th {
   background: transparent !important;
   background-color: transparent !important;
   border-left: 0 !important;
   border-right: 0 !important;
   border-top: 0 !important;
   box-shadow: none !important;
+}
+
+.additional-commission-panel-body table tfoot th,
+#modal-dash-additional-commission .additional-commission-modal-body table tfoot th {
+  background: #f5f5f5 !important;
+  background-color: #f5f5f5 !important;
+  color: #555 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 1px solid #e0e0e0 !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+  box-shadow: none !important;
+  font-weight: 700;
+  padding: 12px 15px;
+  vertical-align: middle;
+}
+
+#additional-commission-tbl tfoot th:nth-child(1) {
+  text-align: right;
+  padding-right: 20px;
+}
+
+#additional-commission-tbl tfoot th:nth-child(2),
+#additional-commission-tbl tfoot #additional-commission-total-amount {
+  text-align: right;
+  padding-right: 20px;
+  white-space: nowrap;
+  font-weight: 700;
 }
 
 .additional-commission-panel-body table.dataTable thead > tr > th.sorting,
