@@ -1188,6 +1188,8 @@
 		"save": "保存",
 		"close": "閉じる",
 		"print": "印刷",
+		"copy_image": "画像をコピー",
+		"copy_text": "テキストをコピー",
 		"send_to_agent": "エージェントに送信",
 		"send_to_cage": "ケージに送信"
 	},

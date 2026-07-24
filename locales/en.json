@@ -1137,6 +1137,8 @@
 		"save": "Save",
 		"close": "Close",
 		"print": "Print",
+		"copy_image": "Copy image",
+		"copy_text": "Copy text",
 		"send_to_agent": "Send to Agent",
 		"send_to_cage": "Send to Cage"
 	},

@@ -1188,6 +1188,8 @@
 		"save": "저장",
 		"close": "닫기",
 		"print": "인쇄",
+		"copy_image": "이미지 복사",
+		"copy_text": "텍스트 복사",
 		"send_to_agent": "에이전트에게 전송",
 		"send_to_cage": "케이지에게 전송"
 	},

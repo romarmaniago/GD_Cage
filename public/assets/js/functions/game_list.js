@@ -10861,14 +10861,11 @@ function applySettlementSettleButtonLock($modal) {
 		$notice.show();
 		$btn.prop('disabled', true).show();
 		$modal.find('.deposit-cashout-row').hide();
-		$modal.find('#settlement-telegram-opts').hide();
 		return;
 	}
 
 	if (!$modal.data('is-settled')) {
 		$modal.find('.deposit-cashout-row').show();
-		var fakeActive = Number($modal.data('fake-settle-active')) === 1;
-		$modal.find('#settlement-telegram-opts').toggle(fakeActive);
 	}
 
 	if (lockMeta && lockMeta.allGamesEnded === false) {
@@ -11086,7 +11083,7 @@ function computeGameSettlementMetricsFromRows(dataRows) {
 	var total_rolling_chips = totals.total_rolling_nn + totalRollingCCWithReturns + totals.total_rolling + totals.total_rolling_real + totals.total_rolling_nn_real + totals.total_rolling_cc_real - totals.total_cash_out_nn;
 	var total_amount = total_buy_in_chips + total_initial;
 	var WinLoss = total_amount - total_cash_out_chips;
-	var winloss = parseFloat(WinLoss) * -1;
+	var winloss = parseFloat(WinLoss);
 	var RollingRate = dataRows[0].COMMISSION_PERCENTAGE;
 	var CommissionType = dataRows[0].COMMISSION_TYPE;
 	var net = 0;
@@ -11108,7 +11105,6 @@ function computeGameSettlementMetricsFromRows(dataRows) {
 		RollingRate: RollingRate,
 		CommissionType: CommissionType,
 		SETTLED: Number(dataRows[0].SETTLED) === 1,
-		FAKE_SETTLE: Number(dataRows[0].FAKE_SETTLE) === 1,
 		meta: dataRows[0]
 	};
 }
@@ -11124,7 +11120,6 @@ function mergeGameSettlementMetrics(metricsList) {
 		RollingRate: null,
 		CommissionType: null,
 		SETTLED: true,
-		FAKE_SETTLE: false
 	};
 
 	(metricsList || []).forEach(function (m) {
@@ -11143,19 +11138,15 @@ function mergeGameSettlementMetrics(metricsList) {
 		if (!m.SETTLED) {
 			merged.SETTLED = false;
 		}
-		if (m.FAKE_SETTLE) {
-			merged.FAKE_SETTLE = true;
-		}
 	});
 
-	merged.winloss = parseFloat(merged.WinLoss) * -1;
+	merged.winloss = parseFloat(merged.WinLoss);
 	return merged;
 }
 
 function settlement_history(record_id, acc_id) {
     var $settlementModal = $('#modal-settlement');
     $settlementModal.data('is-settled', 0);
-    $settlementModal.data('fake-settle-active', 0);
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $settlementModal.data('cutoffSettlementGameIds', [record_id]);
     $settlementModal.data('settlementViewMode', 'total');
@@ -11168,7 +11159,6 @@ function settlement_history(record_id, acc_id) {
     });
     $settlementModal.find('#settlement-cutoff-tabs .nav-link').removeClass('active');
     $settlementModal.find('#settlement-tab-total').addClass('active');
-    $settlementModal.find('#settlement-telegram-opts').hide();
     $('#settlement-agent-code').text('');
     $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
     if (typeof window.updateSettlementCopyButtons === 'function') {
@@ -11397,15 +11387,11 @@ function settlement_history(record_id, acc_id) {
 
                 var settledFlag = merged.SETTLED;
                 $settlementModal.data('is-settled', settledFlag ? 1 : 0);
-                var fakeSettleFlag = merged.FAKE_SETTLE;
-                $settlementModal.data('fake-settle-active', fakeSettleFlag ? 1 : 0);
-                $settlementModal.find('#settleSendAgent, #settleSendCage').prop('checked', false);
 
                 if (settledFlag) {
                     $settlementModal.find('#submit-settlement-btn').prop('disabled', true).text('Settled').show();
                     isSettled = true;
                     $settlementModal.find('.deposit-cashout-row').hide();
-                    $settlementModal.find('#settlement-telegram-opts').hide();
                     $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
                     if (typeof window.updateSettlementCopyButtons === 'function') {
                         window.updateSettlementCopyButtons($settlementModal);
@@ -11414,7 +11400,6 @@ function settlement_history(record_id, acc_id) {
                     $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
                     isSettled = false;
                     $settlementModal.find('.deposit-cashout-row').show();
-                    $settlementModal.find('#settlement-telegram-opts').toggle(fakeSettleFlag);
                     applySettlementSettleButtonLock($settlementModal);
                     if (typeof window.updateSettlementCopyButtons === 'function') {
                         window.updateSettlementCopyButtons($settlementModal);

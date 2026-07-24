@@ -1867,8 +1867,7 @@ function computeSettlementTotalsFromRecords(gameRecords) {
 	const total_buy_in = total_initial + total_buy_in_chips;
 	const total_cash_out = total_cash_out_nn + total_cash_out_cc;
 	const total_amount = total_buy_in_chips + total_initial;
-	const winlossRaw = total_amount - total_cash_out;
-	const winloss = winlossRaw < 0 ? Math.abs(winlossRaw) : -winlossRaw;
+	const winloss = total_amount - total_cash_out;
 	const totalRollingCCWithReturns = total_roller_return_cc;
 	const total_rolling = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
@@ -3722,9 +3721,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
         const timeText = safe(time);
         const buyInText = safe(buy_in);
         const chipsReturnText = safe(chips_return);
-        const rawWinLoss = parseMoney(win_loss);
-        const guestWinLoss = rawWinLoss < 0 ? Math.abs(rawWinLoss) : -rawWinLoss;
-        const winLossText = guestWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const winLossText = parseMoney(win_loss).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         const rollingText = safe(rolling);
         const rateText = safe(rate);
         const settlementText = safe(settlement);

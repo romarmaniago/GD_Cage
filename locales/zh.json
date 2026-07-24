@@ -1188,6 +1188,8 @@
 		"save": "保存",
 		"close": "关闭",
 		"print": "打印",
+		"copy_image": "复制图片",
+		"copy_text": "复制文本",
 		"send_to_agent": "发送给代理",
 		"send_to_cage": "发送给柜台"
 	},
