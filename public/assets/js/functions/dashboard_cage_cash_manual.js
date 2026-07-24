@@ -291,6 +291,10 @@
 
 	async function refreshDashboardTotals() {
 		try {
+			if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-date-from')) {
+				await window.dashboardPeriodReload();
+				return;
+			}
 			updateDashboardTotals(await fetchTotals());
 		} catch (err) {
 			console.error('refreshDashboardTotals:', err);

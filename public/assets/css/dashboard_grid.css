@@ -1137,10 +1137,20 @@ body {
 
 .dash-dual-matrix-col.is-rolling {
   flex: 1.35 1 0;
+  position: relative;
+  overflow: visible;
 }
 
 .dash-dual-matrix-col.is-wl {
   flex: 1 1 0;
+  position: relative;
+}
+
+.dash-dual-matrix-col.is-rolling > .card.gd-dash-panel,
+.dash-dual-matrix-col.is-wl > .card.gd-dash-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .dash-card-stack {
@@ -1151,6 +1161,76 @@ body {
 
 .dash-card-stack > .card {
   margin-bottom: 0;
+}
+
+/* Top row: equal column bottoms (Main / Anticipated / Rolling / W/L) */
+.dash-top-row {
+  align-items: stretch;
+}
+
+.dash-top-row > .dash-top-stack-col,
+.dash-top-row > .dash-dual-matrix-panel-col {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.dash-top-row .dash-card-stack {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.dash-top-row .dash-card-stack > .card:last-of-type {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-top-row .dash-card-stack > .card:last-of-type > .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-top-row .dash-card-stack > .card:last-of-type .dash-card-actions {
+  margin-top: auto;
+}
+
+.dash-top-row #dash-dual-matrix-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  min-height: 0;
+}
+
+.dash-top-row .dash-dual-matrix-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.dash-top-row .dash-dual-matrix-col > .card.dash-dual-matrix-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.dash-top-row .dash-dual-matrix-col > .card.dash-dual-matrix-panel > .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 /* Golden Dragon dashboard panels — Cage Balance, Main, Anticipated Profit, Actual Check */
@@ -1679,18 +1759,23 @@ body {
 .dash-top-row .dash-dual-matrix-panel-col {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   min-height: 0;
 }
 
-.dash-top-row .dash-dual-matrix-panel-col .dash-dual-matrix {
+.dash-top-row .dash-dual-matrix-panel-col #dash-dual-matrix-panel {
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
+  align-items: stretch;
 }
 
 .dash-top-row .dash-dual-matrix-panel {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
 }
 
 .dash-top-row .dash-dual-matrix-panel > .card-body {
@@ -1698,6 +1783,23 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
+}
+
+.dash-top-row .dash-dual-matrix-panel .dash-matrix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dash-top-row .dash-dual-matrix-panel .dash-matrix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #F5E7BD;
+}
+
+.dash-top-row .dash-dual-matrix-panel .dash-matrix-foot {
+  flex-shrink: 0;
+  background: #F5E7BD;
 }
 
 .dash-dual-matrix-col .dash-section-header {
@@ -1931,6 +2033,111 @@ body {
 
 .dash-matrix-table tfoot th.date-col {
   text-align: left;
+}
+
+/* Main Cage Rolling Check — date filter floats above gold header; does not shift card alignment */
+.dash-dual-matrix,
+.dash-top-row .dash-dual-matrix-panel-col,
+.dash-top-row {
+  overflow: visible;
+}
+
+.dash-rolling-daterange-toolbar {
+  position: absolute;
+  left: 0;
+  right: auto;
+  bottom: 100%;
+  margin-bottom: 0.4rem;
+  z-index: 6;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  pointer-events: auto;
+}
+
+.dash-rolling-daterange-group {
+  min-width: 0;
+}
+
+.dash-rolling-daterange-wrap,
+.dash-rolling-split-daterange,
+#dash-rolling-split-daterange-wrapper {
+  width: auto;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+/* Dark glass inputs — blend with dashboard chip background (beats gd_pill_filters white) */
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap input.form-control,
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap .flatpickr-input.form-control,
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange input.split-date-input,
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange .flatpickr-input.form-control,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper input.split-date-input,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper .flatpickr-input.form-control,
+.dash-rolling-daterange-toolbar #dash-rolling-daterange,
+.dash-rolling-daterange-toolbar #dash-rolling-start-date,
+.dash-rolling-daterange-toolbar #dash-rolling-end-date {
+  min-width: 11rem;
+  font-size: 0.78rem !important;
+  height: 1.85rem !important;
+  padding: 0.2rem 0.55rem !important;
+  background: rgba(12, 10, 8, 0.72) !important;
+  background-color: rgba(12, 10, 8, 0.72) !important;
+  border: 1px solid rgba(200, 162, 76, 0.45) !important;
+  border-radius: 999px !important;
+  color: #f5f0e6 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  caret-color: #f1d48a;
+}
+
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange input.split-date-input,
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange .flatpickr-input.form-control,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper input.split-date-input,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper .flatpickr-input.form-control {
+  width: 7.25rem !important;
+  min-width: 7.25rem !important;
+  max-width: 7.25rem !important;
+  padding: 0.2rem 0.4rem;
+}
+
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap input.form-control::placeholder,
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap .flatpickr-input.form-control::placeholder,
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange input.split-date-input::placeholder,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper input.split-date-input::placeholder,
+.dash-rolling-daterange-toolbar #dash-rolling-daterange::placeholder,
+.dash-rolling-daterange-toolbar #dash-rolling-start-date::placeholder,
+.dash-rolling-daterange-toolbar #dash-rolling-end-date::placeholder {
+  color: rgba(245, 240, 230, 0.55) !important;
+  opacity: 1;
+}
+
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap input.form-control:focus,
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-wrap .flatpickr-input.form-control:focus,
+.dash-rolling-daterange-toolbar .dash-rolling-split-daterange input.split-date-input:focus,
+.dash-rolling-daterange-toolbar #dash-rolling-split-daterange-wrapper input.split-date-input:focus,
+.dash-rolling-daterange-toolbar #dash-rolling-daterange:focus,
+.dash-rolling-daterange-toolbar #dash-rolling-start-date:focus,
+.dash-rolling-daterange-toolbar #dash-rolling-end-date:focus {
+  background: rgba(18, 14, 10, 0.88) !important;
+  background-color: rgba(18, 14, 10, 0.88) !important;
+  border-color: rgba(241, 212, 138, 0.75) !important;
+  box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.22) !important;
+  color: #fbf0d4 !important;
+  outline: none;
+}
+
+.dash-rolling-split-daterange {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+}
+
+.dash-rolling-split-daterange .house-expense-daterange-separator {
+  color: rgba(241, 212, 138, 0.9);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 /* Main Cage Rolling Check — Excel cell colors & grid */

@@ -1653,6 +1653,9 @@ function updateDashboardExpensesTotal(amount) {
         var el = document.getElementById(id);
         if (el) el.innerHTML = html;
     });
+    if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-anticipated-panel')) {
+        window.dashboardPeriodReload();
+    }
 }
 window.updateDashboardExpensesTotal = updateDashboardExpensesTotal;
 

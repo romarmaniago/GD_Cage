@@ -470,6 +470,10 @@ function fetchJunketLossData(fpInstance) {
 
 function refreshDashboardJunketLossTotal() {
     if (!document.getElementById('modal-dash-junket-loss')) return;
+    if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-anticipated-panel')) {
+        window.dashboardPeriodReload();
+        return;
+    }
     $.get('/loss_amount_total', function (data) {
         const total = Number(data && data.total) || 0;
         const formatted = total

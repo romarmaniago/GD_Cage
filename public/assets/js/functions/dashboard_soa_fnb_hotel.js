@@ -301,6 +301,11 @@
   }
 
   async function refreshDashboardSoaTotal(dateFrom, dateTo) {
+    if (typeof window.dashboardPeriodReload === 'function') {
+      await window.dashboardPeriodReload();
+      return;
+    }
+
     const q = new URLSearchParams({ date_from: dateFrom, date_to: dateTo });
     const data = await fetchJson(`/soa_fnb_hotel_total?${q}`);
     const total = Number(data.total || 0);
