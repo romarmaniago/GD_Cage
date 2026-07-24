@@ -420,7 +420,7 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total-anticipated"><%- fmtNeg(expenseReset) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" class="dash-card-link js-open-dash-junket-loss">Loss Amount</a></span><span class="dash-kv-value"><a href="#" class="dash-card-link js-open-dash-junket-loss" id="dash-junket-loss-total-anticipated"><%- fmtNeg(junketLossAmount) %></a></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="/commission" target="_blank">Settlement Com</a></span><span class="dash-kv-value"><%- fmtNeg(commissionSettlement) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Settlement Addi</span><span class="dash-kv-value" id="dash-additional-commission-anticipated"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-additional-commission" data-view-only-disable class="dash-card-link">Settlement Addi</a></span><span class="dash-kv-value" id="dash-additional-commission-anticipated"><%- fmtNeg(additionalCommissionSettlement) %></span></div>
                      <div id="dash-service-category-rows-anticipated">
                      <% dashServiceCategoryRows.forEach(function (cat) { %>
                      <div class="dash-kv dash-service-category-row" data-category="<%= cat.key %>">
