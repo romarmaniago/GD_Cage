@@ -959,6 +959,7 @@
 		"cash_in": "现金入账",
 		"cash_out": "现金出账",
 		"type_transfer": "转账",
+		"choose_account": "选择账户",
 		"type_deposit": "存款",
 		"type_withdrawal": "取款",
 		"type_loss_amount": "损失金额",

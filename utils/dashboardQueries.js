@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('./saveCashoutTips');
 const { sqlJunketExpenseTotal } = require('./houseExpenseQueries');
+const { SQL_EXCLUDE_HOUSE_BALANCE_LEDGER } = require('./junketCapitalTransfer');
 
 // Function para kunin ang NN Chips Buyin
 async function getNNChipsBuyin() {
@@ -255,7 +256,7 @@ WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1
 async function computeCashBalance() {
   const results = await Promise.all([
     pool.execute('SELECT SUM(AMOUNT) AS CASH_DEPOSIT FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=2 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=2 AND account_ledger.TRANSACTION_ID=1 AND ${SQL_EXCLUDE_HOUSE_BALANCE_LEDGER} AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS SETTLEMENT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute('SELECT SUM(TOTAL_CHIPS) AS TotalChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION=1'),

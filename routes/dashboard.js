@@ -39,6 +39,17 @@ const {
 	DEFAULT_DASHBOARD_WL_SHARE_PCT
 } = require('../utils/dashboardWlShare');
 const {
+	isCapitalTransferType,
+	parseAccountId,
+	getAccountCashBalance,
+	validateActiveAccount,
+	insertCapitalTransferAccountLedger,
+	updateCapitalTransferAccountLedger,
+	archiveCapitalTransferAccountLedger,
+	SQL_EXCLUDE_HOUSE_BALANCE_LEDGER,
+	buildCapitalTransferRemarks
+} = require('../utils/junketCapitalTransfer');
+const {
 	buildDashboardServiceExpensePayload
 } = require('../utils/dashboardServiceBalance');
 const { fetchActiveServiceCategories } = require('../utils/serviceCategoryHelpers');
@@ -361,6 +372,7 @@ ON
 		AND account_ledger.TRANSACTION_TYPE = 2 
 		AND account_ledger.TRANSACTION_ID = 1 
 		AND COALESCE(account_ledger.TRANSACTION_DESC, '') <> 'ADDITIONAL COMMISSION'
+		AND ${SQL_EXCLUDE_HOUSE_BALANCE_LEDGER}
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
 	`;
@@ -1244,6 +1256,7 @@ function normalizeJunketCapitalDateRange(startDate, endDate) {
 
 // ADD JUNKET CAPITAL (Authorized Master Account)
 router.post('/add_junket_capital', async (req, res) => {
+	let connection;
 	try {
 		const {
 			txtFullname = null,
@@ -1251,7 +1264,8 @@ router.post('/add_junket_capital', async (req, res) => {
 			Remarks = null,
 			optWithdrawDeposit = null,
 			description = null,
-			txtProgramDate = null
+			txtProgramDate = null,
+			txtAccountId = null
 		} = req.body;
 
 		const programDate = parseJunketCapitalProgramDate(txtProgramDate);
@@ -1259,35 +1273,86 @@ router.post('/add_junket_capital', async (req, res) => {
 			return res.status(400).send('Select a valid Program Date before saving.');
 		}
 
-		// ENCODED_DT = actual save time; PROGRAM_DATE = user-selected business date (same as house expense / routes.js).
 		const date_now = new Date();
 		let txtAmount2 = parseFloat(String(txtAmount ?? '').replace(/,/g, ''));
 		if (!Number.isFinite(txtAmount2) || txtAmount2 <= 0) {
 			return res.status(400).send('Enter a valid amount greater than zero.');
 		}
 
+		const txn = parseInt(optWithdrawDeposit, 10);
+		if (txn !== 1 && txn !== 2) {
+			return res.status(400).send('Select a valid transaction direction.');
+		}
+
+		const isTransfer = isCapitalTransferType(description);
+		const accountId = parseAccountId(txtAccountId);
+
+		if (isTransfer && !accountId) {
+			return res.status(400).send('Select an account for transfer.');
+		}
+		if (!isTransfer && accountId) {
+			return res.status(400).send('Account is only required for transfer.');
+		}
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		let accountLedgerId = null;
+		let storedRemarks = Remarks;
+		if (isTransfer) {
+			const account = await validateActiveAccount(connection, accountId);
+			if (!account) {
+				await connection.rollback();
+				return res.status(400).send('Invalid or inactive account.');
+			}
+
+			storedRemarks = await buildCapitalTransferRemarks(connection, accountId, Remarks);
+
+			if (txn === 1) {
+				const accountBalance = await getAccountCashBalance(connection, accountId);
+				if (txtAmount2 > accountBalance) {
+					await connection.rollback();
+					return res.status(400).send(
+						'Insufficient account balance. Available: ' + accountBalance.toLocaleString('en-US') + '.'
+					);
+				}
+			}
+
+			accountLedgerId = await insertCapitalTransferAccountLedger(connection, {
+				accountId,
+				amount: txtAmount2,
+				houseTxn: txn,
+				remarks: storedRemarks,
+				userId: req.session?.user_id ?? null,
+				dateNow: date_now
+			});
+		}
+
 		const query = `
 			INSERT INTO junket_capital(
 				TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT,
-				REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				REMARKS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE,
+				ACCOUNT_ID, ACCOUNT_LEDGER_ID
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
 
-		const [insertResult] = await pool.execute(query, [
-			optWithdrawDeposit,
+		const [insertResult] = await connection.execute(query, [
+			txn,
 			txtFullname,
 			description,
 			txtAmount2,
-			Remarks,
+			storedRemarks,
 			req.session?.user_id ?? null,
 			date_now,
-			programDate
+			programDate,
+			isTransfer ? accountId : null,
+			accountLedgerId
 		]);
 
 		const transactionConfig = {
 			1: { category: 'Capital In', type: 1 },
 			2: { category: 'Capital Out', type: 2 }
-		}[parseInt(optWithdrawDeposit, 10)];
+		}[txn];
 
 		if (transactionConfig) {
 			const cashTransactionQuery = `
@@ -1302,21 +1367,27 @@ router.post('/add_junket_capital', async (req, res) => {
 				) VALUES (?, ?, ?, ?, ?, ?, ?)
 			`;
 
-			await pool.execute(cashTransactionQuery, [
+			await connection.execute(cashTransactionQuery, [
 				insertResult.insertId,
 				txtAmount2.toString(),
 				transactionConfig.category,
 				transactionConfig.type,
-				Remarks,
+				storedRemarks,
 				req.session?.user_id ?? null,
 				date_now
 			]);
 		}
 
+		await connection.commit();
 		res.redirect('/dashboard');
 	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
 		console.error('Error inserting junket:', err);
 		res.status(500).send('Error inserting junket');
+	} finally {
+		if (connection) connection.release();
 	}
 });
 
@@ -1341,10 +1412,14 @@ router.get('/junket_capital_data', async (req, res) => {
 				k.AMOUNT AS capital_amount,
 				k.REMARKS,
 				k.DESCRIPTION AS capital_description,
+				k.ACCOUNT_ID AS capital_account_id,
+				TRIM(CONCAT_WS(' - ', ag.AGENT_CODE, ag.NAME)) AS capital_account_label,
 				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
 				'junket_capital' AS REMARKS_SOURCE
 			FROM junket_capital k
 			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
+			LEFT JOIN account acc ON acc.IDNo = k.ACCOUNT_ID
+			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			WHERE k.ACTIVE = 1
 			  ${hasRange ? 'AND COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) BETWEEN ? AND ?' : ''}
 			ORDER BY COALESCE(k.PROGRAM_DATE, DATE(k.ENCODED_DT)) DESC, k.ENCODED_DT DESC
@@ -2274,15 +2349,16 @@ router.get('/month_settle_for_period', async (req, res) => {
 
 // EDIT JUNKET CAPITAL (Super Admin only)
 router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, res) => {
+	let connection;
 	try {
-
 		const id = parseInt(req.params.id, 10);
 		const {
 			txtAmount,
 			Remarks,
 			optWithdrawDeposit,
 			description,
-			txtProgramDate
+			txtProgramDate,
+			txtAccountId = null
 		} = req.body;
 
 		if (!id) {
@@ -2316,57 +2392,179 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 		}
 
 		const desc = description == null ? '' : String(description);
+		const isTransfer = isCapitalTransferType(desc);
+		const accountId = parseAccountId(txtAccountId);
 		const date_now = new Date();
+
+		if (isTransfer && !accountId) {
+			return res.status(400).send('Select an account for transfer.');
+		}
+		if (!isTransfer && accountId) {
+			return res.status(400).send('Account is only required for transfer.');
+		}
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const [existingRows] = await connection.execute(
+			`SELECT ACCOUNT_ID, ACCOUNT_LEDGER_ID, TRANSACTION_ID, AMOUNT
+			 FROM junket_capital
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!existingRows.length) {
+			await connection.rollback();
+			return res.status(404).send('Record not found.');
+		}
+
+		const existing = existingRows[0];
+		let accountLedgerId = existing.ACCOUNT_LEDGER_ID || null;
+		let storedRemarks = Remarks;
+
+		if (isTransfer) {
+			const account = await validateActiveAccount(connection, accountId);
+			if (!account) {
+				await connection.rollback();
+				return res.status(400).send('Invalid or inactive account.');
+			}
+
+			storedRemarks = await buildCapitalTransferRemarks(connection, accountId, Remarks);
+
+			if (txn === 1) {
+				let accountBalance = await getAccountCashBalance(connection, accountId);
+				const oldTxn = parseInt(existing.TRANSACTION_ID, 10);
+				const oldAmount = parseFloat(existing.AMOUNT) || 0;
+				if (
+					accountLedgerId &&
+					oldTxn === 1 &&
+					parseInt(existing.ACCOUNT_ID, 10) === accountId
+				) {
+					accountBalance += oldAmount;
+				}
+				if (amount > accountBalance) {
+					await connection.rollback();
+					return res.status(400).send(
+						'Insufficient account balance. Available: ' + accountBalance.toLocaleString('en-US') + '.'
+					);
+				}
+			}
+
+			if (accountLedgerId) {
+				await updateCapitalTransferAccountLedger(connection, {
+					accountLedgerId,
+					accountId,
+					amount,
+					houseTxn: txn,
+					remarks: storedRemarks,
+					userId: req.session.user_id,
+					dateNow: date_now
+				});
+			} else {
+				accountLedgerId = await insertCapitalTransferAccountLedger(connection, {
+					accountId,
+					amount,
+					houseTxn: txn,
+					remarks: storedRemarks,
+					userId: req.session.user_id,
+					dateNow: date_now
+				});
+			}
+		} else if (accountLedgerId) {
+			await archiveCapitalTransferAccountLedger(connection, accountLedgerId, req.session.user_id, date_now);
+			accountLedgerId = null;
+		}
 
 		const query = `
 			UPDATE junket_capital
-			SET TRANSACTION_ID = ?, DESCRIPTION = ?, AMOUNT = ?, REMARKS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
+			SET TRANSACTION_ID = ?, DESCRIPTION = ?, AMOUNT = ?, REMARKS = ?, PROGRAM_DATE = ?,
+			    ACCOUNT_ID = ?, ACCOUNT_LEDGER_ID = ?, EDITED_BY = ?, EDITED_DT = ?
 			WHERE IDNo = ? AND ACTIVE = 1
 		`;
 
-		const [result] = await pool.execute(query, [
+		const [result] = await connection.execute(query, [
 			txn,
 			desc,
 			amount,
-			Remarks || null,
+			storedRemarks || null,
 			programDate,
+			isTransfer ? accountId : null,
+			isTransfer ? accountLedgerId : null,
 			req.session.user_id,
 			date_now,
 			id
 		]);
 
 		if (!result.affectedRows) {
+			await connection.rollback();
 			return res.status(404).send('Record not found.');
 		}
 
+		await connection.commit();
 		res.send('Junket updated successfully');
 	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
 		console.error('Error updating Junket:', err);
 		res.status(500).send('Error updating Junket');
+	} finally {
+		if (connection) connection.release();
 	}
 });
 
 // DELETE JUNKET CAPITAL AND TOTAL CHIPS (Super Admin only)
 router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async (req, res) => {
+	let connection;
 	try {
-		const id = parseInt(req.params.id);
-		let date_now = new Date();
+		const id = parseInt(req.params.id, 10);
+		const date_now = new Date();
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const [existingRows] = await connection.execute(
+			`SELECT ACCOUNT_LEDGER_ID
+			 FROM junket_capital
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!existingRows.length) {
+			await connection.rollback();
+			return res.status(404).send('Record not found.');
+		}
+
+		if (existingRows[0].ACCOUNT_LEDGER_ID) {
+			await archiveCapitalTransferAccountLedger(
+				connection,
+				existingRows[0].ACCOUNT_LEDGER_ID,
+				req.session.user_id,
+				date_now
+			);
+		}
 
 		const query1 = `UPDATE junket_capital SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-		await pool.execute(query1, [0, req.session.user_id, date_now, id]);
+		await connection.execute(query1, [0, req.session.user_id, date_now, id]);
 
 		const query2 = `UPDATE junket_total_chips SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-		await pool.execute(query2, [0, req.session.user_id, date_now, id]);
+		await connection.execute(query2, [0, req.session.user_id, date_now, id]);
 
-		await pool.execute(
+		await connection.execute(
 			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
 			[req.session.user_id, date_now, id]
 		);
 
+		await connection.commit();
 		res.send('Junket updated successfully');
 	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
 		console.error('Error updating Junket:', err);
 		res.status(500).send('Error updating Junket');
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

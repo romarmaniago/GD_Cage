@@ -908,6 +908,7 @@
 		"cash_in": "Cash-in",
 		"cash_out": "Cash-out",
 		"type_transfer": "Transfer",
+		"choose_account": "Choose account",
 		"type_deposit": "Deposit",
 		"type_withdrawal": "Withdrawal",
 		"type_loss_amount": "Loss Amount",

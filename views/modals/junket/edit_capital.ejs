@@ -68,6 +68,13 @@
 							<label class="form-check-label" for="editHbTypeExpenses"><%= __('dashboard_new_capital.type_expenses') %></label>
 						</div>
 					</div>
+
+					<div class="mb-2 d-none" id="edit-capital-transfer-account-wrap">
+						<label for="edit-capital-transfer-account" class="form-label"><%= __('dashboard_new_capital.choose_account') %></label>
+						<select id="edit-capital-transfer-account" name="txtAccountId" class="js-select2 form-control form-control-sm" style="width: 100%;" data-placeholder="<%= __('dashboard_new_capital.choose_account') %>">
+							<option value=""><%= __('dashboard_new_capital.choose_account') %></option>
+						</select>
+					</div>
 				</div>
 				<div class="modal-footer">
 					<button type="submit" class="btn btn-sm btn-primary" id="edit-capital-save-btn" data-view-only-disable>

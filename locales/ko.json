@@ -959,6 +959,7 @@
 		"cash_in": "현금 입금",
 		"cash_out": "현금 출금",
 		"type_transfer": "이체",
+		"choose_account": "계정 선택",
 		"type_deposit": "입금",
 		"type_withdrawal": "출금",
 		"type_loss_amount": "손실 금액",

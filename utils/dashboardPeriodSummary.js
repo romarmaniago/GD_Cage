@@ -8,6 +8,7 @@ const {
 	SQL_ROLLER_TIP_CASHOUT_ONLY,
 	SQL_ROLLER_TIP_IN_CASHIN_ONLY
 } = require('./saveCashoutTips');
+const { SQL_EXCLUDE_HOUSE_BALANCE_LEDGER_AL } = require('./junketCapitalTransfer');
 
 function isYmd(value) {
 	return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
@@ -389,7 +390,7 @@ async function computeCashForPeriod(pool, dateFrom, dateTo) {
 		mxCashNet
 	] = await Promise.all([
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital jc WHERE jc.ACTIVE=1 AND jc.TRANSACTION_ID=1 AND ${capitalDt('jc')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=2 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=2 AND al.TRANSACTION_ID=1 AND ${SQL_EXCLUDE_HOUSE_BALANCE_LEDGER_AL} AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=5 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(j.TOTAL_CHIPS),0) AS total FROM junket_total_chips j WHERE j.ACTIVE=1 AND j.TRANSACTION_ID=2 AND ${chipsDt('j')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(gr.NN_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE=1 AND gr.TRANSACTION=1 AND ${gameDt('gl')} BETWEEN ? AND ?`, p),

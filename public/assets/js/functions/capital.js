@@ -76,6 +76,164 @@ window.onlyCapitalSignedAmountKey = onlyCapitalSignedAmountKey;
 window.formatCapitalSignedAmountInput = formatCapitalSignedAmountInput;
 window.parseCapitalSignedAmount = parseCapitalSignedAmount;
 
+var capitalTransferAccountsCache = [];
+
+function capitalAccountOptionLabel(account) {
+    const parts = [account.agent_code, account.agent_name].filter(Boolean);
+    return parts.length ? parts.join(' - ') : ('Account #' + account.account_id);
+}
+
+function initCapitalAccountSelect2($sel, modalSelector) {
+    if (!$sel.length || typeof $sel.select2 !== 'function') return;
+    if ($sel.data('select2')) {
+        try { $sel.select2('destroy'); } catch (e) {}
+    }
+    $sel.select2({
+        placeholder: $sel.data('placeholder') || 'Choose account',
+        allowClear: true,
+        dropdownParent: $(modalSelector)
+    });
+}
+
+function loadCapitalTransferAccounts($sel, modalSelector, selectedId) {
+    const placeholder = $sel.data('placeholder') || 'Choose account';
+    return $.getJSON('/account_data').then(function (rows) {
+        capitalTransferAccountsCache = rows || [];
+        if ($sel.data('select2')) {
+            try { $sel.select2('destroy'); } catch (e) {}
+        }
+        $sel.empty().append($('<option/>', { value: '', text: placeholder }));
+        capitalTransferAccountsCache.forEach(function (account) {
+            const id = account.account_id;
+            if (id == null) return;
+            $sel.append($('<option/>', {
+                value: String(id),
+                text: capitalAccountOptionLabel(account),
+                'data-balance': account.total_balance != null ? String(account.total_balance) : '0'
+            }));
+        });
+        initCapitalAccountSelect2($sel, modalSelector);
+        if (selectedId) {
+            $sel.val(String(selectedId)).trigger('change');
+        }
+    });
+}
+
+function isCapitalTransferTypeSelected(typeCheckSelector) {
+    const $checked = $(typeCheckSelector).filter(':checked');
+    return $checked.length && String($checked.val()) === 'Transfer';
+}
+
+function syncCapitalTransferUi(formSelector, wrapSelector, selectSelector) {
+    const $form = $(formSelector);
+    const isTransfer = $form.find('.hb-type-check, .edit-hb-type-check').filter(':checked').val() === 'Transfer';
+    const $wrap = $(wrapSelector);
+    const $sel = $(selectSelector);
+    const modalSelector = $wrap.closest('.modal').attr('id');
+    const dropdownParent = modalSelector ? ('#' + modalSelector) : document.body;
+
+    if (isTransfer) {
+        $wrap.removeClass('d-none');
+        if ($sel.find('option').length <= 1) {
+            loadCapitalTransferAccounts($sel, dropdownParent);
+        }
+        $sel.prop('required', true);
+    } else {
+        $wrap.addClass('d-none');
+        $sel.prop('required', false).val('').trigger('change');
+    }
+}
+
+function getCapitalTransferAccountBalance(selectSelector) {
+    const $sel = $(selectSelector);
+    const accountId = ($sel.val() || '').trim();
+    if (!accountId) return null;
+    return parseFloat($sel.find('option:selected').data('balance')) || 0;
+}
+
+function validateCapitalTransferAmount(selectSelector, parsedAmount) {
+    if (!parsedAmount || !parsedAmount.ok || parsedAmount.isOut) {
+        return { ok: true };
+    }
+    const balance = getCapitalTransferAccountBalance(selectSelector);
+    if (balance === null) {
+        return { ok: true };
+    }
+    if (parsedAmount.abs > balance) {
+        return {
+            ok: false,
+            message: 'The amount exceeds the available account balance of ' + balance.toLocaleString('en-US') + '.'
+        };
+    }
+    return { ok: true };
+}
+
+function updateCapitalTransferHint(selectSelector, hintSelector, amountValue) {
+    const $sel = $(selectSelector);
+    const $hint = $(hintSelector);
+    if (!$hint.length) return;
+    const accountId = ($sel.val() || '').trim();
+    if (!accountId) {
+        $hint.text('');
+        return;
+    }
+    const balance = parseFloat($sel.find('option:selected').data('balance')) || 0;
+    const parsed = parseCapitalSignedAmount(amountValue || '');
+    if (parsed.ok && !parsed.isOut) {
+        $hint.text('Account balance: ' + balance.toLocaleString('en-US') + ' (used when amount is +)');
+    } else if (parsed.ok && parsed.isOut) {
+        $hint.text('Amount will be deposited to this account.');
+    } else {
+        $hint.text('Account balance: ' + balance.toLocaleString('en-US'));
+    }
+}
+
+function initCapitalTransferAccountUi(options) {
+    const opts = options || {};
+    const modalSelector = opts.modalSelector || '#modal-new-capital';
+    const wrapSelector = opts.wrapSelector || '#capital-transfer-account-wrap';
+    const selectSelector = opts.selectSelector || '#capital-transfer-account';
+    const hintSelector = opts.hintSelector || '#capital-transfer-account-hint';
+    const typeCheckSelector = opts.typeCheckSelector || '#add_junket_capital .hb-type-check';
+    const amountSelector = opts.amountSelector || '#txtAmount';
+
+    $(document).off('change.capitalTransferType', typeCheckSelector)
+        .on('change.capitalTransferType', typeCheckSelector, function () {
+            syncCapitalTransferUi(
+                opts.formSelector || '#add_junket_capital',
+                wrapSelector,
+                selectSelector
+            );
+        });
+
+    $(document).off('change.capitalTransferAccount', selectSelector)
+        .on('change.capitalTransferAccount', selectSelector, function () {
+            updateCapitalTransferHint(selectSelector, hintSelector, $(amountSelector).val());
+        });
+
+    $(document).off('input.capitalTransferAmount', amountSelector)
+        .on('input.capitalTransferAmount', amountSelector, function () {
+            if (isCapitalTransferTypeSelected(typeCheckSelector)) {
+                updateCapitalTransferHint(selectSelector, hintSelector, $(this).val());
+            }
+        });
+
+    $(modalSelector).off('shown.bs.modal.capitalTransfer').on('shown.bs.modal.capitalTransfer', function () {
+        if (isCapitalTransferTypeSelected(typeCheckSelector)) {
+            syncCapitalTransferUi(
+                opts.formSelector || '#add_junket_capital',
+                wrapSelector,
+                selectSelector
+            );
+        }
+    });
+}
+
+window.syncCapitalTransferUi = syncCapitalTransferUi;
+window.initCapitalTransferAccountUi = initCapitalTransferAccountUi;
+window.loadCapitalTransferAccounts = loadCapitalTransferAccounts;
+window.validateCapitalTransferAmount = validateCapitalTransferAmount;
+
 function fmtCapitalSigned(value) {
     if (window.fmtSigned) return window.fmtSigned(value);
     const n = parseFloat(value) || 0;
@@ -398,6 +556,25 @@ function inferCapitalRemarksSource(row) {
     return 'junket_capital';
 }
 
+function mergeCapitalTransferRemarks(userRemarks, accountLabel) {
+    const label = String(accountLabel || '').trim();
+    const notes = String(userRemarks || '').trim();
+    if (!label) return notes;
+    if (!notes) return label;
+    if (notes.indexOf(label) !== -1) return notes;
+    return label + ' — ' + notes;
+}
+
+function resolveCapitalRemarksText(row) {
+    const typeLabel = normalizeHouseBalanceTypeLabel(getHouseBalanceTypeDesc(row));
+    const remarksText = row.REMARKS || '';
+    const accountLabel = row.capital_account_label || '';
+    if (typeLabel === 'Transfer') {
+        return mergeCapitalTransferRemarks(remarksText, accountLabel);
+    }
+    return remarksText;
+}
+
 function renderCapitalRemarksCell(row, displayText, suffixHtml) {
     if (!window.RemarksEditor || !row.IDNo) {
         return (displayText || '') + (suffixHtml || '');
@@ -520,11 +697,12 @@ function reloadData() {
                     window.__capitalEditRows[row.IDNo] = {
                         id: row.IDNo,
                         amount: cbal,
-                        remarks: row.REMARKS || '',
+                        remarks: resolveCapitalRemarksText(row),
                         programDate: (row.PROGRAM_DATE ? String(row.PROGRAM_DATE).slice(0, 10) : '') ||
                             (row.ENCODED_DT ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD') : ''),
                         typeLabel: normalizeHouseBalanceTypeLabel(typeDesc),
-                        txn: row.TRANSACTION_ID
+                        txn: row.TRANSACTION_ID,
+                        accountId: row.capital_account_id || null
                     };
                     if (isSuperAdmin) {
                         btn =
@@ -552,7 +730,7 @@ function reloadData() {
                     : '—';
 
                  // Prepare REMARKS with GAME_ID if applicable
-                 var remarksText = row.REMARKS || '';
+                 var remarksText = resolveCapitalRemarksText(row);
                  var remarksSuffix = '';
                  if ((row.TRANSACTION_ID == 1 || row.TRANSACTION_ID == 2) && row.GAME_ID) {
                      const gameId = row.GAME_ID;
@@ -898,6 +1076,13 @@ function edit_capital(capital_id) {
         }).prop('checked', true);
     }
     updateEditCapitalTypeFields();
+    syncCapitalTransferUi('#edit_junket_capital', '#edit-capital-transfer-account-wrap', '#edit-capital-transfer-account');
+
+    if (typeLabel === 'Transfer') {
+        loadCapitalTransferAccounts($('#edit-capital-transfer-account'), '#modal-edit-capital', row.accountId || null);
+    } else {
+        $('#edit-capital-transfer-account').val('').trigger('change');
+    }
 
     const $saveBtn = $('#edit-capital-save-btn');
     $saveBtn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i>Save');
@@ -911,6 +1096,10 @@ $(document).off('change.editCapitalType', '#edit_junket_capital .edit-hb-type-ch
             $('#edit_junket_capital .edit-hb-type-check').not(this).prop('checked', false);
         }
         updateEditCapitalTypeFields();
+        syncCapitalTransferUi('#edit_junket_capital', '#edit-capital-transfer-account-wrap', '#edit-capital-transfer-account');
+        if (isCapitalTransferTypeSelected('#edit_junket_capital .edit-hb-type-check')) {
+            loadCapitalTransferAccounts($('#edit-capital-transfer-account'), '#modal-edit-capital');
+        }
     });
 
 $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCapital', '#edit_junket_capital', function (e) {
@@ -951,6 +1140,22 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
         Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
         return;
     }
+    if (selectedTypeLabel === 'Transfer') {
+        const accountId = ($('#edit-capital-transfer-account').val() || '').trim();
+        if (!accountId) {
+            Swal.fire({ icon: 'warning', title: 'Account required', text: 'Select an account for transfer.' });
+            return;
+        }
+        const transferCheck = validateCapitalTransferAmount('#edit-capital-transfer-account', parsedAmount);
+        if (!transferCheck.ok) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Insufficient Account Balance',
+                text: transferCheck.message
+            });
+            return;
+        }
+    }
     // Amount +/- drives Capital In (1) / Out (2)
     $('#edit-capital-txn').val(parsedAmount.txn);
 
@@ -967,7 +1172,8 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
             txtAmount: parsedAmount.abs,
             Remarks: remarks,
             optWithdrawDeposit: parsedAmount.txn,
-            description: description
+            description: description,
+            txtAccountId: ($('#edit-capital-transfer-account').val() || '').trim()
         },
         success: function () {
             $('#modal-edit-capital').modal('hide');

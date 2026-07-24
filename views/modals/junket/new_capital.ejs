@@ -509,6 +509,14 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 									</div>
 								</div>
 
+								<div class="mb-3 d-none" id="capital-transfer-account-wrap">
+									<label for="capital-transfer-account" class="form-label"><%= __('dashboard_new_capital.choose_account') %></label>
+									<select id="capital-transfer-account" name="txtAccountId" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('dashboard_new_capital.choose_account') %>">
+										<option value=""><%= __('dashboard_new_capital.choose_account') %></option>
+									</select>
+									<div class="form-text text-muted" id="capital-transfer-account-hint"></div>
+								</div>
+
 								<div class="house-balance-form-actions">
 									<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
 								</div>
@@ -524,7 +532,7 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 								if (typeof sqlCashDeposit !== 'undefined' && sqlCashDeposit && sqlCashDeposit[0]) {
 									const refCashInTotal =
 										(+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-										(+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+										(+sqlAccountDepositCashIn[0].ACCOUNT_DEPOSIT || 0) +
 										(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) +
 										(+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
 										(+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) +
@@ -708,7 +716,20 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 				$('#add_junket_capital .hb-type-check').not(this).prop('checked', false);
 			}
 			updateCapitalTypeFields();
+			if (typeof syncCapitalTransferUi === 'function') {
+				syncCapitalTransferUi('#add_junket_capital', '#capital-transfer-account-wrap', '#capital-transfer-account');
+			}
 		});
+
+		if (typeof initCapitalTransferAccountUi === 'function') {
+			initCapitalTransferAccountUi({
+				modalSelector: '#modal-new-capital',
+				wrapSelector: '#capital-transfer-account-wrap',
+				selectSelector: '#capital-transfer-account',
+				hintSelector: '#capital-transfer-account-hint',
+				typeCheckSelector: '#add_junket_capital .hb-type-check'
+			});
+		}
 
 		$('#add_junket_capital').on('submit', function(e) {
 			e.preventDefault();
@@ -746,6 +767,25 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 				Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Select a transaction type.' });
 				return;
 			}
+			if (selectedType.label === 'Transfer') {
+				const accountId = ($('#capital-transfer-account').val() || '').trim();
+				if (!accountId) {
+					Swal.fire({ icon: 'warning', title: 'Account required', text: 'Select an account for transfer.' });
+					return;
+				}
+				const transferCheck = (typeof validateCapitalTransferAmount === 'function')
+					? validateCapitalTransferAmount('#capital-transfer-account', parsedAmount)
+					: { ok: true };
+				if (!transferCheck.ok) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Insufficient Account Balance',
+						text: transferCheck.message,
+						confirmButtonText: 'OK'
+					});
+					return;
+				}
+			}
 			updateCapitalTypeFields();
 			// Amount +/- drives Capital In (1) / Out (2); category checkbox is the type label only
 			$('#optWithdrawDeposit').val(parsedAmount.txn);
@@ -761,14 +801,19 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 			}
 
 			const typeLabel = selectedType.label;
+			const confirmRows = [
+				['Program Date', programDateVal],
+				['Type', typeLabel],
+				['Amount', parsedAmount.display]
+			];
+			if (typeLabel === 'Transfer') {
+				const accountLabel = $('#capital-transfer-account option:selected').text() || '-';
+				confirmRows.splice(2, 0, ['Account', accountLabel]);
+			}
 
 			SwalConfirm.fire({
 				title: 'Confirm transaction',
-				rows: [
-					['Program Date', programDateVal],
-					['Type', typeLabel],
-					['Amount', parsedAmount.display]
-				],
+				rows: confirmRows,
 				message: 'Save this house balance record?',
 				confirmButtonText: 'Yes'
 			}).then(function(result) {

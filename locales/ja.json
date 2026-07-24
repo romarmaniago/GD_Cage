@@ -959,6 +959,7 @@
 		"cash_in": "キャッシュイン",
 		"cash_out": "キャッシュアウト",
 		"type_transfer": "振替",
+		"choose_account": "アカウントを選択",
 		"type_deposit": "入金",
 		"type_withdrawal": "出金",
 		"type_loss_amount": "損失金額",
