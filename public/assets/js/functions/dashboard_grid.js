@@ -1490,32 +1490,79 @@
   }
 
   function syncMatrixPanelHeight() {
-    const ref = document.getElementById('dash-anticipated-panel');
+    const mainCard = document.querySelector('#dash-cage-main-panel > .card:last-of-type');
+    const anticipatedCard = document.querySelector('#dash-anticipated-panel > .card:last-of-type');
     const panel = document.getElementById('dash-dual-matrix-panel');
-    const cageMainPanel = document.getElementById('dash-cage-main-panel');
-    if (!ref) return;
+    const rollingCard = document.querySelector('.dash-dual-matrix-col.is-rolling > .card');
+    const wlCard = document.querySelector('.dash-dual-matrix-col.is-wl > .card');
 
     if (window.innerWidth < 992) {
-      if (panel) panel.style.height = '';
-      if (cageMainPanel) cageMainPanel.style.height = '';
+      if (panel) {
+        panel.style.height = '';
+        panel.style.minHeight = '';
+      }
+      [rollingCard, wlCard].forEach((el) => {
+        if (el) {
+          el.style.height = '';
+          el.style.minHeight = '';
+        }
+      });
       syncCageDiffAlignment();
       return;
     }
 
-    const heightPx = `${ref.offsetHeight}px`;
-    if (panel) panel.style.height = heightPx;
-    if (cageMainPanel) cageMainPanel.style.height = heightPx;
-    requestAnimationFrame(syncCageDiffAlignment);
+    if (!panel || !anticipatedCard) return;
+
+    syncCageDiffAlignment();
+
+    const targetBottom = Math.max(
+      mainCard ? mainCard.getBoundingClientRect().bottom : 0,
+      anticipatedCard.getBoundingClientRect().bottom
+    );
+    const panelTop = panel.getBoundingClientRect().top;
+    const panelHeight = Math.round(targetBottom - panelTop);
+
+    if (panelHeight > 0) {
+      panel.style.height = `${panelHeight}px`;
+      panel.style.minHeight = `${panelHeight}px`;
+    }
+
+    [rollingCard, wlCard].forEach((card) => {
+      if (card) {
+        card.style.height = '100%';
+        card.style.minHeight = '100%';
+      }
+    });
+
+    requestAnimationFrame(() => {
+      if (window.innerWidth < 992 || !panel || !anticipatedCard) return;
+      const settleBottom = Math.max(
+        mainCard ? mainCard.getBoundingClientRect().bottom : 0,
+        anticipatedCard.getBoundingClientRect().bottom
+      );
+      const settleTop = panel.getBoundingClientRect().top;
+      const settleHeight = Math.round(settleBottom - settleTop);
+      if (settleHeight > 0 && Math.abs(settleHeight - panelHeight) > 1) {
+        panel.style.height = `${settleHeight}px`;
+        panel.style.minHeight = `${settleHeight}px`;
+      }
+    });
   }
 
   function initMatrixPanelHeightSync() {
     const ref = document.getElementById('dash-anticipated-panel');
+    const mainCard = document.querySelector('#dash-cage-main-panel > .card:last-of-type');
+    const anticipatedCard = document.querySelector('#dash-anticipated-panel > .card:last-of-type');
+    const panel = document.getElementById('dash-dual-matrix-panel');
     if (!ref) return;
 
     syncMatrixPanelHeight();
 
     if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(() => syncMatrixPanelHeight()).observe(ref);
+      const ro = new ResizeObserver(() => syncMatrixPanelHeight());
+      [ref, mainCard, anticipatedCard, panel].forEach((el) => {
+        if (el) ro.observe(el);
+      });
     }
 
     window.addEventListener('resize', () => {
@@ -1524,6 +1571,288 @@
     });
 
     window.setTimeout(syncMatrixPanelHeight, 200);
+    window.setTimeout(syncMatrixPanelHeight, 600);
+  }
+
+  function dashRollingApiEndDate(endYmd) {
+    const end = String(endYmd || '').trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return end;
+    const parts = end.split('-').map(Number);
+    const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
+    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
+      return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(end);
+    }
+    return end;
+  }
+
+  function setDashGridDateRange(fromDate, toDate) {
+    let from = String(fromDate || '').trim().slice(0, 10);
+    let to = dashRollingApiEndDate(toDate);
+    if (from && to && from > to) {
+      const swap = from;
+      from = to;
+      to = swap;
+    }
+    const fromEl = document.getElementById('dash-date-from');
+    const toEl = document.getElementById('dash-date-to');
+    if (fromEl) fromEl.value = from;
+    if (toEl) toEl.value = to;
+    return { from, to };
+  }
+
+  function getDashGridDefaultRange() {
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+      return window.MonthEndCutoffRange.getMonthEndCutoffRange();
+    }
+    const from = document.getElementById('dash-date-from')?.value || '';
+    const to = document.getElementById('dash-date-to')?.value || '';
+    return { start: from, end: to, startDate: from, endDate: to, endDateApi: to, startAt: null, endAt: null };
+  }
+
+  function applyDashDefaultDateRange() {
+    const defaults = getDashGridDefaultRange();
+    const from = defaults.startDate || document.getElementById('dash-date-from')?.value || '';
+    const to = defaults.endDateApi || defaults.endDate || document.getElementById('dash-date-to')?.value || '';
+    return setDashGridDateRange(from, to);
+  }
+
+  function formatDashAmtHtml(n, forceNeg) {
+    const v = Math.round(Number(n) || 0);
+    if (forceNeg) {
+      if (!v) return '0';
+      return `<span class="text-dash-neg">(${Math.abs(v).toLocaleString('en-US')})</span>`;
+    }
+    if (v < 0) {
+      return `<span class="text-dash-neg">(${Math.abs(v).toLocaleString('en-US')})</span>`;
+    }
+    return v.toLocaleString('en-US');
+  }
+
+  function setHtmlById(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  function formatPeriodLabel(fromYmd, toYmd) {
+    const fmt = (ymd) => {
+      const s = String(ymd || '').trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+      if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.formatDisplayDate === 'function') {
+        const parts = s.split('-').map(Number);
+        return window.MonthEndCutoffRange.formatDisplayDate(new Date(parts[0], parts[1] - 1, parts[2]));
+      }
+      const parts = s.split('-').map(Number);
+      return `${parts[1]}/${parts[2]}`;
+    };
+    const a = fmt(fromYmd);
+    const b = fmt(toYmd);
+    if (!a || !b) return '';
+    if (window.MonthEndCutoffRange) return `${a} to ${b}`;
+    return `${a} – ${b}`;
+  }
+
+  function formatPeriodMetaShort(fromYmd, toYmd) {
+    const short = (ymd) => {
+      const s = String(ymd || '').trim().slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+      const parts = s.split('-').map(Number);
+      return `${parts[1]}/${parts[2]}`;
+    };
+    const a = short(fromYmd);
+    const b = short(toYmd);
+    if (!a || !b) return '';
+    return `${a} – ${b}`;
+  }
+
+  function escapeDashHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderPeriodServiceCategoryRows(containerId, categories, useJunketOut) {
+    const root = document.getElementById(containerId);
+    if (!root || !Array.isArray(categories)) return;
+    root.innerHTML = categories.map((cat) => {
+      const key = escapeDashHtml(cat.key || '');
+      const label = escapeDashHtml(cat.label || cat.key || '');
+      const modalId = escapeDashHtml(cat.modalId || 'modal-dash-service-category');
+      const amount = useJunketOut ? (Number(cat.junketOut) || 0) : (Number(cat.balance) || 0);
+      return `<div class="dash-kv dash-service-category-row" data-category="${key}">
+        <span class="dash-kv-label"><a href="#" class="js-open-dash-service-category" data-category="${key}" data-label="${label}" data-modal-id="${modalId}">${label}</a></span>
+        <span class="dash-kv-value dash-service-balance" data-category="${key}">${formatDashAmtHtml(amount)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function applyDashboardPeriodSummary(summary) {
+    if (!summary) return;
+
+    const winLoss = Math.round(Number(summary.win_loss) || 0);
+    const expense = Math.round(Number(summary.expense) || 0);
+    const junketLoss = Math.round(Number(summary.junket_loss) || 0);
+    const soa = Math.round(Number(summary.soa) || 0);
+    const additional = Math.round(Number(summary.additional_commission) || 0);
+    const commission = Math.round(Number(summary.commission_settlement) || 0);
+    const companyExpenseBase = Math.round(Number(summary.company_expense_base) || 0);
+    const companyExpenseTotal = Math.round(Number(summary.company_expense_total) || 0);
+    const categories = Array.isArray(summary.service_categories) ? summary.service_categories : [];
+
+    const panel = document.getElementById('dash-anticipated-panel');
+    const rate = Number(panel && panel.dataset.wlRate);
+    const wlRate = Number.isFinite(rate) ? rate : 65;
+    const wlSettlement = Math.round(winLoss * (wlRate / 100));
+    const casinoTotal = wlSettlement - soa;
+    const grandTotal = casinoTotal - companyExpenseTotal;
+
+    if (panel) {
+      panel.dataset.winLoss = String(winLoss);
+      panel.dataset.serviceSettle = String(soa);
+      panel.dataset.companyExpense = String(companyExpenseTotal);
+      panel.dataset.companyExpenseBase = String(companyExpenseBase);
+      panel.dataset.additionalCommission = String(additional);
+    }
+
+    setHtmlById('winloss', formatDashAmtHtml(winLoss));
+    setHtmlById('dash-wl-settlement', formatDashAmtHtml(wlSettlement));
+    setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa, true));
+    setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
+    setHtmlById('dash-expenses-total', formatDashAmtHtml(expense, true));
+    setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expense, true));
+    setHtmlById('dash-junket-loss-total', formatDashAmtHtml(junketLoss, true));
+    setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(junketLoss, true));
+    setHtmlById('dash-commission-settlement-total', formatDashAmtHtml(commission, true));
+    setHtmlById('dash-commission-settlement-anticipated', formatDashAmtHtml(commission, true));
+    setHtmlById('dash-additional-commission-total', formatDashAmtHtml(additional, true));
+    setHtmlById('dash-additional-commission-anticipated', formatDashAmtHtml(additional, true));
+    setHtmlById('dash-company-expense-total', formatDashAmtHtml(companyExpenseTotal, true));
+    setHtmlById('dash-grand-total', formatDashAmtHtml(grandTotal));
+
+    // Cage Balance + Main panel period amounts
+    const cage = summary.cage || {};
+    setHtmlById('dash-cage-usd-total', formatDashAmtHtml(cage.usd));
+    setHtmlById('dash-cage-gcash-total', formatDashAmtHtml(cage.gcash));
+    setHtmlById('dash-cage-php-total', formatDashAmtHtml(cage.php_cash));
+    setHtmlById('dash-cage-nn-total', formatDashAmtHtml(cage.nn_chips));
+    setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cage.cc_chips));
+    setHtmlById('dash-cage-rc-total', formatDashAmtHtml(cage.rc_chips));
+    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(cage.house_balance));
+    setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(cage.cage_balance_diff));
+    setHtmlById('dash-company-balance-total', formatDashAmtHtml(cage.house_balance));
+    setHtmlById('dash-utang-total', formatDashAmtHtml(cage.credit, true));
+    setHtmlById('dash-tip-balance-value', formatDashAmtHtml(cage.tip_balance));
+    setHtmlById('dash-guest-line-total', formatDashAmtHtml(cage.guest_balance));
+    setHtmlById('dash-actual-chips', formatDashAmtHtml(cage.total_chips));
+    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(cage.nn_chips));
+    setHtmlById('dash-actual-rolling-amount', formatDashAmtHtml(cage.actual_rolling));
+
+    const cashPanel = document.getElementById('dash-cage-cash-panel');
+    if (cashPanel) {
+      cashPanel.dataset.phpBalance = String(cage.php_cash || 0);
+      cashPanel.dataset.chipsBalance = String(cage.total_chips || 0);
+      cashPanel.dataset.houseBalance = String(cage.house_balance || 0);
+    }
+
+    // Main + Anticipated Add Charge: period signed balances
+    renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);
+    renderPeriodServiceCategoryRows('dash-service-category-rows-anticipated', categories, false);
+
+    const periodLabel = document.getElementById('dash-period-label');
+    if (periodLabel) {
+      let labelFrom = summary.date_from;
+      let labelTo = summary.date_to;
+      const rangeInput = document.getElementById('dash-rolling-daterange');
+      const fp = rangeInput && rangeInput._flatpickr;
+      if (fp && fp.selectedDates && fp.selectedDates.length === 2) {
+        const pad = (n) => String(n).padStart(2, '0');
+        const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        labelFrom = ymd(fp.selectedDates[0]);
+        labelTo = ymd(fp.selectedDates[1]);
+      }
+      periodLabel.textContent = formatPeriodMetaShort(labelFrom, labelTo)
+        || formatPeriodLabel(labelFrom, labelTo);
+    }
+  }
+
+  async function loadPeriodSummary() {
+    const from = document.getElementById('dash-date-from')?.value || '';
+    const to = document.getElementById('dash-date-to')?.value || '';
+    if (!from || !to) return;
+    const q = new URLSearchParams({ date_from: from, date_to: to });
+    try {
+      const res = await fetch(`/dashboard_period_summary?${q}`, { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load period summary');
+      applyDashboardPeriodSummary(data);
+      syncMatrixPanelHeight();
+    } catch (err) {
+      console.error('dashboard_period_summary:', err);
+    }
+  }
+
+  function reloadDashboardByDateRange() {
+    return Promise.all([loadGridData(), loadPeriodSummary()]);
+  }
+
+  function initDashRollingDateRange() {
+    const rangeInput = document.getElementById('dash-rolling-daterange');
+    if (!rangeInput || typeof flatpickr !== 'function') return;
+
+    const defaults = getDashGridDefaultRange();
+    let dateRangePicker = null;
+
+    const splitCtrl = (window.SplitDateRange && typeof window.SplitDateRange.attach === 'function')
+      ? window.SplitDateRange.attach({
+          rangePickerId: 'dash-rolling-daterange',
+          startId: 'dash-rolling-start-date',
+          endId: 'dash-rolling-end-date',
+          splitWrapperId: 'dash-rolling-split-daterange-wrapper',
+          independent: true,
+          invalidDateMessage: 'Invalid date range.',
+          onRangeApplied: function (range) {
+            if (!range || !range.start || !range.end) return;
+            setDashGridDateRange(range.start, range.end);
+            reloadDashboardByDateRange();
+          }
+        })
+      : { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
+
+    const config = {
+      mode: 'range',
+      showMonths: 2,
+      onChange: function (selectedDates) {
+        if (selectedDates.length !== 2) return;
+        const start = selectedDates[0];
+        const end = selectedDates[1];
+        const pad = (n) => String(n).padStart(2, '0');
+        const from = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+        const to = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+        setDashGridDateRange(from, to);
+        reloadDashboardByDateRange();
+      }
+    };
+
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.patchRangePickerConfig === 'function') {
+      dateRangePicker = flatpickr(rangeInput, window.MonthEndCutoffRange.patchRangePickerConfig(config));
+    } else {
+      if (defaults.startAt && defaults.endAt) {
+        config.defaultDate = [defaults.startAt, defaults.endAt];
+      } else if (Array.isArray(defaults.defaultDate)) {
+        config.defaultDate = defaults.defaultDate;
+      }
+      dateRangePicker = flatpickr(rangeInput, config);
+    }
+
+    if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function' && dateRangePicker) {
+      setTimeout(function () {
+        window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
+      }, 0);
+    }
+    if (splitCtrl && typeof splitCtrl.fitWidths === 'function') {
+      setTimeout(function () { splitCtrl.fitWidths(); }, 0);
+    }
   }
 
   async function loadGridData() {
@@ -1540,6 +1869,10 @@
       updateOnGameSummary(data);
       syncMatrixPanelHeight();
       syncDualMatrixRowHeights();
+      requestAnimationFrame(() => {
+        syncMatrixPanelHeight();
+        syncDualMatrixRowHeights();
+      });
     } catch (err) {
       console.error('dashboard_grid_data:', err);
     }
@@ -1552,7 +1885,9 @@
     initRollingRemarks();
     initWlRemarks();
     initDashMatrixPrintExport();
-    loadGridData();
+    applyDashDefaultDateRange();
+    initDashRollingDateRange();
+    reloadDashboardByDateRange();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');
     if (guestSummaryModal) {
@@ -1561,9 +1896,11 @@
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') loadGridData();
+      if (document.visibilityState === 'visible') reloadDashboardByDateRange();
     });
   });
 
   window.dashboardGridReload = loadGridData;
+  window.dashboardPeriodReload = loadPeriodSummary;
+  window.dashboardReloadByDateRange = reloadDashboardByDateRange;
 })();

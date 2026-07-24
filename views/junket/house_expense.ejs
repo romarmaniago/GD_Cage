@@ -1793,7 +1793,7 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 white-space: nowrap;
                 text-align: center;
                 overflow: hidden;
-                text-overflow: ellipsis;
+                text-overflow: clip;
             }
             #expense-item-cat-tbl thead th.sortable-col {
                 cursor: pointer;
@@ -1981,21 +1981,23 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-explorer-item-col .expense-item-panel-body,
             .expense-explorer-item-col .expense-table-panel {
-                overflow: visible;
+                overflow-x: auto;
+                overflow-y: visible;
                 max-height: none;
             }
             .expense-item-tbl-layout {
                 table-layout: fixed;
                 width: 100%;
+                min-width: 68rem;
             }
             .expense-item-tbl-layout col.expense-col-program-date { width: 9.25rem; min-width: 9.25rem; }
             .expense-item-tbl-layout col.expense-col-date-time { width: 9.75rem; min-width: 9.75rem; }
-            .expense-item-tbl-layout col.expense-col-name { width: 18%; }
-            .expense-item-tbl-layout col.expense-col-in-charge { width: 11%; }
-            .expense-item-tbl-layout col.expense-col-receiver { width: 11%; }
-            .expense-item-tbl-layout col.expense-col-description { width: 16%; }
-            .expense-item-tbl-layout col.expense-col-amount { width: 7.5rem; min-width: 7rem; }
-            .expense-item-tbl-layout col.expense-col-action { width: 11rem; }
+            .expense-item-tbl-layout col.expense-col-name { width: 14rem; min-width: 14rem; }
+            .expense-item-tbl-layout col.expense-col-in-charge { width: 8rem; min-width: 8rem; }
+            .expense-item-tbl-layout col.expense-col-receiver { width: 7.25rem; min-width: 7.25rem; }
+            .expense-item-tbl-layout col.expense-col-description { width: 10rem; min-width: 10rem; }
+            .expense-item-tbl-layout col.expense-col-amount { width: 7.5rem; min-width: 7.5rem; }
+            .expense-item-tbl-layout col.expense-col-action { width: 11rem; min-width: 11rem; }
             .expense-item-tbl-layout thead th:nth-child(1),
             .expense-item-tbl-layout thead th:nth-child(2),
             .expense-item-tbl-layout tbody td:nth-child(1),
@@ -2003,16 +2005,47 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 padding-left: 0.75rem;
                 padding-right: 0.75rem;
                 white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
             }
             .expense-item-tbl-layout thead th {
                 padding-left: 0.65rem;
                 padding-right: 0.65rem;
                 letter-spacing: 0.01em;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: clip;
+            }
+            .expense-item-tbl-layout tbody td:nth-child(3),
+            .expense-item-tbl-layout tbody td:nth-child(4),
+            .expense-item-tbl-layout tbody td:nth-child(5),
+            .expense-item-tbl-layout tbody td:nth-child(6) {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                line-height: 1.3;
+            }
+            .expense-item-tbl-layout tbody td:nth-child(3) .d-inline-flex {
+                justify-content: center;
+                width: 100%;
+                flex-wrap: wrap;
+                max-width: 100%;
+                min-width: 0;
+                gap: 0.25rem;
+            }
+            .expense-item-tbl-layout tbody td:nth-child(3) .d-inline-flex > span:last-child {
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                min-width: 0;
+                text-align: center;
             }
             .expense-item-table-wrap {
                 transform: translateY(0);
+                overflow-x: auto;
+                max-width: 100%;
             }
             .expense-item-table-wrap.is-bounce-in {
                 animation: expense-item-bounce-in 0.42s ease-out both;
@@ -2100,6 +2133,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             }
             .expense-item-tbl thead th {
                 text-align: center !important;
+                overflow: hidden !important;
+                text-overflow: clip !important;
+                white-space: nowrap;
             }
             .expense-item-tbl thead th:nth-child(4),
             .expense-item-tbl tbody td:nth-child(4) {
@@ -2113,11 +2149,24 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl tbody td.text-end {
                 text-align: center !important;
                 vertical-align: middle;
+            }
+            .expense-item-tbl tbody td:nth-child(1),
+            .expense-item-tbl tbody td:nth-child(2),
+            .expense-item-tbl tbody td:nth-child(7) {
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                word-break: normal;
-                overflow-wrap: normal;
+            }
+            .expense-item-tbl tbody td:nth-child(3),
+            .expense-item-tbl tbody td:nth-child(4),
+            .expense-item-tbl tbody td:nth-child(5),
+            .expense-item-tbl tbody td:nth-child(6) {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                line-height: 1.3;
             }
             .expense-item-tbl tbody td.expense-item-action-cell,
             .expense-item-tbl thead th:last-child {
@@ -2132,17 +2181,19 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl tbody td:nth-child(3) .d-inline-flex {
                 justify-content: center;
                 width: 100%;
-                flex-wrap: nowrap;
+                flex-wrap: wrap;
                 max-width: 100%;
                 min-width: 0;
+                gap: 0.25rem;
             }
             .expense-item-tbl tbody td:nth-child(3) .d-inline-flex > span:last-child {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                word-break: normal;
-                overflow-wrap: normal;
+                overflow: visible;
+                text-overflow: clip;
+                white-space: normal;
+                word-break: break-word;
+                overflow-wrap: anywhere;
                 min-width: 0;
+                text-align: center;
             }
             .expense-item-tbl tbody td.expense-item-action-cell .house-expense-actions {
                 display: flex;
@@ -2210,6 +2261,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     border-bottom: 1px solid #e0e0e0 !important;
     padding-left: 0.75rem;
     padding-right: 0.75rem;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
 }
 .expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col:hover,
 .expense-explorer-item-col #expense-item-cat-tbl thead th.sortable-col.is-sorted {

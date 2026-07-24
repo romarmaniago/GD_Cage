@@ -23,6 +23,7 @@ const {
 } = require('../utils/creditService');
 const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
 const { buildDashboardGridExportXlsx } = require('../utils/dashboardGridExport');
+const { computeDashboardPeriodSummary } = require('../utils/dashboardPeriodSummary');
 const {
 	sqlJunketExpenseResetTotal,
 	sqlJunketExpenseTotal,
@@ -113,6 +114,8 @@ async function renderDashboardPage(req, res, viewName) {
 	const dashboardCutoffRange = getMonthEndCutoffRange();
 	const dashboardDateFrom = dashboardCutoffRange?.startAt;
 	const dashboardDateTo = dashboardCutoffRange?.endAt;
+	const dashboardDateFromIso = dashboardCutoffRange?.startDate || null;
+	const dashboardDateToIso = dashboardCutoffRange?.endDateApi || dashboardCutoffRange?.endDate || null;
 
 	let sqlWinlossManual = 'SELECT SUM(AMOUNT) AS WINLOSS FROM winloss WHERE RESET=1';
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
@@ -728,12 +731,8 @@ let sqlServiceSettle = `
 		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
 		const [serviceCashJunketResults] = await pool.execute(sqlServiceCashJunket);
 		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
-		const startIso = dashboardDateFrom
-			? `${dashboardDateFrom.getFullYear()}-${String(dashboardDateFrom.getMonth() + 1).padStart(2, '0')}-${String(dashboardDateFrom.getDate()).padStart(2, '0')}`
-			: null;
-		const endIso = dashboardDateTo
-			? `${dashboardDateTo.getFullYear()}-${String(dashboardDateTo.getMonth() + 1).padStart(2, '0')}-${String(dashboardDateTo.getDate()).padStart(2, '0')}`
-			: null;
+		const startIso = dashboardDateFromIso;
+		const endIso = dashboardDateToIso;
 
 		const [serviceSettleResults] = await pool.execute(sqlServiceSettle, [startIso, endIso]);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
@@ -4113,11 +4112,24 @@ router.delete('/delete_soa_fnb_hotel', checkSession, async (req, res) => {
 	}
 });
 
+router.get('/dashboard_period_summary', checkSession, async (req, res) => {
+	try {
+		const cutoff = getMonthEndCutoffRange();
+		const dateFrom = String(req.query.date_from || cutoff.startDate).trim();
+		const dateTo = String(req.query.date_to || cutoff.endDateApi || cutoff.endDate).trim();
+		const summary = await computeDashboardPeriodSummary(pool, dateFrom, dateTo);
+		res.json(summary);
+	} catch (err) {
+		console.error('dashboard_period_summary:', err);
+		res.status(500).json({ message: 'Error loading dashboard period summary.' });
+	}
+});
+
 router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 	try {
-		const now = new Date();
-		const defaultFrom = isoDateOnly(new Date(now.getFullYear(), now.getMonth(), 1));
-		const defaultTo = isoDateOnly(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+		const cutoff = getMonthEndCutoffRange();
+		const defaultFrom = cutoff.startDate;
+		const defaultTo = cutoff.endDateApi || cutoff.endDate;
 		const dateFrom = String(req.query.date_from || defaultFrom).trim();
 		const dateTo = String(req.query.date_to || defaultTo).trim();
 
@@ -4309,7 +4321,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
 			 LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
 			 WHERE gl.ACTIVE = 2
-			 ORDER BY gl.IDNo ASC, gr.IDNo ASC`
+				AND gl.PROGRAM_DATE IS NOT NULL
+				AND DATE(gl.PROGRAM_DATE) BETWEEN ? AND ?
+			 ORDER BY gl.IDNo ASC, gr.IDNo ASC`,
+			[dateFrom, dateTo]
 		);
 
 		let onGameBuyIn = 0;

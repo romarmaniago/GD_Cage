@@ -90,6 +90,11 @@
 	};
 
 	window.refreshDashServiceBalances = function () {
+		// On dashboard, keep Add Charge / company totals in sync with the global date range.
+		if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-date-from') && document.getElementById('dash-date-to')) {
+			return Promise.resolve(window.dashboardPeriodReload());
+		}
+
 		return fetch('/dashboard/service_expense_balances', { credentials: 'same-origin' })
 			.then(function (res) {
 				if (!res.ok) throw new Error('Failed to load service expense balances');
