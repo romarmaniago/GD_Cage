@@ -31,8 +31,8 @@
             </div>
 
             <div class="gi-manual-field gi-manual-field-account">
-              <label class="form-label" for="gi-manual-account"><%= __('gamelist.acct_no') %> / Name</label>
-              <select id="gi-manual-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose account">
+              <label class="form-label" for="gi-manual-account"><%= __('gamelist.acct_no') %> / Name <span class="text-danger">*</span></label>
+              <select id="gi-manual-account" class="js-select2 form-control" style="width: 100%;" data-placeholder="Choose account" required aria-required="true">
                 <option value="">Choose account</option>
               </select>
             </div>
@@ -48,12 +48,12 @@
             </div>
 
             <div class="gi-manual-field">
-              <label class="form-label" for="gi-manual-win-loss"><%= __('gamelist.win_loss') %></label>
-              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-win-loss" inputmode="decimal" autocomplete="off" placeholder="0" />
-            </div>
-            <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-cash-out"><%= __('gamelist.cash_out') %></label>
               <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-cash-out" inputmode="decimal" autocomplete="off" placeholder="0" />
+            </div>
+            <div class="gi-manual-field">
+              <label class="form-label" for="gi-manual-win-loss"><%= __('gamelist.win_loss') %></label>
+              <input type="text" class="form-control gi-manual-amount gi-manual-win-loss-readonly text-end" id="gi-manual-win-loss" inputmode="decimal" autocomplete="off" placeholder="0" readonly tabindex="-1" />
             </div>
             <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-rolling"><%= __('gamelist.real_rolling') %></label>
@@ -76,7 +76,7 @@
 
             <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-commission"><%= __('gamelist.commission') %></label>
-              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-commission" inputmode="decimal" autocomplete="off" placeholder="0" />
+              <input type="text" class="form-control gi-manual-amount gi-manual-commission-readonly text-end" id="gi-manual-commission" inputmode="decimal" autocomplete="off" placeholder="0" readonly tabindex="-1" />
             </div>
             <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-add-charge">ADD CHG</label>
@@ -84,7 +84,7 @@
             </div>
             <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-settlement">TOTAL SETTLE</label>
-              <input type="text" class="form-control gi-manual-amount text-end" id="gi-manual-settlement" inputmode="decimal" autocomplete="off" placeholder="0" />
+              <input type="text" class="form-control gi-manual-amount gi-manual-settlement-readonly text-end" id="gi-manual-settlement" inputmode="decimal" autocomplete="off" placeholder="0" readonly tabindex="-1" />
             </div>
             <div class="gi-manual-field">
               <label class="form-label" for="gi-manual-game-end"><%= __('gamelist.game_end') %></label>
@@ -180,6 +180,17 @@
   #modal-gi-manual-game .gi-manual-game-body .gi-manual-amount.text-end::placeholder {
     text-align: right;
     color: #8a92a6;
+  }
+
+  #modal-gi-manual-game .gi-manual-win-loss-readonly {
+    background-color: #f8f9fa;
+    cursor: default;
+  }
+
+  #modal-gi-manual-game .gi-manual-commission-readonly,
+  #modal-gi-manual-game .gi-manual-settlement-readonly {
+    background-color: #f8f9fa;
+    cursor: default;
   }
 
   #modal-gi-manual-game .select2-container {

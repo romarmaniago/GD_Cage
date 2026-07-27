@@ -25,6 +25,7 @@ const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardC
 const { ensureSoaFnbHotelSchema } = require('../utils/ensureSoaFnbHotelSchema');
 const { ensureCreditSchema, backfillCreditFromLedger } = require('../utils/ensureCreditSchema');
 const { ensureGameInformationSchema } = require('../utils/ensureGameInformationSchema');
+const { ensureGiAgentGroupSchema } = require('../utils/ensureGiAgentGroupSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -67,6 +68,7 @@ const pool = mysql.createPool({
 		await ensureDashboardCheckRemarksSchema(pool);
 		await ensureCreditSchema(pool);
 		await ensureGameInformationSchema(pool);
+		await ensureGiAgentGroupSchema(pool);
 		await backfillCreditFromLedger(pool);
 		await dropGameDailySettlementSchema(pool);
 	} catch (err) {

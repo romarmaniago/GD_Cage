@@ -3,22 +3,97 @@
 <%- include('../partials/sidebar') %>
 <%- include('../partials/topbar') %>
 
+<link rel="stylesheet" href="/assets/js/plugins/select2/css/select2.min.css">
+
 <div class="container-fluid content-inner py-0">
   <div class="row">
     <div class="col-sm-12">
       <div class="card">
         <div id="user-role" data-permissions="<%= permissions %>"></div>
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="card-title">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h3 class="card-title mb-0">
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
               <a href="/game_information"><%= __('sidebar.game_information') %></a>
               <a href="/categorize_group" class="active"><%= __('game_information.categorize_group') %></a>
             </div>
           </h3>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <%- include('../partials/gi_print_export_toolbar', { printBtnId: 'btn-cg-summary-print', exportBtnId: 'btn-cg-summary-export' }) %>
+          </div>
         </div>
 
         <div class="card-body categorize-group-page">
+          <h5 class="cg-section-title mb-3"><%= __('categorize_group.agent_groups') %></h5>
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive mb-4">
+            <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+            <button
+              type="button"
+              class="expense-cat-panel-add-btn"
+              id="btn-add-gi-agent-group"
+              title="<%= __('categorize_group.new_group') %>"
+              aria-label="<%= __('categorize_group.new_group') %>"
+              data-view-only-disable
+            >
+              <i class="fa fa-plus" aria-hidden="true"></i>
+            </button>
+            <% } %>
+            <table id="gi-agent-groups-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th><%= __('categorize_group.group_name') %></th>
+                  <th><%= __('categorize_group.agents') %></th>
+                  <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
+                  <th class="text-center"><%= __('categorize_group.action') %></th>
+                  <% } %>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <h5 class="cg-section-title mb-3"><%= __('categorize_group.group_summary') %></h5>
+          <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+            <div id="cg-daterange-mount" class="cg-daterange-mount">
+              <div id="cg-program-date-wrapper" class="cg-daterange-wrap house-expense-daterange-wrap">
+                <input type="text" id="cg-program-date-range-picker" class="form-control form-control-sm text-center" placeholder="Program date range" autocomplete="off" />
+              </div>
+              <%- include('../partials/split_daterange', {
+                splitPrefix: 'categorize-group',
+                splitLocaleNs: 'game_information',
+                splitWrapClass: 'cg-daterange-wrap cg-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+              }) %>
+            </div>
+            <table id="gi-group-summary-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th><%= __('categorize_group.group_name') %></th>
+                  <th><%= __('categorize_group.agents') %></th>
+                  <th class="text-center"><%= __('categorize_group.games') %></th>
+                  <th class="text-center"><%= __('gamelist.buyin') %></th>
+                  <th class="text-center"><%= __('gamelist.cash_out') %></th>
+                  <th class="text-center"><%= __('gamelist.win_loss') %></th>
+                  <th class="text-center"><%= __('gamelist.real_rolling') %></th>
+                  <th class="text-center"><%= __('gamelist.commission') %></th>
+                  <th class="text-center">ADD CHG</th>
+                  <th class="text-center">TOTAL SETTLE</th>
+                </tr>
+              </thead>
+              <tbody class="text-center"></tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="3" class="fw-semibold text-end"><%= __('gamelist.grand_total') %></th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_BUYIN">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_CASHOUT">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_WINLOSS">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_ROLLING">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_COMMISSION">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_ADD_CHG">0.00</th>
+                  <th class="text-center fw-semibold" id="CG_GRAND_SETTLE">0.00</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -27,3 +102,445 @@
 
 <%- include('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
+
+<style>
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+}
+.card-header {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+}
+.marker-balance-card {
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+	border: 1px solid rgba(15, 23, 42, 0.08) !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+	padding: 0 !important;
+}
+.cg-section-title {
+	color: #3a2e12;
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.categorize-group-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.categorize-group-page table thead tr,
+.categorize-group-page table tfoot tr {
+	background-color: #f5f5f5 !important;
+}
+.categorize-group-page table thead th,
+.categorize-group-page table tfoot th {
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.categorize-group-page table.dataTable thead > tr > th.sorting,
+.categorize-group-page table.dataTable thead > tr > th.sorting_asc,
+.categorize-group-page table.dataTable thead > tr > th.sorting_desc,
+.categorize-group-page table.dataTable thead > tr > th.sorting_disabled {
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
+}
+
+.categorize-group-page .marker-balance-tbl {
+	width: 100%;
+	font-size: 13px;
+	border-collapse: collapse;
+	border: 1px solid #e0e0e0 !important;
+}
+.categorize-group-page .marker-balance-tbl thead th {
+	color: #555 !important;
+	font-weight: 600;
+	padding: 12px 15px;
+	border: none;
+	border-bottom: 1px solid #e0e0e0 !important;
+}
+.categorize-group-page .marker-balance-tbl tbody tr { border-bottom: 1px solid #eee; }
+.categorize-group-page .marker-balance-tbl tbody tr:last-child td,
+.categorize-group-page .marker-balance-tbl tbody td.dataTables_empty {
+	border-bottom: 1px solid #e0e0e0;
+}
+.categorize-group-page .marker-balance-tbl tfoot tr th {
+	border-top: 1px solid #e0e0e0 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	font-weight: 600;
+	padding: 10px 15px;
+}
+.categorize-group-page .marker-balance-tbl td { padding: 12px 15px; color: #666; }
+.categorize-group-page .marker-balance-tbl tbody tr:hover { background-color: #f6f3ec !important; }
+
+.categorize-group-page .marker-balance-dt-wrap,
+.categorize-group-page .marker-balance-card {
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+#gi-agent-groups-tbl.dataTable.marker-total-table,
+#gi-agent-groups-tbl.marker-total-table,
+#gi-group-summary-tbl.dataTable.marker-total-table,
+#gi-group-summary-tbl.marker-total-table {
+	width: 100% !important;
+}
+.categorize-group-page .marker-total-table thead th,
+.categorize-group-page .marker-total-table tbody td {
+	white-space: nowrap;
+	vertical-align: middle;
+	font-size: 0.875rem;
+}
+.categorize-group-page .marker-total-table thead th {
+	color: #555 !important;
+	font-weight: 600;
+	border-bottom: 1px solid #e0e0e0 !important;
+}
+.categorize-group-page .marker-total-table tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+.categorize-group-page .marker-total-table tbody tr:nth-child(odd) td {
+	background-color: #fff !important;
+}
+.categorize-group-page .marker-total-table tbody tr:hover td {
+	background-color: #f6f3ec !important;
+}
+.categorize-group-page .marker-total-table tfoot tr th {
+	border-top: 1px solid #e0e0e0 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	font-weight: 600;
+	padding: 10px 15px;
+}
+.categorize-group-page .marker-total-table thead th.sorting,
+.categorize-group-page .marker-total-table thead th.sorting_asc,
+.categorize-group-page .marker-total-table thead th.sorting_desc {
+	color: #555 !important;
+}
+
+.cg-daterange-wrap {
+	width: auto;
+	min-width: 0;
+	max-width: none;
+	flex: 0 0 auto;
+	display: inline-block;
+}
+.cg-daterange-wrap .flatpickr-wrapper {
+	display: inline-block;
+	width: auto;
+	min-width: 0;
+}
+.cg-daterange-wrap input.form-control,
+.cg-daterange-wrap .flatpickr-input.form-control {
+	display: inline-block !important;
+	position: static !important;
+	left: auto !important;
+	top: auto !important;
+	width: auto !important;
+	min-width: 10rem;
+	max-width: none !important;
+	margin: 0;
+	overflow: visible;
+	text-overflow: clip;
+	white-space: nowrap;
+	box-sizing: border-box;
+	text-align: center;
+	cursor: pointer;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.cg-daterange-wrap input.form-control:focus,
+.cg-daterange-wrap .flatpickr-input.form-control:focus {
+	border-color: #bbb;
+	outline: none;
+	box-shadow: 0 0 0 0.15rem rgba(0, 0, 0, 0.08);
+}
+.cg-daterange-mount {
+	display: none;
+}
+#gi-group-summary-tbl_wrapper .cg-summary-controls-highlight .cg-daterange-mount.is-placed {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-left: 8px;
+}
+.cg-split-daterange,
+.cg-split-daterange .house-expense-daterange-separator {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 6px;
+}
+.cg-split-daterange input.split-date-input {
+	display: inline-block !important;
+	width: auto !important;
+	min-width: 7.5rem;
+	max-width: none !important;
+	text-align: center;
+	cursor: text;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	height: 34px;
+	padding-left: 0.9rem;
+	padding-right: 0.9rem;
+	font-size: 13px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+#gi-group-summary-tbl_wrapper .cg-summary-controls-highlight .cg-split-daterange input.split-date-input:focus {
+	border-color: #c8a24c;
+	box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.25);
+}
+
+#gi-agent-groups-tbl_wrapper .cg-groups-controls-highlight,
+#gi-group-summary-tbl_wrapper .cg-summary-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: #fff;
+	border: 1px solid #e8ecf1;
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#gi-agent-groups-tbl_wrapper .cg-groups-controls-highlight .dataTables_length,
+#gi-group-summary-tbl_wrapper .cg-summary-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#gi-agent-groups-tbl_wrapper .cg-groups-controls-highlight .dataTables_filter,
+#gi-group-summary-tbl_wrapper .cg-summary-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl_filter .cg-groups-filter-highlight,
+#gi-group-summary-tbl_wrapper #gi-group-summary-tbl_filter .cg-summary-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 10px;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl_filter .cg-groups-filter-highlight .expense-cat-panel-add-btn {
+	flex-shrink: 0;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl_filter .cg-groups-filter-highlight label,
+#gi-group-summary-tbl_wrapper #gi-group-summary-tbl_filter .cg-summary-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 0;
+	font-size: 0;
+	color: transparent;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl_filter .cg-groups-filter-highlight label input,
+#gi-group-summary-tbl_wrapper #gi-group-summary-tbl_filter .cg-summary-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl_filter .cg-groups-filter-highlight label input::placeholder,
+#gi-group-summary-tbl_wrapper #gi-group-summary-tbl_filter .cg-summary-filter-highlight label input::placeholder {
+	color: #8a92a6;
+	opacity: 1;
+}
+#gi-agent-groups-tbl_wrapper #gi-agent-groups-tbl,
+#gi-group-summary-tbl_wrapper #gi-group-summary-tbl {
+	margin-top: 0 !important;
+}
+#gi-agent-groups-tbl_wrapper .dataTables_length,
+#gi-agent-groups-tbl_wrapper .dataTables_filter,
+#gi-group-summary-tbl_wrapper .dataTables_length,
+#gi-group-summary-tbl_wrapper .dataTables_filter {
+	padding-left: 0;
+	padding-right: 0;
+}
+
+.cg-group-actions {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+.cg-group-actions .btn {
+	padding: 2px 8px;
+	line-height: 1.2;
+}
+.cg-row-custom td:first-child {
+	font-weight: 600;
+	color: #3a2e12;
+}
+#btn-add-gi-agent-group.expense-cat-panel-add-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	color: #fff;
+	line-height: 1;
+	flex-shrink: 0;
+	cursor: pointer;
+}
+#btn-add-gi-agent-group.expense-cat-panel-add-btn i.fa {
+	font-size: 1rem;
+	line-height: 1;
+	pointer-events: none;
+}
+
+#modal-gi-agent-group .select2-container {
+	width: 100% !important;
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single {
+	border: 1px solid #ced4da;
+	border-radius: 0.375rem;
+	height: calc(1.5em + 0.75rem + 2px);
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__rendered {
+	display: flex;
+	align-items: center;
+	padding-left: 0.75rem;
+	height: calc(1.5em + 0.75rem + 2px);
+	line-height: 1.5;
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__arrow {
+	height: calc(1.5em + 0.75rem + 2px);
+}
+#modal-gi-agent-group .select2-container--default .select2-selection--single .select2-selection__placeholder {
+	color: #8A92A6;
+}
+#modal-gi-agent-group .select2-dropdown {
+	z-index: 1060;
+	border-color: #ced4da;
+}
+#modal-gi-agent-group .select2-search--dropdown .select2-search__field {
+	border: 1px solid #ced4da;
+	border-radius: 0.25rem;
+	padding: 0.35rem 0.5rem;
+}
+#modal-gi-agent-group .select2-container--default.select2-container--focus .select2-selection--single,
+#modal-gi-agent-group .select2-container--default.select2-container--open .select2-selection--single {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.15);
+}
+.gi-agent-selected-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	min-height: 0;
+}
+.gi-agent-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	background: #f6f3ec;
+	border: 1px solid rgba(200, 162, 76, 0.55);
+	border-radius: 999px;
+	padding: 0.2rem 0.55rem;
+	font-size: 0.8125rem;
+	color: #3a2e12;
+	line-height: 1.4;
+}
+.gi-agent-chip-remove {
+	border: none;
+	background: transparent;
+	color: #6b7280;
+	font-size: 1rem;
+	line-height: 1;
+	padding: 0 0.15rem;
+	cursor: pointer;
+}
+.gi-agent-chip-remove:hover {
+	color: #dc3545;
+}
+.cg-games-detail-btn {
+	color: #0d6efd !important;
+	text-decoration: none;
+	font-weight: 600;
+}
+.cg-games-detail-btn:hover {
+	text-decoration: underline;
+}
+.cg-group-games-modal .commission-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	margin-left: 4px;
+	font-size: 0.65rem;
+	font-weight: 600;
+	border-radius: 8px;
+	vertical-align: middle;
+	line-height: 1.2;
+}
+.cg-group-games-modal .commission-badge-r {
+	background-color: #e3f2fd;
+	color: #1565c0;
+	border: 1px solid #90caf9;
+}
+.cg-group-games-modal .commission-badge-s {
+	background-color: #fff3e0;
+	color: #ef6c00;
+	border: 1px solid #ffcc80;
+}
+.cg-group-games-modal .commission-badge-l {
+	background-color: #e8f5e9;
+	color: #2e7d32;
+	border: 1px solid #a5d6a7;
+}
+.cg-group-games-modal table.marker-total-table tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+.cg-group-games-modal table.marker-total-table tbody tr:nth-child(odd) td {
+	background-color: #fff !important;
+}
+</style>
+
+<script type="application/json" id="categorize-group-i18n"><%- JSON.stringify({
+  newGroup: __('categorize_group.new_group'),
+  editGroup: __('categorize_group.edit_group'),
+  deleteGroup: __('categorize_group.delete_group'),
+  deleteConfirm: __('categorize_group.delete_confirm'),
+  saveSuccess: __('categorize_group.save_success'),
+  updateSuccess: __('categorize_group.update_success'),
+  deleteSuccess: __('categorize_group.delete_success'),
+  saveFailed: __('categorize_group.save_failed'),
+  emptyGroups: __('categorize_group.empty_groups'),
+  emptySummary: __('categorize_group.empty_summary'),
+  noAgent: __('categorize_group.no_agent'),
+  searchAgent: __('categorize_group.search_agent_placeholder'),
+  edit: __('categorize_group.edit'),
+  delete: __('categorize_group.delete'),
+  gameDetailsTitle: __('categorize_group.game_details_title'),
+  gameDetailsEmpty: __('categorize_group.game_details_empty'),
+  print: __('game_information.print'),
+  export: __('game_information.export'),
+  noData: __('game_information.no_data')
+}) %></script>
+<%- include('../modals/game_information/agent_group') %>
+<%- include('../modals/game_information/group_games_detail') %>
+<script src="/assets/js/functions/categorize_group.js"></script>

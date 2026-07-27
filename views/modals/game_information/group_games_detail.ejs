@@ -1,0 +1,149 @@
+<div class="modal fade" id="modal-cg-group-games" tabindex="-1" aria-labelledby="modal-cg-group-games-title" aria-hidden="true" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable cg-group-games-dialog">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white" id="modal-cg-group-games-title"><%= __('categorize_group.game_details_title') %></h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body cg-group-games-modal">
+				<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+					<div id="cg-group-games-toolbar-mount" class="cg-group-games-toolbar-mount">
+						<button type="button" class="btn btn-sm btn-alt-success" id="btn-cg-group-games-print">
+							<i class="fa fa-print" aria-hidden="true"></i> <%= __('game_information.print') %>
+						</button>
+						<button type="button" class="btn btn-sm btn-success" id="btn-cg-group-games-export">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('game_information.export') %>
+						</button>
+					</div>
+					<table id="cg-group-games-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+						<thead>
+							<tr>
+								<th><%= __('gamelist.program_date_col') %></th>
+								<th><%= __('gamelist.game_start') %></th>
+								<th class="text-center"><%= __('gamelist.type') %></th>
+								<th class="text-center"><%= __('gamelist.game#') %></th>
+								<th class="text-center"><%= __('gamelist.acct_no') %></th>
+								<th class="text-center"><%= __('gamelist.guest') %></th>
+								<th class="text-center"><%= __('gamelist.buyin') %></th>
+								<th class="text-center"><%= __('gamelist.cash_out') %></th>
+								<th class="text-center"><%= __('gamelist.win_loss') %></th>
+								<th class="text-center"><%= __('gamelist.real_rolling') %></th>
+								<th class="text-center"><%= __('gamelist.game_rate') %></th>
+								<th class="text-center"><%= __('gamelist.commission') %></th>
+								<th class="text-center">ADD CHG</th>
+								<th class="text-center">TOTAL SETTLE</th>
+								<th class="text-center"><%= __('gamelist.game_end') %></th>
+							</tr>
+						</thead>
+						<tbody class="text-center"></tbody>
+						<tfoot>
+							<tr>
+								<th colspan="6" class="fw-semibold text-end"><%= __('gamelist.grand_total') %></th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_BUYIN">0.00</th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_CASHOUT">0.00</th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_WINLOSS">0.00</th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_ROLLING">0.00</th>
+								<th></th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_COMMISSION">0.00</th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_ADD_CHG">0.00</th>
+								<th class="text-center fw-semibold" id="CG_GAMES_GRAND_SETTLE">0.00</th>
+								<th></th>
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('categorize_group.close') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+#modal-cg-group-games .cg-group-games-dialog {
+	max-width: min(96vw, 1800px) !important;
+	width: 96vw;
+	margin: 1rem auto;
+}
+#modal-cg-group-games .cg-group-games-modal {
+	padding: 1rem 1.25rem;
+}
+#modal-cg-group-games .cg-group-games-toolbar-mount {
+	display: none;
+}
+#cg-group-games-tbl_wrapper .cg-group-games-controls-highlight .cg-group-games-toolbar-mount.is-placed {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-left: 8px;
+}
+#cg-group-games-tbl_wrapper .cg-group-games-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	margin-bottom: -1px;
+	background: #fff;
+	border: 1px solid #e8ecf1;
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+}
+#cg-group-games-tbl_wrapper .cg-group-games-controls-highlight .dataTables_length {
+	margin-top: 4px;
+}
+#cg-group-games-tbl_wrapper .cg-group-games-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+}
+#cg-group-games-tbl_wrapper #cg-group-games-tbl_filter .cg-group-games-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+}
+#cg-group-games-tbl_wrapper #cg-group-games-tbl_filter .cg-group-games-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	font-size: 0;
+	color: transparent;
+}
+#cg-group-games-tbl_wrapper #cg-group-games-tbl_filter .cg-group-games-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+	border-radius: 4px;
+	padding: 6px 10px;
+	font-size: 13px;
+	color: #333;
+	min-width: 160px;
+}
+#cg-group-games-tbl_wrapper #cg-group-games-tbl {
+	margin-top: 0 !important;
+}
+#modal-cg-group-games #cg-group-games-tbl thead th,
+#modal-cg-group-games #cg-group-games-tbl tbody td,
+#modal-cg-group-games #cg-group-games-tbl tfoot th {
+	white-space: nowrap;
+	font-size: 0.8125rem;
+	padding: 10px 12px;
+}
+#modal-cg-group-games .marker-balance-card {
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+	border: 1px solid rgba(15, 23, 42, 0.08) !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+	padding: 0 !important;
+}
+#modal-cg-group-games table.marker-total-table tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+#modal-cg-group-games table.marker-total-table tbody tr:nth-child(odd) td {
+	background-color: #fff !important;
+}
+</style>
+

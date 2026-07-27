@@ -44,13 +44,21 @@
 	}
 
 	function commissionBadge(row) {
-		var type = parseInt(row.COMMISSION_TYPE, 10);
+		var type = parseInt(row.COMMISSION_TYPE, 10) || 1;
 		var pct = parseFloat(row.COMMISSION_PERCENTAGE) || 0;
 		var label = 'R';
 		var cls = 'commission-badge-r';
-		if (type === 2) { label = 'S'; cls = 'commission-badge-s'; }
-		else if (type === 3) { label = 'L'; cls = 'commission-badge-l'; }
-		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '">' + label + '</span>';
+		var title = 'Rolling';
+		if (type === 2) {
+			label = 'S';
+			cls = 'commission-badge-s';
+			title = 'Shared';
+		} else if (type === 3) {
+			label = 'L';
+			cls = 'commission-badge-l';
+			title = 'Lossing';
+		}
+		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
 	}
 
 	var dataTable = null;
@@ -114,6 +122,43 @@
 		if (value === null || value === undefined || value === '') return '';
 		if (parseAmountInput(value) === 0) return '';
 		return formatAmountInput(value);
+	}
+
+	function calcManualWinLoss(buyIn, cashOut) {
+		return parseAmountInput(buyIn) - parseAmountInput(cashOut);
+	}
+
+	function updateManualWinLoss() {
+		var winLoss = calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val());
+		$('#gi-manual-win-loss').val(displayAmountInput(winLoss));
+		updateManualCommission();
+	}
+
+	function calcManualCommission(commissionType, rolling, winLoss, percentage) {
+		var type = parseInt(commissionType, 10) || 1;
+		var pct = parseAmountInput(percentage);
+		var base = type === 1 ? parseAmountInput(rolling) : parseAmountInput(winLoss);
+		return Math.round((base * pct) / 100);
+	}
+
+	function updateManualCommission() {
+		var commission = calcManualCommission(
+			$('#gi-manual-commission-type').val(),
+			$('#gi-manual-rolling').val(),
+			$('#gi-manual-win-loss').val(),
+			$('#gi-manual-commission-pct').val()
+		);
+		$('#gi-manual-commission').val(displayAmountInput(commission));
+		updateManualSettlement();
+	}
+
+	function calcManualSettlement(commission, addCharge) {
+		return parseAmountInput(commission) - parseAmountInput(addCharge);
+	}
+
+	function updateManualSettlement() {
+		var settlement = calcManualSettlement($('#gi-manual-commission').val(), $('#gi-manual-add-charge').val());
+		$('#gi-manual-settlement').val(displayAmountInput(settlement));
 	}
 
 	function addRowToTable(row, grand) {
@@ -401,6 +446,7 @@
 	function setDefaultGameRatePct() {
 		var pct = getDefaultGameRatePct($('#gi-manual-commission-type').val());
 		$('#gi-manual-commission-pct').val(formatAmountInput(pct));
+		updateManualCommission();
 	}
 
 	function initManualDateTimePicker(el, defaultDate) {
@@ -566,6 +612,7 @@
 		$('#gi-manual-commission-type').val('1');
 		$('.gi-manual-amount').val('');
 		setDefaultGameRatePct();
+		updateManualWinLoss();
 
 		var today = ymd(new Date());
 		var now = new Date();
@@ -587,12 +634,11 @@
 		$('#gi-manual-commission-type').val(String(row.COMMISSION_TYPE || '1'));
 		$('#gi-manual-buy-in').val(displayAmountInput(row.BUY_IN));
 		$('#gi-manual-cash-out').val(displayAmountInput(row.CASH_OUT));
-		$('#gi-manual-win-loss').val(displayAmountInput(row.WIN_LOSS));
+		updateManualWinLoss();
 		$('#gi-manual-rolling').val(displayAmountInput(row.ROLLING));
-		$('#gi-manual-commission').val(displayAmountInput(row.COMMISSION));
 		$('#gi-manual-add-charge').val(displayAmountInput(row.ADD_CHARGE));
-		$('#gi-manual-settlement').val(displayAmountInput(row.TOTAL_SETTLEMENT));
 		$('#gi-manual-commission-pct').val(formatAmountInput(row.COMMISSION_PERCENTAGE));
+		updateManualCommission();
 
 		initManualDatePicker(document.getElementById('gi-manual-program-date'), {
 			enableTime: false,
@@ -630,6 +676,14 @@
 	}
 
 	function collectManualPayload() {
+		var winLoss = calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val());
+		var commission = calcManualCommission(
+			$('#gi-manual-commission-type').val(),
+			$('#gi-manual-rolling').val(),
+			winLoss,
+			$('#gi-manual-commission-pct').val()
+		);
+		var addCharge = parseAmountInput($('#gi-manual-add-charge').val());
 		return {
 			programDate: getManualPickerValue('gi-manual-program-date'),
 			gameStart: getManualPickerValue('gi-manual-game-start'),
@@ -639,13 +693,13 @@
 			guestId: parseGiSelectId($('#gi-manual-guest').val()),
 			buyIn: parseAmountInput($('#gi-manual-buy-in').val()),
 			cashOut: parseAmountInput($('#gi-manual-cash-out').val()),
-			winLoss: parseAmountInput($('#gi-manual-win-loss').val()),
+			winLoss: winLoss,
 			rolling: parseAmountInput($('#gi-manual-rolling').val()),
 			commissionType: $('#gi-manual-commission-type').val(),
 			commissionPercentage: parseAmountInput($('#gi-manual-commission-pct').val()),
-			commission: parseAmountInput($('#gi-manual-commission').val()),
-			addCharge: parseAmountInput($('#gi-manual-add-charge').val()),
-			totalSettlement: parseAmountInput($('#gi-manual-settlement').val()),
+			commission: commission,
+			addCharge: addCharge,
+			totalSettlement: commission - addCharge,
 			gameEnded: getManualPickerValue('gi-manual-game-end')
 		};
 	}
@@ -668,6 +722,16 @@
 
 	function saveManualGame(e) {
 		if (e) e.preventDefault();
+		if (!parseGiSelectId($('#gi-manual-account').val())) {
+			notifyError(t('accountRequired', 'Acct No / Name is required.'));
+			var $accountSel = $('#gi-manual-account');
+			if ($accountSel.data('select2')) {
+				$accountSel.select2('open');
+			} else {
+				$accountSel.trigger('focus');
+			}
+			return;
+		}
 		var manualId = $('#gi-manual-id').val();
 		var payload = collectManualPayload();
 		var url = manualId ? '/game_information_data/' + manualId : '/game_information_data';
@@ -743,10 +807,209 @@
 
 		$(document).on('change', '#gi-manual-commission-type', setDefaultGameRatePct);
 		$(document).on('input', '.gi-manual-amount, #gi-manual-commission-pct', function () {
+			if (this.id === 'gi-manual-win-loss' || this.id === 'gi-manual-settlement' || this.id === 'gi-manual-commission') return;
 			var formatted = formatAmountInput($(this).val());
 			$(this).val(formatted);
+			if (this.id === 'gi-manual-buy-in' || this.id === 'gi-manual-cash-out') {
+				updateManualWinLoss();
+			} else if (this.id === 'gi-manual-rolling' || this.id === 'gi-manual-commission-pct') {
+				updateManualCommission();
+			} else if (this.id === 'gi-manual-add-charge') {
+				updateManualSettlement();
+			}
 		});
 		$(document).on('submit', '#gi-manual-game-form', saveManualGame);
+	}
+
+	function escapeHtml(value) {
+		return String(value == null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function getGiActionColIndex() {
+		if (!hasActionColumn()) return -1;
+		return $('#game_information-tbl thead th').length - 1;
+	}
+
+	function getGiDateRangeLabel() {
+		if (programFrom && programTo) return programFrom + ' to ' + programTo;
+		return '';
+	}
+
+	function getGiTablePayload(includeFooter) {
+		if (!dataTable) return { headers: [], rows: [], dataRowCount: 0 };
+		var actionColIndex = getGiActionColIndex();
+		var headers = [];
+		$('#game_information-tbl thead tr:first th').each(function (i) {
+			if (i === actionColIndex) return;
+			headers.push($(this).text().trim());
+		});
+
+		var rows = [];
+		dataTable.rows({ search: 'applied' }).every(function () {
+			var cells = [];
+			$(this.node()).find('td').each(function (i) {
+				if (i === actionColIndex) return;
+				cells.push($(this).text().trim());
+			});
+			if (cells.length) rows.push(cells);
+		});
+
+		var dataRowCount = rows.length;
+		if (includeFooter && dataRowCount) {
+			rows.push([
+				'',
+				'',
+				'',
+				'',
+				'',
+				$('#game_information-tbl tfoot th').eq(0).text().trim(),
+				$('#GI_GRAND_BUYIN').text().trim(),
+				$('#GI_GRAND_CASHOUT').text().trim(),
+				$('#GI_GRAND_WINLOSS').text().trim(),
+				$('#GI_GRAND_ROLLING').text().trim(),
+				'',
+				$('#GI_GRAND_COMMISSION').text().trim(),
+				$('#GI_GRAND_ADD_CHG').text().trim(),
+				$('#GI_GRAND_SETTLE').text().trim(),
+				''
+			]);
+		}
+
+		return { headers: headers, rows: rows, dataRowCount: dataRowCount };
+	}
+
+	function getGiPrintStyles() {
+		return [
+			'@page{size:landscape;margin:8mm;}',
+			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+			'.print-wrap{width:100%;}',
+			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+			'table{width:100%;border-collapse:collapse;font-size:8px;}',
+			'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;}',
+			'th{background:#d9e1f2;font-weight:700;}',
+			'tbody tr:last-child td{font-weight:700;background:#f4f6fa;}'
+		].join('');
+	}
+
+	function notifyGiNoData(mode) {
+		var title = mode === 'print' ? t('print', 'Print') : t('export', 'Export');
+		var text = t('noData', 'No data to export for the current filter.');
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'info', title: title, text: text, confirmButtonColor: '#0d6efd' });
+		} else {
+			alert(text);
+		}
+	}
+
+	function printGiTable() {
+		if (!dataTable) return;
+		var payload = getGiTablePayload(true);
+		if (!payload.dataRowCount) {
+			notifyGiNoData('print');
+			return;
+		}
+
+		var headerHtml = payload.headers.map(function (h) {
+			return '<th>' + escapeHtml(h) + '</th>';
+		}).join('');
+		var rowsHtml = payload.rows.map(function (row) {
+			return '<tr>' + row.map(function (cell) {
+				return '<td>' + escapeHtml(cell) + '</td>';
+			}).join('') + '</tr>';
+		}).join('');
+
+		var iframe = document.createElement('iframe');
+		iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+		document.body.appendChild(iframe);
+
+		var frameWindow = iframe.contentWindow;
+		var frameDoc = frameWindow.document;
+		frameDoc.open();
+		frameDoc.write([
+			'<!doctype html><html><head><title>Game Information</title><style>',
+			getGiPrintStyles(),
+			'</style></head><body><div class="print-wrap">',
+			'<h2>Game Information</h2>',
+			'<div class="subtitle">', escapeHtml(getGiDateRangeLabel()), '</div>',
+			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+			'</div></body></html>'
+		].join(''));
+		frameDoc.close();
+
+		var cleanup = function () {
+			setTimeout(function () {
+				if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+			}, 300);
+		};
+		frameWindow.onafterprint = cleanup;
+		setTimeout(function () {
+			frameWindow.focus();
+			frameWindow.print();
+			cleanup();
+		}, 250);
+	}
+
+	function getGiExportFilename() {
+		if (programFrom && programTo) {
+			return 'Game_Information_' + programFrom + '_to_' + programTo + '.xlsx';
+		}
+		return 'Game_Information-export.xlsx';
+	}
+
+	function exportGiTable() {
+		if (!dataTable) return;
+		var payload = getGiTablePayload(false);
+		if (!payload.dataRowCount) {
+			notifyGiNoData('export');
+			return;
+		}
+
+		var outName = getGiExportFilename();
+		var $btn = $('#btn-gi-export');
+		$btn.prop('disabled', true);
+		fetch('/game_information/export_xlsx', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({
+				headers: payload.headers,
+				rows: payload.rows,
+				filename: outName
+			})
+		})
+			.then(function (res) {
+				if (!res.ok) {
+					return res.json().catch(function () { return {}; }).then(function (j) {
+						throw new Error((j && j.error) ? j.error : 'Export failed');
+					});
+				}
+				return res.blob();
+			})
+			.then(function (blob) {
+				var link = document.createElement('a');
+				link.href = URL.createObjectURL(blob);
+				link.download = outName;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(link.href);
+			})
+			.catch(function (err) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Export failed', confirmButtonColor: '#0d6efd' });
+				} else {
+					alert(err.message || 'Export failed');
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
 	}
 
 	$(function () {
@@ -754,5 +1017,14 @@
 		initGiSplitDateRange();
 		initProgramDatePicker();
 		initManualGameHandlers();
+
+		$('#btn-gi-print').on('click', function (e) {
+			e.preventDefault();
+			printGiTable();
+		});
+		$('#btn-gi-export').on('click', function (e) {
+			e.preventDefault();
+			exportGiTable();
+		});
 	});
 })();

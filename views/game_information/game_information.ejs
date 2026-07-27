@@ -8,14 +8,17 @@
     <div class="col-sm-12">
       <div class="card">
         <div id="user-role" data-permissions="<%= permissions %>"></div>
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="card-title">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <h3 class="card-title mb-0">
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
               <a href="/game_information" class="active"><%= __('sidebar.game_information') %></a>
               <a href="/categorize_group"><%= __('game_information.categorize_group') %></a>
             </div>
           </h3>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <%- include('../partials/gi_print_export_toolbar', { printBtnId: 'btn-gi-print', exportBtnId: 'btn-gi-export' }) %>
+          </div>
         </div>
 
         <div class="card-body game-information-page">
@@ -294,6 +297,34 @@
 	font-weight: 600;
 	padding: 10px 15px;
 }
+
+/* Commission type badge (R / S / L) in Game Rate column */
+.game-information-page .commission-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	margin-left: 4px;
+	font-size: 0.65rem;
+	font-weight: 600;
+	border-radius: 8px;
+	vertical-align: middle;
+	line-height: 1.2;
+}
+.game-information-page .commission-badge-r {
+	background-color: #e3f2fd;
+	color: #1565c0;
+	border: 1px solid #90caf9;
+}
+.game-information-page .commission-badge-s {
+	background-color: #fff3e0;
+	color: #ef6c00;
+	border: 1px solid #ffcc80;
+}
+.game-information-page .commission-badge-l {
+	background-color: #e8f5e9;
+	color: #2e7d32;
+	border: 1px solid #a5d6a7;
+}
+
 .game-information-page .marker-total-table thead th.sorting,
 .game-information-page .marker-total-table thead th.sorting_asc,
 .game-information-page .marker-total-table thead th.sorting_desc {
@@ -412,7 +443,11 @@
   updated: __('game_information.update_success'),
   deleted: __('game_information.delete_success'),
   saveFailed: __('game_information.add_failed'),
-  cancel: __('game_information.cancel')
+  accountRequired: __('game_information.account_required'),
+  cancel: __('game_information.cancel'),
+  print: __('game_information.print'),
+  export: __('game_information.export'),
+  noData: __('game_information.no_data')
 }) %></script>
 <%- include('../modals/game_information/manual_game') %>
 <script>

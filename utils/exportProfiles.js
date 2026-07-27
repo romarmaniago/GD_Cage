@@ -117,6 +117,23 @@ const PROFILES = {
 			for (let c = 2; c <= headerCount; c++) amountCols.push(c);
 			return { amountCols };
 		}
+	},
+	gameInformation: {
+		amountCols: [7, 8, 9, 10, 12, 13, 14],
+		outflowCols: [8, 12, 13, 14],
+		signedCols: [9, 10],
+		percentCols: [11],
+		labelCols: 6,
+		leftAlignCols: [1, 2, 3, 4, 5, 6, 15],
+		centerAlignCols: [3, 4, 5, 6]
+	},
+	categorizeGroupSummary: {
+		amountCols: [4, 5, 6, 7, 8, 9, 10],
+		outflowCols: [5, 8, 9, 10],
+		signedCols: [6, 7],
+		labelCols: 3,
+		leftAlignCols: [1, 2],
+		centerAlignCols: [3]
 	}
 };
 
