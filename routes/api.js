@@ -1031,7 +1031,7 @@ router.get('/monthly-accumulated', async (req, res) => {
     // Monthly casino rolling = Total Chips Cashout for the month (same as new_total_chips.ejs modal: junket_total_chips TRANSACTION_ID=2)
     const [chipsCashoutRow] = await pool.execute(
       `SELECT COALESCE(SUM(TOTAL_CHIPS), 0) AS v FROM junket_total_chips
-       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
+       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
       [startStr, endStr]
     ).catch(() => [{ v: 0 }]);
     const monthly_rolling_casino = Number(chipsCashoutRow[0]?.v) || 0;
@@ -1063,10 +1063,10 @@ router.get('/monthly-rolling-casino-by-year', async (req, res) => {
     const now = new Date();
     const year = parseInt(req.query.year, 10) || now.getFullYear();
     const [rows] = await pool.execute(
-      `SELECT MONTH(ENCODED_DT) AS month, COALESCE(SUM(TOTAL_CHIPS), 0) AS v
+      `SELECT MONTH(COALESCE(PROGRAM_DATE, DATE(ENCODED_DT))) AS month, COALESCE(SUM(TOTAL_CHIPS), 0) AS v
        FROM junket_total_chips
-       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND YEAR(ENCODED_DT) = ?
-       GROUP BY MONTH(ENCODED_DT)`,
+       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND YEAR(COALESCE(PROGRAM_DATE, DATE(ENCODED_DT))) = ?
+       GROUP BY MONTH(COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)))`,
       [year]
     );
     const byMonth = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, value: 0 }));

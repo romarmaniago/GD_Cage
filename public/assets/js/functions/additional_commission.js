@@ -158,7 +158,6 @@
       const companyExpenseEl = document.querySelector('#dash-anticipated-panel .dash-kv.is-total .dash-kv-value');
       const grandTotalEl = document.getElementById('dash-grand-total');
       const cageBalanceTotalEl = document.getElementById('dash-cage-balance-total');
-      const companyBalanceTotalEl = document.getElementById('dash-company-balance-total');
 
       if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
       if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
@@ -187,10 +186,6 @@
       if (additionalDelta && cageBalanceTotalEl) {
         const nextCageBalance = parseDashboardAmount(cageBalanceTotalEl.textContent) - additionalDelta;
         cageBalanceTotalEl.textContent = formatDashboardAmount(nextCageBalance);
-      }
-      if (additionalDelta && companyBalanceTotalEl) {
-        const nextCompanyBalance = parseDashboardAmount(companyBalanceTotalEl.textContent) - additionalDelta;
-        companyBalanceTotalEl.textContent = formatDashboardAmount(nextCompanyBalance);
       }
     }
 

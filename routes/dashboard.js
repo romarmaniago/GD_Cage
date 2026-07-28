@@ -1192,44 +1192,6 @@ router.get('/account_dashboard', async (req, res) => {
 });
 
 
-function parseEncodedDtFromProgramDate(raw) {
-	const rawDate = raw == null ? '' : String(raw).trim();
-	if (!rawDate) return new Date();
-
-	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate);
-	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawDate);
-	if (!dateOnly && !dateTime) return new Date();
-
-	const parts = rawDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
-	const y = parts[0];
-	const mo = parts[1];
-	const d = parts[2];
-	let hours = 0;
-	let minutes = 0;
-	let seconds = 0;
-	let ms = 0;
-
-	if (dateTime) {
-		const tp = rawDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
-		if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-			hours = tp[0];
-			minutes = tp[1];
-		}
-	} else {
-		const now = new Date();
-		hours = now.getHours();
-		minutes = now.getMinutes();
-		seconds = now.getSeconds();
-		ms = now.getMilliseconds();
-	}
-
-	const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
-	if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
-		return dt;
-	}
-	return new Date();
-}
-
 /** YYYY-MM-DD from Authorized Master program-date picker; null if missing/invalid. */
 function parseJunketCapitalProgramDate(raw) {
 	const rawDate = raw == null ? '' : String(raw).trim().slice(0, 10);
@@ -1671,7 +1633,7 @@ router.get('/cash_in_details', async (req, res) => {
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1
 				AND j.TRANSACTION_ID = 2
-				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+				AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?
 			`,
 			dateParams
 		);
@@ -1904,7 +1866,7 @@ router.get('/cash_out_details', async (req, res) => {
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1
 				AND j.TRANSACTION_ID = 1
-				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+				AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?
 			`,
 			dateParams
 		);
@@ -2260,14 +2222,15 @@ router.get('/nn_chips_history', async (req, res) => {
 				NULL AS REMARKS,
 				NULL AS GAME_ID,
 				j.ENCODED_DT,
+				DATE_FORMAT(j.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
 			FROM junket_total_chips j
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1 
 				AND j.TRANSACTION_ID IN (1, 2, 3, 4)
 				AND j.NN_CHIPS > 0
-				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
-			ORDER BY j.ENCODED_DT DESC
+				AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?
+			ORDER BY COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) DESC, j.ENCODED_DT DESC
 		`;
 
 		const [results] = await pool.execute(query, [start_date, end_date]);
@@ -2296,14 +2259,15 @@ router.get('/cc_chips_history', async (req, res) => {
 				j.CC_CHIPS,
 				j.DESCRIPTION AS capital_description,
 				j.ENCODED_DT,
+				DATE_FORMAT(j.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
 			FROM junket_total_chips j
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1 
 				AND j.TRANSACTION_ID IN (1, 2, 3, 4)
 				AND j.CC_CHIPS > 0
-				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
-			ORDER BY j.ENCODED_DT DESC
+				AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?
+			ORDER BY COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) DESC, j.ENCODED_DT DESC
 		`;
 
 		const [results] = await pool.execute(query, [start_date, end_date]);
@@ -2594,7 +2558,11 @@ router.get('/on_game_list_data', async (req, res) => {
 // ADD JUNKET TOTAL CHIPS
 router.post('/add_junket_total_chips', async (req, res) => {
 	const { txtNNChips, txtCCChips, optBuyinReturn, typedescription, txtProgramDate } = req.body;
-	let date_now = parseEncodedDtFromProgramDate(txtProgramDate);
+	const programDate = parseJunketCapitalProgramDate(txtProgramDate);
+	if (!programDate) {
+		return res.status(400).send('Select a valid Program Date before saving.');
+	}
+	const date_now = new Date();
 
 	const nnChipsStr = String(txtNNChips ?? '').replace(/,/g, ''); // Remove commas
 	const ccChipsStr = String(txtCCChips ?? '').replace(/,/g, ''); // Remove commas
@@ -2671,9 +2639,9 @@ router.post('/add_junket_total_chips', async (req, res) => {
 	// Calculate the total chips by summing nnChips and ccChips
 	const totalChips = nnChips + ccChips;
 
-	const query = `INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 	try {
-		const [insertResult] = await pool.execute(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now]);
+		const [insertResult] = await pool.execute(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now, programDate]);
 
 		const cashConfig = {
 			'1': { category: 'Chips Buy-in', type: 2 },
@@ -3457,8 +3425,8 @@ router.post('/insert-dash-history', async (req, res) => {
 
 		// Insert junket_total_chips as Chips Cashout (TRANSACTION_ID=4, RESET=0) — naka-link sa settlement batch
 		await connection.execute(
-			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, MONTH_SETTLE_ID, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)',
-			[4, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, monthSettleId, req.session.user_id, date_now]
+			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, MONTH_SETTLE_ID, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)',
+			[4, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, monthSettleId, req.session.user_id, date_now, periodEndStr]
 		);
 
 		// Insert dash_history
@@ -4338,7 +4306,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 
 		const [chipsRows] = await pool.execute(
 			`SELECT
-				DATE_FORMAT(j.ENCODED_DT, '%Y-%m-%d') AS report_date,
+				DATE_FORMAT(COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)), '%Y-%m-%d') AS report_date,
 				SUM(CASE WHEN j.TRANSACTION_ID = 1 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS buy_in,
 				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.TOTAL_CHIPS, 0) ELSE 0 END) AS cash_out,
 				SUM(CASE WHEN j.TRANSACTION_ID = 2 THEN COALESCE(j.NN_CHIPS, 0) ELSE 0 END) AS cash_out_nn,
@@ -4346,9 +4314,9 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			 FROM junket_total_chips j
 			 WHERE j.ACTIVE = 1
 				AND j.ENCODED_DT IS NOT NULL
-				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
-			 GROUP BY DATE(j.ENCODED_DT)
-			 ORDER BY DATE(j.ENCODED_DT) ASC`,
+				AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?
+			 GROUP BY COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT))
+			 ORDER BY COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) ASC`,
 			[dateFrom, dateTo]
 		);
 

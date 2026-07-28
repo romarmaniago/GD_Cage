@@ -148,6 +148,9 @@
       );
 
       var houseBalance = cashBalance + totalChipsBalance;
+      var companyCapitalBalance =
+         (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
+         (+sqlCashWithdraw[0].CASH_WITHDRAW || 0);
       var netJunketMoney = houseBalance - guestBalance;
       var netJunketCash = cashBalance - guestBalance;
 
@@ -203,6 +206,19 @@
       var serviceJunketOutTotal = dashServiceCategoryRows.reduce(function (sum, cat) {
          return sum + (+cat.junketOut || 0);
       }, 0);
+
+      var mainServiceBalanceTotal = dashServiceCategoryRows.reduce(function (sum, cat) {
+         return sum + (+cat.balance || 0);
+      }, 0);
+      var mainAvailableAmount = Math.round(
+         companyCapitalBalance
+         - junketCreditAmount
+         - expenseReset
+         - junketLossAmount
+         - commissionSettlement
+         - additionalCommissionSettlement
+         + mainServiceBalanceTotal
+      );
 
       var wlSharePct = typeof dashboardWlSharePct === 'number' ? dashboardWlSharePct : (dashboardWlShareDefault || 65);
       var wlSettlement = Math.round(winLossTotal * (wlSharePct / 100));
@@ -293,12 +309,17 @@
                   <span class="dash-kv-value" id="dash-cage-balance-diff-value"><%- fmtAmt(cageBalanceDiff) %></span>
                </div>
 
+               <div class="dash-cage-balance-diff dash-main-available-amount">
+                  <span class="dash-kv-label">可用金額</span>
+                  <span class="dash-kv-value" id="dash-main-available-amount"><%- fmtAmt(mainAvailableAmount) %></span>
+               </div>
+
                <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
                   <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
                      <span>Main</span>
                   </div>
                   <div class="card-body">
-                     <div class="dash-kv dash-kv-company"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link" id="dash-company-balance-total"><%- fmtAmt(houseBalance) %></a></span></div>
+                     <div class="dash-kv dash-kv-company"><span class="dash-kv-label">Company</span><span class="dash-kv-value"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-capital" data-view-only-disable class="dash-card-link" id="dash-company-balance-total"><%- fmtAmt(companyCapitalBalance) %></a></span></div>
                      <div class="dash-kv-group-title is-warn">Liabilities</div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-new-marker" data-view-only-disable class="dash-card-link">Credit</a></span><span class="dash-kv-value" id="dash-utang-total"><%- fmtNeg(junketCreditAmount) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-house-expense" data-view-only-disable class="dash-card-link">Expenses</a></span><span class="dash-kv-value" id="dash-expenses-total"><%- fmtNeg(expenseReset) %></span></div>
@@ -447,11 +468,6 @@
                         <div id="dash-rolling-daterange-wrapper" class="house-expense-daterange-wrap dash-rolling-daterange-wrap">
                            <input type="text" id="dash-rolling-daterange" class="form-control form-control-sm text-center" placeholder="Select date range" autocomplete="off" />
                         </div>
-                        <%- include('partials/split_daterange', {
-                           splitPrefix: 'dash-rolling',
-                           splitWrapClass: 'house-expense-daterange-wrap house-expense-split-daterange junket-loss-split-daterange dash-rolling-split-daterange',
-                           splitPlaceholder: 'Date'
-                        }) %>
                      </div>
                   </div>
                   <div class="card dash-card dash-dual-matrix-panel gd-dash-panel is-light-body is-rolling h-100">

@@ -899,6 +899,8 @@
 		"type": "타입",
 		"remarks": "메모",
 		"date": "날짜",
+		"program_date_col": "프로그램 날짜",
+		"date_time": "날짜 / 시간",
 		"action": "행동",
 		"save": "저장",
 		"close": "닫기",

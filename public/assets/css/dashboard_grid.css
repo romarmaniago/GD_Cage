@@ -1508,6 +1508,12 @@ body {
   color: #f5f0e6;
 }
 
+.dash-main-available-amount .dash-kv-label,
+.dash-main-available-amount .dash-kv-value {
+  color: #c8a24c;
+  font-weight: 700;
+}
+
 .dash-card.gd-dash-panel.is-light-body .dash-kv-group-title.is-warn:has(+ .dash-kv.is-total) {
   background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
   color: #3a2e12;

@@ -4868,35 +4868,21 @@ pageRouter.post('/add_junket_total_chips', async (req, res) => {
 		txtProgramDate
 	} = req.body;
 	const rawProgramDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
-	let date_now = new Date();
+	const date_now = new Date();
+	let programDate = null;
 	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawProgramDate);
-	const dateTime = /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}$/.test(rawProgramDate);
-	if (dateOnly || dateTime) {
+	if (dateOnly) {
 		const parts = rawProgramDate.slice(0, 10).split('-').map((n) => parseInt(n, 10));
 		const y = parts[0];
 		const mo = parts[1];
 		const d = parts[2];
-		let hours = 0;
-		let minutes = 0;
-		let seconds = 0;
-		let ms = 0;
-		if (dateTime) {
-			const tp = rawProgramDate.slice(11).trim().split(':').map((n) => parseInt(n, 10));
-			if (Number.isFinite(tp[0]) && Number.isFinite(tp[1])) {
-				hours = tp[0];
-				minutes = tp[1];
-			}
-		} else {
-			const now = new Date();
-			hours = now.getHours();
-			minutes = now.getMinutes();
-			seconds = now.getSeconds();
-			ms = now.getMilliseconds();
-		}
-		const dt = new Date(y, mo - 1, d, hours, minutes, seconds, ms);
+		const dt = new Date(y, mo - 1, d);
 		if (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) {
-			date_now = dt;
+			programDate = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 		}
+	}
+	if (!programDate) {
+		return res.status(400).send('Select a valid Program Date before saving.');
 	}
 
 	const nnChipsStr = String(txtNNChips ?? '').replace(/,/g, ''); // Remove commas
@@ -4971,8 +4957,8 @@ pageRouter.post('/add_junket_total_chips', async (req, res) => {
 	// Calculate the total chips by summing nnChips and ccChips
 	const totalChips = nnChips + ccChips;
 
-	const query = `INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-	connection.query(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now], (err, result) => {
+	const query = `INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	connection.query(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now, programDate], (err, result) => {
 		if (err) {
 			console.error('Error inserting junket total chips', err);
 			res.status(500).send('Error inserting junket total chips');

@@ -240,11 +240,12 @@
             style="font-size: 13px !important;">
           <thead>
             <tr>
-              <th><%= __('dashboard_total_chips.encoded_by') %></th>
+              <th><%= __('dashboard_total_chips.program_date_col') %></th>
+              <th><%= __('dashboard_total_chips.date_time') %></th>
               <th><%= __('dashboard_total_chips.amount') %></th>
               <th><%= __('dashboard_total_chips.type') %></th>
               <th><%= __('dashboard_total_chips.remarks') %></th>
-              <th><%= __('dashboard_total_chips.date') %></th>
+              <th><%= __('dashboard_total_chips.encoded_by') %></th>
               <th><%= __('dashboard_total_chips.action') %></th>
             </tr>
           </thead>
@@ -252,7 +253,7 @@
           </tbody>
           <tfoot>
             <tr>
-              <th colspan="1" style="text-align: right; font-weight: 600;">Total:</th>
+              <th colspan="2" style="text-align: right; font-weight: 600;">Total:</th>
               <th id="total-chips-amount-sum" style="text-align: right; font-weight: 600;">0</th>
               <th colspan="4"></th>
             </tr>
@@ -295,6 +296,25 @@
     if (typeof moment !== 'undefined') return moment.utc(dt).utcOffset(8).format('YYYY-MM-DD HH:mm');
     const d = new Date(dt);
     return isNaN(d.getTime()) ? 'N/A' : (window.fmtDtUtc8 ? window.fmtDtUtc8(d, 'N/A') : 'N/A');
+  };
+  window.formatTotalChipsProgramDate = function(row) {
+    const raw = row && row.PROGRAM_DATE;
+    if (raw) {
+      const str = String(raw).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      if (typeof moment !== 'undefined') {
+        const m = moment.utc(raw).utcOffset(8);
+        if (m.isValid()) return m.format('YYYY-MM-DD');
+      }
+    }
+    if (row && row.ENCODED_DT) {
+      if (typeof moment !== 'undefined') return moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD');
+      const d = new Date(row.ENCODED_DT);
+      if (!isNaN(d.getTime())) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+    }
+    return '—';
   };
 </script>
 <style>
@@ -898,9 +918,10 @@ $(document).ready(function() {
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
           recordId: row.IDNo,
           remarksRaw: row.REMARKS || '',
+          programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
-          sortDate: new Date(row.ENCODED_DT)
+          sortDate: window.formatTotalChipsProgramDate(row)
         };
       });
 
@@ -929,28 +950,30 @@ $(document).ready(function() {
           remarks: row.REMARKS || '',
           recordId: row.IDNo,
           remarksRaw: row.REMARKS || '',
+          programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
-          sortDate: new Date(row.ENCODED_DT)
+          sortDate: window.formatTotalChipsProgramDate(row)
         };
       });
 
-      // Combine and sort by date descending
-      const combinedData = [...nnFiltered, ...ccFiltered].sort((a, b) => b.sortDate - a.sortDate);
+      // Combine and sort by program date descending
+      const combinedData = [...nnFiltered, ...ccFiltered].sort((a, b) => String(b.sortDate || '').localeCompare(String(a.sortDate || '')));
 
       // Convert to DataTable format with raw amount stored for total calculation
       const tableData = combinedData.map((row, index) => {
         const rowArray = [
-          row.encodedBy,
+          row.programDate,
+          row.date,
           row.amount,
           row.type,
           row.remarks,
-          row.date,
+          row.encodedBy,
           row.action
         ];
         // Store raw amount as a property on the row array for easy access
         rowArray._rawAmount = row.amountRaw;
-        rowArray._sortDate = row.sortDate instanceof Date && !isNaN(row.sortDate.getTime()) ? row.sortDate.getTime() : 0;
+        rowArray._sortDate = row.sortDate || '';
         rowArray._recordId = row.recordId;
         rowArray._remarksRaw = row.remarksRaw != null ? row.remarksRaw : '';
         rowArray._remarksDisplay = row.remarks != null ? row.remarks : '';
@@ -964,9 +987,9 @@ $(document).ready(function() {
         processing: false,
         serverSide: false,
         data: tableData,
-        order: [[4, 'desc']], // Sort by date descending
+        order: [[0, 'desc']], // Sort by program date descending
         columnDefs: [{
-          targets: 3,
+          targets: 4,
           render: function (data, type, row) {
             var display = row._remarksDisplay != null ? row._remarksDisplay : (data || '');
             if (type !== 'display') return display;
@@ -979,17 +1002,18 @@ $(document).ready(function() {
           }
         }],
         columns: [
+          {
+            "className": "text-center",
+            "render": function(data, type, row) {
+              if (type === 'sort' || type === 'type') return row && row._sortDate ? row._sortDate : '';
+              return data;
+            }
+          },
           { "className": "text-center" },
           { "className": "text-end" },
           { "className": "text-center" },
           { "className": "text-center" },
-          {
-            "className": "text-center",
-            "render": function(data, type, row) {
-              if (type === 'sort' || type === 'type') return row && row._sortDate ? row._sortDate : 0;
-              return data;
-            }
-          },
+          { "className": "text-center" },
           { "className": "text-center", "orderable": false }
         ],
         responsive: true,

@@ -849,6 +849,8 @@
 		"type": "Type",
 		"remarks": "Remarks",
 		"date": "Date",
+		"program_date_col": "Program Date",
+		"date_time": "Date / Time",
 		"action": "Action",
 		"rolling": "Rolling",
 		"cash_balance": "Cash balance",

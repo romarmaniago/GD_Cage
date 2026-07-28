@@ -38,7 +38,7 @@ async function sumScalar(pool, sql, params) {
 }
 
 function chipsDt(alias) {
-	return `DATE(${alias}.ENCODED_DT)`;
+	return `COALESCE(${alias}.PROGRAM_DATE, DATE(${alias}.ENCODED_DT))`;
 }
 
 function capitalDt(alias) {
@@ -92,6 +92,31 @@ async function computeJunketLossForPeriod(pool, dateFrom, dateTo) {
 			AND PROGRAM_DATE BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
+}
+
+async function computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo) {
+	const p = [dateFrom, dateTo];
+	const [deposit, withdraw] = await Promise.all([
+		sumScalar(
+			pool,
+			`SELECT COALESCE(SUM(AMOUNT), 0) AS total
+			 FROM junket_capital jc
+			 WHERE jc.ACTIVE = 1
+				AND jc.TRANSACTION_ID = 1
+				AND ${capitalDt('jc')} BETWEEN ? AND ?`,
+			p
+		),
+		sumScalar(
+			pool,
+			`SELECT COALESCE(SUM(AMOUNT), 0) AS total
+			 FROM junket_capital jc
+			 WHERE jc.ACTIVE = 1
+				AND jc.TRANSACTION_ID = 2
+				AND ${capitalDt('jc')} BETWEEN ? AND ?`,
+			p
+		)
+	]);
+	return Math.round(deposit - withdraw);
 }
 
 async function computeSoaForPeriod(pool, dateFrom, dateTo) {
@@ -642,7 +667,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		additionalCommission,
 		commissionSettlement,
 		servicePayload,
-		cageMain
+		cageMain,
+		companyCapitalBalance
 	] = await Promise.all([
 		computeWinLossForPeriod(pool, dateFrom, dateTo),
 		computeExpenseForPeriod(pool, dateFrom, dateTo),
@@ -651,7 +677,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo),
 		computeCommissionSettlementForPeriod(pool, dateFrom, dateTo),
 		loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo),
-		computeCageMainForPeriod(pool, dateFrom, dateTo)
+		computeCageMainForPeriod(pool, dateFrom, dateTo),
+		computeJunketCapitalBalanceForPeriod(pool, dateFrom, dateTo)
 	]);
 
 	const serviceCategories = Array.isArray(servicePayload && servicePayload.categories)
@@ -664,6 +691,18 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 
 	const companyExpenseBase = expense + junketLoss + commissionSettlement + additionalCommission;
 	const companyExpenseTotal = companyExpenseBase + serviceJunketOutTotal;
+	const serviceBalanceTotal = Math.round(
+		serviceCategories.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
+	);
+	const mainAvailableAmount = Math.round(
+		companyCapitalBalance
+		- (Number(cageMain.credit) || 0)
+		- expense
+		- junketLoss
+		- commissionSettlement
+		- additionalCommission
+		+ serviceBalanceTotal
+	);
 
 	return {
 		date_from: dateFrom,
@@ -678,6 +717,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		service_junket_out_total: serviceJunketOutTotal,
 		company_expense_base: companyExpenseBase,
 		company_expense_total: companyExpenseTotal,
+		company_capital_balance: companyCapitalBalance,
+		main_available_amount: mainAvailableAmount,
 		cage: cageMain
 	};
 }

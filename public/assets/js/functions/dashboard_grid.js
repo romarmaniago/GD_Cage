@@ -1740,7 +1740,8 @@
     setHtmlById('dash-cage-rc-total', formatDashAmtHtml(cage.rc_chips));
     setHtmlById('dash-cage-balance-total', formatDashAmtHtml(cage.house_balance));
     setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(cage.cage_balance_diff));
-    setHtmlById('dash-company-balance-total', formatDashAmtHtml(cage.house_balance));
+    setHtmlById('dash-company-balance-total', formatDashAmtHtml(summary.company_capital_balance));
+    setHtmlById('dash-main-available-amount', formatDashAmtHtml(summary.main_available_amount));
     setHtmlById('dash-utang-total', formatDashAmtHtml(cage.credit, true));
     setHtmlById('dash-tip-balance-value', formatDashAmtHtml(cage.tip_balance));
     setHtmlById('dash-guest-line-total', formatDashAmtHtml(cage.guest_balance));
@@ -1803,22 +1804,6 @@
     const defaults = getDashGridDefaultRange();
     let dateRangePicker = null;
 
-    const splitCtrl = (window.SplitDateRange && typeof window.SplitDateRange.attach === 'function')
-      ? window.SplitDateRange.attach({
-          rangePickerId: 'dash-rolling-daterange',
-          startId: 'dash-rolling-start-date',
-          endId: 'dash-rolling-end-date',
-          splitWrapperId: 'dash-rolling-split-daterange-wrapper',
-          independent: true,
-          invalidDateMessage: 'Invalid date range.',
-          onRangeApplied: function (range) {
-            if (!range || !range.start || !range.end) return;
-            setDashGridDateRange(range.start, range.end);
-            reloadDashboardByDateRange();
-          }
-        })
-      : { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
-
     const config = {
       mode: 'range',
       showMonths: 2,
@@ -1849,9 +1834,6 @@
       setTimeout(function () {
         window.MonthEndCutoffRange.fitRangePickerInstance(dateRangePicker);
       }, 0);
-    }
-    if (splitCtrl && typeof splitCtrl.fitWidths === 'function') {
-      setTimeout(function () { splitCtrl.fitWidths(); }, 0);
     }
   }
 

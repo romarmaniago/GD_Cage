@@ -900,6 +900,8 @@
 		"type": "タイプ",
 		"remarks": "備考",
 		"date": "日付",
+		"program_date_col": "プログラム日付",
+		"date_time": "日付 / 時刻",
 		"action": "アクション",
 		"rolling": "ローリング",
 		"cash_balance": "キャッシュ残高",

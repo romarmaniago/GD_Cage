@@ -900,6 +900,8 @@
 		"type": "类型",
 		"remarks": "备注",
 		"date": "日期",
+		"program_date_col": "节目日期",
+		"date_time": "日期 / 时间",
 		"action": "操作",
 		"rolling": "轧制",
 		"cash_balance": "现金余额",
