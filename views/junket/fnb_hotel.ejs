@@ -40,11 +40,15 @@
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" id="btn-fnb-hotel-settle" class="btn btn-sm btn-primary">
+							<%= __('house_expense.settle') || 'Settle' %>
+						</button>
 						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
 						<button type="button" id="btn-fnb-hotel-service-category" class="btn btn-sm btn-info" onclick="openServicesCategoryModal()">
 							<i class="fa fa-tags" aria-hidden="true"></i> <%= __('fnb_hotel.service_category') %>
 						</button>
 						<% } %>
+						
 						<button type="button" id="btn-fnb-hotel-print" class="btn btn-sm btn-alt-success">
 							<i class="fa fa-print" aria-hidden="true"></i> Print
 						</button>

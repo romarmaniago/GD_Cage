@@ -126,7 +126,8 @@
 		"telegram_API": "텔레그램",
 		"telegram_message_log": "텔레그램 발송 기록",
 		"Change_Game_No": "게임 번호 변경",
-		"title": "정켓"
+		"title": "정켓",
+		"agent_winloss_report": "에이전트 승/패"
 	},
 	"game_information": {
 		"categorize_group": "그룹 분류",
@@ -469,7 +470,7 @@
 		"type_salary": "급여",
 		"type_maintenance": "정비",
 		"type_other": "기타",
-		"settle": "house_expense.settle",
+		"settle": "정산",
 		"receiver": "house_expense.receiver",
 		"approve": "house_expense.approve",
 		"reject": "house_expense.reject",
@@ -627,6 +628,34 @@
 		"showing_entries": "_START_부터 _END_까지, 총 _TOTAL_개 항목 표시",
 		"previous": "이전",
 		"next": "다음"
+	},
+	"agent_winloss_report": {
+		"title": "에이전트 승/패",
+		"export": "보내기",
+		"program_date_range": "프로그램 날짜 범위",
+		"select_date_range": "날짜 범위 선택",
+		"agent_filter": "에이전트",
+		"all_agents": "전체 에이전트",
+		"per_game": "게임별",
+		"per_day": "일별",
+		"per_month": "월별",
+		"loading": "보고서 로딩 중...",
+		"no_data": "선택한 범위에 데이터가 없습니다.",
+		"program_date": "프로그램 날짜",
+		"month": "월",
+		"game_no": "게임 #",
+		"agent_code": "에이전트 코드",
+		"agent_name": "에이전트명",
+		"agent_code_name": "에이전트 코드 (에이전트명)",
+		"line": "라인",
+		"guest": "게스트",
+		"game_type": "게임 유형",
+		"games": "게임 수",
+		"buy_in": "바이인",
+		"cash_out": "캐시아웃",
+		"win_loss": "승/패",
+		"grand_total": "총 합계",
+		"export_error": "보내기 실패"
 	},
 	"guest_statistic": {
 		"statistics": "통계",

@@ -1,0 +1,340 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner py-0">
+	<div class="row gy-3">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+					<h3 class="card-title mb-0">
+						<div id="agent-winloss-filter" class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="#"><%= __('agent.accounts') %></a>
+							<a href="/agent_winloss_report"><%= __('agent_winloss_report.title') %></a>
+							<a href="#" class="filter-link active" data-group-by="game"><%= __('agent_winloss_report.per_game') %></a>
+							<a href="#" class="filter-link" data-group-by="day"><%= __('agent_winloss_report.per_day') %></a>
+							<a href="#" class="filter-link" data-group-by="month"><%= __('agent_winloss_report.per_month') %></a>
+						</div>
+					</h3>
+					<div class="d-flex flex-wrap gap-2 align-items-center">
+						<button type="button" id="btn-agent-winloss-print" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-print" aria-hidden="true"></i> Print
+						</button>
+						<button type="button" id="btn-agent-winloss-export" class="btn btn-sm btn-success">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('agent_winloss_report.export') %>
+						</button>
+					</div>
+				</div>
+				<div id="agent-winloss-daterange-mount" class="fnb-hotel-daterange-mount">
+					<div class="fnb-hotel-date-filter-wrap mb-0">
+						<div class="fnb-hotel-daterange-group d-flex flex-nowrap align-items-center gap-2">
+							<div class="fnb-hotel-daterange-wrap">
+								<input type="text" id="agent-winloss-daterange" class="form-control form-control-sm text-center fnb-hotel-daterange-input" placeholder="<%= __('agent_winloss_report.select_date_range') %>" autocomplete="off" />
+							</div>
+							<%- include('../partials/split_daterange', {
+								splitPrefix: 'agent-winloss',
+								splitLocaleNs: 'house_expense',
+								splitWrapClass: 'fnb-hotel-daterange-wrap fnb-hotel-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+							}) %>
+							<div class="agent-winloss-agent-filter-wrap">
+								<select id="agent-winloss-agent-filter" class="js-select2 form-select form-select-sm" data-placeholder="<%= __('agent_winloss_report.all_agents') %>">
+									<option value=""></option>
+								</select>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="card-body agent-winloss-page fnb-hotel-page">
+					<div class="row mt-2">
+						<div class="col-12">
+							<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+								<table id="agent-winloss-report-tbl" class="table marker-balance-tbl w-100 mb-0">
+									<thead>
+										<tr>
+											<th><%= __('agent_winloss_report.program_date') %></th>
+											<th><%= __('agent_winloss_report.game_no') %></th>
+											<th><%= __('agent_winloss_report.agent_code_name') %></th>
+											<th><%= __('agent_winloss_report.line') %></th>
+											<th><%= __('agent_winloss_report.guest') %></th>
+											<th><%= __('agent_winloss_report.game_type') %></th>
+											<th class="text-end"><%= __('agent_winloss_report.buy_in') %></th>
+											<th class="text-end"><%= __('agent_winloss_report.cash_out') %></th>
+											<th class="text-end"><%= __('agent_winloss_report.win_loss') %></th>
+										</tr>
+									</thead>
+									<tfoot>
+										<tr>
+											<th colspan="6" class="text-end"><%= __('agent_winloss_report.grand_total') %></th>
+											<th id="agent-winloss-total-buyin" class="text-end">0</th>
+											<th id="agent-winloss-total-cashout" class="text-end">0</th>
+											<th id="agent-winloss-total-winloss" class="text-end">0</th>
+										</tr>
+									</tfoot>
+									<tbody></tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+window.agentWinlossReportTranslations = {
+	loading: "<%= __('agent_winloss_report.loading') %>",
+	no_data: "<%= __('agent_winloss_report.no_data') %>",
+	program_date: "<%= __('agent_winloss_report.program_date') %>",
+	month: "<%= __('agent_winloss_report.month') %>",
+	game_no: "<%= __('agent_winloss_report.game_no') %>",
+	agent_code_name: "<%= __('agent_winloss_report.agent_code_name') %>",
+	all_agents: "<%= __('agent_winloss_report.all_agents') %>",
+	line: "<%= __('agent_winloss_report.line') %>",
+	guest: "<%= __('agent_winloss_report.guest') %>",
+	game_type: "<%= __('agent_winloss_report.game_type') %>",
+	games: "<%= __('agent_winloss_report.games') %>",
+	buy_in: "<%= __('agent_winloss_report.buy_in') %>",
+	cash_out: "<%= __('agent_winloss_report.cash_out') %>",
+	win_loss: "<%= __('agent_winloss_report.win_loss') %>",
+	grand_total: "<%= __('agent_winloss_report.grand_total') %>",
+	export_error: "<%= __('agent_winloss_report.export_error') %>",
+	title: "<%= __('agent_winloss_report.title') %>"
+};
+</script>
+<script src="/assets/js/functions/agent_winloss_report.js"></script>
+
+<style>
+.card {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border: 1px solid rgba(200, 162, 76, 0.4) !important;
+}
+.card-header {
+	background: linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%) !important;
+	border-bottom: 1px solid rgba(200, 162, 76, 0.25) !important;
+}
+.marker-balance-card {
+	background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px) !important;
+	border: 1px solid rgba(15, 23, 42, 0.08) !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+	padding: 0 !important;
+}
+
+.agent-winloss-page table.dataTable {
+	border-collapse: collapse !important;
+	border-spacing: 0 !important;
+}
+.agent-winloss-page table thead tr,
+.agent-winloss-page table tfoot tr {
+	background-color: #f5f5f5 !important;
+}
+.agent-winloss-page table thead th,
+.agent-winloss-page table tfoot th {
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
+	border-left: 0 !important;
+	border-right: 0 !important;
+	border-top: 0 !important;
+	box-shadow: none !important;
+}
+.agent-winloss-page table.dataTable thead > tr > th.sorting,
+.agent-winloss-page table.dataTable thead > tr > th.sorting_asc,
+.agent-winloss-page table.dataTable thead > tr > th.sorting_desc,
+.agent-winloss-page table.dataTable thead > tr > th.sorting_disabled {
+	background: #f5f5f5 !important;
+	background-color: #f5f5f5 !important;
+}
+
+#agent-winloss-report-tbl {
+	width: 100%;
+	font-size: 14px;
+	border-collapse: collapse;
+	border-spacing: 0;
+	background-color: #ffffff;
+	border: 1px solid #e0e0e0 !important;
+}
+
+#agent-winloss-report-tbl thead th {
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	font-weight: 600;
+	padding: 12px 15px;
+	text-align: left;
+	border: none;
+	border-bottom: 1px solid #e0e0e0 !important;
+	white-space: nowrap;
+}
+
+#agent-winloss-report-tbl thead th.text-end,
+#agent-winloss-report-tbl tbody td.text-end,
+#agent-winloss-report-tbl tfoot th.text-end {
+	text-align: right !important;
+	padding-right: 20px;
+}
+
+#agent-winloss-report-tbl tbody tr {
+	border-bottom: 1px solid #eee;
+	transition: background-color 0.2s ease;
+}
+
+#agent-winloss-report-tbl tbody tr:nth-child(even) td {
+	background-color: #f4f1ea !important;
+}
+#agent-winloss-report-tbl tbody tr:nth-child(odd) td {
+	background-color: #fff !important;
+}
+
+#agent-winloss-report-tbl tbody tr:hover,
+#agent-winloss-report-tbl tbody tr:hover td {
+	background-color: #f6f3ec !important;
+}
+
+#agent-winloss-report-tbl td {
+	padding: 12px 15px;
+	color: #666;
+	vertical-align: middle;
+}
+
+#agent-winloss-report-tbl tfoot th {
+	padding: 12px;
+	font-weight: 600;
+	background: #f5f5f5 !important;
+	color: #555 !important;
+	border-top: 1px solid #e0e0e0 !important;
+	border-bottom: 1px solid #e0e0e0 !important;
+}
+
+#agent-winloss-report-tbl .text-dash-neg {
+	color: #dc3545;
+}
+
+.agent-winloss-agent-filter-wrap {
+	flex: 0 0 auto;
+	min-width: 280px;
+	width: 300px;
+}
+
+#agent-winloss-report-tbl_wrapper .fnb-hotel-daterange-mount.is-placed {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 8px;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+#agent-winloss-report-tbl_wrapper .fnb-hotel-daterange-mount.is-placed .fnb-hotel-daterange-group,
+#agent-winloss-daterange-mount .fnb-hotel-daterange-group {
+	flex-wrap: nowrap !important;
+	white-space: nowrap;
+}
+
+#agent-winloss-report-tbl_wrapper .fnb-hotel-daterange-mount.is-placed .fnb-hotel-daterange-wrap input,
+#agent-winloss-daterange-mount .fnb-hotel-daterange-wrap input {
+	min-width: 9rem;
+	max-width: 14rem;
+}
+
+#agent-winloss-daterange-mount {
+	display: none;
+}
+
+#agent-winloss-report-tbl_wrapper .agent-winloss-controls-highlight {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: nowrap;
+	gap: 8px;
+	padding: 8px 12px;
+	margin: 0;
+	background: #fff;
+	border: 1px solid #e8ecf1;
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+	overflow-x: auto;
+}
+
+#agent-winloss-report-tbl_wrapper .agent-winloss-controls-highlight .dataTables_length {
+	margin-top: 4px;
+	flex: 0 0 auto;
+}
+
+#agent-winloss-report-tbl_wrapper .agent-winloss-controls-highlight .dataTables_filter {
+	margin: 0 0 0 auto;
+	flex: 0 0 auto;
+}
+
+.agent-winloss-agent-filter-wrap .select2-container {
+	width: 300px !important;
+}
+
+.agent-winloss-agent-filter-wrap .select2-container .select2-selection--single {
+	height: 34px;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+}
+
+.agent-winloss-agent-filter-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+	line-height: 32px;
+	padding-left: 0.75rem;
+	font-size: 13px;
+	color: #666;
+}
+
+.agent-winloss-agent-filter-wrap .select2-container--default .select2-selection--single .select2-selection__arrow {
+	height: 32px;
+}
+
+#agent-winloss-report-tbl_wrapper .dataTables_scroll,
+#agent-winloss-report-tbl_wrapper .dataTables_scrollHead,
+#agent-winloss-report-tbl_wrapper .dataTables_scrollHeadInner,
+#agent-winloss-report-tbl_wrapper table.dataTable {
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
+	border-top: 0 !important;
+}
+
+#agent-winloss-report-tbl_wrapper > .row.agent-winloss-dt-top-row-empty {
+	display: none !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	height: 0 !important;
+}
+
+#agent-winloss-report-tbl_filter .agent-winloss-filter-highlight {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.35);
+	border: none;
+	border-radius: 10px;
+}
+
+#agent-winloss-report-tbl_filter .agent-winloss-filter-highlight label {
+	margin: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+#agent-winloss-report-tbl_filter .agent-winloss-filter-highlight label input {
+	margin-left: 0;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: #fff;
+}
+
+.agent-winloss-page .dataTables_length label {
+	font-size: 0;
+}
+
+.agent-winloss-page .dataTables_length select {
+	font-size: 12px;
+}
+</style>

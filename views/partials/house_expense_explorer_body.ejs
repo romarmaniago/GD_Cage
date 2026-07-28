@@ -51,6 +51,9 @@
       <%- include('house_expense_daterange_split') %>
     </div>
     <div class="house-expense-filter-actions d-flex flex-wrap align-items-center gap-2">
+      <button type="button" id="btn-house-expense-settle" class="btn btn-sm btn-primary">
+        <%= __('house_expense.settle') || 'Settle' %>
+      </button>
       <button type="button" id="btn-house-expense-print" class="btn btn-sm btn-alt-success">
         <i class="fa fa-print" aria-hidden="true"></i> Print
       </button>

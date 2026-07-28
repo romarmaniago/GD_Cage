@@ -125,7 +125,8 @@
 		"settings": "設定",
 		"telegram_API": "テレグラム",
 		"telegram_message_log": "テレグラム送信ログ",
-		"Change_Game_No": "ゲーム番号の変更"
+		"Change_Game_No": "ゲーム番号の変更",
+		"agent_winloss_report": "エージェント勝敗"
 	},
 	"game_information": {
 		"categorize_group": "グループ分類",
@@ -467,7 +468,7 @@
 		"type_salary": "給与",
 		"type_maintenance": "メンテナンス",
 		"type_other": "その他",
-		"settle": "house_expense.settle",
+		"settle": "決済",
 		"receiver": "house_expense.receiver",
 		"approve": "house_expense.approve",
 		"reject": "house_expense.reject",
@@ -625,6 +626,34 @@
 		"showing_entries": "_START_から_END_まで、合計_TOTAL_件を表示",
 		"previous": "前へ",
 		"next": "次へ"
+	},
+	"agent_winloss_report": {
+		"title": "エージェント勝敗",
+		"export": "エクスポート",
+		"program_date_range": "プログラム日付範囲",
+		"select_date_range": "日付範囲を選択",
+		"agent_filter": "エージェント",
+		"all_agents": "全エージェント",
+		"per_game": "ゲーム別",
+		"per_day": "日別",
+		"per_month": "月別",
+		"loading": "レポート読み込み中...",
+		"no_data": "選択範囲にデータがありません。",
+		"program_date": "プログラム日付",
+		"month": "月",
+		"game_no": "ゲーム #",
+		"agent_code": "エージェントコード",
+		"agent_name": "エージェント名",
+		"agent_code_name": "エージェントコード（エージェント名）",
+		"line": "ライン",
+		"guest": "ゲスト",
+		"game_type": "ゲーム種別",
+		"games": "ゲーム数",
+		"buy_in": "バイイン",
+		"cash_out": "キャッシュアウト",
+		"win_loss": "勝敗",
+		"grand_total": "合計",
+		"export_error": "エクスポート失敗"
 	},
 	"guest_statistic": {
 		"statistics": "統計",

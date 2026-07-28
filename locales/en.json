@@ -125,7 +125,8 @@
 		"Change_Game_No": "Modify Game Number",
 		"title": "Junket",
 		"tip": "Tip",
-		"game_information": "Game Information"
+		"game_information": "Game Information",
+		"agent_winloss_report": "Agent Win/Loss"
 	},
 	"game_information": {
 		"categorize_group": "Categorize Group",
@@ -427,7 +428,7 @@
 		"manual_date_range_hint": "Type date range (e.g. Jun 30, 2026 to Jul 30, 2026) and press Enter",
 		"type_goods": "Goods / Consumables",
 		"type_non_goods": "Non-goods / Services",
-		"settle": "house_expense.settle",
+		"settle": "Settle",
 		"filter_all": "house_expense.filter_all"
 	},
 	"hotel_booking": {
@@ -570,6 +571,34 @@
 		"showing_entries": "Showing _START_ to _END_ of _TOTAL_ entries",
 		"previous": "Previous",
 		"next": "Next"
+	},
+	"agent_winloss_report": {
+		"title": "Agent Win/Loss",
+		"export": "Export",
+		"program_date_range": "Program Date Range",
+		"select_date_range": "Select date range",
+		"agent_filter": "Agent",
+		"all_agents": "All Agents",
+		"per_game": "Per Game",
+		"per_day": "Per Day",
+		"per_month": "Per Month",
+		"loading": "Loading report...",
+		"no_data": "No data found for the selected range.",
+		"program_date": "Program Date",
+		"month": "Month",
+		"game_no": "Game #",
+		"agent_code": "Agent Code",
+		"agent_name": "Agent Name",
+		"agent_code_name": "Agent Code (Agent Name)",
+		"line": "Line",
+		"guest": "Guest",
+		"game_type": "Game Type",
+		"games": "Games",
+		"buy_in": "Buy In",
+		"cash_out": "Cash Out",
+		"win_loss": "Win/Loss",
+		"grand_total": "Grand Total",
+		"export_error": "Export failed"
 	},
 	"guest_statistic": {
 		"statistics": "Statistics",

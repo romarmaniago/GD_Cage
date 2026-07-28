@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { buildAgentWinlossReport } = require('../utils/agentWinlossReport');
+const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
 
 // Statistics page routes
 router.get("/game_statistic", checkSession, function (req, res) {
@@ -377,6 +379,123 @@ router.put('/update_expense', async (req, res) => {
     }
 });
 
+
+router.get('/agent_winloss_report', checkSession, (req, res) => {
+	const data = sessions(req, 'agent_winloss_report');
+	data.permissions = req.session.permissions || 0;
+	res.render('statistics/agent_winloss_report', data);
+});
+
+router.get('/agent_winloss_report/data', checkSession, async (req, res) => {
+	try {
+		const payload = await buildAgentWinlossReport(pool, {
+			date_from: req.query.date_from,
+			date_to: req.query.date_to,
+			group_by: req.query.group_by,
+			agent_id: req.query.agent_id
+		});
+		res.json(payload);
+	} catch (err) {
+		console.error('agent_winloss_report/data:', err);
+		res.status(500).json({ message: 'Failed to load agent win/loss report.' });
+	}
+});
+
+router.get('/agent_winloss_report/agents', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			`SELECT ag.IDNo AS agent_id, ag.AGENT_CODE AS agent_code, ag.NAME AS agent_name, agency.AGENCY AS agency_name
+			 FROM agent ag
+			 LEFT JOIN agency ON agency.IDNo = ag.AGENCY
+			 WHERE ag.ACTIVE = 1
+			 ORDER BY ag.AGENT_CODE ASC, ag.NAME ASC`
+		);
+		res.json(rows || []);
+	} catch (err) {
+		console.error('agent_winloss_report/agents:', err);
+		res.status(500).json({ message: 'Failed to load agents.' });
+	}
+});
+
+router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) => {
+	try {
+		const { group_by, date_from, date_to, agent_id } = req.body || {};
+		const payload = await buildAgentWinlossReport(pool, { group_by, date_from, date_to, agent_id });
+		const normalizedGroup = payload.group_by;
+
+		const formatAgentCell = (row) => {
+			const code = String(row.agent_code || '').trim();
+			const name = String(row.agent_name || '').trim();
+			if (code && name) return `${code} (${name})`;
+			return code || name || '';
+		};
+
+		let headers;
+		let rows;
+		let sheetName;
+		if (normalizedGroup === 'day') {
+			headers = ['Program Date', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss'];
+			rows = (payload.rows || []).map((row) => [
+				row.program_date,
+				formatAgentCell(row),
+				row.agency_name || '',
+				row.game_count,
+				row.buy_in,
+				row.cash_out,
+				row.win_loss
+			]);
+			sheetName = 'Agent WL Daily';
+		} else if (normalizedGroup === 'month') {
+			headers = ['Month', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss'];
+			rows = (payload.rows || []).map((row) => [
+				row.program_month,
+				formatAgentCell(row),
+				row.agency_name || '',
+				row.game_count,
+				row.buy_in,
+				row.cash_out,
+				row.win_loss
+			]);
+			sheetName = 'Agent WL Monthly';
+		} else {
+			headers = ['Program Date', 'Game #', 'Agent Code (Agent Name)', 'Line', 'Guest', 'Game Type', 'Buy In', 'Cash Out', 'Win/Loss'];
+			rows = (payload.rows || []).map((row) => [
+				row.program_date,
+				row.game_id,
+				formatAgentCell(row),
+				row.agency_name || '',
+				row.guest_name,
+				row.game_type,
+				row.buy_in,
+				row.cash_out,
+				row.win_loss
+			]);
+			sheetName = 'Agent WL Per Game';
+		}
+
+		const totals = payload.totals || {};
+		rows.push([]);
+		if (normalizedGroup === 'day' || normalizedGroup === 'month') {
+			rows.push(['GRAND TOTAL', '', '', totals.game_count, totals.buy_in, totals.cash_out, totals.win_loss]);
+		} else {
+			rows.push(['GRAND TOTAL', '', '', '', '', '', totals.buy_in, totals.cash_out, totals.win_loss]);
+		}
+
+		const result = await buildTableExportXlsx({
+			profileKey: 'agentWinlossReport',
+			sheetName: sanitizeSheetName(sheetName),
+			headers,
+			rows,
+			filename: `Agent-WinLoss-${normalizedGroup}-${payload.date_from}-to-${payload.date_to}.xlsx`,
+			maxRows: 20000
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('agent_winloss_report/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed.' });
+	}
+});
 
 // Export the router
 module.exports = router; 

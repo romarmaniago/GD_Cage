@@ -125,7 +125,8 @@
 		"settings": "设置",
 		"telegram_API": "电报",
 		"telegram_message_log": "Telegram 发送记录",
-		"Change_Game_No": "修改游戏编号"
+		"Change_Game_No": "修改游戏编号",
+		"agent_winloss_report": "代理输赢"
 	},
 	"game_information": {
 		"categorize_group": "分组归类",
@@ -469,7 +470,7 @@
 		"type_salary": "工资",
 		"type_maintenance": "维护",
 		"type_other": "其他",
-		"settle": "house_expense.settle",
+		"settle": "结算",
 		"receiver": "house_expense.receiver",
 		"approve": "house_expense.approve",
 		"reject": "house_expense.reject",
@@ -627,6 +628,34 @@
 		"showing_entries": "显示第_START_至_END_项，共_TOTAL_项",
 		"previous": "上一页",
 		"next": "下一页"
+	},
+	"agent_winloss_report": {
+		"title": "代理输赢",
+		"export": "导出",
+		"program_date_range": "程序日期范围",
+		"select_date_range": "选择日期范围",
+		"agent_filter": "代理",
+		"all_agents": "全部代理",
+		"per_game": "按游戏",
+		"per_day": "按日",
+		"per_month": "按月",
+		"loading": "正在加载报告...",
+		"no_data": "所选范围内无数据。",
+		"program_date": "程序日期",
+		"month": "月份",
+		"game_no": "游戏 #",
+		"agent_code": "代理代码",
+		"agent_name": "代理名称",
+		"agent_code_name": "代理代码（代理名称）",
+		"line": "线路",
+		"guest": "客人",
+		"game_type": "游戏类型",
+		"games": "游戏数",
+		"buy_in": "买入",
+		"cash_out": "兑出",
+		"win_loss": "输赢",
+		"grand_total": "总计",
+		"export_error": "导出失败"
 	},
 	"guest_statistic": {
 		"statistics": "统计",
