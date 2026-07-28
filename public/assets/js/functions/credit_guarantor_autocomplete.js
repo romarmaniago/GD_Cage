@@ -8,18 +8,25 @@
     var STORAGE_KEY = '_creditGuarantorAutocomplete';
 
     function ensureStyles() {
-        if (document.getElementById(STYLE_ID)) return;
-        var style = document.createElement('style');
-        style.id = STYLE_ID;
-        style.textContent =
+        var css =
             '.credit-guarantor-autocomplete-menu{' +
             'position:fixed;max-height:10rem;overflow-y:auto;background:#fff;border:1px solid #ced4da;' +
-            'border-radius:.25rem;box-shadow:0 .25rem .5rem rgba(0,0,0,.12);padding:.15rem 0;}' +
+            'border-radius:.25rem;box-shadow:0 .25rem .5rem rgba(0,0,0,.12);padding:.15rem 0;' +
+            'scrollbar-width:none;-ms-overflow-style:none;}' +
+            '.credit-guarantor-autocomplete-menu::-webkit-scrollbar{width:0;height:0;display:none;}' +
             '.credit-guarantor-autocomplete-item{' +
             'display:block;width:100%;border:0;background:transparent;text-align:center;' +
             'font-size:.78rem;padding:.3rem .45rem;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
             '.credit-guarantor-autocomplete-item:hover,.credit-guarantor-autocomplete-item.is-active{' +
             'background:#e9f2ff;color:#0d6efd;}';
+        var existing = document.getElementById(STYLE_ID);
+        if (existing) {
+            existing.textContent = css;
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = css;
         document.head.appendChild(style);
     }
 
@@ -164,7 +171,10 @@
         function filteredItems(query) {
             var q = String(query || '').trim().toLowerCase();
             var pool = suggestions.length ? suggestions : refreshSuggestions();
-            if (!q) return pool.slice(0, 15);
+            if (!q) {
+                if (options.showOnEmpty === false) return [];
+                return pool.slice(0, 15);
+            }
             return pool.filter(function (item) {
                 return item.toLowerCase().indexOf(q) !== -1;
             }).slice(0, 15);

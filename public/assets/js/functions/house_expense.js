@@ -27,6 +27,53 @@ window.houseExpenseItemTableSortState = {
     sortDir: 'desc'
 };
 
+/** EN → KR dictionary for category name autocomplete (ENGLISH 한글). */
+window.HOUSE_EXPENSE_CATEGORY_DICTIONARY = {
+    EMPLOYEES: '직원',
+    EMPLOYEE: '직원',
+    OPERATION: '운영',
+    OPERATIONS: '운영',
+    OTHERS: '기타',
+    OTHER: '기타',
+    VEHICLE: '차량',
+    CAR: '차량',
+    CONSUMABLES: '소모품',
+    CONSUMABLE: '소모품',
+    SUPPLIES: '소모품',
+    MARKETING: '마케팅',
+    'RECURRING COST': '정기 비용',
+    RECURRING: '정기 비용',
+    FUEL: '연료',
+    PMS: 'PMS',
+    TIRES: '타이어',
+    TIRE: '타이어',
+    BATTERY: '배터리',
+    SALARY: '급여',
+    ALLOWANCE: '수당',
+    TRANSPORT: '교통비',
+    TRANSPORTATION: '교통비',
+    MEALS: '식대',
+    MEAL: '식대',
+    OFFICE: '사무용품',
+    UTILITIES: '공과금',
+    RENT: '임대료',
+    INSURANCE: '보험',
+    MAINTENANCE: '유지보수',
+    COMMUNICATION: '통신비',
+    TRAVEL: '출장비',
+    ENTERTAINMENT: '접대비',
+    TRAINING: '교육',
+    SECURITY: '경비',
+    CLEANING: '청소',
+    PARKING: '주차',
+    TOLL: '통행료',
+    REPAIR: '수리',
+    LODGING: '숙박',
+    GIFT: '선물',
+    MISC: '기타',
+    MISCELLANEOUS: '기타'
+};
+
 function resetHouseExpenseExplorerState() {
     window.houseExpenseExplorerState = {
         mainCategoryId: null,
@@ -3034,6 +3081,99 @@ function addHouseExpenseSubCategory() {
     openHouseExpenseAddCategoryModal('sub');
 }
 
+function houseExpenseHasHangul(text) {
+    return /[\uAC00-\uD7A3]/.test(String(text || ''));
+}
+
+function houseExpenseCategoryDictionaryLabel(enKey, kr) {
+    var en = String(enKey || '').trim().toUpperCase();
+    var ko = String(kr || '').trim();
+    if (!en) return '';
+    return ko ? en + ' ' + ko : en;
+}
+
+/** Build suggestion list: dictionary EN+KR + existing category names. */
+function houseExpenseGetCategoryNameSuggestions() {
+    var dict = window.HOUSE_EXPENSE_CATEGORY_DICTIONARY || {};
+    var labels = [];
+    var seen = {};
+
+    function pushLabel(label) {
+        var text = String(label || '').trim();
+        if (!text) return;
+        var key = text.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        labels.push(text);
+    }
+
+    Object.keys(dict).forEach(function (enKey) {
+        pushLabel(houseExpenseCategoryDictionaryLabel(enKey, dict[enKey]));
+    });
+
+    (window.houseExpenseCategoryRows || []).forEach(function (row) {
+        pushLabel(row && row.CATEGORY);
+    });
+
+    labels.sort(function (a, b) {
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    });
+    return labels;
+}
+
+/**
+ * Exact dictionary match only (safe for delete/edit).
+ * "marketing" → "MARKETING 마케팅"
+ */
+function houseExpenseResolveCategoryDictionaryName(raw) {
+    var name = String(raw || '').trim();
+    if (!name) return name;
+    if (houseExpenseHasHangul(name)) return name;
+
+    var dict = window.HOUSE_EXPENSE_CATEGORY_DICTIONARY || {};
+    var upper = name.toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(dict, upper)) {
+        return houseExpenseCategoryDictionaryLabel(upper, dict[upper]);
+    }
+
+    var keys = Object.keys(dict);
+    for (var i = 0; i < keys.length; i++) {
+        if (keys[i].toUpperCase() === upper) {
+            return houseExpenseCategoryDictionaryLabel(keys[i], dict[keys[i]]);
+        }
+    }
+
+    var q = name.toLowerCase();
+    for (var j = 0; j < keys.length; j++) {
+        var kr = String(dict[keys[j]] || '').trim();
+        if (kr && kr.toLowerCase() === q) {
+            return houseExpenseCategoryDictionaryLabel(keys[j], kr);
+        }
+    }
+
+    return name;
+}
+
+function houseExpenseWireCategoryNameDictionary(inputEl) {
+    if (!inputEl) return;
+    var Autocomplete = window.CreditGuarantorAutocomplete;
+    if (!Autocomplete || typeof Autocomplete.wire !== 'function') return;
+
+    Autocomplete.wire(inputEl, {
+        getSuggestions: houseExpenseGetCategoryNameSuggestions,
+        showOnEmpty: false
+    });
+
+    if (inputEl._houseExpenseDictBlurBound) return;
+    inputEl._houseExpenseDictBlurBound = true;
+    inputEl.addEventListener('blur', function () {
+        var resolved = houseExpenseResolveCategoryDictionaryName(inputEl.value);
+        if (resolved && resolved !== String(inputEl.value || '').trim()) {
+            inputEl.value = resolved;
+        }
+    });
+}
+
 /** Move modal to body so it stacks above .modal-backdrop (fixes backdrop-only visible). */
 function houseExpenseShowCategoryModal($modal) {
     if (!$modal || !$modal.length) return;
@@ -3415,6 +3555,9 @@ function houseExpenseInitCategoryAddUi() {
     }
     houseExpenseSyncCategoryAddButtons();
 
+    houseExpenseWireCategoryNameDictionary(document.getElementById('house-expense-add-cat-name'));
+    houseExpenseWireCategoryNameDictionary(document.getElementById('house-expense-edit-cat-name'));
+
     $(document)
         .off('click.houseExpenseCatRow', '.js-house-expense-edit-cat')
         .on('click.houseExpenseCatRow', '.js-house-expense-edit-cat', function (e) {
@@ -3488,7 +3631,8 @@ function houseExpenseInitCategoryAddUi() {
 function submitHouseExpenseAddCategoryForm($form) {
     var t = window.houseExpenseTranslations || {};
     var mode = window.houseExpenseAddCategoryMode;
-    var name = String($('#house-expense-add-cat-name').val() || '').trim();
+    var name = houseExpenseResolveCategoryDictionaryName($('#house-expense-add-cat-name').val());
+    $('#house-expense-add-cat-name').val(name);
     var typeVal = '2';
     var parentId = $('#house-expense-add-cat-parent').val() || '';
 
@@ -3550,7 +3694,8 @@ function submitHouseExpenseAddCategoryForm($form) {
 function submitHouseExpenseEditCategoryForm($form) {
     var t = window.houseExpenseTranslations || {};
     var catId = $('#house-expense-edit-cat-id').val();
-    var name = String($('#house-expense-edit-cat-name').val() || '').trim();
+    var name = houseExpenseResolveCategoryDictionaryName($('#house-expense-edit-cat-name').val());
+    $('#house-expense-edit-cat-name').val(name);
     var row = houseExpenseFindCategoryRow(catId);
     var typeVal = row && row.TYPE != null ? String(row.TYPE) : '2';
     var parentId = $('#house-expense-edit-cat-parent').val() || '';
@@ -3628,10 +3773,11 @@ function openHouseExpenseAddCategoryModal(mode) {
     }
 
     window.houseExpenseAddCategoryMode = mode;
-    houseExpenseShowCategoryModal($('#modal-house-expense-add-category'));
-    $('#modal-house-expense-add-category').one('shown.bs.modal', function () {
+    var $addCatModal = $('#modal-house-expense-add-category');
+    $addCatModal.off('shown.bs.modal.houseExpenseFocus').one('shown.bs.modal.houseExpenseFocus', function () {
         $('#house-expense-add-cat-name').trigger('focus');
     });
+    houseExpenseShowCategoryModal($addCatModal);
 }
 
 function openHouseExpenseAddVehicleModal() {
