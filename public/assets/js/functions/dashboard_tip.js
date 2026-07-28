@@ -32,6 +32,19 @@ $(document).ready(function () {
 		return '<span class="' + cls + '">' + formatSignedMoney(n) + '</span>';
 	}
 
+	function renderTipTransactionCell(value, amount, type) {
+		var label = String(value == null ? '' : value).trim();
+		var numericAmount = Number(amount) || 0;
+		if (type === 'sort' || type === 'filter') return label;
+		if (!label) return '';
+		var normalized = label.toLowerCase();
+		if (normalized === 'in') return '+';
+		if (normalized === 'out' || normalized === 'settlement' || normalized === 'settle') return '-';
+		if (numericAmount > 0) return '+';
+		if (numericAmount < 0) return '-';
+		return label;
+	}
+
 	function cellText(value) {
 		return $('<div>').html(value == null ? '' : String(value)).text().trim();
 	}
@@ -250,7 +263,13 @@ $(document).ready(function () {
 							: '<span class="text-muted">—</span>';
 					}
 				},
-				{ data: 'ROLLER_TRANSACTION', defaultContent: 'Roller Tip' },
+				{
+					data: 'ROLLER_TRANSACTION',
+					defaultContent: 'Roller Tip',
+					render: function (data, type, row) {
+						return renderTipTransactionCell(data, row && row.ROLLER_AMOUNT, type);
+					}
+				},
 				{
 					data: 'ROLLER_AMOUNT',
 					defaultContent: 0,
@@ -272,7 +291,13 @@ $(document).ready(function () {
 						return data != null && String(data).trim() !== '' ? String(data) : '—';
 					}
 				},
-				{ data: 'DEALER_TRANSACTION', defaultContent: 'Dealer Tip' },
+				{
+					data: 'DEALER_TRANSACTION',
+					defaultContent: 'Dealer Tip',
+					render: function (data, type, row) {
+						return renderTipTransactionCell(data, row && row.DEALER_AMOUNT, type);
+					}
+				},
 				{
 					data: 'DEALER_AMOUNT',
 					defaultContent: 0,

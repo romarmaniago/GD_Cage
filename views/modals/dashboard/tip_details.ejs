@@ -25,11 +25,11 @@
 							splitWrapClass: 'dash-tip-daterange-wrap dash-tip-split-daterange house-expense-split-daterange'
 						}) %>
 						<% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
-						<button type="button" class="btn btn-sm btn-success" id="btn-dash-tip-in-open" data-view-only-disable>
-							<%= __('tip.in') %>
+						<button type="button" class="tip-action-icon-btn" id="btn-dash-tip-in-open" data-view-only-disable title="<%= __('tip.in') %>" aria-label="<%= __('tip.in') %>">
+							<i class="fa fa-plus" aria-hidden="true"></i>
 						</button>
-						<button type="button" class="btn btn-sm btn-primary" id="btn-dash-tip-settlement-open" data-view-only-disable>
-							<%= __('tip.settle') %>
+						<button type="button" class="tip-action-icon-btn" id="btn-dash-tip-settlement-open" data-view-only-disable title="<%= __('tip.settle') %>" aria-label="<%= __('tip.settle') %>">
+							<i class="fa fa-minus" aria-hidden="true"></i>
 						</button>
 						<% } %>
 					</div>
@@ -95,6 +95,33 @@
 .dash-tip-date-controls {
 	flex-wrap: wrap;
 	align-items: center;
+}
+.tip-action-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.25rem;
+	height: 2.25rem;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+	color: #fff;
+	line-height: 1;
+	flex-shrink: 0;
+	position: relative;
+	z-index: 2;
+	pointer-events: auto;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, filter 0.12s ease;
+}
+.tip-action-icon-btn i.fa {
+	font-size: 1rem;
+}
+.tip-action-icon-btn:hover,
+.tip-action-icon-btn:focus {
+	filter: brightness(0.92);
+	color: #fff;
 }
 .dash-tip-split-daterange {
 	display: inline-flex;
