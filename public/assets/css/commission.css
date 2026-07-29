@@ -1025,3 +1025,424 @@
 #modal-commission-rate-preview {
   z-index: 1070 !important;
 }
+
+/* ===== Commission Settlement table (same skin as Commission) ===== */
+#commission-settlement-tbl_wrapper,
+#commission-settlement-tbl_wrapper .dataTables_scroll,
+#commission-settlement-tbl_wrapper .dataTables_scrollBody,
+#commission-settlement-tbl_wrapper .dataTables_scrollHead {
+  overflow-x: hidden !important;
+}
+
+#commission-settlement-tbl.commission-fit-table {
+  table-layout: fixed;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: 10px;
+  border-collapse: collapse;
+  border: none;
+  margin-top: 0 !important;
+  box-sizing: border-box;
+}
+
+#commission-settlement-tbl.commission-fit-table thead th,
+#commission-settlement-tbl.commission-fit-table tbody td,
+#commission-settlement-tbl.commission-fit-table tfoot th {
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+#commission-settlement-tbl.commission-fit-table tbody td,
+#commission-settlement-tbl.commission-fit-table tfoot th {
+  padding: 12px 4px !important;
+}
+
+#commission-settlement-tbl.commission-fit-table thead th {
+  padding: 12px 4px !important;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+}
+
+#commission-settlement-tbl thead th {
+  color: #000;
+  font-weight: 600;
+  font-size: 11px;
+  border: none;
+  border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+}
+
+#commission-settlement-tbl_wrapper .commission-panel-shell {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+#commission-settlement-tbl_wrapper .commission-controls-highlight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 0;
+  background: #faf3dc;
+  border: none;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#commission-settlement-tbl_wrapper .commission-controls-highlight .dataTables_length,
+#commission-settlement-tbl_wrapper .commission-controls-highlight .dataTables_filter {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+#commission-settlement-tbl_wrapper .commission-controls-highlight .dataTables_filter {
+  margin-left: auto;
+}
+
+#commission-settlement-tbl_wrapper #commission-settlement-tbl_filter .commission-filter-highlight label input {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-size: 13px;
+  height: 34px;
+  min-width: 11rem;
+  background: #fff;
+}
+
+#commission-settlement-tbl_wrapper .commission-controls-highlight .dataTables_length select {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+  padding: 0.35rem 1.75rem 0.35rem 0.85rem;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+}
+
+#commission-settlement-tbl_wrapper .commission-controls-highlight .commission-daterange-wrap input.form-control,
+#commission-settlement-tbl_wrapper .commission-controls-highlight .commission-split-daterange input.split-date-input {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+}
+
+#commission-settlement-tbl_wrapper > .row.commission-dt-top-row-empty {
+  display: none !important;
+}
+
+#commission-settlement-tbl tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
+#commission-settlement-tbl tbody tr:hover td {
+  background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
+}
+
+#commission-settlement-tbl thead th:nth-child(1),
+#commission-settlement-tbl thead th:nth-child(2),
+#commission-settlement-tbl tbody td:nth-child(1),
+#commission-settlement-tbl tbody td:nth-child(2) {
+  text-align: left;
+  padding-left: 6px;
+}
+
+#commission-settlement-tbl thead th:nth-child(n+3),
+#commission-settlement-tbl tbody td:nth-child(n+3) {
+  text-align: right;
+  padding-right: 12px;
+}
+
+#commission-settlement-tbl thead th:nth-child(3),
+#commission-settlement-tbl tbody td:nth-child(3) {
+  text-align: center;
+  padding-right: 4px;
+}
+
+#commission-settlement-tbl tfoot th.col-buyin,
+#commission-settlement-tbl tfoot th.col-cashout,
+#commission-settlement-tbl tfoot th.col-winloss,
+#commission-settlement-tbl tfoot th.col-total-rolling,
+#commission-settlement-tbl tfoot th.col-commission,
+#commission-settlement-tbl tfoot th.col-fnb,
+#commission-settlement-tbl tfoot th.col-hotel,
+#commission-settlement-tbl tfoot th.col-incidental,
+#commission-settlement-tbl tfoot th.col-act-settlement {
+  text-align: right !important;
+  padding-right: 6px !important;
+}
+
+#commission-settlement-tbl thead th.col-buyin,
+#commission-settlement-tbl thead th.col-total-rolling,
+#commission-settlement-tbl thead th.col-winloss {
+  color: var(--gd-marker-gold-text, #3a2e12) !important;
+  font-weight: 600;
+}
+
+.commission-settlement-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.commission-settlement-month-wrap input[type="month"] {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+  min-width: 9rem;
+}
+
+.commission-settlement-agent-filter-wrap .form-select {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+  min-width: 12rem;
+}
+
+.commission-settlement-agent-filter-wrap .select2-container {
+  width: 300px !important;
+}
+
+.commission-settlement-agent-filter-wrap .select2-container .select2-selection--single {
+  height: 34px;
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px;
+}
+
+.commission-settlement-agent-filter-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: 32px;
+  padding-left: 0.85rem;
+  font-size: 13px;
+  color: #555;
+}
+
+.commission-settlement-agent-filter-wrap .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 32px;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-mount {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-mount.is-placed {
+  display: inline-flex;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-label {
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-input {
+  width: 96px;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-input .form-control {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-radius: 999px 0 0 999px;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+}
+
+#commission-settlement-tbl_wrapper .commission-settlement-rate-input .input-group-text {
+  border: 1px solid rgba(58, 46, 18, 0.18);
+  border-left: 0;
+  border-radius: 0 999px 999px 0;
+  height: 34px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.commission-settlement-summary {
+  background: #fff !important;
+  border: 1px solid rgba(200, 162, 76, 0.35) !important;
+  border-radius: 0.85rem;
+}
+
+.commission-settlement-workspace {
+  margin-top: 1rem;
+}
+
+.cs-division-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.cs-division {
+  border: 1px solid rgba(200, 162, 76, 0.45);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.cs-division-title {
+  padding: 8px 12px;
+  background: #d9b96a;
+  color: #3a2e12;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.cs-division-game-card {
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid rgba(200, 162, 76, 0.35);
+}
+
+.cs-division .col-md-6:last-child .cs-division-game-card {
+  border-right: 0;
+}
+
+.cs-division-game-card .cs-panel-title {
+  border-radius: 0;
+  padding: 6px 5px;
+  font-size: 9px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.cs-division-game-card .cs-kv-table th,
+.cs-division-game-card .cs-kv-table td {
+  padding: 3px 4px;
+  font-size: 9px;
+}
+
+.cs-panel-division .cs-calc-table th,
+.cs-panel-division .cs-calc-table td {
+  padding: 4px 3px;
+  font-size: 9px;
+}
+
+.cs-panel-division .cs-inline-input {
+  max-width: 76px;
+  height: 24px;
+  font-size: 9px;
+}
+
+.cs-percentage-calculator .cs-panel-title {
+  padding: 7px 5px;
+  font-size: 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cs-percentage-calculator table {
+  font-size: 10px;
+}
+
+.cs-percentage-calculator th,
+.cs-percentage-calculator td {
+  padding: 4px 5px;
+  vertical-align: middle;
+}
+
+.cs-percentage-calculator .cs-percentage-total-row th {
+  background: #fff0a8;
+  color: #3a2e12;
+  font-weight: 700;
+}
+
+@media (max-width: 767.98px) {
+  .cs-division-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cs-panel {
+  background: #fff;
+  border: 1px solid rgba(200, 162, 76, 0.35);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  height: 100%;
+}
+
+.cs-panel-title {
+  background: #d9b96a;
+  color: #3a2e12;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.15);
+}
+
+.cs-panel-title-guest {
+  background: #f0dca0;
+}
+
+.cs-panel-title-agent {
+  background: #c8a24c;
+  color: #fff;
+}
+
+.cs-kv-table th,
+.cs-calc-table th {
+  width: 42%;
+  font-size: 11px;
+  color: #555;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.cs-kv-table td,
+.cs-calc-table td {
+  font-size: 11px;
+  color: #333;
+  vertical-align: middle;
+}
+
+.cs-calc-table thead th {
+  background: #f5f5f5;
+  font-size: 10px;
+}
+
+.cs-kv-table .cs-total-row th,
+.cs-kv-table .cs-total-row td,
+.cs-calc-table .cs-total-row td {
+  background: #fff8e8;
+  font-weight: 700;
+}
+
+.cs-inline-input {
+  max-width: 120px;
+  margin-left: auto;
+  height: 28px;
+  font-size: 11px;
+}
+
+.commission-settlement-detail-wrap .cs-detail-table thead th {
+  background: #d9b96a;
+  color: #3a2e12;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.commission-settlement-detail-wrap .cs-detail-table tfoot th {
+  background: #fff8e8;
+  font-size: 11px;
+}

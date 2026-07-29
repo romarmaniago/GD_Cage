@@ -1,0 +1,165 @@
+<div id="commission-settlement-workspace" class="commission-settlement-workspace d-none">
+  <div class="row g-3">
+    <div class="col-xl-2 col-lg-2">
+      <div class="cs-panel cs-panel-finished">
+        <div class="cs-panel-title"><%= __('commission_settlement.finished_game') %></div>
+        <table class="table table-sm cs-kv-table mb-0">
+          <tbody>
+            <tr><th><%= __('commission_settlement.acct_no') %></th><td id="cs-fg-account">-</td></tr>
+            <tr><th><%= __('commission_settlement.guest') %></th><td id="cs-fg-name">-</td></tr>
+            <tr><th><%= __('commission_settlement.type') %></th><td id="cs-fg-game-type">-</td></tr>
+            <tr><th><%= __('commission_settlement.total_buyin') %></th><td id="cs-fg-buyin" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.chips_return') %></th><td id="cs-fg-cashout" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.win_loss') %></th><td id="cs-fg-winloss" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.total_rolling') %></th><td id="cs-fg-rolling" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.settlement') %></th><td id="cs-fg-settlement" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.fb') %></th><td id="cs-fg-fnb" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.hotel') %></th><td id="cs-fg-hotel" class="text-end">0</td></tr>
+            <tr><th><%= __('commission_settlement.incidental') %></th><td id="cs-fg-incidental" class="text-end">0</td></tr>
+            <tr class="cs-total-row"><th><%= __('commission_settlement.net_total') %></th><td id="cs-fg-total" class="text-end">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-xl-2 col-lg-2">
+      <div class="cs-panel cs-panel-division">
+        <div class="cs-panel-title"><%= __('commission_settlement.division_rolling') %></div>
+        <div class="row g-2 mb-2 small px-2 pt-2">
+          <div class="col-sm-6"><span class="text-muted"><%= __('commission_settlement.acct_no') %>:</span> <strong id="cs-dr-account">-</strong></div>
+          <div class="col-sm-6"><span class="text-muted"><%= __('commission_settlement.guest') %>:</span> <strong id="cs-dr-name">-</strong></div>
+        </div>
+        <table class="table table-sm cs-calc-table mb-0">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="text-end"><%= __('commission_settlement.amount') %></th>
+              <th class="text-end"><%= __('commission_settlement.rate') %></th>
+              <th class="text-end"><%= __('commission_settlement.commission') %></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><%= __('commission_settlement.guest_rolling') %></td>
+              <td class="text-end"><input type="text" id="cs-guest-rolling" class="form-control form-control-sm text-end cs-inline-input" value="0" inputmode="numeric" /></td>
+              <td class="text-end" id="cs-dr-guest-rate">-</td>
+              <td class="text-end" id="cs-dr-guest-comm">0</td>
+            </tr>
+            <tr>
+              <td><%= __('commission_settlement.agent_rolling') %></td>
+              <td class="text-end" id="cs-dr-agent-rolling">0</td>
+              <td class="text-end" id="cs-dr-agent-rate">-</td>
+              <td class="text-end" id="cs-dr-agent-comm">0</td>
+            </tr>
+            <tr class="cs-subtotal-row"><td><%= __('commission_settlement.win_loss') %></td><td class="text-end" id="cs-dr-winloss" colspan="3">0</td></tr>
+            <tr class="cs-subtotal-row"><td><%= __('commission_settlement.settlement') %></td><td class="text-end" id="cs-dr-settlement" colspan="3">0</td></tr>
+            <tr><td><%= __('commission_settlement.fb') %></td><td class="text-end" id="cs-dr-fnb" colspan="3">0</td></tr>
+            <tr><td><%= __('commission_settlement.hotel') %></td><td class="text-end" id="cs-dr-hotel" colspan="3">0</td></tr>
+            <tr><td><%= __('commission_settlement.incidental') %></td><td class="text-end" id="cs-dr-incidental" colspan="3">0</td></tr>
+            <tr class="cs-total-row"><td><%= __('commission_settlement.actual_settlement') %></td><td class="text-end" id="cs-dr-act-settlement" colspan="3">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-xl-1 col-lg-1">
+      <div class="cs-panel cs-percentage-calculator">
+        <div class="cs-panel-title">Percentage Calculator</div>
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr class="cs-percentage-total-row">
+              <th id="cs-pc-total" class="text-end">0</th>
+              <th><%= __('commission_settlement.total_rolling') %></th>
+            </tr>
+            <tr>
+              <td id="cs-pc-guest" class="text-end">0</td>
+              <td id="cs-pc-guest-pct" class="text-end">0%</td>
+            </tr>
+            <tr>
+              <td id="cs-pc-agent" class="text-end">0</td>
+              <td id="cs-pc-agent-pct" class="text-end">0%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-xl-7 col-lg-7">
+      <div class="cs-division-grid">
+        <% ['a', 'b'].forEach(function (division) { %>
+          <div class="cs-division">
+            <div class="cs-division-title">Division Rolling <%= division.toUpperCase() %></div>
+            <div class="row g-0">
+              <% ['guest', 'agent'].forEach(function (party) { %>
+                <div class="col-md-6">
+                  <div class="cs-panel cs-division-game-card">
+                    <div class="cs-panel-title <%= party === 'guest' ? 'cs-panel-title-guest' : 'cs-panel-title-agent' %>">
+                      <%= __('commission_settlement.finished_game') %> — <%= __('commission_settlement.division_' + party) %>
+                    </div>
+                    <table class="table table-sm cs-kv-table mb-0">
+                      <tbody>
+                        <tr><th><%= __('commission_settlement.acct_no') %></th><td id="cs-<%= division %>-<%= party %>-account">-</td></tr>
+                        <tr><th><%= __('commission_settlement.guest') %></th><td id="cs-<%= division %>-<%= party %>-name">-</td></tr>
+                        <tr><th><%= __('commission_settlement.type') %></th><td id="cs-<%= division %>-<%= party %>-type">-</td></tr>
+                        <tr><th><%= __('commission_settlement.total_buyin') %></th><td id="cs-<%= division %>-<%= party %>-buyin" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.chips_return') %></th><td id="cs-<%= division %>-<%= party %>-cashout" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.win_loss') %></th><td id="cs-<%= division %>-<%= party %>-winloss" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.total_rolling') %></th><td id="cs-<%= division %>-<%= party %>-rolling" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.settlement') %></th><td id="cs-<%= division %>-<%= party %>-settlement" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.fb') %></th><td id="cs-<%= division %>-<%= party %>-fnb" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.hotel') %></th><td id="cs-<%= division %>-<%= party %>-hotel" class="text-end">0</td></tr>
+                        <tr><th><%= __('commission_settlement.incidental') %></th><td id="cs-<%= division %>-<%= party %>-incidental" class="text-end">0</td></tr>
+                        <tr class="cs-total-row"><th><%= __('commission_settlement.net_total') %></th><td id="cs-<%= division %>-<%= party %>-total" class="text-end">0</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="commission-settlement-detail-wrap" class="commission-settlement-detail-wrap d-none mt-3">
+  <div class="cs-panel">
+    <div class="cs-panel-title"><%= __('commission_settlement.detail_title') %></div>
+    <div class="table-responsive">
+      <table id="commission-settlement-detail-tbl" class="table table-sm cs-detail-table mb-0">
+        <thead>
+          <tr>
+            <th><%= __('commission_settlement.game_no') %></th>
+            <th><%= __('commission_settlement.guest') %></th>
+            <th><%= __('commission_settlement.program_date_col') %></th>
+            <th class="text-end"><%= __('commission_settlement.total_buyin') %></th>
+            <th class="text-end"><%= __('commission_settlement.chips_return') %></th>
+            <th class="text-end"><%= __('commission_settlement.win_loss') %></th>
+            <th class="text-end"><%= __('commission_settlement.total_rolling') %></th>
+            <th class="text-end"><%= __('commission_settlement.settlement') %></th>
+            <th class="text-end"><%= __('commission_settlement.fb') %></th>
+            <th class="text-end"><%= __('commission_settlement.hotel') %></th>
+            <th class="text-end"><%= __('commission_settlement.incidental') %></th>
+            <th class="text-end"><%= __('commission_settlement.actual_settlement') %></th>
+          </tr>
+        </thead>
+        <tbody id="commission-settlement-detail-body"></tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3"><%= __('commission_settlement.grand_total') %></th>
+            <th class="text-end" id="cs-detail-buyin">0</th>
+            <th class="text-end" id="cs-detail-cashout">0</th>
+            <th class="text-end" id="cs-detail-winloss">0</th>
+            <th class="text-end" id="cs-detail-rolling">0</th>
+            <th class="text-end" id="cs-detail-settlement">0</th>
+            <th class="text-end" id="cs-detail-fnb">0</th>
+            <th class="text-end" id="cs-detail-hotel">0</th>
+            <th class="text-end" id="cs-detail-incidental">0</th>
+            <th class="text-end" id="cs-detail-act">0</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>

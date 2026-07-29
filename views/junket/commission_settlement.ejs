@@ -3,7 +3,6 @@
 <%- include ('../partials/sidebar'); -%>
 <%- include ('../partials/topbar'); -%>
 
-
 <link rel="stylesheet" href="/assets/css/commission.css">
 
 <style>
@@ -38,16 +37,16 @@
     background: #f5f5f5 !important;
     background-color: #f5f5f5 !important;
 }
-#commission-tbl thead th.sorting:hover,
-#commission-tbl thead th.sorting_asc:hover,
-#commission-tbl thead th.sorting_desc:hover,
-#commission-tbl thead th.commission-date-sort-col:hover {
+#commission-settlement-tbl thead th.sorting:hover,
+#commission-settlement-tbl thead th.sorting_asc:hover,
+#commission-settlement-tbl thead th.sorting_desc:hover,
+#commission-settlement-tbl thead th.commission-date-sort-col:hover {
     background: #ececec !important;
 }
-#commission-tbl thead th.sorting_asc,
-#commission-tbl thead th.sorting_desc,
-#commission-tbl thead th.commission-date-sort-col.sorting_asc,
-#commission-tbl thead th.commission-date-sort-col.sorting_desc {
+#commission-settlement-tbl thead th.sorting_asc,
+#commission-settlement-tbl thead th.sorting_desc,
+#commission-settlement-tbl thead th.commission-date-sort-col.sorting_asc,
+#commission-settlement-tbl thead th.commission-date-sort-col.sorting_desc {
     background: #ececec !important;
     color: #333 !important;
 }
@@ -58,29 +57,35 @@
     border-top: 1px solid #e0e0e0 !important;
     border-bottom: 1px solid #e0e0e0 !important;
 }
-#commission-tbl tbody tr:nth-child(even) td {
+#commission-settlement-tbl tbody tr:nth-child(even) td {
     background-color: #f4f1ea !important;
 }
-#commission-tbl tbody tr:nth-child(odd) td {
+#commission-settlement-tbl tbody tr:nth-child(odd) td {
     background-color: #fff !important;
 }
-#commission-tbl tbody tr:hover td {
+#commission-settlement-tbl tbody tr:hover td {
     background-color: #f6f3ec !important;
 }
 
-#commission-tbl_wrapper .commission-panel-shell {
+#commission-settlement-tbl_wrapper .commission-panel-shell {
     border: 1px solid #e0e0e0 !important;
     background: #fff !important;
 }
-#commission-tbl_wrapper .commission-controls-highlight {
+#commission-settlement-tbl_wrapper .commission-controls-highlight {
     background: #fff !important;
     border-bottom: 1px solid #e0e0e0 !important;
 }
 
-#commission-tbl thead th.col-buyin,
-#commission-tbl thead th.col-total-rolling,
-#commission-tbl thead th.col-winloss {
+#commission-settlement-tbl thead th.col-buyin,
+#commission-settlement-tbl thead th.col-total-rolling,
+#commission-settlement-tbl thead th.col-winloss {
     color: #555 !important;
+}
+
+.commission-settlement-summary {
+    background: #fff !important;
+    border: 1px solid rgba(200, 162, 76, 0.35) !important;
+    border-radius: 0.85rem;
 }
 </style>
 
@@ -92,29 +97,29 @@
 					<h3 class="card-title mb-0">
 						<div class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
-						
-							<a href="/commission" class="active"><%= __('commission.commission') %></a>
-							<a href="/commission_settlement"><%= __('commission_settlement.title') %></a>
+							<a href="/commission"><%= __('commission.commission') %></a>
+							<a href="/commission_settlement" class="active"><%= __('commission_settlement.title') %></a>
 							<a href="/commission_analytics">Analytics</a>
 							<a href="/additional_commission">Additional</a>
 						</div>
 					</h3>
 					<div class="d-flex flex-wrap gap-2 align-items-center">
-						<%- include('../partials/commission_toolbar') %>
+						<button type="button" id="btn-commission-settlement-print" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-print" aria-hidden="true"></i> Print
+						</button>
+						<button type="button" id="btn-commission-settlement-export" class="btn btn-sm btn-success">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('commission_settlement.export') || 'Export' %>
+						</button>
 					</div>
 				</div>
 				<div class="card-body pt-2 commission-panel-body">
-					<%- include('../partials/commission_table_body') %>
+					<%- include('../partials/commission_settlement_table_body') %>
 				</div>
 			</div>
 		</div>
 	</div>
 </div>
 
-<%- include('../partials/commission_compare_modals') %>
-<%- include('../modals/junket/edit_commission') %>
-
 		<%- include ('../partials/footer'); -%>
 
-		<%- include ('../partials/commission_dashboard_scripts') %>
-		<%- include ('../modals/game_book/merge_settlement') %>
+		<%- include ('../partials/commission_settlement_scripts') %>

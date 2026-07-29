@@ -1,0 +1,123 @@
+<div id="commission-settlement-daterange-mount" class="commission-daterange-mount">
+
+  <div class="commission-settlement-month-wrap">
+
+    <input type="month" id="commission-settlement-month" class="form-control form-control-sm text-center" title="<%= __('commission_settlement.select_month') %>" />
+
+  </div>
+
+  <div class="commission-daterange-wrap">
+
+    <input type="text" id="commission-settlement-daterange" class="form-control form-control-sm text-center" placeholder="<%= __('commission_settlement.select_date_range') %>" autocomplete="off"/>
+
+  </div>
+
+  <%- include('split_daterange', {
+
+    splitPrefix: 'commission-settlement',
+
+    splitLocaleNs: 'commission_settlement',
+
+    splitWrapClass: 'commission-daterange-wrap commission-split-daterange junket-loss-split-daterange house-expense-split-daterange'
+
+  }) %>
+
+  <div class="commission-settlement-agent-filter-wrap">
+
+    <select id="cs-agent-filter" class="js-select2 form-select form-select-sm" data-placeholder="<%= __('commission_settlement.all_agents') %>">
+
+      <option value=""></option>
+
+    </select>
+
+  </div>
+
+</div>
+
+<div id="commission-settlement-rate-mount" class="commission-settlement-rate-mount d-none">
+
+  <label for="commission-settlement-rolling-rate" class="commission-settlement-rate-label mb-0"><%= __('commission_settlement.rolling_rate') %>:</label>
+
+  <div class="commission-settlement-rate-input input-group input-group-sm">
+
+    <input type="text" id="commission-settlement-rolling-rate" class="form-control form-control-sm text-end" value="1.5" inputmode="decimal" />
+
+    <span class="input-group-text">%</span>
+
+  </div>
+
+</div>
+
+<div class="commission-table-wrap marker-balance-dt-wrap marker-balance-card commission-settlement-table-wrap">
+
+  <table id="commission-settlement-tbl" class="table marker-balance-tbl commission-fit-table w-100 mb-0">
+
+    <thead>
+
+      <tr>
+
+        <th class="text-start col-acct-no"><%= __('commission_settlement.acct_no') %></th>
+
+        <th class="text-start col-agent-name"><%= __('commission_settlement.agent_name') %></th>
+
+        <th class="text-center col-game-count"><%= __('commission_settlement.games') %></th>
+
+        <th class="text-center col-buyin"><%= __('commission_settlement.total_buyin') %></th>
+
+        <th class="text-center col-cashout"><%= __('commission_settlement.chips_return') %></th>
+
+        <th class="text-center col-winloss"><%= __('commission_settlement.win_loss') %></th>
+
+        <th class="text-center col-total-rolling"><%= __('commission_settlement.total_rolling') %></th>
+
+        <th class="text-center col-commission"><%= __('commission_settlement.settlement') %></th>
+
+        <th class="text-center col-fnb"><%= __('commission_settlement.fb') %></th>
+
+        <th class="text-center col-hotel"><%= __('commission_settlement.hotel') %></th>
+
+        <th class="text-center col-incidental"><%= __('commission_settlement.incidental') %></th>
+
+        <th class="text-center col-act-settlement"><%= __('commission_settlement.actual_settlement') %></th>
+
+      </tr>
+
+    </thead>
+
+    <tbody></tbody>
+
+    <tfoot>
+
+      <tr>
+
+        <th colspan="3"><%= __('commission_settlement.grand_total') %></th>
+
+        <th class="col-buyin" id="CS_GRAND_BUYIN">0</th>
+
+        <th class="col-cashout" id="CS_GRAND_CASHOUT">0</th>
+
+        <th class="col-winloss" id="CS_GRAND_WINLOSS">0</th>
+
+        <th class="col-total-rolling" id="CS_GRAND_ROLLING">0</th>
+
+        <th class="col-commission" id="CS_GRAND_SETTLEMENT">0</th>
+
+        <th class="col-fnb" id="CS_GRAND_FNB">0</th>
+
+        <th class="col-hotel" id="CS_GRAND_HOTEL">0</th>
+
+        <th class="col-incidental" id="CS_GRAND_INCIDENTAL">0</th>
+
+        <th class="col-act-settlement" id="CS_GRAND_ACT_SETTLEMENT">0</th>
+
+      </tr>
+
+    </tfoot>
+
+  </table>
+
+</div>
+
+<%- include('commission_settlement_workspace') %>
+
+

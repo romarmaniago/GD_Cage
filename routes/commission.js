@@ -234,6 +234,12 @@ router.get("/commission", checkSession, function (req, res) {
 	res.render("junket/commission", data);
 });
 
+router.get("/commission_settlement", checkSession, function (req, res) {
+	const data = sessions(req, 'commission_settlement');
+	data.permissions = req.session.permissions;
+	res.render("junket/commission_settlement", data);
+});
+
 router.get("/additional_commission", checkSession, function (req, res) {
 	const data = sessions(req, 'additional_commission');
 	data.permissions = req.session.permissions;
@@ -493,7 +499,8 @@ router.get('/commission_data', async (req, res) => {
             agent.AGENT_CODE AS agent_code,
             agent.NAME AS agent_name,
             agent.AGENCY AS agency_id,
-            COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name
+            COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
+            g.MEMBERSHIP_NO AS membership_no
         FROM game_list 
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
