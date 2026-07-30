@@ -137,6 +137,10 @@ $(document).ready(function () {
 		return m.utcOffset(8).format('YYYY-MM-DD HH:mm');
 	}
 
+	function getCurrentDisplayDateTime() {
+		return moment().utcOffset(8).format('M/D/YYYY H:mm');
+	}
+
 	function formatCommissionGameType(row) {
 		var gt = String(row.GAME_TYPE || 'LIVE').toUpperCase();
 		var cls = gt === 'TELEBET' ? 'css-red' : 'css-blue';
@@ -363,10 +367,12 @@ $(document).ready(function () {
 		var guestSettlementShare = agg.settlement - actSettlement;
 		var guestNet = actSettlement - agg.fnb - agg.hotel - agg.incidental;
 		var agentNet = guestSettlementShare;
+		var displayDateTime = getCurrentDisplayDateTime();
 
 		$('#cs-fg-account').text(agg.account || '-');
 		$('#cs-fg-name').text(agg.agentName || agg.guest || '-');
 		$('#cs-fg-game-type').text(agg.gameType || '-');
+		$('#cs-fg-datetime').text(displayDateTime);
 		setTextAmount('#cs-fg-buyin', agg.buyIn);
 		setTextAmount('#cs-fg-cashout', agg.cashOut);
 		setTextAmount('#cs-fg-winloss', agg.winLoss, true);
@@ -378,7 +384,8 @@ $(document).ready(function () {
 		setTextAmount('#cs-fg-total', netTotal);
 
 		$('#cs-dr-account').text(agg.account || '-');
-		$('#cs-dr-name').text(agg.guest || '-');
+		$('#cs-dr-name').text(agg.agentName || agg.guest || '-');
+		$('#cs-dr-rolling-rate').text(ratePct);
 		$('#cs-dr-guest-rate').text(ratePct);
 		$('#cs-dr-agent-rate').text(ratePct);
 		setTextAmount('#cs-dr-agent-rolling', agentRolling);
@@ -389,6 +396,18 @@ $(document).ready(function () {
 		setTextAmount('#cs-dr-fnb', agg.fnb);
 		setTextAmount('#cs-dr-hotel', agg.hotel);
 		setTextAmount('#cs-dr-incidental', agg.incidental);
+		$('#cs-dr-guest-name').text(agg.guest || '-');
+		$('#cs-dr-agent-name').text(agg.agentName || '-');
+		setTextAmount('#cs-dr-guest-allocation', guestRolling);
+		setTextAmount('#cs-dr-agent-allocation', agentRolling);
+		$('#cs-dr-guest-block-rate').text(ratePct);
+		setTextAmount('#cs-dr-guest-net', guestNet, true);
+		$('#cs-dr-agent-block-rate').text('0.00%');
+		$('#cs-dr-agent-rate-second').text(ratePct);
+		setTextAmount('#cs-dr-agent-net', agentNet, true);
+		setTextAmount('#cs-dr-agent-second-commission', 0);
+		setTextAmount('#cs-dr-net-total', netTotal, true);
+		setTextAmount('#cs-dr-total-rolling', agg.rolling);
 		setTextAmount('#cs-dr-act-settlement', actSettlement, true);
 
 		var guestRollingPct = agg.rolling ? (guestRolling / agg.rolling) * 100 : 0;
@@ -401,6 +420,7 @@ $(document).ready(function () {
 
 		function setDivisionCard(division, party, values) {
 			var id = '#cs-' + division + '-' + party + '-';
+			$(id + 'datetime').text(displayDateTime);
 			$(id + 'account').text(agg.account || '-');
 			$(id + 'name').text(party === 'guest' ? (agg.guest || '-') : (agg.agentName || '-'));
 			$(id + 'type').text(agg.gameType || '-');
@@ -477,7 +497,7 @@ $(document).ready(function () {
 				'<td>' + escapeHtml(row.programDate || '-') + '</td>' +
 				'<td class="text-end">' + formatAmount(row.buyIn) + '</td>' +
 				'<td class="text-end">' + formatAmount(row.cashOut) + '</td>' +
-				'<td class="text-end">' + formatAmount(row.winLoss) + '</td>' +
+				'<td class="text-end">' + formatWinLossHtml(row.winLoss) + '</td>' +
 				'<td class="text-end">' + formatAmount(row.rolling) + '</td>' +
 				'<td class="text-end">' + formatAmount(row.settlement) + '</td>' +
 				'<td class="text-end">' + formatAmount(row.fnb) + '</td>' +
@@ -892,6 +912,8 @@ $(document).ready(function () {
 								gameType: gameType,
 								gameNo: row.game_list_id,
 								programDate: formatCommissionProgramDate(row),
+								gameEnded: row.GAME_ENDED || null,
+								gameStart: row.GAME_DATE_START || null,
 								buyIn: metrics.buyInAmount,
 								cashOut: metrics.cashOutAmount,
 								winLoss: metrics.winLoss,

@@ -1,8 +1,9 @@
 <div id="commission-settlement-workspace" class="commission-settlement-workspace d-none">
-  <div class="row g-3">
-    <div class="col-xl-2 col-lg-2">
+  <div class="cs-workspace-grid">
+    <div class="cs-workspace-item cs-workspace-finished">
       <div class="cs-panel cs-panel-finished">
         <div class="cs-panel-title"><%= __('commission_settlement.finished_game') %></div>
+        <div class="cs-panel-datetime" id="cs-fg-datetime">-</div>
         <table class="table table-sm cs-kv-table mb-0">
           <tbody>
             <tr><th><%= __('commission_settlement.acct_no') %></th><td id="cs-fg-account">-</td></tr>
@@ -22,20 +23,24 @@
       </div>
     </div>
 
-    <div class="col-xl-2 col-lg-2">
+    <div class="cs-workspace-item cs-workspace-calculator">
       <div class="cs-panel cs-panel-division">
-        <div class="cs-panel-title"><%= __('commission_settlement.division_rolling') %></div>
-        <div class="row g-2 mb-2 small px-2 pt-2">
-          <div class="col-sm-6"><span class="text-muted"><%= __('commission_settlement.acct_no') %>:</span> <strong id="cs-dr-account">-</strong></div>
-          <div class="col-sm-6"><span class="text-muted"><%= __('commission_settlement.guest') %>:</span> <strong id="cs-dr-name">-</strong></div>
+        <div class="cs-excel-calc-header">
+          <span><%= __('commission_settlement.division_rolling') %></span>
+          <span class="cs-excel-rate-header">Rolling Rates<strong id="cs-dr-rolling-rate">1.50%</strong></span>
         </div>
-        <table class="table table-sm cs-calc-table mb-0">
+        <table class="table table-sm cs-calc-table cs-excel-calc-table mb-0">
+          <colgroup>
+            <col class="cs-excel-col-label" />
+            <col class="cs-excel-col-amount" />
+            <col class="cs-excel-col-rate" />
+            <col class="cs-excel-col-commission" />
+          </colgroup>
           <thead>
             <tr>
-              <th></th>
-              <th class="text-end"><%= __('commission_settlement.amount') %></th>
-              <th class="text-end"><%= __('commission_settlement.rate') %></th>
-              <th class="text-end"><%= __('commission_settlement.commission') %></th>
+              <th colspan="2">Input Terms Of Satisfy</th>
+              <th id="cs-dr-account" class="text-center">-</th>
+              <th id="cs-dr-name" class="text-center">-</th>
             </tr>
           </thead>
           <tbody>
@@ -46,23 +51,54 @@
               <td class="text-end" id="cs-dr-guest-comm">0</td>
             </tr>
             <tr>
-              <td><%= __('commission_settlement.agent_rolling') %></td>
+              <td></td>
               <td class="text-end" id="cs-dr-agent-rolling">0</td>
               <td class="text-end" id="cs-dr-agent-rate">-</td>
               <td class="text-end" id="cs-dr-agent-comm">0</td>
             </tr>
-            <tr class="cs-subtotal-row"><td><%= __('commission_settlement.win_loss') %></td><td class="text-end" id="cs-dr-winloss" colspan="3">0</td></tr>
-            <tr class="cs-subtotal-row"><td><%= __('commission_settlement.settlement') %></td><td class="text-end" id="cs-dr-settlement" colspan="3">0</td></tr>
-            <tr><td><%= __('commission_settlement.fb') %></td><td class="text-end" id="cs-dr-fnb" colspan="3">0</td></tr>
-            <tr><td><%= __('commission_settlement.hotel') %></td><td class="text-end" id="cs-dr-hotel" colspan="3">0</td></tr>
-            <tr><td><%= __('commission_settlement.incidental') %></td><td class="text-end" id="cs-dr-incidental" colspan="3">0</td></tr>
-            <tr class="cs-total-row"><td><%= __('commission_settlement.actual_settlement') %></td><td class="text-end" id="cs-dr-act-settlement" colspan="3">0</td></tr>
+            <tr class="cs-subtotal-row">
+              <th><%= __('commission_settlement.win_loss') %></th>
+              <td class="text-end" id="cs-dr-winloss">0</td>
+              <th class="text-end"><%= __('commission_settlement.settlement') %></th>
+              <td class="text-end" id="cs-dr-settlement">0</td>
+            </tr>
+            <tr class="cs-excel-section-start">
+              <th id="cs-dr-guest-name" rowspan="4">-</th>
+              <td id="cs-dr-guest-allocation" class="text-end" rowspan="4">0</td>
+              <td id="cs-dr-guest-block-rate" class="text-end">0%</td>
+              <td id="cs-dr-guest-net" class="text-end">0</td>
+            </tr>
+            <tr>
+              <th class="text-end"><%= __('commission_settlement.fb') %></th>
+              <td class="text-end" id="cs-dr-fnb">0</td>
+            </tr>
+            <tr><th class="text-end"><%= __('commission_settlement.hotel') %></th><td class="text-end" id="cs-dr-hotel">0</td></tr>
+            <tr><th class="text-end"><%= __('commission_settlement.incidental') %></th><td class="text-end" id="cs-dr-incidental">0</td></tr>
+            <tr class="cs-excel-section-start">
+              <th id="cs-dr-agent-name" rowspan="3">-</th>
+              <td id="cs-dr-agent-allocation" class="text-end" rowspan="3">0</td>
+              <td id="cs-dr-agent-block-rate" class="text-end">0.00%</td>
+              <td id="cs-dr-agent-net" class="text-end">0</td>
+            </tr>
+            <tr>
+              <td id="cs-dr-agent-rate-second" class="text-end">0.00%</td>
+              <td class="text-end" id="cs-dr-agent-second-commission">0</td>
+            </tr>
+            <tr><th class="text-end">TOTAL</th><td class="text-end" id="cs-dr-net-total">0</td></tr>
           </tbody>
+          <tfoot>
+            <tr class="cs-total-row">
+              <th><%= __('commission_settlement.total_rolling') %></th>
+              <th class="text-end" id="cs-dr-total-rolling">0</th>
+              <th class="text-end"><%= __('commission_settlement.actual_settlement') %></th>
+              <th class="text-end" id="cs-dr-act-settlement">0</th>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
 
-    <div class="col-xl-1 col-lg-1">
+    <div class="cs-workspace-item cs-workspace-percentage">
       <div class="cs-panel cs-percentage-calculator">
         <div class="cs-panel-title">Percentage Calculator</div>
         <table class="table table-sm mb-0">
@@ -84,7 +120,7 @@
       </div>
     </div>
 
-    <div class="col-xl-7 col-lg-7">
+    <div class="cs-workspace-item cs-workspace-divisions">
       <div class="cs-division-grid">
         <% ['a', 'b'].forEach(function (division) { %>
           <div class="cs-division">
@@ -96,6 +132,7 @@
                     <div class="cs-panel-title <%= party === 'guest' ? 'cs-panel-title-guest' : 'cs-panel-title-agent' %>">
                       <%= __('commission_settlement.finished_game') %> — <%= __('commission_settlement.division_' + party) %>
                     </div>
+                    <div class="cs-panel-datetime" id="cs-<%= division %>-<%= party %>-datetime">-</div>
                     <table class="table table-sm cs-kv-table mb-0">
                       <tbody>
                         <tr><th><%= __('commission_settlement.acct_no') %></th><td id="cs-<%= division %>-<%= party %>-account">-</td></tr>
@@ -124,39 +161,39 @@
 </div>
 
 <div id="commission-settlement-detail-wrap" class="commission-settlement-detail-wrap d-none mt-3">
-  <div class="cs-panel">
-    <div class="cs-panel-title"><%= __('commission_settlement.detail_title') %></div>
-    <div class="table-responsive">
-      <table id="commission-settlement-detail-tbl" class="table table-sm cs-detail-table mb-0">
+  <div class="commission-settlement-detail-shell">
+    <div class="commission-settlement-detail-heading"><%= __('commission_settlement.detail_title') %></div>
+    <div class="commission-table-wrap marker-balance-dt-wrap commission-settlement-table-wrap">
+      <table id="commission-settlement-detail-tbl" class="table marker-balance-tbl commission-fit-table w-100 mb-0">
         <thead>
           <tr>
-            <th><%= __('commission_settlement.game_no') %></th>
-            <th><%= __('commission_settlement.guest') %></th>
-            <th><%= __('commission_settlement.program_date_col') %></th>
-            <th class="text-end"><%= __('commission_settlement.total_buyin') %></th>
-            <th class="text-end"><%= __('commission_settlement.chips_return') %></th>
-            <th class="text-end"><%= __('commission_settlement.win_loss') %></th>
-            <th class="text-end"><%= __('commission_settlement.total_rolling') %></th>
-            <th class="text-end"><%= __('commission_settlement.settlement') %></th>
-            <th class="text-end"><%= __('commission_settlement.fb') %></th>
-            <th class="text-end"><%= __('commission_settlement.hotel') %></th>
-            <th class="text-end"><%= __('commission_settlement.incidental') %></th>
-            <th class="text-end"><%= __('commission_settlement.actual_settlement') %></th>
+            <th class="text-start col-game-no"><%= __('commission_settlement.game_no') %></th>
+            <th class="text-start col-guest"><%= __('commission_settlement.guest') %></th>
+            <th class="text-center col-program-date"><%= __('commission_settlement.program_date_col') %></th>
+            <th class="text-center col-buyin"><%= __('commission_settlement.total_buyin') %></th>
+            <th class="text-center col-cashout"><%= __('commission_settlement.chips_return') %></th>
+            <th class="text-center col-winloss"><%= __('commission_settlement.win_loss') %></th>
+            <th class="text-center col-total-rolling"><%= __('commission_settlement.total_rolling') %></th>
+            <th class="text-center col-commission"><%= __('commission_settlement.settlement') %></th>
+            <th class="text-center col-fnb"><%= __('commission_settlement.fb') %></th>
+            <th class="text-center col-hotel"><%= __('commission_settlement.hotel') %></th>
+            <th class="text-center col-incidental"><%= __('commission_settlement.incidental') %></th>
+            <th class="text-center col-act-settlement"><%= __('commission_settlement.actual_settlement') %></th>
           </tr>
         </thead>
         <tbody id="commission-settlement-detail-body"></tbody>
         <tfoot>
           <tr>
             <th colspan="3"><%= __('commission_settlement.grand_total') %></th>
-            <th class="text-end" id="cs-detail-buyin">0</th>
-            <th class="text-end" id="cs-detail-cashout">0</th>
-            <th class="text-end" id="cs-detail-winloss">0</th>
-            <th class="text-end" id="cs-detail-rolling">0</th>
-            <th class="text-end" id="cs-detail-settlement">0</th>
-            <th class="text-end" id="cs-detail-fnb">0</th>
-            <th class="text-end" id="cs-detail-hotel">0</th>
-            <th class="text-end" id="cs-detail-incidental">0</th>
-            <th class="text-end" id="cs-detail-act">0</th>
+            <th class="col-buyin" id="cs-detail-buyin">0</th>
+            <th class="col-cashout" id="cs-detail-cashout">0</th>
+            <th class="col-winloss" id="cs-detail-winloss">0</th>
+            <th class="col-total-rolling" id="cs-detail-rolling">0</th>
+            <th class="col-commission" id="cs-detail-settlement">0</th>
+            <th class="col-fnb" id="cs-detail-fnb">0</th>
+            <th class="col-hotel" id="cs-detail-hotel">0</th>
+            <th class="col-incidental" id="cs-detail-incidental">0</th>
+            <th class="col-act-settlement" id="cs-detail-act">0</th>
           </tr>
         </tfoot>
       </table>

@@ -1034,7 +1034,8 @@
   overflow-x: hidden !important;
 }
 
-#commission-settlement-tbl.commission-fit-table {
+#commission-settlement-tbl.commission-fit-table,
+#commission-settlement-detail-tbl.commission-fit-table {
   table-layout: fixed;
   width: 100% !important;
   max-width: 100% !important;
@@ -1047,17 +1048,23 @@
 
 #commission-settlement-tbl.commission-fit-table thead th,
 #commission-settlement-tbl.commission-fit-table tbody td,
-#commission-settlement-tbl.commission-fit-table tfoot th {
+#commission-settlement-tbl.commission-fit-table tfoot th,
+#commission-settlement-detail-tbl.commission-fit-table thead th,
+#commission-settlement-detail-tbl.commission-fit-table tbody td,
+#commission-settlement-detail-tbl.commission-fit-table tfoot th {
   vertical-align: middle;
   line-height: 1.4;
 }
 
 #commission-settlement-tbl.commission-fit-table tbody td,
-#commission-settlement-tbl.commission-fit-table tfoot th {
+#commission-settlement-tbl.commission-fit-table tfoot th,
+#commission-settlement-detail-tbl.commission-fit-table tbody td,
+#commission-settlement-detail-tbl.commission-fit-table tfoot th {
   padding: 12px 4px !important;
 }
 
-#commission-settlement-tbl.commission-fit-table thead th {
+#commission-settlement-tbl.commission-fit-table thead th,
+#commission-settlement-detail-tbl.commission-fit-table thead th {
   padding: 12px 4px !important;
   font-size: 11px;
   font-weight: 600;
@@ -1066,7 +1073,8 @@
   text-align: center;
 }
 
-#commission-settlement-tbl thead th {
+#commission-settlement-tbl thead th,
+#commission-settlement-detail-tbl thead th {
   color: #000;
   font-weight: 600;
   font-size: 11px;
@@ -1143,30 +1151,45 @@
   display: none !important;
 }
 
-#commission-settlement-tbl tbody tr:nth-child(even) td {
+#commission-settlement-tbl tbody tr:nth-child(even) td,
+#commission-settlement-detail-tbl tbody tr:nth-child(even) td {
   background-color: #fbf5e4;
 }
 
-#commission-settlement-tbl tbody tr:hover td {
+#commission-settlement-tbl tbody tr:nth-child(odd) td,
+#commission-settlement-detail-tbl tbody tr:nth-child(odd) td {
+  background-color: #fff;
+}
+
+#commission-settlement-tbl tbody tr:hover td,
+#commission-settlement-detail-tbl tbody tr:hover td {
   background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
 }
 
 #commission-settlement-tbl thead th:nth-child(1),
 #commission-settlement-tbl thead th:nth-child(2),
 #commission-settlement-tbl tbody td:nth-child(1),
-#commission-settlement-tbl tbody td:nth-child(2) {
+#commission-settlement-tbl tbody td:nth-child(2),
+#commission-settlement-detail-tbl thead th:nth-child(1),
+#commission-settlement-detail-tbl thead th:nth-child(2),
+#commission-settlement-detail-tbl tbody td:nth-child(1),
+#commission-settlement-detail-tbl tbody td:nth-child(2) {
   text-align: left;
   padding-left: 6px;
 }
 
 #commission-settlement-tbl thead th:nth-child(n+3),
-#commission-settlement-tbl tbody td:nth-child(n+3) {
+#commission-settlement-tbl tbody td:nth-child(n+3),
+#commission-settlement-detail-tbl thead th:nth-child(n+4),
+#commission-settlement-detail-tbl tbody td:nth-child(n+4) {
   text-align: right;
   padding-right: 12px;
 }
 
 #commission-settlement-tbl thead th:nth-child(3),
-#commission-settlement-tbl tbody td:nth-child(3) {
+#commission-settlement-tbl tbody td:nth-child(3),
+#commission-settlement-detail-tbl thead th:nth-child(3),
+#commission-settlement-detail-tbl tbody td:nth-child(3) {
   text-align: center;
   padding-right: 4px;
 }
@@ -1179,14 +1202,26 @@
 #commission-settlement-tbl tfoot th.col-fnb,
 #commission-settlement-tbl tfoot th.col-hotel,
 #commission-settlement-tbl tfoot th.col-incidental,
-#commission-settlement-tbl tfoot th.col-act-settlement {
+#commission-settlement-tbl tfoot th.col-act-settlement,
+#commission-settlement-detail-tbl tfoot th.col-buyin,
+#commission-settlement-detail-tbl tfoot th.col-cashout,
+#commission-settlement-detail-tbl tfoot th.col-winloss,
+#commission-settlement-detail-tbl tfoot th.col-total-rolling,
+#commission-settlement-detail-tbl tfoot th.col-commission,
+#commission-settlement-detail-tbl tfoot th.col-fnb,
+#commission-settlement-detail-tbl tfoot th.col-hotel,
+#commission-settlement-detail-tbl tfoot th.col-incidental,
+#commission-settlement-detail-tbl tfoot th.col-act-settlement {
   text-align: right !important;
   padding-right: 6px !important;
 }
 
 #commission-settlement-tbl thead th.col-buyin,
 #commission-settlement-tbl thead th.col-total-rolling,
-#commission-settlement-tbl thead th.col-winloss {
+#commission-settlement-tbl thead th.col-winloss,
+#commission-settlement-detail-tbl thead th.col-buyin,
+#commission-settlement-detail-tbl thead th.col-total-rolling,
+#commission-settlement-detail-tbl thead th.col-winloss {
   color: var(--gd-marker-gold-text, #3a2e12) !important;
   font-weight: 600;
 }
@@ -1284,17 +1319,152 @@
   margin-top: 1rem;
 }
 
+.commission-settlement-workspace .cs-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(240px, 2fr) minmax(140px, 1fr);
+  grid-template-areas:
+    "finished calculator percentage"
+    "divisions divisions divisions";
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.commission-settlement-workspace .cs-workspace-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+.cs-workspace-finished { grid-area: finished; }
+.cs-workspace-calculator { grid-area: calculator; }
+.cs-workspace-percentage { grid-area: percentage; }
+.cs-workspace-divisions { grid-area: divisions; }
+
+.commission-settlement-workspace .cs-workspace-item > .cs-panel,
+.commission-settlement-workspace .cs-workspace-item > .cs-division-grid {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.commission-settlement-workspace .cs-workspace-finished,
+.commission-settlement-workspace .cs-workspace-percentage {
+  align-self: start;
+}
+
+.commission-settlement-workspace .cs-workspace-finished > .cs-panel-finished,
+.commission-settlement-workspace .cs-workspace-percentage > .cs-percentage-calculator {
+  flex: 0 0 auto;
+  height: auto !important;
+}
+
+.commission-settlement-workspace .cs-percentage-calculator {
+  align-self: auto;
+}
+
+.commission-settlement-workspace .cs-panel-finished .cs-panel-title {
+  font-size: 10px;
+  padding: 6px 6px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.cs-panel-datetime {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  color: #3a2e12;
+  background: #fff8e8;
+  border-bottom: 1px solid rgba(200, 162, 76, 0.35);
+  flex: 0 0 auto;
+  line-height: 1.2;
+}
+
+.cs-division-game-card .cs-panel-datetime {
+  font-size: 9px;
+  padding: 3px 4px;
+}
+
+.commission-settlement-workspace .cs-panel-finished .cs-kv-table th,
+.commission-settlement-workspace .cs-panel-finished .cs-kv-table td {
+  font-size: 10px;
+  padding: 4px 4px;
+  line-height: 1.2;
+}
+
+.commission-settlement-workspace .cs-panel-finished .cs-kv-table tr {
+  height: 26px;
+}
+
+.commission-settlement-workspace .cs-panel-finished .cs-kv-table th {
+  width: 50%;
+}
+
+.commission-settlement-workspace .cs-percentage-calculator .cs-panel-title {
+  font-size: 10px;
+  padding: 6px 6px;
+  letter-spacing: 0;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.commission-settlement-workspace .cs-percentage-calculator table {
+  font-size: 9px;
+}
+
+.commission-settlement-workspace .cs-percentage-calculator th,
+.commission-settlement-workspace .cs-percentage-calculator td {
+  padding: 3px 4px;
+}
+
+.commission-settlement-workspace .cs-panel,
+.commission-settlement-workspace .cs-division {
+  border-radius: 0;
+  min-width: 0;
+}
+
+.cs-division .cs-division-game-card {
+  border: 0 !important;
+}
+
+.cs-division .col-md-6:first-child .cs-division-game-card {
+  border-right: 1px solid rgba(200, 162, 76, 0.45) !important;
+}
+
 .cs-division-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-auto-rows: 1fr;
+  gap: 0.5rem;
+  align-items: stretch;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100%;
+  min-width: 0;
 }
 
 .cs-division {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
   border: 1px solid rgba(200, 162, 76, 0.45);
   border-radius: 0.75rem;
   overflow: hidden;
   background: #fff;
+}
+
+.cs-division > .row {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.cs-division .col-md-6 {
+  display: flex;
 }
 
 .cs-division-title {
@@ -1305,12 +1475,28 @@
   font-weight: 700;
   text-align: center;
   text-transform: uppercase;
+  flex: 0 0 auto;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cs-division-game-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto !important;
   border: 0;
   border-radius: 0;
   border-right: 1px solid rgba(200, 162, 76, 0.35);
+}
+
+.cs-division-game-card .cs-kv-table {
+  flex: 1 1 auto;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .cs-division .col-md-6:last-child .cs-division-game-card {
@@ -1319,16 +1505,34 @@
 
 .cs-division-game-card .cs-panel-title {
   border-radius: 0;
-  padding: 6px 5px;
-  font-size: 9px;
+  padding: 5px 3px;
+  font-size: clamp(7px, 0.52vw, 9px);
   white-space: nowrap;
   text-align: center;
+  flex: 0 0 auto;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-division-game-card .cs-kv-table tr {
+  height: 22px;
 }
 
 .cs-division-game-card .cs-kv-table th,
 .cs-division-game-card .cs-kv-table td {
   padding: 3px 4px;
   font-size: 9px;
+  height: 22px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+  vertical-align: middle;
 }
 
 .cs-panel-division .cs-calc-table th,
@@ -1343,11 +1547,150 @@
   font-size: 9px;
 }
 
+.cs-panel-division {
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-panel-division .cs-excel-calc-table {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.cs-excel-calc-header {
+  display: flex;
+  min-height: 32px;
+  background: var(--gd-marker-gold-solid);
+  color: var(--gd-marker-gold-text);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: none;
+  line-height: 1.1;
+}
+
+.cs-excel-calc-header > span:first-child {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+}
+
+.cs-excel-rate-header {
+  display: flex;
+  width: 34%;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid var(--gd-marker-gold-border);
+  font-size: 9px;
+}
+
+.cs-excel-rate-header strong {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.cs-excel-calc-table th,
+.cs-excel-calc-table td {
+  border-color: var(--gd-marker-gold-border);
+  line-height: 1.1;
+}
+
+.cs-excel-calc-table {
+  table-layout: fixed;
+}
+
+.cs-excel-calc-table .cs-excel-col-label {
+  width: 37%;
+}
+
+.cs-excel-calc-table .cs-excel-col-amount {
+  width: 28%;
+}
+
+.cs-excel-calc-table .cs-excel-col-rate {
+  width: 15%;
+}
+
+.cs-excel-calc-table .cs-excel-col-commission {
+  width: 20%;
+}
+
+.cs-excel-calc-table thead tr:first-child th {
+  background: var(--gd-marker-gold-solid);
+  color: var(--gd-marker-gold-text);
+  font-weight: 700;
+}
+
+.cs-excel-calc-table .cs-excel-column-head th {
+  background: var(--gd-marker-gold-hover);
+  color: var(--gd-marker-gold-text);
+  font-size: 8px;
+}
+
+.cs-excel-calc-table tbody tr:first-child td {
+  background: var(--gd-marker-gold-hover);
+  font-weight: 700;
+}
+
+.cs-excel-calc-table .cs-subtotal-row th,
+.cs-excel-calc-table .cs-subtotal-row td {
+  background: var(--gd-marker-gold-hover);
+  font-weight: 700;
+}
+
+.cs-excel-calc-table .cs-excel-section-start > th:first-child {
+  background: var(--gd-marker-gold-hover);
+  vertical-align: middle;
+}
+
+.cs-excel-calc-table .cs-excel-section-start > td:nth-child(2) {
+  background: #fff;
+  vertical-align: middle;
+}
+
+.cs-excel-calc-table .cs-excel-section-start + tr th,
+.cs-excel-calc-table .cs-excel-section-start + tr td,
+.cs-excel-calc-table .cs-excel-section-start + tr + tr th,
+.cs-excel-calc-table .cs-excel-section-start + tr + tr td {
+  background: #fff;
+}
+
+.cs-excel-calc-table #cs-dr-guest-name,
+.cs-excel-calc-table #cs-dr-agent-name,
+.cs-excel-calc-table #cs-dr-guest-allocation,
+.cs-excel-calc-table #cs-dr-agent-allocation,
+.cs-excel-calc-table tbody tr:first-child td:first-child,
+.cs-excel-calc-table .cs-subtotal-row th:first-child,
+.cs-excel-calc-table tfoot tr th:first-child {
+  text-align: right !important;
+}
+
+.cs-excel-calc-table #cs-dr-guest-rate,
+.cs-excel-calc-table #cs-dr-agent-rate,
+.cs-excel-calc-table #cs-dr-guest-block-rate,
+.cs-excel-calc-table #cs-dr-agent-block-rate,
+.cs-excel-calc-table #cs-dr-agent-rate-second {
+  text-align: right !important;
+}
+
+.cs-excel-calc-table tfoot th {
+  background: var(--gd-marker-gold-hover);
+  color: var(--gd-marker-gold-text);
+  font-size: 9px;
+}
+
 .cs-percentage-calculator .cs-panel-title {
   padding: 7px 5px;
   font-size: 10px;
   text-align: center;
   white-space: nowrap;
+}
+
+.cs-percentage-calculator {
+  height: auto !important;
+  align-self: flex-start;
 }
 
 .cs-percentage-calculator table {
@@ -1360,13 +1703,80 @@
   vertical-align: middle;
 }
 
+.cs-percentage-calculator th:last-child,
+.cs-percentage-calculator td:last-child {
+  text-align: center !important;
+}
+
 .cs-percentage-calculator .cs-percentage-total-row th {
   background: #fff0a8;
   color: #3a2e12;
   font-weight: 700;
 }
 
+@media (min-width: 1800px) {
+  .commission-settlement-workspace .cs-workspace-grid {
+    grid-template-columns: minmax(160px, 1fr) minmax(240px, 1.5fr) minmax(140px, 0.9fr) minmax(0, 4fr);
+    grid-template-areas: "finished calculator percentage divisions";
+  }
+}
+
+@media (max-width: 1399.98px) {
+  .commission-settlement-workspace .cs-panel-finished .cs-kv-table th,
+  .commission-settlement-workspace .cs-panel-finished .cs-kv-table td,
+  .cs-division-game-card .cs-kv-table th,
+  .cs-division-game-card .cs-kv-table td,
+  .cs-panel-division .cs-calc-table th,
+  .cs-panel-division .cs-calc-table td {
+    font-size: 9px;
+    padding: 2px 3px;
+  }
+
+  .cs-division-game-card .cs-kv-table tr,
+  .cs-division-game-card .cs-kv-table th,
+  .cs-division-game-card .cs-kv-table td {
+    height: 21px;
+  }
+
+  .commission-settlement-workspace .cs-panel-finished .cs-kv-table tr {
+    height: 24px;
+  }
+
+  .commission-settlement-workspace .cs-panel-finished .cs-kv-table th,
+  .commission-settlement-workspace .cs-panel-finished .cs-kv-table td {
+    padding: 3px 4px;
+  }
+
+  .cs-excel-calc-header {
+    min-height: 30px;
+    font-size: 8px;
+  }
+
+  .cs-excel-rate-header strong {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .commission-settlement-workspace .cs-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    grid-template-areas:
+      "finished calculator"
+      "percentage percentage"
+      "divisions divisions";
+  }
+}
+
 @media (max-width: 767.98px) {
+  .commission-settlement-workspace .cs-workspace-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "finished"
+      "calculator"
+      "percentage"
+      "divisions";
+  }
+
   .cs-division-grid {
     grid-template-columns: 1fr;
   }
@@ -1397,7 +1807,7 @@
 
 .cs-panel-title-agent {
   background: #c8a24c;
-  color: #fff;
+  color: #3a2e12;
 }
 
 .cs-kv-table th,
@@ -1407,6 +1817,18 @@
   color: #555;
   font-weight: 600;
   vertical-align: middle;
+}
+
+.cs-kv-table th {
+  text-align: right;
+}
+
+.cs-kv-table tbody tr:nth-child(-n+3) td {
+  text-align: center !important;
+}
+
+.cs-kv-table td.text-end {
+  text-align: right !important;
 }
 
 .cs-kv-table td,
@@ -1435,14 +1857,29 @@
   font-size: 11px;
 }
 
-.commission-settlement-detail-wrap .cs-detail-table thead th {
-  background: #d9b96a;
-  color: #3a2e12;
-  font-size: 10px;
-  white-space: nowrap;
+.commission-settlement-detail-wrap {
+  margin-top: 1rem;
 }
 
-.commission-settlement-detail-wrap .cs-detail-table tfoot th {
-  background: #fff8e8;
-  font-size: 11px;
+.commission-settlement-detail-shell {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.commission-settlement-detail-heading {
+  padding: 8px 12px;
+  background: #d9b96a;
+  color: #3a2e12;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid rgba(58, 46, 18, 0.15);
+}
+
+.commission-settlement-detail-shell .commission-settlement-table-wrap {
+  border: none;
+  border-radius: 0;
 }
