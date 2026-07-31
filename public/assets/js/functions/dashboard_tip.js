@@ -50,6 +50,10 @@ $(document).ready(function () {
 	}
 
 	function parseRowDate(value) {
+		var text = String(value || '').trim();
+		if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+			return ymdToLocalDate(text.slice(0, 10));
+		}
 		var d = new Date(value);
 		return Number.isNaN(d.getTime()) ? null : d;
 	}
@@ -859,6 +863,8 @@ $(document).ready(function () {
 		var statusVal = ($statusInput.val() || '').toString().trim();
 		var nameVal = ($nameInput.val() || '').toString().trim();
 		var programDate = getProgramDateValue('tip-settlement-modal-program-date');
+		var availableText = ($('#dash-tip-available-balance').text() || '').replace(/,/g, '').trim();
+		var available = Number(availableText) || 0;
 
 		$amountInput.add($statusInput).add($nameInput).add($programDateInput).removeClass('is-invalid');
 
@@ -939,7 +945,13 @@ $(document).ready(function () {
 
 	$('#btn-dash-tip-in-open').on('click', openTipInModal);
 	$('#btn-dash-tip-settlement-open').on('click', openTipSettlementModal);
+	$('#tip-in-modal-account').on('change', onTipInAccountChange);
+	$('#form-tip-in').on('submit', submitTipIn);
 	$('#form-tip-settlement').on('submit', submitTipSettlement);
+	$('#tip-in-modal-amount').on('input', function () {
+		var formatted = formatSettlementAmountInput(this.value);
+		if (this.value !== formatted) this.value = formatted;
+	});
 	$('#tip-settlement-modal-amount').on('input', function () {
 		var formatted = formatSettlementAmountInput(this.value);
 		if (this.value !== formatted) this.value = formatted;
