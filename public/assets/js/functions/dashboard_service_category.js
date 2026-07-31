@@ -1,3 +1,19 @@
+/* Shared reload registry — must run before other dash service scripts' ready handlers */
+(function () {
+	if (typeof window.registerDashServiceReload === 'function') return;
+	window.__dashServiceReloadFns = window.__dashServiceReloadFns || [];
+	window.registerDashServiceReload = function (fn) {
+		if (typeof fn !== 'function') return;
+		window.__dashServiceReloadFns.push(fn);
+		window.reloadFnbHotelData = function () {
+			(window.__dashServiceReloadFns || []).forEach(function (reloadFn) { reloadFn(); });
+			if (typeof window.refreshDashServiceBalances === 'function') {
+				window.refreshDashServiceBalances();
+			}
+		};
+	};
+})();
+
 $(document).ready(function () {
 	if (!$('#modal-dash-service-category').length) return;
 
@@ -67,9 +83,18 @@ $(document).ready(function () {
 	}
 
 	function matchesActiveCategory(serviceType) {
-		return typeof window.matchesServiceCategory === 'function'
-			? window.matchesServiceCategory(serviceType, activeCategoryKey)
-			: String(serviceType || '').trim().toLowerCase() === String(activeCategoryKey || '').trim().toLowerCase();
+		var raw = String(serviceType || '').trim();
+		if (!raw) return false;
+		var key = String(activeCategoryKey || '').trim();
+		var label = String(activeCategoryLabel || '').trim();
+		if (typeof window.matchesServiceCategory === 'function') {
+			if (key && window.matchesServiceCategory(raw, key)) return true;
+			if (label && window.matchesServiceCategory(raw, label)) return true;
+		}
+		var lower = raw.toLowerCase();
+		if (key && lower === key.toLowerCase()) return true;
+		if (label && lower === label.toLowerCase()) return true;
+		return false;
 	}
 
 	function getDefaultDateRange() {
@@ -85,12 +110,48 @@ $(document).ready(function () {
 		};
 	}
 
-	$.fn.dataTable.ext.search.push(function (settings, data) {
+	function getDashboardPeriodYmd() {
+		if (typeof window.getDashPeriodYmd === 'function') {
+			return window.getDashPeriodYmd();
+		}
+		var from = document.getElementById('dash-date-from');
+		var to = document.getElementById('dash-date-to');
+		var start = from ? String(from.value || '').trim().slice(0, 10) : '';
+		var end = to ? String(to.value || '').trim().slice(0, 10) : '';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+			return { start: start, end: end };
+		}
+		return null;
+	}
+
+	function extractRowIsoDate(cellData) {
+		if (cellData == null) return '';
+		if (typeof cellData === 'object') {
+			var iso = cellData['@data-order'] || cellData.sort || cellData.filter || cellData._ || '';
+			iso = String(iso || '').trim();
+			if (/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso.slice(0, 10);
+			if (/^\d+$/.test(iso)) {
+				var fromTs = new Date(Number(iso));
+				if (!Number.isNaN(fromTs.getTime())) return formatYmdLocal(fromTs);
+			}
+			if (cellData.display != null) return '';
+		}
+		return '';
+	}
+
+	$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
 		if (!settings || !settings.nTable || settings.nTable.id !== 'dash-service-category-table') return true;
 		if (!dateStart || !dateEnd) return true;
-		var rawProgram = data && data[0] && data[0].display !== undefined ? data[0].display : data[0];
-		var rawEncoded = data && data[1] && data[1].display !== undefined ? data[1].display : data[1];
-		var rowDate = parseRowDate(cellText(rawProgram)) || parseRowDate(cellText(rawEncoded));
+
+		var iso = '';
+		var rowData = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex]._aData : null;
+		if (rowData) {
+			iso = extractRowIsoDate(rowData[0]) || extractRowIsoDate(rowData[1]);
+		}
+		var rowDate = iso
+			? parseRowDate(iso)
+			: (parseRowDate(cellText(data && data[0] && data[0].display !== undefined ? data[0].display : data[0]))
+				|| parseRowDate(cellText(data && data[1] && data[1].display !== undefined ? data[1].display : data[1])));
 		if (!rowDate) return true;
 		var start = new Date(dateStart.getFullYear(), dateStart.getMonth(), dateStart.getDate(), 0, 0, 0, 0);
 		var end = new Date(dateEnd.getFullYear(), dateEnd.getMonth(), dateEnd.getDate(), 23, 59, 59, 999);
@@ -216,8 +277,8 @@ $(document).ready(function () {
 					var rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
 
 					dataTable.row.add([
-						{ display: programDateDisplay, '@data-order': programDateOrder },
-						{ display: formatDateForDisplay(service.ENCODED_DT), '@data-order': String(rawDate) },
+						{ display: programDateDisplay, _: programDateOrder, sort: programDateOrder, filter: programDateOrder, '@data-order': programDateOrder },
+						{ display: formatDateForDisplay(service.ENCODED_DT), _: String(rawDate), sort: String(rawDate), filter: formatYmdLocal(service.ENCODED_DT ? new Date(service.ENCODED_DT) : new Date(0)), '@data-order': String(rawDate) },
 						agentHtml,
 						guestHtml,
 						escapeHtml(service.SERVICE_TYPE || ''),
@@ -265,7 +326,33 @@ $(document).ready(function () {
 		}
 		dateStart = startDate;
 		dateEnd = endDate;
+		var rangeEl = document.getElementById('dash-service-category-daterange');
+		if (rangeEl && rangeEl._flatpickr) {
+			try {
+				rangeEl._flatpickr.setDate([startDate, endDate], false);
+			} catch (err) { /* ignore */ }
+		}
 		if (dataTable) dataTable.draw();
+	}
+
+	function syncFilterDatesFromDashboard() {
+		var period = getDashboardPeriodYmd();
+		if (period) {
+			setFilterDatesFromApi(period.start, period.end);
+			return true;
+		}
+		return false;
+	}
+
+	function prepareModalAndReload() {
+		initDateRangePicker();
+		if (!syncFilterDatesFromDashboard() && (!dateStart || !dateEnd)) {
+			var range = getDefaultDateRange();
+			dateStart = range.startAt || range.start || null;
+			dateEnd = range.endAt || range.end || null;
+		}
+		if (!dataTable) initializeDataTable();
+		reloadData();
 	}
 
 	function initServiceCategorySplitDateRange() {
@@ -321,34 +408,54 @@ $(document).ready(function () {
 		flatpickrReady = true;
 	}
 
-	if (typeof window.registerDashServiceReload === 'function') {
-		window.registerDashServiceReload(reloadData);
-	}
+	window.registerDashServiceReload(reloadData);
 
 	window.openDashServiceCategoryModal = function (categoryKey, categoryLabel, modalId) {
 		activeCategoryKey = String(categoryKey || '').trim();
 		activeCategoryLabel = String(categoryLabel || categoryKey || '').trim();
 		var targetModalId = modalId || 'modal-dash-service-category';
+		var presetLabel = activeCategoryLabel || activeCategoryKey;
+		window.__dashServiceActiveCategory = presetLabel;
+		window.__dashServicePresetType = presetLabel;
 
 		if (targetModalId !== 'modal-dash-service-category') {
 			var legacyModal = document.getElementById(targetModalId);
 			if (legacyModal && window.bootstrap && bootstrap.Modal) {
+				var legacyPresets = {
+					'modal-dash-fnb': 'F & B',
+					'modal-dash-hotel': 'Hotel',
+					'modal-dash-delivery': 'Delivery',
+					'modal-dash-incidental': 'Incidental'
+				};
+				var legacyPreset = legacyPresets[targetModalId] || presetLabel;
+				window.__dashServiceActiveCategory = legacyPreset;
+				window.__dashServicePresetType = legacyPreset;
 				bootstrap.Modal.getOrCreateInstance(legacyModal).show();
 				return;
 			}
 		}
 
 		$('#modal-dash-service-category-label').text(activeCategoryLabel || 'Service Category');
+		$('#btn-dash-service-category-new-record').attr('data-service-preset', presetLabel);
 		var modalEl = document.getElementById('modal-dash-service-category');
-		if (modalEl && window.bootstrap && bootstrap.Modal) {
-			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+
+		var alreadyOpen = modalEl.classList.contains('show');
+		bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		// show.bs.modal may not re-fire when already open — always load for the clicked category
+		if (alreadyOpen) {
+			prepareModalAndReload();
 		}
 	};
 
 	$('#modal-dash-service-category').on('show.bs.modal', function () {
-		initDateRangePicker();
-		if (!dataTable) initializeDataTable();
-		reloadData();
+		var preset = activeCategoryLabel || activeCategoryKey;
+		if (preset) {
+			window.__dashServiceActiveCategory = preset;
+			window.__dashServicePresetType = preset;
+			$('#btn-dash-service-category-new-record').attr('data-service-preset', preset);
+		}
+		prepareModalAndReload();
 	});
 
 	$('#modal-dash-service-category').on('shown.bs.modal', function () {
@@ -367,8 +474,21 @@ $(document).ready(function () {
 		}
 	});
 
+	$(document).on('mousedown', '#btn-dash-service-category-new-record, .js-dash-service-add', function () {
+		var fromAttr = $(this).attr('data-service-preset') || '';
+		var preset = fromAttr || activeCategoryLabel || activeCategoryKey || window.__dashServiceActiveCategory || '';
+		if (preset) {
+			window.__dashServicePresetType = preset;
+			window.__dashServiceActiveCategory = preset;
+		}
+	});
+
 	$('#btn-dash-service-category-new-record').on('click', function () {
-		window.__dashServicePresetType = activeCategoryLabel || activeCategoryKey;
+		var preset = $(this).attr('data-service-preset') || activeCategoryLabel || activeCategoryKey;
+		if (preset) {
+			window.__dashServicePresetType = preset;
+			window.__dashServiceActiveCategory = preset;
+		}
 	});
 
 	$(document).on('click', '#modal-dash-service-category .edit-service-btn', function () {
@@ -413,6 +533,9 @@ $(document).ready(function () {
 							window.reloadFnbHotelData();
 						} else {
 							reloadData();
+							if (typeof window.refreshDashServiceBalances === 'function') {
+								window.refreshDashServiceBalances();
+							}
 						}
 					});
 				},

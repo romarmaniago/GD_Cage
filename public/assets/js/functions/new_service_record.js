@@ -241,13 +241,42 @@ $(function () {
 		return String(category || '').trim().toLowerCase();
 	}
 
+	function resolvePresetCategoryLabel(preset) {
+		const raw = String(preset || '').trim();
+		if (!raw) return '';
+		const legacy = {
+			fnb: 'F & B',
+			'f & b': 'F & B',
+			hotel: 'Hotel',
+			delivery: 'Delivery',
+			incidental: 'Incidental'
+		};
+		const mapped = legacy[raw.toLowerCase()];
+		if (mapped) return mapped;
+		if (typeof window.normalizeServiceCategoryLabel === 'function') {
+			return window.normalizeServiceCategoryLabel(raw) || raw;
+		}
+		return raw;
+	}
+
+	function serviceTypeMatchesPreset(category, preset) {
+		const selected = String(preset || '').trim();
+		if (!selected || !category) return false;
+		if (typeof window.matchesServiceCategory === 'function') {
+			if (window.matchesServiceCategory(category, selected)) return true;
+			const key = normalizeCategoryKey(selected);
+			if (key && window.matchesServiceCategory(category, key)) return true;
+		}
+		return normalizeCategoryKey(category) === normalizeCategoryKey(selected);
+	}
+
 	function setSelectedServiceType(value) {
 		const raw = String(value || '').trim();
 		$serviceTypeValue.val(raw);
 		if (!$serviceTypeList.length) return;
 		$serviceTypeList.find('input[type="radio"][name="new-services-type"]').each(function () {
 			const v = String(this.value || '').trim();
-			this.checked = !!raw && v.toLowerCase() === raw.toLowerCase();
+			this.checked = serviceTypeMatchesPreset(v, raw);
 		});
 	}
 
@@ -260,16 +289,19 @@ $(function () {
 			if (!res.ok) throw new Error('Failed to load service categories');
 			const rows = await res.json();
 
-			const selected = String(selectedValue || '').trim();
+			const selected = resolvePresetCategoryLabel(selectedValue);
 			let hasSelected = false;
+			let matchedCategory = '';
 			$serviceTypeList.empty();
 			(rows || []).forEach(function (row, idx) {
 				const category = String(row.CATEGORY || '').trim();
 				if (!category) return;
-				const key = normalizeCategoryKey(category);
 				const id = 'new-services-type-' + idx;
-				const isChecked = selected && key === selected.toLowerCase();
-				if (isChecked) hasSelected = true;
+				const isChecked = serviceTypeMatchesPreset(category, selected);
+				if (isChecked) {
+					hasSelected = true;
+					matchedCategory = category;
+				}
 				const html =
 					'<div class="form-check form-check-inline mb-0">' +
 					'<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" name="new-services-type" id="' + escapeHtml(id) + '" value="' + escapeHtml(category) + '"' + (isChecked ? ' checked' : '') + '>' +
@@ -286,9 +318,10 @@ $(function () {
 					'<label class="form-check-label" for="' + escapeHtml(id) + '">' + escapeHtml(selected) + ' (legacy)</label>' +
 					'</div>'
 				);
+				matchedCategory = selected;
 			}
 
-			setSelectedServiceType(selected);
+			setSelectedServiceType(matchedCategory || selected);
 		} catch (err) {
 			console.error('populateServiceTypeCheckboxes:', err);
 			$serviceTypeList.html('<div class="text-danger small">Unable to load service types.</div>');
@@ -304,14 +337,32 @@ $(function () {
 		setSelectedServiceType(value || '');
 	};
 
-	$modal.on('show.bs.modal', async function () {
+	$modal.on('show.bs.modal', async function (e) {
 		resetForm();
 		ensureProgramDatePicker(todayProgramDateValue());
 		initGuestSelect2();
 		enableAccountFields();
-		// apply dashboard preset (if any)
-		const preset = window.__dashServicePresetType || '';
+
+		var related = e.relatedTarget || null;
+		var fromBtn = '';
+		if (related) {
+			if (related.getAttribute) {
+				fromBtn = related.getAttribute('data-service-preset') || '';
+			} else if (related.getAttributeNS) {
+				fromBtn = '';
+			}
+			// jQuery may wrap relatedTarget in some cases
+			if (!fromBtn && related.getAttribute == null && window.jQuery) {
+				fromBtn = window.jQuery(related).attr('data-service-preset') || '';
+			}
+		}
+
+		var preset = fromBtn
+			|| window.__dashServicePresetType
+			|| window.__dashServiceActiveCategory
+			|| '';
 		window.__dashServicePresetType = null;
+
 		await Promise.all([
 			populateAccounts(),
 			populateServiceTypeCheckboxes(preset)

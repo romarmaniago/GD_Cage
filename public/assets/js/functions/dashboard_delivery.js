@@ -269,7 +269,16 @@ $(document).ready(function () {
 		}
 		deliveryDateStart = startDate;
 		deliveryDateEnd = endDate;
+		var rangeEl = document.getElementById('dash-delivery-daterange');
+		if (rangeEl && rangeEl._flatpickr) {
+			try { rangeEl._flatpickr.setDate([startDate, endDate], false); } catch (err) { /* ignore */ }
+		}
 		if (dataTable) dataTable.draw();
+	}
+
+	function syncDeliveryDatesFromDashboard() {
+		var period = typeof window.getDashPeriodYmd === 'function' ? window.getDashPeriodYmd() : null;
+		if (period) setDeliveryFilterDatesFromApi(period.start, period.end);
 	}
 
 	function initDeliverySplitDateRange() {
@@ -325,13 +334,27 @@ $(document).ready(function () {
 		flatpickrReady = true;
 	}
 
-	if (typeof window.registerDashServiceReload === 'function') {
-		window.registerDashServiceReload(reloadData);
+	if (typeof window.registerDashServiceReload !== 'function') {
+		window.__dashServiceReloadFns = window.__dashServiceReloadFns || [];
+		window.registerDashServiceReload = function (fn) {
+			if (typeof fn !== 'function') return;
+			window.__dashServiceReloadFns.push(fn);
+			window.reloadFnbHotelData = function () {
+				(window.__dashServiceReloadFns || []).forEach(function (reloadFn) { reloadFn(); });
+				if (typeof window.refreshDashServiceBalances === 'function') {
+					window.refreshDashServiceBalances();
+				}
+			};
+		};
 	}
+	window.registerDashServiceReload(reloadData);
 
 	$('#modal-dash-delivery').on('show.bs.modal', function () {
 		initDateRangePicker();
+		syncDeliveryDatesFromDashboard();
 		if (!dataTable) initializeDataTable();
+		window.__dashServiceActiveCategory = 'Delivery';
+		window.__dashServicePresetType = 'Delivery';
 		reloadData();
 	});
 

@@ -233,6 +233,8 @@ body {
   --dash-page-gutter: 1rem;
   padding-left: calc(var(--dash-page-gutter) * 0.875);
   padding-right: calc(var(--dash-page-gutter) * 0.875);
+  /* newcustom sets padding-bottom: 0 — keep Quick View / footer reachable when scrolling */
+  padding-bottom: 2.75rem !important;
 }
 
 .dash-panel-narrow {
@@ -323,8 +325,9 @@ body {
 }
 
 #dash-cage-main-panel > .card:last-child {
-  flex: 1 1 auto;
-  min-height: 0;
+  /* Grow to fill extra space, but never shrink below content (clips Quick View buttons) */
+  flex: 1 0 auto;
+  min-height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -334,22 +337,22 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+  min-height: auto;
+  overflow: visible;
 }
 
 #dash-cage-main-panel > .card:last-child #dash-service-category-rows-main {
   display: contents;
 }
 
-/* Evenly fill card height — no empty gaps, no inner scroll */
+/* Fill extra card height when column is taller; keep content-sized floors so page can scroll */
 #dash-cage-main-panel > .card:first-of-type .dash-kv,
 #dash-cage-main-panel > .card:first-of-type .dash-kv-group-title,
 #dash-cage-main-panel > .card:last-child .dash-kv,
 #dash-cage-main-panel > .card:last-child .dash-kv-group-title {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 1.35rem;
+  overflow: visible;
 }
 
 #dash-cage-main-panel > .card:first-of-type .dash-kv-group-title,
@@ -415,7 +418,7 @@ body {
 }
 
 .dash-panel-narrow .dash-card-actions {
-  padding: 0.55rem 0.65rem;
+  padding: 0.65rem 0.65rem 0.8rem;
   flex-direction: row;
 }
 
@@ -1180,14 +1183,14 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 0;
+  min-height: auto;
 }
 
 .dash-top-row .dash-card-stack > .card:last-of-type {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: auto;
 }
 
 .dash-top-row .dash-card-stack > .card:last-of-type > .card-body {
@@ -1936,10 +1939,11 @@ body {
   flex: 1 1 0;
 }
 
-/* No inner scroll — rows flex to fit the panel height */
+/* Prefer page scroll for full data; allow matrix body scroll if panel is shorter than rows */
 .dash-dual-matrix-col.is-rolling .dash-rolling-scroll,
 .dash-dual-matrix-col.is-wl .dash-wl-scroll {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 @media (max-width: 991.98px) {
@@ -2152,7 +2156,8 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0;
   -webkit-overflow-scrolling: touch;
 }
@@ -2529,7 +2534,8 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0;
   -webkit-overflow-scrolling: touch;
 }

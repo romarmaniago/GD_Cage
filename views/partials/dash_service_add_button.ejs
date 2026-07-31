@@ -5,6 +5,7 @@
   class="expense-cat-panel-add-btn js-dash-service-add d-none"
   data-bs-toggle="modal"
   data-bs-target="#modal-services-new-record"
+  <% if (typeof servicePreset !== 'undefined' && servicePreset) { %>data-service-preset="<%= servicePreset %>"<% } %>
   title="<%= title %>"
   aria-label="<%= title %>"
   data-view-only-disable

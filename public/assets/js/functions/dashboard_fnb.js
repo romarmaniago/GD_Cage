@@ -270,7 +270,16 @@ $(document).ready(function () {
 		}
 		fnbDateStart = startDate;
 		fnbDateEnd = endDate;
+		var rangeEl = document.getElementById('dash-fnb-daterange');
+		if (rangeEl && rangeEl._flatpickr) {
+			try { rangeEl._flatpickr.setDate([startDate, endDate], false); } catch (err) { /* ignore */ }
+		}
 		if (dataTable) dataTable.draw();
+	}
+
+	function syncFnbDatesFromDashboard() {
+		var period = typeof window.getDashPeriodYmd === 'function' ? window.getDashPeriodYmd() : null;
+		if (period) setFnbFilterDatesFromApi(period.start, period.end);
 	}
 
 	function initFnbSplitDateRange() {
@@ -326,22 +335,27 @@ $(document).ready(function () {
 		flatpickrReady = true;
 	}
 
-	window.registerDashServiceReload = function (fn) {
-		if (typeof fn !== 'function') return;
-		if (!window.__dashServiceReloadFns) window.__dashServiceReloadFns = [];
-		window.__dashServiceReloadFns.push(fn);
-		window.reloadFnbHotelData = function () {
-			(window.__dashServiceReloadFns || []).forEach(function (reloadFn) { reloadFn(); });
-			if (typeof window.refreshDashServiceBalances === 'function') {
-				window.refreshDashServiceBalances();
-			}
+	if (typeof window.registerDashServiceReload !== 'function') {
+		window.__dashServiceReloadFns = window.__dashServiceReloadFns || [];
+		window.registerDashServiceReload = function (fn) {
+			if (typeof fn !== 'function') return;
+			window.__dashServiceReloadFns.push(fn);
+			window.reloadFnbHotelData = function () {
+				(window.__dashServiceReloadFns || []).forEach(function (reloadFn) { reloadFn(); });
+				if (typeof window.refreshDashServiceBalances === 'function') {
+					window.refreshDashServiceBalances();
+				}
+			};
 		};
-	};
+	}
 	window.registerDashServiceReload(reloadData);
 
 	$('#modal-dash-fnb').on('show.bs.modal', function () {
 		initDateRangePicker();
+		syncFnbDatesFromDashboard();
 		if (!dataTable) initializeDataTable();
+		window.__dashServiceActiveCategory = 'F & B';
+		window.__dashServicePresetType = 'F & B';
 		reloadData();
 	});
 

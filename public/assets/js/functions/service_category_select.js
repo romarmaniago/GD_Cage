@@ -93,6 +93,7 @@ function populateServiceCategorySelect($select, selectedValue) {
 window.populateServiceCategorySelect = populateServiceCategorySelect;
 window.populateFnbHotelServiceTypeSelect = populateServiceCategorySelect;
 window.matchesServiceCategory = matchesServiceCategory;
+window.normalizeServiceCategoryLabel = normalizeServiceCategoryLabel;
 
 window.refreshServiceCategorySelects = function () {
 	var editVal = $('#edit-services-type-value').val() || '';

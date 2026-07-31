@@ -267,7 +267,16 @@ $(document).ready(function () {
 		}
 		incidentalDateStart = startDate;
 		incidentalDateEnd = endDate;
+		var rangeEl = document.getElementById('dash-incidental-daterange');
+		if (rangeEl && rangeEl._flatpickr) {
+			try { rangeEl._flatpickr.setDate([startDate, endDate], false); } catch (err) { /* ignore */ }
+		}
 		if (dataTable) dataTable.draw();
+	}
+
+	function syncIncidentalDatesFromDashboard() {
+		var period = typeof window.getDashPeriodYmd === 'function' ? window.getDashPeriodYmd() : null;
+		if (period) setIncidentalFilterDatesFromApi(period.start, period.end);
 	}
 
 	function initIncidentalSplitDateRange() {
@@ -323,13 +332,27 @@ $(document).ready(function () {
 		flatpickrReady = true;
 	}
 
-	if (typeof window.registerDashServiceReload === 'function') {
-		window.registerDashServiceReload(reloadData);
+	if (typeof window.registerDashServiceReload !== 'function') {
+		window.__dashServiceReloadFns = window.__dashServiceReloadFns || [];
+		window.registerDashServiceReload = function (fn) {
+			if (typeof fn !== 'function') return;
+			window.__dashServiceReloadFns.push(fn);
+			window.reloadFnbHotelData = function () {
+				(window.__dashServiceReloadFns || []).forEach(function (reloadFn) { reloadFn(); });
+				if (typeof window.refreshDashServiceBalances === 'function') {
+					window.refreshDashServiceBalances();
+				}
+			};
+		};
 	}
+	window.registerDashServiceReload(reloadData);
 
 	$('#modal-dash-incidental').on('show.bs.modal', function () {
 		initDateRangePicker();
+		syncIncidentalDatesFromDashboard();
 		if (!dataTable) initializeDataTable();
+		window.__dashServiceActiveCategory = 'Incidental';
+		window.__dashServicePresetType = 'Incidental';
 		reloadData();
 	});
 

@@ -56,6 +56,17 @@
 		});
 	}
 
+	window.getDashPeriodYmd = function () {
+		var from = document.getElementById('dash-date-from');
+		var to = document.getElementById('dash-date-to');
+		var start = from ? String(from.value || '').trim().slice(0, 10) : '';
+		var end = to ? String(to.value || '').trim().slice(0, 10) : '';
+		if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+			return { start: start, end: end };
+		}
+		return null;
+	};
+
 	function updateCompanyExpenseTotal(junketOutTotal) {
 		var panel = document.getElementById('dash-anticipated-panel');
 		if (!panel) return;
