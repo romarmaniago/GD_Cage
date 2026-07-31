@@ -1046,6 +1046,7 @@ $(document).ready(function() {
       console.error('Error loading chips history:', error);
     });
   }
+  window.loadTotalChipsHistory = loadTotalChipsHistory;
 
   // Initialize date picker and load history when modal is shown
   let totalChipsPicker = null;
@@ -1069,6 +1070,7 @@ $(document).ready(function() {
         console.error('refreshTotalChipsRefBalances:', err);
       });
   }
+  window.refreshTotalChipsRefBalances = refreshTotalChipsRefBalances;
 
   $('#modal-new-total-chips').on('shown.bs.modal', function () {
     console.log('Total Chips Modal shown');

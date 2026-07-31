@@ -508,9 +508,9 @@ router.get('/commission_data', async (req, res) => {
         LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
         WHERE game_list.ACTIVE != 0
           AND game_list.SETTLED = 1
-          AND DATE(COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT)) >= ?
-          AND DATE(COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT)) <= ?
-        ORDER BY COALESCE(game_list.GAME_ENDED, game_list.ENCODED_DT) DESC, game_list.IDNo DESC`;
+          AND DATE(COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT)) >= ?
+          AND DATE(COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT)) <= ?
+        ORDER BY COALESCE(game_list.PROGRAM_DATE, game_list.ENCODED_DT) DESC, game_list.IDNo DESC`;
 
     try {
         const [rows] = await pool.execute(query, [start, end]);

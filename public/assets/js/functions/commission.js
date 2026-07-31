@@ -890,6 +890,11 @@ $(document).ready(function() {
             }
             commissionSplitOverrideRange = { start: fromDate, end: toDate };
             reloadData();
+        },
+        onRangeCleared: function () {
+            if (!commissionSplitOverrideRange) return;
+            commissionSplitOverrideRange = null;
+            reloadData();
         }
     })) || { syncFromRange: function () {}, isSyncing: function () { return false; } };
 
