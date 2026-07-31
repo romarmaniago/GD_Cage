@@ -768,6 +768,11 @@ $(document).ready(function () {
 				if (!range || !range.start || !range.end) return;
 				commissionSplitOverrideRange = { start: range.start, end: commissionApiEndDate(range.end) };
 				reloadData();
+			},
+			onRangeCleared: function () {
+				if (!commissionSplitOverrideRange) return;
+				commissionSplitOverrideRange = null;
+				reloadData();
 			}
 		});
 	}

@@ -967,23 +967,36 @@ function archive_capital(id) {
     console.log(`Attempting to deleted capital and total chips with ID: ${id}`); // Log ID
 
     SwalConfirm.fire({
-        title: 'Are you sure you want to deleted this?',
+        title: 'Are you sure you want to delete this?',
         confirmButtonText: 'Yes'
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `/junket_capital/remove/${id}`, // Backend route handling both updates
+                url: `/junket_capital/remove/${id}`,
                 type: 'PUT',
                 success: function (response) {
                     console.log('Success response:', response);
-                    Swal.fire('Deleted Successfully', '', 'success').then(() => {
-                        // Redirect to the dashboard and force a page reload
-                        window.location.href = '/dashboard'; // Redirect to the dashboard
+                    var inTotalChipsModal = $('#modal-new-total-chips').hasClass('show');
+                    if (inTotalChipsModal) {
+                        if (typeof window.loadTotalChipsHistory === 'function') window.loadTotalChipsHistory();
+                        if (typeof window.refreshTotalChipsRefBalances === 'function') window.refreshTotalChipsRefBalances();
+                        if (typeof chipsTransactionComputation === 'function') chipsTransactionComputation();
+                        Swal.fire('Deleted Successfully', '', 'success');
+                        return;
+                    }
+                    if ($('#capital-tbl').length && typeof reloadData === 'function') {
+                        reloadData();
+                        Swal.fire('Deleted Successfully', '', 'success');
+                        return;
+                    }
+                    Swal.fire('Deleted Successfully', '', 'success').then(function () {
+                        window.location.href = '/dashboard';
                     });
                 },
-                error: function (xhr, status, error) {
+                error: function (xhr) {
                     console.error('AJAX Error:', xhr.responseText);
-                    Swal.fire('Error!', 'There was an error deleted the capital and total chips.', 'error');
+                    var msg = (xhr.responseJSON && xhr.responseJSON.error) || xhr.responseText || 'Delete failed.';
+                    Swal.fire('Error!', String(msg).trim() || 'There was an error deleting the record.', 'error');
                 }
             });
         }

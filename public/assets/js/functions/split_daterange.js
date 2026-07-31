@@ -118,7 +118,12 @@
 			fitWidths(startEl, endEl);
 
 			var api = getApiValues();
-			if (!api.start || !api.end) return false;
+			if (!api.start || !api.end) {
+				if (typeof config.onRangeCleared === 'function') {
+					config.onRangeCleared();
+				}
+				return false;
+			}
 
 			var startDate = parseIsoDateLocal(api.start);
 			var endDate = parseIsoDateLocal(api.end);

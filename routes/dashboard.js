@@ -2482,41 +2482,60 @@ router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async 
 	let connection;
 	try {
 		const id = parseInt(req.params.id, 10);
+		if (!Number.isFinite(id) || id <= 0) {
+			return res.status(400).send('Invalid id.');
+		}
 		const date_now = new Date();
+		const userId = req.session.user_id;
 
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
-		const [existingRows] = await connection.execute(
+		const [capitalRows] = await connection.execute(
 			`SELECT ACCOUNT_LEDGER_ID
 			 FROM junket_capital
 			 WHERE IDNo = ? AND ACTIVE = 1
 			 LIMIT 1`,
 			[id]
 		);
-		if (!existingRows.length) {
+		const [chipsRows] = await connection.execute(
+			`SELECT IDNo
+			 FROM junket_total_chips
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+
+		if (!capitalRows.length && !chipsRows.length) {
 			await connection.rollback();
 			return res.status(404).send('Record not found.');
 		}
 
-		if (existingRows[0].ACCOUNT_LEDGER_ID) {
-			await archiveCapitalTransferAccountLedger(
-				connection,
-				existingRows[0].ACCOUNT_LEDGER_ID,
-				req.session.user_id,
-				date_now
+		if (capitalRows.length) {
+			if (capitalRows[0].ACCOUNT_LEDGER_ID) {
+				await archiveCapitalTransferAccountLedger(
+					connection,
+					capitalRows[0].ACCOUNT_LEDGER_ID,
+					userId,
+					date_now
+				);
+			}
+			await connection.execute(
+				`UPDATE junket_capital SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+				[userId, date_now, id]
 			);
 		}
 
-		const query1 = `UPDATE junket_capital SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-		await connection.execute(query1, [0, req.session.user_id, date_now, id]);
-
-		const query2 = `UPDATE junket_total_chips SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-		await connection.execute(query2, [0, req.session.user_id, date_now, id]);
+		if (chipsRows.length) {
+			await connection.execute(
+				`UPDATE junket_total_chips SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+				[userId, date_now, id]
+			);
+		}
 
 		await connection.execute(
 			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
-			[req.session.user_id, date_now, id]
+			[userId, date_now, id]
 		);
 
 		await connection.commit();
