@@ -1983,7 +1983,7 @@ function transfer_account() {
 	$('#account_id_add_trans').val(account_id_val);
 	
 
-	get_account();
+	get_transfer_accounts();
 
 	 // Fetch account details to calculate balance
 	 $.ajax({
@@ -2094,7 +2094,7 @@ function transaction_type() {
 	});
 }
 
-function get_account() {
+function get_transfer_accounts() {
 	$.ajax({
 		url: '/account_data',
 		method: 'GET',
@@ -2121,7 +2121,7 @@ function get_account() {
 		}
 	});
 
-	$('.js-select2').select2({
+	$('#txtAccount').select2({
 		placeholder: 'Select an option',
 		dropdownParent: '#modal-transfer_account'
 	});
