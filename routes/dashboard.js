@@ -4394,6 +4394,19 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			[dateFrom, dateTo]
 		);
 
+		const [giWlRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(gi.PROGRAM_DATE, '%Y-%m-%d') AS program_date,
+				SUM(gi.BUY_IN - gi.CASH_OUT) AS gold_wl
+			 FROM game_information gi
+			 WHERE gi.ACTIVE = 1
+				AND gi.PROGRAM_DATE IS NOT NULL
+				AND DATE(gi.PROGRAM_DATE) BETWEEN ? AND ?
+			 GROUP BY DATE(gi.PROGRAM_DATE)
+			 ORDER BY DATE(gi.PROGRAM_DATE) ASC`,
+			[dateFrom, dateTo]
+		);
+
 		const chipsByDate = {};
 		(chipsRows || []).forEach((row) => {
 			chipsByDate[row.report_date] = row;
@@ -4428,6 +4441,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			const cashout = Number(row.cashout) || 0;
 			goldWlByDate[row.program_date] = cashin - cashout;
 		});
+		(giWlRows || []).forEach((row) => {
+			const goldWl = Number(row.gold_wl) || 0;
+			goldWlByDate[row.program_date] = (goldWlByDate[row.program_date] || 0) + goldWl;
+		});
 
 		const sumDayWinlossTotal = (dayTables) => Object.values(dayTables || {})
 			.reduce((sum, row) => sum + (Number(row.winloss_amt) || 0), 0);
@@ -4456,7 +4473,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 
 			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT)
 			const casinoWl = sumDayWinlossTotal(dayTables);
-			// W/L Check — Gold Dragon: game winloss grouped by program date (cash in - cash out)
+			// W/L Check — Gold Dragon: buy-in minus cash-out per program date (game_list + game_information)
 			const goldWl = Number(goldWlByDate[date]) || 0;
 
 			rollingRows.push({
