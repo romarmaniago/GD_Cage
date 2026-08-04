@@ -112,6 +112,16 @@
 		return negative ? '-' + out : out;
 	}
 
+	function formatWholeAmountInput(value) {
+		var cleaned = sanitizeAmountInput(value);
+		if (!cleaned || cleaned === '-') return cleaned;
+		var negative = cleaned.charAt(0) === '-';
+		if (negative) cleaned = cleaned.slice(1);
+		var integerPart = cleaned.split('.')[0] || '0';
+		var formattedInteger = Number(integerPart || 0).toLocaleString('en-US');
+		return negative ? '-' + formattedInteger : formattedInteger;
+	}
+
 	function parseAmountInput(value) {
 		var clean = String(value || '').replace(/,/g, '').trim();
 		if (clean === '' || Number.isNaN(Number(clean))) return 0;
@@ -121,7 +131,7 @@
 	function displayAmountInput(value) {
 		if (value === null || value === undefined || value === '') return '';
 		if (parseAmountInput(value) === 0) return '';
-		return formatAmountInput(value);
+		return formatWholeAmountInput(value);
 	}
 
 	function calcManualWinLoss(buyIn, cashOut) {
@@ -808,7 +818,9 @@
 		$(document).on('change', '#gi-manual-commission-type', setDefaultGameRatePct);
 		$(document).on('input', '.gi-manual-amount, #gi-manual-commission-pct', function () {
 			if (this.id === 'gi-manual-win-loss' || this.id === 'gi-manual-settlement' || this.id === 'gi-manual-commission') return;
-			var formatted = formatAmountInput($(this).val());
+			var formatted = this.id === 'gi-manual-commission-pct'
+				? formatAmountInput($(this).val())
+				: formatWholeAmountInput($(this).val());
 			$(this).val(formatted);
 			if (this.id === 'gi-manual-buy-in' || this.id === 'gi-manual-cash-out') {
 				updateManualWinLoss();
