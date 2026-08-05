@@ -1806,7 +1806,7 @@
 
     const config = {
       mode: 'range',
-      showMonths: 2,
+      showMonths: 3,
       onChange: function (selectedDates) {
         if (selectedDates.length !== 2) return;
         const start = selectedDates[0];
