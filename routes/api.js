@@ -9,6 +9,14 @@ const pool = require('../config/db');
 const { computeCashBalance } = require('../utils/dashboardQueries');
 const argon2 = require('argon2');
 const { formatDateTimeDisplay } = require('../utils/formatDateTime');
+const {
+  computeNetProfitTotals,
+  computeNetProfitRows,
+  aggregateRowsByMonth,
+  computeGameMetrics,
+  fetchRecordsForGames,
+} = require('../utils/netProfitCalc');
+const { computeDashboardPeriodSummary } = require('../utils/dashboardPeriodSummary');
 
 // --- Helper: compute total rolling per game using same formula as game list ---
 // Formula: total_rolling_nn + total_roller_return_cc + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -321,6 +329,281 @@ router.get('/realtime', async (req, res) => {
   } catch (err) {
     console.error('Error in GET /api/realtime:', err);
     res.status(500).json({ success: false, error: 'Error fetching realtime data' });
+  }
+});
+
+// ========== DASHBOARD SUMMARY (single combined endpoint for the Flutter home screen) ==========
+
+async function sumScalarValue(sql, column, params) {
+  const [rows] = await pool.execute(sql, params || []);
+  const v = rows && rows[0] ? rows[0][column] : null;
+  return Number(v) || 0;
+}
+
+/**
+ * GET /api/dashboard-summary
+ * Single combined snapshot for the Flutter home screen: current-month-to-date Win/Loss, NGR,
+ * Commission (total/game/additional), expenses, and rolling (cage vs casino).
+ *
+ * Win/Loss, Game Commission, Expenses, and NGR come from `computeNetProfitTotals` in
+ * utils/netProfitCalc.js — the SAME calculation used by the web Net Profit page
+ * (routes/net_profit.js), for [1st of current month .. today]. This is intentionally the one
+ * shared source: any future fix or formula change to net-profit logic there is picked up here
+ * automatically, no separate edit needed. NGR here = that page's "Net Profit" (grand_net_profit)
+ * summed for the month so far — matches the Monthly tab's current-month row on /net_profit.
+ *
+ * Cage Rolling / Casino Rolling use the same month-to-date range and the same formulas as
+ * /api/monthly-accumulated's monthly_accumulated_rolling_games / monthly_accumulated_rolling_casino,
+ * and Additional Commission is now date-filtered the same way too — so all 8 fields on this
+ * endpoint share one consistent [1st of month .. today (UTC)] window.
+ */
+router.get('/dashboard-summary', async (req, res) => {
+  try {
+    // UTC "today", same convention as /api/monthly-accumulated, so both endpoints' month-to-date
+    // windows agree (rather than netProfitCalc's serverTodayStr(), which is server-local-time and
+    // only used internally by the Net Profit page's own "today" merge logic).
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const monthStartStr = `${todayStr.slice(0, 8)}01`;
+
+    const [totals, additionalCommission, rollRecs, chipsCashoutRow] = await Promise.all([
+      computeNetProfitTotals(monthStartStr, todayStr),
+      sumScalarValue(
+        `SELECT COALESCE(SUM(AMOUNT), 0) AS v FROM additional_commission
+         WHERE ACTIVE = 1 AND DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)) BETWEEN ? AND ?`,
+        'v',
+        [monthStartStr, todayStr]
+      ),
+      pool.execute(
+        `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
+         COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
+         FROM game_record WHERE ACTIVE != 0 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
+        [monthStartStr, todayStr]
+      ).then(([rows]) => rows),
+      pool.execute(
+        `SELECT COALESCE(SUM(TOTAL_CHIPS), 0) AS v FROM junket_total_chips
+         WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
+        [monthStartStr, todayStr]
+      ).then(([rows]) => rows).catch(() => [{ v: 0 }]),
+    ]);
+
+    const { totalRollingSum: cageRolling } = computeRollingGameListStyle(rollRecs);
+    const casinoRolling = Number(chipsCashoutRow[0]?.v) || 0;
+    const totalCommission = Math.round(totals.commission + additionalCommission);
+
+    res.json({
+      success: true,
+      date: todayStr,
+      date_from: monthStartStr,
+      date_to: todayStr,
+      win_loss: totals.win_loss,
+      ngr: totals.grand_net_profit,
+      total_commission: totalCommission,
+      game_commission: totals.commission,
+      additional_commission: Math.round(additionalCommission),
+      expenses: totals.house_expenses_settled,
+      cage_rolling: cageRolling,
+      casino_rolling: casinoRolling,
+    });
+  } catch (err) {
+    console.error('Error in GET /api/dashboard-summary:', err);
+    res.status(500).json({ success: false, error: 'Error fetching dashboard summary' });
+  }
+});
+
+/**
+ * GET /api/dashboard-statement
+ * Company / Liabilities / Settlement / Add Charge / Tip / Deposit-of-Guests statement for the
+ * Flutter "Weekly" screen — same shape as the web dashboard's "Main" cage-balance card.
+ *
+ * This calls `computeDashboardPeriodSummary` from utils/dashboardPeriodSummary.js — the SAME
+ * function already used by the web dashboard's own GET /dashboard_period_summary route
+ * (routes/dashboard.js). One shared calculation, so any future fix there is picked up here too.
+ *
+ * Query: date_from, date_to (YYYY-MM-DD, optional) — defaults to the month-end cutoff range,
+ * same default as the web route.
+ */
+router.get('/dashboard-statement', async (req, res) => {
+  try {
+    const dateFrom = req.query.date_from;
+    const dateTo = req.query.date_to;
+    const summary = await computeDashboardPeriodSummary(pool, dateFrom, dateTo);
+
+    res.json({
+      success: true,
+      date_from: summary.date_from,
+      date_to: summary.date_to,
+      company: summary.company_capital_balance,
+      credit: summary.cage.credit,
+      expenses: summary.expense,
+      loss_amount: summary.junket_loss,
+      commission: summary.commission_settlement,
+      additional_commission: summary.additional_commission,
+      service_categories: summary.service_categories.map((cat) => ({
+        key: cat.key,
+        label: cat.label,
+        balance: cat.balance,
+      })),
+      tip_balance: summary.cage.tip_balance,
+      guest_line: summary.cage.guest_balance,
+    });
+  } catch (err) {
+    console.error('Error in GET /api/dashboard-statement:', err);
+    res.status(500).json({ success: false, error: 'Error fetching dashboard statement' });
+  }
+});
+
+// ========== MONTHLY GAMES (On-Going / Settled) ==========
+
+/** Per-day settled-games totals — same computeGameMetrics formula as game_list.js / utils/netProfitCalc.js. */
+async function computeSettledDayTotals(dateStr) {
+  const [games] = await pool.execute(
+    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE
+     FROM game_list gl
+     WHERE gl.ACTIVE IN (1, 2) AND gl.SETTLED = 1 AND DATE(gl.PROGRAM_DATE) = ?`,
+    [dateStr]
+  );
+
+  const gameIds = games.map((g) => g.game_id);
+  const recordsByGame = await fetchRecordsForGames(gameIds);
+
+  let buyIn = 0;
+  let cashOut = 0;
+  let winLoss = 0;
+  let commission = 0;
+
+  for (const g of games) {
+    const recs = recordsByGame.get(g.game_id) || [];
+    for (const rec of recs) {
+      const ct = Number(rec.CAGE_TYPE);
+      const nn = Number(rec.NN_CHIPS) || 0;
+      const cc = Number(rec.CC_CHIPS) || 0;
+      if (ct === 1) buyIn += nn + cc;
+      if (ct === 2) cashOut += nn + cc;
+    }
+    const m = computeGameMetrics(recs, g);
+    winLoss += m.winLoss;
+    commission += m.commission;
+  }
+
+  return {
+    date: dateStr,
+    game_count: games.length,
+    buy_in: Math.round(buyIn),
+    cash_out: Math.round(cashOut),
+    commission: Math.round(commission),
+    win_loss: Math.round(winLoss),
+  };
+}
+
+/**
+ * GET /api/monthly-games
+ * On-Going Game (per-guest, currently active/unsettled games) + Settled Game totals for today
+ * and the previous day, for the Flutter "Monthly" screen.
+ *
+ * On-Going uses the SAME "ongoing games" filter as GET /api/realtime (gl.ACTIVE NOT IN (0, 1)),
+ * with per-game Commission/Win-Loss computed via `computeGameMetrics` from utils/netProfitCalc.js
+ * — the same shared formula used everywhere else (game_list.js / Net Profit page), so this
+ * doesn't introduce a second, drifting commission calculation.
+ */
+router.get('/monthly-games', async (req, res) => {
+  try {
+    const [onGameList] = await pool.execute(
+      `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE,
+              ag.AGENT_CODE, ag.NAME AS agent_name,
+              SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0) ELSE 0 END) AS buyin,
+              SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0) ELSE 0 END) AS cashout
+       FROM game_list gl
+       JOIN account a ON gl.ACCOUNT_ID = a.IDNo
+       JOIN agent ag ON a.AGENT_ID = ag.IDNo
+       LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE != 0
+       WHERE gl.ACTIVE NOT IN (0, 1)
+       GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, ag.AGENT_CODE, ag.NAME
+       ORDER BY gl.IDNo ASC`
+    );
+
+    const gameIds = onGameList.map((g) => g.game_id);
+    const recordsByGame = await fetchRecordsForGames(gameIds);
+
+    const ongoing = onGameList.map((g) => {
+      const recs = recordsByGame.get(g.game_id) || [];
+      const m = computeGameMetrics(recs, g);
+      const agentName = (g.agent_name || '').toString().trim();
+      const agentCode = (g.AGENT_CODE || '').toString().trim();
+      const account = agentName && agentCode ? `${agentName} (${agentCode})` : (agentCode || agentName);
+      return {
+        game_id: g.game_id,
+        account,
+        buy_in: Math.round(Number(g.buyin) || 0),
+        cash_out: Math.round(Number(g.cashout) || 0),
+        commission: Math.round(m.commission),
+        win_loss: Math.round(m.winLoss),
+      };
+    });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const prevDate = new Date(`${todayStr}T00:00:00.000Z`);
+    prevDate.setUTCDate(prevDate.getUTCDate() - 1);
+    const previousStr = prevDate.toISOString().slice(0, 10);
+
+    const [settledToday, settledPrevious] = await Promise.all([
+      computeSettledDayTotals(todayStr),
+      computeSettledDayTotals(previousStr),
+    ]);
+
+    res.json({
+      success: true,
+      ongoing,
+      settled_today: settledToday,
+      settled_previous: settledPrevious,
+    });
+  } catch (err) {
+    console.error('Error in GET /api/monthly-games:', err);
+    res.status(500).json({ success: false, error: 'Error fetching monthly games' });
+  }
+});
+
+/**
+ * GET /api/monthly-statistics
+ * Per-month Win/Loss, Share, Commission, Expenses, NGR for a year — for the Flutter home
+ * screen's "statistics" popup.
+ *
+ * Reuses `computeNetProfitRows` + `aggregateRowsByMonth` from utils/netProfitCalc.js — the SAME
+ * per-day/per-month rollup used by the web Net Profit page's Monthly tab (routes/net_profit.js).
+ * One shared calculation; any future fix there is picked up here too.
+ *
+ * Query: year (optional, defaults to current year). Range is Jan 1 of that year through today
+ * (or Dec 31 for past years).
+ */
+router.get('/monthly-statistics', async (req, res) => {
+  try {
+    const now = new Date();
+    const year = parseInt(req.query.year, 10) || now.getFullYear();
+    const todayStr = now.toISOString().slice(0, 10);
+    const startStr = `${year}-01-01`;
+    const endStr = year === now.getFullYear() ? todayStr : `${year}-12-31`;
+
+    const rowsAsc = await computeNetProfitRows(startStr, endStr);
+    // Newest month first — same as the web Net Profit page (routes/net_profit.js reverses
+    // displayRowsAsc before responding).
+    const months = aggregateRowsByMonth(rowsAsc).reverse();
+
+    res.json({
+      success: true,
+      year,
+      months: months.map((m) => ({
+        month_key: m.month_key,
+        program_label: m.program_label,
+        win_loss: m.win_loss,
+        share_percentage: m.share_percentage,
+        share: m.casino_share,
+        commission: m.commission,
+        expenses: m.house_expenses_settled,
+        ngr: m.grand_net_profit,
+      })),
+    });
+  } catch (err) {
+    console.error('Error in GET /api/monthly-statistics:', err);
+    res.status(500).json({ success: false, error: 'Error fetching monthly statistics' });
   }
 });
 
