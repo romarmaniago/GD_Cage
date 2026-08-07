@@ -61,6 +61,62 @@
 		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
 	}
 
+	function isSharedGame(row) {
+		return parseInt(row.COMMISSION_TYPE, 10) === 2;
+	}
+
+	var GI_DEBUG_SHARED = true;
+
+	function giDebugLog(label, payload) {
+		if (!GI_DEBUG_SHARED) return;
+		console.log('[GI shared]', label, payload);
+	}
+
+	function giSharedSignedCommission(net, winLoss) {
+		var n = parseFloat(net) || 0;
+		var wl = parseFloat(winLoss) || 0;
+		var signed = n;
+		if (!n || !wl) {
+			giDebugLog('signedCommission (no align)', { net: n, winLoss: wl, signed: n });
+			return n;
+		}
+		if (wl < 0 && n > 0) signed = -n;
+		else if (wl > 0 && n < 0) signed = -n;
+		giDebugLog('signedCommission', { net: n, winLoss: wl, signed: signed });
+		return signed;
+	}
+
+	/** Shared games: company view — commission and settle only, as positive amounts. */
+	function giSharedPositiveAmount(value, row) {
+		if (!isSharedGame(row)) return parseFloat(value) || 0;
+		var positive = Math.abs(giSharedSignedCommission(value, row.WIN_LOSS));
+		giDebugLog('displayCommission', {
+			gameNo: row.GAME_NO,
+			rawCommission: parseFloat(value) || 0,
+			winLoss: parseFloat(row.WIN_LOSS) || 0,
+			displayCommission: positive
+		});
+		return positive;
+	}
+
+	function giSharedSettleAmount(net, addChg, winLoss) {
+		var signedNet = giSharedSignedCommission(net, winLoss);
+		var displayCommission = Math.abs(signedNet);
+		var charge = Math.abs(parseFloat(addChg) || 0);
+		var displaySettle = displayCommission - charge;
+		giDebugLog('settle', {
+			rawCommission: parseFloat(net) || 0,
+			winLoss: parseFloat(winLoss) || 0,
+			signedCommission: signedNet,
+			displayCommission: displayCommission,
+			addCharge: parseFloat(addChg) || 0,
+			chargeMagnitude: charge,
+			formula: displayCommission + ' - ' + charge + ' = ' + displaySettle,
+			displaySettle: displaySettle
+		});
+		return displaySettle;
+	}
+
 	var dataTable = null;
 	var reloadGeneration = 0;
 	var selectedProgramDate = null;
@@ -162,12 +218,30 @@
 		updateManualSettlement();
 	}
 
-	function calcManualSettlement(commission, addCharge) {
-		return parseAmountInput(commission) - parseAmountInput(addCharge);
+	function calcManualSettlement(commission, addCharge, commissionType, winLoss) {
+		var net = parseAmountInput(commission);
+		var charge = parseAmountInput(addCharge);
+		if (parseInt(commissionType, 10) === 2) {
+			net = giSharedSignedCommission(net, winLoss);
+		}
+		return net - charge;
 	}
 
 	function updateManualSettlement() {
-		var settlement = calcManualSettlement($('#gi-manual-commission').val(), $('#gi-manual-add-charge').val());
+		var commissionType = $('#gi-manual-commission-type').val();
+		var winLoss = calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val());
+		var settlement;
+		if (parseInt(commissionType, 10) === 2) {
+			var signedNet = giSharedSignedCommission(parseAmountInput($('#gi-manual-commission').val()), winLoss);
+			settlement = Math.abs(signedNet) - Math.abs(parseAmountInput($('#gi-manual-add-charge').val()));
+		} else {
+			settlement = calcManualSettlement(
+				$('#gi-manual-commission').val(),
+				$('#gi-manual-add-charge').val(),
+				commissionType,
+				winLoss
+			);
+		}
 		$('#gi-manual-settlement').val(displayAmountInput(settlement));
 	}
 
@@ -177,6 +251,21 @@
 		var net = parseFloat(row.COMMISSION) || 0;
 		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
 		var rollingNegative = (parseFloat(row.ROLLING) || 0) < 0;
+		var sharedGame = isSharedGame(row);
+		var displayCommission = sharedGame ? giSharedPositiveAmount(net, row) : net;
+		var displaySettle = sharedGame ? giSharedSettleAmount(net, addChg, row.WIN_LOSS) : settle;
+		if (sharedGame) {
+			giDebugLog('row', {
+				gameNo: row.GAME_NO,
+				manualId: row.manual_id,
+				winLoss: parseFloat(row.WIN_LOSS) || 0,
+				rawCommission: net,
+				addCharge: addChg,
+				storedSettlement: settle,
+				displayCommission: displayCommission,
+				displaySettle: displaySettle
+			});
+		}
 		var gameType =
 			String(row.GAME_TYPE || '').toUpperCase() === 'TELEBET'
 				? t('telebet', 'TELEBET')
@@ -186,9 +275,9 @@
 		grand.cashout += parseFloat(row.CASH_OUT) || 0;
 		grand.winloss += parseFloat(row.WIN_LOSS) || 0;
 		grand.rolling += parseFloat(row.ROLLING) || 0;
-		grand.commission += net;
+		grand.commission += sharedGame ? displayCommission : net;
 		grand.addChg += addChg;
-		grand.settle += settle;
+		grand.settle += displaySettle;
 
 		var cells = [
 			ymd(row.PROGRAM_DATE) || '—',
@@ -202,9 +291,9 @@
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
 			commissionBadge(row),
-			rollingNegative ? fmtAmt(net) : fmtAmt(net, 'out'),
+			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(net) : fmtAmt(net, 'out')),
 			fmtAmt(addChg, 'out'),
-			fmtAmt(settle, 'out'),
+			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
 			formatManualGameEnd(row)
 		];
 		var actionCell = buildManualActionCell(row.manual_id);
@@ -695,6 +784,9 @@
 			$('#gi-manual-commission-pct').val()
 		);
 		var addCharge = parseAmountInput($('#gi-manual-add-charge').val());
+		var signedCommission = parseInt($('#gi-manual-commission-type').val(), 10) === 2
+			? giSharedSignedCommission(commission, winLoss)
+			: commission;
 		return {
 			programDate: getManualPickerValue('gi-manual-program-date'),
 			gameStart: getManualPickerValue('gi-manual-game-start'),
@@ -708,9 +800,9 @@
 			rolling: parseAmountInput($('#gi-manual-rolling').val()),
 			commissionType: $('#gi-manual-commission-type').val(),
 			commissionPercentage: parseAmountInput($('#gi-manual-commission-pct').val()),
-			commission: commission,
+			commission: signedCommission,
 			addCharge: addCharge,
-			totalSettlement: commission - addCharge,
+			totalSettlement: signedCommission - addCharge,
 			gameEnded: getManualPickerValue('gi-manual-game-end')
 		};
 	}
