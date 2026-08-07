@@ -3982,7 +3982,7 @@ function computeReceiptCommission(game, winLoss, rolling) {
 	const commissionType = parseInt(game.COMMISSION_TYPE, 10);
 	const rate = parseFloat(game.COMMISSION_PERCENTAGE) || 0;
 	if (commissionType === 1 || commissionType === 3) {
-		return Math.round((rolling * rate) / 100);
+		return Math.round((Math.abs(rolling) * rate) / 100);
 	}
 	if (commissionType === 2) {
 		return Math.round((winLoss * rate) / 100);

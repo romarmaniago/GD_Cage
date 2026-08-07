@@ -147,7 +147,7 @@
 	function calcManualCommission(commissionType, rolling, winLoss, percentage) {
 		var type = parseInt(commissionType, 10) || 1;
 		var pct = parseAmountInput(percentage);
-		var base = type === 1 ? parseAmountInput(rolling) : parseAmountInput(winLoss);
+		var base = type === 1 ? Math.abs(parseAmountInput(rolling)) : parseAmountInput(winLoss);
 		return Math.round((base * pct) / 100);
 	}
 
@@ -176,6 +176,7 @@
 		var addChg = parseFloat(row.ADD_CHARGE) || 0;
 		var net = parseFloat(row.COMMISSION) || 0;
 		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
+		var rollingNegative = (parseFloat(row.ROLLING) || 0) < 0;
 		var gameType =
 			String(row.GAME_TYPE || '').toUpperCase() === 'TELEBET'
 				? t('telebet', 'TELEBET')
@@ -201,7 +202,7 @@
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
 			commissionBadge(row),
-			fmtAmt(net, 'out'),
+			rollingNegative ? fmtAmt(net) : fmtAmt(net, 'out'),
 			fmtAmt(addChg, 'out'),
 			fmtAmt(settle, 'out'),
 			formatManualGameEnd(row)
