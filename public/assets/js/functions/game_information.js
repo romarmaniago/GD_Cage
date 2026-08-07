@@ -291,7 +291,7 @@
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
 			commissionBadge(row),
-			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(net) : fmtAmt(net, 'out')),
+			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(Math.abs(net)) : fmtAmt(net, 'out')),
 			fmtAmt(addChg, 'out'),
 			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
 			formatManualGameEnd(row)
