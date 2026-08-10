@@ -731,9 +731,24 @@ function buildHouseExpenseActionButtons(row, amount) {
         : '';
 
     if (approvalStatus === 2) {
+        var rejectedPillClass =
+            'house-expense-status-pill house-expense-status-pill--rejected' +
+            (permissions === 0 ? ' house-expense-status-pill--rejected-clickable' : '');
+        var rejectedPillAttrs =
+            permissions === 0
+                ? ' role="button" tabindex="0" onclick="revertRejectedHouseExpense(' +
+                  row.expense_id +
+                  ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+                  houseExpenseHtmlEscape(t.revert_reject || 'Revert rejection') +
+                  '"'
+                : '';
         return (
             '<div class="house-expense-actions house-expense-approval-actions">' +
-            '<span class="house-expense-status-pill house-expense-status-pill--rejected">' +
+            '<span class="' +
+            rejectedPillClass +
+            '"' +
+            rejectedPillAttrs +
+            '>' +
             '<i class="fa fa-ban" aria-hidden="true"></i>' +
             houseExpenseHtmlEscape(t.rejected || 'Rejected') +
             '</span></div>'
@@ -3235,8 +3250,38 @@ function rejectHouseExpense(id) {
     });
 }
 
+function revertRejectedHouseExpense(id) {
+    var permissions = parseInt($('#user-role').data('permissions'), 10);
+    if (permissions !== 0) return;
+
+    var t = window.houseExpenseTranslations || {};
+    if (typeof Swal === 'undefined') return;
+    SwalConfirm.fire({
+        title: t.revert_reject || 'Revert rejection',
+        message: t.revert_reject_confirm || 'Revert this expense back to pending?',
+        confirmButtonText: t.yes || 'Yes',
+        confirmButtonColor: '#198754'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/junket_house_expense/revert-reject/' + id,
+            method: 'PUT',
+            success: function () {
+                houseExpenseFinishSaveSuccess({
+                    title: t.updated_successfully || 'Updated successfully'
+                });
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to revert rejection';
+                Swal.fire({ icon: 'error', title: t.error || 'Error', text: msg });
+            }
+        });
+    });
+}
+
 window.approveHouseExpense = approveHouseExpense;
 window.rejectHouseExpense = rejectHouseExpense;
+window.revertRejectedHouseExpense = revertRejectedHouseExpense;
 
 function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic, receiver, kmL, vehicleId) {
     $('#modal-edit-house-expense').modal('show');

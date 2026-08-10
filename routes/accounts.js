@@ -6,7 +6,7 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
-const { insertCreditRecord } = require('../utils/creditService');
+const { insertCreditRecord, updateCreditFieldsByLedgerId, softDeleteCreditByLedgerId } = require('../utils/creditService');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -18,6 +18,136 @@ const sharp = require('sharp');
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+const GUEST_PORTAL_MANUAL_LEDGER_SQL = `
+	GAME_ID IS NULL
+	AND (
+		(
+			COALESCE(TRANSFER, 0) = 0
+			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'ACCOUNT DETAILS'
+			AND (
+				(TRANSACTION_TYPE = 2 AND TRANSACTION_ID IN (1, 2))
+				OR (TRANSACTION_TYPE = 3 AND TRANSACTION_ID = 3)
+			)
+		)
+		OR (
+			TRANSFER = 1
+			AND TRANSACTION_TYPE = 2
+			AND TRANSACTION_ID IN (1, 2)
+			AND (TRANSACTION_DESC IS NULL OR TRIM(TRANSACTION_DESC) = '')
+		)
+		OR (
+			TRANSACTION_TYPE = 3
+			AND TRANSACTION_ID IN (11, 12)
+			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'RETURN_SOURCE:CREDIT'
+		)
+	)
+`;
+
+function isGuestPortalJunketCreditReturnLedger(ledger) {
+	if (!ledger) return false;
+	const transType = parseInt(ledger.TRANSACTION_TYPE, 10);
+	const transId = parseInt(ledger.TRANSACTION_ID, 10);
+	const desc = String(ledger.TRANSACTION_DESC || '').trim().toUpperCase();
+	return transType === 3
+		&& (transId === 11 || transId === 12)
+		&& desc === 'RETURN_SOURCE:CREDIT'
+		&& (ledger.GAME_ID == null || String(ledger.GAME_ID).trim() === '');
+}
+
+function isGuestPortalCreditIssuanceLedger(ledger) {
+	if (!ledger) return false;
+	const transId = parseInt(ledger.TRANSACTION_ID, 10);
+	const desc = String(ledger.TRANSACTION_DESC || '').trim().toUpperCase();
+	return transId === 3
+		&& desc === 'ACCOUNT DETAILS'
+		&& (ledger.GAME_ID == null || String(ledger.GAME_ID).trim() === '');
+}
+
+function ledgerHasLinkedCreditTransaction(ledger) {
+	return isGuestPortalCreditIssuanceLedger(ledger) || isGuestPortalJunketCreditReturnLedger(ledger);
+}
+
+async function findTransferPairLedger(connection, ledger) {
+	if (parseInt(ledger.TRANSFER, 10) !== 1) return null;
+
+	const accountId = parseInt(ledger.ACCOUNT_ID, 10);
+	const transferAgent = parseInt(ledger.TRANSFER_AGENT, 10);
+	const transId = parseInt(ledger.TRANSACTION_ID, 10);
+	if (!accountId || !transferAgent || (transId !== 1 && transId !== 2)) return null;
+
+	const pairTransId = transId === 2 ? 1 : 2;
+	const [rows] = await connection.execute(
+		`SELECT * FROM account_ledger
+		 WHERE ACTIVE = 1
+		   AND TRANSFER = 1
+		   AND TRANSACTION_TYPE = 2
+		   AND ACCOUNT_ID = ?
+		   AND TRANSFER_AGENT = ?
+		   AND TRANSACTION_ID = ?
+		   AND AMOUNT = ?
+		   AND ENCODED_DT = ?
+		 LIMIT 1`,
+		[transferAgent, accountId, pairTransId, ledger.AMOUNT, ledger.ENCODED_DT]
+	);
+	if (rows[0]) return rows[0];
+
+	const [fallbackRows] = await connection.execute(
+		`SELECT * FROM account_ledger
+		 WHERE ACTIVE = 1
+		   AND TRANSFER = 1
+		   AND TRANSACTION_TYPE = 2
+		   AND ACCOUNT_ID = ?
+		   AND TRANSFER_AGENT = ?
+		   AND TRANSACTION_ID = ?
+		   AND AMOUNT = ?
+		 ORDER BY ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) ASC, IDNo DESC
+		 LIMIT 1`,
+		[transferAgent, accountId, pairTransId, ledger.AMOUNT, ledger.ENCODED_DT]
+	);
+	return fallbackRows[0] || null;
+}
+
+async function updateGuestPortalLedgerRow(connection, ledgerId, amount, remarks, userId, editedDt) {
+	await connection.execute(
+		`UPDATE account_ledger
+		 SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+		 WHERE IDNo = ? AND ACTIVE = 1`,
+		[amount, remarks || null, userId, editedDt, ledgerId]
+	);
+}
+
+async function fetchEditableGuestPortalLedger(connection, id) {
+	const [rows] = await connection.execute(
+		`SELECT * FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1 AND ${GUEST_PORTAL_MANUAL_LEDGER_SQL}`,
+		[id]
+	);
+	return rows[0] || null;
+}
+
+async function syncTransactionHistoryOnEdit(connection, ledgerId, amount, remarks) {
+	try {
+		await connection.execute(
+			`UPDATE account_transaction_history
+			 SET amount = ?, remarks = ?
+			 WHERE ledger_id = ?`,
+			[amount, remarks || null, ledgerId]
+		);
+	} catch (err) {
+		console.error('account_transaction_history update failed:', err);
+	}
+}
+
+async function syncTransactionHistoryOnDelete(connection, ledgerId) {
+	try {
+		await connection.execute(
+			`DELETE FROM account_transaction_history WHERE ledger_id = ?`,
+			[ledgerId]
+		);
+	} catch (err) {
+		console.error('account_transaction_history delete failed:', err);
+	}
+}
+
 const mapDirection = (txtTrans) => {
 	switch (String(txtTrans)) {
 		case '1':
@@ -3559,19 +3689,154 @@ router.post(
 	}
 });
 
-// DELETE ACCOUNT DETAILS
-router.put('/account_details/remove/:id', async (req, res) => {
+// DELETE ACCOUNT DETAILS (Super Admin only)
+router.put('/account_details/remove/:id', checkSession, async (req, res) => {
+	let connection;
 	try {
-		const id = parseInt(req.params.id);
-		let date_now = new Date();
+		const permissions = req.session?.permissions;
+		if (permissions !== 0 && permissions !== '0') {
+			return res.status(403).json({ success: false, message: 'Only Super Admin can delete account transactions.' });
+		}
 
-		const query = `UPDATE account_ledger SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+		const id = parseInt(req.params.id, 10);
+		if (!id) {
+			return res.status(400).json({ success: false, message: 'Invalid transaction id.' });
+		}
 
-		res.send('Details updated successfully');
+		const date_now = new Date();
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const ledger = await fetchEditableGuestPortalLedger(connection, id);
+		if (!ledger) {
+			await connection.rollback();
+			return res.status(403).json({
+				success: false,
+				message: 'Only manual Guest Portal deposit/withdraw/credit/transfer can be deleted. Edit game-related entries in Gamebook.'
+			});
+		}
+
+		const isTransfer = parseInt(ledger.TRANSFER, 10) === 1;
+		const ledgerIds = [id];
+
+		if (isTransfer) {
+			const pair = await findTransferPairLedger(connection, ledger);
+			if (!pair) {
+				await connection.rollback();
+				return res.status(404).json({ success: false, message: 'Transfer pair not found.' });
+			}
+			ledgerIds.push(pair.IDNo);
+		}
+
+		for (const ledgerId of ledgerIds) {
+			const [result] = await connection.execute(
+				`UPDATE account_ledger SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+				[0, req.session.user_id, date_now, ledgerId]
+			);
+			if (!result.affectedRows) {
+				await connection.rollback();
+				return res.status(404).json({ success: false, message: 'Transaction not found.' });
+			}
+		}
+
+		if (ledgerHasLinkedCreditTransaction(ledger)) {
+			await softDeleteCreditByLedgerId(connection, id, req.session.user_id, date_now);
+		}
+
+		for (const ledgerId of ledgerIds) {
+			await syncTransactionHistoryOnDelete(connection, ledgerId);
+		}
+		await connection.commit();
+		res.json({ success: true });
 	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) { /* ignore */ }
+		}
 		console.error('Error updating Details:', err);
-		res.status(500).send('Error updating Details');
+		res.status(500).json({ success: false, message: 'Error updating Details' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+// EDIT ACCOUNT DETAILS (Super Admin only)
+router.put('/account_details/edit/:id', checkSession, async (req, res) => {
+	let connection;
+	try {
+		const permissions = req.session?.permissions;
+		if (permissions !== 0 && permissions !== '0') {
+			return res.status(403).json({ success: false, message: 'Only Super Admin can edit account transactions.' });
+		}
+
+		const id = parseInt(req.params.id, 10);
+		if (!id) {
+			return res.status(400).json({ success: false, message: 'Invalid transaction id.' });
+		}
+
+		const cleanAmount = String(req.body?.amount || '').replace(/,/g, '');
+		const parsedAmount = parseFloat(cleanAmount);
+		if (!parsedAmount || parsedAmount <= 0) {
+			return res.status(400).json({ success: false, message: 'Invalid amount.' });
+		}
+
+		const remarks = req.body?.remarks != null ? String(req.body.remarks).trim() : '';
+		const date_now = new Date();
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const ledger = await fetchEditableGuestPortalLedger(connection, id);
+		if (!ledger) {
+			await connection.rollback();
+			return res.status(403).json({
+				success: false,
+				message: 'Only manual Guest Portal deposit/withdraw/credit/transfer can be edited. Edit game-related entries in Gamebook.'
+			});
+		}
+
+		const isTransfer = parseInt(ledger.TRANSFER, 10) === 1;
+		const usesCreditSync = ledgerHasLinkedCreditTransaction(ledger);
+
+		if (usesCreditSync) {
+			const creditUpdated = await updateCreditFieldsByLedgerId(
+				connection,
+				id,
+				{ amount: parsedAmount, remarks },
+				req.session.user_id,
+				date_now
+			);
+			if (!creditUpdated) {
+				await connection.rollback();
+				return res.status(404).json({
+					success: false,
+					message: 'Linked credit record not found for this transaction.'
+				});
+			}
+			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+		} else if (isTransfer) {
+			const pair = await findTransferPairLedger(connection, ledger);
+			if (!pair) {
+				await connection.rollback();
+				return res.status(404).json({ success: false, message: 'Transfer pair not found.' });
+			}
+			await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
+			await updateGuestPortalLedgerRow(connection, pair.IDNo, parsedAmount, remarks, req.session.user_id, date_now);
+			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+			await syncTransactionHistoryOnEdit(connection, pair.IDNo, parsedAmount, remarks);
+		} else {
+			await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
+			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+		}
+		await connection.commit();
+		res.json({ success: true });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) { /* ignore */ }
+		}
+		console.error('Error editing account ledger:', err);
+		res.status(500).json({ success: false, message: 'Error editing transaction' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

@@ -292,7 +292,7 @@
 			fmtAmt(row.ROLLING, 'signed'),
 			commissionBadge(row),
 			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(Math.abs(net)) : fmtAmt(net, 'out')),
-			fmtAmt(addChg, 'out'),
+			fmtAmt(addChg),
 			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
 			formatManualGameEnd(row)
 		];
@@ -325,7 +325,7 @@
 		$('#GI_GRAND_WINLOSS').html(fmtAmt(tots.winloss, 'signed'));
 		$('#GI_GRAND_ROLLING').html(fmtAmt(tots.rolling, 'signed'));
 		$('#GI_GRAND_COMMISSION').html(fmtAmt(tots.commission, 'out'));
-		$('#GI_GRAND_ADD_CHG').html(fmtAmt(tots.addChg, 'out'));
+		$('#GI_GRAND_ADD_CHG').html(fmtAmt(tots.addChg));
 		$('#GI_GRAND_SETTLE').html(fmtAmt(tots.settle, 'out'));
 	}
 

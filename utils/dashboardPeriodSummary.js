@@ -9,6 +9,7 @@ const {
 	SQL_ROLLER_TIP_IN_CASHIN_ONLY
 } = require('./saveCashoutTips');
 const { SQL_EXCLUDE_HOUSE_BALANCE_LEDGER_AL } = require('./junketCapitalTransfer');
+const { getCreditGrandTotalSql } = require('./creditService');
 
 function isYmd(value) {
 	return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
@@ -530,49 +531,14 @@ async function computeGuestBalanceForPeriod(pool, dateFrom, dateTo) {
 	return deposit + settlementDeposit - withdraw - deduct - servicesDeduct - markerReturnDeposit;
 }
 
-async function computeCreditForPeriod(pool, dateFrom, dateTo) {
-	return sumScalar(
-		pool,
-		`SELECT COALESCE(SUM(t.TOTAL_AMOUNT), 0) AS total
-		 FROM (
-			SELECT
-				ROUND(
-					GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0)),
-					0
-				) AS TOTAL_AMOUNT
-			FROM account
-			JOIN agent ON agent.IDNo = account.AGENT_ID
-			INNER JOIN (
-				SELECT
-					ct.ACCOUNT_ID,
-					SUM(CASE
-						WHEN ct.CREDIT_ACTION = 'Cash-out'
-							OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
-							THEN ct.AMOUNT
-						WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
-							THEN -ct.AMOUNT
-						ELSE 0
-					END) AS BALANCE_CREDIT,
-					SUM(CASE
-						WHEN ct.CREDIT_ACTION = 'Buy-in'
-							OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
-							THEN ct.AMOUNT
-						WHEN ct.DIRECTION = 'return' AND (
-							ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
-						)
-							THEN -ct.AMOUNT
-						ELSE 0
-					END) AS BALANCE_BUYIN
-				FROM credit_transaction ct
-				WHERE ct.ACTIVE = 1
-					AND COALESCE(ct.PROGRAM_DATE, DATE(ct.ENCODED_DT)) BETWEEN ? AND ?
-				GROUP BY ct.ACCOUNT_ID
-			) bal ON bal.ACCOUNT_ID = account.IDNo
-			WHERE account.ACTIVE = 1
-			  AND agent.ACTIVE = 1
-		 ) t`,
-		[dateFrom, dateTo]
-	);
+async function computeCreditGrandTotal(pool) {
+	try {
+		const [rows] = await pool.execute(getCreditGrandTotalSql());
+		return Math.round(Number(rows && rows[0] && rows[0].JUNKET_CREDIT) || 0);
+	} catch (err) {
+		console.error('dashboardPeriodSummary computeCreditGrandTotal:', err.message || err);
+		return 0;
+	}
 }
 
 async function computeTipBalanceForPeriod(pool, dateFrom, dateTo) {
@@ -623,7 +589,7 @@ async function computeCageMainForPeriod(pool, dateFrom, dateTo) {
 		computeCashForPeriod(pool, dateFrom, dateTo),
 		computeRcChipsForPeriod(pool, dateFrom, dateTo),
 		computeGuestBalanceForPeriod(pool, dateFrom, dateTo),
-		computeCreditForPeriod(pool, dateFrom, dateTo),
+		computeCreditGrandTotal(pool),
 		computeTipBalanceForPeriod(pool, dateFrom, dateTo),
 		computeManualCashForPeriod(pool, dateFrom, dateTo),
 		computeRollingForPeriod(pool, dateFrom, dateTo)

@@ -15,6 +15,7 @@ const {
 	getCreditHistorySql,
 	getCreditIssueTransactionsSql,
 	getCreditGrandTotalSql,
+	getCreditStatusBreakdownSql,
 	softDeleteCreditByLedgerId,
 	updateCreditFieldsByLedgerId
 } = require('../utils/creditService');
@@ -5147,6 +5148,16 @@ pageRouter.get('/marker_data_breakdown', async (req, res) => {
 		res.json(results);
 	} catch (error) {
 		console.error('Error fetching marker data breakdown:', error);
+		res.status(500).send('Error fetching data');
+	}
+});
+
+pageRouter.get('/marker_credit_status_breakdown', async (req, res) => {
+	try {
+		const [results] = await pool.execute(getCreditStatusBreakdownSql());
+		res.json(results);
+	} catch (error) {
+		console.error('Error fetching marker credit status breakdown:', error);
 		res.status(500).send('Error fetching data');
 	}
 });

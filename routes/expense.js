@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+
+function requireSuperAdmin(req, res, next) {
+	const p = req.session.permissions;
+	if (p !== 0 && p !== '0') {
+		if (req.xhr || String(req.headers.accept || '').includes('application/json')) {
+			return res.status(403).json({ success: false, error: 'Forbidden' });
+		}
+		return res.status(403).send('Forbidden');
+	}
+	next();
+}
 const multer = require('multer');
 const { sendTelegramToEmployees } = require('../utils/telegram');
 const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
@@ -631,6 +642,33 @@ router.put('/junket_house_expense/reject/:id', checkSession, async (req, res) =>
 	} catch (err) {
 		console.error('Error rejecting junket expense:', err);
 		res.status(500).json({ error: 'Failed to reject expense' });
+	}
+});
+
+router.put('/junket_house_expense/revert-reject/:id', checkSession, requireSuperAdmin, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const [rows] = await pool.execute(
+			'SELECT APPROVAL_STATUS FROM junket_house_expense WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!rows.length) return res.status(404).json({ error: 'Expense not found' });
+
+		const status = Number(rows[0].APPROVAL_STATUS);
+		if (status !== 2) return res.status(400).json({ error: 'Expense is not rejected' });
+
+		const date_now = new Date();
+		await pool.execute(
+			`UPDATE junket_house_expense SET APPROVAL_STATUS = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[req.session.user_id, date_now, id]
+		);
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error reverting rejected junket expense:', err);
+		res.status(500).json({ error: 'Failed to revert rejection' });
 	}
 });
 

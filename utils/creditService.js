@@ -380,6 +380,86 @@ function getCreditHistorySql() {
 	`;
 }
 
+/** Credit Status tab: outstanding balance per account + guest (matches getCreditGrandTotalSql). */
+function getCreditStatusBreakdownSql() {
+	return `
+		SELECT
+			account.IDNo AS ACCOUNT_ID,
+			agent.IDNo AS AGENT_ID,
+			agent.AGENT_CODE AS AGENT_CODE,
+			agent.NAME AS AGENT_NAME,
+			ct_bal.GUEST_ID,
+			COALESCE(NULLIF(TRIM(guest.NAME), ''), NULL) AS GUEST_NAME,
+			ROUND(
+				GREATEST(0, COALESCE(ct_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(ct_bal.BALANCE_BUYIN, 0)),
+				0
+			) AS AMOUNT
+		FROM (
+			SELECT
+				ct.ACCOUNT_ID,
+				ct.GUEST_ID,
+				SUM(CASE
+					WHEN ct.CREDIT_ACTION = 'Cash-out'
+						OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
+						THEN ct.AMOUNT
+					WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
+						THEN -ct.AMOUNT
+					ELSE 0
+				END) AS BALANCE_CREDIT,
+				SUM(CASE
+					WHEN ct.CREDIT_ACTION = 'Buy-in'
+						OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
+						THEN ct.AMOUNT
+					WHEN ct.DIRECTION = 'return' AND (
+						ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
+					)
+						THEN -ct.AMOUNT
+					ELSE 0
+				END) AS BALANCE_BUYIN
+			FROM credit_transaction ct
+			WHERE ct.ACTIVE = 1
+			GROUP BY ct.ACCOUNT_ID, ct.GUEST_ID
+		) ct_bal
+		INNER JOIN (
+			SELECT
+				ct.ACCOUNT_ID,
+				SUM(CASE
+					WHEN ct.CREDIT_ACTION = 'Cash-out'
+						OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
+						THEN ct.AMOUNT
+					WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
+						THEN -ct.AMOUNT
+					ELSE 0
+				END) AS BALANCE_CREDIT,
+				SUM(CASE
+					WHEN ct.CREDIT_ACTION = 'Buy-in'
+						OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
+						THEN ct.AMOUNT
+					WHEN ct.DIRECTION = 'return' AND (
+						ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
+					)
+						THEN -ct.AMOUNT
+					ELSE 0
+				END) AS BALANCE_BUYIN
+			FROM credit_transaction ct
+			WHERE ct.ACTIVE = 1
+			GROUP BY ct.ACCOUNT_ID
+		) acc_bal ON acc_bal.ACCOUNT_ID = ct_bal.ACCOUNT_ID
+		JOIN account ON account.IDNo = ct_bal.ACCOUNT_ID
+		JOIN agent ON agent.IDNo = account.AGENT_ID
+		LEFT JOIN guest ON guest.IDNo = ct_bal.GUEST_ID
+		WHERE account.ACTIVE = 1
+		  AND agent.ACTIVE = 1
+		  AND (
+			GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(acc_bal.BALANCE_BUYIN, 0))
+		  ) <> 0
+		  AND (
+			GREATEST(0, COALESCE(ct_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(ct_bal.BALANCE_BUYIN, 0))
+		  ) <> 0
+		ORDER BY agent.AGENT_CODE ASC, guest.NAME ASC
+	`;
+}
+
 /** Total Credit tab: issue rows only (Buy-in + Cash-out) — per transaction, not per account. */
 function getCreditIssueTransactionsSql() {
 	return `
@@ -703,6 +783,7 @@ module.exports = {
 	ensureCreditTable,
 	getCreditDataBreakdownSql,
 	getCreditGrandTotalSql,
+	getCreditStatusBreakdownSql,
 	getCreditHistorySql,
 	getCreditIssueTransactionsSql,
 	softDeleteCreditByLedgerId,

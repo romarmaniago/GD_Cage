@@ -172,7 +172,10 @@
                                             <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
-                                            <th class="d-none" aria-hidden="true"></th>
+                                            <% if (typeof permissions !== 'undefined' && (permissions === 0 || permissions === '0')) { %>
+                                            <th class="text-center account-ledger-actions-col" style="width: 80px;"><%= __('modal_account_details.action') %></th>
+                                            <% } %>
+                                            <th class="d-none account-ledger-id-col" aria-hidden="true"></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -186,6 +189,37 @@
                         <%= __('modal_account_details.close') %>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Account Ledger (Super Admin only) -->
+<div class="modal fade" id="modal-edit-account-ledger" tabindex="-1" aria-labelledby="modalEditAccountLedgerLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modalEditAccountLedgerLabel"><%= __('modal_account_details.edit_transaction') %></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-ledger-id" value="">
+                <div class="mb-3">
+                    <label class="form-label mb-1" for="edit-ledger-transaction"><%= __('modal_account_details.transaction') %></label>
+                    <input type="text" class="form-control" id="edit-ledger-transaction" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label mb-1" for="edit-ledger-amount"><%= __('modal_account_details.amount') %></label>
+                    <input type="text" class="form-control" id="edit-ledger-amount" onkeypress="return onlyNumberKey(event)" data-type="number" placeholder="<%= __('modal_account_details.amount_placeholder') %>" autocomplete="off">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label mb-1" for="edit-ledger-remarks"><%= __('modal_account_details.remarks') %></label>
+                    <input type="text" class="form-control" id="edit-ledger-remarks" maxlength="500" placeholder="<%= __('modal_account_details.remarks_placeholder') %>" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_account_details.close') %></button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-save-edit-ledger"><%= __('modal_account_details.save') %></button>
             </div>
         </div>
     </div>
@@ -430,7 +464,8 @@ body.guest-portal-child-open #modal-account-details.guest-portal-parent-hidden {
 body.guest-portal-child-open #modal-game-history.show,
 body.guest-portal-child-open #modal-credit-details.show,
 body.guest-portal-child-open #modal-passport-details.show,
-body.guest-portal-child-open #modal-change-photo.show {
+body.guest-portal-child-open #modal-change-photo.show,
+body.guest-portal-child-open #modal-edit-account-ledger.show {
     z-index: 1065 !important;
 }
 body.guest-portal-child-open #modal-credit-return.show {
@@ -621,9 +656,48 @@ body.guest-portal-child-open .modal-backdrop.show {
 #modal-account-details #accountDetails tbody td:nth-child(4) {
     text-align: left !important;
 }
-#modal-account-details #accountDetails thead th:nth-child(5),
-#modal-account-details #accountDetails tbody td:nth-child(5) {
+#modal-account-details #accountDetails thead th.account-ledger-id-col,
+#modal-account-details #accountDetails tbody td.account-ledger-id-col {
     display: none !important;
+}
+#modal-account-details #accountDetails tbody td.account-ledger-actions-col {
+    text-align: center !important;
+    white-space: nowrap;
+}
+.account-ledger-action-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+.account-ledger-action-edit-slot,
+.account-ledger-action-delete-slot {
+    width: 1.25rem;
+    flex: 0 0 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.account-ledger-action-edit-slot .btn-ledger-edit {
+    line-height: 1;
+    color: var(--bs-primary) !important;
+}
+.account-ledger-action-edit-slot .btn-ledger-edit i,
+.account-ledger-action-delete-slot .btn-ledger-delete i {
+    font-size: 0.95rem;
+}
+.account-ledger-action-edit-slot .btn-ledger-edit:hover,
+.account-ledger-action-edit-slot .btn-ledger-edit:focus {
+    color: var(--bs-primary) !important;
+    opacity: 0.85;
+}
+.account-ledger-action-delete-slot .btn-ledger-delete {
+    line-height: 1;
+}
+.account-ledger-action-delete-slot .btn-ledger-delete:hover,
+.account-ledger-action-delete-slot .btn-ledger-delete:focus {
+    color: var(--bs-danger) !important;
+    opacity: 0.85;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
     position: sticky;

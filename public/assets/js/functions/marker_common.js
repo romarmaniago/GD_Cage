@@ -15,7 +15,8 @@
         overallCash: 0,
         overallGame: 0,
         ready: false,
-        breakdown: []
+        breakdown: [],
+        creditStatusBreakdown: []
     };
 
     function cacheOverallHeaderTotals(cashCredit, gameCredit, breakdownList, totalIssue) {
@@ -117,51 +118,27 @@
         var $grand = $('#marker-status-grand-display');
         if (!$table.length) return;
 
-        var rows = [];
-        try {
-            if (window._markerTotalCreditTable && window._markerTotalCreditTable.rows) {
-                rows = window._markerTotalCreditTable.rows({ search: 'applied' }).data().toArray() || [];
-            }
-        } catch (e) {
-            rows = [];
-        }
-
         var accountId = filterAccountId != null
             ? String(filterAccountId)
             : String($('#txtAccountMarker').val() || '').trim();
-        var grouped = {};
-        var sum = 0;
+        var rows = headerCreditState.creditStatusBreakdown || [];
+        if (accountId) {
+            rows = rows.filter(function (row) {
+                return String(row.ACCOUNT_ID) === accountId;
+            });
+        }
 
-        (rows || []).forEach(function (row) {
-            if (accountId) {
-                var rowAcc = row.ACCOUNT_ID != null ? String(row.ACCOUNT_ID) : '';
-                if (rowAcc && rowAcc !== accountId) return;
-            }
+        var sum = 0;
+        var data = (rows || []).map(function (row) {
             var amount = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
             if (isNaN(amount)) amount = 0;
-            if (isMarkerCreditOutTransaction(row)) amount = Math.abs(amount);
             sum += amount;
-
-            var code = creditStatusTextOrDash(row.AGENT_CODE);
-            var agent = creditStatusTextOrDash(row.AGENT_NAME);
-            var guestRaw = row.GUEST_NAME != null ? String(row.GUEST_NAME).trim() : '';
-            // Per guest when guest exists; no guest → roll up by agent
-            var guestKey = guestRaw || '';
-            var groupKey = [code, agent, guestKey].join('\u0001');
-
-            if (!grouped[groupKey]) {
-                grouped[groupKey] = {
-                    code: code,
-                    agent: agent,
-                    guest: creditStatusTextOrDash(guestRaw),
-                    amount: 0
-                };
-            }
-            grouped[groupKey].amount += amount;
-        });
-
-        var data = Object.keys(grouped).map(function (k) {
-            return grouped[k];
+            return {
+                code: creditStatusTextOrDash(row.AGENT_CODE),
+                agent: creditStatusTextOrDash(row.AGENT_NAME),
+                guest: creditStatusTextOrDash(row.GUEST_NAME),
+                amount: amount
+            };
         });
 
         if ($grand.length) $grand.html(formatCreditStatusShortcutAmount(sum));
@@ -257,6 +234,24 @@
         return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
     }
 
+    function getOutstandingCreditTotal(accountId) {
+        if (!headerCreditState.ready) return null;
+        if (accountId) {
+            var row = (headerCreditState.breakdown || []).filter(function (a) {
+                return String(a.ACCOUNT_ID) === String(accountId);
+            })[0];
+            if (!row) return 0;
+            if (row.TOTAL_AMOUNT != null) return Number(row.TOTAL_AMOUNT) || 0;
+            var cash = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
+            var game = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+            return cash + game;
+        }
+        if (headerCreditState.overallTotalIssue != null) {
+            return Number(headerCreditState.overallTotalIssue) || 0;
+        }
+        return null;
+    }
+
     function updateTotalCreditTableFooter(api) {
         if (!api || !api.table) return;
         var $footer = $(api.table().footer());
@@ -272,7 +267,10 @@
         }
         $footer.show();
         $footer.find('th').first().text(totalLabel);
-        $footer.find('th.marker-total-col-amount').html(formatTotalCreditTabSumHtml(sumTotalCreditTabAmount(rows)));
+        var accountId = String($('#txtAccountMarker').val() || '').trim() || null;
+        var outstanding = getOutstandingCreditTotal(accountId);
+        var footerTotal = outstanding != null ? outstanding : sumTotalCreditTabAmount(rows);
+        $footer.find('th.marker-total-col-amount').html(formatTotalCreditTabSumHtml(footerTotal));
     }
 
     var MARKER_HISTORY_DATE_PARSE_FORMATS = [
@@ -2836,7 +2834,7 @@
         };
         if (totalCreditTable && typeof totalCreditTable.on === 'function') {
             totalCreditTable.on('draw.dt', function () {
-                renderCreditStatusBreakdownShortcut($('#txtAccountMarker').val() || null);
+                updateTotalCreditTableFooter(totalCreditTable);
             });
         }
 
@@ -2892,11 +2890,12 @@
             var $buyinTbody = $buyinTbl.find('tbody');
             $creditTbody.empty();
             $buyinTbody.empty();
-            $.ajax({
-                url: '/marker_data_breakdown',
-                method: 'GET',
-                success: function (data) {
-                    var list = Array.isArray(data) ? data : [];
+            $.when(
+                $.ajax({ url: '/marker_data_breakdown', method: 'GET' }),
+                $.ajax({ url: '/marker_credit_status_breakdown', method: 'GET' })
+            ).done(function (breakdownResp, statusResp) {
+                var list = Array.isArray(breakdownResp[0]) ? breakdownResp[0] : [];
+                headerCreditState.creditStatusBreakdown = Array.isArray(statusResp[0]) ? statusResp[0] : [];
                     var creditRows = [];
                     var buyinRows = [];
                     var totalCredit = 0;
@@ -2940,9 +2939,12 @@
                     cacheOverallHeaderTotals(totalCredit, totalBuyin, list, grandTotal);
                     applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
                     updateDashboardUtangTotal(grandTotal);
+                    if (totalCreditTable) {
+                        try { updateTotalCreditTableFooter(totalCreditTable); } catch (e) { /* noop */ }
+                    }
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
-                },
-                error: function () {
+                }).fail(function () {
+                    headerCreditState.creditStatusBreakdown = [];
                     $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $('#txtTotalJunketCredit').val('0');
@@ -2950,9 +2952,11 @@
                     cacheOverallHeaderTotals(0, 0, [], 0);
                     applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
                     updateDashboardUtangTotal(0);
+                    if (totalCreditTable) {
+                        try { updateTotalCreditTableFooter(totalCreditTable); } catch (e) { /* noop */ }
+                    }
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
-                }
-            });
+                });
         }
 
         function initBalanceDataTables() {

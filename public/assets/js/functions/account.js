@@ -1059,7 +1059,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	});
 });
 
-var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo';
+var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo, #modal-edit-account-ledger';
 
 $(guestPortalChildModalSelectors).on('shown.bs.modal', function () {
 	if ($('body').hasClass('guest-portal-child-open')) {
@@ -1090,6 +1090,8 @@ $('#modal-account-details').on('hidden.bs.modal', function () {
 	resetGuestPortalChildModalStack($('#modal-game-history'));
 	resetGuestPortalChildModalStack($('#modal-credit-details'));
 	resetGuestPortalChildModalStack($('#modal-passport-details'));
+	resetGuestPortalChildModalStack($('#modal-change-photo'));
+	resetGuestPortalChildModalStack($('#modal-edit-account-ledger'));
 });
 
 $(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return', function () {
@@ -1483,6 +1485,22 @@ function isJunketFundsTransferDesc(transactionDesc) {
 	return normalized === 'JUNKET FUNDS' || normalized === 'Transffered from Junket Funds';
 }
 
+function isPlainGuestPortalLedgerDesc(transactionDesc) {
+	return String(transactionDesc || '').trim().toUpperCase() === 'SERVICES';
+}
+
+function isGuestPortalCreditCashEntry(transaction, transactionDesc) {
+	const trans = String(transaction || '').trim().toUpperCase();
+	const desc = String(transactionDesc || '').trim().toUpperCase();
+	return desc === 'ACCOUNT DETAILS' && (trans === 'CREDIT CASH' || trans === 'IOU CASH' || trans === 'CREDIT');
+}
+
+function isJunketCreditReturnEntry(transaction, transactionDesc) {
+	const trans = String(transaction || '').trim();
+	const desc = String(transactionDesc || '').trim();
+	return trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:CREDIT';
+}
+
 function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 	const trans = String(transaction || '').trim();
 	const desc = String(transactionDesc || '').trim();
@@ -1490,28 +1508,107 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 	if (isJunketFundsTransferDesc(desc)) {
 		return 'Transffered from Junket Funds';
 	}
-	if (trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:CREDIT') {
+	if (isJunketCreditReturnEntry(trans, desc)) {
 		return 'JUNKET CREDIT RETURN THRU DEPOSIT';
 	}
 	if (trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:BUYIN') {
 		return 'GAME CREDIT RETURN THRU DEPOSIT';
 	}
+	if (isPlainGuestPortalLedgerDesc(desc)) {
+		return `${trans} - ${desc}`;
+	}
 	return desc ? `${trans} - <strong>${desc}</strong>` : trans;
 }
 
-	function formatAccountLedgerAmount(amount, transaction) {
+	function formatAccountLedgerAmount(amount, transaction, transactionDesc) {
 		const n = parseFloat(String(amount).replace(/,/g, '')) || 0;
-		const isOut = transaction === 'WITHDRAW' || transaction === 'MARKER REDEEM' || transaction === 'IOU RETURN DEPOSIT';
-		if (window.AmountFormat) {
-			if (isOut) return '₱' + window.AmountFormat.formatAmountNegativeHtml(n);
-			return '₱' + window.AmountFormat.formatCommas(n);
+		if (isGuestPortalCreditCashEntry(transaction, transactionDesc)) {
+			if (window.AmountFormat) {
+				return window.AmountFormat.formatAmountNegativeHtml(n);
+			}
+			const formatted = n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+			return `<span class="text-danger">(${formatted})</span>`;
 		}
-		return '₱' + n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+		const isOut = !isPlainGuestPortalLedgerDesc(transactionDesc)
+			&& !isJunketCreditReturnEntry(transaction, transactionDesc)
+			&& (transaction === 'WITHDRAW' || transaction === 'MARKER REDEEM' || transaction === 'IOU RETURN DEPOSIT');
+		if (window.AmountFormat) {
+			if (isOut) return window.AmountFormat.formatAmountNegativeHtml(n);
+			return window.AmountFormat.formatCommas(n);
+		}
+		return n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 	}
 
-	function accountLedgerRowId(row) {
-		return row.account_details_id || row.IDNo || '';
+function accountLedgerRowId(row) {
+	return row.account_details_id || row.IDNo || '';
+}
+
+function isAccountDetailsSuperAdmin() {
+	var perms = parseInt($('#user-role').data('permissions'), 10);
+	return perms === 0;
+}
+
+function accountDetailsHiddenIdColIndex() {
+	return isAccountDetailsSuperAdmin() ? 5 : 4;
+}
+
+function isGuestPortalLedgerEditable(row) {
+	if (!row) return false;
+	var hasGameId = row.GAME_ID != null && String(row.GAME_ID).trim() !== '';
+	if (hasGameId) return false;
+
+	var desc = String(row.TRANSACTION_DESC || '').trim().toUpperCase();
+	var isTransfer = parseInt(row.TRANSFER, 10) === 1;
+	var transId = parseInt(row.TRANSACTION_ID, 10);
+	var transType = parseInt(row.TRANSACTION_TYPE, 10);
+	var isManualTransfer = isTransfer && transType === 2 && (transId === 1 || transId === 2) && !desc;
+	var isManualCash = !isTransfer && transType === 2 && (transId === 1 || transId === 2) && desc === 'ACCOUNT DETAILS';
+	var isManualCredit = !isTransfer && transType === 3 && transId === 3 && desc === 'ACCOUNT DETAILS';
+	var isJunketCreditReturn = !isTransfer && transType === 3 && (transId === 11 || transId === 12) && desc === 'RETURN_SOURCE:CREDIT';
+	return isManualTransfer || isManualCash || isManualCredit || isJunketCreditReturn;
+}
+
+function renderAccountLedgerActionCell(ledgerId, rawAmount, remarks) {
+	if (!isAccountDetailsSuperAdmin() || !ledgerId) return '';
+	var amountStr = String(rawAmount != null ? rawAmount : '').replace(/,/g, '');
+	var remarksAttr = escapeHtmlAttr(String(remarks != null ? remarks : ''));
+	return (
+		'<div class="account-ledger-action-wrap">' +
+		'<span class="account-ledger-action-edit-slot">' +
+		'<button type="button" class="btn btn-link text-primary p-0 border-0 shadow-none btn-ledger-edit js-bs-tooltip-enabled" ' +
+		'data-id="' + ledgerId + '" data-amount="' + escapeHtmlAttr(amountStr) + '" data-remarks="' + remarksAttr + '" ' +
+		'data-bs-toggle="tooltip" title="Edit" aria-label="Edit"><i class="fa fa-pencil-alt"></i></button>' +
+		'</span>' +
+		'<span class="account-ledger-action-delete-slot">' +
+		'<button type="button" class="btn btn-link text-danger p-0 border-0 shadow-none btn-ledger-delete js-bs-tooltip-enabled" ' +
+		'data-id="' + ledgerId + '" data-bs-toggle="tooltip" title="Delete" aria-label="Delete"><i class="fa fa-trash-alt"></i></button>' +
+		'</span>' +
+		'</div>'
+	);
+}
+
+function escapeHtmlAttr(value) {
+	return String(value || '')
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
+function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, remarks, sourceRow) {
+	var ledgerId = accountLedgerRowId(sourceRow);
+	var row = [encodedDate, transactionCell, amountCell, remarks || ''];
+	if (isAccountDetailsSuperAdmin()) {
+		row.push(
+			isGuestPortalLedgerEditable(sourceRow)
+				? renderAccountLedgerActionCell(ledgerId, sourceRow.AMOUNT, remarks)
+				: '<span class="text-muted">—</span>'
+		);
 	}
+	row.push(ledgerId);
+	return row;
+}
 
 function accountDetailsDateRender(data, type) {
 	if (window.DateTimeFormat && typeof window.DateTimeFormat.dataTableDateTimeRender === 'function') {
@@ -1560,8 +1657,19 @@ function getOrInitAccountDetailsDataTable() {
 					$(cell).addClass('text-center');
 				}
 			}
-		].concat(accountDetailsRemarksColumnDefs())
+		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs())
 	});
+}
+
+function accountDetailsActionColumnDefs() {
+	if (!isAccountDetailsSuperAdmin()) return [];
+	return [{
+		targets: 4,
+		orderable: false,
+		searchable: false,
+		className: 'text-center account-ledger-actions-col',
+		width: '80px'
+	}];
 }
 
 function accountDetailsRemarksColumnDefs() {
@@ -1571,7 +1679,7 @@ function accountDetailsRemarksColumnDefs() {
 				render: function (data, type, row) {
 					var raw = data != null ? String(data) : '';
 					if (type !== 'display') return raw;
-					var ledgerId = row[4];
+					var ledgerId = row[accountDetailsHiddenIdColIndex()];
 					if (window.RemarksEditor && ledgerId) {
 						return window.RemarksEditor.renderCell(raw, {
 							source: 'account_ledger',
@@ -1582,7 +1690,7 @@ function accountDetailsRemarksColumnDefs() {
 					return raw;
 				},
 				createdCell: function (cell, cellData, rowData) {
-					var ledgerId = rowData && rowData[4];
+					var ledgerId = rowData && rowData[accountDetailsHiddenIdColIndex()];
 					var $cell = $(cell);
 					$cell.addClass('remarks-editor-td text-start');
 					if (ledgerId && window.RemarksEditor && window.RemarksEditor.canEdit()) {
@@ -1591,10 +1699,11 @@ function accountDetailsRemarksColumnDefs() {
 				}
 			},
 			{
-				targets: 4,
+				targets: accountDetailsHiddenIdColIndex(),
 				visible: false,
 				searchable: false,
-				orderable: false
+				orderable: false,
+				className: 'account-ledger-id-col'
 			}
 		];
 	}
@@ -1641,13 +1750,13 @@ function accountDetailsRemarksColumnDefs() {
 									? `DEPOSIT ( <strong>Received from ${agentCode} - ${transferAgentName} </strong> )`
 									: `WITHDRAW ( <strong>Transferred to ${agentCode} - ${transferAgentName} </strong> )`;
 
-								rowsToAdd.push([
+								rowsToAdd.push(buildAccountDetailsLedgerRow(
 									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
-									formatAccountLedgerAmount(amount, row.TRANSACTION),
+									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
 									row.REMARKS || '',
-									accountLedgerRowId(row)
-								]);
+									row
+								));
 								resolve();
 							},
 							error: function () {
@@ -1655,26 +1764,26 @@ function accountDetailsRemarksColumnDefs() {
 									? `DEPOSIT ( <strong>Received from Error fetching name</strong> )`
 									: `WITHDRAW ( <strong>Transferred to Error fetching name</strong> )`;
 
-								rowsToAdd.push([
+								rowsToAdd.push(buildAccountDetailsLedgerRow(
 									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
-									formatAccountLedgerAmount(amount, row.TRANSACTION),
+									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
 									row.REMARKS || '',
-									accountLedgerRowId(row)
-								]);
+									row
+								));
 								resolve();
 							}
 						});
 					} else {
 						const transactionCell = formatAccountLedgerTransactionCell(row.TRANSACTION, transactionDesc);
 
-						rowsToAdd.push([
+						rowsToAdd.push(buildAccountDetailsLedgerRow(
 							encodedDate,
 							transactionCell,
-							formatAccountLedgerAmount(amount, row.TRANSACTION),
+							formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
 							row.REMARKS || '',
-							accountLedgerRowId(row)
-						]);
+							row
+						));
 						resolve();
 					}
 				});
@@ -1717,6 +1826,7 @@ function accountDetailsRemarksColumnDefs() {
 		}
 	});
 }
+window.reloadDataDetails = reloadDataDetails;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // account_details_v2: tawagin mula sa Activity Logs
@@ -1829,12 +1939,21 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 		if (totalBalanceElement.length) {
 			totalBalanceValue = totalBalanceElement.val() || '0';
 		}
-		const totalBalanceGuest = parseFloat(totalBalanceValue.replace(/,/g, '').trim()) || 0;
+		let totalBalanceGuest = parseFloat(String(totalBalanceValue).replace(/,/g, '').trim()) || 0;
+
+		const modalElement = $(modalSelector);
+		if (!totalBalanceGuest && modalElement.length) {
+			const displayText = (modalElement.find('.total_balance').first().text() || '').replace(/[^0-9.-]/g, '');
+			totalBalanceGuest = parseFloat(displayText) || 0;
+		}
+		if (!totalBalanceGuest) {
+			const fallbackVal = ($('#total_balanceGuest').val() || '0').replace(/,/g, '');
+			totalBalanceGuest = parseFloat(fallbackVal) || 0;
+		}
+
 		const availableBalance = (typeof currentAccountBalance === 'number' && currentAccountBalance > 0)
 			? currentAccountBalance
 			: totalBalanceGuest;
-
-		const modalElement = $(modalSelector);
 
 		const formatNumberWithCommas = number => number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
@@ -1853,14 +1972,8 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			Swal.fire({
 				icon: 'error',
 				title: 'Insufficient Balance',
-				text: 'The amount exceeds the available total balance of P' + formatNumberWithCommas(totalBalanceGuest),
+				text: 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(availableBalance),
 				confirmButtonText: 'OK'
-			}).then(() => {
-				if (modalElement.length) {
-					modalElement.modal('hide');
-				}
-				reloadDataDetails();
-				window.location.reload();
 			});
 			restoreButton();
 			return;
@@ -1946,11 +2059,19 @@ bindAccountDetailsForm({
 	amountSelector: '.txtAmount',
 	remarksSelector: '.remarks',
 	totalBalanceSelector: '#total_balanceGuest',
+	modalSelector: '#modal-add-account-details'
+});
+
+bindAccountDetailsForm({
+	formSelector: '#modal-account-details #add_new_account_details_alt',
+	amountSelector: '.txtAmount_alt',
+	remarksSelector: '.remarks_alt',
+	totalBalanceSelector: '#total_balanceGuest',
 	modalSelector: '#modal-account-details'
 });
 
 bindAccountDetailsForm({
-	formSelector: '#add_new_account_details_alt',
+	formSelector: '#modal-account-details-alt #add_new_account_details_alt',
 	amountSelector: '.txtAmount_alt',
 	remarksSelector: '.remarks_alt',
 	totalBalanceSelector: '#total_balanceGuest_alt',
@@ -2129,6 +2250,7 @@ function get_transfer_accounts() {
 
 
 function archive_account_details(id) {
+	if (!isAccountDetailsSuperAdmin()) return;
 	SwalConfirm.fire({
 		title: 'Are you sure you want to delete this?',
 		confirmButtonText: 'Yes'
@@ -2137,16 +2259,135 @@ function archive_account_details(id) {
 			$.ajax({
 				url: '/account_details/remove/' + id,
 				type: 'PUT',
-				success: function (response) {
-					window.location.reload();
+				success: function () {
+					if (typeof reloadDataDetails === 'function') {
+						reloadDataDetails();
+					}
+					if (window.Swal) {
+						Swal.fire({
+							icon: 'success',
+							title: 'Deleted',
+							showConfirmButton: false,
+							timer: 1200,
+							heightAuto: false
+						});
+					}
 				},
-				error: function (error) {
-					console.error('Error deleting user role:', error);
+				error: function (xhr) {
+					var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error deleting transaction.';
+					if (window.Swal) {
+						Swal.fire({ icon: 'error', title: 'Error', text: msg });
+					}
+					console.error('Error deleting account ledger:', xhr);
 				}
 			});
 		}
-	})
+	});
 }
+
+function closeEditAccountLedgerModal() {
+	var $editModal = $('#modal-edit-account-ledger');
+	if (!$editModal.length) return;
+
+	function cleanupGuestPortalChildState() {
+		if (!isGuestPortalOpen()) return;
+		setGuestPortalChildModalOpen(false);
+		resetGuestPortalChildModalStack($editModal);
+	}
+
+	$editModal.one('hidden.bs.modal', cleanupGuestPortalChildState);
+
+	if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+		var inst = bootstrap.Modal.getInstance($editModal[0]);
+		if (inst) {
+			inst.hide();
+			return;
+		}
+	}
+	$editModal.modal('hide');
+}
+
+function openEditAccountLedgerModal($btn) {
+	if (!isAccountDetailsSuperAdmin()) return;
+	var ledgerId = $btn.data('id');
+	var amount = String($btn.data('amount') || '').replace(/,/g, '');
+	var remarks = String($btn.data('remarks') || '');
+	var transactionLabel = $btn.closest('tr').find('td').eq(1).text().trim();
+
+	$('#edit-ledger-id').val(ledgerId);
+	$('#edit-ledger-transaction').val(transactionLabel);
+	$('#edit-ledger-amount').val(amount ? Number(amount).toLocaleString('en-US') : '');
+	$('#edit-ledger-remarks').val(remarks);
+
+	var $modal = $('#modal-edit-account-ledger');
+	if (typeof window.prepareGuestPortalChildModal === 'function') {
+		window.prepareGuestPortalChildModal($modal);
+	}
+	if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+		bootstrap.Modal.getOrCreateInstance($modal[0], { backdrop: 'static', keyboard: false }).show();
+	} else {
+		$modal.modal('show');
+	}
+}
+
+$(document).off('click', '#accountDetails .btn-ledger-delete').on('click', '#accountDetails .btn-ledger-delete', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var ledgerId = $(this).data('id');
+	if (ledgerId) archive_account_details(ledgerId);
+});
+
+$(document).off('click', '#accountDetails .btn-ledger-edit').on('click', '#accountDetails .btn-ledger-edit', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	openEditAccountLedgerModal($(this));
+});
+
+$(document).off('click', '#btn-save-edit-ledger').on('click', '#btn-save-edit-ledger', function () {
+	if (!isAccountDetailsSuperAdmin()) return;
+	var ledgerId = $('#edit-ledger-id').val();
+	var amount = String($('#edit-ledger-amount').val() || '').replace(/,/g, '');
+	var remarks = String($('#edit-ledger-remarks').val() || '').trim();
+
+	if (!ledgerId || !amount || parseFloat(amount) <= 0) {
+		if (window.Swal) {
+			Swal.fire({ icon: 'warning', title: 'Invalid amount', text: 'Please enter a valid amount.' });
+		}
+		return;
+	}
+
+	var $btn = $(this).prop('disabled', true);
+	$.ajax({
+		url: '/account_details/edit/' + ledgerId,
+		type: 'PUT',
+		contentType: 'application/json',
+		data: JSON.stringify({ amount: amount, remarks: remarks }),
+		success: function () {
+			closeEditAccountLedgerModal();
+			if (typeof reloadDataDetails === 'function') reloadDataDetails();
+			if (window.Swal) {
+				Swal.fire({
+					icon: 'success',
+					title: 'Saved',
+					showConfirmButton: false,
+					timer: 1200,
+					heightAuto: false
+				});
+			}
+		},
+		error: function (xhr) {
+			var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error updating transaction.';
+			if (window.Swal) {
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			}
+		},
+		complete: function () {
+			$btn.prop('disabled', false);
+		}
+	});
+});
+
+window.archive_account_details = archive_account_details;
 
 
 $(document).ready(function(){

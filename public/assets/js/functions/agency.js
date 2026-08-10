@@ -6,7 +6,10 @@ let selectedAgentId = null;
 let currentGuestRows = [];
 let currentAgencyGuestRows = [];
 let currentAllGuestRows = [];
+let currentAllAgentAccountRows = [];
 let guestSearchQuery = '';
+let lineSearchQuery = '';
+let agentSearchQuery = '';
 let transferGuestCurrentAgentId = null;
 let transferAgentGuestsSourceId = null;
 let agencyLineSortDir = 'asc';
@@ -417,6 +420,7 @@ $(document).ready(function() {
     loadLineStats();
   }
   loadAllGuestsForSearch();
+  loadAllAgentsForSearch();
 
   syncAgentPanelTransferButton();
   syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
@@ -425,17 +429,13 @@ $(document).ready(function() {
   $('#btn-sort-line-panel').on('click', function () {
     agencyLineSortDir = agencyLineSortDir === 'asc' ? 'desc' : 'asc';
     syncAgencyPanelTitleSortIndicator('#btn-sort-line-panel', agencyLineSortDir);
-    renderPage(allAgents, agencyLineCurrentPage);
+    applyLinePanelView(agencyLineCurrentPage);
   });
 
   $('#btn-sort-agent-panel').on('click', function () {
     agencyAgentSortDir = agencyAgentSortDir === 'asc' ? 'desc' : 'asc';
     syncAgencyPanelTitleSortIndicator('#btn-sort-agent-panel', agencyAgentSortDir);
-    if (isGuestSearchActive()) {
-      applyGuestSearchReactions();
-    } else if (selectedAgencyId) {
-      renderAgentPanel(currentAgencyAccounts);
-    }
+    applyAgentPanelView();
   });
 
   $(document).on('click', '#guest-list .agency-guest-table thead th.sortable-col', function () {
@@ -452,6 +452,16 @@ $(document).ready(function() {
   $('#guest-panel-search').on('input', function () {
     guestSearchQuery = $(this).val();
     applyGuestPanelView();
+  });
+
+  $('#line-panel-search').on('input', function () {
+    lineSearchQuery = $(this).val();
+    applyLinePanelView(1);
+  });
+
+  $('#agent-panel-search').on('input', function () {
+    agentSearchQuery = $(this).val();
+    applyAgentPanelView();
   });
 
   $('#btn-agent-panel-transfer').on('click', function () {
@@ -1015,8 +1025,36 @@ function bindAgencyPagination() {
   $('#pagination-container').off('click').on('click', '.page-link', function (e) {
     e.preventDefault();
     const page = parseInt($(this).data('page'));
-    renderPage(allAgents, page);
+    renderPage(getDisplayLineRows(), page);
   });
+}
+
+function getDisplayLineRows() {
+  return filterLineRows(allAgents, lineSearchQuery);
+}
+
+function applyLinePanelView(page) {
+  const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+  renderPage(getDisplayLineRows(), pageNum);
+  bindAgencyPagination();
+}
+
+function applyAgentPanelView() {
+  if (isGuestSearchActive()) {
+    applyGuestSearchReactions();
+    return;
+  }
+  if (selectedAgencyId) {
+    renderAgentPanel(currentAgencyAccounts);
+    return;
+  }
+  if (isAgentSearchActive()) {
+    renderAgentPanel(currentAllAgentAccountRows, {
+      showAgencyHint: true
+    });
+    return;
+  }
+  renderAgentPanel([]);
 }
 
 function renderAgencyGrid(selectAgencyId) {
@@ -1034,7 +1072,7 @@ function renderAgencyGrid(selectAgencyId) {
     }
   }
 
-  renderPage(allAgents, pageToRender);
+  renderPage(getDisplayLineRows(), pageToRender);
   bindAgencyPagination();
 
   if (selectAgencyId) {
@@ -1065,12 +1103,24 @@ function reloadData(selectAgencyId) {
 function renderPage(data, page = 1, perPage = 30) {
   const agencyGrid = $('#agency-grid');
   const pagination = $('#pagination-container .pagination');
+  const $pager = $('#pagination-container');
   agencyGrid.empty();
   pagination.empty();
 
   agencyLineCurrentPage = page;
   const sortedData = sortAgencyLineRows(data);
   const totalPages = Math.ceil(sortedData.length / perPage);
+
+  if (sortedData.length === 0) {
+    if (isLineSearchActive()) {
+      agencyGrid.html('<div class="panel-empty-state">No LINE matched your search.</div>');
+    }
+    pagination.empty();
+    $pager.addClass('d-none');
+    syncAgentPanelTransferButton();
+    return;
+  }
+
   const start = (page - 1) * perPage;
   const end = start + perPage;
   const currentPageData = sortedData.slice(start, end);
@@ -1157,8 +1207,6 @@ function renderPage(data, page = 1, perPage = 30) {
 
   applyAgencySearchHighlights(getGuestSearchMatchSets().matchedAgencyIds);
 
-  const $pager = $('#pagination-container');
-
   // Pagination para lang sa LINE list kapag mahigit sa isang page (default 30 kada page).
   // Itago kapag isa lang ang page para hindi lumabas ang pointless na "1".
   if (totalPages <= 1 || sortedData.length === 0) {
@@ -1233,18 +1281,27 @@ function renderAgentPanel(accounts, options) {
       return matchedAgentIds.has(String(agent.agent_id));
     });
   }
+  if (isAgentSearchActive()) {
+    agents = filterAgentRows(agents, agentSearchQuery);
+  }
 
-  if (!selectedAgencyId && !searching) {
+  if (!selectedAgencyId && !searching && !isAgentSearchActive()) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text('Select LINE to load LINE list.');
+    $empty.removeClass('d-none').text('Select LINE to load agent list.');
     return;
   }
 
   if (agents.length === 0) {
     $list.addClass('d-none').empty();
-    $empty.removeClass('d-none').text(
-      searching ? 'No LINE matched your search.' : 'No LINE under this agency.'
-    );
+    var emptyMessage = 'No agent under this LINE.';
+    if (isAgentSearchActive()) {
+      emptyMessage = 'No agent matched your search.';
+    } else if (searching) {
+      emptyMessage = 'No agent matched your guest search.';
+    } else if (!selectedAgencyId) {
+      emptyMessage = 'Select LINE to load agent list.';
+    }
+    $empty.removeClass('d-none').text(emptyMessage);
     if (selectedAgencyId && !searching) {
       updateScopeStatCard(true, 0, 0);
     }
@@ -1260,7 +1317,7 @@ function renderAgentPanel(accounts, options) {
     } else {
       line = '<span class="panel-list-name">' + (code || name || '—') + '</span>';
     }
-    const agencyHint = (showAgencyHint && agent.agency_name)
+    const agencyHint = ((showAgencyHint || (!selectedAgencyId && isAgentSearchActive())) && agent.agency_name)
       ? '<span class="panel-list-agency-hint">' + String(agent.agency_name).toUpperCase() + '</span>'
       : '';
     const isMatch = searching && matchedAgentIds && matchedAgentIds.has(String(agent.agent_id));
@@ -1342,21 +1399,35 @@ function selectAgentInPanel(agentId, anchorEl) {
   $(anchorEl).closest('.panel-list-item').addClass('is-active');
 
   if (!selectedAgencyId) {
+    let resolvedAgencyId = null;
+    let resolvedAgencyName = '';
     const agentGuest = currentAllGuestRows.find(function (row) {
       return String(row.agent_id) === String(selectedAgentId);
     });
     if (agentGuest && agentGuest.agency_id) {
-      selectedAgencyId = parseInt(agentGuest.agency_id, 10);
+      resolvedAgencyId = agentGuest.agency_id;
+      resolvedAgencyName = agentGuest.agency_name || '';
+    } else {
+      const agentAccount = currentAllAgentAccountRows.find(function (row) {
+        return String(row.agent_id) === String(selectedAgentId);
+      });
+      if (agentAccount && agentAccount.agency_id) {
+        resolvedAgencyId = agentAccount.agency_id;
+        resolvedAgencyName = agentAccount.agency_name || '';
+      }
+    }
+    if (resolvedAgencyId) {
+      selectedAgencyId = parseInt(resolvedAgencyId, 10);
       $('.agency-card').removeClass('is-selected');
       $('.agency-card[data-id="' + selectedAgencyId + '"]').addClass('is-selected');
       $('#txtAgencyLine').val(selectedAgencyId);
-      setSelectedLineLabel(agentGuest.agency_name || '');
+      setSelectedLineLabel(resolvedAgencyName);
       $.ajax({
         url: '/account_data?agencyId=' + encodeURIComponent(selectedAgencyId),
         method: 'GET',
         success: function (rows) {
           currentAgencyAccounts = Array.isArray(rows) ? rows : [];
-          applyGuestSearchReactions();
+          applyAgentPanelView();
           $('#agent-list .panel-list-item[data-agent-id="' + selectedAgentId + '"]').addClass('is-active');
         }
       });
@@ -1365,6 +1436,8 @@ function selectAgentInPanel(agentId, anchorEl) {
   }
 
   const selected = currentAgencyAccounts.find(function (row) {
+    return String(row.agent_id) === String(selectedAgentId);
+  }) || currentAllAgentAccountRows.find(function (row) {
     return String(row.agent_id) === String(selectedAgentId);
   });
   setSelectedAgentLabel(selected ? selected.agent_code : '', selected ? selected.agent_name : '');
@@ -1375,12 +1448,87 @@ function selectAgentInPanel(agentId, anchorEl) {
   syncAgentPanelTransferButton();
 }
 
+function getAgentAccountRow(agentId) {
+  const id = String(agentId);
+  return currentAgencyAccounts.find(function (row) {
+    return String(row.agent_id) === id;
+  }) || currentAllAgentAccountRows.find(function (row) {
+    return String(row.agent_id) === id;
+  }) || null;
+}
+
+function ensureAgencyContextForAgent(agentId, callback) {
+  const numericAgentId = parseInt(agentId, 10);
+  if (!numericAgentId) {
+    callback(null, 'Invalid agent.');
+    return;
+  }
+
+  const localRow = getAgentAccountRow(numericAgentId);
+  if (!localRow || !localRow.agency_id) {
+    callback(null, 'Unable to resolve LINE for this agent.');
+    return;
+  }
+
+  const agencyId = parseInt(localRow.agency_id, 10);
+  const agencyName = localRow.agency_name || '';
+  selectedAgentId = numericAgentId;
+
+  function finish() {
+    callback(getAgentAccountRow(numericAgentId), null);
+  }
+
+  function applyAgencySelection() {
+    $('.agency-card').removeClass('is-selected');
+    $('.agency-card[data-id="' + agencyId + '"]').addClass('is-selected');
+    $('#txtAgencyLine').val(agencyId);
+    setSelectedLineLabel(agencyName);
+    syncAgentPanelTransferButton();
+  }
+
+  if (selectedAgencyId === agencyId && currentAgencyAccounts.length) {
+    applyAgencySelection();
+    finish();
+    return;
+  }
+
+  selectedAgencyId = agencyId;
+  applyAgencySelection();
+
+  $.ajax({
+    url: '/account_data?agencyId=' + encodeURIComponent(agencyId) + '&_=' + Date.now(),
+    method: 'GET',
+    cache: false,
+    dataType: 'json',
+    success: function (rows) {
+      currentAgencyAccounts = Array.isArray(rows) ? rows : [];
+      loadLineStats(agencyId);
+      applyAgentPanelView();
+      $('#agent-list .panel-list-item[data-agent-id="' + numericAgentId + '"]').addClass('is-active');
+      finish();
+    },
+    error: function () {
+      callback(null, 'Failed to load LINE for this agent.');
+    }
+  });
+}
+
 function openAddGameForAgent(agentId, buttonEl) {
   selectedAgentId = parseInt(agentId, 10);
   $('#agent-list .panel-list-item').removeClass('is-active');
   $(buttonEl).closest('.panel-list-item').addClass('is-active');
-  syncAgentPanelTransferButton();
-  openAddGameForSelectedAgent();
+  ensureAgencyContextForAgent(agentId, function (_target, errorMessage) {
+    if (errorMessage) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Unavailable',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    openAddGameForSelectedAgent();
+  });
 }
 
 function normalizeGuestSearchText(value) {
@@ -1389,6 +1537,42 @@ function normalizeGuestSearchText(value) {
 
 function isGuestSearchActive() {
   return normalizeGuestSearchText(guestSearchQuery).length > 0;
+}
+
+function isLineSearchActive() {
+  return normalizeGuestSearchText(lineSearchQuery).length > 0;
+}
+
+function isAgentSearchActive() {
+  return normalizeGuestSearchText(agentSearchQuery).length > 0;
+}
+
+function getLineSearchableText(row) {
+  const lineName = row.AGENCY || '';
+  const remarks = row.REMARKS || '';
+  return normalizeGuestSearchText([lineName, remarks].join(' '));
+}
+
+function filterLineRows(rows, query) {
+  const normalizedQuery = normalizeGuestSearchText(query);
+  if (!normalizedQuery) return Array.isArray(rows) ? rows : [];
+  return (Array.isArray(rows) ? rows : []).filter(function (row) {
+    return getLineSearchableText(row).indexOf(normalizedQuery) !== -1;
+  });
+}
+
+function getAgentSearchableText(agent) {
+  const code = agent.agent_code || '';
+  const name = agent.agent_name || '';
+  return normalizeGuestSearchText([code, name].join(' '));
+}
+
+function filterAgentRows(agents, query) {
+  const normalizedQuery = normalizeGuestSearchText(query);
+  if (!normalizedQuery) return Array.isArray(agents) ? agents : [];
+  return (Array.isArray(agents) ? agents : []).filter(function (agent) {
+    return getAgentSearchableText(agent).indexOf(normalizedQuery) !== -1;
+  });
 }
 
 function getGuestSearchableText(row) {
@@ -1477,11 +1661,7 @@ function applyGuestSearchReactions() {
   applyGuestSearchLineStats();
 
   if (!searching) {
-    if (selectedAgencyId) {
-      renderAgentPanel(currentAgencyAccounts);
-    } else {
-      renderAgentPanel([]);
-    }
+    applyAgentPanelView();
     return;
   }
 
@@ -1600,6 +1780,21 @@ function applyGuestPanelView() {
   applyGuestSearchReactions();
 }
 
+function loadAllAgentsForSearch() {
+  $.ajax({
+    url: '/account_data',
+    method: 'GET',
+    success: function (rows) {
+      currentAllAgentAccountRows = Array.isArray(rows) ? rows : [];
+      applyAgentPanelView();
+    },
+    error: function () {
+      currentAllAgentAccountRows = [];
+      applyAgentPanelView();
+    }
+  });
+}
+
 function loadAllGuestsForSearch() {
   $.ajax({
     url: '/guest_data?all=1',
@@ -1677,35 +1872,33 @@ function viewAgentPortal(agentId, agentCode, _agentName, buttonEl) {
   $('#agent-list .panel-list-item').removeClass('is-active');
   $(buttonEl).closest('.panel-list-item').addClass('is-active');
 
-  if (!selectedAgencyId) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'No agency selected',
-      text: 'Select an AGENCY/LINE first.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
+  ensureAgencyContextForAgent(agentId, function (target, errorMessage) {
+    if (errorMessage) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Unavailable',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
 
-  const target = currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId);
+    if (!target || !target.account_id || typeof window.account_details !== 'function') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No guest record',
+        text: 'No guest account found for this agent yet.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    window.account_details(
+      target.account_id,
+      target.agent_code || agentCode || '',
+      target.agent_name || _agentName || ''
+    );
   });
-
-  if (!target || !target.account_id || typeof window.account_details !== 'function') {
-    Swal.fire({
-      icon: 'warning',
-      title: 'No guest record',
-      text: 'No guest account found for this agent yet.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  window.account_details(
-    target.account_id,
-    target.agent_code || agentCode || '',
-    target.agent_name || _agentName || ''
-  );
 }
 
 function editAgentFromPanel(agentId, buttonEl) {
@@ -1713,28 +1906,36 @@ function editAgentFromPanel(agentId, buttonEl) {
   $('#agent-list .panel-list-item').removeClass('is-active');
   $(buttonEl).closest('.panel-list-item').addClass('is-active');
 
-  const target = currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId);
+  ensureAgencyContextForAgent(agentId, function (target, errorMessage) {
+    if (errorMessage) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Unavailable',
+        text: errorMessage,
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    if (!target || typeof window.edit_agent !== 'function') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Unavailable',
+        text: 'Agent edit is not available for this row.',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    window.edit_agent(
+      target.agent_id,
+      target.agent_code || '',
+      target.agent_name || '',
+      target.agent_contact || '',
+      target.agent_telegram || '',
+      target.agent_remarks || ''
+    );
   });
-
-  if (!target || typeof window.edit_agent !== 'function') {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Unavailable',
-      text: 'LINE edit is not available for this row.',
-      confirmButtonText: 'OK'
-    });
-    return;
-  }
-
-  window.edit_agent(
-    target.agent_id,
-    target.agent_code || '',
-    target.agent_name || '',
-    target.agent_contact || '',
-    target.agent_telegram || '',
-    target.agent_remarks || ''
-  );
 }
 
 function renderGuestPanel(guests, options) {
@@ -2400,9 +2601,7 @@ function openAddGameForSelectedAgent() {
     return;
   }
 
-  var accountRow = currentAgencyAccounts.find(function (row) {
-    return String(row.agent_id) === String(selectedAgentId) && row.account_id;
-  });
+  var accountRow = getAgentAccountRow(selectedAgentId);
 
   if (!accountRow || !accountRow.account_id) {
     Swal.fire({

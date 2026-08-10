@@ -114,11 +114,22 @@
 									<div class="row g-3 agency-panels">
 										<div class="col-12 col-xl-2-5">
 											<div class="panel-box h-100">
-												<div class="panel-header d-flex align-items-center justify-content-between">
+												<div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
 													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-line-panel" title="Click to sort" aria-label="Sort LINE list">
 														LINE <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
 													</button>
-													<div class="d-flex align-items-center gap-1">
+													<div class="d-flex align-items-center gap-2 ms-auto">
+														<div class="agency-guest-search-wrap agency-panel-search-wrap">
+															<input
+																type="search"
+																class="form-control form-control-sm agency-search-input"
+																id="line-panel-search"
+																name="agency-line-panel-search"
+																placeholder="Search"
+																autocomplete="off"
+																data-lpignore="true"
+																data-1p-ignore="true">
+														</div>
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel">
 															<i class="fa fa-download" aria-hidden="true"></i>
 														</button>
@@ -135,11 +146,22 @@
 
 										<div class="col-12 col-xl-2-5">
 											<div class="panel-box h-100">
-												<div class="panel-header d-flex align-items-center justify-content-between">
+												<div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
 													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-agent-panel" title="Click to sort" aria-label="Sort AGENT list">
 														AGENT <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
 													</button>
-													<div class="d-flex align-items-center gap-1">
+													<div class="d-flex align-items-center gap-2 ms-auto">
+														<div class="agency-guest-search-wrap agency-panel-search-wrap">
+															<input
+																type="search"
+																class="form-control form-control-sm agency-search-input"
+																id="agent-panel-search"
+																name="agency-agent-panel-search"
+																placeholder="Search"
+																autocomplete="off"
+																data-lpignore="true"
+																data-1p-ignore="true">
+														</div>
 														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-transfer" title="Transfer LINE">
 															<i class="fa fa-exchange-alt"></i>
 														</button>
@@ -166,13 +188,12 @@
 													<div class="panel-title">GUEST</div>
 													<div class="d-flex align-items-center gap-2 ms-auto">
 														<div class="agency-guest-search-wrap">
-															<i class="fa fa-search agency-guest-search-icon" aria-hidden="true"></i>
 															<input
 																type="search"
-																class="form-control form-control-sm agency-guest-search-input"
+																class="form-control form-control-sm agency-search-input"
 																id="guest-panel-search"
 																name="agency-guest-panel-search"
-																placeholder="Search all guests..."
+																placeholder="Search"
 																autocomplete="off"
 																data-lpignore="true"
 																data-1p-ignore="true">
@@ -564,18 +585,18 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   max-width: 42vw;
 }
 
-.agency-guest-search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 11px;
-  color: #94a3b8;
-  pointer-events: none;
+.agency-panel-search-wrap {
+  flex: 0 0 150px;
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
 }
 
-.agency-guest-search-input {
-  padding-left: 30px;
+.agency-search-input {
+  padding-left: 8px;
+  padding-right: 8px;
+  text-align: left;
+  border-radius: 8px;
 }
 
 .agency-guest-line-hint {
@@ -959,7 +980,7 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   color: #fff !important;
 }
 
-.agency-page .agency-guest-search-input:focus {
+.agency-page .agency-search-input:focus {
   border-color: #ccc;
   box-shadow: 0 0 0 0.15rem rgba(0, 0, 0, 0.08);
 }

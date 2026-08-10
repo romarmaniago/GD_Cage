@@ -485,7 +485,9 @@
 		"date_to_hint": "house_expense.date_to_hint",
 		"start_date": "house_expense.start_date",
 		"end_date": "house_expense.end_date",
-		"filter_all": "house_expense.filter_all"
+		"filter_all": "house_expense.filter_all",
+		"revert_reject": "house_expense.revert_reject",
+		"revert_reject_confirm": "house_expense.revert_reject_confirm"
 	},
 	"hotel_booking": {
 		"junket": "ジャンケット",
@@ -1479,7 +1481,10 @@
 		"passport_lbl_dob": "生年月日",
 		"passport_lbl_expiry": "有効期限",
 		"passport_lbl_gender": "性別",
-		"game_start": "modal_account_details.game_start"
+		"game_start": "modal_account_details.game_start",
+		"action": "modal_account_details.action",
+		"edit_transaction": "modal_account_details.edit_transaction",
+		"save": "modal_account_details.save"
 	},
 	"modal_change_status": {
 		"change_status": "ステータスの変更",
