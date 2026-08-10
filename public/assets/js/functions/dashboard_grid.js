@@ -477,6 +477,84 @@
     });
   }
 
+  function parseRollingManualInput(raw) {
+    const cleaned = String(raw ?? '').replace(/,/g, '').trim();
+    if (cleaned === '') return 0;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  async function saveRollingManual(date, buyIn, cashOut, rolling) {
+    const res = await fetch('/save_dash_rolling_manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ report_date: date, buy_in: buyIn, cash_out: cashOut, rolling })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Unable to save entry.');
+  }
+
+  async function saveRollingManualRow(row) {
+    const date = row.dataset.date;
+    if (!date) return;
+
+    const getVal = (field) => {
+      const el = row.querySelector(`.dash-rolling-manual-input[data-field="${field}"]`);
+      return parseRollingManualInput(el ? el.value : '');
+    };
+    const buyIn = getVal('buy_in');
+    const cashOut = getVal('cash_out');
+    const rolling = getVal('rolling');
+
+    if (Number.isNaN(buyIn) || Number.isNaN(cashOut) || Number.isNaN(rolling)) {
+      if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter valid amounts.' });
+      return;
+    }
+
+    try {
+      await saveRollingManual(date, buyIn, cashOut, rolling);
+      await loadGridData();
+    } catch (err) {
+      console.error('saveRollingManual:', err);
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Unable to save entry.' });
+      }
+    }
+  }
+
+  function initDashRollingManualEntry() {
+    const root = document.getElementById('dash-rolling-root');
+    if (!root) return;
+
+    root.addEventListener('input', (e) => {
+      const input = e.target.closest('.dash-rolling-manual-input');
+      if (!input) return;
+      input.value = formatBeyondChipsAmountInput(input.value);
+    });
+
+    // Save once focus leaves the whole row (not on every individual field blur),
+    // so tabbing between Buy In / Cash Out / Rolling on the same date doesn't
+    // trigger a mid-edit table re-render.
+    root.addEventListener('focusout', (e) => {
+      const input = e.target.closest('.dash-rolling-manual-input');
+      if (!input || !root.contains(input)) return;
+      const row = input.closest('.dash-rolling-row');
+      if (!row) return;
+      const next = e.relatedTarget;
+      if (next && row.contains(next)) return;
+      saveRollingManualRow(row);
+    });
+
+    root.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const input = e.target.closest('.dash-rolling-manual-input');
+      if (!input) return;
+      e.preventDefault();
+      input.blur();
+    });
+  }
+
   const wlRemarksEls = {};
 
   function cacheWlRemarksEls() {
@@ -576,13 +654,29 @@
     const rows = payload.rolling_rows || [];
     const t = payload.totals || {};
 
+    const manualInputValue = (n) => {
+      const v = Number(n);
+      return !Number.isFinite(v) || v === 0 ? '' : formatBeyondChipsAmountInput(String(Math.round(v)));
+    };
+    const manualInput = (field, value) => `<input type="text" inputmode="decimal" class="dash-rolling-manual-input" data-field="${field}" value="${escapeAttr(manualInputValue(value))}" placeholder="0">`;
+
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-rolling-row is-today' : 'dash-rolling-row';
+      const casinoCellClass = row.editable ? ' is-manual-editable' : '';
+      const buyInCell = row.editable
+        ? manualInput('buy_in', row.buy_in)
+        : escapeHtml(formatCell(row.buy_in));
+      const cashOutCell = row.editable
+        ? manualInput('cash_out', row.cash_out)
+        : escapeHtml(formatCashOutCell(row.cash_out));
+      const rollingCell = row.editable
+        ? manualInput('rolling', row.rolling)
+        : escapeHtml(formatCell(row.rolling));
       return `<div class="${cls}" data-date="${escapeAttr(row.date)}">
         <span class="dash-rolling-body-cell is-date">${toDisplayDate(row.date)}</span>
-        <span class="dash-rolling-body-cell is-col-casino">${escapeHtml(formatCell(row.buy_in))}</span>
-        <span class="dash-rolling-body-cell is-col-casino text-dash-neg">${escapeHtml(formatCashOutCell(row.cash_out))}</span>
-        <span class="dash-rolling-body-cell is-col-casino">${escapeHtml(formatCell(row.rolling))}</span>
+        <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${buyInCell}</span>
+        <span class="dash-rolling-body-cell is-col-casino text-dash-neg${casinoCellClass}">${cashOutCell}</span>
+        <span class="dash-rolling-body-cell is-col-casino${casinoCellClass}">${rollingCell}</span>
         <span class="dash-rolling-body-cell is-col-gold js-beyond-chips-cell" data-date="${escapeAttr(row.date)}" title="Click to add Beyond Chips">${escapeHtml(formatCell(row.beyond_chips))}</span>
         <span class="dash-rolling-body-cell is-col-remarks js-rolling-remarks-cell" data-date="${escapeAttr(row.date)}" data-remarks-saved="${escapeAttr(row.remarks_saved || '')}" data-buy-in="${escapeAttr(row.buy_in ?? 0)}" data-cash-out="${escapeAttr(row.cash_out ?? 0)}" data-rolling-cc="${escapeAttr(row.rolling_cc ?? 0)}" title="Click to edit remarks">${escapeHtml(formatRollingRemarksDisplay(row))}</span>
       </div>`;
@@ -779,13 +873,15 @@
       const el = document.getElementById(id);
       if (el) el.textContent = formatAmount(val);
     };
-    set('dash-actual-buyin', t.buy_in);
-    set('dash-actual-cashout', -Math.abs(t.cash_out || 0));
+    // Auto-computed totals only — manual Main Cage Rolling Check entries (pre-cutoff dates)
+    // must not move this reconciliation panel.
+    set('dash-actual-buyin', t.buy_in_auto);
+    set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
     set('dash-actual-beyond-chips', t.beyond_chips);
     set('dash-actual-wl', t.wl_total);
-    set('dash-actual-rolling', t.rolling);
+    set('dash-actual-rolling', t.rolling_auto);
     set('dash-actual-gaming-wl', t.wl_total);
-    set('dash-actual-gaming-rolling', t.rolling);
+    set('dash-actual-gaming-rolling', t.rolling_auto);
   }
 
   function updateOnGameSummary(payload) {
@@ -1797,6 +1893,56 @@
     return Promise.all([loadGridData(), loadPeriodSummary()]);
   }
 
+  const DASH_ROLLING_MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  function initDashRollingMonthFilter() {
+    const select = document.getElementById('dash-rolling-month-filter');
+    if (!select) return;
+
+    const today = new Date();
+    const currentValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    const options = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = `${DASH_ROLLING_MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+      options.push(`<option value="${value}">${label}</option>`);
+    }
+    select.innerHTML = options.join('');
+    select.value = currentValue;
+
+    select.addEventListener('change', function () {
+      const parts = select.value.split('-').map(Number);
+      if (parts.length !== 2 || !parts[0] || !parts[1]) return;
+      const refDate = new Date(parts[0], parts[1] - 1, 15);
+
+      const range = window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function'
+        ? window.MonthEndCutoffRange.getMonthEndCutoffRange(refDate)
+        : null;
+
+      const startDate = range ? range.startDate : `${parts[0]}-${String(parts[1]).padStart(2, '0')}-01`;
+      const endDateApi = range ? range.endDateApi : dashRollingApiEndDate(startDate);
+      setDashGridDateRange(startDate, endDateApi);
+
+      const rangeInput = document.getElementById('dash-rolling-daterange');
+      const fp = rangeInput && rangeInput._flatpickr;
+      if (fp && range && range.startAt && range.endAt) {
+        fp.setDate([range.startAt, range.endAt], false);
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
+          setTimeout(function () {
+            window.MonthEndCutoffRange.fitRangePickerInstance(fp);
+          }, 0);
+        }
+      }
+
+      reloadDashboardByDateRange();
+    });
+  }
+
   function initDashRollingDateRange() {
     const rangeInput = document.getElementById('dash-rolling-daterange');
     if (!rangeInput || typeof flatpickr !== 'function') return;
@@ -1865,10 +2011,12 @@
     bindDualMatrixScrollSync();
     initBeyondChips();
     initRollingRemarks();
+    initDashRollingManualEntry();
     initWlRemarks();
     initDashMatrixPrintExport();
     applyDashDefaultDateRange();
     initDashRollingDateRange();
+    initDashRollingMonthFilter();
     reloadDashboardByDateRange();
 
     const guestSummaryModal = document.getElementById('modal-guest-summary-quick-view');

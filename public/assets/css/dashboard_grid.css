@@ -2060,12 +2060,14 @@ body {
   margin-bottom: 0.4rem;
   z-index: 6;
   flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-start;
   pointer-events: auto;
 }
 
 .dash-rolling-daterange-group {
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .dash-rolling-daterange-wrap,
@@ -2133,6 +2135,38 @@ body {
   box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.22) !important;
   color: #fbf0d4 !important;
   outline: none;
+}
+
+/* Main Cage Rolling Check — month filter select, same dark glass pill treatment as the date range input */
+.dash-rolling-daterange-toolbar .dash-rolling-month-select {
+  width: auto !important;
+  flex: 0 0 auto;
+  min-width: 9.5rem;
+  font-size: 0.78rem !important;
+  height: 1.85rem !important;
+  padding: 0.2rem 1.75rem 0.2rem 0.7rem !important;
+  background-color: rgba(12, 10, 8, 0.72) !important;
+  border: 1px solid rgba(200, 162, 76, 0.45) !important;
+  border-radius: 999px !important;
+  color: #f5f0e6 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23f1d48a' d='M4 6l4 4 4-4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.6rem center !important;
+  background-size: 0.7rem !important;
+}
+
+.dash-rolling-daterange-toolbar .dash-rolling-month-select:focus {
+  background-color: rgba(18, 14, 10, 0.88) !important;
+  border-color: rgba(241, 212, 138, 0.75) !important;
+  box-shadow: 0 0 0 0.15rem rgba(200, 162, 76, 0.22) !important;
+  color: #fbf0d4 !important;
+  outline: none;
+}
+
+.dash-rolling-daterange-toolbar .dash-rolling-month-select option {
+  background: #1c1712;
+  color: #f5f0e6;
 }
 
 .dash-rolling-split-daterange {
@@ -2395,6 +2429,28 @@ body {
 
 #dash-rolling-root .js-rolling-remarks-cell:hover {
   background: #fef9c3;
+}
+
+#dash-rolling-root .dash-rolling-body-cell.is-manual-editable {
+  padding: 0;
+  background: #fef9c3;
+}
+
+#dash-rolling-root .dash-rolling-manual-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  padding: 0.15rem 0.4rem;
+}
+
+#dash-rolling-root .dash-rolling-manual-input:focus {
+  outline: 2px solid rgba(13, 110, 253, 0.5);
+  outline-offset: -2px;
+  background: #fff;
 }
 
 .dash-wl-remarks-date-display {

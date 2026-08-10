@@ -6,6 +6,10 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
 
 const { checkSession, sessions } = require('./auth');
+
+// Main Cage Rolling Check — dates before this have no auto-computed source data.
+// Buy In / Cash Out / Rolling for those dates come from dashboard_rolling_manual instead.
+const DASH_ROLLING_MANUAL_CUTOFF = '2026-07-31';
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
@@ -3826,6 +3830,51 @@ router.post('/save_dashboard_check_remarks', checkSession, async (req, res) => {
 	}
 });
 
+router.post('/save_dash_rolling_manual', checkSession, async (req, res) => {
+	try {
+		const reportDate = String(req.body.report_date || '').trim();
+		const parseAmount = (raw) => {
+			const n = Number(String(raw ?? '0').replace(/,/g, ''));
+			return Number.isFinite(n) ? n : NaN;
+		};
+		const buyIn = parseAmount(req.body.buy_in);
+		const cashOut = parseAmount(req.body.cash_out);
+		const rolling = parseAmount(req.body.rolling);
+
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+			return res.status(400).json({ message: 'Report date is required.' });
+		}
+		if (reportDate >= DASH_ROLLING_MANUAL_CUTOFF) {
+			return res.status(400).json({ message: 'This date uses auto-computed data and cannot be manually edited.' });
+		}
+		if (Number.isNaN(buyIn) || Number.isNaN(cashOut) || Number.isNaN(rolling)) {
+			return res.status(400).json({ message: 'Please enter valid amounts.' });
+		}
+
+		const userId = req.session.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO dashboard_rolling_manual
+				(REPORT_DATE, BUY_IN, CASH_OUT, ROLLING, ENCODED_BY, ENCODED_DT, ACTIVE)
+			 VALUES (?, ?, ?, ?, ?, ?, 1)
+			 ON DUPLICATE KEY UPDATE
+				BUY_IN = VALUES(BUY_IN),
+				CASH_OUT = VALUES(CASH_OUT),
+				ROLLING = VALUES(ROLLING),
+				EDITED_BY = VALUES(ENCODED_BY),
+				EDITED_DT = VALUES(ENCODED_DT),
+				ACTIVE = 1`,
+			[reportDate, buyIn, cashOut, rolling, userId, now]
+		);
+
+		res.json({ success: true, message: 'Saved successfully.', buy_in: buyIn, cash_out: cashOut, rolling });
+	} catch (error) {
+		console.error('save_dash_rolling_manual:', error);
+		res.status(500).json({ message: 'Error saving manual entry.' });
+	}
+});
+
 router.get('/beyond_chips_history', checkSession, async (req, res) => {
 	try {
 		const reportDate = String(req.query.report_date || '').trim();
@@ -4347,6 +4396,18 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			[dateFrom, dateTo]
 		);
 
+		const [rollingManualRows] = await pool.execute(
+			`SELECT
+				DATE_FORMAT(drm.REPORT_DATE, '%Y-%m-%d') AS report_date,
+				drm.BUY_IN AS buy_in,
+				drm.CASH_OUT AS cash_out,
+				drm.ROLLING AS rolling
+			 FROM dashboard_rolling_manual drm
+			 WHERE drm.ACTIVE = 1
+				AND drm.REPORT_DATE BETWEEN ? AND ?`,
+			[dateFrom, dateTo]
+		);
+
 		const [gameWlRows] = await pool.execute(
 			`SELECT
 				DATE_FORMAT(gl.PROGRAM_DATE, '%Y-%m-%d') AS program_date,
@@ -4404,6 +4465,11 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			}
 		});
 
+		const rollingManualByDate = {};
+		(rollingManualRows || []).forEach((row) => {
+			rollingManualByDate[row.report_date] = row;
+		});
+
 		const goldWlByDate = {};
 		(gameWlRows || []).forEach((row) => {
 			const cashin = Number(row.cashin) || 0;
@@ -4422,20 +4488,42 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		const wlRows = [];
 		let totalBuyIn = 0;
 		let totalCashOut = 0;
-		let totalCashOutNn = 0;
-		let totalRollingCc = 0;
+		let totalRolling = 0;
+		// Auto-computed-only totals (excludes manually-entered pre-cutoff dates) — used by the
+		// "Current Time" reconciliation panel, which must not move when staff enter manual data.
+		let totalBuyInAuto = 0;
+		let totalCashOutAuto = 0;
+		let totalRollingAuto = 0;
 		let totalBeyond = 0;
 		let totalCasinoWl = 0;
 		let totalGoldWl = 0;
 
 		listDatesInclusive(dateFrom, dateTo).forEach((date) => {
-			const chips = chipsByDate[date] || {};
-			const buyIn = Number(chips.buy_in) || 0;
-			const cashOut = Number(chips.cash_out) || 0;
-			const cashOutNn = Number(chips.cash_out_nn) || 0;
-			const rollingCc = Number(chips.rolling_cc) || 0;
-			// Legacy house rolling: Buy In (NN) + Rolling (CC) - Cash Out (NN only)
-			const rolling = buyIn + rollingCc - cashOutNn;
+			const isManualZone = date < DASH_ROLLING_MANUAL_CUTOFF;
+
+			let buyIn;
+			let cashOut;
+			let cashOutNn;
+			let rollingCc;
+			let rolling;
+
+			if (isManualZone) {
+				// No auto-computed source data before the cutoff — use the manually-entered values.
+				const manual = rollingManualByDate[date] || {};
+				buyIn = Number(manual.buy_in) || 0;
+				cashOut = Number(manual.cash_out) || 0;
+				cashOutNn = 0;
+				rollingCc = 0;
+				rolling = Number(manual.rolling) || 0;
+			} else {
+				const chips = chipsByDate[date] || {};
+				buyIn = Number(chips.buy_in) || 0;
+				cashOut = Number(chips.cash_out) || 0;
+				cashOutNn = Number(chips.cash_out_nn) || 0;
+				rollingCc = Number(chips.rolling_cc) || 0;
+				// Legacy house rolling: Buy In (NN) + Rolling (CC) - Cash Out (NN only)
+				rolling = buyIn + rollingCc - cashOutNn;
+			}
 
 			const dayTables = dailyByDateTable[date] || {};
 			const beyond = Number(beyondByDate[date]) || 0;
@@ -4451,6 +4539,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				cash_out: cashOut,
 				rolling_cc: rollingCc,
 				rolling,
+				editable: isManualZone,
 				beyond_chips: beyond,
 				remarks_saved: remarksByDate[date] || ''
 			});
@@ -4464,8 +4553,12 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 
 			totalBuyIn += buyIn;
 			totalCashOut += cashOut;
-			totalCashOutNn += cashOutNn;
-			totalRollingCc += rollingCc;
+			totalRolling += rolling;
+			if (!isManualZone) {
+				totalBuyInAuto += buyIn;
+				totalCashOutAuto += cashOut;
+				totalRollingAuto += rolling;
+			}
 			totalBeyond += beyond;
 			totalCasinoWl += casinoWl;
 			totalGoldWl += goldWl;
@@ -4614,7 +4707,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			totals: {
 				buy_in: totalBuyIn,
 				cash_out: totalCashOut,
-				rolling: totalBuyIn + totalRollingCc - totalCashOutNn,
+				rolling: totalRolling,
+				buy_in_auto: totalBuyInAuto,
+				cash_out_auto: totalCashOutAuto,
+				rolling_auto: totalRollingAuto,
 				beyond_chips: totalBeyond,
 				wl_total: totalCasinoWl,
 				casino_wl: totalCasinoWl,
