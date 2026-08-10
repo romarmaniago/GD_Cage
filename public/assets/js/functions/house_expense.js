@@ -2700,17 +2700,11 @@ $(document).ready(function () {
         var earliestSettlementDate =
             earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
 
-        function jumpHouseExpenseRangeToCurrentThreeMonths(instance) {
-            if (!instance) return;
-            instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
-        }
-
         dateRangePicker = flatpickr('#daterange-picker', {
             mode: 'range',
             showMonths: 3,
             minDate: earliestSettlementDate,
             onReady: function (selectedDates, dateStr, instance) {
-                jumpHouseExpenseRangeToCurrentThreeMonths(instance);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
@@ -2722,7 +2716,6 @@ $(document).ready(function () {
                 }
             },
             onOpen: function (selectedDates, dateStr, instance) {
-                jumpHouseExpenseRangeToCurrentThreeMonths(instance);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }

@@ -209,12 +209,6 @@
 		return new Date();
 	}
 
-	function jumpNetProfitRangeToCurrentThreeMonths(instance) {
-		if (!instance) return;
-		const current = netProfitCurrentMonthDate();
-		instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-	}
-
 	function formatDisplayDatePlain(iso) {
 		if (iso == null || iso === '') return '';
 		const s = String(iso).trim();
@@ -584,12 +578,6 @@ function buildExportPayload(payload, includeTotal) {
 				locale: { rangeSeparator: ' to ' },
 				showMonths: 3,
 				allowInput: false,
-				onReady: function (_selectedDates, _dateStr, instance) {
-					jumpNetProfitRangeToCurrentThreeMonths(instance);
-				},
-				onOpen: function (_selectedDates, _dateStr, instance) {
-					jumpNetProfitRangeToCurrentThreeMonths(instance);
-				},
 				onChange: function (selectedDates, _dateStr, instance) {
 					if (selectedDates.length === 2) {
 						var fmt = instance.config.dateFormat || 'Y-m-d';

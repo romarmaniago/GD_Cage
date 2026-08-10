@@ -1076,23 +1076,11 @@ $(document).ready(function() {
     console.log('Total Chips Modal shown');
     refreshTotalChipsRefBalances();
     
-    const jumpTotalChipsRangeToCurrentThreeMonths = function(instance) {
-      if (!instance) return;
-      const current = new Date();
-      instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-    };
-    
     if ($('#total-chips-daterange').length > 0) {
       if (!totalChipsPicker || !$('#total-chips-daterange').hasClass('flatpickr-input')) {
         totalChipsPicker = flatpickr("#total-chips-daterange", {
           mode: "range",
           showMonths: 3,
-          onReady: function(selectedDates, dateStr, instance) {
-            jumpTotalChipsRangeToCurrentThreeMonths(instance);
-          },
-          onOpen: function(selectedDates, dateStr, instance) {
-            jumpTotalChipsRangeToCurrentThreeMonths(instance);
-          },
           onChange: function(selectedDates, dateStr) {
             console.log('Total Chips History Date changed:', dateStr);
             if (selectedDates.length === 2) {

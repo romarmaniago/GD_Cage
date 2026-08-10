@@ -1991,12 +1991,6 @@ function getChipsHistoryDateRangeValue(pickerId) {
     return ($('#' + pickerId).val() || '').trim();
 }
 
-function jumpChipsRangeToCurrentThreeMonths(instance) {
-    if (!instance) return;
-    var current = new Date();
-    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-}
-
 function bindChipsRangeMonthNameHooks(instance) {
     if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
         window.setupFlatpickrMonthNameRangeSelect(instance);
@@ -2019,11 +2013,9 @@ function initChipsHistoryRangePicker(pickerId, onRangeComplete) {
         mode: 'range',
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            jumpChipsRangeToCurrentThreeMonths(instance);
             bindChipsRangeMonthNameHooks(instance);
         },
         onOpen: function (selectedDates, dateStr, instance) {
-            jumpChipsRangeToCurrentThreeMonths(instance);
             bindChipsRangeMonthNameHooks(instance);
         },
         onMonthChange: function (selectedDates, dateStr, instance) {

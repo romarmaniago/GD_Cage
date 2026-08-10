@@ -442,12 +442,6 @@ function getFirstAndLastOfMonth() {
     return { first: range.startAt, last: range.endAt };
 }
 
-function jumpJunketLossRangeToCurrentThreeMonths(instance) {
-    if (!instance) return;
-    const current = new Date();
-    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-}
-
 function fetchJunketLossData(fpInstance) {
     const table = ensureJunketLossTable();
     if (!table) return;
@@ -675,7 +669,6 @@ $(document).ready(function () {
             mode: 'range',
             showMonths: 3,
             onReady: function (_selectedDates, _dateStr, instance) {
-                jumpJunketLossRangeToCurrentThreeMonths(instance);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
@@ -684,7 +677,6 @@ $(document).ready(function () {
                 }, 0);
             },
             onOpen: function (_selectedDates, _dateStr, instance) {
-                jumpJunketLossRangeToCurrentThreeMonths(instance);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }

@@ -1094,12 +1094,6 @@ $(document).ready(function () {
 
     var commissionPanelSkipMonthRange = false;
 
-    function jumpCommissionPanelRangeToCurrentThreeMonths(instance) {
-        if (!instance) return;
-        var current = new Date();
-        instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-    }
-
     function applyFullMonthRangeForVisibleLeft(instance) {
         if (!instance || instance.config.mode !== 'range') return;
         var y = instance.currentYear;
@@ -1116,17 +1110,11 @@ $(document).ready(function () {
         mode: 'range',
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            commissionPanelSkipMonthRange = true;
-            jumpCommissionPanelRangeToCurrentThreeMonths(instance);
-            commissionPanelSkipMonthRange = false;
             if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                 window.setupFlatpickrMonthNameRangeSelect(instance);
             }
         },
         onOpen: function (selectedDates, dateStr, instance) {
-            commissionPanelSkipMonthRange = true;
-            jumpCommissionPanelRangeToCurrentThreeMonths(instance);
-            commissionPanelSkipMonthRange = false;
             if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                 window.setupFlatpickrMonthNameRangeSelect(instance);
             }

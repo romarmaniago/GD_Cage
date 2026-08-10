@@ -670,12 +670,6 @@ $(document).ready(function() {
         $('#GRAND_PAYMENT').html(fmtCommissionAmount(totalPayment, 'out'));
     }
 
-    function jumpCommissionRangeToCurrentThreeMonths(instance) {
-        if (!instance) return;
-        const current = new Date();
-        instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-    }
-
     function getCommissionDateInput() {
         return document.getElementById('commission-daterange') || document.getElementById('daterange');
     }
@@ -908,13 +902,11 @@ $(document).ready(function() {
         mode: "range",
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            jumpCommissionRangeToCurrentThreeMonths(instance);
             if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                 window.setupFlatpickrMonthNameRangeSelect(instance);
             }
         },
         onOpen: function (selectedDates, dateStr, instance) {
-            jumpCommissionRangeToCurrentThreeMonths(instance);
             if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                 window.setupFlatpickrMonthNameRangeSelect(instance);
             }

@@ -5942,8 +5942,6 @@ $(document).ready(function () {
             minDate: earliestProgramDate,
             allowInput: false,
             onOpen: function (selectedDates, dateStr, instance) {
-                var n = new Date();
-                instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }
@@ -6022,8 +6020,6 @@ $(document).ready(function () {
                 }
             },
             onOpen: function (selectedDates, dateStr, instance) {
-                var anchor = new Date();
-                instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
                 if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
                     window.setupFlatpickrMonthNameRangeSelect(instance);
                 }

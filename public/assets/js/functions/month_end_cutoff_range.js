@@ -218,6 +218,18 @@
 		fitRangeInputWidth(visible);
 	}
 
+	function jumpRangePickerToVisibleMonths(instance, refDate) {
+		if (!instance || typeof instance.jumpToDate !== 'function') return;
+		var anchor;
+		if (instance.selectedDates && instance.selectedDates.length > 0) {
+			anchor = instance.selectedDates[0];
+		} else {
+			var ref = refDate instanceof Date && !isNaN(refDate.getTime()) ? refDate : new Date();
+			anchor = new Date(ref.getFullYear(), ref.getMonth() - 2, 1);
+		}
+		instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth(), 1), false);
+	}
+
 	function fitSingleDateInputWidth(inputEl) {
 		if (!inputEl || inputEl.type === 'hidden') return;
 		var text = (inputEl.value || '').trim();
@@ -295,6 +307,15 @@
 			merged.defaultDate = range.defaultDate;
 		}
 
+		if (!merged.skipRangeCalendarJump) {
+			chainRangeHook(merged, 'onReady', function (selectedDates, dateStr, instance) {
+				jumpRangePickerToVisibleMonths(instance);
+			});
+			chainRangeHook(merged, 'onOpen', function (selectedDates, dateStr, instance) {
+				jumpRangePickerToVisibleMonths(instance);
+			});
+		}
+
 		if (!merged.skipAutoRangeWidth) {
 			chainRangeHook(merged, 'onReady', function (selectedDates, dateStr, instance) {
 				setTimeout(function () { fitRangePickerInstance(instance); }, 0);
@@ -348,6 +369,7 @@
 		patchRangePickerConfig: patchRangePickerConfig,
 		fitRangeInputWidth: fitRangeInputWidth,
 		fitRangePickerInstance: fitRangePickerInstance,
+		jumpRangePickerToVisibleMonths: jumpRangePickerToVisibleMonths,
 		fitSingleDateInputWidth: fitSingleDateInputWidth,
 		fitSingleDatePickerInstance: fitSingleDatePickerInstance,
 		resizeAllRangePickers: resizeAllRangePickers,

@@ -191,21 +191,9 @@ window.winlossDetailsTranslations = {
 <script>
 $(document).ready(function() {
   let winlossDataTable = null;
-  function jumpWinlossRangeToCurrentThreeMonths(instance) {
-    if (!instance) return;
-    const current = new Date();
-    instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-  }
-
   const picker = flatpickr("#winloss-daterange", {
     mode: "range",
     showMonths: 3,
-    onReady: function(selectedDates, dateStr, instance) {
-      jumpWinlossRangeToCurrentThreeMonths(instance);
-    },
-    onOpen: function(selectedDates, dateStr, instance) {
-      jumpWinlossRangeToCurrentThreeMonths(instance);
-    },
     onChange: function(selectedDates, dateStr) {
       if (selectedDates.length === 2) {
         loadWinlossDetails();

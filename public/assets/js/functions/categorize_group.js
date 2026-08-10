@@ -276,12 +276,6 @@
 		};
 	}
 
-	function jumpCgRangeToCurrentThreeMonths(instance) {
-		if (!instance) return;
-		var now = new Date();
-		instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
-	}
-
 	function buildSummaryQuery() {
 		var q = {};
 		if (cgSplitOverrideRange && cgSplitOverrideRange.start && cgSplitOverrideRange.end) {
@@ -584,7 +578,6 @@
 			dateFormat: 'Y-m-d',
 			defaultDate: cutoff.defaultDate,
 			onReady: function (_dates, _str, instance) {
-				jumpCgRangeToCurrentThreeMonths(instance);
 				if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
 					window.MonthEndCutoffRange.fitRangePickerInstance(instance);
 				}

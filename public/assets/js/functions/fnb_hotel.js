@@ -539,17 +539,10 @@ $(document).ready(function() {
 	}
 
 	if (typeof flatpickr === 'function') {
-		function jumpFnbHotelRangeToCurrentThreeMonths(instance) {
-			if (!instance) return;
-			const now = new Date();
-			instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
-		}
-
 		fnbHotelDatePicker = flatpickr('#fnb-hotel-daterange', {
 			mode: 'range',
 			showMonths: 3,
 			onReady: function (_selectedDates, _dateStr, instance) {
-				jumpFnbHotelRangeToCurrentThreeMonths(instance);
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 					window.setupFlatpickrMonthNameRangeSelect(instance);
 				}
@@ -558,7 +551,6 @@ $(document).ready(function() {
 				}
 			},
 			onOpen: function (_selectedDates, _dateStr, instance) {
-				jumpFnbHotelRangeToCurrentThreeMonths(instance);
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 					window.setupFlatpickrMonthNameRangeSelect(instance);
 				}

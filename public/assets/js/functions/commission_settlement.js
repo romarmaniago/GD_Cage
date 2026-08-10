@@ -782,8 +782,6 @@ $(document).ready(function () {
 		mode: 'range',
 		showMonths: 3,
 		onReady: function (selectedDates, dateStr, instance) {
-			var current = new Date();
-			instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
 			if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 				window.setupFlatpickrMonthNameRangeSelect(instance);
 			}

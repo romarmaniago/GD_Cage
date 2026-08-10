@@ -415,12 +415,6 @@
 		};
 	}
 
-	function jumpGiRangeToCurrentThreeMonths(instance) {
-		if (!instance) return;
-		var now = new Date();
-		instance.jumpToDate(new Date(now.getFullYear(), now.getMonth() - 2, 1), false);
-	}
-
 	function initGiSplitDateRange() {
 		if (!window.SplitDateRange || typeof window.SplitDateRange.attach !== 'function') {
 			giSplitDateRange = { syncFromRange: function () {}, fitWidths: function () {}, isSyncing: function () { return false; } };
@@ -468,13 +462,11 @@
 			showMonths: 3,
 			allowInput: false,
 			onReady: function (_selectedDates, _dateStr, instance) {
-				jumpGiRangeToCurrentThreeMonths(instance);
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 					window.setupFlatpickrMonthNameRangeSelect(instance);
 				}
 			},
 			onOpen: function (_selectedDates, _dateStr, instance) {
-				jumpGiRangeToCurrentThreeMonths(instance);
 				if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
 					window.setupFlatpickrMonthNameRangeSelect(instance);
 				}

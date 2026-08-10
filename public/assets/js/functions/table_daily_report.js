@@ -864,11 +864,6 @@
   function initReportListDateRangePicker() {
     if (!reportListDateRange || reportListDateRangePicker || typeof flatpickr === 'undefined') return;
     const monthRange = getCurrentMonthRange();
-    const jumpToCurrentThreeMonths = (instance) => {
-      if (!instance) return;
-      const current = new Date();
-      instance.jumpToDate(new Date(current.getFullYear(), current.getMonth() - 2, 1), false);
-    };
     reportListDateRangePicker = flatpickr(reportListDateRange, {
       mode: 'range',
       conjunction: ' to ',
@@ -876,13 +871,11 @@
       showMonths: 3,
       defaultDate: [monthRange.fromAt, monthRange.toAt],
       onReady: (_selectedDates, _dateStr, instance) => {
-        jumpToCurrentThreeMonths(instance);
         if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
           window.setupFlatpickrMonthNameRangeSelect(instance);
         }
       },
       onOpen: (_selectedDates, _dateStr, instance) => {
-        jumpToCurrentThreeMonths(instance);
         if (typeof window.setupFlatpickrMonthNameRangeSelect === 'function') {
           window.setupFlatpickrMonthNameRangeSelect(instance);
         }
