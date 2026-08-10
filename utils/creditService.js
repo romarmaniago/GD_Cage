@@ -767,6 +767,114 @@ async function updateCreditFieldsByLedgerId(pool, ledgerId, fields, editedBy = n
 	}
 }
 
+/**
+ * Soft-delete a marker/credit history row (credit_transaction + mirrored ledger/game_record).
+ * History tab IDs are COALESCE(LEDGER_ID, credit_transaction.IDNo) — must handle credit-only rows.
+ * @returns {Promise<boolean>} false when no active row matched
+ */
+async function deleteMarkerCreditRecord(pool, id, editedBy = null, editedDt = null) {
+	const parsedId = parseInt(id, 10);
+	if (!Number.isInteger(parsedId) || parsedId <= 0) return false;
+
+	const when = editedDt || new Date();
+	const editor = editedBy != null ? editedBy : null;
+
+	const [ledgerRows] = await pool.execute(
+		`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_DT
+		 FROM account_ledger
+		 WHERE IDNo = ? AND ACTIVE = 1
+		 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
+		[parsedId]
+	);
+
+	let creditRow = null;
+	try {
+		await ensureCreditTable(pool);
+		const [ctRows] = await pool.execute(
+			`SELECT IDNo, LEDGER_ID, ACCOUNT_ID, GAME_ID, CREDIT_ACTION, AMOUNT, ENCODED_DT
+			 FROM credit_transaction
+			 WHERE (LEDGER_ID = ? OR IDNo = ?) AND ACTIVE = 1
+			 LIMIT 1`,
+			[parsedId, parsedId]
+		);
+		creditRow = ctRows && ctRows[0] ? ctRows[0] : null;
+	} catch (err) {
+		console.error('[credit] delete lookup failed:', err.message || err);
+	}
+
+	if (!ledgerRows.length && !creditRow) return false;
+
+	const rec = ledgerRows[0] || null;
+	const ledgerIdToDelete = rec
+		? rec.IDNo
+		: (creditRow && creditRow.LEDGER_ID != null ? parseInt(creditRow.LEDGER_ID, 10) : null);
+
+	if (creditRow) {
+		await pool.execute(
+			`UPDATE credit_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[editor, when, creditRow.IDNo]
+		);
+	} else if (ledgerIdToDelete) {
+		await softDeleteCreditByLedgerId(pool, ledgerIdToDelete, editor, when);
+	}
+
+	if (rec) {
+		await pool.execute(
+			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[editor, when, rec.IDNo]
+		);
+	} else if (ledgerIdToDelete) {
+		await pool.execute(
+			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
+			[editor, when, ledgerIdToDelete]
+		);
+	}
+
+	let transId = null;
+	let transType = null;
+	let gameId = null;
+	let amount = 0;
+	let encodedDt = null;
+
+	if (rec) {
+		transId = parseInt(rec.TRANSACTION_ID, 10);
+		transType = parseInt(rec.TRANSACTION_TYPE, 10);
+		gameId = rec.GAME_ID;
+		amount = parseFloat(rec.AMOUNT) || 0;
+		encodedDt = rec.ENCODED_DT;
+	} else if (creditRow) {
+		const action = normalizeCreditAction(creditRow.CREDIT_ACTION);
+		gameId = creditRow.GAME_ID;
+		amount = parseFloat(creditRow.AMOUNT) || 0;
+		encodedDt = creditRow.ENCODED_DT;
+		if (action === CREDIT_ACTIONS.BUY_IN) {
+			transId = 10;
+			transType = 3;
+		} else if (action === CREDIT_ACTIONS.CHIPS_RETURN) {
+			transId = 1;
+			transType = 4;
+		}
+	}
+
+	if (transId === 10 && gameId) {
+		await pool.execute(
+			`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3) AND TRANSACTION = 3`,
+			[editor, when, gameId, amount, encodedDt]
+		);
+	}
+
+	if (transType === 4 && transId === 1 && gameId) {
+		await pool.execute(
+			`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND CAGE_TYPE = 2 AND TRANSACTION = 4`,
+			[editor, when, gameId, amount, encodedDt]
+		);
+	}
+
+	return true;
+}
+
 module.exports = {
 	CREDIT_ACTIONS,
 	CREDIT_SOURCES,
@@ -787,6 +895,7 @@ module.exports = {
 	getCreditHistorySql,
 	getCreditIssueTransactionsSql,
 	softDeleteCreditByLedgerId,
+	deleteMarkerCreditRecord,
 	updateCreditRemarksByLedgerId,
 	updateCreditFieldsByLedgerId
 };

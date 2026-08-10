@@ -17,7 +17,7 @@ const {
 	getCreditStatusBreakdownSql,
 	getCreditHistorySql,
 	getCreditIssueTransactionsSql,
-	softDeleteCreditByLedgerId,
+	deleteMarkerCreditRecord,
 	updateCreditRemarksByLedgerId,
 	updateCreditFieldsByLedgerId,
 	CREDIT_SOURCES
@@ -2969,52 +2969,10 @@ router.delete('/marker_record/:id', async (req, res) => {
 	const date_now = new Date();
 
 	try {
-		const [rows] = await pool.execute(
-			`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_DT 
-			 FROM account_ledger 
-			 WHERE IDNo = ? AND ACTIVE = 1 
-			 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
-			[id]
-		);
-
-		if (rows.length === 0) {
+		const deleted = await deleteMarkerCreditRecord(pool, id, req.session.user_id, date_now);
+		if (!deleted) {
 			return res.status(404).json({ success: false, message: 'Record not found or already deleted.' });
 		}
-
-		const rec = rows[0];
-		const transId = parseInt(rec.TRANSACTION_ID, 10);
-		const transType = parseInt(rec.TRANSACTION_TYPE, 10);
-		const gameId = rec.GAME_ID;
-		const accountId = rec.ACCOUNT_ID;
-		const amount = parseFloat(rec.AMOUNT) || 0;
-		const encodedDt = rec.ENCODED_DT;
-
-		// 1. Always soft delete account_ledger
-		await pool.execute(
-			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
-			[req.session.user_id, date_now, id]
-		);
-
-		await softDeleteCreditByLedgerId(pool, id, req.session.user_id, date_now);
-
-		// 2. For Buy-in (TRANSACTION_ID 10): soft delete game_record (CAGE_TYPE 1 and 3)
-		if (transId === 10 && gameId) {
-			await pool.execute(
-				`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? 
-				 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3) AND TRANSACTION = 3`,
-				[req.session.user_id, date_now, gameId, amount, encodedDt]
-			);
-		}
-
-		// 3. For Chips Return (TRANSACTION_TYPE 4): soft delete game_record (CAGE_TYPE 2, TRANSACTION 4)
-		if (transType === 4 && transId === 1 && gameId) {
-			await pool.execute(
-				`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? 
-				 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND CAGE_TYPE = 2 AND TRANSACTION = 4`,
-				[req.session.user_id, date_now, gameId, amount, encodedDt]
-			);
-		}
-		// If GAME_ID is NULL for chips return (legacy), only account_ledger is deleted
 
 		res.json({ success: true, message: 'Record deleted successfully.' });
 	} catch (err) {
