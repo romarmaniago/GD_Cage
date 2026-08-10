@@ -9,6 +9,7 @@ const { checkSession, sessions } = require('./auth');
 
 // Main Cage Rolling Check — dates before this have no auto-computed source data.
 // Buy In / Cash Out / Rolling for those dates come from dashboard_rolling_manual instead.
+// Casino W/L (daily_table_reports) is also excluded through July 30, 2026.
 const DASH_ROLLING_MANUAL_CUTOFF = '2026-07-31';
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
@@ -4528,8 +4529,9 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			const dayTables = dailyByDateTable[date] || {};
 			const beyond = Number(beyondByDate[date]) || 0;
 
-			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT)
-			const casinoWl = sumDayWinlossTotal(dayTables);
+			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT).
+			// Pre-cutoff dates (through July 30, 2026) use legacy/manual rolling — exclude daily_table_reports W/L.
+			const casinoWl = isManualZone ? 0 : sumDayWinlossTotal(dayTables);
 			// W/L Check — Gold Dragon: buy-in minus cash-out per program date (game_list + game_information)
 			const goldWl = Number(goldWlByDate[date]) || 0;
 
@@ -4558,9 +4560,9 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				totalBuyInAuto += buyIn;
 				totalCashOutAuto += cashOut;
 				totalRollingAuto += rolling;
+				totalCasinoWl += casinoWl;
 			}
 			totalBeyond += beyond;
-			totalCasinoWl += casinoWl;
 			totalGoldWl += goldWl;
 		});
 
