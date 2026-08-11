@@ -757,6 +757,7 @@
 		"new_user": "新しいユーザー",
 		"last_name": "姓",
 		"first_name": "名",
+		"name": "名前",
 		"username": "ユーザー名",
 		"permission": "権限",
 		"status": "ステータス",
@@ -1399,6 +1400,7 @@
 		"new_account": "新規アカウント",
 		"first_name_placeholder": "名前",
 		"last_name_placeholder": "姓",
+		"name_placeholder": "名前",
 		"username_placeholder": "ユーザー名",
 		"password_placeholder": "パスワード",
 		"confirm_password_placeholder": "確認パスワード",
@@ -1409,6 +1411,7 @@
 		"edit_account": "アカウントの編集",
 		"first_name_placeholder": "名前",
 		"last_name_placeholder": "姓",
+		"name_placeholder": "名前",
 		"username_placeholder": "ユーザー名",
 		"save": "保存",
 		"close": "閉じる"

@@ -702,6 +702,7 @@
 		"new_user": "New User",
 		"last_name": "Last Name",
 		"first_name": "First Name",
+		"name": "Name",
 		"username": "Username",
 		"permission": "Permission",
 		"status": "Status",
@@ -1349,6 +1350,7 @@
 		"new_account": "New Account",
 		"first_name_placeholder": "First Name",
 		"last_name_placeholder": "Last Name",
+		"name_placeholder": "Name",
 		"username_placeholder": "Username",
 		"password_placeholder": "Password",
 		"confirm_password_placeholder": "Confirm Password",
@@ -1359,6 +1361,7 @@
 		"edit_account": "Edit Account",
 		"first_name_placeholder": "First Name",
 		"last_name_placeholder": "Last Name",
+		"name_placeholder": "Name",
 		"username_placeholder": "Username",
 		"save": "Save",
 		"close": "Close"

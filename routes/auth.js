@@ -413,7 +413,7 @@ router.post('/add_user', async (req, res) => {
   
       await pool.execute(query, [
         txtFirstName,
-        txtLastName,
+        txtLastName || '',
         txtUserName,
         hashedPassword,
         salt,
@@ -544,7 +544,7 @@ router.post('/add_user', async (req, res) => {
 
 		await pool.execute(query, [
 			txtFirstName,
-			txtLastName,
+			txtLastName || '',
 			txtUserName,
 			generated_pw,
 			salt,
@@ -618,7 +618,7 @@ router.put('/user/:id', async (req, res) => {
 
 		await pool.execute(query, [
 			txtFirstName,
-			txtLastName,
+			txtLastName || '',
 			txtUserName,
 			user_role,
 			req.session.user_id,

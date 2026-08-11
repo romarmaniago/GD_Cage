@@ -759,6 +759,7 @@
 		"new_user": "新用户",
 		"last_name": "姓",
 		"first_name": "名",
+		"name": "名称",
 		"username": "用户名",
 		"permission": "权限",
 		"status": "状态",
@@ -1399,6 +1400,7 @@
 		"new_account": "新账户",
 		"first_name_placeholder": "名",
 		"last_name_placeholder": "姓",
+		"name_placeholder": "名称",
 		"username_placeholder": "用户名",
 		"password_placeholder": "密码",
 		"confirm_password_placeholder": "确认密码",
@@ -1409,6 +1411,7 @@
 		"edit_account": "编辑账户",
 		"first_name_placeholder": "名",
 		"last_name_placeholder": "姓",
+		"name_placeholder": "名称",
 		"username_placeholder": "用户名",
 		"save": "保存",
 		"close": "关闭"

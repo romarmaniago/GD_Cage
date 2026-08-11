@@ -45,7 +45,7 @@ $(document).ready(function () {
 
 					var btn = `<div class="btn-group">
               ${deleteBtn}
-            <button type="button" class="btn btn-sm bg-info-subtle js-bs-tooltip-enabled" onclick="edit_user(${row.user_id}, '${row.FIRSTNAME}', '${row.LASTNAME}', '${row.USERNAME}', ${row.PERMISSIONS})"
+            <button type="button" class="btn btn-sm bg-info-subtle js-bs-tooltip-enabled" onclick="edit_user(${row.user_id}, '${row.FIRSTNAME}', '${row.USERNAME}', ${row.PERMISSIONS})"
               data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
               <i class="fa fa-pencil-alt"></i>
             </button>
@@ -55,7 +55,7 @@ $(document).ready(function () {
             </button>
           </div>`;
 
-					dataTable.row.add([row.LASTNAME, row.FIRSTNAME, row.USERNAME, row.role, status, btn]).draw();
+					dataTable.row.add([row.FIRSTNAME, row.USERNAME, row.role, status, btn]).draw();
 				});
 				// View-only: disable delete and edit buttons after table is populated
 				if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
@@ -227,13 +227,12 @@ function change_password(id, username) {
 	user_id = id;
 }
 
-function edit_user(id, firstname, lastname, username, role) {
+function edit_user(id, firstname, username, role) {
 	$('#modal-edit_user').modal('show');
 
 	get_user_role_edit(role);
 
 	$('#firstname').val(firstname);
-	$('#lastname').val(lastname);
 	$('#username').val(username);
 	user_id = id;
 
