@@ -793,10 +793,30 @@
     });
   }
 
+  function wlAmountHasData(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n !== 0;
+  }
+
   function formatWlAmountCell(value) {
     const n = Number(value);
     if (!Number.isFinite(n) || n === 0) return { text: '', neg: false };
     return { text: formatAmount(n), neg: n < 0 };
+  }
+
+  function formatWlDiffCell(casinoValue, goldValue) {
+    const diff = (Number(casinoValue) || 0) - (Number(goldValue) || 0);
+    if (diff === 0 && !wlAmountHasData(casinoValue) && !wlAmountHasData(goldValue)) {
+      return { text: '', neg: false };
+    }
+    if (diff === 0) return { text: '0', neg: false };
+    return { text: formatAmount(diff), neg: diff < 0 };
+  }
+
+  function formatWlDiffExport(casinoValue, goldValue) {
+    const diff = (Number(casinoValue) || 0) - (Number(goldValue) || 0);
+    if (diff === 0 && !wlAmountHasData(casinoValue) && !wlAmountHasData(goldValue)) return '';
+    return formatTotalCell(diff);
   }
 
   function renderWlTable(payload) {
@@ -809,10 +829,9 @@
 
     const bodyHtml = rows.map((row) => {
       const cls = row.date === today ? 'dash-wl-row is-today' : 'dash-wl-row';
-      const diff = (Number(row.casino) || 0) - (Number(row.gold_dragon) || 0);
       const casino = formatWlAmountCell(row.casino);
       const gold = formatWlAmountCell(row.gold_dragon);
-      const diffCell = formatWlAmountCell(diff);
+      const diffCell = formatWlDiffCell(row.casino, row.gold_dragon);
       return `<div class="${cls}" data-date="${escapeAttr(row.date)}">
         <span class="dash-wl-body-cell is-date">${toDisplayDate(row.date)}</span>
         <span class="dash-wl-body-cell is-col-casino${casino.neg ? ' text-dash-neg' : ''}">${escapeHtml(casino.text)}</span>
@@ -1323,12 +1342,11 @@
   function buildWlSheetPayload(payload) {
     const headers = ['Date', 'Casino', 'Gold Dragon', 'The difference', 'Remarks'];
     const rows = (payload.wl_rows || []).map((row) => {
-      const diff = (Number(row.casino) || 0) - (Number(row.gold_dragon) || 0);
       return [
         toDisplayDate(row.date),
         formatCell(row.casino),
         formatCell(row.gold_dragon),
-        formatCell(diff),
+        formatWlDiffExport(row.casino, row.gold_dragon),
         formatWlRemarksDisplay(row)
       ];
     });

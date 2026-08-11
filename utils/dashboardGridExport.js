@@ -208,7 +208,9 @@ async function buildDashboardWlExportXlsx(rows, totals, opts = {}) {
 		const casino = numOrBlank(row.casino);
 		const gold = numOrBlank(row.gold_dragon);
 		const diff = (Number(row.casino) || 0) - (Number(row.gold_dragon) || 0);
-		const diffVal = diff === 0 ? '' : Math.round(diff);
+		const hasCasinoData = (Number(row.casino) || 0) !== 0;
+		const hasGoldData = (Number(row.gold_dragon) || 0) !== 0;
+		const diffVal = (diff === 0 && !hasCasinoData && !hasGoldData) ? '' : Math.round(diff);
 		const dataRow = ws.addRow([
 			toDisplayDate(row.date),
 			casino,
