@@ -186,26 +186,71 @@ $(document).ready(function () {
 
     let openedFromGuestAccount = false;
 
-// When account details modal opens
-$('#modal-account-details').on('show.bs.modal', function () {
-    $('#modal-guestAccount').css('z-index', 1050); // Move guest account behind
-    $('#modal-account-details').css('z-index', 1060); // Account details on top
-
-    if ($('#modal-guestAccount').is(':visible')) {
-        openedFromGuestAccount = true;
+    function isGuestAccountModalOpen() {
+        return $('#modal-guestAccount').hasClass('show');
     }
-});
 
-// When account details modal closes
-$('#modal-account-details').on('hidden.bs.modal', function () {
-    if (!$('#modal-transfer_account').is(':visible') && openedFromGuestAccount) {
-        $('#modal-guestAccount').modal('show');
-        $('#modal-guestAccount').css('z-index', 1050); // Reset to original z-index
+    function bumpGuestAccountPortalStack() {
+        var $guestAccount = $('#modal-guestAccount');
+        var $portal = $('#modal-account-details');
+        requestAnimationFrame(function () {
+            $guestAccount.css('z-index', 1055);
+            $portal.css('z-index', 1065);
+            var backs = document.querySelectorAll('.modal-backdrop');
+            if (backs.length > 1) {
+                backs[backs.length - 1].remove();
+            }
+            backs = document.querySelectorAll('.modal-backdrop');
+            if (backs.length) {
+                backs[0].style.zIndex = 1050;
+            }
+        });
     }
-});
+
+    function resetGuestAccountPortalStack() {
+        $('#modal-guestAccount').css('z-index', '');
+        $('#modal-account-details').css('z-index', '');
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+            el.style.zIndex = '';
+        });
+        if (!isGuestAccountModalOpen()) {
+            if (typeof window.resetOrphanedModalBackdrops === 'function') {
+                window.resetOrphanedModalBackdrops();
+            }
+            return;
+        }
+        var backs = document.querySelectorAll('.modal-backdrop');
+        while (backs.length > 1) {
+            backs[backs.length - 1].remove();
+            backs = document.querySelectorAll('.modal-backdrop');
+        }
+        document.body.classList.add('modal-open');
+    }
+
+    // When account details modal opens from Guest Accounts list
+    $('#modal-account-details').on('show.bs.modal', function () {
+        if (isGuestAccountModalOpen()) {
+            openedFromGuestAccount = true;
+        }
+    });
+
+    $('#modal-account-details').on('shown.bs.modal', function () {
+        if (openedFromGuestAccount) {
+            bumpGuestAccountPortalStack();
+        }
+    });
+
+    // When account details modal closes — do not re-show Guest Accounts (still open); only fix backdrop stack
+    $('#modal-account-details').on('hidden.bs.modal', function () {
+        if (!$('#modal-transfer_account').is(':visible') && openedFromGuestAccount) {
+            resetGuestAccountPortalStack();
+            openedFromGuestAccount = false;
+        }
+    });
 
 // When transfer account modal opens
 $('#modal-transfer_account').on('show.bs.modal', function () {
+    openedFromGuestAccount = false;
     // Prevent closing guestAccount modal
     if ($('#modal-guestAccount').is(':visible')) {
         $('#modal-guestAccount').css('z-index', 1050); // Keep guestAccount in background
