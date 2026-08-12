@@ -518,15 +518,15 @@ async function computeRcChipsForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
-async function computeGuestBalanceForPeriod(pool, dateFrom, dateTo) {
-	const p = [dateFrom, dateTo];
+// Guest Line is all-time (not period-filtered), matching dashboard SSR guestBalance.
+async function computeGuestBalanceForPeriod(pool) {
 	const [deposit, settlementDeposit, withdraw, deduct, servicesDeduct, markerReturnDeposit] = await Promise.all([
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=2 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=5 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='ACCOUNT DETAILS' AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC NOT IN ('SERVICES','ACCOUNT DETAILS') AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='SERVICES' AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=3 AND al.TRANSACTION_ID=2 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p)
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=2 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=5 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='ACCOUNT DETAILS' AND a.ACTIVE=1 AND ag.ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS', 'SERVICES') AND a.ACTIVE=1 AND ag.ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='SERVICES' AND a.ACTIVE=1 AND ag.ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=3 AND al.TRANSACTION_ID=12 AND a.ACTIVE=1 AND ag.ACTIVE=1`)
 	]);
 	return deposit + settlementDeposit - withdraw - deduct - servicesDeduct - markerReturnDeposit;
 }
@@ -588,7 +588,7 @@ async function computeCageMainForPeriod(pool, dateFrom, dateTo) {
 		computeCcChipsForPeriod(pool, dateFrom, dateTo),
 		computeCashForPeriod(pool, dateFrom, dateTo),
 		computeRcChipsForPeriod(pool, dateFrom, dateTo),
-		computeGuestBalanceForPeriod(pool, dateFrom, dateTo),
+		computeGuestBalanceForPeriod(pool),
 		computeCreditGrandTotal(pool),
 		computeTipBalanceForPeriod(pool, dateFrom, dateTo),
 		computeManualCashForPeriod(pool, dateFrom, dateTo),
