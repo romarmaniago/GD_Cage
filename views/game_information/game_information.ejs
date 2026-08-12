@@ -53,16 +53,16 @@
                   <th><%= __('gamelist.game_start') %></th>
                   <th class="text-center"><%= __('gamelist.type') %></th>
                   <th class="text-center"><%= __('gamelist.game#') %></th>
-                  <th class="text-center"><%= __('gamelist.acct_no') %></th>
-                  <th class="text-center"><%= __('gamelist.guest') %></th>
-                  <th class="text-center"><%= __('gamelist.buyin') %></th>
-                  <th class="text-center"><%= __('gamelist.cash_out') %></th>
-                  <th class="text-center"><%= __('gamelist.win_loss') %></th>
-                  <th class="text-center"><%= __('gamelist.real_rolling') %></th>
+                  <th class="text-start"><%= __('gamelist.acct_no') %></th>
+                  <th class="text-start"><%= __('gamelist.guest') %></th>
+                  <th class="text-end"><%= __('gamelist.buyin') %></th>
+                  <th class="text-end"><%= __('gamelist.cash_out') %></th>
+                  <th class="text-end"><%= __('gamelist.win_loss') %></th>
+                  <th class="text-end"><%= __('gamelist.real_rolling') %></th>
                   <th class="text-center"><%= __('gamelist.game_rate') %></th>
-                  <th class="text-center"><%= __('gamelist.commission') %></th>
-                  <th class="text-center">ADD CHG</th>
-                  <th class="text-center">TOTAL SETTLE</th>
+                  <th class="text-end"><%= __('gamelist.commission') %></th>
+                  <th class="text-end">ADD CHG</th>
+                  <th class="text-end">TOTAL SETTLE</th>
                   <th class="text-center"><%= __('gamelist.game_end') %></th>
                   <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
                   <th class="text-center"><%= __('gamelist.action') %></th>
@@ -73,14 +73,14 @@
               <tfoot>
                 <tr>
                   <th colspan="6" class="fw-semibold text-end"><%= __('gamelist.grand_total') %></th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_BUYIN">0.00</th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_CASHOUT">0.00</th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_WINLOSS">0.00</th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_ROLLING">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_BUYIN">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_CASHOUT">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_WINLOSS">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_ROLLING">0.00</th>
                   <th></th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_COMMISSION">0.00</th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_ADD_CHG">0.00</th>
-                  <th class="text-center fw-semibold" id="GI_GRAND_SETTLE">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_COMMISSION">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_ADD_CHG">0.00</th>
+                  <th class="text-end fw-semibold" id="GI_GRAND_SETTLE">0.00</th>
                   <th></th>
                   <% if (typeof permissions !== 'undefined' && permissions !== 2) { %>
                   <th></th>
@@ -274,6 +274,35 @@
 	white-space: nowrap;
 	vertical-align: middle;
 	font-size: 0.875rem;
+}
+#game_information-tbl thead th:nth-child(5),
+#game_information-tbl thead th:nth-child(6),
+#game_information-tbl tbody td:nth-child(5),
+#game_information-tbl tbody td:nth-child(6) {
+	text-align: left !important;
+}
+#game_information-tbl thead th:nth-child(7),
+#game_information-tbl thead th:nth-child(8),
+#game_information-tbl thead th:nth-child(9),
+#game_information-tbl thead th:nth-child(10),
+#game_information-tbl thead th:nth-child(12),
+#game_information-tbl thead th:nth-child(13),
+#game_information-tbl thead th:nth-child(14),
+#game_information-tbl tbody td:nth-child(7),
+#game_information-tbl tbody td:nth-child(8),
+#game_information-tbl tbody td:nth-child(9),
+#game_information-tbl tbody td:nth-child(10),
+#game_information-tbl tbody td:nth-child(12),
+#game_information-tbl tbody td:nth-child(13),
+#game_information-tbl tbody td:nth-child(14),
+#game_information-tbl tfoot th:nth-child(2),
+#game_information-tbl tfoot th:nth-child(3),
+#game_information-tbl tfoot th:nth-child(4),
+#game_information-tbl tfoot th:nth-child(5),
+#game_information-tbl tfoot th:nth-child(7),
+#game_information-tbl tfoot th:nth-child(8),
+#game_information-tbl tfoot th:nth-child(9) {
+	text-align: right !important;
 }
 .game-information-page .marker-total-table thead th {
 	color: #555 !important;

@@ -245,7 +245,11 @@
 		$('#gi-manual-settlement').val(displayAmountInput(settlement));
 	}
 
-	function addRowToTable(row, grand) {
+	function emptyGrandTotals() {
+		return { buyin: 0, cashout: 0, winloss: 0, rolling: 0, commission: 0, addChg: 0, settle: 0 };
+	}
+
+	function addRowToTable(row) {
 		manualGamesById[row.manual_id] = row;
 		var addChg = parseFloat(row.ADD_CHARGE) || 0;
 		var net = parseFloat(row.COMMISSION) || 0;
@@ -271,14 +275,6 @@
 				? t('telebet', 'TELEBET')
 				: t('live', 'LIVE');
 
-		grand.buyin += parseFloat(row.BUY_IN) || 0;
-		grand.cashout += parseFloat(row.CASH_OUT) || 0;
-		grand.winloss += parseFloat(row.WIN_LOSS) || 0;
-		grand.rolling += parseFloat(row.ROLLING) || 0;
-		grand.commission += sharedGame ? displayCommission : net;
-		grand.addChg += addChg;
-		grand.settle += displaySettle;
-
 		var cells = [
 			ymd(row.PROGRAM_DATE) || '—',
 			formatGameStart(row.GAME_START),
@@ -298,7 +294,16 @@
 		];
 		var actionCell = buildManualActionCell(row.manual_id);
 		if (actionCell !== '') cells.push(actionCell);
-		dataTable.row.add(cells);
+		var rowNode = dataTable.row.add(cells).node();
+		$(rowNode).data('giTotals', {
+			buyin: parseFloat(row.BUY_IN) || 0,
+			cashout: parseFloat(row.CASH_OUT) || 0,
+			winloss: parseFloat(row.WIN_LOSS) || 0,
+			rolling: parseFloat(row.ROLLING) || 0,
+			commission: sharedGame ? displayCommission : net,
+			addChg: addChg,
+			settle: displaySettle
+		});
 	}
 
 	function applyGiProgramRange(fromDate, toDate) {
@@ -316,7 +321,7 @@
 	}
 
 	function resetGrandTotals() {
-		$('#GI_GRAND_BUYIN, #GI_GRAND_CASHOUT, #GI_GRAND_WINLOSS, #GI_GRAND_ROLLING, #GI_GRAND_COMMISSION, #GI_GRAND_ADD_CHG, #GI_GRAND_SETTLE').text('0.00');
+		setGrandTotals(emptyGrandTotals());
 	}
 
 	function setGrandTotals(tots) {
@@ -327,6 +332,27 @@
 		$('#GI_GRAND_COMMISSION').html(fmtAmt(tots.commission, 'out'));
 		$('#GI_GRAND_ADD_CHG').html(fmtAmt(tots.addChg));
 		$('#GI_GRAND_SETTLE').html(fmtAmt(tots.settle, 'out'));
+	}
+
+	function updateGrandTotalsFromFiltered(api) {
+		var dt = api || dataTable;
+		if (!dt) {
+			resetGrandTotals();
+			return;
+		}
+		var grand = emptyGrandTotals();
+		dt.rows({ search: 'applied' }).every(function () {
+			var amt = $(this.node()).data('giTotals');
+			if (!amt) return;
+			grand.buyin += amt.buyin || 0;
+			grand.cashout += amt.cashout || 0;
+			grand.winloss += amt.winloss || 0;
+			grand.rolling += amt.rolling || 0;
+			grand.commission += amt.commission || 0;
+			grand.addChg += amt.addChg || 0;
+			grand.settle += amt.settle || 0;
+		});
+		setGrandTotals(grand);
 	}
 
 	function buildQuery() {
@@ -350,8 +376,6 @@
 		resetGrandTotals();
 		manualGamesById = {};
 
-		var grand = { buyin: 0, cashout: 0, winloss: 0, rolling: 0, commission: 0, addChg: 0, settle: 0 };
-
 		$.ajax({
 			url: '/game_information_data',
 			method: 'GET',
@@ -360,10 +384,9 @@
 				if (gen !== reloadGeneration) return;
 				rows = Array.isArray(rows) ? rows : [];
 				rows.forEach(function (row) {
-					addRowToTable(row, grand);
+					addRowToTable(row);
 				});
 				dataTable.draw();
-				setGrandTotals(grand);
 			},
 			error: function (xhr) {
 				console.error('game_information_data failed', xhr);
@@ -381,10 +404,17 @@
 			ordering: true,
 			order: [[3, 'asc']],
 			autoWidth: false,
+			columnDefs: [
+				{ targets: [4, 5], className: 'text-start' },
+				{ targets: [6, 7, 8, 9, 11, 12, 13], className: 'text-end' }
+			],
 			language: {
 				search: 'Search:',
 				lengthMenu: 'Show _MENU_',
 				emptyTable: t('emptyTable', 'No games found')
+			},
+			footerCallback: function () {
+				updateGrandTotalsFromFiltered(this.api());
 			}
 		});
 	}
