@@ -367,10 +367,17 @@
   }
 
   function formatDailyReportAmountInput(raw, allowNegative) {
-    const stripped = String(raw ?? '').replace(/,/g, '');
+    // Normalize Excel/accounting paste: (10,000), fullwidth parens, unicode minus
+    const stripped = String(raw ?? '')
+      .replace(/,/g, '')
+      .replace(/\u2212/g, '-')
+      .replace(/\uFF08/g, '(')
+      .replace(/\uFF09/g, ')');
 
     if (allowNegative) {
-      const isNegative = stripped.trim().startsWith('-');
+      const trimmed = stripped.trim();
+      // Accounting negatives: (10000) or typed/pasted leading '('
+      const isNegative = trimmed.startsWith('-') || trimmed.startsWith('(');
       const digits = stripped.replace(/[^\d]/g, '');
       if (!digits) return isNegative ? '-' : '';
 
