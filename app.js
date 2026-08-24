@@ -60,7 +60,7 @@ app.use((req, res, next) => {
 // CORS: allow local origins, Capacitor, PWA, server public IP (passport-scanner), and 10.x internal
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allow = origin && /^(https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|45\.32\.119\.62)(:\d+)?|capacitor:\/\/localhost|ionic:\/\/localhost)$/.test(origin)
+  const allow = origin && /^(https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|45\.32\.119\.62|45\.32\.103\.210)(:\d+)?|capacitor:\/\/localhost|ionic:\/\/localhost)$/.test(origin)
     ? origin
     : null;
   if (allow) {

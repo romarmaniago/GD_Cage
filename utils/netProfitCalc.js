@@ -230,6 +230,46 @@ async function loadUnsettledHouseExpenseTotal() {
 	}
 }
 
+/**
+ * Unsettled house expenses grouped by program date (fallback: DATE_TIME, then ENCODED_DT).
+ * Used so monthly statistics put July expenses on July instead of dumping everything on "today".
+ */
+async function loadUnsettledHouseExpensesByDay() {
+	const map = new Map();
+	try {
+		const [rows] = await pool.execute(
+			`SELECT
+				CAST(
+					COALESCE(jhe.PROGRAM_DATE, jhe.DATE_TIME, DATE(jhe.ENCODED_DT))
+					AS CHAR
+				) AS expense_day,
+				COALESCE(SUM(jhe.AMOUNT), 0) AS total_amt
+			 FROM junket_house_expense jhe
+			 WHERE jhe.ACTIVE = 1
+			   AND NOT EXISTS (
+				 SELECT 1
+				 FROM expense_daily_settlement_items it
+				 JOIN expense_daily_settlement eds ON eds.IDNo = it.DAILY_SETTLEMENT_ID AND eds.ACTIVE = 1
+				 WHERE it.EXPENSE_ID = jhe.IDNo AND it.EXPENSE_TYPE = 'expense'
+			   )
+			 GROUP BY expense_day`
+		);
+		for (const r of rows || []) {
+			const raw = r.expense_day;
+			let d = '';
+			if (raw instanceof Date) {
+				d = `${raw.getFullYear()}-${pad2(raw.getMonth() + 1)}-${pad2(raw.getDate())}`;
+			} else {
+				d = String(raw || '').slice(0, 10);
+			}
+			if (isValidYmd(d)) map.set(d, Number(r.total_amt) || 0);
+		}
+	} catch (_e) {
+		/* table missing etc. */
+	}
+	return map;
+}
+
 /** Placeholder for "currently in-progress, not yet posted to game_list" games. Not implemented upstream — always empty. */
 async function loadUnsettledGamesForLive() {
 	return [];
@@ -334,11 +374,12 @@ async function computeNetProfitRows(startStr, endStr) {
 	}
 	const recordsByGame = await fetchRecordsForGames([...allGameIdSet]);
 	const expenseByDay = await loadExpenseTotalsByDay(startStr, endStr);
-	const unsettledExpenseTotal = await loadUnsettledHouseExpenseTotal();
-	if (todayInRange && unsettledExpenseTotal > 0) {
-		expenseByDay.set(todayStr, (expenseByDay.get(todayStr) || 0) + unsettledExpenseTotal);
-		if (distinctDates.indexOf(todayStr) === -1) {
-			distinctDates = distinctDates.concat([todayStr]).sort();
+	const unsettledByDay = await loadUnsettledHouseExpensesByDay();
+	for (const [d, amt] of unsettledByDay.entries()) {
+		if (d < startStr || d > endStr) continue;
+		expenseByDay.set(d, (expenseByDay.get(d) || 0) + amt);
+		if (distinctDates.indexOf(d) === -1) {
+			distinctDates = distinctDates.concat([d]).sort();
 		}
 	}
 	const sharePctByDay = await loadSharePercentagesByDay(startStr, endStr);
@@ -480,6 +521,7 @@ module.exports = {
 	loadDistinctProgramDatesInRange,
 	loadExpenseTotalsByDay,
 	loadUnsettledHouseExpenseTotal,
+	loadUnsettledHouseExpensesByDay,
 	loadUnsettledGamesForLive,
 	loadSharePercentagesByDay,
 	normalizeSharePercentage,
