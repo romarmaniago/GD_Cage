@@ -101,7 +101,7 @@
 												<th><%= __('fnb_hotel.amount') %></th>
 												<th><%= __('fnb_hotel.payment') %></th>
 												<th><%= __('fnb_hotel.remarks') %></th>
-												<th class="text-start"><%= __('fnb_hotel.action') %></th>
+												<th class="text-center"><%= __('fnb_hotel.action') %></th>
 											</tr>
 									</thead>
 									<tbody>
@@ -137,6 +137,7 @@
 .fnb-hotel-page table.dataTable {
     border-collapse: collapse !important;
     border-spacing: 0 !important;
+    table-layout: fixed !important;
 }
 .fnb-hotel-page table thead tr,
 .fnb-hotel-page table tfoot tr {
@@ -162,11 +163,39 @@
 /* Base table styles */
 #fnb-hotel-table {
     width: 100%;
+    table-layout: fixed;
     font-size: 14px;
     border-collapse: collapse;
     border-spacing: 0;
     background-color: #ffffff;
     border: 1px solid #e0e0e0 !important;
+}
+
+#fnb-hotel-table thead th:nth-child(1),
+#fnb-hotel-table tbody td:nth-child(1) { width: 8%; }   /* Program Date */
+#fnb-hotel-table thead th:nth-child(2),
+#fnb-hotel-table tbody td:nth-child(2) { width: 11%; }  /* Date */
+#fnb-hotel-table thead th:nth-child(3),
+#fnb-hotel-table tbody td:nth-child(3) { width: 18%; }  /* Account */
+#fnb-hotel-table thead th:nth-child(4),
+#fnb-hotel-table tbody td:nth-child(4) { width: 14%; }  /* Guest */
+#fnb-hotel-table thead th:nth-child(5),
+#fnb-hotel-table tbody td:nth-child(5) { width: 9%; }   /* Type */
+#fnb-hotel-table thead th:nth-child(6),
+#fnb-hotel-table tbody td:nth-child(6) { width: 8%; }   /* Amount */
+#fnb-hotel-table thead th:nth-child(7),
+#fnb-hotel-table tbody td:nth-child(7) { width: 7%; }   /* Payment */
+#fnb-hotel-table thead th:nth-child(8),
+#fnb-hotel-table tbody td:nth-child(8) { width: 17%; }  /* Remarks */
+#fnb-hotel-table thead th:nth-child(9),
+#fnb-hotel-table tbody td:nth-child(9) { width: 8%; }   /* Action */
+
+#fnb-hotel-table thead th,
+#fnb-hotel-table tbody td {
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Header styles */
@@ -175,7 +204,7 @@
     background-color: #f5f5f5 !important;
     color: #555 !important;
     font-weight: 600;
-    padding: 12px 15px;
+    padding: 0.4rem 0.55rem;
     text-align: left;
     border: none;
     border-bottom: 1px solid #e0e0e0 !important;
@@ -184,12 +213,14 @@
 #fnb-hotel-table thead th:nth-child(6),
 #fnb-hotel-table tbody td:nth-child(6) {
     text-align: right !important;
-    padding-right: 20px;
+    padding-right: 0.75rem;
 }
 
+#fnb-hotel-table thead th:nth-child(7),
+#fnb-hotel-table tbody td:nth-child(7),
 #fnb-hotel-table thead th:last-child,
 #fnb-hotel-table tbody td:last-child {
-    text-align: left !important;
+    text-align: center !important;
 }
 
 #fnb-hotel-table tbody td:last-child .btn-group {
@@ -217,8 +248,9 @@
 
 /* Cell styles */
 #fnb-hotel-table td {
-    padding: 12px 15px;
+    padding: 0.35rem 0.55rem;
     color: #666;
+    text-align: left;
 }
 
 .fnb-hotel-date-filter-wrap {
@@ -337,7 +369,7 @@
 
 /* Footer total row */
 #fnb-hotel-table tfoot th {
-    padding: 12px;
+    padding: 0.4rem 0.55rem;
     font-weight: 600;
     background: #f5f5f5 !important;
     color: #555 !important;

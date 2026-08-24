@@ -13,9 +13,13 @@ $(document).ready(function() {
 	// Helpers (mirror the EJS helpers)
 	function formatDateForDisplay(value) {
 		if (!value) return '-';
+		if (typeof window.fmtDtUtc8 === 'function') {
+			return window.fmtDtUtc8(value, '-') || '-';
+		}
 		const d = new Date(value);
 		if (Number.isNaN(d.getTime())) return '-';
-		return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+		const pad = (n) => String(n).padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 	}
 
 	function paymentLabel(transactionId) {
@@ -47,13 +51,14 @@ $(document).ready(function() {
 	function formatProgramDateForDisplay(value) {
 		if (!value) return '-';
 		const raw = String(value).slice(0, 10);
-		if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-			const parts = raw.split('-').map(Number);
-			return `${parts[1]}/${parts[2]}/${parts[0]}`;
+		if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+		if (typeof window.fmtDate === 'function') {
+			return window.fmtDate(value, '-') || '-';
 		}
 		const d = new Date(value);
 		if (Number.isNaN(d.getTime())) return '-';
-		return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+		const pad = (n) => String(n).padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 	}
 
 	function formatYmdLocal(d) {
@@ -63,8 +68,9 @@ $(document).ready(function() {
 
 	function parseFnbHotelDate(value) {
 		const text = String(value || '').trim();
-		if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-			const parts = text.split('-').map(Number);
+		const ymd = text.slice(0, 10);
+		if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+			const parts = ymd.split('-').map(Number);
 			return new Date(parts[0], parts[1] - 1, parts[2]);
 		}
 		const d = new Date(value);
@@ -115,15 +121,9 @@ $(document).ready(function() {
 			ordering: true,
 			info: true,
 			paging: true,
+			autoWidth: false,
 			order: [[0, 'desc']], // Sort by Program Date (descending)
 			columnDefs: [
-				{
-					targets: '_all',
-					createdCell: function (cell, _cellData, rowMeta) {
-						if (rowMeta.col === 5 || rowMeta.col === 8) return;
-						$(cell).addClass('text-center');
-					}
-				},
 				{
 					targets: [0, 1], // Program Date + Date: sort by data-order / @data-order
 					render: function (data) {
@@ -131,11 +131,20 @@ $(document).ready(function() {
 						return data;
 					}
 				},
+				{ targets: 0, width: '8%' },
+				{ targets: 1, width: '11%' },
+				{ targets: 2, width: '18%' },
+				{ targets: 3, width: '14%' },
+				{ targets: 4, width: '9%' },
+				{ targets: 5, width: '8%' },
+				{ targets: 6, width: '7%', className: 'text-center' },
+				{ targets: 7, width: '17%' },
 				{
 					targets: [8], // Action column
+					width: '8%',
 					orderable: false,
 					searchable: false,
-					className: 'text-start'
+					className: 'text-center'
 				}
 			],
 			language: {
