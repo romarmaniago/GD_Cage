@@ -860,7 +860,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (id.includes('dep')) {
                 const depTotal = newGameListSplitDepositTotal();
                 const accountBalance = newGameListAccountDepositBalance();
-                if (depTotal > accountBalance) {
+                // Skip when deposit is empty/0 — negative guest balance must not block Cash/Credit.
+                if (depTotal > 0 && depTotal > accountBalance) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Insufficient Balance',

@@ -622,7 +622,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (id.includes('dep')) {
                 const depTotal = buyinSplitDepositTotal();
                 const accountBalance = buyinAccountDepositBalance();
-                if (depTotal > accountBalance) {
+                // Skip when deposit is empty/0 — negative guest balance must not block Cash/Credit.
+                if (depTotal > 0 && depTotal > accountBalance) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Insufficient Balance',

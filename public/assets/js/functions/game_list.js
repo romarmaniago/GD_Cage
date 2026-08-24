@@ -6150,7 +6150,9 @@ $('#add_game_list').submit(function (event) {
             $btn.prop('disabled', false).text('Submit');
             return;
         }
-        if (depLegTotal > (parseFloat(totalBalanceGuest1) || 0)) {
+        // Only enforce guest deposit balance when Deposit split is actually used.
+        // With deposit=0 and a negative guest balance, `0 > -N` is true and wrongly blocks Cash/Credit.
+        if (depLegTotal > 0 && depLegTotal > (parseFloat(totalBalanceGuest1) || 0)) {
             Swal.fire({
                 title: 'Insufficient Balance',
                 text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest1),
@@ -6311,7 +6313,8 @@ $('#add_buyin').submit(function (event) {
 		$btn.prop('disabled', false).text('Save');
 		return;
 	}
-	if (depTotal > (parseFloat(totalBalanceGuest2) || 0)) {
+	// Only enforce guest deposit balance when Deposit split is actually used.
+	if (depTotal > 0 && depTotal > (parseFloat(totalBalanceGuest2) || 0)) {
 		Swal.fire({
 			title: 'Insufficient Balance',
 			text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),

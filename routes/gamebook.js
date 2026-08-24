@@ -2923,7 +2923,8 @@ router.post('/add_game_list_split', async (req, res) => {
 	if ((cashNn > 0 && cashNn % 1000 !== 0) || (depNn > 0 && depNn % 1000 !== 0) || (creditNn > 0 && creditNn % 1000 !== 0)) {
 		return res.status(400).json({ error: 'NN split amounts must be in thousands.' });
 	}
-	if (depositTotal > totalBalanceGuest) {
+	// Only enforce guest deposit balance when Deposit split is actually used.
+	if (depositTotal > 0 && depositTotal > totalBalanceGuest) {
 		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
 	}
 	if (grandTotal <= 0) {
@@ -5953,7 +5954,8 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 	if (grandTotal <= 0) {
 		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
 	}
-	if (depositTotal > totalBalance) {
+	// Only enforce guest deposit balance when Deposit split is actually used.
+	if (depositTotal > 0 && depositTotal > totalBalance) {
 		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
 	}
 	const guarantorErr = creditGuarantorRequiredError(creditTotal, creditGuarantor);
