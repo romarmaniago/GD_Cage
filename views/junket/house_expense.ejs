@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=2">
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=4">
 <%- include('../partials/loader') %>
 
 
@@ -124,9 +124,19 @@
                                 <div class="col-12 col-lg-7 expense-explorer-item-col order-4 order-lg-3 d-flex">
                                     <div class="expense-cat-panel h-100 w-100 d-flex flex-column">
                                         <div class="expense-cat-panel-head d-flex flex-wrap justify-content-between align-items-center flex-shrink-0 gap-2">
-                                            <div class="d-flex align-items-center gap-2 min-w-0">
+                                            <div class="d-flex align-items-center gap-2 min-w-0 flex-wrap">
                                                 <span>Items</span>
                                                 <span id="expense-item-panel-subtitle" class="text-muted small text-truncate"></span>
+                                                <div class="expense-item-page-length">
+                                                    <label for="expense-item-page-size" class="expense-item-page-length-label visually-hidden">Rows per page</label>
+                                                    <select id="expense-item-page-size" class="form-select form-select-sm expense-item-page-size-select" aria-label="Rows per page">
+                                                        <option value="10" selected>10</option>
+                                                        <option value="25">25</option>
+                                                        <option value="50">50</option>
+                                                        <option value="100">100</option>
+                                                        <option value="-1">All</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div class="d-flex align-items-center gap-2 flex-shrink-0">
                                                 <button type="button" class="expense-cat-panel-add-btn js-house-expense-open-vehicle-modal d-none" title="Vehicles" aria-label="Vehicles">
@@ -174,6 +184,12 @@
                                                     <tr><td colspan="8" class="text-muted small text-center py-3">Loading...</td></tr>
                                                 </tbody>
                                             </table>
+                                            <div id="expense-item-pagination" class="expense-item-pagination d-none" aria-label="Expense items pagination">
+                                                <div class="expense-item-page-info text-muted small"></div>
+                                                <nav class="expense-item-page-nav" aria-label="Expense page navigation">
+                                                    <ul class="pagination pagination-sm expense-item-page-list mb-0"></ul>
+                                                </nav>
+                                            </div>
                                             <div class="expense-item-table-separator" role="presentation" aria-hidden="true"></div>
                                             <div class="expense-item-totals-wrap">
                                                 <div class="expense-item-footer-summary" aria-label="<%= __('house_expense.total_expenses') || 'Expense totals' %>">

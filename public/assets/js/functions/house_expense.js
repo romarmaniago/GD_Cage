@@ -26,6 +26,9 @@ window.houseExpenseItemTableSortState = {
     sortKey: 'date_time',
     sortDir: 'desc'
 };
+window.houseExpenseItemPage = 1;
+window.houseExpenseItemPageSize = 10;
+window.HOUSE_EXPENSE_ITEM_PAGE_SIZES = [10, 25, 50, 100, -1];
 
 /** EN → KR dictionary for category name autocomplete (ENGLISH 한글). */
 window.HOUSE_EXPENSE_CATEGORY_DICTIONARY = {
@@ -225,8 +228,7 @@ function getHouseExpenseSubCategoryRows(mainId) {
 function houseExpenseGetExplorerSubtitleText(st) {
     st = st || window.houseExpenseExplorerState || {};
     if (houseExpenseIsAllExplorerFilter(st)) {
-        var t = window.houseExpenseTranslations || {};
-        return t.filter_all || 'All';
+        return '';
     }
     if (!st.mainCategoryId && !st.mainCategory) return '';
 
@@ -943,6 +945,136 @@ function updateHouseExpenseItemFooterTotals(allRows) {
     setHouseExpenseFooterTotals(sums.totalExpense);
 }
 
+function houseExpenseGetItemPageSize() {
+    var size = Number(window.houseExpenseItemPageSize);
+    var allowed = window.HOUSE_EXPENSE_ITEM_PAGE_SIZES || [10, 25, 50, 100, -1];
+    if (allowed.indexOf(size) === -1) return 10;
+    return size;
+}
+
+function houseExpenseIsShowAllItemPages() {
+    return houseExpenseGetItemPageSize() === -1;
+}
+
+function houseExpenseEffectiveItemPageSize(totalRows) {
+    var size = houseExpenseGetItemPageSize();
+    if (size === -1) {
+        var total = Math.max(0, Number(totalRows) || 0);
+        return total > 0 ? total : 1;
+    }
+    return size;
+}
+
+function houseExpenseResetItemPage() {
+    window.houseExpenseItemPage = 1;
+}
+
+function houseExpenseBuildItemPaginationPages(currentPage, totalPages) {
+    var pages = [];
+    var i;
+    if (totalPages <= 7) {
+        for (i = 1; i <= totalPages; i++) pages.push(i);
+        return pages;
+    }
+    pages.push(1);
+    var start = Math.max(2, currentPage - 1);
+    var end = Math.min(totalPages - 1, currentPage + 1);
+    if (start > 2) pages.push('…');
+    for (i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push('…');
+    pages.push(totalPages);
+    return pages;
+}
+
+function updateHouseExpenseItemPagination(totalRows) {
+    var $bar = $('#expense-item-pagination');
+    if (!$bar.length) return;
+
+    var total = Math.max(0, Number(totalRows) || 0);
+    var pageSize = houseExpenseGetItemPageSize();
+    var showAll = pageSize === -1;
+    var effectiveSize = houseExpenseEffectiveItemPageSize(total);
+    var totalPages = total > 0 ? (showAll ? 1 : Math.ceil(total / effectiveSize)) : 0;
+    var page = Number(window.houseExpenseItemPage) || 1;
+    if (totalPages > 0) {
+        page = Math.min(Math.max(1, page), totalPages);
+    } else {
+        page = 1;
+    }
+    window.houseExpenseItemPage = page;
+
+    var t = window.houseExpenseTranslations || {};
+    var prevLabel = t.previous || 'Previous';
+    var nextLabel = t.next || 'Next';
+    var infoTpl = t.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries';
+    var start = total === 0 ? 0 : (page - 1) * effectiveSize + 1;
+    var end = total === 0 ? 0 : Math.min(page * effectiveSize, total);
+    var infoText = String(infoTpl)
+        .replace('_START_', String(start))
+        .replace('_END_', String(end))
+        .replace('_TOTAL_', String(total));
+
+    var $length = $('#expense-item-page-size');
+    if ($length.length && String($length.val()) !== String(pageSize)) {
+        $length.val(String(pageSize));
+    }
+
+    $bar.find('.expense-item-page-info').text(infoText);
+
+    var $ul = $bar.find('.expense-item-page-list');
+    $ul.empty();
+
+    if (total === 0 || totalPages <= 1) {
+        $ul.empty();
+        $bar.toggleClass('d-none', total === 0);
+        $bar.find('.expense-item-page-nav').toggleClass('d-none', totalPages <= 1);
+        return;
+    }
+
+    $bar.removeClass('d-none');
+    $bar.find('.expense-item-page-nav').removeClass('d-none');
+
+    $ul.append(
+        '<li class="page-item' +
+            (page <= 1 ? ' disabled' : '') +
+            '"><a class="page-link js-expense-item-page" href="#" data-page="' +
+            (page - 1) +
+            '" aria-label="' +
+            houseExpenseHtmlEscape(prevLabel) +
+            '">' +
+            houseExpenseHtmlEscape(prevLabel) +
+            '</a></li>'
+    );
+
+    houseExpenseBuildItemPaginationPages(page, totalPages).forEach(function (p) {
+        if (p === '…') {
+            $ul.append('<li class="page-item disabled"><span class="page-link">…</span></li>');
+            return;
+        }
+        $ul.append(
+            '<li class="page-item' +
+                (p === page ? ' active' : '') +
+                '"><a class="page-link js-expense-item-page" href="#" data-page="' +
+                p +
+                '">' +
+                p +
+                '</a></li>'
+        );
+    });
+
+    $ul.append(
+        '<li class="page-item' +
+            (page >= totalPages ? ' disabled' : '') +
+            '"><a class="page-link js-expense-item-page" href="#" data-page="' +
+            (page + 1) +
+            '" aria-label="' +
+            houseExpenseHtmlEscape(nextLabel) +
+            '">' +
+            houseExpenseHtmlEscape(nextLabel) +
+            '</a></li>'
+    );
+}
+
 function runHouseExpenseItemTableTransition(paintFn) {
     if (typeof paintFn !== 'function') return;
 
@@ -966,6 +1098,9 @@ function runHouseExpenseItemTableTransition(paintFn) {
 function renderHouseExpenseItemEntriesTable(allRows, options) {
     options = options || {};
     var shouldAnimate = options.animate === true;
+    if (options.resetPage === true) {
+        houseExpenseResetItemPage();
+    }
 
     function paintItemTableBody() {
         var $tbody = $('#expense-item-cat-tbody');
@@ -981,6 +1116,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 '<tr><td colspan="8" class="text-muted small text-center py-3">Select a main category</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
+            updateHouseExpenseItemPagination(0);
             syncHouseExpenseItemTableSortHeaders();
             return;
         }
@@ -997,6 +1133,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     '</td></tr>'
             );
             updateHouseExpenseItemFooterTotals(allRows);
+            updateHouseExpenseItemPagination(0);
             syncHouseExpenseItemTableSortHeaders();
             if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
                 window.syncHouseExpenseSelectAllCheckboxState();
@@ -1004,7 +1141,17 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
             return;
         }
 
-        var html = rows
+        var pageSize = houseExpenseEffectiveItemPageSize(rows.length);
+        var totalPages = houseExpenseIsShowAllItemPages() ? 1 : Math.ceil(rows.length / pageSize) || 1;
+        var page = Number(window.houseExpenseItemPage) || 1;
+        if (page > totalPages) page = totalPages;
+        if (page < 1) page = 1;
+        window.houseExpenseItemPage = page;
+
+        var startIdx = (page - 1) * pageSize;
+        var pageRows = rows.slice(startIdx, startIdx + pageSize);
+
+        var html = pageRows
             .map(function (row) {
                 var amount = parseFloat(row.AMOUNT) || 0;
                 var formattedProgramDate = formatHouseExpenseProgramDateCell(row);
@@ -1059,6 +1206,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
         $tbody.html(html);
         syncHouseExpenseItemTableSortHeaders();
         updateHouseExpenseItemFooterTotals(allRows);
+        updateHouseExpenseItemPagination(rows.length);
         if (typeof window.syncHouseExpenseSelectAllCheckboxState === 'function') {
             window.syncHouseExpenseSelectAllCheckboxState();
         }
@@ -1730,6 +1878,7 @@ function houseExpenseApplyLoadedData(data) {
         if (houseExpenseIsApprovedForTotals(row)) total_expense += parseFloat(row.AMOUNT) || 0;
     });
     window.houseExpenseLastRows = rows;
+    houseExpenseResetItemPage();
     renderHouseExpenseAnalytics(rows, total_expense);
     updateDashboardExpensesTotal(total_expense);
     houseExpenseReconcileExplorerState();
@@ -1906,7 +2055,7 @@ function renderHouseExpenseCategoryLists(data) {
     if (mainRows.length === 0) {
         $mainList.html('<div class="text-muted small p-2">No main categories</div>');
         renderHouseExpenseSubCategoryList(data || []);
-        renderHouseExpenseItemEntriesTable(data || []);
+        renderHouseExpenseItemEntriesTable(data || [], { resetPage: true });
         return;
     }
 
@@ -1962,8 +2111,10 @@ function renderHouseExpenseCategoryLists(data) {
 
     renderHouseExpenseSubCategoryList(data);
     houseExpenseSyncCategoryAddButtons();
+    var shouldAnimateItems = !!window.houseExpenseAnimateItemTable;
     renderHouseExpenseItemEntriesTable(data || [], {
-        animate: !!window.houseExpenseAnimateItemTable
+        animate: shouldAnimateItems,
+        resetPage: shouldAnimateItems
     });
     window.houseExpenseAnimateItemTable = false;
 }
@@ -2471,6 +2622,24 @@ $(document).ready(function () {
 
     $(document).on('input', '#expense-item-search', function () {
         window.houseExpenseItemSearchQuery = $(this).val() || '';
+        renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || [], { resetPage: true });
+    });
+
+    $(document).on('change', '#expense-item-page-size', function () {
+        var size = Number($(this).val());
+        var allowed = window.HOUSE_EXPENSE_ITEM_PAGE_SIZES || [10, 25, 50, 100, -1];
+        window.houseExpenseItemPageSize = allowed.indexOf(size) !== -1 ? size : 10;
+        houseExpenseResetItemPage();
+        renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || []);
+    });
+
+    $(document).on('click', '#expense-item-pagination .js-expense-item-page', function (e) {
+        e.preventDefault();
+        var $li = $(this).closest('.page-item');
+        if ($li.hasClass('disabled') || $li.hasClass('active')) return;
+        var page = Number($(this).attr('data-page'));
+        if (!Number.isFinite(page) || page < 1) return;
+        window.houseExpenseItemPage = page;
         renderHouseExpenseItemEntriesTable(window.houseExpenseLastRows || []);
     });
 
@@ -2481,16 +2650,28 @@ $(document).ready(function () {
             if (i === actionColIndex) return;
             headers.push($(this).text().trim());
         });
-        var rows = [];
-        $('#expense-item-cat-tbody tr.js-expense-entry-row').each(function () {
-            var cells = [];
-            $(this)
-                .find('td')
-                .each(function (i) {
-                    if (i === actionColIndex) return;
-                    cells.push($(this).text().trim());
-                });
-            if (cells.length) rows.push(cells);
+        var filtered = sortHouseExpenseItemRows(
+            houseExpenseGetFilteredItemRows(window.houseExpenseLastRows || [])
+        );
+        var rows = filtered.map(function (row) {
+            var amount = parseFloat(row.AMOUNT) || 0;
+            var formattedAmount = amount.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+            var programDate = formatHouseExpenseProgramDateCell(row);
+            var enc = row.ENCODED_DT
+                ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
+                : '-';
+            return [
+                programDate,
+                enc,
+                houseExpenseGetExpenseNameLabel(row),
+                row.DESCRIPTION || row.OIC || '-',
+                row.RECEIVER || '-',
+                houseExpenseItemDescriptionColumnText(row),
+                '(' + formattedAmount + ')'
+            ];
         });
         if (rows.length) {
             $('.expense-item-table-wrap .expense-item-footer-line').each(function () {

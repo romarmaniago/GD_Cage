@@ -1172,6 +1172,86 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     border-top: 2px solid #cbd5e1;
     opacity: 1;
 }
+.expense-item-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.55rem 0.35rem 0.35rem;
+}
+.expense-item-pagination.d-none {
+    display: none !important;
+}
+.expense-cat-panel-head .expense-item-page-length {
+    margin-left: 0.15rem;
+}
+.expense-item-page-length-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.78rem;
+    color: #667085;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.expense-cat-panel-head .expense-item-page-length-label {
+    color: inherit;
+    opacity: 0.9;
+}
+.expense-item-page-size-select {
+    width: auto;
+    min-width: 4.25rem;
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+    font-size: 0.78rem;
+}
+.expense-item-page-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.78rem;
+}
+.expense-item-page-nav .pagination {
+    margin: 0;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+.expense-item-page-nav .page-link {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.55rem;
+    color: #52525b;
+    border-color: #dee2e6;
+    background-color: #fff;
+}
+.expense-item-page-nav .page-item.active .page-link {
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    border-color: transparent;
+    color: #fff;
+}
+.expense-item-page-nav .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    color: #333;
+}
+.expense-item-page-nav .page-item.disabled .page-link {
+    color: #adb5bd;
+    background-color: #fff;
+    border-color: #dee2e6;
+}
+@media (max-width: 768px) {
+    .expense-item-pagination {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .expense-item-page-info {
+        text-align: left;
+    }
+    .expense-item-page-nav .pagination {
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+}
 .expense-item-totals-wrap {
     display: flex;
     justify-content: flex-end;
