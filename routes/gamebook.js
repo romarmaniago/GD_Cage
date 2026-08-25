@@ -1793,6 +1793,7 @@ async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, 
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			[accountId, gameId, 10, transType, totalAmount, creditLedgerRemarks, encodedBy, dateNow]
 		);
+		const programDate = await getGameProgramDate(db, gameId);
 		await insertCreditRecord(db, {
 			accountId,
 			creditAction: 'Buy-in',
@@ -1800,6 +1801,7 @@ async function insertAdditionalBuyinForGame(db, { gameId, accountId, transType, 
 			amount: totalAmount,
 			ledgerId: ledgerResult.insertId,
 			gameId,
+			programDate,
 			guarantor: creditGuarantor || null,
 			remarks: creditTxnRemarksOnly(creditRemarks),
 			encodedBy,
@@ -2105,6 +2107,18 @@ function formatLocalDateYmd(dt) {
 function parseGameListProgramDate(raw) {
 	const ymd = normalizeSettlementDateYmd(raw == null ? '' : String(raw).trim().slice(0, 10));
 	return ymd || formatLocalDateYmd(new Date());
+}
+
+/** PROGRAM_DATE (YYYY-MM-DD) of an existing game — for credit_transaction on add buy-in / cash-out. */
+async function getGameProgramDate(db, gameId) {
+	const gid = parseInt(gameId, 10);
+	if (!Number.isInteger(gid) || gid <= 0) return null;
+	const [rows] = await db.execute(
+		`SELECT DATE_FORMAT(PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE
+		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[gid]
+	);
+	return rows.length ? normalizeSettlementDateYmd(rows[0].PROGRAM_DATE) : null;
 }
 
 /** PROGRAM_DATE (YYYY-MM-DD) as local midnight for game_record.TRADING_DATE. */
@@ -5775,6 +5789,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		if (txtTransType == 3) {
 			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 			const [ledgerResult] = await pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]);
+			const programDate = await getGameProgramDate(pool, game_id);
 			await insertCreditRecord(pool, {
 				accountId: txtAccountCode,
 				creditAction: 'Buy-in',
@@ -5782,6 +5797,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 				amount: totalAmount,
 				ledgerId: ledgerResult.insertId,
 				gameId: game_id,
+				programDate,
 				remarks: `Add Buy-in Game: ${game_id}`,
 				encodedBy: req.session.user_id,
 				encodedDt: date_now
@@ -5994,6 +6010,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				req.session.user_id,
 				date_now
 			]);
+			const programDate = await getGameProgramDate(connection, game_id);
 			await insertCreditRecord(connection, {
 				accountId: txtAccountCode,
 				creditAction: 'Buy-in',
@@ -6001,6 +6018,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				amount: creditTotal,
 				ledgerId: ledgerResult.insertId,
 				gameId: game_id,
+				programDate,
 				guarantor: creditGuarantor || null,
 				remarks: creditTxnRemarksOnly(creditRemarks),
 				encodedBy: req.session.user_id,

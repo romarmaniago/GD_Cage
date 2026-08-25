@@ -346,7 +346,8 @@
             $table.find('tbody').empty();
         }
 
-        var orderCol = options.orderCol != null ? options.orderCol : 3;
+        // Default sort by Date (ENCODED_DT) — col 1 after Program Date
+        var orderCol = options.orderCol != null ? options.orderCol : 1;
         var orderDir = options.orderDir || 'desc';
 
         var perms = parseInt($('#user-role').data('permissions'), 10);
@@ -399,14 +400,43 @@
             },
             columns: [
                 {
+                    data: 'PROGRAM_DATE',
+                    defaultContent: '',
+                    render: function (data, type) {
+                        return formatProgramDateCell(data, type);
+                    }
+                },
+                {
+                    data: 'ENCODED_DT',
+                    defaultContent: '',
+                    className: 'text-center',
+                    render: function (data, type) {
+                        if (type === 'sort') {
+                            if (!window.moment) return data || '';
+                            var mSort = parseMarkerHistoryDateString(data);
+                            return mSort ? mSort.format('YYYY-MM-DD HH:mm:ss') : (data || '');
+                        }
+                        if (!window.moment) return data || '';
+                        var dateMoment = parseMarkerHistoryDateString(data);
+                        return dateMoment ? dateMoment.local().format('YYYY-MM-DD HH:mm') : (data || '');
+                    }
+                },
+                {
                     data: null,
                     render: function (row) {
                         return (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
                     }
                 },
                 {
+                    data: 'GUEST_NAME',
+                    defaultContent: '',
+                    render: function (data) {
+                        return data != null && String(data).trim() !== '' ? escapeHtml(data) : '—';
+                    }
+                },
+                {
                     data: 'AMOUNT',
-                    className: 'text-center marker-history-col-amount',
+                    className: 'text-end marker-history-col-amount',
                     render: function (data, type, row) {
                         return formatMarkerHistoryAmountCell(data, row, type);
                     }
@@ -414,30 +444,21 @@
                 {
                     data: 'CREDIT_ACTION',
                     defaultContent: '',
+                    className: 'text-center',
                     render: function (data, type, row) {
                         return renderTransactionType(row && row.TRANSACTION_INFO, type, row);
                     }
                 },
-                { data: 'ENCODED_DT' },
-                { data: 'REMARKS', defaultContent: '' }
-            ],
-            columnDefs: [
                 {
-                    targets: 3,
-                    className: 'text-center',
-                    render: function (data, type, row) {
-                        if (type === 'sort') {
-                            if (!window.moment) return data;
-                            var mSort = parseMarkerHistoryDateString(data);
-                            return mSort ? mSort.format('YYYY-MM-DD HH:mm:ss') : data;
-                        }
-                        if (!window.moment) return data;
-                        var dateMoment = parseMarkerHistoryDateString(data);
-                        return dateMoment ? dateMoment.local().format('YYYY-MM-DD HH:mm') : (data || '');
+                    data: 'GUARANTOR',
+                    defaultContent: '',
+                    render: function (data) {
+                        return data != null && String(data).trim() !== '' ? escapeHtml(data) : '—';
                     }
                 },
                 {
-                    targets: 4,
+                    data: 'REMARKS',
+                    defaultContent: '',
                     className: 'marker-history-col-remarks',
                     render: function (data, type, row) {
                         var raw = data != null ? String(data) : '';
@@ -1413,6 +1434,8 @@
     }
 
     function buildMarkerExportRow(row) {
+        var programDateCell = formatProgramDateCell(row.PROGRAM_DATE, 'display');
+        if (programDateCell === '—') programDateCell = '';
         var dateCell = row.ENCODED_DT || '';
         if (dateCell && window.moment) {
             var md = parseMarkerHistoryDateString(dateCell);
@@ -1420,11 +1443,16 @@
         }
         var amt = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
         if (isNaN(amt)) amt = 0;
+        var debtor = row.GUEST_NAME != null ? String(row.GUEST_NAME).trim() : '';
+        var guarantor = row.GUARANTOR != null ? String(row.GUARANTOR).trim() : '';
         return [
+            programDateCell,
+            dateCell,
             (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
+            debtor,
             amt,
             renderTransactionType(row.TRANSACTION_INFO, 'export', row),
-            dateCell,
+            guarantor,
             row.REMARKS != null ? String(row.REMARKS) : ''
         ];
     }
@@ -1438,10 +1466,13 @@
         $btn.off('click.markerExport').on('click.markerExport', function () {
             var t = window.markerTranslations || {};
             var headers = [
-                t.account_name || 'Account Name',
-                t.amount || 'Amount',
-                t.transaction_type_col || t.transaction_type || 'Transaction Type',
+                t.program_date || 'Program Date',
                 t.date || 'Date',
+                t.account_name || 'Account Name',
+                t.debtor || 'Debtor',
+                t.amount || 'Amount',
+                t.type || 'Type',
+                t.guarantor || 'Guarantor',
                 t.remarks || 'Remarks'
             ];
             var data = table.rows({ search: 'applied' }).data().toArray();

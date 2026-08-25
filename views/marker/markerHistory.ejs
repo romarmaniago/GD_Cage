@@ -213,10 +213,13 @@
 						<table id="marker-history-tbl" class="table nowrap small-text" style="width:100%">
 						<thead>
 							<tr>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.program_date') %></th>
+								<th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.date') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
-								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
-								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type_col') %></th>
-								<th class="d-none d-sm-table-cell" style="width: 200px;"><%= __('dashboard_marker.date') %></th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.debtor') %></th>
+								<th class="d-none d-sm-table-cell text-end marker-history-col-amount"><%= __('dashboard_marker.amount') %></th>
+								<th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.type') %></th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.guarantor') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
 							</tr>
 						</thead>
@@ -645,6 +648,22 @@ $(document).ready(function() {
 	box-shadow: none !important;
 	background: #f5f5f5 !important;
 	background-color: #f5f5f5 !important;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+#marker-history-tbl thead th.text-center,
+#marker-history-tbl tbody td.text-center {
+	text-align: center !important;
+}
+
+#marker-history-tbl thead th.text-end,
+#marker-history-tbl tbody td.text-end,
+#marker-history-tbl thead th.marker-history-col-amount,
+#marker-history-tbl tbody td.marker-history-col-amount {
+	text-align: right !important;
+	font-variant-numeric: tabular-nums;
+	padding-right: 1.5rem !important;
 }
 
 #marker-history-tbl tbody tr,
@@ -657,6 +676,7 @@ $(document).ready(function() {
 	color: #666;
 	vertical-align: middle;
 	border-color: #eee !important;
+	white-space: nowrap;
 }
 #marker-history-tbl tbody tr:nth-child(even) td,
 .marker-balance-tbl tbody tr:nth-child(even) td {
@@ -760,7 +780,12 @@ $(document).ready(function() {
 	height: 0 !important;
 }
 
-#marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
+#marker-history-tbl tbody td.marker-history-col-remarks {
+	vertical-align: top;
+	white-space: normal;
+	min-width: 8rem;
+	max-width: 14rem;
+}
 #marker-history-tbl .marker-history-remarks-actions .btn { padding: 0.2rem 0.45rem; }
 
 .marker-history-page .dataTables_length label {

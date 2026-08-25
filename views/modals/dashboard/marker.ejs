@@ -201,10 +201,13 @@
                 <table id="marker-tbl" class="table marker-history-table w-100 mb-0">
                 <thead>
                     <tr>
-                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
-                        <th class="d-none d-sm-table-cell text-center marker-history-col-amount"><%= __('dashboard_marker.amount') %></th>
-                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.program_date') %></th>
                         <th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.date') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.debtor') %></th>
+                        <th class="d-none d-sm-table-cell text-end marker-history-col-amount"><%= __('dashboard_marker.amount') %></th>
+                        <th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.type') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.guarantor') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
                     </tr>
                 </thead>
@@ -710,33 +713,27 @@
             color: var(--gd-marker-gold-text) !important;
         }
 
-        /* History table — layout + word-wrap + gold theme */
+        /* History table — match Credit tab alignment/width */
   #modal-new-marker #marker-tbl.dataTable.marker-history-table {
     width: 100% !important;
     max-width: 100% !important;
     font-size: 0.8125rem;
     line-height: 1.45;
-    table-layout: fixed;
     border: 1px solid var(--gd-marker-gold-border);
-  }
-
-  #modal-new-marker #marker-tbl thead th:not(.marker-history-col-amount),
-  #modal-new-marker #marker-tbl tbody td:not(.marker-history-col-amount) {
-    min-width: 0;
   }
 
   #modal-new-marker #marker-tbl thead th,
   #modal-new-marker #marker-tbl tbody td {
     box-sizing: border-box;
-    white-space: normal !important;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    vertical-align: top;
+    white-space: nowrap;
+    vertical-align: middle;
     border-color: #eee !important;
   }
 
   #modal-new-marker #marker-tbl tbody td.marker-history-col-remarks {
+    white-space: normal;
+    min-width: 8rem;
+    max-width: 14rem;
     vertical-align: top;
   }
 
@@ -755,12 +752,14 @@
     border-bottom: 1px solid var(--gd-marker-gold-border) !important;
   }
 
-  #modal-new-marker #marker-tbl thead th.text-center {
+  #modal-new-marker #marker-tbl thead th.text-center,
+  #modal-new-marker #marker-tbl tbody td.text-center {
     text-align: center !important;
   }
 
-  #modal-new-marker #marker-tbl tbody td.text-center {
-    text-align: center !important;
+  #modal-new-marker #marker-tbl thead th.text-end,
+  #modal-new-marker #marker-tbl tbody td.text-end {
+    text-align: right !important;
   }
 
   #modal-new-marker #marker-tbl tbody tr:nth-child(even) td {
@@ -778,13 +777,9 @@
 
   #modal-new-marker #marker-tbl thead th.marker-history-col-amount,
   #modal-new-marker #marker-tbl tbody td.marker-history-col-amount {
-    width: 5.75rem;
-    max-width: 6.25rem;
-    min-width: 4.5rem;
-    padding-left: 0.4rem;
-    padding-right: 0.4rem;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
+    padding-right: 1.5rem !important;
+    text-align: right !important;
   }
 
   #modal-new-marker #marker-tbl tbody tr {

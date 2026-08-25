@@ -82,10 +82,10 @@ const PROFILES = {
 		leftAlignCols: [1, 2, 3, 5]
 	},
 	markerHistory: {
-		amountCols: [2],
-		labelCols: 1,
-		leftAlignCols: [1, 3, 4, 5],
-		centerAlignCols: [3, 4, 5]
+		amountCols: [5],
+		labelCols: 3,
+		leftAlignCols: [1, 3, 4, 7, 8],
+		centerAlignCols: [2, 6]
 	},
 	markerBalance: {
 		amountCols: [2],
