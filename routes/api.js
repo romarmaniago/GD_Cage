@@ -17,6 +17,7 @@ const {
   fetchRecordsForGames,
 } = require('../utils/netProfitCalc');
 const { computeDashboardPeriodSummary } = require('../utils/dashboardPeriodSummary');
+const { loadDashboardWlSharePct, currentMonthKey } = require('../utils/dashboardWlShare');
 
 // --- Helper: compute total rolling per game using same formula as game list ---
 // Formula: total_rolling_nn + total_roller_return_cc + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -428,6 +429,13 @@ router.get('/dashboard-statement', async (req, res) => {
     const dateTo = req.query.date_to;
     const summary = await computeDashboardPeriodSummary(pool, dateFrom, dateTo);
 
+    // Anticipated Profit — same formula as the web dashboard (views/dashboard.ejs):
+    // wlSettlement = W/L * rate%; casinoTotal = wlSettlement - SOA; grandTotal = casinoTotal - companyExpenseTotal.
+    const wlRatePct = await loadDashboardWlSharePct(pool, currentMonthKey());
+    const wlSettlement = Math.round(summary.win_loss * (wlRatePct / 100));
+    const casinoTotal = wlSettlement - summary.soa;
+    const grandTotal = casinoTotal - summary.company_expense_total;
+
     res.json({
       success: true,
       date_from: summary.date_from,
@@ -445,6 +453,14 @@ router.get('/dashboard-statement', async (req, res) => {
       })),
       tip_balance: summary.cage.tip_balance,
       guest_line: summary.cage.guest_balance,
+      // Anticipated Profit
+      win_loss: summary.win_loss,
+      wl_rate_pct: wlRatePct,
+      wl_settlement: wlSettlement,
+      soa: summary.soa,
+      casino_total: casinoTotal,
+      company_expense_total: summary.company_expense_total,
+      grand_total: grandTotal,
     });
   } catch (err) {
     console.error('Error in GET /api/dashboard-statement:', err);
