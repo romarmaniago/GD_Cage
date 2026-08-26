@@ -1467,10 +1467,12 @@
 		"update": "更新",
 		"transaction_history": "トランザクション履歴",
 		"transfer_account": "アカウント",
+		"print": "印刷",
 		"export": "エクスポート",
 		"date": "日付",
 		"transaction": "トランザクション",
 		"amount": "金額",
+		"balance_after": "変更後残高",
 		"remarks": "備考",
 		"close": "閉じる",
 		"balance_check": "残高チェック",
@@ -1491,6 +1493,7 @@
 		"game_start": "modal_account_details.game_start",
 		"action": "modal_account_details.action",
 		"edit_transaction": "modal_account_details.edit_transaction",
+		"receipt": "領収書",
 		"save": "modal_account_details.save"
 	},
 	"modal_change_status": {

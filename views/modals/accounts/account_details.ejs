@@ -161,20 +161,26 @@
                                         <button type="button" class="btn btn-sm btn-secondary" id="btn-passport-details" title="Info">
                                             <i class="fa fa-id-card me-1"></i>Info
                                         </button>
-                                        <!-- <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button> -->
                                     </div>
                                 </div>
                                 <input type="hidden" id="account_id">
+                                <div id="guest-portal-print-export" class="guest-portal-print-export d-none">
+                                    <button type="button" class="btn btn-alt-success" id="btn-guest-portal-print">
+                                        <i class="fa fa-print me-1" aria-hidden="true"></i><%= __('modal_account_details.print') %>
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="btn-guest-portal-export">
+                                        <i class="fa fa-file-excel me-1" aria-hidden="true"></i><%= __('modal_account_details.export') %>
+                                    </button>
+                                </div>
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.date') %></th>
                                             <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
+                                            <th class="text-center" style="width: 110px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
-                                            <% if (typeof permissions !== 'undefined' && (permissions === 0 || permissions === '0')) { %>
-                                            <th class="text-center account-ledger-actions-col" style="width: 80px;"><%= __('modal_account_details.action') %></th>
-                                            <% } %>
+                                            <th class="text-center account-ledger-actions-col" style="width: 110px;"><%= __('modal_account_details.action') %></th>
                                             <th class="d-none account-ledger-id-col" aria-hidden="true"></th>
                                         </tr>
                                     </thead>
@@ -220,6 +226,18 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_account_details.close') %></button>
                 <button type="button" class="btn btn-sm btn-primary" id="btn-save-edit-ledger"><%= __('modal_account_details.save') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Guest Portal ledger receipt slip -->
+<div class="modal fade" id="modal-guest-portal-receipt" tabindex="-1" aria-labelledby="modalGuestPortalReceiptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered guest-portal-receipt-dialog">
+        <div class="modal-content guest-portal-receipt-content position-relative">
+            <button type="button" class="btn-close guest-portal-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-body p-0">
+                <div id="guest-portal-receipt-container" class="guest-portal-receipt-container"></div>
             </div>
         </div>
     </div>
@@ -465,7 +483,8 @@ body.guest-portal-child-open #modal-game-history.show,
 body.guest-portal-child-open #modal-credit-details.show,
 body.guest-portal-child-open #modal-passport-details.show,
 body.guest-portal-child-open #modal-change-photo.show,
-body.guest-portal-child-open #modal-edit-account-ledger.show {
+body.guest-portal-child-open #modal-edit-account-ledger.show,
+body.guest-portal-child-open #modal-guest-portal-receipt.show {
     z-index: 1065 !important;
 }
 body.guest-portal-child-open #modal-credit-return.show {
@@ -503,12 +522,12 @@ body.guest-portal-child-open .modal-backdrop.show {
 
 /* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
 #modal-account-details .modal-dialog {
-    width: min(96vw, 78rem);
-    max-width: 78rem;
+    width: min(98vw, 88rem);
+    max-width: 88rem;
 }
 @media (min-width: 1200px) {
     #modal-account-details .modal-dialog {
-        min-width: 70rem;
+        min-width: 78rem;
     }
 }
 #modal-account-details .account-photo-upload-label {
@@ -628,6 +647,30 @@ body.guest-portal-child-open .modal-backdrop.show {
 #modal-account-details #accountDetails_wrapper .paginate_button {
     font-size: 12px;
 }
+#modal-account-details #accountDetails_wrapper .dataTables_filter {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+#modal-account-details #guest-portal-print-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-right: 0.15rem;
+}
+#modal-account-details #guest-portal-print-export .btn {
+    border-radius: 5px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.18rem 0.42rem;
+    line-height: 1.2;
+}
+#modal-account-details #guest-portal-print-export .btn i {
+    font-size: 0.65rem;
+}
 #modal-account-details #accountDetails {
     border-radius: 10px;
     overflow: hidden;
@@ -649,11 +692,12 @@ body.guest-portal-child-open .modal-backdrop.show {
     background-color: rgba(200, 162, 76, 0.14) !important;
 }
 #modal-account-details #accountDetails tbody td:nth-child(3),
+#modal-account-details #accountDetails tbody td:nth-child(4),
 #modal-credit-details #credit-details-table tbody td:nth-child(2) {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
-#modal-account-details #accountDetails tbody td:nth-child(4) {
+#modal-account-details #accountDetails tbody td:nth-child(5) {
     text-align: left !important;
 }
 #modal-account-details #accountDetails thead th.account-ledger-id-col,
@@ -670,6 +714,7 @@ body.guest-portal-child-open .modal-backdrop.show {
     justify-content: center;
     gap: 0.35rem;
 }
+.account-ledger-action-receipt-slot,
 .account-ledger-action-edit-slot,
 .account-ledger-action-delete-slot {
     width: 1.25rem;
@@ -678,12 +723,25 @@ body.guest-portal-child-open .modal-backdrop.show {
     align-items: center;
     justify-content: center;
 }
+.account-ledger-action-receipt-slot .btn-ledger-receipt {
+    line-height: 1;
+    color: #6c757d !important;
+}
+.account-ledger-action-receipt-slot .btn-ledger-receipt i {
+    font-size: 0.95rem;
+}
+.account-ledger-action-receipt-slot .btn-ledger-receipt:hover,
+.account-ledger-action-receipt-slot .btn-ledger-receipt:focus {
+    color: #495057 !important;
+    opacity: 0.9;
+}
 .account-ledger-action-edit-slot .btn-ledger-edit {
     line-height: 1;
     color: var(--bs-primary) !important;
 }
 .account-ledger-action-edit-slot .btn-ledger-edit i,
-.account-ledger-action-delete-slot .btn-ledger-delete i {
+.account-ledger-action-delete-slot .btn-ledger-delete i,
+.account-ledger-action-receipt-slot .btn-ledger-receipt i {
     font-size: 0.95rem;
 }
 .account-ledger-action-edit-slot .btn-ledger-edit:hover,
@@ -698,6 +756,145 @@ body.guest-portal-child-open .modal-backdrop.show {
 .account-ledger-action-delete-slot .btn-ledger-delete:focus {
     color: var(--bs-danger) !important;
     opacity: 0.85;
+}
+
+#modal-guest-portal-receipt .guest-portal-receipt-dialog {
+    --bs-modal-width: min(98vw, 360px);
+    width: min(98vw, 360px) !important;
+    max-width: min(98vw, 360px) !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+}
+#modal-guest-portal-receipt .modal-body {
+    background: transparent;
+    width: 100%;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-close-btn {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    z-index: 10;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    margin: 0;
+    opacity: 1;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    background-size: 1.35rem;
+    filter: none;
+    --bs-btn-close-opacity: 1;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-container {
+    width: 100%;
+    padding: 2.5rem 0.5rem 0.75rem;
+    background: transparent;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-slip {
+    width: 100%;
+    max-width: 320px;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.75rem 0.65rem;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+#modal-guest-portal-receipt .guest-portal-receipt-slip-body {
+    flex: 1 1 auto;
+    padding: 0.5rem 0.25rem 0;
+    min-width: 0;
+    overflow: hidden;
+}
+#modal-guest-portal-receipt .gpr-brand {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+#modal-guest-portal-receipt .gpr-title {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+}
+#modal-guest-portal-receipt .gpr-datetime {
+    text-align: center;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+#modal-guest-portal-receipt .gpr-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    border: 1px solid #000;
+    box-sizing: border-box;
+}
+#modal-guest-portal-receipt .gpr-table td {
+    border: none;
+    border-bottom: 1px dotted #000;
+    padding: 0.35rem 0.45rem;
+    vertical-align: top;
+}
+#modal-guest-portal-receipt .gpr-table tr:last-child td {
+    border-bottom: none;
+}
+#modal-guest-portal-receipt .gpr-label {
+    text-align: left;
+    white-space: nowrap;
+    width: 38%;
+}
+#modal-guest-portal-receipt .gpr-value {
+    text-align: right !important;
+    width: 62%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+#modal-guest-portal-receipt .gpr-value.gpr-value-wrap {
+    text-align: right !important;
+}
+#modal-guest-portal-receipt .gpr-amount-out {
+    color: #dc3545 !important;
+    font-weight: 700;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-slip-actions {
+    display: flex;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+}
+#modal-guest-portal-receipt .guest-portal-receipt-copy-btn {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.55rem 0.5rem;
+    white-space: nowrap;
+    color: #fff !important;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+    border-color: transparent !important;
+    border-radius: 0.2rem;
+    box-shadow: none !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
     position: sticky;

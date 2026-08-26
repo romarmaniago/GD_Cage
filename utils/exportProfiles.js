@@ -108,6 +108,14 @@ const PROFILES = {
 		skipGrandTotal: true,
 		amountNumFmt: '#,##0;#,##0'
 	},
+	guestPortal: {
+		amountCols: [3, 4],
+		labelCols: 2,
+		leftAlignCols: [2, 5],
+		centerAlignCols: [1],
+		skipGrandTotal: true,
+		amountNumFmt: '#,##0;#,##0'
+	},
 	dailyReportMatrix: {
 		labelCols: 1,
 		zebraRows: true,

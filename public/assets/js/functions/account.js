@@ -1059,7 +1059,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	});
 });
 
-var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo, #modal-edit-account-ledger';
+var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo, #modal-edit-account-ledger, #modal-guest-portal-receipt';
 
 $(guestPortalChildModalSelectors).on('shown.bs.modal', function () {
 	if ($('body').hasClass('guest-portal-child-open')) {
@@ -1092,6 +1092,7 @@ $('#modal-account-details').on('hidden.bs.modal', function () {
 	resetGuestPortalChildModalStack($('#modal-passport-details'));
 	resetGuestPortalChildModalStack($('#modal-change-photo'));
 	resetGuestPortalChildModalStack($('#modal-edit-account-ledger'));
+	resetGuestPortalChildModalStack($('#modal-guest-portal-receipt'));
 });
 
 $(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return', function () {
@@ -1549,7 +1550,7 @@ function isAccountDetailsSuperAdmin() {
 }
 
 function accountDetailsHiddenIdColIndex() {
-	return isAccountDetailsSuperAdmin() ? 5 : 4;
+	return 6;
 }
 
 function isGuestPortalLedgerEditable(row) {
@@ -1568,23 +1569,31 @@ function isGuestPortalLedgerEditable(row) {
 	return isManualTransfer || isManualCash || isManualCredit || isJunketCreditReturn;
 }
 
-function renderAccountLedgerActionCell(ledgerId, rawAmount, remarks) {
-	if (!isAccountDetailsSuperAdmin() || !ledgerId) return '';
+function renderAccountLedgerActionCell(ledgerId, rawAmount, remarks, editable) {
+	if (!ledgerId) return '';
 	var amountStr = String(rawAmount != null ? rawAmount : '').replace(/,/g, '');
 	var remarksAttr = escapeHtmlAttr(String(remarks != null ? remarks : ''));
-	return (
+	var html =
 		'<div class="account-ledger-action-wrap">' +
-		'<span class="account-ledger-action-edit-slot">' +
-		'<button type="button" class="btn btn-link text-primary p-0 border-0 shadow-none btn-ledger-edit js-bs-tooltip-enabled" ' +
-		'data-id="' + ledgerId + '" data-amount="' + escapeHtmlAttr(amountStr) + '" data-remarks="' + remarksAttr + '" ' +
-		'data-bs-toggle="tooltip" title="Edit" aria-label="Edit"><i class="fa fa-pencil-alt"></i></button>' +
-		'</span>' +
-		'<span class="account-ledger-action-delete-slot">' +
-		'<button type="button" class="btn btn-link text-danger p-0 border-0 shadow-none btn-ledger-delete js-bs-tooltip-enabled" ' +
-		'data-id="' + ledgerId + '" data-bs-toggle="tooltip" title="Delete" aria-label="Delete"><i class="fa fa-trash-alt"></i></button>' +
-		'</span>' +
-		'</div>'
-	);
+		'<span class="account-ledger-action-receipt-slot">' +
+		'<button type="button" class="btn btn-link text-secondary p-0 border-0 shadow-none btn-ledger-receipt js-bs-tooltip-enabled" ' +
+		'data-id="' + ledgerId + '" data-bs-toggle="tooltip" title="Receipt" aria-label="Receipt">' +
+		'<i class="fa fa-receipt"></i></button>' +
+		'</span>';
+	if (editable && isAccountDetailsSuperAdmin()) {
+		html +=
+			'<span class="account-ledger-action-edit-slot">' +
+			'<button type="button" class="btn btn-link text-primary p-0 border-0 shadow-none btn-ledger-edit js-bs-tooltip-enabled" ' +
+			'data-id="' + ledgerId + '" data-amount="' + escapeHtmlAttr(amountStr) + '" data-remarks="' + remarksAttr + '" ' +
+			'data-bs-toggle="tooltip" title="Edit" aria-label="Edit"><i class="fa fa-pencil-alt"></i></button>' +
+			'</span>' +
+			'<span class="account-ledger-action-delete-slot">' +
+			'<button type="button" class="btn btn-link text-danger p-0 border-0 shadow-none btn-ledger-delete js-bs-tooltip-enabled" ' +
+			'data-id="' + ledgerId + '" data-bs-toggle="tooltip" title="Delete" aria-label="Delete"><i class="fa fa-trash-alt"></i></button>' +
+			'</span>';
+	}
+	html += '</div>';
+	return html;
 }
 
 function escapeHtmlAttr(value) {
@@ -1596,16 +1605,52 @@ function escapeHtmlAttr(value) {
 		.replace(/>/g, '&gt;');
 }
 
-function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, remarks, sourceRow) {
-	var ledgerId = accountLedgerRowId(sourceRow);
-	var row = [encodedDate, transactionCell, amountCell, remarks || ''];
-	if (isAccountDetailsSuperAdmin()) {
-		row.push(
-			isGuestPortalLedgerEditable(sourceRow)
-				? renderAccountLedgerActionCell(ledgerId, sourceRow.AMOUNT, remarks)
-				: '<span class="text-muted">—</span>'
-		);
+function formatAccountLedgerBalanceAfter(balance) {
+	const n = parseFloat(balance) || 0;
+	if (window.AmountFormat) {
+		return window.AmountFormat.formatCommas(n);
 	}
+	return n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+}
+
+function ledgerCashBalanceDelta(row) {
+	const rawAmt = row.amount != null ? row.amount : row.AMOUNT;
+	const amount = parseFloat(String(rawAmt == null ? 0 : rawAmt).replace(/,/g, '')) || 0;
+	const trans = String(row.TRANSACTION || '').trim();
+	if (trans === 'DEPOSIT') return amount;
+	if (trans === 'WITHDRAW') return -amount;
+	if (trans === 'MARKER REDEEM') return amount;
+	if (trans === 'IOU RETURN DEPOSIT') return -amount;
+	return 0;
+}
+
+/** Running cash balance after each ledger row (same formula as TOTAL BALANCE). */
+function computeGuestPortalBalanceAfterMap(rows) {
+	const chronological = (rows || []).slice().sort(function (a, b) {
+		const idA = parseInt(a.account_details_id || a.IDNo, 10) || 0;
+		const idB = parseInt(b.account_details_id || b.IDNo, 10) || 0;
+		return idA - idB;
+	});
+	let running = 0;
+	const map = {};
+	chronological.forEach(function (row) {
+		running += ledgerCashBalanceDelta(row);
+		map[String(accountLedgerRowId(row))] = running;
+	});
+	return map;
+}
+
+function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, balanceAfterCell, remarks, sourceRow) {
+	var ledgerId = accountLedgerRowId(sourceRow);
+	var row = [encodedDate, transactionCell, amountCell, balanceAfterCell, remarks || ''];
+	row.push(
+		renderAccountLedgerActionCell(
+			ledgerId,
+			sourceRow.AMOUNT,
+			remarks,
+			isGuestPortalLedgerEditable(sourceRow)
+		)
+	);
 	row.push(ledgerId);
 	return row;
 }
@@ -1638,14 +1683,31 @@ function getOrInitAccountDetailsAltDataTable() {
 			targets: 0,
 			render: accountDetailsDateRender,
 			createdCell: function (c) { $(c).addClass('text-center'); }
-		}].concat(accountDetailsRemarksColumnDefs())
+		}].concat(accountDetailsRemarksColumnDefs({ remarksColIndex: 3, includeHiddenId: false }))
 	});
+}
+
+function placeGuestPortalPrintExportButtons() {
+	var $filter = $('#modal-account-details #accountDetails_wrapper .dataTables_filter');
+	var $btns = $('#guest-portal-print-export');
+	if (!$filter.length || !$btns.length) return;
+	$btns.removeClass('d-none');
+	if (!$filter.find('#guest-portal-print-export').length) {
+		$filter.prepend($btns);
+	}
 }
 
 function getOrInitAccountDetailsDataTable() {
 	var $tbl = $('#modal-account-details #accountDetails');
+	var expectedCols = $tbl.find('thead th').length;
 	if ($.fn.DataTable.isDataTable($tbl[0])) {
-		return $tbl.DataTable();
+		var existing = $tbl.DataTable();
+		if (existing.columns().count() === expectedCols) {
+			placeGuestPortalPrintExportButtons();
+			return existing;
+		}
+		existing.destroy();
+		$tbl.find('tbody').empty();
 	}
 	return $tbl.DataTable({
 		order: [[0, 'desc']],
@@ -1657,25 +1719,30 @@ function getOrInitAccountDetailsDataTable() {
 					$(cell).addClass('text-center');
 				}
 			}
-		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs())
+		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs()),
+		initComplete: function () {
+			placeGuestPortalPrintExportButtons();
+		}
 	});
 }
 
 function accountDetailsActionColumnDefs() {
-	if (!isAccountDetailsSuperAdmin()) return [];
 	return [{
-		targets: 4,
+		targets: 5,
 		orderable: false,
 		searchable: false,
 		className: 'text-center account-ledger-actions-col',
-		width: '80px'
+		width: '110px'
 	}];
 }
 
-function accountDetailsRemarksColumnDefs() {
-		return [
+function accountDetailsRemarksColumnDefs(opts) {
+		opts = opts || {};
+		var remarksIdx = opts.remarksColIndex != null ? opts.remarksColIndex : 4;
+		var includeHiddenId = opts.includeHiddenId !== false;
+		var defs = [
 			{
-				targets: 3,
+				targets: remarksIdx,
 				render: function (data, type, row) {
 					var raw = data != null ? String(data) : '';
 					if (type !== 'display') return raw;
@@ -1697,15 +1764,18 @@ function accountDetailsRemarksColumnDefs() {
 						$cell.addClass('cursor-pointer');
 					}
 				}
-			},
-			{
+			}
+		];
+		if (includeHiddenId) {
+			defs.push({
 				targets: accountDetailsHiddenIdColIndex(),
 				visible: false,
 				searchable: false,
 				orderable: false,
 				className: 'account-ledger-id-col'
-			}
-		];
+			});
+		}
+		return defs;
 	}
 
 	function reloadDataDetails() {
@@ -1725,6 +1795,7 @@ function accountDetailsRemarksColumnDefs() {
 			let marker_return_deposit = 0;
 
 			let rowsToAdd = [];
+			const balanceAfterMap = computeGuestPortalBalanceAfterMap(data);
 
 			const requests = data.map(row => {
 				return new Promise((resolve) => {
@@ -1737,6 +1808,9 @@ function accountDetailsRemarksColumnDefs() {
 
 					const transactionDesc = row.TRANSACTION_DESC || '';
 					const encodedDate = row.encoded_date || row.ENCODED_DT || '';
+					const balanceAfterCell = formatAccountLedgerBalanceAfter(
+						balanceAfterMap[String(accountLedgerRowId(row))]
+					);
 
 					if (row.TRANSFER === 1) {
 						$.ajax({
@@ -1754,6 +1828,7 @@ function accountDetailsRemarksColumnDefs() {
 									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
+									balanceAfterCell,
 									row.REMARKS || '',
 									row
 								));
@@ -1768,6 +1843,7 @@ function accountDetailsRemarksColumnDefs() {
 									encodedDate,
 									`${trans} - <strong>${transactionDesc}</strong>`,
 									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
+									balanceAfterCell,
 									row.REMARKS || '',
 									row
 								));
@@ -1781,6 +1857,7 @@ function accountDetailsRemarksColumnDefs() {
 							encodedDate,
 							transactionCell,
 							formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
+							balanceAfterCell,
 							row.REMARKS || '',
 							row
 						));
@@ -2152,20 +2229,188 @@ $('#modal-transfer_account').off('hidden.bs.modal.returnAccountDetails').on('hid
 
 function export_data() {
 	var account_id_val = $('#account_id').val();
-
-	window.location.href = '/export?id='+account_id_val;
-	// $.ajax({
-	// 	url: '/export?id='+account_id_val,
-	// 	type: 'GET',
-	// 	success: function (response) {
-	// 		;
-	// 	},
-	// 	error: function (xhr, status, error) {
-	// 		var errorMessage = xhr.responseJSON.error;
-	// 		console.error('Error updating user role:', error);
-	// 	}
-	// });
+	window.location.href = '/export?id=' + account_id_val;
 }
+
+function stripGuestPortalCell(value) {
+	if (value == null) return '';
+	var raw = String(value);
+	if (raw.indexOf('<') === -1) return raw.trim();
+	var tmp = document.createElement('div');
+	tmp.innerHTML = raw;
+	return (tmp.textContent || tmp.innerText || raw).trim();
+}
+
+function escapeGuestPortalPrintHtml(value) {
+	return String(value == null ? '' : value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+}
+
+function getGuestPortalTablePayload() {
+	var $tbl = $('#modal-account-details #accountDetails');
+	if (!$.fn.DataTable.isDataTable($tbl[0])) {
+		return { headers: [], rows: [] };
+	}
+	var table = $tbl.DataTable();
+	var exportColCount = 5; // DATE, TRANSACTION, AMOUNT, BALANCE AFTER, REMARKS
+	var headers = [];
+	$tbl.find('thead th').each(function (index) {
+		if (index >= exportColCount) return;
+		headers.push($(this).text().trim());
+	});
+	var rows = [];
+	table.rows({ search: 'applied' }).every(function (rowIdx) {
+		var row = [];
+		for (var i = 0; i < exportColCount; i++) {
+			row.push(stripGuestPortalCell(table.cell(rowIdx, i).render('display')));
+		}
+		rows.push(row);
+	});
+	return { headers: headers, rows: rows };
+}
+
+function getGuestPortalExportFilename() {
+	var name = ($('#modal-account-details #account_name').text() || '').trim();
+	var code = ($('#modal-account-details #agent_code').text() || '').trim();
+	var safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+	var safeCode = code.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+	var label = [safeCode, safeName].filter(Boolean).join('-') || 'export';
+	return label.slice(0, 80) + '.xlsx';
+}
+
+function getGuestPortalPrintStyles() {
+	return [
+		'@page{size:landscape;margin:8mm;}',
+		'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+		'.print-wrap{width:100%;}',
+		'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+		'.subtitle{text-align:center;margin:0 0 10px;font-size:12px;color:#444;}',
+		'table{width:100%;border-collapse:collapse;font-size:10px;}',
+		'th,td{border:1px solid #777;padding:5px 6px;vertical-align:middle;text-align:center;}',
+		'th{background:#d9e1f2;font-weight:700;}',
+		'td:nth-child(2),td:nth-child(5){text-align:left;}',
+		'td:nth-child(3),td:nth-child(4){text-align:right;}'
+	].join('');
+}
+
+function printGuestPortalTable() {
+	var payload = getGuestPortalTablePayload();
+	if (!payload.rows.length) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'info', title: 'Print', text: 'No rows to print for the current filter.', confirmButtonColor: '#0d6efd' });
+		} else {
+			alert('No rows to print.');
+		}
+		return;
+	}
+	var name = ($('#modal-account-details #account_name').text() || '').trim();
+	var code = ($('#modal-account-details #agent_code').text() || '').trim();
+	var subtitle = [name, code].filter(Boolean).join(' — ');
+	var headerHtml = payload.headers.map(function (h) {
+		return '<th>' + escapeGuestPortalPrintHtml(h) + '</th>';
+	}).join('');
+	var rowsHtml = payload.rows.map(function (row) {
+		return '<tr>' + row.map(function (cell) {
+			return '<td>' + escapeGuestPortalPrintHtml(cell) + '</td>';
+		}).join('') + '</tr>';
+	}).join('');
+	var iframe = document.createElement('iframe');
+	iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+	document.body.appendChild(iframe);
+	var frameWindow = iframe.contentWindow;
+	if (!frameWindow) {
+		iframe.remove();
+		return;
+	}
+	var frameDoc = frameWindow.document;
+	frameDoc.open();
+	frameDoc.write([
+		'<!doctype html><html><head><title>Guest Portal</title><style>',
+		getGuestPortalPrintStyles(),
+		'</style></head><body><div class="print-wrap">',
+		subtitle ? ('<div class="subtitle">' + escapeGuestPortalPrintHtml(subtitle) + '</div>') : '',
+		'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+		'</div></body></html>'
+	].join(''));
+	frameDoc.close();
+	var cleanup = function () {
+		setTimeout(function () {
+			if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+		}, 300);
+	};
+	frameWindow.onafterprint = cleanup;
+	setTimeout(function () {
+		frameWindow.focus();
+		frameWindow.print();
+		cleanup();
+	}, 250);
+}
+
+function exportGuestPortalTable() {
+	var payload = getGuestPortalTablePayload();
+	if (!payload.rows.length) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'info', title: 'Export', text: 'No rows to export for the current filter.', confirmButtonColor: '#0d6efd' });
+		} else {
+			alert('No rows to export.');
+		}
+		return;
+	}
+	var outName = getGuestPortalExportFilename();
+	var $btn = $('#btn-guest-portal-export');
+	$btn.prop('disabled', true);
+	fetch('/game_list/export_xlsx', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		credentials: 'same-origin',
+		body: JSON.stringify({
+			headers: payload.headers,
+			rows: payload.rows,
+			filename: outName,
+			profileKey: 'guestPortal'
+		})
+	})
+		.then(function (res) {
+			if (!res.ok) {
+				return res.json().catch(function () { return {}; }).then(function (j) {
+					throw new Error((j && j.error) ? j.error : 'Export failed');
+				});
+			}
+			return res.blob();
+		})
+		.then(function (blob) {
+			var link = document.createElement('a');
+			link.href = URL.createObjectURL(blob);
+			link.download = outName;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(link.href);
+		})
+		.catch(function (err) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed', confirmButtonColor: '#0d6efd' });
+			} else {
+				alert(err.message || 'Export failed');
+			}
+		})
+		.finally(function () {
+			$btn.prop('disabled', false);
+		});
+}
+
+$(document).off('click', '#btn-guest-portal-print').on('click', '#btn-guest-portal-print', function (e) {
+	e.preventDefault();
+	printGuestPortalTable();
+});
+
+$(document).off('click', '#btn-guest-portal-export').on('click', '#btn-guest-portal-export', function (e) {
+	e.preventDefault();
+	exportGuestPortalTable();
+});
 
 
 function transaction_type() {
@@ -2341,6 +2586,230 @@ $(document).off('click', '#accountDetails .btn-ledger-edit').on('click', '#accou
 	e.preventDefault();
 	e.stopPropagation();
 	openEditAccountLedgerModal($(this));
+});
+
+function guestPortalReceiptHtmlEscape(value) {
+	return String(value == null ? '' : value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+}
+
+function formatGuestPortalReceiptAmount(value) {
+	var n = Math.abs(Number(value) || 0);
+	return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatGuestPortalReceiptDate(encodedDt) {
+	if (!encodedDt) return '';
+	if (window.moment) {
+		var m = moment.utc(encodedDt).utcOffset(8);
+		if (m.isValid()) return m.format('M/D/YYYY');
+	}
+	var d = new Date(encodedDt);
+	if (!isNaN(d.getTime())) {
+		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+	}
+	return String(encodedDt);
+}
+
+function formatGuestPortalReceiptDateTime(encodedDt) {
+	if (!encodedDt) return '';
+	if (window.moment) {
+		var m = moment.utc(encodedDt).utcOffset(8);
+		if (m.isValid()) return m.format('YYYY-MM-DD HH:mm');
+	}
+	return String(encodedDt);
+}
+
+function buildGuestPortalReceiptSlipHtml(data) {
+	data = data || {};
+	var trans = String(data.transaction || '').trim().toUpperCase();
+	var amount = Math.abs(Number(data.amount) || 0);
+	var isDeposit = trans === 'DEPOSIT' || trans === 'MARKER REDEEM';
+	var isWithdraw = trans === 'WITHDRAW' || trans === 'IOU RETURN DEPOSIT';
+	var depositAmt = isDeposit ? amount : 0;
+	var withdrawAmt = isWithdraw ? amount : 0;
+	var remarks = data.remarks != null ? String(data.remarks).trim() : '';
+
+	var detailRows =
+		'<tr><td class="gpr-label">Date :</td><td class="gpr-value">' +
+		guestPortalReceiptHtmlEscape(formatGuestPortalReceiptDate(data.encoded_dt)) + '</td></tr>' +
+		'<tr><td class="gpr-label">Account :</td><td class="gpr-value gpr-value-wrap">' +
+		guestPortalReceiptHtmlEscape(data.account_code || '') + '</td></tr>' +
+		'<tr><td class="gpr-label">Name :</td><td class="gpr-value gpr-value-wrap">' +
+		guestPortalReceiptHtmlEscape(data.account_name || '') + '</td></tr>' +
+		'<tr><td class="gpr-label">Deposit :</td><td class="gpr-value">' +
+		formatGuestPortalReceiptAmount(depositAmt) + '</td></tr>' +
+		'<tr><td class="gpr-label">Withdrawal :</td><td class="gpr-value' + (withdrawAmt ? ' gpr-amount-out' : '') + '">' +
+		(withdrawAmt ? '(' + formatGuestPortalReceiptAmount(withdrawAmt) + ')' : '0') + '</td></tr>' +
+		'<tr><td class="gpr-label">Balance :</td><td class="gpr-value">' +
+		formatGuestPortalReceiptAmount(data.balance_after) + '</td></tr>' +
+		'<tr><td class="gpr-label">Remarks :</td><td class="gpr-value gpr-value-wrap">' +
+		guestPortalReceiptHtmlEscape(remarks) + '</td></tr>';
+
+	return (
+		'<div class="guest-portal-receipt-slip">' +
+		'<div class="guest-portal-receipt-slip-body">' +
+		'<p class="gpr-brand">GOLDEN DRAGON</p>' +
+		'<p class="gpr-title">' + guestPortalReceiptHtmlEscape(data.title || '* Transaction *') + '</p>' +
+		'<p class="gpr-datetime">' + guestPortalReceiptHtmlEscape(formatGuestPortalReceiptDateTime(data.encoded_dt)) + '</p>' +
+		'<table class="gpr-table"><tbody>' + detailRows + '</tbody></table>' +
+		'</div>' +
+		'<div class="guest-portal-receipt-slip-actions">' +
+		'<button type="button" class="btn guest-portal-receipt-copy-btn js-copy-guest-portal-receipt-image">Copy image</button>' +
+		'<button type="button" class="btn guest-portal-receipt-copy-btn js-copy-guest-portal-receipt-text">Copy text</button>' +
+		'</div>' +
+		'</div>'
+	);
+}
+
+function populateGuestPortalReceipt(data) {
+	var $container = $('#guest-portal-receipt-container');
+	if (!$container.length) return;
+	$container.html(buildGuestPortalReceiptSlipHtml(data));
+}
+
+function showGuestPortalReceiptModal() {
+	var $modal = $('#modal-guest-portal-receipt');
+	if (!$modal.length) return;
+	if (typeof window.prepareGuestPortalChildModal === 'function') {
+		window.prepareGuestPortalChildModal($modal);
+	} else {
+		$modal.appendTo('body');
+		if (typeof setGuestPortalChildModalOpen === 'function') setGuestPortalChildModalOpen(true);
+	}
+	var modalEl = $modal[0];
+	if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+		bootstrap.Modal.getOrCreateInstance(modalEl).show();
+	} else if ($modal.modal) {
+		$modal.modal('show');
+	}
+}
+
+function showGuestPortalLedgerReceipt(ledgerId) {
+	if (!ledgerId) return;
+	$.ajax({
+		url: '/account_ledger/' + ledgerId + '/receipt',
+		method: 'GET',
+		success: function (data) {
+			populateGuestPortalReceipt(data);
+			showGuestPortalReceiptModal();
+		},
+		error: function (xhr) {
+			var msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Unable to load receipt.';
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Receipt', text: msg, confirmButtonColor: '#0d6efd' });
+			} else {
+				alert(msg);
+			}
+		}
+	});
+}
+window.showGuestPortalLedgerReceipt = showGuestPortalLedgerReceipt;
+
+var guestPortalReceiptHtml2CanvasPromise = null;
+function loadGuestPortalReceiptHtml2Canvas() {
+	if (typeof html2canvas !== 'undefined') return Promise.resolve();
+	if (guestPortalReceiptHtml2CanvasPromise) return guestPortalReceiptHtml2CanvasPromise;
+	guestPortalReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+		var script = document.createElement('script');
+		script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+		script.onload = function () { resolve(); };
+		script.onerror = function () {
+			guestPortalReceiptHtml2CanvasPromise = null;
+			reject(new Error('Failed to load image copy library.'));
+		};
+		document.body.appendChild(script);
+	});
+	return guestPortalReceiptHtml2CanvasPromise;
+}
+
+function copyGuestPortalReceiptSlipImage(slipBodyEl, $btn) {
+	if (!slipBodyEl) return;
+	var original = $btn.html();
+	$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span>');
+	loadGuestPortalReceiptHtml2Canvas()
+		.then(function () {
+			return html2canvas(slipBodyEl, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+		})
+		.then(function (canvas) {
+			return new Promise(function (resolve, reject) {
+				canvas.toBlob(function (blob) {
+					if (!blob) reject(new Error('Failed to create receipt image.'));
+					else resolve(blob);
+				}, 'image/png');
+			});
+		})
+		.then(function (blob) {
+			if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+				throw new Error('Clipboard image copy is not supported.');
+			}
+			return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+		})
+		.then(function () {
+			$btn.html('Copied');
+		})
+		.catch(function (err) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Copy image', text: err.message || 'Copy failed', confirmButtonColor: '#0d6efd' });
+			} else {
+				alert(err.message || 'Copy failed');
+			}
+		})
+		.finally(function () {
+			setTimeout(function () {
+				$btn.prop('disabled', false).html(original);
+			}, 900);
+		});
+}
+
+function copyGuestPortalReceiptSlipText(slipBodyEl, $btn) {
+	var text = slipBodyEl && slipBodyEl.innerText ? slipBodyEl.innerText.trim() : '';
+	var original = $btn.html();
+	if (!text) return;
+	$btn.prop('disabled', true);
+	var done = function () {
+		$btn.html('Copied');
+		setTimeout(function () {
+			$btn.prop('disabled', false).html(original);
+		}, 900);
+	};
+	var fail = function (err) {
+		$btn.prop('disabled', false).html(original);
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'error', title: 'Copy text', text: (err && err.message) || 'Copy failed', confirmButtonColor: '#0d6efd' });
+		} else {
+			alert((err && err.message) || 'Copy failed');
+		}
+	};
+	if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+		fail(new Error('Clipboard is not supported.'));
+		return;
+	}
+	navigator.clipboard.writeText(text).then(done).catch(fail);
+}
+
+$(document).off('click', '#accountDetails .btn-ledger-receipt').on('click', '#accountDetails .btn-ledger-receipt', function (e) {
+	e.preventDefault();
+	e.stopPropagation();
+	var ledgerId = $(this).data('id');
+	if (ledgerId) showGuestPortalLedgerReceipt(ledgerId);
+});
+
+$(document).off('click', '.js-copy-guest-portal-receipt-image').on('click', '.js-copy-guest-portal-receipt-image', function (e) {
+	e.preventDefault();
+	var $btn = $(this);
+	var slipBody = $btn.closest('.guest-portal-receipt-slip').find('.guest-portal-receipt-slip-body')[0];
+	copyGuestPortalReceiptSlipImage(slipBody, $btn);
+});
+
+$(document).off('click', '.js-copy-guest-portal-receipt-text').on('click', '.js-copy-guest-portal-receipt-text', function (e) {
+	e.preventDefault();
+	var $btn = $(this);
+	var slipBody = $btn.closest('.guest-portal-receipt-slip').find('.guest-portal-receipt-slip-body')[0];
+	copyGuestPortalReceiptSlipText(slipBody, $btn);
 });
 
 $(document).off('click', '#btn-save-edit-ledger').on('click', '#btn-save-edit-ledger', function () {

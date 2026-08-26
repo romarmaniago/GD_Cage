@@ -4003,5 +4003,111 @@ router.post('/agency/export_line_stats_xlsx', checkSession, async function (req,
 });
 
 
+/** Balance after a specific ledger row (same cash formula as Guest Portal TOTAL BALANCE). */
+async function getLedgerReceiptBalanceAfter(accountId, ledgerId) {
+	const [rows] = await pool.execute(
+		`SELECT account_ledger.IDNo, transaction_type.TRANSACTION, account_ledger.AMOUNT
+		 FROM account_ledger
+		 JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+		 WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
+		   AND account_ledger.ACCOUNT_ID = ?
+		   AND account_ledger.ACTIVE = 1
+		 ORDER BY account_ledger.IDNo ASC`,
+		[accountId]
+	);
+	let running = 0;
+	const targetId = Number(ledgerId);
+	for (const row of rows) {
+		const amount = parseFloat(row.AMOUNT) || 0;
+		if (row.TRANSACTION === 'DEPOSIT') running += amount;
+		else if (row.TRANSACTION === 'WITHDRAW') running -= amount;
+		else if (row.TRANSACTION === 'MARKER REDEEM') running += amount;
+		else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') running -= amount;
+		if (Number(row.IDNo) === targetId) return running;
+	}
+	return running;
+}
+
+async function buildGuestPortalLedgerReceipt(ledgerId) {
+	const [rows] = await pool.execute(
+		`SELECT
+			al.IDNo,
+			al.ACCOUNT_ID,
+			al.AMOUNT,
+			al.REMARKS,
+			al.ENCODED_DT,
+			al.TRANSACTION_DESC,
+			al.TRANSFER,
+			al.TRANSFER_AGENT,
+			tt.TRANSACTION AS transaction_name,
+			ag.AGENT_CODE,
+			ag.NAME AS agent_name,
+			u.FIRSTNAME AS encoded_by_name
+		 FROM account_ledger al
+		 JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+		 JOIN account a ON a.IDNo = al.ACCOUNT_ID
+		 JOIN agent ag ON ag.IDNo = a.AGENT_ID
+		 LEFT JOIN user_info u ON u.IDNo = al.ENCODED_BY
+		 WHERE al.IDNo = ? AND al.ACTIVE = 1
+		 LIMIT 1`,
+		[ledgerId]
+	);
+	if (!rows.length) return null;
+
+	const row = rows[0];
+	const amount = parseFloat(row.AMOUNT) || 0;
+	const transaction = String(row.transaction_name || '').trim();
+	const balanceAfter = await getLedgerReceiptBalanceAfter(row.ACCOUNT_ID, row.IDNo);
+
+	let transferLabel = '';
+	if (parseInt(row.TRANSFER, 10) === 1 && row.TRANSFER_AGENT) {
+		const [transferRows] = await pool.execute(
+			`SELECT AGENT_CODE, NAME FROM agent WHERE IDNo = ? LIMIT 1`,
+			[row.TRANSFER_AGENT]
+		);
+		if (transferRows.length) {
+			const t = transferRows[0];
+			const peer = [t.AGENT_CODE, t.NAME].filter(Boolean).join(' - ');
+			transferLabel = transaction === 'DEPOSIT'
+				? `Received from ${peer}`
+				: `Transferred to ${peer}`;
+		}
+	}
+
+	return {
+		ledger_id: row.IDNo,
+		title: `* ${telegramCashTransactionTitle(transaction)} *`,
+		transaction,
+		transaction_desc: row.TRANSACTION_DESC || '',
+		transfer_label: transferLabel,
+		account_code: row.AGENT_CODE || '',
+		account_name: row.agent_name || '',
+		amount,
+		balance_after: balanceAfter,
+		remarks: row.REMARKS || '',
+		encoded_by: row.encoded_by_name || '',
+		encoded_dt: row.ENCODED_DT
+	};
+}
+
+// GET Guest Portal ledger receipt slip
+router.get('/account_ledger/:id/receipt', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id || Number.isNaN(id)) {
+			return res.status(400).json({ error: 'Invalid transaction id' });
+		}
+		const receipt = await buildGuestPortalLedgerReceipt(id);
+		if (!receipt) {
+			return res.status(404).json({ error: 'Transaction not found' });
+		}
+		return res.json(receipt);
+	} catch (err) {
+		console.error('account_ledger receipt:', err);
+		return res.status(500).json({ error: 'Error fetching receipt' });
+	}
+});
+
+
 // Export the router
 module.exports = router; 
