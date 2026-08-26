@@ -12,6 +12,7 @@ const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
 const { insertCreditRecord } = require('../utils/creditService');
+const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 
 /** Junket/house account used when resolving pending via New Game (account.IDNo). */
 const PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
@@ -3157,11 +3158,10 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
 		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id, agent_id } = req.body;
 		const gameId = parseInt(game_id, 10);
-		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
-		const svc = (service_type || '').toLowerCase();
+		const amt = parseFloat((amount || '').toString().replace(/,/g, ''));
+		const svc = await resolveActiveServiceCategory(pool, service_type);
 		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
-		const chargeTotal = amt + deliveryFee;
-		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
+		const chargeTotal = (Number.isFinite(amt) ? amt : 0) + deliveryFee;
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 		let agentId = parseInt(agent_id, 10);
@@ -3169,8 +3169,11 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			agentId = null;
 		}
 
-		if (Number.isNaN(gameId) || !validTypes.includes(svc)) {
+		if (Number.isNaN(gameId) || !svc) {
 			return res.status(400).json({ error: 'Invalid input' });
+		}
+		if (amount === undefined || amount === null || String(amount).trim() === '' || !Number.isFinite(amt)) {
+			return res.status(400).json({ error: 'Amount is required' });
 		}
 
 		const encodedBy = req.session?.user_id || null;
@@ -3286,11 +3289,10 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 		const serviceId = parseInt(req.params.id, 10);
 		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
-		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
-		const svc = (service_type || '').toLowerCase();
+		const amt = parseFloat((amount || '').toString().replace(/,/g, ''));
+		const svc = await resolveActiveServiceCategory(pool, service_type);
 		const deliveryFee = parseGameServiceDeliveryFee(delivery_fee, svc);
-		const chargeTotal = amt + deliveryFee;
-		const validTypes = ['fnb', 'hotel', 'delivery', 'f & b', 'junket payment', 'guest payment'];
+		const chargeTotal = (Number.isFinite(amt) ? amt : 0) + deliveryFee;
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 
@@ -3299,8 +3301,11 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			[serviceId]
 		);
 
-		if (Number.isNaN(serviceId) || Number.isNaN(gameId) || !validTypes.includes(svc)) {
+		if (Number.isNaN(serviceId) || Number.isNaN(gameId) || !svc) {
 			return res.status(400).json({ error: 'Invalid input' });
+		}
+		if (amount === undefined || amount === null || String(amount).trim() === '' || !Number.isFinite(amt)) {
+			return res.status(400).json({ error: 'Amount is required' });
 		}
 
 		const updatedBy = req.session?.user_id || null;

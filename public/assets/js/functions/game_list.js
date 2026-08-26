@@ -9343,6 +9343,10 @@ $(document).on('click', '#services-save-btn', function (e) {
 		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
 		return;
 	}
+	if (!amountRaw || !Number.isFinite(parseFloat(amountRaw))) {
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Amount is required.' });
+		return;
+	}
 	if (!transactionId) {
 		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
@@ -9458,6 +9462,10 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 
 	if (!serviceId || !gameId || !type) {
 		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+	if (!amountRaw || !Number.isFinite(parseFloat(amountRaw))) {
+		fireServicesSwal({ icon: 'warning', title: 'Missing fields', text: 'Amount is required.' });
 		return;
 	}
 	if (!transactionId) {

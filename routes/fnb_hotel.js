@@ -5,6 +5,7 @@ const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
+const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 
 const validTransactionIds = [1, 2, 3];
 const validSourceTypes = ['JUNKET', 'GUEST'];
@@ -13,32 +14,6 @@ function parseProgramDate(value) {
 	const raw = String(value || '').trim().slice(0, 10);
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
 	return raw;
-}
-
-const LEGACY_SERVICE_TYPE_TO_CATEGORY = {
-	fnb: 'F & B',
-	hotel: 'Hotel',
-	delivery: 'Delivery'
-};
-
-async function resolveActiveServiceCategory(serviceType) {
-	const raw = (serviceType || '').trim();
-	if (!raw) return null;
-
-	const [rows] = await pool.execute(
-		'SELECT CATEGORY FROM services_category WHERE ACTIVE = 1 AND LOWER(TRIM(CATEGORY)) = LOWER(TRIM(?)) LIMIT 1',
-		[raw]
-	);
-	if (rows.length) return rows[0].CATEGORY;
-
-	const legacyName = LEGACY_SERVICE_TYPE_TO_CATEGORY[raw.toLowerCase()];
-	if (!legacyName) return null;
-
-	const [legacyRows] = await pool.execute(
-		'SELECT CATEGORY FROM services_category WHERE ACTIVE = 1 AND LOWER(TRIM(CATEGORY)) = LOWER(TRIM(?)) LIMIT 1',
-		[legacyName]
-	);
-	return legacyRows[0]?.CATEGORY || null;
 }
 
 /** Client omits ACTION (last column). */
@@ -194,7 +169,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const absAmt = Math.abs(amt);
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
-		const resolvedCategory = await resolveActiveServiceCategory(service_type);
+		const resolvedCategory = await resolveActiveServiceCategory(pool, service_type);
 		const programDate = parseProgramDate(program_date);
 
 		if (!resolvedCategory || !validTransactionIds.includes(parsedTransactionId) || !validSourceTypes.includes(sourceType)) {
@@ -371,7 +346,7 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		const parsedTransactionId = parseInt(existingService.TRANSACTION_ID, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const sourceType = (source_type || '').toString().trim().toUpperCase();
-		const resolvedCategory = await resolveActiveServiceCategory(service_type);
+		const resolvedCategory = await resolveActiveServiceCategory(pool, service_type);
 		const programDate = parseProgramDate(program_date);
 		const resolvedGuestId = !Number.isNaN(parsedGuestId) && parsedGuestId > 0 ? parsedGuestId : null;
 
