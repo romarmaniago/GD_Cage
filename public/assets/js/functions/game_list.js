@@ -11151,6 +11151,100 @@ function mergeGameSettlementMetrics(metricsList) {
 	return merged;
 }
 
+function clearSettlementChooseAccount($modal) {
+	$modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+	$modal.find('#txtChooseAccountID').val('');
+	$modal.find('#settlement-choose-account-label').text('').addClass('d-none');
+	$modal.removeData('settlementChooseAccountId');
+	$modal.removeData('settlementChooseAccountLabel');
+}
+
+function restoreSettlementGameAccountId($modal) {
+	$modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+	var gameAccountId = $modal.data('settlementGameAccountId');
+	if (gameAccountId != null && gameAccountId !== '') {
+		$modal.find('input[name="txtAccountIDSettle"]').val(gameAccountId);
+	}
+}
+
+function fetchSettlementBalanceForAccount(accountId) {
+	if (!accountId) {
+		$('#SettlementBalance').val(0);
+		return;
+	}
+	$.ajax({
+		url: '/account_details_data_deposit/' + encodeURIComponent(accountId),
+		method: 'GET',
+		success: function (data) {
+			var deposit_amount = 0;
+			var withdraw_amount = 0;
+			var marker_return = 0;
+			var marker_deposit_amount = 0;
+			(data || []).forEach(function (row) {
+				var amount = parseFloat(row.AMOUNT) || 0;
+				if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
+				else if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
+				else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return += amount;
+				else if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
+			});
+			var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
+			$('#SettlementBalance').val(!isNaN(totalBalance) ? totalBalance : 0);
+		},
+		error: function () {
+			$('#SettlementBalance').val(0);
+		}
+	});
+}
+
+function initSettlementChooseAccountSelect() {
+	var $sel = $('#settlement-choose-account-select');
+	if (!$sel.length || typeof $sel.select2 !== 'function') return;
+	if ($sel.data('select2')) {
+		try { $sel.select2('destroy'); } catch (e) {}
+	}
+	$sel.select2({
+		placeholder: $sel.data('placeholder') || 'Select an account',
+		allowClear: false,
+		dropdownParent: $('#modal-settlement-choose-account'),
+		width: '100%'
+	});
+}
+
+function loadSettlementChooseAccounts(selectedId) {
+	var $sel = $('#settlement-choose-account-select');
+	var placeholder = $sel.data('placeholder') || 'Select an account';
+	return $.getJSON('/account_data').then(function (rows) {
+		if ($sel.data('select2')) {
+			try { $sel.select2('destroy'); } catch (e) {}
+		}
+		$sel.empty().append($('<option/>', { value: '', text: placeholder }));
+		(rows || []).forEach(function (a) {
+			var id = a.account_id;
+			if (id == null) return;
+			var parts = [a.agent_code, a.agent_name].filter(Boolean);
+			var label = parts.length ? parts.join(' - ') : ('Account #' + id);
+			$sel.append($('<option/>', { value: String(id), text: label }));
+		});
+		initSettlementChooseAccountSelect();
+		if (selectedId != null && selectedId !== '') {
+			$sel.val(String(selectedId)).trigger('change');
+		}
+	});
+}
+
+function openSettlementChooseAccountModal() {
+	var $modal = $('#modal-settlement');
+	var selectedId = $modal.find('#txtChooseAccountID').val() || '';
+	loadSettlementChooseAccounts(selectedId).always(function () {
+		var el = document.getElementById('modal-settlement-choose-account');
+		if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+			bootstrap.Modal.getOrCreateInstance(el).show();
+		} else {
+			$('#modal-settlement-choose-account').modal('show');
+		}
+	});
+}
+
 function settlement_history(record_id, acc_id) {
     var $settlementModal = $('#modal-settlement');
     $settlementModal.data('is-settled', 0);
@@ -11172,7 +11266,7 @@ function settlement_history(record_id, acc_id) {
         window.updateSettlementCopyButtons($settlementModal);
     }
     $settlementModal.modal('show');
-    // Reset Deposit / Cash Out row; reloadDataRecord hides it when game is already settled
+    // Reset Deposit / Choose Account row; reloadDataRecord hides it when game is already settled
     $settlementModal.find('.deposit-cashout-row').show();
 
     // Destroy existing DataTable if it exists
@@ -11391,6 +11485,9 @@ function settlement_history(record_id, acc_id) {
                 }
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
+                $settlementModal.data('settlementGameAccountId', account_id);
+                clearSettlementChooseAccount($settlementModal);
+                $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
 
                 var settledFlag = merged.SETTLED;
                 $settlementModal.data('is-settled', settledFlag ? 1 : 0);
@@ -11420,42 +11517,29 @@ function settlement_history(record_id, acc_id) {
         });
     }
          // Fetch account details to calculate balance
-		 $.ajax({
-			url: '/account_details_data_deposit/' + acc_id, // Use the account parameter
-			method: 'GET',
-			success: function (data) {
-				var deposit_amount = 0;
-				var withdraw_amount = 0;
-				var marker_return = 0;
-				var marker_deposit_amount = 0;
-	
-				data.forEach(function (row) {
-					const amount = parseFloat(row.AMOUNT) || 0;
-		
-					if (row.TRANSACTION === 'DEPOSIT') {
-						deposit_amount += amount;
-					} else if (row.TRANSACTION === 'WITHDRAW') {
-						withdraw_amount += amount;
-					} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-						marker_return += amount;
-					} else if (row.TRANSACTION === 'MARKER REDEEM') {
-						marker_deposit_amount += amount;
-					}
-				});
-	
-				 const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-
-
-				 // Set total balance value
-				 $('#SettlementBalance').val(!isNaN(totalBalance) ? totalBalance : 0); // Safely set the value or default to 0 if invalid
-			 },
-			error: function (xhr, status, error) {
-				console.error('Error fetching account details:', error);
-			}
-		});
+		 fetchSettlementBalanceForAccount(acc_id);
 
     // Handle form submission for settlement
     console.log('Initial isSettled:', isSettled);
+
+    $settlementModal.off('change.settlementTransType').on('change.settlementTransType', 'input[name="txtTransType"]', function () {
+        var val = $(this).val();
+        if (val === 'choose') {
+            openSettlementChooseAccountModal();
+            return;
+        }
+        if (val === '1') {
+            clearSettlementChooseAccount($settlementModal);
+            restoreSettlementGameAccountId($settlementModal);
+            fetchSettlementBalanceForAccount($settlementModal.data('settlementGameAccountId') || acc_id);
+        }
+    });
+
+    $settlementModal.off('click.settlementChooseAccount').on('click.settlementChooseAccount', '#chooseAccount', function () {
+        if ($(this).is(':checked')) {
+            openSettlementChooseAccountModal();
+        }
+    });
 
     $('#submit-settlement-btn').off('click').on('click', function (e) {
         e.preventDefault(); // Prevent any default behavior
@@ -11512,11 +11596,12 @@ function settlement_history(record_id, acc_id) {
         var services = $('#fb').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $settlementModal.find('input[name="txtTransType"]:checked').val();
-        if (!transType || (transType !== '1' && transType !== '5')) {
+        var chooseAccountId = String($settlementModal.find('#txtChooseAccountID').val() || '').trim();
+        if (!transType || (transType !== '1' && transType !== 'choose')) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Required',
-                text: 'Please select Deposit or Cash Out before confirming settlement.',
+                text: 'Please select Deposit or Choose Account before confirming settlement.',
                 confirmButtonText: 'OK',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
@@ -11526,9 +11611,21 @@ function settlement_history(record_id, acc_id) {
             });
             return;
         }
-        var transTypeText = '';
-        if (transType == '1') transTypeText = 'Deposit';
-        else if (transType == '5') transTypeText = 'Cash Out';
+        if (transType === 'choose' && !chooseAccountId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Required',
+                text: 'Please choose an account for the payment.',
+                confirmButtonText: 'OK',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: {
+                    confirmButton: 'custom-ok-btn'
+                }
+            });
+            openSettlementChooseAccountModal();
+            return;
+        }
         var servicesValue = parseFloat(services) || 0;
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
@@ -11565,9 +11662,6 @@ function settlement_history(record_id, acc_id) {
             }
         });
         settlementRows.push(['Payment', parseFloat(payment).toLocaleString('en-US')]);
-        if (transTypeText) {
-            settlementRows.push(['Transaction Type', transTypeText]);
-        }
 
         var $btn = $('#submit-settlement-btn');
         var defaultSettleLabel = 'Settle';
@@ -11590,7 +11684,22 @@ function settlement_history(record_id, acc_id) {
                     Loading...
                 `);
                 
-                var formData = $settlementModal.find('#add_settlement').serialize(); // Serialize form data
+                var formDataArr = $settlementModal.find('#add_settlement').serializeArray();
+                var payload = {};
+                formDataArr.forEach(function (item) {
+                    payload[item.name] = item.value;
+                });
+                if (transType === 'choose') {
+                    payload.txtTransType = '1';
+                    payload.txtAccountIDSettle = chooseAccountId;
+                } else {
+                    var gameAccountId = $settlementModal.data('settlementGameAccountId');
+                    if (gameAccountId != null && gameAccountId !== '') {
+                        payload.txtAccountIDSettle = String(gameAccountId);
+                    }
+                    payload.txtTransType = '1';
+                }
+                var formData = $.param(payload);
 
                 $.ajax({
                     type: 'POST',
@@ -11649,6 +11758,54 @@ function settlement_history(record_id, acc_id) {
 
     reloadDataRecord(); // Call data loading function
 }
+
+$(document).off('click.settlementChooseConfirm', '#settlement-choose-account-confirm')
+	.on('click.settlementChooseConfirm', '#settlement-choose-account-confirm', function () {
+		var $settlementModal = $('#modal-settlement');
+		var $sel = $('#settlement-choose-account-select');
+		var accountId = String($sel.val() || '').trim();
+		var label = ($sel.find('option:selected').text() || '').trim();
+		if (!accountId) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Required',
+				text: 'Please select an account.',
+				confirmButtonText: 'OK',
+				allowOutsideClick: false,
+				allowEscapeKey: false,
+				customClass: { confirmButton: 'custom-ok-btn' }
+			});
+			return;
+		}
+
+		$settlementModal.find('#txtChooseAccountID').val(accountId);
+		$settlementModal.find('#chooseAccount').prop('checked', true);
+		$settlementModal.find('input[name="txtAccountIDSettle"]').val(accountId);
+		$settlementModal.data('settlementChooseAccountId', accountId);
+		$settlementModal.data('settlementChooseAccountLabel', label);
+		$settlementModal.find('#settlement-choose-account-label').text(label).removeClass('d-none');
+		fetchSettlementBalanceForAccount(accountId);
+
+		var el = document.getElementById('modal-settlement-choose-account');
+		if (el && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+			var inst = bootstrap.Modal.getInstance(el);
+			if (inst) inst.hide();
+			else $('#modal-settlement-choose-account').modal('hide');
+		} else {
+			$('#modal-settlement-choose-account').modal('hide');
+		}
+	});
+
+$(document).off('hidden.bs.modal.settlementChoose', '#modal-settlement-choose-account')
+	.on('hidden.bs.modal.settlementChoose', '#modal-settlement-choose-account', function () {
+		var $settlementModal = $('#modal-settlement');
+		var hasChoice = String($settlementModal.find('#txtChooseAccountID').val() || '').trim();
+		if ($settlementModal.find('#chooseAccount').is(':checked') && !hasChoice) {
+			$settlementModal.find('#chooseAccount').prop('checked', false);
+		}
+		// Keep settlement modal usable after nested modal closes
+		$('body').addClass('modal-open');
+	});
 
 // Trigger when account is selected from dropdown
 $('#txtTrans').on('change', function () {

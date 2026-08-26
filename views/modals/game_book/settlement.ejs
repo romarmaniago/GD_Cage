@@ -103,15 +103,20 @@
         overflow-x: auto;
         padding-bottom: 0.25rem;
         display: grid;
-        grid-template-columns: 28.75rem 28.75rem 28.75rem 20rem;
+        grid-template-columns: 28.75rem 28.75rem 28.75rem 20rem 16.5rem;
         gap: 0.75rem;
         align-items: stretch;
     }
 
-    #modal-settlement .settlement-calculator-panel {
+    #modal-settlement .settlement-calculator-panel,
+    #modal-settlement .settlement-basic-calc-panel {
         width: 20rem;
         max-width: 100%;
         flex-shrink: 0;
+    }
+
+    #modal-settlement .settlement-basic-calc-panel {
+        width: 16.5rem;
     }
 
     #modal-settlement .settlement-calculator-body {
@@ -198,9 +203,118 @@
         background: #fff;
     }
 
+    #modal-settlement .settlement-basic-calc {
+        padding: 0;
+        outline: none;
+    }
+
+    #modal-settlement .settlement-basic-calc-panel .settlement-calculator-body {
+        padding: 0.55rem 0.55rem 0.65rem;
+    }
+
+    #modal-settlement .settlement-basic-calc.is-focused .settlement-basic-calc-screen,
+    #modal-settlement .settlement-basic-calc:focus .settlement-basic-calc-screen,
+    #modal-settlement .settlement-basic-calc:focus-within .settlement-basic-calc-screen {
+        box-shadow: inset 0 0 0 2px #c8a24c;
+    }
+
+    #modal-settlement .settlement-basic-calc-screen {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #3f3f46;
+        border-radius: 0.25rem;
+        background: #202020;
+        padding: 0.4rem 0.55rem 0.45rem;
+        margin-bottom: 0.4rem;
+        min-height: 3.6rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: flex-end;
+        gap: 0.15rem;
+        cursor: text;
+    }
+
+    #modal-settlement .settlement-basic-calc-expression {
+        width: 100%;
+        min-height: 1rem;
+        color: #a1a1aa;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.1;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #modal-settlement .settlement-basic-calc-display {
+        width: 100%;
+        color: #ffffff;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        font-size: 1.55rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.15;
+        text-align: right;
+        letter-spacing: 0.01em;
+        word-break: break-all;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.3rem;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button {
+        border: 1px solid #c8a24c;
+        border-radius: 0.2rem;
+        background: linear-gradient(180deg, #fffef8 0%, #f5e6c0 100%);
+        color: #3a2e12;
+        font-weight: 700;
+        font-size: 0.92rem;
+        line-height: 1;
+        padding: 0.55rem 0.2rem;
+        min-height: 2.15rem;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button:hover {
+        background: linear-gradient(180deg, #fff8e4 0%, #e8d090 100%);
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button:active {
+        transform: translateY(1px);
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button.is-op {
+        background: linear-gradient(180deg, #f1d48a 0%, #c8a24c 100%);
+        color: #2c2410;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button.is-eq {
+        background: linear-gradient(180deg, #52525b 0%, #3f3f46 100%);
+        border-color: #3f3f46;
+        color: #fff;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button.is-clear {
+        background: linear-gradient(180deg, #f4f4f5 0%, #d4d4d8 100%);
+        border-color: #a1a1aa;
+        color: #3f3f46;
+    }
+
+    #modal-settlement .settlement-basic-calc-keys button.is-zero {
+        grid-column: span 2;
+    }
+
     #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-main-content,
     #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-edit-panel,
-    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel {
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel,
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-basic-calc-panel {
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -215,7 +329,8 @@
         min-height: 100%;
     }
 
-    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel > .settlement-edit-panel-card {
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel > .settlement-edit-panel-card,
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-basic-calc-panel > .settlement-edit-panel-card {
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
@@ -535,6 +650,19 @@
         font-size: 0.95rem;
     }
 
+    #modal-settlement #settlement-choose-account-label {
+        font-size: 0.78rem;
+        line-height: 1.25;
+        word-break: break-word;
+        max-width: 12rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    #modal-settlement-choose-account {
+        z-index: 1065;
+    }
+
     #modal-settlement .modal-footer {
         align-items: center !important;
         justify-content: center !important;
@@ -777,11 +905,13 @@
                             </div>
                             <div class="col-6 col-sm-6">
                                 <div class="form-check mb-0">
-                                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="5" id="cashOut" name="txtTransType">
-                                    <label class="form-check-label" for="cashOut"><%= __('modal_settlement.cash_out') %></label>
+                                    <input class="form-check-input" style="border-color: #20252e !important;" type="radio" value="choose" id="chooseAccount" name="txtTransType">
+                                    <label class="form-check-label" for="chooseAccount"><%= __('modal_settlement.choose_account') %></label>
                                 </div>
+                                <div class="small text-muted mt-1 d-none" id="settlement-choose-account-label"></div>
                             </div>
                         </div>
+                        <input type="hidden" id="txtChooseAccountID" name="txtChooseAccountID" value="">
                     </div>
                 </div>
 
@@ -868,6 +998,69 @@
                 </div>
             </div>
         </div>
+        <div class="settlement-edit-panel settlement-basic-calc-panel d-none" id="settlement-basic-calc-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card settlement-calculator-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Calculator</h5>
+                    <button type="button" class="btn-close js-settlement-edit-panel-close" aria-label="Close"></button>
+                </div>
+                <div class="settlement-calculator-body">
+                    <div class="settlement-basic-calc" id="settlement-basic-calc" tabindex="0" role="application" aria-label="Basic calculator">
+                        <div class="settlement-basic-calc-screen">
+                            <div class="settlement-basic-calc-expression" id="settlement-basic-calc-expression" aria-hidden="true"></div>
+                            <div class="settlement-basic-calc-display" id="settlement-basic-calc-display" aria-live="polite">0</div>
+                        </div>
+                        <div class="settlement-basic-calc-keys">
+                            <button type="button" class="is-clear" data-calc-key="C">C</button>
+                            <button type="button" class="is-clear" data-calc-key="CE">CE</button>
+                            <button type="button" class="is-op" data-calc-key="%">%</button>
+                            <button type="button" class="is-op" data-calc-key="/">÷</button>
+
+                            <button type="button" data-calc-key="7">7</button>
+                            <button type="button" data-calc-key="8">8</button>
+                            <button type="button" data-calc-key="9">9</button>
+                            <button type="button" class="is-op" data-calc-key="*">×</button>
+
+                            <button type="button" data-calc-key="4">4</button>
+                            <button type="button" data-calc-key="5">5</button>
+                            <button type="button" data-calc-key="6">6</button>
+                            <button type="button" class="is-op" data-calc-key="-">−</button>
+
+                            <button type="button" data-calc-key="1">1</button>
+                            <button type="button" data-calc-key="2">2</button>
+                            <button type="button" data-calc-key="3">3</button>
+                            <button type="button" class="is-op" data-calc-key="+">+</button>
+
+                            <button type="button" class="is-zero" data-calc-key="0">0</button>
+                            <button type="button" data-calc-key=".">.</button>
+                            <button type="button" class="is-eq" data-calc-key="=">=</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-settlement-choose-account" tabindex="-1" aria-labelledby="modal-settlement-choose-account-label" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modal-settlement-choose-account-label"><%= __('modal_settlement.choose_account') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="settlement-choose-account-select"><%= __('modal_settlement.choose_account') %></label>
+                <select id="settlement-choose-account-select" class="form-select js-select2" style="width: 100%;" data-placeholder="<%= __('modal_settlement.choose_account_placeholder') %>">
+                    <option value=""><%= __('modal_settlement.choose_account_placeholder') %></option>
+                </select>
+                <div class="form-text mt-2"><%= __('modal_settlement.choose_account_hint') %></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-primary" id="settlement-choose-account-confirm"><%= __('modal_settlement.confirm') %></button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_settlement.close') %></button>
+            </div>
         </div>
     </div>
 </div>
@@ -889,7 +1082,8 @@ $(document).ready(function() {
     }
 
     function formatAmount(value) {
-        return Number(value || 0).toLocaleString('en-US', {
+        // parseAmount strips commas — Number("2,600") is NaN and was showing as Add Charge
+        return parseAmount(value).toLocaleString('en-US', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2
         });
@@ -1208,6 +1402,37 @@ $(document).ready(function() {
         }));
     }
 
+    // Live comma formatting while typing (preserves caret by digit count)
+    function formatInputWithCommasLive($input) {
+        var el = $input && $input[0];
+        if (!el) {
+            return;
+        }
+
+        var raw = String(el.value || '');
+        var caret = typeof el.selectionStart === 'number' ? el.selectionStart : raw.length;
+        var digitsBeforeCaret = raw.slice(0, caret).replace(/[^\d]/g, '').length;
+
+        formatInputWithCommas($input);
+
+        var formatted = String(el.value || '');
+        if (!formatted) {
+            return;
+        }
+
+        var pos = 0;
+        var seen = 0;
+        while (pos < formatted.length && seen < digitsBeforeCaret) {
+            if (/\d/.test(formatted.charAt(pos))) {
+                seen++;
+            }
+            pos++;
+        }
+        try {
+            el.setSelectionRange(pos, pos);
+        } catch (e) { /* ignore */ }
+    }
+
     function formatRollingRateInput($input) {
         var raw = String($input.val() || '').replace(/,/g, '').trim();
         if (!raw) {
@@ -1314,7 +1539,8 @@ $(document).ready(function() {
         $panelBody.empty().append($source);
 
         var $panel = $panelBody.closest('.settlement-edit-panel');
-        $panel.data('add-charge', parseAmount($mainModal.find('#fb').val()));
+        // Add Charge (F&B/Hotel) applies to Guest only — Agent always 0
+        $panel.data('add-charge', panelKey === 'agent' ? 0 : parseAmount($mainModal.find('#fb').val()));
         $panel.data('rolling-settlement', parseAmount($mainModal.find('#rollingSettlement').val()));
         $panel.data('payment', parseAmount($mainModal.find('#payment').val()));
 
@@ -1429,6 +1655,75 @@ $(document).ready(function() {
         }
     }
 
+    // Keep Calculator table in sync with actual Guest/Agent rolling amounts
+    function updateCalculatorFromEditPanels($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        if (Number($modal.data('settlement-edit-mode')) !== 1) {
+            return;
+        }
+
+        var totalRolling = parseAmount($modal.find('#rolling').val());
+        var rate = parseAmount($modal.find('#rollingRate').val());
+        var guestRolling = parseAmount($modal.find('#settlement-edit-guest-panel [data-field="rolling"]').val());
+        var agentRolling = parseAmount($modal.find('#settlement-edit-agent-panel [data-field="rolling"]').val());
+
+        guestRolling = Math.max(0, Math.min(totalRolling, guestRolling));
+        agentRolling = Math.max(0, totalRolling - guestRolling);
+
+        var splitPct = totalRolling > 0
+            ? Math.round((guestRolling / totalRolling) * 10000) / 100
+            : 0;
+        var remainPct = Math.max(0, Math.round((100 - splitPct) * 100) / 100);
+        var totalSettlement = Math.round((totalRolling * rate) / 100);
+        var splitSettlement = Math.round((guestRolling * rate) / 100);
+        var remainSettlement = Math.max(0, totalSettlement - splitSettlement);
+        var splitDisplay = formatCalculatorSettlementDisplay(splitSettlement);
+        var remainDisplay = formatCalculatorSettlementDisplay(remainSettlement);
+        var totalDisplay = formatCalculatorSettlementDisplay(totalSettlement);
+
+        $modal.find('#calc-split-pct').val(String(splitPct).replace(/\.0+$/, ''));
+        $modal.find('#calc-rolling-split').text(formatAmount(guestRolling));
+        $modal.find('#calc-rolling-remain').text(formatAmount(agentRolling));
+        $modal.find('#calc-rolling-total').text(formatAmount(totalRolling));
+        $modal.find('#calc-remain-pct').text(remainPct + '%');
+        $modal.find('#calc-share-pct-split').text(splitPct + '%');
+        $modal.find('#calc-share-amt-split').text(splitDisplay.text).toggleClass('is-negative', splitDisplay.negative);
+        $modal.find('#calc-share-pct-remain').text(remainPct + '%');
+        $modal.find('#calc-share-amt-remain').text(remainDisplay.text).toggleClass('is-negative', remainDisplay.negative);
+        $modal.find('#calc-share-pct-settlement').text('Settlement :');
+        $modal.find('#calc-share-amt-settlement').text(totalDisplay.text).toggleClass('is-negative', totalDisplay.negative);
+    }
+
+    // Guest + Agent rolling always equals main Settlement rolling
+    function syncCounterpartRolling($sourcePanel, clampEdited) {
+        var $modal = $('#modal-settlement');
+        var $guestPanel = $modal.find('#settlement-edit-guest-panel');
+        var $agentPanel = $modal.find('#settlement-edit-agent-panel');
+        if (!$sourcePanel || !$sourcePanel.length || !$guestPanel.length || !$agentPanel.length) {
+            return;
+        }
+
+        var totalRolling = parseAmount($modal.find('#rolling').val());
+        var isGuest = $sourcePanel.is('#settlement-edit-guest-panel');
+        var $otherPanel = isGuest ? $agentPanel : $guestPanel;
+        var $sourceInput = $sourcePanel.find('[data-field="rolling"]');
+        var edited = parseAmount($sourceInput.val());
+
+        if (clampEdited) {
+            edited = Math.max(0, Math.min(totalRolling, edited));
+            $sourceInput.val(formatAmount(edited));
+        } else if (edited < 0) {
+            edited = 0;
+        }
+
+        var otherRolling = Math.max(0, totalRolling - Math.min(edited, totalRolling));
+        $otherPanel.find('[data-field="rolling"]').val(formatAmount(otherRolling));
+
+        recalcSettlementEditPanelTotals($sourcePanel);
+        recalcSettlementEditPanelTotals($otherPanel);
+        updateCalculatorFromEditPanels($modal);
+    }
+
     function resetSettlementCalculator($modal) {
         $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
         $modal.removeData('calculator-split-active');
@@ -1442,6 +1737,240 @@ $(document).ready(function() {
         $modal.find('#calc-share-amt-remain').text('').removeClass('is-negative');
         $modal.find('#calc-share-pct-settlement').text('Settlement :');
         $modal.find('#calc-share-amt-settlement').text('').removeClass('is-negative');
+        resetBasicCalculator();
+    }
+
+    var basicCalcState = {
+        display: '0',
+        first: null,
+        operator: null,
+        waitingForSecond: false,
+        expression: '',
+        justEvaluated: false
+    };
+
+    function formatBasicCalcResult(value) {
+        var num = Number(value);
+        if (!Number.isFinite(num)) {
+            return 'Error';
+        }
+        var abs = Math.abs(num);
+        if (abs !== 0 && (abs >= 1e12 || abs < 1e-8)) {
+            return String(num);
+        }
+        var fixed = Math.round(num * 1e10) / 1e10;
+        return String(fixed);
+    }
+
+    // Comma-format for display only; state stays raw (no commas)
+    function formatBasicCalcDisplayText(raw) {
+        if (raw === 'Error') {
+            return 'Error';
+        }
+        var str = String(raw == null ? '0' : raw);
+        var isNeg = str.charAt(0) === '-';
+        if (isNeg) {
+            str = str.slice(1);
+        }
+
+        var hasDot = str.indexOf('.') !== -1;
+        var parts = str.split('.');
+        var intRaw = String(parts[0] || '').replace(/[^\d]/g, '');
+        if (intRaw === '') {
+            intRaw = '0';
+        }
+        var out = Number(intRaw).toLocaleString('en-US');
+        if (hasDot) {
+            out += '.' + String(parts[1] || '').replace(/[^\d]/g, '');
+        }
+        return isNeg ? '-' + out : out;
+    }
+
+    function basicCalcOpSymbol(op) {
+        if (op === '+') return '+';
+        if (op === '-') return '−';
+        if (op === '*') return '×';
+        if (op === '/') return '÷';
+        return op || '';
+    }
+
+    function parseBasicCalcDisplay() {
+        return parseFloat(String(basicCalcState.display || '0').replace(/,/g, ''));
+    }
+
+    function setBasicCalcExpression(text) {
+        basicCalcState.expression = text || '';
+    }
+
+    function renderBasicCalculator() {
+        $('#settlement-basic-calc-expression').text(basicCalcState.expression || '');
+        $('#settlement-basic-calc-display').text(formatBasicCalcDisplayText(basicCalcState.display));
+    }
+
+    function resetBasicCalculator() {
+        basicCalcState.display = '0';
+        basicCalcState.first = null;
+        basicCalcState.operator = null;
+        basicCalcState.waitingForSecond = false;
+        basicCalcState.expression = '';
+        basicCalcState.justEvaluated = false;
+        renderBasicCalculator();
+    }
+
+    function applyBasicCalcOperator(a, b, op) {
+        if (op === '+') return a + b;
+        if (op === '-') return a - b;
+        if (op === '*') return a * b;
+        if (op === '/') return b === 0 ? NaN : a / b;
+        return b;
+    }
+
+    function handleBasicCalcKey(key) {
+        if (key === 'C') {
+            resetBasicCalculator();
+            return;
+        }
+
+        if (key === 'CE') {
+            basicCalcState.display = '0';
+            basicCalcState.waitingForSecond = false;
+            if (basicCalcState.justEvaluated) {
+                setBasicCalcExpression('');
+                basicCalcState.justEvaluated = false;
+                basicCalcState.first = null;
+                basicCalcState.operator = null;
+            }
+            renderBasicCalculator();
+            return;
+        }
+
+        if (key === 'BS') {
+            if (basicCalcState.justEvaluated) {
+                setBasicCalcExpression('');
+                basicCalcState.justEvaluated = false;
+            }
+            if (basicCalcState.waitingForSecond || basicCalcState.display === 'Error') {
+                basicCalcState.display = '0';
+                basicCalcState.waitingForSecond = false;
+            } else if (basicCalcState.display.length <= 1) {
+                basicCalcState.display = '0';
+            } else {
+                basicCalcState.display = basicCalcState.display.slice(0, -1);
+            }
+            renderBasicCalculator();
+            return;
+        }
+
+        if (key === '%') {
+            var pctVal = parseBasicCalcDisplay();
+            if (!Number.isFinite(pctVal)) {
+                basicCalcState.display = 'Error';
+                setBasicCalcExpression('');
+            } else {
+                basicCalcState.display = formatBasicCalcResult(pctVal / 100);
+            }
+            basicCalcState.waitingForSecond = false;
+            basicCalcState.justEvaluated = false;
+            renderBasicCalculator();
+            return;
+        }
+
+        if (key === '=' || key === '+' || key === '-' || key === '*' || key === '/') {
+            var current = parseBasicCalcDisplay();
+
+            if (key === '=') {
+                if (basicCalcState.operator && basicCalcState.first != null) {
+                    var eqSecond = basicCalcState.waitingForSecond ? basicCalcState.first : current;
+                    var eqResult = applyBasicCalcOperator(basicCalcState.first, eqSecond, basicCalcState.operator);
+                    if (!Number.isFinite(eqResult)) {
+                        basicCalcState.display = 'Error';
+                        setBasicCalcExpression('');
+                        basicCalcState.first = null;
+                        basicCalcState.operator = null;
+                        basicCalcState.waitingForSecond = false;
+                        basicCalcState.justEvaluated = false;
+                        renderBasicCalculator();
+                        return;
+                    }
+                    setBasicCalcExpression(
+                        formatBasicCalcDisplayText(formatBasicCalcResult(basicCalcState.first)) +
+                        ' ' + basicCalcOpSymbol(basicCalcState.operator) + ' ' +
+                        formatBasicCalcDisplayText(formatBasicCalcResult(eqSecond)) + ' ='
+                    );
+                    basicCalcState.display = formatBasicCalcResult(eqResult);
+                    basicCalcState.first = eqResult;
+                    basicCalcState.operator = null;
+                    basicCalcState.waitingForSecond = false;
+                    basicCalcState.justEvaluated = true;
+                }
+                renderBasicCalculator();
+                return;
+            }
+
+            // Operator pressed
+            if (basicCalcState.operator && basicCalcState.first != null && !basicCalcState.waitingForSecond && !basicCalcState.justEvaluated) {
+                var chainResult = applyBasicCalcOperator(basicCalcState.first, current, basicCalcState.operator);
+                if (!Number.isFinite(chainResult)) {
+                    basicCalcState.display = 'Error';
+                    setBasicCalcExpression('');
+                    basicCalcState.first = null;
+                    basicCalcState.operator = null;
+                    basicCalcState.waitingForSecond = false;
+                    basicCalcState.justEvaluated = false;
+                    renderBasicCalculator();
+                    return;
+                }
+                basicCalcState.display = formatBasicCalcResult(chainResult);
+                basicCalcState.first = chainResult;
+            } else if (!basicCalcState.justEvaluated || basicCalcState.first == null) {
+                basicCalcState.first = current;
+            }
+
+            basicCalcState.operator = key;
+            basicCalcState.waitingForSecond = true;
+            basicCalcState.justEvaluated = false;
+            setBasicCalcExpression(
+                formatBasicCalcDisplayText(formatBasicCalcResult(basicCalcState.first)) +
+                ' ' + basicCalcOpSymbol(key)
+            );
+            renderBasicCalculator();
+            return;
+        }
+
+        if (key === '.') {
+            if (basicCalcState.justEvaluated) {
+                basicCalcState.display = '0.';
+                basicCalcState.first = null;
+                basicCalcState.operator = null;
+                setBasicCalcExpression('');
+                basicCalcState.justEvaluated = false;
+                basicCalcState.waitingForSecond = false;
+            } else if (basicCalcState.waitingForSecond) {
+                basicCalcState.display = '0.';
+                basicCalcState.waitingForSecond = false;
+            } else if (basicCalcState.display.indexOf('.') === -1) {
+                basicCalcState.display += '.';
+            }
+            renderBasicCalculator();
+            return;
+        }
+
+        if (/^\d$/.test(key)) {
+            if (basicCalcState.justEvaluated) {
+                basicCalcState.display = key;
+                basicCalcState.first = null;
+                basicCalcState.operator = null;
+                setBasicCalcExpression('');
+                basicCalcState.justEvaluated = false;
+                basicCalcState.waitingForSecond = false;
+            } else if (basicCalcState.waitingForSecond || basicCalcState.display === '0' || basicCalcState.display === 'Error') {
+                basicCalcState.display = key;
+                basicCalcState.waitingForSecond = false;
+            } else if (basicCalcState.display.replace(/[^\d]/g, '').length < 16) {
+                basicCalcState.display += key;
+            }
+            renderBasicCalculator();
+        }
     }
 
     function syncSettlementEditPanelBeforeCopy($panel) {
@@ -1513,6 +2042,7 @@ $(document).ready(function() {
         var $guestPanel = $modal.find('#settlement-edit-guest-panel');
         var $agentPanel = $modal.find('#settlement-edit-agent-panel');
         var $calculatorPanel = $modal.find('#settlement-calculator-panel');
+        var $basicCalcPanel = $modal.find('#settlement-basic-calc-panel');
 
         $modal.data('settlement-edit-mode', enabled ? 1 : 0);
         $cluster.toggleClass('is-edit-mode', enabled);
@@ -1525,9 +2055,11 @@ $(document).ready(function() {
             $guestPanel.removeClass('d-none').attr('aria-hidden', 'false');
             $agentPanel.removeClass('d-none').attr('aria-hidden', 'false');
             $calculatorPanel.removeClass('d-none').attr('aria-hidden', 'false');
+            $basicCalcPanel.removeClass('d-none').attr('aria-hidden', 'false');
             $modal.removeData('calculator-split-active');
             $modal.removeData('calculator-split-touched');
             refreshSettlementCalculator($modal);
+            resetBasicCalculator();
             $editBtn.text('Done');
             $settleBtn.hide();
             $modal.find('#print-settlement-btn').hide();
@@ -1538,6 +2070,7 @@ $(document).ready(function() {
             $guestPanel.addClass('d-none').attr('aria-hidden', 'true');
             $agentPanel.addClass('d-none').attr('aria-hidden', 'true');
             $calculatorPanel.addClass('d-none').attr('aria-hidden', 'true');
+            $basicCalcPanel.addClass('d-none').attr('aria-hidden', 'true');
             $modal.find('#settlement-edit-guest-body, #settlement-edit-agent-body').empty();
             resetSettlementCalculator($modal);
             $editBtn.text('Edit');
@@ -1624,14 +2157,85 @@ $(document).ready(function() {
         refreshSettlementCalculator($modal);
     });
 
+    $('#modal-settlement').on('click', '#settlement-basic-calc [data-calc-key]', function(e) {
+        e.preventDefault();
+        var $calc = $('#settlement-basic-calc');
+        $calc.addClass('is-focused').trigger('focus');
+        handleBasicCalcKey(String($(this).attr('data-calc-key') || ''));
+    });
+
+    $('#modal-settlement').on('mousedown', '#settlement-basic-calc-panel', function(e) {
+        if ($(e.target).closest('.btn-close, [data-calc-key]').length) {
+            return;
+        }
+        e.preventDefault();
+        $('#settlement-basic-calc').addClass('is-focused').trigger('focus');
+    });
+
+    $('#modal-settlement').on('focusin', '#settlement-basic-calc', function() {
+        $(this).addClass('is-focused');
+    });
+
+    $('#modal-settlement').on('focusout', '#settlement-basic-calc', function() {
+        var $calc = $(this);
+        setTimeout(function() {
+            if (!$calc.is(':focus') && !$calc.find(':focus').length) {
+                $calc.removeClass('is-focused');
+            }
+        }, 0);
+    });
+
+    $('#modal-settlement').on('keydown', '#settlement-basic-calc', function(e) {
+        if ($(e.target).is('input, textarea, select') || $(e.target).is('[contenteditable="true"]')) {
+            return;
+        }
+
+        var mapped = null;
+        var key = e.key;
+
+        if (key >= '0' && key <= '9') {
+            mapped = key;
+        } else if (key === '.' || key === ',') {
+            mapped = '.';
+        } else if (key === '+' || key === '-' || key === '*' || key === '/' || key === '%' || key === '=') {
+            mapped = key;
+        } else if (key === 'Enter') {
+            mapped = '=';
+        } else if (key === 'Escape') {
+            mapped = 'C';
+        } else if (key === 'Backspace') {
+            mapped = 'BS';
+        } else if (key === 'Delete') {
+            mapped = 'CE';
+        } else if (key === 'c' || key === 'C') {
+            mapped = 'C';
+        }
+
+        if (!mapped) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        handleBasicCalcKey(mapped);
+    });
+
     $('#modal-settlement').on('input', '.settlement-edit-panel [data-field="rolling"], .settlement-edit-panel [data-field="rollingRate"]', function() {
-        var $panel = $(this).closest('.settlement-edit-panel');
+        var $input = $(this);
+        var $panel = $input.closest('.settlement-edit-panel');
+        if ($input.attr('data-field') === 'rolling') {
+            formatInputWithCommasLive($input);
+            syncCounterpartRolling($panel, false);
+            return;
+        }
         recalcSettlementEditPanelTotals($panel);
     });
 
     $('#modal-settlement').on('blur', '.settlement-edit-panel [data-field="rolling"]', function() {
-        formatInputWithCommas($(this));
-        recalcSettlementEditPanelTotals($(this).closest('.settlement-edit-panel'));
+        var $input = $(this);
+        var $panel = $input.closest('.settlement-edit-panel');
+        formatInputWithCommas($input);
+        syncCounterpartRolling($panel, true);
     });
 
     $('#modal-settlement').on('blur', '.settlement-edit-panel [data-field="rollingRate"]', function() {
