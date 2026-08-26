@@ -8,7 +8,7 @@
     }
 
     #modal-settlement .settlement-receipt-dialog {
-        --bs-modal-width: 460px;
+        --bs-modal-width: 420px;
         max-width: calc(100vw - 1.5rem);
         width: max-content;
         margin: 0 auto;
@@ -23,13 +23,13 @@
     }
 
     #modal-settlement .settlement-main-content {
-        width: 28.75rem;
+        width: 26.25rem; /* 420px */
         max-width: 100%;
         flex-shrink: 0;
     }
 
     #modal-settlement .settlement-edit-panel {
-        width: 28.75rem;
+        width: 26.25rem; /* 420px */
         max-width: 100%;
         flex-shrink: 0;
     }
@@ -103,7 +103,7 @@
         overflow-x: auto;
         padding-bottom: 0.25rem;
         display: grid;
-        grid-template-columns: 28.75rem 28.75rem 28.75rem 20rem 16.5rem;
+        grid-template-columns: 26.25rem 26.25rem 26.25rem 20rem 16.5rem;
         gap: 0.75rem;
         align-items: stretch;
     }
@@ -134,6 +134,21 @@
         display: block;
     }
 
+    #modal-settlement .settlement-modal-cluster.is-edit-mode .settlement-basic-calc-panel .settlement-calculator-body {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    #modal-settlement .settlement-modal-cluster.is-edit-mode .settlement-basic-calc-panel > .settlement-edit-panel-card > .modal-header {
+        flex: 0 0 auto;
+    }
+
+    #modal-settlement .settlement-modal-cluster.is-edit-mode .settlement-basic-calc-panel > .settlement-edit-panel-card {
+        overflow: hidden;
+    }
+
     #modal-settlement .settlement-calculator-table {
         width: 100%;
         border-collapse: collapse;
@@ -141,10 +156,14 @@
         font-size: 0.8rem;
     }
 
+    #modal-settlement .settlement-calculator-table + .settlement-calculator-table {
+        margin-top: 0.65rem;
+    }
+
     #modal-settlement .settlement-calculator-table th,
     #modal-settlement .settlement-calculator-table td {
         border: 1px solid #c8c8c8;
-        padding: 0.35rem 0.4rem;
+        padding: 0.35rem 0.3rem;
         vertical-align: middle;
         text-align: center;
         background: #fffef5;
@@ -157,10 +176,29 @@
         font-size: 0.78rem;
     }
 
+    #modal-settlement .settlement-calculator-table col.calc-col-amt {
+        width: 27%;
+    }
+
+    #modal-settlement .settlement-calculator-table col.calc-col-pct {
+        width: 22%;
+    }
+
+    #modal-settlement .settlement-calculator-table col.calc-col-share-pct {
+        width: 22%;
+    }
+
+    #modal-settlement .settlement-calculator-table col.calc-col-share-amt {
+        width: 29%;
+    }
+
     #modal-settlement .settlement-calculator-table td:first-child {
         text-align: right;
         font-variant-numeric: tabular-nums;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        font-size: var(--calc-amount-font-size, 0.8rem);
     }
 
     #modal-settlement .settlement-calculator-table .calc-share-pct-cell,
@@ -171,12 +209,20 @@
 
     #modal-settlement .settlement-calculator-table .calc-share-pct-cell {
         text-align: center;
+        white-space: nowrap;
+        padding-left: 0.15rem;
+        padding-right: 0.15rem;
     }
 
     #modal-settlement .settlement-calculator-table .calc-share-amount-cell {
         text-align: right;
         font-variant-numeric: tabular-nums;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        padding-left: 0.15rem;
+        padding-right: 0.25rem;
+        font-size: var(--calc-amount-font-size, 0.78rem);
     }
 
     #modal-settlement .settlement-calculator-table .calc-share-amount-cell.is-negative,
@@ -191,24 +237,57 @@
 
     #modal-settlement .settlement-calculator-table .calc-settlement-row .calc-share-pct-cell {
         text-align: left;
+        font-size: 0.72rem;
+        overflow: visible;
+    }
+
+    #modal-settlement .settlement-calculator-table td:nth-child(2) {
+        white-space: nowrap;
+        padding-left: 0.2rem;
+        padding-right: 0.2rem;
+    }
+
+    #modal-settlement .settlement-calculator-table .calc-pct-input-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        max-width: 100%;
+    }
+
+    #modal-settlement .settlement-calculator-table .calc-pct-suffix {
+        flex: 0 0 auto;
+        line-height: 1;
     }
 
     #modal-settlement .settlement-calculator-split-input {
-        width: 3.25rem;
+        width: 3.35rem;
+        min-width: 0;
+        box-sizing: border-box;
         border: 1px solid #adb5bd;
         border-radius: 0.15rem;
-        padding: 0.1rem 0.2rem;
+        padding: 0.1rem 0.15rem;
         font-size: 0.78rem;
         text-align: center;
         background: #fff;
+        vertical-align: middle;
     }
 
     #modal-settlement .settlement-basic-calc {
         padding: 0;
         outline: none;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100%;
     }
 
     #modal-settlement .settlement-basic-calc-panel .settlement-calculator-body {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
         padding: 0.55rem 0.55rem 0.65rem;
     }
 
@@ -224,14 +303,15 @@
         border: 1px solid #3f3f46;
         border-radius: 0.25rem;
         background: #202020;
-        padding: 0.4rem 0.55rem 0.45rem;
-        margin-bottom: 0.4rem;
-        min-height: 3.6rem;
+        padding: 0.3rem 0.5rem 0.35rem;
+        margin-bottom: 0.35rem;
+        min-height: 2.75rem;
+        flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
         align-items: flex-end;
-        gap: 0.15rem;
+        gap: 0.1rem;
         cursor: text;
     }
 
@@ -263,9 +343,13 @@
     }
 
     #modal-settlement .settlement-basic-calc-keys {
+        flex: 1 1 0;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.3rem;
+        grid-template-rows: repeat(5, minmax(0, 1fr));
+        gap: 0.22rem;
+        min-height: 0;
+        height: 100%;
     }
 
     #modal-settlement .settlement-basic-calc-keys button {
@@ -274,10 +358,11 @@
         background: linear-gradient(180deg, #fffef8 0%, #f5e6c0 100%);
         color: #3a2e12;
         font-weight: 700;
-        font-size: 0.92rem;
+        font-size: 0.88rem;
         line-height: 1;
-        padding: 0.55rem 0.2rem;
-        min-height: 2.15rem;
+        padding: 0.2rem 0.15rem;
+        min-height: 0;
+        height: 100%;
         cursor: pointer;
         user-select: none;
     }
@@ -329,12 +414,18 @@
         min-height: 100%;
     }
 
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel,
+    #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-basic-calc-panel {
+        align-self: start;
+    }
+
     #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-calculator-panel > .settlement-edit-panel-card,
     #modal-settlement .settlement-modal-cluster.is-edit-mode > .settlement-basic-calc-panel > .settlement-edit-panel-card {
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         min-height: 0;
+        width: 100%;
     }
 
     #modal-settlement .settlement-modal-cluster.is-edit-mode .settlement-main-content > form {
@@ -394,12 +485,12 @@
     #modal-settlement .settlement-edit-receipt-copy-area {
         position: relative;
         overflow: hidden;
-        padding: 0.75rem 0.5rem 0.35rem;
+        padding: 0.65rem 0.75rem 0.35rem;
         border-radius: 0.2rem;
         min-height: 20rem;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
     }
 
     #modal-settlement .settlement-edit-receipt-copy-area > *:not(.settlement-receipt-watermark) {
@@ -416,19 +507,20 @@
 
     #modal-settlement .settlement-receipt-stack {
         --settlement-label-col: 6.75rem;
-        --settlement-value-col: 8.5rem;
+        --settlement-value-col: minmax(0, 1fr);
         --settlement-receipt-col-gap: 0.35rem;
-        width: fit-content;
+        width: 100%;
         max-width: 100%;
-        margin: 0 auto;
+        margin: 0;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
+        box-sizing: border-box;
     }
 
     #modal-settlement .settlement-receipt-grid {
         width: 100%;
-        margin: 0 auto;
+        margin: 0;
         display: grid;
         grid-template-columns: var(--settlement-label-col) max-content var(--settlement-value-col);
         column-gap: var(--settlement-receipt-col-gap);
@@ -465,21 +557,27 @@
     }
 
     #modal-settlement .settlement-receipt-grid--meta {
-        --settlement-value-col: max-content;
-        width: fit-content;
+        --settlement-value-col: minmax(0, 1fr);
+        width: 100%;
         max-width: 100%;
     }
 
     #modal-settlement .settlement-receipt-grid--amounts {
+        --settlement-label-col: 5.75rem;
+        --settlement-value-col: 9.5rem;
+        --settlement-receipt-col-gap: 0.45rem;
         width: fit-content;
         max-width: 100%;
+        margin: 0 auto;
     }
 
     #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
         text-align: left;
-        justify-self: start;
+        justify-self: stretch;
         white-space: nowrap;
-        min-width: max-content;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
@@ -615,12 +713,12 @@
     #modal-settlement #settlement-receipt-copy-area {
         position: relative;
         overflow: hidden;
-        padding: 0.75rem 0.5rem 0.35rem;
+        padding: 0.65rem 0.75rem 0.35rem;
         border-radius: 0.2rem;
         min-height: 20rem;
         display: flex;
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
     }
 
     #modal-settlement #settlement-receipt-copy-area > *:not(.settlement-receipt-watermark) {
@@ -630,7 +728,7 @@
 
     #modal-settlement .settlement-extra-opts {
         width: 100%;
-        max-width: 380px;
+        max-width: 26.25rem;
         margin: 0.75rem auto 0;
         text-align: center;
     }
@@ -961,14 +1059,20 @@
         <div class="settlement-edit-panel settlement-calculator-panel d-none" id="settlement-calculator-panel" aria-hidden="true">
             <div class="settlement-edit-panel-card settlement-calculator-card">
                 <div class="modal-header bg-primary">
-                    <h5 class="modal-title text-white">Calculator</h5>
+                    <h5 class="modal-title text-white">Percentage</h5>
                     <button type="button" class="btn-close js-settlement-edit-panel-close" aria-label="Close"></button>
                 </div>
                 <div class="settlement-calculator-body">
                     <table class="settlement-calculator-table" aria-label="Settlement calculator">
+                        <colgroup>
+                            <col class="calc-col-amt">
+                            <col class="calc-col-pct">
+                            <col class="calc-col-share-pct">
+                            <col class="calc-col-share-amt">
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th colspan="2">Rolling Percentage</th>
+                                <th colspan="2">Rolling</th>
                                 <th colspan="2">Share %</th>
                             </tr>
                         </thead>
@@ -976,7 +1080,10 @@
                             <tr>
                                 <td id="calc-rolling-split">0</td>
                                 <td>
-                                    <input type="text" class="settlement-calculator-split-input" id="calc-split-pct" value="0" inputmode="decimal" aria-label="Split percentage">%
+                                    <span class="calc-pct-input-wrap">
+                                        <input type="text" class="settlement-calculator-split-input" id="calc-split-pct" value="0" inputmode="decimal" aria-label="Split percentage">
+                                        <span class="calc-pct-suffix">%</span>
+                                    </span>
                                 </td>
                                 <td class="calc-share-pct-cell" id="calc-share-pct-split">0%</td>
                                 <td class="calc-share-amount-cell" id="calc-share-amt-split"></td>
@@ -990,8 +1097,48 @@
                             <tr class="calc-settlement-row">
                                 <td id="calc-rolling-total">0</td>
                                 <td>100%</td>
-                                <td class="calc-share-pct-cell" id="calc-share-pct-settlement">Settlement :</td>
+                                <td class="calc-share-pct-cell" id="calc-share-pct-settlement">Settlement:</td>
                                 <td class="calc-share-amount-cell" id="calc-share-amt-settlement"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="settlement-calculator-table" aria-label="Commission percentage calculator">
+                        <colgroup>
+                            <col class="calc-col-amt">
+                            <col class="calc-col-pct">
+                            <col class="calc-col-share-pct">
+                            <col class="calc-col-share-amt">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th colspan="2">Commission</th>
+                                <th colspan="2">Share %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td id="calc-comm-amt-split">0</td>
+                                <td>
+                                    <span class="calc-pct-input-wrap">
+                                        <input type="text" class="settlement-calculator-split-input" id="calc-comm-split-pct" value="0" inputmode="decimal" aria-label="Commission split percentage">
+                                        <span class="calc-pct-suffix">%</span>
+                                    </span>
+                                </td>
+                                <td class="calc-share-pct-cell" id="calc-comm-share-pct-split">0%</td>
+                                <td class="calc-share-amount-cell" id="calc-comm-share-amt-split"></td>
+                            </tr>
+                            <tr>
+                                <td id="calc-comm-amt-remain">0</td>
+                                <td id="calc-comm-remain-pct">0%</td>
+                                <td class="calc-share-pct-cell" id="calc-comm-share-pct-remain">0%</td>
+                                <td class="calc-share-amount-cell" id="calc-comm-share-amt-remain"></td>
+                            </tr>
+                            <tr class="calc-settlement-row">
+                                <td id="calc-comm-amt-total">0</td>
+                                <td id="calc-comm-rate-total">0%</td>
+                                <td class="calc-share-pct-cell" id="calc-comm-share-pct-settlement">Settlement:</td>
+                                <td class="calc-share-amount-cell" id="calc-comm-share-amt-settlement"></td>
                             </tr>
                         </tbody>
                     </table>
@@ -1592,9 +1739,19 @@ $(document).ready(function() {
 
         var splitRolling = Math.round((rolling * splitPct) / 100);
         var remainRolling = Math.max(0, rolling - splitRolling);
+
+        // Share = each side's rolling × that side's commission rate
+        var commParsed = clampCommissionRateInput($modal.find('#calc-comm-split-pct').val(), rate);
+        var guestRate = rate;
+        var agentRate = rate;
+        if (commParsed.rate > 0 || Number($modal.data('calculator-comm-split-active')) === 1) {
+            guestRate = commParsed.rate;
+            agentRate = Math.max(0, Math.round((rate - guestRate) * 10000) / 10000);
+        }
+
         var totalSettlement = Math.round((rolling * rate) / 100);
-        var splitSettlement = Math.round((splitRolling * rate) / 100);
-        var remainSettlement = Math.max(0, totalSettlement - splitSettlement);
+        var splitSettlement = Math.round((splitRolling * guestRate) / 100);
+        var remainSettlement = Math.round((remainRolling * agentRate) / 100);
         var splitDisplay = formatCalculatorSettlementDisplay(splitSettlement);
         var remainDisplay = formatCalculatorSettlementDisplay(remainSettlement);
         var totalDisplay = formatCalculatorSettlementDisplay(totalSettlement);
@@ -1613,7 +1770,7 @@ $(document).ready(function() {
         var $remainAmtCell = $modal.find('#calc-share-amt-remain');
         $remainAmtCell.text(remainDisplay.text).toggleClass('is-negative', remainDisplay.negative);
 
-        $modal.find('#calc-share-pct-settlement').text('Settlement :');
+        $modal.find('#calc-share-pct-settlement').text('Settlement:');
         var $settlementAmtCell = $modal.find('#calc-share-amt-settlement');
         $settlementAmtCell.text(totalDisplay.text).toggleClass('is-negative', totalDisplay.negative);
 
@@ -1622,6 +1779,213 @@ $(document).ready(function() {
         } else if (splitPct <= 0 && Number($modal.data('calculator-split-touched')) === 1) {
             $modal.removeData('calculator-split-active');
             restoreOriginalRollingToEditPanels($modal);
+        }
+
+        refreshCommissionCalculator($modal);
+        fitSettlementCalculatorAmounts($modal);
+        syncSettlementBasicCalcHeight($modal);
+    }
+
+    function fitSettlementCalculatorAmounts($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var $panel = $modal.find('#settlement-calculator-panel');
+        if (!$panel.length || Number($modal.data('settlement-edit-mode')) !== 1) {
+            return;
+        }
+
+        var sizes = ['0.8rem', '0.74rem', '0.68rem', '0.62rem', '0.56rem'];
+        var $amountCells = $panel.find('td:first-child, .calc-share-amount-cell');
+
+        function hasAmountOverflow() {
+            var overflow = false;
+            $amountCells.each(function() {
+                if (this.scrollWidth > this.clientWidth + 1) {
+                    overflow = true;
+                    return false;
+                }
+            });
+            return overflow;
+        }
+
+        for (var i = 0; i < sizes.length; i++) {
+            $panel[0].style.setProperty('--calc-amount-font-size', sizes[i]);
+            void $panel[0].offsetWidth;
+            if (!hasAmountOverflow()) {
+                break;
+            }
+        }
+    }
+
+    function syncSettlementBasicCalcHeight($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var $pctCard = $modal.find('#settlement-calculator-panel > .settlement-edit-panel-card');
+        var $calcCard = $modal.find('#settlement-basic-calc-panel > .settlement-edit-panel-card');
+        if (!$pctCard.length || !$calcCard.length || Number($modal.data('settlement-edit-mode')) !== 1) {
+            return;
+        }
+        $calcCard.css('height', '');
+        requestAnimationFrame(function() {
+            if (Number($modal.data('settlement-edit-mode')) !== 1) {
+                return;
+            }
+            var h = $pctCard.outerHeight();
+            if (h > 0) {
+                $calcCard.css('height', h + 'px');
+            }
+        });
+    }
+
+    function formatCommissionRateDisplay(value) {
+        var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim());
+        if (isNaN(num)) {
+            num = 0;
+        }
+        var text = String(Math.round(num * 10000) / 10000);
+        text = text.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+        return text + '%';
+    }
+
+    function formatCommissionRateInputValue(value) {
+        var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim());
+        if (isNaN(num)) {
+            return '0';
+        }
+        var text = String(Math.round(num * 10000) / 10000);
+        return text.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+    }
+
+    function clampCommissionRateInput(value, maxRate) {
+        var raw = String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim();
+        var max = Math.max(0, parseFloat(maxRate) || 0);
+        if (raw === '' || raw === '.') {
+            return { rate: 0, displayValue: raw, incomplete: true };
+        }
+        // Allow typing decimals like "1." / ".2"
+        if (!/^\d*\.?\d*$/.test(raw)) {
+            var cleaned = raw.replace(/[^\d.]/g, '');
+            var dot = cleaned.indexOf('.');
+            if (dot !== -1) {
+                cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+            }
+            raw = cleaned;
+        }
+        if (raw === '' || raw === '.') {
+            return { rate: 0, displayValue: raw, incomplete: true };
+        }
+        var num = parseFloat(raw);
+        if (isNaN(num)) {
+            return { rate: 0, displayValue: '0', incomplete: false };
+        }
+        if (num < 0) num = 0;
+        if (num > max) num = max;
+        var rounded = Math.round(num * 10000) / 10000;
+        var incomplete = /\.$/.test(raw) && num <= max;
+        return {
+            rate: rounded,
+            displayValue: incomplete ? raw : formatCommissionRateInputValue(rounded),
+            incomplete: incomplete
+        };
+    }
+
+    function applyCalculatorCommissionToEditPanels($modal, guestRate, agentRate) {
+        var $guestPanel = $modal.find('#settlement-edit-guest-panel');
+        var $agentPanel = $modal.find('#settlement-edit-agent-panel');
+
+        if ($guestPanel.length) {
+            $guestPanel.find('[data-field="rollingRate"]').val(formatCommissionRateInputValue(guestRate));
+            recalcSettlementEditPanelTotals($guestPanel);
+        }
+        if ($agentPanel.length) {
+            $agentPanel.find('[data-field="rollingRate"]').val(formatCommissionRateInputValue(agentRate));
+            recalcSettlementEditPanelTotals($agentPanel);
+        }
+    }
+
+    function restoreOriginalRatesToEditPanels($modal) {
+        var rateRaw = String($modal.find('#rollingRate').val() || '').replace(/%/g, '').trim();
+        var $guestPanel = $modal.find('#settlement-edit-guest-panel');
+        var $agentPanel = $modal.find('#settlement-edit-agent-panel');
+
+        [$guestPanel, $agentPanel].forEach(function($panel) {
+            if (!$panel.length) {
+                return;
+            }
+            $panel.find('[data-field="rollingRate"]').val(rateRaw);
+            recalcSettlementEditPanelTotals($panel);
+        });
+    }
+
+    function refreshCommissionCalculator($modal, opts) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        opts = opts || {};
+        if (Number($modal.data('settlement-edit-mode')) !== 1) {
+            return;
+        }
+
+        var rolling = parseAmount($modal.find('#rolling').val());
+        var rate = parseAmount($modal.find('#rollingRate').val());
+        var rollingSplitPct = clampSettlementSplitPct($modal.find('#calc-split-pct').val());
+        var guestRolling = Math.round((rolling * rollingSplitPct) / 100);
+        var agentRolling = Math.max(0, rolling - guestRolling);
+        // If rolling isn't split yet, both sides use full rolling for display base
+        if (rollingSplitPct <= 0 && Number($modal.data('calculator-split-active')) !== 1) {
+            guestRolling = rolling;
+            agentRolling = rolling;
+        }
+
+        var parsed = clampCommissionRateInput($modal.find('#calc-comm-split-pct').val(), rate);
+        var guestRate = parsed.rate;
+        var agentRate = Math.round((rate - guestRate) * 10000) / 10000;
+        if (agentRate < 0) {
+            agentRate = 0;
+        }
+        // Before commission split, show full rate on both sides
+        if (guestRate <= 0 && Number($modal.data('calculator-comm-split-active')) !== 1) {
+            guestRate = rate;
+            agentRate = rate;
+        }
+
+        var totalSettlement = Math.round((rolling * rate) / 100);
+        var splitSettlement = Math.round((guestRolling * guestRate) / 100);
+        var remainSettlement = Math.round((agentRolling * agentRate) / 100);
+        var splitDisplay = formatCalculatorSettlementDisplay(splitSettlement);
+        var remainDisplay = formatCalculatorSettlementDisplay(remainSettlement);
+        var totalDisplay = formatCalculatorSettlementDisplay(totalSettlement);
+
+        if (!opts.keepInputRaw) {
+            if (Number($modal.data('calculator-comm-split-active')) === 1 || parsed.rate > 0) {
+                $modal.find('#calc-comm-split-pct').val(formatCommissionRateInputValue(parsed.rate));
+            } else {
+                $modal.find('#calc-comm-split-pct').val('0');
+            }
+        }
+
+        $modal.find('#calc-comm-amt-split').text(formatAmount(guestRolling));
+        $modal.find('#calc-comm-amt-remain').text(formatAmount(agentRolling));
+        $modal.find('#calc-comm-amt-total').text(formatAmount(rolling));
+        $modal.find('#calc-comm-remain-pct').text(formatCommissionRateDisplay(
+            (parsed.rate > 0 || Number($modal.data('calculator-comm-split-active')) === 1) ? agentRate : rate
+        ));
+        $modal.find('#calc-comm-rate-total').text(formatCommissionRateDisplay(rate));
+
+        $modal.find('#calc-comm-share-pct-split').text(formatCommissionRateDisplay(
+            (parsed.rate > 0 || Number($modal.data('calculator-comm-split-active')) === 1) ? parsed.rate : rate
+        ));
+        $modal.find('#calc-comm-share-amt-split').text(splitDisplay.text).toggleClass('is-negative', splitDisplay.negative);
+
+        $modal.find('#calc-comm-share-pct-remain').text(formatCommissionRateDisplay(
+            (parsed.rate > 0 || Number($modal.data('calculator-comm-split-active')) === 1) ? agentRate : rate
+        ));
+        $modal.find('#calc-comm-share-amt-remain').text(remainDisplay.text).toggleClass('is-negative', remainDisplay.negative);
+
+        $modal.find('#calc-comm-share-pct-settlement').text('Settlement:');
+        $modal.find('#calc-comm-share-amt-settlement').text(totalDisplay.text).toggleClass('is-negative', totalDisplay.negative);
+
+        if (parsed.rate > 0 && Number($modal.data('calculator-comm-split-active')) === 1) {
+            applyCalculatorCommissionToEditPanels($modal, parsed.rate, Math.max(0, Math.round((rate - parsed.rate) * 10000) / 10000));
+        } else if (parsed.rate <= 0 && Number($modal.data('calculator-comm-split-touched')) === 1) {
+            $modal.removeData('calculator-comm-split-active');
+            restoreOriginalRatesToEditPanels($modal);
         }
     }
 
@@ -1666,17 +2030,21 @@ $(document).ready(function() {
         var rate = parseAmount($modal.find('#rollingRate').val());
         var guestRolling = parseAmount($modal.find('#settlement-edit-guest-panel [data-field="rolling"]').val());
         var agentRolling = parseAmount($modal.find('#settlement-edit-agent-panel [data-field="rolling"]').val());
+        var guestRate = parseAmount($modal.find('#settlement-edit-guest-panel [data-field="rollingRate"]').val());
+        var agentRate = parseAmount($modal.find('#settlement-edit-agent-panel [data-field="rollingRate"]').val());
 
         guestRolling = Math.max(0, Math.min(totalRolling, guestRolling));
         agentRolling = Math.max(0, totalRolling - guestRolling);
+        if (!(guestRate > 0)) guestRate = rate;
+        if (!(agentRate > 0)) agentRate = rate;
 
         var splitPct = totalRolling > 0
             ? Math.round((guestRolling / totalRolling) * 10000) / 100
             : 0;
         var remainPct = Math.max(0, Math.round((100 - splitPct) * 100) / 100);
         var totalSettlement = Math.round((totalRolling * rate) / 100);
-        var splitSettlement = Math.round((guestRolling * rate) / 100);
-        var remainSettlement = Math.max(0, totalSettlement - splitSettlement);
+        var splitSettlement = Math.round((guestRolling * guestRate) / 100);
+        var remainSettlement = Math.round((agentRolling * agentRate) / 100);
         var splitDisplay = formatCalculatorSettlementDisplay(splitSettlement);
         var remainDisplay = formatCalculatorSettlementDisplay(remainSettlement);
         var totalDisplay = formatCalculatorSettlementDisplay(totalSettlement);
@@ -1690,8 +2058,12 @@ $(document).ready(function() {
         $modal.find('#calc-share-amt-split').text(splitDisplay.text).toggleClass('is-negative', splitDisplay.negative);
         $modal.find('#calc-share-pct-remain').text(remainPct + '%');
         $modal.find('#calc-share-amt-remain').text(remainDisplay.text).toggleClass('is-negative', remainDisplay.negative);
-        $modal.find('#calc-share-pct-settlement').text('Settlement :');
+        $modal.find('#calc-share-pct-settlement').text('Settlement:');
         $modal.find('#calc-share-amt-settlement').text(totalDisplay.text).toggleClass('is-negative', totalDisplay.negative);
+
+        refreshCommissionCalculator($modal, { keepInputRaw: true });
+        fitSettlementCalculatorAmounts($modal);
+        syncSettlementBasicCalcHeight($modal);
     }
 
     // Guest + Agent rolling always equals main Settlement rolling
@@ -1728,6 +2100,8 @@ $(document).ready(function() {
         $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
         $modal.removeData('calculator-split-active');
         $modal.removeData('calculator-split-touched');
+        $modal.removeData('calculator-comm-split-active');
+        $modal.removeData('calculator-comm-split-touched');
         $modal.find('#calc-split-pct').val('0');
         $modal.find('#calc-rolling-split, #calc-rolling-remain, #calc-rolling-total').text('0');
         $modal.find('#calc-remain-pct').text('100%');
@@ -1735,8 +2109,19 @@ $(document).ready(function() {
         $modal.find('#calc-share-amt-split').text('').removeClass('is-negative');
         $modal.find('#calc-share-pct-remain').text('100%');
         $modal.find('#calc-share-amt-remain').text('').removeClass('is-negative');
-        $modal.find('#calc-share-pct-settlement').text('Settlement :');
+        $modal.find('#calc-share-pct-settlement').text('Settlement:');
         $modal.find('#calc-share-amt-settlement').text('').removeClass('is-negative');
+
+        $modal.find('#calc-comm-split-pct').val('0');
+        $modal.find('#calc-comm-amt-split, #calc-comm-amt-remain, #calc-comm-amt-total').text('0');
+        $modal.find('#calc-comm-remain-pct').text('0%');
+        $modal.find('#calc-comm-rate-total').text('0%');
+        $modal.find('#calc-comm-share-pct-split').text('0%');
+        $modal.find('#calc-comm-share-amt-split').text('').removeClass('is-negative');
+        $modal.find('#calc-comm-share-pct-remain').text('0%');
+        $modal.find('#calc-comm-share-amt-remain').text('').removeClass('is-negative');
+        $modal.find('#calc-comm-share-pct-settlement').text('Settlement:');
+        $modal.find('#calc-comm-share-amt-settlement').text('').removeClass('is-negative');
         resetBasicCalculator();
     }
 
@@ -2058,8 +2443,11 @@ $(document).ready(function() {
             $basicCalcPanel.removeClass('d-none').attr('aria-hidden', 'false');
             $modal.removeData('calculator-split-active');
             $modal.removeData('calculator-split-touched');
+            $modal.removeData('calculator-comm-split-active');
+            $modal.removeData('calculator-comm-split-touched');
             refreshSettlementCalculator($modal);
             resetBasicCalculator();
+            syncSettlementBasicCalcHeight($modal);
             $editBtn.text('Done');
             $settleBtn.hide();
             $modal.find('#print-settlement-btn').hide();
@@ -2071,6 +2459,10 @@ $(document).ready(function() {
             $agentPanel.addClass('d-none').attr('aria-hidden', 'true');
             $calculatorPanel.addClass('d-none').attr('aria-hidden', 'true');
             $basicCalcPanel.addClass('d-none').attr('aria-hidden', 'true');
+            if ($calculatorPanel[0]) {
+                $calculatorPanel[0].style.removeProperty('--calc-amount-font-size');
+            }
+            $basicCalcPanel.find('> .settlement-edit-panel-card').css('height', '');
             $modal.find('#settlement-edit-guest-body, #settlement-edit-agent-body').empty();
             resetSettlementCalculator($modal);
             $editBtn.text('Edit');
@@ -2154,6 +2546,39 @@ $(document).ready(function() {
             $modal.removeData('calculator-split-active');
         }
         $(this).val(String(splitPct).replace(/\.0+$/, ''));
+        refreshSettlementCalculator($modal);
+    });
+
+    $('#modal-settlement').on('input', '#calc-comm-split-pct', function() {
+        var $modal = $('#modal-settlement');
+        var $input = $(this);
+        var totalRate = parseAmount($modal.find('#rollingRate').val());
+        var parsed = clampCommissionRateInput($input.val(), totalRate);
+        $input.val(parsed.displayValue);
+        $modal.data('calculator-comm-split-touched', 1);
+        if (parsed.rate > 0) {
+            $modal.data('calculator-comm-split-active', 1);
+        } else {
+            $modal.removeData('calculator-comm-split-active');
+        }
+        refreshSettlementCalculator($modal);
+        if (parsed.incomplete) {
+            $input.val(parsed.displayValue);
+        }
+    });
+
+    $('#modal-settlement').on('blur', '#calc-comm-split-pct', function() {
+        var $modal = $('#modal-settlement');
+        var $input = $(this);
+        var totalRate = parseAmount($modal.find('#rollingRate').val());
+        var parsed = clampCommissionRateInput($input.val(), totalRate);
+        $input.val(formatCommissionRateInputValue(parsed.rate));
+        $modal.data('calculator-comm-split-touched', 1);
+        if (parsed.rate > 0) {
+            $modal.data('calculator-comm-split-active', 1);
+        } else {
+            $modal.removeData('calculator-comm-split-active');
+        }
         refreshSettlementCalculator($modal);
     });
 
