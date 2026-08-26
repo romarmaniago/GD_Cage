@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const pool = require('../config/db');
 const { computeCashBalance } = require('../utils/dashboardQueries');
