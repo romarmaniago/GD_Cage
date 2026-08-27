@@ -4320,7 +4320,8 @@ router.get('/dashboard_period_summary', checkSession, async (req, res) => {
 	try {
 		const cutoff = getMonthEndCutoffRange();
 		const dateFrom = String(req.query.date_from || cutoff.startDate).trim();
-		const dateTo = String(req.query.date_to || cutoff.endDateApi || cutoff.endDate).trim();
+		// Align with the dashboard grid: end on the cut-off date (2nd-to-last day).
+		const dateTo = String(req.query.date_to || cutoff.endDate).trim();
 		const summary = await computeDashboardPeriodSummary(pool, dateFrom, dateTo);
 		res.json(summary);
 	} catch (err) {
@@ -4333,7 +4334,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 	try {
 		const cutoff = getMonthEndCutoffRange();
 		const defaultFrom = cutoff.startDate;
-		const defaultTo = cutoff.endDateApi || cutoff.endDate;
+		// Dashboard grid stops on the cut-off end date (2nd-to-last day of the month),
+		// matching the period label and the date-range picker. The month-end API
+		// expansion is intentionally not applied here.
+		const defaultTo = cutoff.endDate;
 		const dateFrom = String(req.query.date_from || defaultFrom).trim();
 		const dateTo = String(req.query.date_to || defaultTo).trim();
 

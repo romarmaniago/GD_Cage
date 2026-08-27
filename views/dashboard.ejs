@@ -256,7 +256,7 @@
       var nowStampDisplay = nowStamp.getFullYear() + '-' + pad2(nowStamp.getMonth() + 1) + '-' + pad2(nowStamp.getDate()) + ' ' + pad2(nowStamp.getHours()) + ':' + pad2(nowStamp.getMinutes());
       var dashboardDateFrom = dashboardCutoffRange.startDate
          || (monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1) + '-' + pad2(monthStart.getDate()));
-      var dashboardDateTo = (dashboardCutoffRange.endDateApi || dashboardCutoffRange.endDate)
+      var dashboardDateTo = dashboardCutoffRange.endDate
          || (monthEnd.getFullYear() + '-' + pad2(monthEnd.getMonth() + 1) + '-' + pad2(monthEnd.getDate()));
    %>
 
@@ -816,7 +816,7 @@
 <script src="/assets/js/functions/reset.js"></script>
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
-<script src="/assets/js/functions/dashboard_grid.js?v=17"></script>
+<script src="/assets/js/functions/dashboard_grid.js?v=18"></script>
 <script src="/assets/js/functions/dashboard_cage_cash_manual.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
 <script src="/assets/js/functions/service_category_select.js"></script>

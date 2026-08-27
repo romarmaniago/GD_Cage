@@ -1688,15 +1688,10 @@
     window.setTimeout(syncMatrixPanelHeight, 600);
   }
 
+  // The dashboard grid ends on the cut-off date (2nd-to-last day of the month) as
+  // shown in the label and the date-range picker — no month-end expansion here.
   function dashRollingApiEndDate(endYmd) {
-    const end = String(endYmd || '').trim().slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return end;
-    const parts = end.split('-').map(Number);
-    const lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
-    if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
-      return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(end);
-    }
-    return end;
+    return String(endYmd || '').trim().slice(0, 10);
   }
 
   function setDashGridDateRange(fromDate, toDate) {
@@ -1726,7 +1721,7 @@
   function applyDashDefaultDateRange() {
     const defaults = getDashGridDefaultRange();
     const from = defaults.startDate || document.getElementById('dash-date-from')?.value || '';
-    const to = defaults.endDateApi || defaults.endDate || document.getElementById('dash-date-to')?.value || '';
+    const to = defaults.endDate || document.getElementById('dash-date-to')?.value || '';
     return setDashGridDateRange(from, to);
   }
 
@@ -1943,8 +1938,8 @@
         : null;
 
       const startDate = range ? range.startDate : `${parts[0]}-${String(parts[1]).padStart(2, '0')}-01`;
-      const endDateApi = range ? range.endDateApi : dashRollingApiEndDate(startDate);
-      setDashGridDateRange(startDate, endDateApi);
+      const endDate = range ? range.endDate : dashRollingApiEndDate(startDate);
+      setDashGridDateRange(startDate, endDate);
 
       const rangeInput = document.getElementById('dash-rolling-daterange');
       const fp = rangeInput && rangeInput._flatpickr;
