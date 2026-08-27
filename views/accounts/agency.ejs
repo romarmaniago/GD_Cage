@@ -548,8 +548,25 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 .agency-guest-table thead th.agency-guest-col,
 .agency-guest-table tbody td.agency-guest-col,
 .agency-guest-table thead th.agency-guest-membership-col,
-.agency-guest-table tbody td.agency-guest-membership-col {
+.agency-guest-table tbody td.agency-guest-membership-col,
+.agency-guest-table thead th.agency-guest-remarks-col,
+.agency-guest-table tbody td.agency-guest-remarks-col {
   text-align: left;
+}
+
+.agency-guest-table tbody td.agency-guest-remarks-col {
+  color: #666;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.agency-guest-table tbody td.agency-guest-remarks-col .agency-guest-remarks-link {
+  white-space: normal;
+  text-align: left;
+}
+
+.agency-guest-table tbody td.agency-guest-remarks-col .agency-guest-remarks-empty {
+  color: #b7b1a4;
 }
 
 .agency-guest-table thead th.sortable-col {
@@ -878,11 +895,16 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
   --agency-danger: #b42318;
 }
 
-.agency-page .agency-card.is-selected,
 .agency-page .agency-card.is-search-match,
-.agency-page .panel-list-item.is-active,
 .agency-page .panel-list-item.is-search-match {
   background: var(--agency-accent-soft) !important;
+}
+
+/* Selected LINE / AGENT — clearly visible even when the name has a custom color */
+.agency-page .agency-card.is-selected,
+.agency-page .panel-list-item.is-active {
+  background: #f6e8c4 !important;
+  box-shadow: inset 3px 0 0 #c8a24c;
 }
 
 .agency-page .agency-card:hover {
@@ -992,6 +1014,101 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-page .agency-line-stats .agency-stat-card {
   border-color: var(--agency-border);
+}
+
+/* AGENT name inherits its custom text color across the code/name spans */
+.panel-list-agent-link[style*="color"] .panel-list-code,
+.panel-list-agent-link[style*="color"] .panel-list-name,
+.panel-list-agent-link[style*="color"] .panel-list-sep {
+  color: inherit !important;
+}
+
+/* LINE / AGENT name text-color picker (Excel-style) */
+.line-color-popover {
+  position: fixed;
+  z-index: 1080;
+  width: 268px;
+  background: #fff;
+  border: 1px solid #d9d4c8;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px;
+}
+
+.line-color-popover-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.line-color-swatches {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 3px;
+}
+
+.line-color-swatch {
+  width: 100%;
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.line-color-swatch:hover {
+  outline: 2px solid #2f5bea;
+  outline-offset: 1px;
+}
+
+.line-color-swatch.is-active {
+  outline: 2px solid #1f2937;
+  outline-offset: 1px;
+}
+
+.line-color-popover-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.line-color-default {
+  flex: 1;
+  font-size: 12px;
+  border: 1px solid #d9d4c8;
+  background: #faf9f6;
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: #555;
+}
+
+.line-color-default:hover {
+  background: #f1efe8;
+}
+
+.line-color-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  margin: 0;
+}
+
+.line-color-custom input[type="color"] {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #d9d4c8;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
 }
 
 </style>

@@ -69,6 +69,9 @@ function getAgencyGuestSortValue(row, key) {
   if (key === 'membership_no') {
     return String(row.membership_no || row.MEMBERSHIP_NO || '').trim().toLowerCase();
   }
+  if (key === 'remarks') {
+    return String(row.guest_remarks || row.REMARKS || '').trim().toLowerCase();
+  }
   if (key === 'balance') return Number(row.total_balance || row.balance) || 0;
   if (key === 'credit') return Number(row.total_credit || row.credit) || 0;
   if (key === 'winloss') return Number(row.total_winloss || row.winloss) || 0;
@@ -1140,6 +1143,8 @@ function renderPage(data, page = 1, perPage = 30) {
       : `<button type="button" class="btn btn-sm agency-icon-btn agency-icon-btn-danger" disabled title="Archive">
         <i class="fa fa-trash"></i>
       </button>`;
+    const nameColor = getValidLineNameColor(row.NAME_COLOR);
+    const nameStyle = nameColor ? ` style="color:${nameColor} !important"` : '';
     const actionsHtml = canEdit ? `
       <button type="button"
         class="btn btn-sm agency-icon-btn btn-export-line-stats"
@@ -1148,6 +1153,14 @@ function renderPage(data, page = 1, perPage = 30) {
         data-bs-toggle="tooltip"
         title="Export LINE Stats">
         <i class="fa fa-download"></i>
+      </button>
+      <button type="button"
+        class="btn btn-sm agency-icon-btn btn-text-color"
+        data-color-kind="line"
+        data-color-id="${row.IDNo}"
+        data-bs-toggle="tooltip"
+        title="Text Color">
+        <i class="fa fa-palette"></i>
       </button>
       <button type="button"
         class="btn btn-sm agency-icon-btn"
@@ -1175,10 +1188,10 @@ function renderPage(data, page = 1, perPage = 30) {
       <input type="hidden" class="hidden-memo" value="${row.REMARKS || ''}">
 
       <div class="agency-card-body">
-        <a 
-          href="#" 
-          onclick="selectAgencyLine(${row.IDNo}, this); return false;" 
-          class="agency-name text-uppercase"
+        <a
+          href="#"
+          onclick="selectAgencyLine(${row.IDNo}, this); return false;"
+          class="agency-name text-uppercase"${nameStyle}
         >
           ${row.AGENCY}
         </a>
@@ -1270,6 +1283,7 @@ function renderAgentPanel(accounts, options) {
         agent_code: row.agent_code || '',
         agency_id: row.agency_id || null,
         agency_name: row.agency_name || '',
+        agent_name_color: row.agent_name_color || null,
         total_balance: Number(row.total_balance || row.total_ledger_amount) || 0
       };
     }
@@ -1323,6 +1337,8 @@ function renderAgentPanel(accounts, options) {
     const isMatch = searching && matchedAgentIds && matchedAgentIds.has(String(agent.agent_id));
     const isDim = searching && matchedAgentIds && !matchedAgentIds.has(String(agent.agent_id));
     const isSelected = selectedAgentId && String(agent.agent_id) === String(selectedAgentId);
+    const agentNameColor = getValidLineNameColor(agent.agent_name_color);
+    const agentNameStyle = agentNameColor ? ` style="color:${agentNameColor} !important"` : '';
     const balanceValue = Number(agent.total_balance) || 0;
     const balance = formatPanelBalance(balanceValue);
     const permissions = parseInt($('#user-role').data('permissions'), 10);
@@ -1355,6 +1371,14 @@ function renderAgentPanel(accounts, options) {
           </button>
           <button
             type="button"
+            class="btn btn-sm agency-icon-btn btn-text-color"
+            data-color-kind="agent"
+            data-color-id="${agent.agent_id}"
+            title="Text Color">
+            <i class="fa fa-palette"></i>
+          </button>
+          <button
+            type="button"
             class="btn btn-sm agency-icon-btn"
             title="Edit Agent"
             onclick="editAgentFromPanel(${agent.agent_id}, this)">
@@ -1376,7 +1400,7 @@ function renderAgentPanel(accounts, options) {
     `;
     return `
       <div class="${itemClasses}" data-agent-id="${agent.agent_id}">
-        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;">${line}${agencyHint}</a>
+        <a href="#" class="panel-list-agent-link" onclick="selectAgentInPanel(${agent.agent_id}, this); return false;"${agentNameStyle}>${line}${agencyHint}</a>
         <span class="panel-list-agent-balance">${balance}</span>
         <div class="panel-row-actions">
           ${actionsHtml}
@@ -1971,12 +1995,7 @@ function renderGuestPanel(guests, options) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
     const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
-    const balance = formatLineStatNumber(row.total_balance || row.balance || 0);
-    const credit = formatLineStatNumber(row.total_credit || row.credit || 0);
-    const rolling = formatLineStatNumber(row.total_rolling || row.rolling || 0);
-    const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
-    const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
-    const safeName = String(name).toUpperCase();
+    const safeName = escapeHtml(String(name).toUpperCase());
     const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
     const membershipDisplay = membershipNo || '-';
     const agentCode = String(row.agent_code || '').trim().toUpperCase();
@@ -1989,22 +2008,20 @@ function renderGuestPanel(guests, options) {
       ? [agencyName, agentLineLabel].filter(Boolean)
       : (agentLineLabel ? [agentLineLabel] : []);
     const lineHint = lineHintParts.join(' · ');
-    const guestNameHtml = permissions !== 2
+    const guestCellHtml = searching && lineHint
+      ? `<div>${safeName}</div><div class="agency-guest-line-hint text-muted">${lineHint}</div>`
+      : safeName;
+    const canEditGuest = permissions !== 2;
+    const remarksLabel = remarks
+      ? escapeHtml(remarks)
+      : (canEditGuest ? '<span class="agency-guest-remarks-empty">+ Add remarks</span>' : '<span class="agency-guest-remarks-empty">-</span>');
+    const remarksCellHtml = canEditGuest || remarks
       ? `<button
           type="button"
-          class="btn btn-link p-0 agency-guest-remarks-link"
-          title="${remarks ? 'View / Edit Remarks' : 'Add Remarks'}"
-          onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
-      : (remarks
-          ? `<button
-              type="button"
-              class="btn btn-link p-0 agency-guest-remarks-link"
-              title="View Remarks"
-              onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
-          : safeName);
-    const guestCellHtml = searching && lineHint
-      ? `<div>${guestNameHtml}</div><div class="agency-guest-line-hint text-muted">${lineHint}</div>`
-      : guestNameHtml;
+          class="btn btn-link p-0 agency-guest-remarks-link text-start"
+          title="${remarks ? (canEditGuest ? 'View / Edit Remarks' : 'View Remarks') : 'Add Remarks'}"
+          onclick="openGuestRemarks(${row.guest_id || 0})">${remarksLabel}</button>`
+      : remarksLabel;
     const editButtonHtml = permissions !== 2 ? `
           <button
             type="button"
@@ -2034,11 +2051,7 @@ function renderGuestPanel(guests, options) {
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
         <td class="agency-guest-membership-col">${membershipDisplay}</td>
-        <td>${balance}</td>
-        <td>${credit}</td>
-        <td>${winloss}</td>
-        <td>${rolling}</td>
-        <td>${commission}</td>
+        <td class="agency-guest-remarks-col">${remarksCellHtml}</td>
         <td>
           <button
             type="button"
@@ -2068,11 +2081,7 @@ function renderGuestPanel(guests, options) {
           <tr>
             <th class="agency-guest-col sortable-col" data-sort-key="guest_name">Guest <span class="sort-indicator"></span></th>
             <th class="agency-guest-membership-col sortable-col" data-sort-key="membership_no">Membership No <span class="sort-indicator"></span></th>
-            <th class="sortable-col" data-sort-key="balance">Balance <span class="sort-indicator"></span></th>
-            <th class="sortable-col" data-sort-key="credit">Credit <span class="sort-indicator"></span></th>
-            <th class="sortable-col" data-sort-key="winloss">Winloss <span class="sort-indicator"></span></th>
-            <th class="sortable-col" data-sort-key="rolling">Rolling <span class="sort-indicator"></span></th>
-            <th class="sortable-col" data-sort-key="commission">Commission <span class="sort-indicator"></span></th>
+            <th class="agency-guest-remarks-col sortable-col" data-sort-key="remarks">Remarks <span class="sort-indicator"></span></th>
             <th class="text-center" style="width: 96px;"></th>
           </tr>
         </thead>
@@ -2967,3 +2976,213 @@ function promptDeleteAgentWithTransferOption(id) {
     }
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* LINE name text color (Excel-style per-row color picker)             */
+/* ------------------------------------------------------------------ */
+
+// Base hues for the Excel-style grid. Each becomes a column with lighter
+// tints on top and darker shades below the base color.
+var LINE_NAME_COLOR_BASE = [
+  '#c00000', '#ff0000', '#ff6600', '#ffc000', '#ffff00', '#92d050',
+  '#00b050', '#00b0f0', '#0070c0', '#002060', '#7030a0', '#e83e8c'
+];
+
+// Top grayscale strip (like Excel's first theme-colors row).
+var LINE_NAME_COLOR_GRAYS = [
+  '#ffffff', '#f2f2f2', '#d9d9d9', '#bfbfbf', '#a6a6a6', '#808080',
+  '#595959', '#404040', '#262626', '#0d0d0d', '#000000', '#000000'
+];
+
+// Tint (>0 = toward white) / shade (<0 = toward black) steps per column.
+var LINE_NAME_COLOR_STEPS = [0.6, 0.3, 0, -0.25, -0.5];
+
+function shiftLineColor(hex, amount) {
+  var m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ''));
+  if (!m) return hex;
+  var parts = [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  parts = parts.map(function (c) {
+    var v = amount >= 0 ? c + (255 - c) * amount : c * (1 + amount);
+    v = Math.max(0, Math.min(255, Math.round(v)));
+    return ('0' + v.toString(16)).slice(-2);
+  });
+  return '#' + parts.join('');
+}
+
+function buildLineNameColorGrid() {
+  var rows = [LINE_NAME_COLOR_GRAYS.slice()];
+  LINE_NAME_COLOR_STEPS.forEach(function (step) {
+    rows.push(LINE_NAME_COLOR_BASE.map(function (hex) {
+      return step === 0 ? hex.toLowerCase() : shiftLineColor(hex, step);
+    }));
+  });
+  return rows;
+}
+
+function getValidLineNameColor(value) {
+  var color = String(value == null ? '' : value).trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(color) ? color : '';
+}
+
+// Config per pickable target (LINE name vs AGENT name).
+var TEXT_COLOR_TARGETS = {
+  line: {
+    url: function (id) { return '/agency/' + encodeURIComponent(id) + '/color'; },
+    nameSelector: function (id) { return '.agency-card[data-id="' + id + '"] .agency-name'; },
+    syncCache: function (id, normalized) {
+      if (!Array.isArray(allAgents)) return;
+      var cached = allAgents.find(function (r) { return String(r.IDNo) === String(id); });
+      if (cached) cached.NAME_COLOR = normalized || null;
+    },
+    readCache: function (id) {
+      var row = Array.isArray(allAgents)
+        ? allAgents.find(function (r) { return String(r.IDNo) === String(id); })
+        : null;
+      return getValidLineNameColor(row && row.NAME_COLOR);
+    }
+  },
+  agent: {
+    url: function (id) { return '/agent/' + encodeURIComponent(id) + '/color'; },
+    nameSelector: function (id) { return '.panel-list-item[data-agent-id="' + id + '"] .panel-list-agent-link'; },
+    syncCache: function (id, normalized) {
+      [currentAgencyAccounts, currentAllAgentAccountRows].forEach(function (list) {
+        if (!Array.isArray(list)) return;
+        list.forEach(function (r) {
+          if (String(r.agent_id) === String(id)) r.agent_name_color = normalized || null;
+        });
+      });
+    },
+    readCache: function (id) {
+      var lists = [currentAgencyAccounts, currentAllAgentAccountRows];
+      for (var i = 0; i < lists.length; i++) {
+        if (!Array.isArray(lists[i])) continue;
+        var row = lists[i].find(function (r) { return String(r.agent_id) === String(id); });
+        if (row) return getValidLineNameColor(row.agent_name_color);
+      }
+      return '';
+    }
+  }
+};
+
+function applyTextColor(kind, targetId, color) {
+  var cfg = TEXT_COLOR_TARGETS[kind];
+  var id = parseInt(targetId, 10);
+  if (!cfg || !id) return;
+  var normalized = getValidLineNameColor(color);
+
+  // keep the in-memory cache in sync so re-render / sort keeps the color
+  cfg.syncCache(id, normalized);
+
+  // update the visible name immediately
+  var nameEl = document.querySelector(cfg.nameSelector(id));
+  if (nameEl) {
+    if (normalized) {
+      nameEl.style.setProperty('color', normalized, 'important');
+    } else {
+      nameEl.style.removeProperty('color');
+    }
+  }
+
+  $.ajax({
+    url: cfg.url(id),
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ color: normalized || 'default' }),
+    error: function (xhr) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save color.',
+        confirmButtonText: 'OK'
+      });
+    }
+  });
+}
+
+function closeTextColorPicker() {
+  var existing = document.getElementById('line-color-popover');
+  if (existing) existing.parentNode.removeChild(existing);
+  document.removeEventListener('mousedown', handleTextColorPickerOutside, true);
+  window.removeEventListener('resize', closeTextColorPicker);
+  window.removeEventListener('scroll', closeTextColorPicker, true);
+}
+
+function handleTextColorPickerOutside(e) {
+  var pop = document.getElementById('line-color-popover');
+  if (!pop) return;
+  if (pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.btn-text-color')) return;
+  closeTextColorPicker();
+}
+
+function openTextColorPicker(kind, targetId, buttonEl) {
+  var cfg = TEXT_COLOR_TARGETS[kind];
+  if (!cfg) return;
+  var key = kind + ':' + targetId;
+  var alreadyOpen = document.getElementById('line-color-popover');
+  closeTextColorPicker();
+  if (alreadyOpen && alreadyOpen.getAttribute('data-target-key') === key) return;
+
+  var current = cfg.readCache(targetId);
+
+  var pop = document.createElement('div');
+  pop.id = 'line-color-popover';
+  pop.className = 'line-color-popover';
+  pop.setAttribute('data-target-key', key);
+
+  var swatches = buildLineNameColorGrid().map(function (rowColors) {
+    return rowColors.map(function (hex) {
+      var active = hex === current ? ' is-active' : '';
+      return '<button type="button" class="line-color-swatch' + active + '" data-color="' + hex + '" title="' + hex + '" style="background:' + hex + '"></button>';
+    }).join('');
+  }).join('');
+
+  pop.innerHTML =
+    '<div class="line-color-popover-title">Text Color</div>' +
+    '<div class="line-color-swatches">' + swatches + '</div>' +
+    '<div class="line-color-popover-actions">' +
+      '<button type="button" class="line-color-default">Default</button>' +
+      '<label class="line-color-custom">Custom' +
+        '<input type="color" value="' + (current || '#000000') + '">' +
+      '</label>' +
+    '</div>';
+
+  document.body.appendChild(pop);
+
+  var rect = buttonEl.getBoundingClientRect();
+  var top = rect.bottom + 6;
+  var left = rect.right - pop.offsetWidth;
+  if (left < 8) left = 8;
+  if (top + pop.offsetHeight > window.innerHeight - 8) {
+    top = rect.top - pop.offsetHeight - 6;
+  }
+  pop.style.top = Math.max(8, top) + 'px';
+  pop.style.left = left + 'px';
+
+  pop.querySelectorAll('.line-color-swatch').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      applyTextColor(kind, targetId, btn.getAttribute('data-color'));
+      closeTextColorPicker();
+    });
+  });
+  pop.querySelector('.line-color-default').addEventListener('click', function () {
+    applyTextColor(kind, targetId, null);
+    closeTextColorPicker();
+  });
+  pop.querySelector('.line-color-custom input').addEventListener('change', function () {
+    applyTextColor(kind, targetId, this.value);
+    closeTextColorPicker();
+  });
+
+  setTimeout(function () {
+    document.addEventListener('mousedown', handleTextColorPickerOutside, true);
+    window.addEventListener('resize', closeTextColorPicker);
+    window.addEventListener('scroll', closeTextColorPicker, true);
+  }, 0);
+}
+
+$(document).on('click', '.btn-text-color', function (e) {
+  e.preventDefault();
+  e.stopPropagation();
+  openTextColorPicker($(this).data('color-kind'), $(this).data('color-id'), this);
+});

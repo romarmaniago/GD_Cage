@@ -7,6 +7,16 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { insertCreditRecord, updateCreditFieldsByLedgerId, softDeleteCreditByLedgerId } = require('../utils/creditService');
+const { ensureAgencyNameColorSchema } = require('../utils/ensureAgencyNameColorSchema');
+
+// Lazy, cached guarantee that agency.NAME_COLOR exists (in case the startup
+// migration in config/db.js did not run yet / errored earlier in the chain).
+let agencyNameColorColumnReady = false;
+async function ensureAgencyNameColorColumn() {
+	if (agencyNameColorColumnReady) return;
+	await ensureAgencyNameColorSchema(pool);
+	agencyNameColorColumnReady = true;
+}
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -498,6 +508,7 @@ router.post('/add_agency', async (req, res) => {
 // GET AGENCY DATA
 router.get('/agency_data', async (req, res) => {
 	try {
+		await ensureAgencyNameColorColumn();
 		const ledgerTotalsSubquery = `
 			SELECT
 				al.ACCOUNT_ID,
@@ -808,6 +819,72 @@ router.put('/agency/:id', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating agency:', err);
 		res.status(500).send('Error updating agency');
+	}
+});
+
+// UPDATE AGENCY (LINE) NAME TEXT COLOR
+router.put('/agency/:id/color', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id) {
+			return res.status(400).json({ error: 'Invalid LINE id.' });
+		}
+
+		let color = req.body ? req.body.color : null;
+		if (color === undefined || color === null || color === '' || String(color).toLowerCase() === 'default') {
+			color = null;
+		} else {
+			color = String(color).trim().toLowerCase();
+			if (!/^#[0-9a-f]{6}$/.test(color)) {
+				return res.status(400).json({ error: 'Invalid color value.' });
+			}
+		}
+
+		await ensureAgencyNameColorColumn();
+
+		const date_now = new Date();
+		await pool.execute(
+			`UPDATE agency SET NAME_COLOR = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[color, req.session.user_id, date_now, id]
+		);
+
+		res.json({ success: true, color: color });
+	} catch (err) {
+		console.error('Error updating agency color:', err);
+		res.status(500).json({ error: 'Error updating LINE color' });
+	}
+});
+
+// UPDATE AGENT NAME TEXT COLOR
+router.put('/agent/:id/color', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id) {
+			return res.status(400).json({ error: 'Invalid agent id.' });
+		}
+
+		let color = req.body ? req.body.color : null;
+		if (color === undefined || color === null || color === '' || String(color).toLowerCase() === 'default') {
+			color = null;
+		} else {
+			color = String(color).trim().toLowerCase();
+			if (!/^#[0-9a-f]{6}$/.test(color)) {
+				return res.status(400).json({ error: 'Invalid color value.' });
+			}
+		}
+
+		await ensureAgencyNameColorColumn();
+
+		const date_now = new Date();
+		await pool.execute(
+			`UPDATE agent SET NAME_COLOR = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[color, req.session.user_id, date_now, id]
+		);
+
+		res.json({ success: true, color: color });
+	} catch (err) {
+		console.error('Error updating agent color:', err);
+		res.status(500).json({ error: 'Error updating agent color' });
 	}
 });
 
@@ -2387,6 +2464,7 @@ router.put('/agent/remove/:id', async (req, res) => {
 //GET ACCOUNT
 router.get('/account_data', async (req, res) => {
 	try {
+		await ensureAgencyNameColorColumn();
 		const agencyIdParam = req.query.agencyId;
 		const agencyId = agencyIdParam !== undefined && agencyIdParam !== '' ? Number(agencyIdParam) : null;
 		const hasAgencyFilter = agencyId !== null && !Number.isNaN(agencyId);
@@ -2436,6 +2514,7 @@ router.get('/account_data', async (req, res) => {
 				ag.TELEGRAM_ID AS agent_telegram,
 				COALESCE(ag.TELEGRAM_ENABLED, 1) AS telegram_enabled,
 				ag.REMARKS AS agent_remarks,
+				ag.NAME_COLOR AS agent_name_color,
 				ag.PHOTO AS PASSPORTPHOTO,
 				CAST(acc.ACTIVE AS UNSIGNED) AS active,
 				CAST(ag.ACTIVE AS UNSIGNED) AS agent_active,
