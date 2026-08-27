@@ -366,6 +366,10 @@ router.post('/add_additional_commission', checkSession, async (req, res) => {
 });
 
 router.put('/additional_commission/:id', checkSession, async (req, res) => {
+    if (req.session?.permissions !== 0) {
+        return res.status(403).json({ message: 'Only Super Admin can edit additional commission.' });
+    }
+
     const connection = await pool.getConnection();
     const recordId = parseInt(req.params.id, 10);
 
@@ -417,6 +421,10 @@ router.put('/additional_commission/:id', checkSession, async (req, res) => {
 });
 
 router.delete('/additional_commission/:id', checkSession, async (req, res) => {
+    if (req.session?.permissions !== 0) {
+        return res.status(403).json({ message: 'Only Super Admin can delete additional commission.' });
+    }
+
     const connection = await pool.getConnection();
     const recordId = parseInt(req.params.id, 10);
 

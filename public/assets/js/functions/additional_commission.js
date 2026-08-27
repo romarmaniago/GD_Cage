@@ -31,6 +31,8 @@
     let additionalCommissionSplitDateRange = null;
     const sortState = { sortKey: 'programDate', sortDir: 'desc' };
     const tableHead = document.querySelector('#additional-commission-tbl thead');
+    const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+    const canEditAdditionalCommission = userPermissions === 0;
     let dataTable = null;
     const addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
 
@@ -221,11 +223,14 @@
 
     function buildActionButtons(row) {
       const id = escapeHtml(row.IDNo);
+      const editDeleteButtons = canEditAdditionalCommission
+        ? `
+          <button type="button" class="btn btn-sm btn-alt-primary btn-edit-additional-commission" data-id="${id}" title="Edit"><i class="fa fa-pencil-alt"></i></button>
+          <button type="button" class="btn btn-sm btn-alt-danger btn-delete-additional-commission" data-id="${id}" title="Delete"><i class="fa fa-trash-alt"></i></button>`
+        : '';
       return `
         <div class="additional-commission-action-btns">
-          <button type="button" class="btn btn-sm btn-alt-secondary btn-receipt-additional-commission" data-id="${id}" title="Receipt"><i class="fa fa-receipt"></i></button>
-          <button type="button" class="btn btn-sm btn-alt-primary btn-edit-additional-commission" data-id="${id}" title="Edit"><i class="fa fa-pencil-alt"></i></button>
-          <button type="button" class="btn btn-sm btn-alt-danger btn-delete-additional-commission" data-id="${id}" title="Delete"><i class="fa fa-trash-alt"></i></button>
+          <button type="button" class="btn btn-sm btn-alt-secondary btn-receipt-additional-commission" data-id="${id}" title="Receipt"><i class="fa fa-receipt"></i></button>${editDeleteButtons}
         </div>
       `;
     }
