@@ -69,6 +69,17 @@
 											<div id="daterange-wrapper" class="day-selector-wrapper game-list-daterange-wrap house-expense-daterange-wrap" style="display: none;">
 												<input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
 											</div>
+
+											<!-- Game Status Filter: All / On Game / Finished (+ Settled / Unsettled) -->
+											<div id="game-status-filter-wrapper" class="game-list-status-filter-wrap">
+												<div class="game-status-filter-tabs" role="tablist">
+													<button type="button" class="game-status-filter-tab active" data-status="all"><%= __('gamelist.status_filter_all') || 'All Games' %></button>
+													<button type="button" class="game-status-filter-tab" data-status="ongame"><%= __('gamelist.status_filter_ongame') || 'On Game' %></button>
+													<button type="button" class="game-status-filter-tab" data-status="finished"><%= __('gamelist.status_filter_finished') || 'Finished Games' %></button>
+													<button type="button" class="game-status-filter-tab" data-status="settled"><%= __('gamelist.status_filter_settled') || 'Settled' %></button>
+													<button type="button" class="game-status-filter-tab" data-status="unsettled"><%= __('gamelist.status_filter_unsettled') || 'Unsettled' %></button>
+												</div>
+											</div>
 										</div>
 									</div>
 								</div>
@@ -622,6 +633,56 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	height: 34px;
 	padding: 0 0.9rem;
 	line-height: 1.35;
+}
+
+/* Game status filter — segmented tabs */
+#game-status-filter-wrapper.is-placed {
+	position: static;
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+}
+
+#game-status-filter-wrapper .game-status-filter-tabs {
+	display: inline-flex;
+	align-items: stretch;
+	height: 34px;
+	border: 1px solid #e0e0e0;
+	border-radius: 999px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	overflow: hidden;
+}
+
+#game-status-filter-wrapper .game-status-filter-tab {
+	border: none;
+	background: transparent;
+	padding: 0 0.95rem;
+	font-size: 13px;
+	font-weight: 500;
+	color: #666;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+#game-status-filter-wrapper .game-status-filter-tab + .game-status-filter-tab {
+	border-left: 1px solid #e0e0e0;
+}
+
+#game-status-filter-wrapper .game-status-filter-tab:hover:not(.active) {
+	background: #f5f2ec;
+	color: #333;
+}
+
+#game-status-filter-wrapper .game-status-filter-tab.active {
+	background: #c8a24c;
+	color: #fff;
+	font-weight: 600;
+}
+
+#game-status-filter-wrapper .game-status-filter-tab:focus {
+	outline: none;
 }
 
 .daily-settle-checkbox,

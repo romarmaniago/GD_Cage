@@ -4614,6 +4614,51 @@ $(document).ready(function () {
 	const highlightId = getQueryParam('id');
 	window.gameListUnreturnedRollerOnly = isTruthyQueryFlag(getQueryParam('unreturned_roller'));
 
+	// Game status filter: 'all' | 'ongame' (includes pending) | 'finished'
+	var $statusActiveTab = $('#game-status-filter-wrapper .game-status-filter-tab.active');
+	if ($statusActiveTab.length) {
+		window.gameListStatusFilter = ($statusActiveTab.data('status') || 'all');
+	} else if (typeof window.gameListStatusFilter === 'undefined') {
+		window.gameListStatusFilter = 'all';
+	}
+	if (!window._gameListStatusFilterRegistered) {
+		window._gameListStatusFilterRegistered = true;
+		$.fn.dataTable.ext.search.push(function (settings, searchData, index) {
+			if (settings.nTable.id !== 'game_list-tbl') return true;
+			var mode = window.gameListStatusFilter || 'all';
+			if (mode === 'all') return true;
+			var st = '';
+			var settled = null;
+			var map = window._gameListStatusMap || {};
+			var settledMap = window._gameListSettledMap || {};
+			var tr = settings.aoData[index] && settings.aoData[index].nTr;
+			var gid = parseInt(String(searchData[3] || '').replace(/<[^>]*>/g, ' ').replace(/[^0-9]/g, ' ').trim().split(' ')[0], 10);
+			if (gid && map[gid]) {
+				st = map[gid];
+				if (Object.prototype.hasOwnProperty.call(settledMap, gid)) settled = !!settledMap[gid];
+			} else if (tr) {
+				st = tr.getAttribute('data-game-status') || '';
+				var ds = tr.getAttribute('data-settled');
+				if (ds !== null) settled = ds === '1';
+			}
+			if (!st) return true; // unclassified rows (e.g. account summary) always show
+			if (mode === 'ongame') return st === 'ongame' || st === 'pending';
+			if (mode === 'finished') return st === 'finished';
+			if (mode === 'settled') return st === 'finished' && settled === true;
+			if (mode === 'unsettled') return st === 'finished' && settled === false;
+			return true;
+		});
+	}
+	$(document).off('click.gameListStatusFilter').on('click.gameListStatusFilter', '#game-status-filter-wrapper .game-status-filter-tab', function () {
+		var $tab = $(this);
+		if ($tab.hasClass('active')) return;
+		$tab.addClass('active').siblings('.game-status-filter-tab').removeClass('active');
+		window.gameListStatusFilter = $tab.data('status') || 'all';
+		if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+			$('#game_list-tbl').DataTable().draw();
+		}
+	});
+
 	function layoutGameListControls() {
 		var $wrapper = $('#game_list-tbl_wrapper');
 		var $length = $('#game_list-tbl_length');
@@ -4651,6 +4696,15 @@ $(document).ready(function () {
 			var $dateAnchor = $programDate.length ? $programDate : $length;
 			if ($daterange.parent()[0] !== $left[0] || $daterange.prev()[0] !== $dateAnchor[0]) {
 				$daterange.detach().insertAfter($dateAnchor);
+			}
+		}
+
+		var $statusFilter = $('#game-status-filter-wrapper');
+		if ($statusFilter.length) {
+			$statusFilter.addClass('is-placed');
+			var $statusAnchor = $daterange.length ? $daterange : ($programDate.length ? $programDate : $length);
+			if ($statusFilter.parent()[0] !== $left[0] || $statusFilter.prev()[0] !== $statusAnchor[0]) {
+				$statusFilter.detach().insertAfter($statusAnchor);
 			}
 		}
 
@@ -4748,14 +4802,15 @@ $(document).ready(function () {
 
 		initComplete: function () {
 			layoutGameListControls();
-			var filterDiv = $('#game_list-tbl').closest('.dataTables_wrapper').find('.dataTables_filter');
-			if (filterDiv.length) {
-				var accountSearchHtml = '<label class="me-3 mb-0 d-inline-flex align-items-center gap-2">' +
-					'<span>Account Search:</span>' +
-					'<input type="text" id="input-account-search" class="form-control form-control-sm" placeholder="e.g. xxx or xxx-xxx" />' +
-					'</label>';
-				filterDiv.prepend(accountSearchHtml);
-			}
+			// --- Account Search input hidden (commented out, do not delete) ---
+			// var filterDiv = $('#game_list-tbl').closest('.dataTables_wrapper').find('.dataTables_filter');
+			// if (filterDiv.length) {
+			// 	var accountSearchHtml = '<label class="me-3 mb-0 d-inline-flex align-items-center gap-2">' +
+			// 		'<span>Account Search:</span>' +
+			// 		'<input type="text" id="input-account-search" class="form-control form-control-sm" placeholder="e.g. xxx or xxx-xxx" />' +
+			// 		'</label>';
+			// 	filterDiv.prepend(accountSearchHtml);
+			// }
 			layoutGameListControls();
 			function stopSortBubble(e) {
 				e.stopPropagation();
@@ -5070,6 +5125,8 @@ $(document).ready(function () {
         }
 		var reloadGeneration = (window._gameListReloadGeneration || 0) + 1;
 		window._gameListReloadGeneration = reloadGeneration;
+		window._gameListStatusMap = {}; // reset game status classification for the new dataset
+		window._gameListSettledMap = {}; // reset settled classification for the new dataset
 		syncUnreturnedRollerFilterBanner();
 		// Build params; highlight id or unreturned-roller filter bypass date filtering on backend
 		const params = {};
@@ -5499,6 +5556,8 @@ $(document).ready(function () {
 
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
+                                (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'ongame';
+                                (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
                                 let rowNode = dataTable.row.add([
                                     buildProgramDateCell(row, userPermissions, isSettled),
                                     gameStartCellOg,
@@ -5518,6 +5577,7 @@ $(document).ready(function () {
                                     roller_chips_td,
                                     actionButtons
                                 ]).draw().node();
+                                if (rowNode) { rowNode.setAttribute('data-game-status', 'ongame'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
 								
 								
 								
@@ -5616,6 +5676,8 @@ $(document).ready(function () {
 								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
 								var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
 
+								(window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'pending';
+								(window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 								let rowNode = dataTable.row.add([
 									buildProgramDateCell(row, userPermissions, isSettled),
 									gameStartCell,
@@ -5635,9 +5697,10 @@ $(document).ready(function () {
 									roller_chips_td,
 									actionButtons
 								]).draw().node();
-								
-								
-								
+								if (rowNode) { rowNode.setAttribute('data-game-status', 'pending'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
+
+
+
 							} else {
 								// Account summary accumulation (END GAME branch)
 								var aid1 = row.ACCOUNT_ID;
@@ -5727,9 +5790,11 @@ $(document).ready(function () {
 						   }
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
 						   var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
+						   (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = isPendingRollerOrangeRow(row) ? 'pending' : 'finished';
+						   (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, buildGameTypeCell(row, userPermissions), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, winloss, total_rolling_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).draw().node();
-						   
-						   
+						   if (rowNode) { rowNode.setAttribute('data-game-status', isPendingRollerOrangeRow(row) ? 'pending' : 'finished'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
+
 							}
 	
 						},
