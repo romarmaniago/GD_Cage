@@ -24,21 +24,14 @@ const GUEST_PORTAL_MANUAL_LEDGER_SQL = `
 		(
 			COALESCE(TRANSFER, 0) = 0
 			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'ACCOUNT DETAILS'
-			AND (
-				(TRANSACTION_TYPE = 2 AND TRANSACTION_ID IN (1, 2))
-				OR (TRANSACTION_TYPE = 3 AND TRANSACTION_ID = 3)
-			)
+			AND TRANSACTION_TYPE = 2
+			AND TRANSACTION_ID IN (1, 2)
 		)
 		OR (
 			TRANSFER = 1
 			AND TRANSACTION_TYPE = 2
 			AND TRANSACTION_ID IN (1, 2)
 			AND (TRANSACTION_DESC IS NULL OR TRIM(TRANSACTION_DESC) = '')
-		)
-		OR (
-			TRANSACTION_TYPE = 3
-			AND TRANSACTION_ID IN (11, 12)
-			AND UPPER(TRIM(COALESCE(TRANSACTION_DESC, ''))) = 'RETURN_SOURCE:CREDIT'
 		)
 	)
 `;
@@ -180,6 +173,74 @@ const telegramCashTransactionTitle = (transaction) => {
 	if (transaction === 'WITHDRAW') return 'Account withdrawal';
 	if (transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH') return 'Credit';
 	return transaction;
+};
+
+/** Guest Portal receipt header — map cases one by one as product specifies. */
+const guestPortalReceiptTitle = (transaction, transactionDesc, transferLabel, serviceType) => {
+	const trans = String(transaction || '').trim().toUpperCase();
+	const desc = String(transactionDesc || '').trim().toUpperCase();
+	const serviceLabel = String(serviceType || '').trim();
+
+	// DEPOSIT - ACCOUNT DETAILS → * Deposit *
+	if (trans === 'DEPOSIT' && desc === 'ACCOUNT DETAILS' && !transferLabel) {
+		return 'Deposit';
+	}
+
+	// WITHDRAW - ACCOUNT DETAILS → * Withdrawal *
+	if (trans === 'WITHDRAW' && desc === 'ACCOUNT DETAILS' && !transferLabel) {
+		return 'Withdrawal';
+	}
+
+	// WITHDRAW ( Transferred to ... ) → * Transfer *
+	if (trans === 'WITHDRAW' && transferLabel) {
+		return 'Transfer';
+	}
+
+	// DEPOSIT ( Received from ... ) → * Transfer *
+	if (trans === 'DEPOSIT' && transferLabel) {
+		return 'Transfer';
+	}
+
+	// DEPOSIT - COMMISSION → * Settlement *
+	if (trans === 'DEPOSIT' && desc === 'COMMISSION' && !transferLabel) {
+		return 'Settlement';
+	}
+
+	// DEPOSIT - ADDITIONAL COMMISSION → * Additional Settlement *
+	if (trans === 'DEPOSIT' && desc === 'ADDITIONAL COMMISSION' && !transferLabel) {
+		return 'Additional Settlement';
+	}
+
+	// DEPOSIT - Chips Returned → * Game Cashout *
+	if (trans === 'DEPOSIT' && desc === 'CHIPS RETURNED' && !transferLabel) {
+		return 'Game Cashout';
+	}
+
+	// WITHDRAW - ADDITIONAL BUY-IN / INITIAL BUY-IN → * Game Buyin *
+	if (
+		trans === 'WITHDRAW' &&
+		(desc === 'ADDITIONAL BUY-IN' || desc === 'INITIAL BUY-IN') &&
+		!transferLabel
+	) {
+		return 'Game Buyin';
+	}
+
+	// WITHDRAW - SERVICES (Hotel, F & B, Incidental, …) → * Hotel * / * F & B * / …
+	if (trans === 'WITHDRAW' && desc === 'SERVICES' && serviceLabel && !transferLabel) {
+		return serviceLabel;
+	}
+
+	// WITHDRAW - GAME/JUNKET CREDIT RETURN → * Credit Return *
+	if (
+		trans === 'IOU RETURN DEPOSIT' &&
+		(desc === 'RETURN_SOURCE:BUYIN' || desc === 'RETURN_SOURCE:CREDIT') &&
+		!transferLabel
+	) {
+		return 'Credit Return';
+	}
+
+	// Default until other cases are specified
+	return telegramCashTransactionTitle(transaction) || transaction || 'Transaction';
 };
 
 const telegramAccountCashMessage = (_req, opts) => {
@@ -3318,6 +3379,72 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  query += ` ORDER BY account_ledger.IDNo DESC`;
   
 	  const [result] = await pool.execute(query, params);
+
+	  // Enrich SERVICES rows with game_services.SERVICE_TYPE (F & B, Hotel, etc.)
+	  const serviceLedgerIndexes = [];
+	  result.forEach((row, idx) => {
+		const desc = String(row.TRANSACTION_DESC || '').trim().toUpperCase();
+		if (desc === 'SERVICES') serviceLedgerIndexes.push(idx);
+	  });
+
+	  if (serviceLedgerIndexes.length) {
+		const [svcRows] = await pool.execute(
+			`SELECT gs.IDNo, gs.SERVICE_TYPE, gs.GAME_ID, gs.AMOUNT, gs.DELIVERY_FEE, gs.ENCODED_DT
+			 FROM game_services gs
+			 JOIN account a ON a.AGENT_ID = gs.AGENT_ID
+			 WHERE a.IDNo = ?
+			   AND gs.ACTIVE = 1
+			   AND gs.TRANSACTION_ID = 2
+			 ORDER BY gs.IDNo DESC`,
+			[id]
+		);
+
+		const usedSvcIds = new Set();
+		const toMs = (dt) => {
+			const t = dt ? new Date(dt).getTime() : NaN;
+			return Number.isFinite(t) ? t : null;
+		};
+
+		serviceLedgerIndexes.forEach((idx) => {
+			const ledger = result[idx];
+			const ledgerAmt = parseFloat(ledger.AMOUNT) || 0;
+			const ledgerGameId = ledger.GAME_ID != null && String(ledger.GAME_ID).trim() !== ''
+				? Number(ledger.GAME_ID)
+				: null;
+			// Prefer encoded_date alias — SELECT * JOIN transaction_type overwrites ENCODED_DT
+			const ledgerMs = toMs(ledger.encoded_date || ledger.ENCODED_DT);
+
+			let best = null;
+			let bestScore = Infinity;
+			(svcRows || []).forEach((svc) => {
+				if (usedSvcIds.has(svc.IDNo)) return;
+				const charge = (parseFloat(svc.AMOUNT) || 0) + (parseFloat(svc.DELIVERY_FEE) || 0);
+				if (Math.abs(charge - ledgerAmt) > 0.009) return;
+
+				const svcGameId = svc.GAME_ID != null && String(svc.GAME_ID).trim() !== ''
+					? Number(svc.GAME_ID)
+					: null;
+				if (ledgerGameId != null || svcGameId != null) {
+					if (ledgerGameId !== svcGameId) return;
+				}
+
+				const svcMs = toMs(svc.ENCODED_DT);
+				const timeDiff = (ledgerMs != null && svcMs != null) ? Math.abs(ledgerMs - svcMs) : 0;
+				// Prefer closer encode time; allow up to 2 minutes drift
+				if (timeDiff > 120000) return;
+				if (timeDiff < bestScore) {
+					bestScore = timeDiff;
+					best = svc;
+				}
+			});
+
+			if (best && best.SERVICE_TYPE) {
+				usedSvcIds.add(best.IDNo);
+				result[idx].SERVICE_TYPE = String(best.SERVICE_TYPE).trim();
+			}
+		});
+	  }
+
 	  res.json(result);
 	} catch (error) {
 	  console.error('❌ Error fetching data:', error);
@@ -3712,7 +3839,7 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 			await connection.rollback();
 			return res.status(403).json({
 				success: false,
-				message: 'Only manual Guest Portal deposit/withdraw/credit/transfer can be deleted. Edit game-related entries in Gamebook.'
+				message: 'Only manual Guest Portal deposit/withdraw/transfer can be deleted. Edit game-related entries in Gamebook.'
 			});
 		}
 
@@ -3790,7 +3917,7 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 			await connection.rollback();
 			return res.status(403).json({
 				success: false,
-				message: 'Only manual Guest Portal deposit/withdraw/credit/transfer can be edited. Edit game-related entries in Gamebook.'
+				message: 'Only manual Guest Portal deposit/withdraw/transfer can be edited. Edit game-related entries in Gamebook.'
 			});
 		}
 
@@ -4028,6 +4155,57 @@ async function getLedgerReceiptBalanceAfter(accountId, ledgerId) {
 	return running;
 }
 
+async function resolveGuestPortalServiceType(ledgerRow) {
+	const desc = String(ledgerRow.TRANSACTION_DESC || '').trim().toUpperCase();
+	if (desc !== 'SERVICES') return '';
+
+	const ledgerAmt = parseFloat(ledgerRow.AMOUNT) || 0;
+	const ledgerGameId = ledgerRow.GAME_ID != null && String(ledgerRow.GAME_ID).trim() !== ''
+		? Number(ledgerRow.GAME_ID)
+		: null;
+	const ledgerMs = (() => {
+		const t = ledgerRow.ENCODED_DT ? new Date(ledgerRow.ENCODED_DT).getTime() : NaN;
+		return Number.isFinite(t) ? t : null;
+	})();
+
+	const [svcRows] = await pool.execute(
+		`SELECT gs.SERVICE_TYPE, gs.GAME_ID, gs.AMOUNT, gs.DELIVERY_FEE, gs.ENCODED_DT
+		 FROM game_services gs
+		 JOIN account a ON a.AGENT_ID = gs.AGENT_ID
+		 WHERE a.IDNo = ?
+		   AND gs.ACTIVE = 1
+		   AND gs.TRANSACTION_ID = 2
+		 ORDER BY gs.IDNo DESC`,
+		[ledgerRow.ACCOUNT_ID]
+	);
+
+	let best = null;
+	let bestScore = Infinity;
+	(svcRows || []).forEach((svc) => {
+		const charge = (parseFloat(svc.AMOUNT) || 0) + (parseFloat(svc.DELIVERY_FEE) || 0);
+		if (Math.abs(charge - ledgerAmt) > 0.009) return;
+
+		const svcGameId = svc.GAME_ID != null && String(svc.GAME_ID).trim() !== ''
+			? Number(svc.GAME_ID)
+			: null;
+		if (ledgerGameId != null || svcGameId != null) {
+			if (ledgerGameId !== svcGameId) return;
+		}
+
+		const svcMs = svc.ENCODED_DT ? new Date(svc.ENCODED_DT).getTime() : NaN;
+		const timeDiff = (ledgerMs != null && Number.isFinite(svcMs))
+			? Math.abs(ledgerMs - svcMs)
+			: 0;
+		if (timeDiff > 120000) return;
+		if (timeDiff < bestScore) {
+			bestScore = timeDiff;
+			best = svc;
+		}
+	});
+
+	return best && best.SERVICE_TYPE ? String(best.SERVICE_TYPE).trim() : '';
+}
+
 async function buildGuestPortalLedgerReceipt(ledgerId) {
 	const [rows] = await pool.execute(
 		`SELECT
@@ -4039,6 +4217,7 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 			al.TRANSACTION_DESC,
 			al.TRANSFER,
 			al.TRANSFER_AGENT,
+			al.GAME_ID,
 			tt.TRANSACTION AS transaction_name,
 			ag.AGENT_CODE,
 			ag.NAME AS agent_name,
@@ -4058,27 +4237,36 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 	const amount = parseFloat(row.AMOUNT) || 0;
 	const transaction = String(row.transaction_name || '').trim();
 	const balanceAfter = await getLedgerReceiptBalanceAfter(row.ACCOUNT_ID, row.IDNo);
+	const serviceType = await resolveGuestPortalServiceType(row);
 
 	let transferLabel = '';
-	if (parseInt(row.TRANSFER, 10) === 1 && row.TRANSFER_AGENT) {
+	const isTransfer = parseInt(row.TRANSFER, 10) === 1;
+	if (isTransfer && row.TRANSFER_AGENT) {
 		const [transferRows] = await pool.execute(
-			`SELECT AGENT_CODE, NAME FROM agent WHERE IDNo = ? LIMIT 1`,
+			`SELECT agent.AGENT_CODE
+			 FROM account
+			 JOIN agent ON account.AGENT_ID = agent.IDNo
+			 WHERE account.IDNo = ?
+			 LIMIT 1`,
 			[row.TRANSFER_AGENT]
 		);
 		if (transferRows.length) {
-			const t = transferRows[0];
-			const peer = [t.AGENT_CODE, t.NAME].filter(Boolean).join(' - ');
+			const peer = transferRows[0].AGENT_CODE || 'N/A';
 			transferLabel = transaction === 'DEPOSIT'
 				? `Received from ${peer}`
 				: `Transferred to ${peer}`;
+		} else {
+			// Still mark as transfer so receipt title stays * Transfer *
+			transferLabel = transaction === 'DEPOSIT' ? 'Received from' : 'Transferred to';
 		}
 	}
 
 	return {
 		ledger_id: row.IDNo,
-		title: `* ${telegramCashTransactionTitle(transaction)} *`,
+		title: `* ${guestPortalReceiptTitle(transaction, row.TRANSACTION_DESC || '', transferLabel, serviceType)} *`,
 		transaction,
 		transaction_desc: row.TRANSACTION_DESC || '',
+		service_type: serviceType,
 		transfer_label: transferLabel,
 		account_code: row.AGENT_CODE || '',
 		account_name: row.agent_name || '',
