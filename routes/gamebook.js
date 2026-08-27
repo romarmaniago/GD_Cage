@@ -4334,11 +4334,11 @@ router.put('/game_list/remove/:id', async (req, res) => {
 	}
 });
 
-// DELETE GAME LIST (Super Admin only - SOFT DELETE, excludes game_services)
+// DELETE GAME LIST (Super Admin + Manager - SOFT DELETE, excludes game_services)
 router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 	const permissions = req.session?.permissions;
-	if (permissions !== 0) {
-		return res.status(403).json({ error: 'Only Super Admin can delete games.' });
+	if (permissions !== 0 && permissions !== 11) {
+		return res.status(403).json({ error: 'You do not have permission to delete games.' });
 	}
 
 	const gameId = parseInt(req.params.id);

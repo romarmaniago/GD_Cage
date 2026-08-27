@@ -5493,7 +5493,7 @@ $(document).ready(function () {
                                     actionButtons += btn_his;
                                 }
                                 actionButtons += btn_settle;
-                                if (userPermissions === 0) {
+                                if (userPermissions === 0 || userPermissions === 11) {
                                     actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
                                 }
 
@@ -5610,7 +5610,7 @@ $(document).ready(function () {
 								var gameStartCell = buildGameStartCell(game_start);
 								
 								var actionButtons = btn_remarks + btn_receipts + btn_settle;
-								if (userPermissions === 0) {
+								if (userPermissions === 0 || userPermissions === 11) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 								}
 								var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
@@ -5722,7 +5722,7 @@ $(document).ready(function () {
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 						   var gameStartCellEnd = buildGameStartCell(game_start);
 						   var actionButtons = btn_remarks + btn_receipts + btn_settle;
-						   if (userPermissions === 0) {
+						   if (userPermissions === 0 || userPermissions === 11) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick='delete_game_list(${row.game_list_id}, ${JSON.stringify(buildCutoffGameIdPlainLabel(row))})' class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
