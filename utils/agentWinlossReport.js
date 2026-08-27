@@ -37,7 +37,16 @@ async function fetchAgentGameWinlossRows(pool, dateFrom, dateTo, agentId = null)
 			gl.GAME_TYPE AS game_type,
 			COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
 			COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS buy_in,
-			COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS cash_out
+			COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS cash_out,
+			COALESCE(SUM(
+				CASE
+					WHEN gr.CAGE_TYPE = 3 THEN COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.AMOUNT, 0)
+					WHEN gr.CAGE_TYPE = 4 THEN COALESCE(gr.AMOUNT, 0) + COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)
+					WHEN gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 THEN COALESCE(gr.ROLLER_CC_CHIPS, 0)
+					WHEN gr.CAGE_TYPE = 2 THEN -COALESCE(gr.NN_CHIPS, 0)
+					ELSE 0
+				END
+			), 0) AS rolling
 		 FROM game_list gl
 		 INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
 		 INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID AND ag.ACTIVE = 1
@@ -57,6 +66,7 @@ async function fetchAgentGameWinlossRows(pool, dateFrom, dateTo, agentId = null)
 	return (rows || []).map((row) => {
 		const buyIn = Number(row.buy_in) || 0;
 		const cashOut = Number(row.cash_out) || 0;
+		const rolling = Number(row.rolling) || 0;
 		return {
 			game_id: Number(row.game_id),
 			program_date: row.program_date,
@@ -69,7 +79,8 @@ async function fetchAgentGameWinlossRows(pool, dateFrom, dateTo, agentId = null)
 			guest_name: row.guest_name || '-',
 			buy_in: buyIn,
 			cash_out: cashOut,
-			win_loss: buyIn - cashOut
+			win_loss: buyIn - cashOut,
+			rolling: rolling
 		};
 	});
 }
@@ -88,6 +99,7 @@ function aggregateByDay(gameRows) {
 				buy_in: 0,
 				cash_out: 0,
 				win_loss: 0,
+				rolling: 0,
 				game_count: 0
 			});
 		}
@@ -95,6 +107,7 @@ function aggregateByDay(gameRows) {
 		agg.buy_in += row.buy_in;
 		agg.cash_out += row.cash_out;
 		agg.win_loss += row.win_loss;
+		agg.rolling += row.rolling;
 		agg.game_count += 1;
 	}
 	return Array.from(map.values()).sort((a, b) => {
@@ -118,6 +131,7 @@ function aggregateByMonth(gameRows) {
 				buy_in: 0,
 				cash_out: 0,
 				win_loss: 0,
+				rolling: 0,
 				game_count: 0
 			});
 		}
@@ -125,6 +139,7 @@ function aggregateByMonth(gameRows) {
 		agg.buy_in += row.buy_in;
 		agg.cash_out += row.cash_out;
 		agg.win_loss += row.win_loss;
+		agg.rolling += row.rolling;
 		agg.game_count += 1;
 	}
 	return Array.from(map.values()).sort((a, b) => {
@@ -140,9 +155,10 @@ function computeTotals(rows) {
 			buy_in: totals.buy_in + (Number(row.buy_in) || 0),
 			cash_out: totals.cash_out + (Number(row.cash_out) || 0),
 			win_loss: totals.win_loss + (Number(row.win_loss) || 0),
+			rolling: totals.rolling + (Number(row.rolling) || 0),
 			game_count: totals.game_count + (Number(row.game_count) || 1)
 		}),
-		{ buy_in: 0, cash_out: 0, win_loss: 0, game_count: 0 }
+		{ buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0, game_count: 0 }
 	);
 }
 

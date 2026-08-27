@@ -24,6 +24,16 @@ $(document).ready(function () {
 		return '<span class="text-dash-neg">(' + formatAmount(Math.abs(n)) + ')</span>';
 	}
 
+	function formatRolling(value) {
+		const n = Number(value) || 0;
+		if (n === 0) return '0';
+		if (n < 0) {
+			if (window.fmtOut) return window.fmtOut(n);
+			return '<span class="text-dash-neg">(' + formatAmount(Math.abs(n)) + ')</span>';
+		}
+		return formatAmount(n);
+	}
+
 	function escapeHtml(value) {
 		return String(value == null ? '' : value)
 			.replace(/&/g, '&amp;')
@@ -104,14 +114,16 @@ $(document).ready(function () {
 				'<th class="text-end">' + escapeHtml(t.games) + '</th>' +
 				'<th class="text-end">' + escapeHtml(t.buy_in) + '</th>' +
 				'<th class="text-end">' + escapeHtml(t.cash_out) + '</th>' +
-				'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>'
+				'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>' +
+				'<th class="text-end">' + escapeHtml(t.rolling) + '</th>'
 			);
 			$tfoot.html(
 				'<th colspan="3" class="text-end">' + escapeHtml(t.grand_total) + '</th>' +
 				'<th id="agent-winloss-total-games" class="text-end">0</th>' +
 				'<th id="agent-winloss-total-buyin" class="text-end">0</th>' +
 				'<th id="agent-winloss-total-cashout" class="text-end">0</th>' +
-				'<th id="agent-winloss-total-winloss" class="text-end">0</th>'
+				'<th id="agent-winloss-total-winloss" class="text-end">0</th>' +
+				'<th id="agent-winloss-total-rolling" class="text-end">0</th>'
 			);
 			return;
 		}
@@ -124,14 +136,16 @@ $(document).ready(function () {
 				'<th class="text-end">' + escapeHtml(t.games) + '</th>' +
 				'<th class="text-end">' + escapeHtml(t.buy_in) + '</th>' +
 				'<th class="text-end">' + escapeHtml(t.cash_out) + '</th>' +
-				'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>'
+				'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>' +
+				'<th class="text-end">' + escapeHtml(t.rolling) + '</th>'
 			);
 			$tfoot.html(
 				'<th colspan="3" class="text-end">' + escapeHtml(t.grand_total) + '</th>' +
 				'<th id="agent-winloss-total-games" class="text-end">0</th>' +
 				'<th id="agent-winloss-total-buyin" class="text-end">0</th>' +
 				'<th id="agent-winloss-total-cashout" class="text-end">0</th>' +
-				'<th id="agent-winloss-total-winloss" class="text-end">0</th>'
+				'<th id="agent-winloss-total-winloss" class="text-end">0</th>' +
+				'<th id="agent-winloss-total-rolling" class="text-end">0</th>'
 			);
 			return;
 		}
@@ -145,13 +159,15 @@ $(document).ready(function () {
 			'<th>' + escapeHtml(t.game_type) + '</th>' +
 			'<th class="text-end">' + escapeHtml(t.buy_in) + '</th>' +
 			'<th class="text-end">' + escapeHtml(t.cash_out) + '</th>' +
-			'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>'
+			'<th class="text-end">' + escapeHtml(t.win_loss) + '</th>' +
+			'<th class="text-end">' + escapeHtml(t.rolling) + '</th>'
 		);
 		$tfoot.html(
 			'<th colspan="6" class="text-end">' + escapeHtml(t.grand_total) + '</th>' +
 			'<th id="agent-winloss-total-buyin" class="text-end">0</th>' +
 			'<th id="agent-winloss-total-cashout" class="text-end">0</th>' +
-			'<th id="agent-winloss-total-winloss" class="text-end">0</th>'
+			'<th id="agent-winloss-total-winloss" class="text-end">0</th>' +
+			'<th id="agent-winloss-total-rolling" class="text-end">0</th>'
 		);
 	}
 
@@ -163,6 +179,7 @@ $(document).ready(function () {
 		$('#agent-winloss-total-buyin').html(formatAmount(total.buy_in));
 		$('#agent-winloss-total-cashout').html(formatCashOut(total.cash_out));
 		$('#agent-winloss-total-winloss').html(formatWinLoss(total.win_loss));
+		$('#agent-winloss-total-rolling').html(formatRolling(total.rolling));
 	}
 
 	function getColumns(groupBy) {
@@ -190,6 +207,14 @@ $(document).ready(function () {
 				return formatWinLoss(data);
 			}
 		};
+		const rollingCol = {
+			data: 'rolling',
+			className: 'text-end',
+			render: function (data, type) {
+				if (type === 'sort' || type === 'type') return Number(data) || 0;
+				return formatRolling(data);
+			}
+		};
 
 		if (groupBy === 'day') {
 			return [
@@ -206,7 +231,8 @@ $(document).ready(function () {
 				},
 				amountCol,
 				cashOutCol,
-				winLossCol
+				winLossCol,
+				rollingCol
 			];
 		}
 
@@ -225,7 +251,8 @@ $(document).ready(function () {
 				},
 				amountCol,
 				cashOutCol,
-				winLossCol
+				winLossCol,
+				rollingCol
 			];
 		}
 
@@ -244,7 +271,8 @@ $(document).ready(function () {
 			{ data: 'game_type', defaultContent: '-', render: function (data) { return escapeHtml(data || '-'); } },
 			amountCol,
 			cashOutCol,
-			winLossCol
+			winLossCol,
+			rollingCol
 		];
 	}
 
@@ -362,15 +390,17 @@ $(document).ready(function () {
 		const totals = {
 			buy_in: $('#agent-winloss-total-buyin').text().trim(),
 			cash_out: $('#agent-winloss-total-cashout').text().trim(),
-			win_loss: $('#agent-winloss-total-winloss').text().trim()
+			win_loss: $('#agent-winloss-total-winloss').text().trim(),
+			rolling: $('#agent-winloss-total-rolling').text().trim()
 		};
 		const colCount = payload.headers.length;
-		const totalColspan = Math.max(1, colCount - 3);
+		const totalColspan = Math.max(1, colCount - 4);
 		const footerHtml = '<tr><th colspan="' + totalColspan + '" style="text-align:right;">' +
 			escapeHtml(t.grand_total || 'Grand Total') + '</th>' +
 			'<th style="text-align:right;">' + escapeHtml(totals.buy_in) + '</th>' +
 			'<th style="text-align:right;">' + escapeHtml(totals.cash_out) + '</th>' +
-			'<th style="text-align:right;">' + escapeHtml(totals.win_loss) + '</th></tr>';
+			'<th style="text-align:right;">' + escapeHtml(totals.win_loss) + '</th>' +
+			'<th style="text-align:right;">' + escapeHtml(totals.rolling) + '</th></tr>';
 
 		const iframe = document.createElement('iframe');
 		iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';

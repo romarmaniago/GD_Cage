@@ -708,7 +708,8 @@
 		"cash_out": "캐시아웃",
 		"win_loss": "승/패",
 		"grand_total": "총 합계",
-		"export_error": "보내기 실패"
+		"export_error": "보내기 실패",
+		"rolling": "롤링"
 	},
 	"guest_statistic": {
 		"statistics": "통계",

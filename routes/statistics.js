@@ -434,7 +434,7 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 		let rows;
 		let sheetName;
 		if (normalizedGroup === 'day') {
-			headers = ['Program Date', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss'];
+			headers = ['Program Date', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss', 'Rolling'];
 			rows = (payload.rows || []).map((row) => [
 				row.program_date,
 				formatAgentCell(row),
@@ -442,11 +442,12 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 				row.game_count,
 				row.buy_in,
 				row.cash_out,
-				row.win_loss
+				row.win_loss,
+				row.rolling
 			]);
 			sheetName = 'Agent WL Daily';
 		} else if (normalizedGroup === 'month') {
-			headers = ['Month', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss'];
+			headers = ['Month', 'Agent Code (Agent Name)', 'Line', 'Games', 'Buy In', 'Cash Out', 'Win/Loss', 'Rolling'];
 			rows = (payload.rows || []).map((row) => [
 				row.program_month,
 				formatAgentCell(row),
@@ -454,11 +455,12 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 				row.game_count,
 				row.buy_in,
 				row.cash_out,
-				row.win_loss
+				row.win_loss,
+				row.rolling
 			]);
 			sheetName = 'Agent WL Monthly';
 		} else {
-			headers = ['Program Date', 'Game #', 'Agent Code (Agent Name)', 'Line', 'Guest', 'Game Type', 'Buy In', 'Cash Out', 'Win/Loss'];
+			headers = ['Program Date', 'Game #', 'Agent Code (Agent Name)', 'Line', 'Guest', 'Game Type', 'Buy In', 'Cash Out', 'Win/Loss', 'Rolling'];
 			rows = (payload.rows || []).map((row) => [
 				row.program_date,
 				row.game_id,
@@ -468,7 +470,8 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 				row.game_type,
 				row.buy_in,
 				row.cash_out,
-				row.win_loss
+				row.win_loss,
+				row.rolling
 			]);
 			sheetName = 'Agent WL Per Game';
 		}
@@ -476,9 +479,9 @@ router.post('/agent_winloss_report/export_xlsx', checkSession, async (req, res) 
 		const totals = payload.totals || {};
 		rows.push([]);
 		if (normalizedGroup === 'day' || normalizedGroup === 'month') {
-			rows.push(['GRAND TOTAL', '', '', totals.game_count, totals.buy_in, totals.cash_out, totals.win_loss]);
+			rows.push(['GRAND TOTAL', '', '', totals.game_count, totals.buy_in, totals.cash_out, totals.win_loss, totals.rolling]);
 		} else {
-			rows.push(['GRAND TOTAL', '', '', '', '', '', totals.buy_in, totals.cash_out, totals.win_loss]);
+			rows.push(['GRAND TOTAL', '', '', '', '', '', totals.buy_in, totals.cash_out, totals.win_loss, totals.rolling]);
 		}
 
 		const result = await buildTableExportXlsx({

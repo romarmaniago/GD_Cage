@@ -652,7 +652,8 @@
 		"cash_out": "Cash Out",
 		"win_loss": "Win/Loss",
 		"grand_total": "Grand Total",
-		"export_error": "Export failed"
+		"export_error": "Export failed",
+		"rolling": "Rolling"
 	},
 	"guest_statistic": {
 		"statistics": "Statistics",

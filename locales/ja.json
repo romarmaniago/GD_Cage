@@ -706,7 +706,8 @@
 		"cash_out": "キャッシュアウト",
 		"win_loss": "勝敗",
 		"grand_total": "合計",
-		"export_error": "エクスポート失敗"
+		"export_error": "エクスポート失敗",
+		"rolling": "ローリング"
 	},
 	"guest_statistic": {
 		"statistics": "統計",

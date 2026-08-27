@@ -62,6 +62,7 @@
 											<th class="text-end"><%= __('agent_winloss_report.buy_in') %></th>
 											<th class="text-end"><%= __('agent_winloss_report.cash_out') %></th>
 											<th class="text-end"><%= __('agent_winloss_report.win_loss') %></th>
+											<th class="text-end"><%= __('agent_winloss_report.rolling') %></th>
 										</tr>
 									</thead>
 									<tfoot>
@@ -70,6 +71,7 @@
 											<th id="agent-winloss-total-buyin" class="text-end">0</th>
 											<th id="agent-winloss-total-cashout" class="text-end">0</th>
 											<th id="agent-winloss-total-winloss" class="text-end">0</th>
+											<th id="agent-winloss-total-rolling" class="text-end">0</th>
 										</tr>
 									</tfoot>
 									<tbody></tbody>
@@ -101,6 +103,7 @@ window.agentWinlossReportTranslations = {
 	buy_in: "<%= __('agent_winloss_report.buy_in') %>",
 	cash_out: "<%= __('agent_winloss_report.cash_out') %>",
 	win_loss: "<%= __('agent_winloss_report.win_loss') %>",
+	rolling: "<%= __('agent_winloss_report.rolling') %>",
 	grand_total: "<%= __('agent_winloss_report.grand_total') %>",
 	export_error: "<%= __('agent_winloss_report.export_error') %>",
 	title: "<%= __('agent_winloss_report.title') %>"

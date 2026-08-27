@@ -708,7 +708,8 @@
 		"cash_out": "兑出",
 		"win_loss": "输赢",
 		"grand_total": "总计",
-		"export_error": "导出失败"
+		"export_error": "导出失败",
+		"rolling": "轧制"
 	},
 	"guest_statistic": {
 		"statistics": "统计",
