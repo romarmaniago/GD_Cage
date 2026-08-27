@@ -15,8 +15,9 @@
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
 							<a href="#"><%= __('commission.junket') %></a>
 							<a href="/commission"><%= __('commission.commission') %></a>
-							<a href="/commission_analytics">Analytics</a>
 							<a href="/additional_commission" class="active">Additional</a>
+							<a href="/commission_analytics">Analytics</a>
+							
 						</div>
 					</h3>
 				</div>
@@ -29,6 +30,7 @@
 </div>
 
 <%- include('../partials/additional_commission_form_modal') %>
+<%- include('../partials/additional_commission_receipt_modal') %>
 
 <%- include('../partials/footer') %>
 <script src="/assets/js/functions/additional_commission.js"></script>

@@ -219,6 +219,17 @@
       return '';
     }
 
+    function buildActionButtons(row) {
+      const id = escapeHtml(row.IDNo);
+      return `
+        <div class="additional-commission-action-btns">
+          <button type="button" class="btn btn-sm btn-alt-secondary btn-receipt-additional-commission" data-id="${id}" title="Receipt"><i class="fa fa-receipt"></i></button>
+          <button type="button" class="btn btn-sm btn-alt-primary btn-edit-additional-commission" data-id="${id}" title="Edit"><i class="fa fa-pencil-alt"></i></button>
+          <button type="button" class="btn btn-sm btn-alt-danger btn-delete-additional-commission" data-id="${id}" title="Delete"><i class="fa fa-trash-alt"></i></button>
+        </div>
+      `;
+    }
+
     function formatRowAmount(row) {
       const amount = Number(row.AMOUNT) || 0;
       if (!amount) return '';
@@ -298,7 +309,7 @@
 
         const indicator = th.querySelector('.sort-indicator');
         if (indicator) {
-          indicator.textContent = active ? (sortState.sortDir === 'asc' ? '▲' : '▼') : '-';
+          indicator.textContent = active ? (sortState.sortDir === 'asc' ? '▲' : '▼') : '';
         }
       });
     }
@@ -531,24 +542,16 @@
                 return escapeHtml(typeLabel);
               }
             },
-            { data: null, className: 'col-remarks', render: (data, type, row) => escapeHtml(row.REMARKS || '') }
-            // Action column (temporarily hidden)
-            // ,{
-            //   data: null,
-            //   className: 'text-center text-nowrap',
-            //   orderable: false,
-            //   render: (data, type, row) => {
-            //     if (type !== 'display') return '';
-            //     return `
-            //       <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
-            //         <i class="fa fa-pencil-alt"></i>
-            //       </button>
-            //       <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
-            //         <i class="fa fa-trash"></i>
-            //       </button>
-            //     `;
-            //   }
-            // }
+            { data: null, className: 'col-remarks', render: (data, type, row) => escapeHtml(row.REMARKS || '') },
+            {
+              data: null,
+              className: 'text-center text-nowrap',
+              orderable: false,
+              render: (data, type, row) => {
+                if (type !== 'display') return '';
+                return buildActionButtons(row);
+              }
+            }
           ],
           data: [],
           footerCallback: function () {
@@ -572,7 +575,7 @@
         if (dataTable) {
           dataTable.clear().draw(false);
         } else {
-          tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No additional commission records found.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No additional commission records found.</td></tr>';
           updateAdditionalCommissionTableTotal(null);
         }
         syncSortHeaders();
@@ -598,16 +601,7 @@
             <td class="text-end ${amountClass}">${formatRowAmount(row)}</td>
             <td>${escapeHtml(typeLabel)}</td>
             <td>${escapeHtml(row.REMARKS)}</td>
-            <!--
-            <td class="text-center text-nowrap">
-              <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Edit">
-                <i class="fa fa-pencil-alt"></i>
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-danger btn-delete-additional-commission" data-id="${escapeHtml(row.IDNo)}" title="Delete">
-                <i class="fa fa-trash"></i>
-              </button>
-            </td>
-            -->
+            <td class="text-center text-nowrap">${buildActionButtons(row)}</td>
           </tr>
         `;
         }).join('');
@@ -633,7 +627,7 @@
         .then(renderRows)
         .catch((error) => {
           console.error(error);
-          tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load records.</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load records.</td></tr>';
         });
     }
 
@@ -793,6 +787,181 @@
       }
     }
 
+    let receiptHtml2CanvasPromise = null;
+    function loadReceiptHtml2Canvas() {
+      if (typeof html2canvas !== 'undefined') return Promise.resolve();
+      if (receiptHtml2CanvasPromise) return receiptHtml2CanvasPromise;
+      receiptHtml2CanvasPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => {
+          receiptHtml2CanvasPromise = null;
+          reject(new Error('Failed to load image copy library.'));
+        };
+        document.body.appendChild(script);
+      });
+      return receiptHtml2CanvasPromise;
+    }
+
+    function receiptHasValue(value) {
+      if (value == null) return false;
+      if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+      const s = String(value).trim();
+      return s !== '' && s !== '-' && s !== '—';
+    }
+
+    function receiptTextRow(label, value) {
+      if (!receiptHasValue(value)) return '';
+      return `<tr><td class="acr-label">${escapeHtml(label)}</td><td class="acr-value">${escapeHtml(String(value))}</td></tr>`;
+    }
+
+    function receiptAmountRow(label, value) {
+      const num = Math.abs(Number(value) || 0);
+      const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      const display = num ? `(${formatted})` : '0';
+      return `<tr class="acr-total-row"><td class="acr-label acr-total-label">${escapeHtml(label)}</td><td class="acr-value acr-amount-value">${display}</td></tr>`;
+    }
+
+    function buildAdditionalCommissionReceiptHtml(row) {
+      const typeLabel = getTypeLabel(getRowType(row));
+      const account = String(row && row.account != null ? row.account : '').trim();
+      const name = String(row && row.name != null ? row.name : '').trim();
+      const amountLabel = (typeLabel || 'Amount').toUpperCase().replace(/-/g, '');
+      const rows =
+        receiptTextRow('PROGRAM DATE', formatProgramDate(row)) +
+        receiptTextRow('ACCOUNT', account) +
+        receiptTextRow('NAME', name) +
+        receiptAmountRow(amountLabel, row.AMOUNT) +
+        receiptTextRow('REMARKS', row.REMARKS);
+
+      return `
+        <div class="additional-commission-receipt-slip">
+          <div class="additional-commission-receipt-slip-body">
+            <p class="acr-brand">GOLDEN DRAGON</p>
+            <p class="acr-title">* Additional Settlement *</p>
+            <p class="acr-datetime">${escapeHtml(formatDateTime(row.ENCODED_DT))}</p>
+            <table class="acr-table"><tbody>${rows}</tbody></table>
+          </div>
+          <div class="additional-commission-receipt-slip-actions">
+            <button type="button" class="btn additional-commission-receipt-copy-btn js-copy-additional-commission-receipt-image">Copy image</button>
+            <button type="button" class="btn additional-commission-receipt-copy-btn js-copy-additional-commission-receipt-text">Copy text</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function showAdditionalCommissionReceipt(recordId) {
+      const row = records.find((item) => String(item.IDNo) === String(recordId));
+      if (!row) {
+        if (typeof Swal !== 'undefined') Swal.fire('Error', 'Record not found.', 'error');
+        return;
+      }
+      const modalEl = document.getElementById('modal-additional-commission-receipt');
+      const container = document.getElementById('additional-commission-receipt-container');
+      if (!modalEl || !container) return;
+      container.innerHTML = buildAdditionalCommissionReceiptHtml(row);
+      if (window.jQuery) window.jQuery(modalEl).appendTo('body');
+      if (dashListModalEl) modalEl.style.zIndex = '1065';
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function receiptCopyUi(btn) {
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+      return {
+        success(message) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'success', title: 'Copied!', text: message, timer: 1800, showConfirmButton: false });
+          }
+        },
+        error(message) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Copy failed', text: message });
+          }
+        },
+        restore() {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      };
+    }
+
+    function copyAdditionalCommissionReceiptImage(btn) {
+      const slip = btn.closest('.additional-commission-receipt-slip');
+      const slipBody = slip ? slip.querySelector('.additional-commission-receipt-slip-body') : null;
+      if (!slipBody) return;
+      const ui = receiptCopyUi(btn);
+      const blobPromise = loadReceiptHtml2Canvas()
+        .then(() => html2canvas(slipBody, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false }))
+        .then((canvas) => new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Failed to create receipt image.'));
+          }, 'image/png');
+        }));
+
+      if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
+          .then(() => ui.success('Receipt image copied. You can paste it anywhere.'))
+          .catch((err) => ui.error((err && err.message) || 'Unable to copy receipt image.'))
+          .finally(() => ui.restore());
+      } else {
+        blobPromise
+          .then((blob) => {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'additional-commission-receipt.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            ui.success('Receipt image downloaded.');
+          })
+          .catch((err) => ui.error((err && err.message) || 'Unable to copy receipt image.'))
+          .finally(() => ui.restore());
+      }
+    }
+
+    function copyAdditionalCommissionReceiptText(btn) {
+      const slip = btn.closest('.additional-commission-receipt-slip');
+      const slipBody = slip ? slip.querySelector('.additional-commission-receipt-slip-body') : null;
+      const text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+      const ui = receiptCopyUi(btn);
+      if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        ui.error('Clipboard is not supported in this browser.');
+        ui.restore();
+        return;
+      }
+      navigator.clipboard.writeText(text)
+        .then(() => ui.success('Receipt text copied. You can paste it anywhere.'))
+        .catch((err) => ui.error((err && err.message) || 'Unable to copy receipt text.'))
+        .finally(() => ui.restore());
+    }
+
+    const receiptModalEl = document.getElementById('modal-additional-commission-receipt');
+    if (receiptModalEl) {
+      receiptModalEl.addEventListener('shown.bs.modal', function () {
+        document.body.classList.add('additional-commission-receipt-open');
+        loadReceiptHtml2Canvas().catch(() => {});
+      });
+      receiptModalEl.addEventListener('hidden.bs.modal', function () {
+        document.body.classList.remove('additional-commission-receipt-open');
+      });
+    }
+
+    document.addEventListener('click', function (event) {
+      const imageBtn = event.target.closest('.js-copy-additional-commission-receipt-image');
+      if (imageBtn) {
+        copyAdditionalCommissionReceiptImage(imageBtn);
+        return;
+      }
+      const textBtn = event.target.closest('.js-copy-additional-commission-receipt-text');
+      if (textBtn) {
+        copyAdditionalCommissionReceiptText(textBtn);
+      }
+    });
+
     window.loadAdditionalCommissionData = loadAdditionalCommissionData;
 
     // Enable DataTables UI (search + show entries).
@@ -846,8 +1015,14 @@
     }
 
     tableBody.addEventListener('click', function (event) {
+      const receiptBtn = event.target.closest('.btn-receipt-additional-commission');
       const editBtn = event.target.closest('.btn-edit-additional-commission');
       const deleteBtn = event.target.closest('.btn-delete-additional-commission');
+
+      if (receiptBtn) {
+        showAdditionalCommissionReceipt(receiptBtn.dataset.id);
+        return;
+      }
 
       if (editBtn) {
         openEditAdditionalCommissionModal(editBtn.dataset.id);

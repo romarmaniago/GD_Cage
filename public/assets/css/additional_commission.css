@@ -104,39 +104,42 @@
   color: var(--gd-marker-gold-text);
 }
 
+/* Columns 1-6 share the leftover width evenly, then grow with content.
+   Action (7) stays a fixed narrow column. */
+#additional-commission-tbl thead th:nth-child(1),
+#additional-commission-tbl thead th:nth-child(2),
+#additional-commission-tbl thead th:nth-child(3),
+#additional-commission-tbl thead th:nth-child(4),
+#additional-commission-tbl thead th:nth-child(5),
+#additional-commission-tbl thead th:nth-child(6) {
+  width: 16%;
+}
+
 #additional-commission-tbl thead th:nth-child(2),
 #additional-commission-tbl thead th:nth-child(3) {
   text-align: left;
-  padding-left: 20px;
+  padding-left: 12px;
 }
 
-#additional-commission-tbl thead th:nth-child(1),
-#additional-commission-tbl thead th:nth-child(2) {
-  width: 9rem;
+#additional-commission-tbl thead th:nth-child(1) {
   white-space: nowrap;
-}
-
-#additional-commission-tbl thead th:nth-child(3) {
-  width: 12rem;
-  max-width: 14rem;
 }
 
 #additional-commission-tbl thead th:nth-child(4) {
   text-align: right;
   padding-right: 20px;
-  width: 7rem;
   white-space: nowrap;
 }
 
 #additional-commission-tbl thead th:nth-child(5) {
   text-align: center;
-  width: 6.5rem;
   white-space: nowrap;
 }
 
-#additional-commission-tbl thead th:nth-child(6) {
-  width: 30%;
-  min-width: 12rem;
+#additional-commission-tbl thead th:nth-child(7) {
+  text-align: center;
+  width: 7.25rem;
+  white-space: nowrap;
 }
 
 #additional-commission-tbl tbody tr {
@@ -333,19 +336,30 @@
   vertical-align: middle;
 }
 
+#additional-commission-tbl tbody td:nth-child(1),
+#additional-commission-tbl tbody td:nth-child(2),
+#additional-commission-tbl tbody td:nth-child(3),
+#additional-commission-tbl tbody td:nth-child(4),
+#additional-commission-tbl tbody td:nth-child(5),
+#additional-commission-tbl tbody td:nth-child(6) {
+  width: 16%;
+}
+
 #additional-commission-tbl tbody td:nth-child(2),
 #additional-commission-tbl tbody td:nth-child(3) {
   text-align: left;
-  padding-left: 20px;
+  padding-left: 12px;
 }
 
-#additional-commission-tbl tbody td:nth-child(1),
-#additional-commission-tbl tbody td:nth-child(2) {
+#additional-commission-tbl tbody td:nth-child(1) {
   white-space: nowrap;
 }
 
+#additional-commission-tbl tbody td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
 #additional-commission-tbl tbody td:nth-child(3) {
-  max-width: 14rem;
   overflow-wrap: anywhere;
 }
 
@@ -361,9 +375,27 @@
 }
 
 #additional-commission-tbl tbody td:nth-child(6) {
-  width: 30%;
-  min-width: 12rem;
   overflow-wrap: anywhere;
+}
+
+#additional-commission-tbl thead th:nth-child(7),
+#additional-commission-tbl tbody td:nth-child(7) {
+  width: 7.25rem;
+  white-space: nowrap;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+#additional-commission-tbl tbody td:nth-child(7) .additional-commission-action-btns {
+  display: inline-flex;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+#additional-commission-tbl tbody td:nth-child(7) .btn {
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
 }
 
 #additional-commission-tbl tbody tr:nth-child(even) td {
@@ -410,6 +442,42 @@
 
 .swal2-container {
   z-index: 1080 !important;
+}
+
+/* Keeps the table inside its card when the viewport is narrow or the page is
+   zoomed in — the wrapper can still scroll horizontally as a last resort. */
+.additional-commission-panel-body .marker-balance-dt-wrap,
+.additional-commission-panel-body .table-responsive {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 1280px) {
+  #additional-commission-tbl {
+    font-size: 12px;
+  }
+
+  #additional-commission-tbl th,
+  #additional-commission-tbl td {
+    padding: 9px 8px;
+  }
+
+  #additional-commission-tbl thead th:nth-child(2),
+  #additional-commission-tbl thead th:nth-child(3),
+  #additional-commission-tbl tbody td:nth-child(2),
+  #additional-commission-tbl tbody td:nth-child(3) {
+    padding-left: 8px;
+  }
+
+  #additional-commission-tbl thead th:nth-child(4),
+  #additional-commission-tbl tbody td:nth-child(4) {
+    padding-right: 8px;
+  }
+
+  #additional-commission-tbl thead th:nth-child(7),
+  #additional-commission-tbl tbody td:nth-child(7) {
+    width: 6.5rem;
+  }
 }
 
 @media (max-width: 768px) {
