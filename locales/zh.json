@@ -227,6 +227,10 @@
 		"settlement_exceeds_balance": "tip.settlement_exceeds_balance",
 		"settlement_confirm": "tip.settlement_confirm",
 		"settlement_confirm_text": "tip.settlement_confirm_text",
+		"receipt": "收据",
+		"receipt_load_error": "无法加载收据。",
+		"yes": "是",
+		"cancel": "取消",
 		"settlement_saved": "tip.settlement_saved",
 		"settlement_missing_status": "tip.settlement_missing_status",
 		"settlement_missing_name": "tip.settlement_missing_name",
@@ -239,7 +243,11 @@
 		"in_saved": "tip.in_saved",
 		"guest_optional": "tip.guest_optional",
 		"choose_guest_optional": "tip.choose_guest_optional",
-		"choose_guest": "tip.choose_guest"
+		"choose_guest": "tip.choose_guest",
+		"receipt": "tip.receipt",
+		"yes": "tip.yes",
+		"cancel": "tip.cancel",
+		"receipt_load_error": "tip.receipt_load_error"
 	},
 	"footer": {
 		"privacy_policy": "隐私政策",

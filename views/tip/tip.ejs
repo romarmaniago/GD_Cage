@@ -87,6 +87,8 @@
 
                 <th colspan="4" class="tip-group-head tip-group-head-dealer"><%= __('tip.dealer') %></th>
 
+                <th rowspan="2" class="tip-action-col-head"><%= __('tip.action') %></th>
+
               </tr>
 
               <tr>
@@ -128,6 +130,7 @@
                 <th></th>
                 <th></th>
                 <th></th>
+                <th></th>
               </tr>
             </tfoot>
           </table>
@@ -147,6 +150,7 @@
 
 <%- include('../modals/tip/tip_in') %>
 <%- include('../modals/tip/tip_settlement') %>
+<%- include('../modals/tip/tip_receipt') %>
 
 <%- include ('../partials/permission_view_only_script') %>
 
@@ -159,7 +163,20 @@
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
   missingProgramDate: __('tip.missing_program_date'),
-  saved: __('tip.in_saved')
+  saved: __('tip.in_saved'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record')
+}) %></script>
+<script type="application/json" id="tip-actions-i18n"><%- JSON.stringify({
+  deleteConfirm: __('tip.delete_confirm'),
+  deleteConfirmText: __('tip.delete_confirm_text'),
+  deleted: __('tip.deleted'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record'),
+  receiptTitle: __('tip.receipt'),
+  yes: __('tip.yes') || 'Yes',
+  cancel: __('tip.cancel') || 'Cancel',
+  loadReceiptError: __('tip.receipt_load_error') || 'Unable to load receipt.'
 }) %></script>
 <script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
   invalidAmount: __('tip.settlement_invalid_amount'),
@@ -167,7 +184,9 @@
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
   missingProgramDate: __('tip.missing_program_date'),
-  saved: __('tip.settlement_saved')
+  saved: __('tip.settlement_saved'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record')
 }) %></script>
 <script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
 <script src="/assets/js/functions/tip.js"></script>
@@ -390,6 +409,42 @@
     background: #f5f5f5 !important;
   }
 
+  /* Roller vs Dealer group tinting — subtle, still on the cream/gold theme */
+  #tip-tbl thead .tip-group-head-roller,
+  #tip-tbl thead th.tip-col-roller {
+    background: #efe6d2 !important;   /* warm gold-cream */
+    color: #8a6c27 !important;
+  }
+  #tip-tbl thead .tip-group-head-roller {
+    border-bottom: 2px solid rgba(198, 158, 74, 0.55);
+  }
+
+  #tip-tbl thead .tip-group-head-dealer,
+  #tip-tbl thead th.tip-col-dealer {
+    background: #e2e7da !important;   /* soft sage */
+    color: #5b6a48 !important;
+  }
+  #tip-tbl thead .tip-group-head-dealer {
+    border-bottom: 2px solid rgba(118, 133, 88, 0.55);
+  }
+
+  /* Body cells: translucent overlay so the row striping/hover still shows through */
+  #tip-tbl tbody td.tip-col-roller {
+    background-image: linear-gradient(rgba(198, 158, 74, 0.15), rgba(198, 158, 74, 0.15));
+  }
+  #tip-tbl tbody td.tip-col-dealer {
+    background-image: linear-gradient(rgba(118, 133, 88, 0.15), rgba(118, 133, 88, 0.15));
+  }
+
+  #tip-tbl tfoot th:nth-child(n+7):nth-child(-n+10) {
+    background: #efe6d2 !important;
+    color: #8a6c27 !important;
+  }
+  #tip-tbl tfoot th:nth-child(n+11):nth-child(-n+14) {
+    background: #e2e7da !important;
+    color: #5b6a48 !important;
+  }
+
   #tip-tbl tbody tr:nth-child(even) td {
     background-color: #f4f1ea !important;
   }
@@ -466,6 +521,24 @@
   #tip-tbl tfoot .tip-amount-negative {
     color: #dc3545;
     font-weight: 600;
+  }
+
+  #tip-tbl thead th.tip-action-col-head,
+  #tip-tbl tbody td.tip-action-col,
+  #tip-tbl tfoot th:last-child {
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  #tip-tbl td.tip-action-col .tip-action-btns {
+    display: inline-flex;
+    gap: 0.25rem;
+    justify-content: center;
+  }
+
+  #tip-tbl td.tip-action-col .btn {
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
   }
 
   .dataTables_length label {

@@ -340,6 +340,7 @@ router.get('/tip_data', checkSession, async (req, res) => {
 					ENCODED_DT: row.ENCODED_DT,
 					PROGRAM_DATE: formatProgramDateValue(row.PROGRAM_DATE),
 					GAME_NO: row.GAME_NO,
+					GAME_ID: row.GAME_ID != null ? row.GAME_ID : null,
 					ACCOUNT_DISPLAY: formatAccountDisplay(row.AGENT_CODE, row.AGENT_NAME),
 					GUEST_NAME: row.GUEST_NAME || '-',
 					roller: null,
@@ -354,7 +355,9 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				amount: parseFloat(row.AMOUNT) || 0,
 				status: formatTipStatus(row),
 				name: formatTipPersonName(row),
-				remarksRaw: remarksEditValue(row.REMARKS)
+				remarksRaw: remarksEditValue(row.REMARKS),
+				accountId: row.ACCOUNT_ID != null ? row.ACCOUNT_ID : null,
+				guestId: row.GUEST_ID != null ? row.GUEST_ID : null
 			};
 			if (Number(row.TIP_TYPE) === TIP_TYPE.ROLLER) {
 				group.roller = part;
@@ -385,8 +388,11 @@ router.get('/tip_data', checkSession, async (req, res) => {
 
 		const data = [];
 		groups.forEach(function (group) {
-			const rollerSide = buildTipSide(group.roller, 'Roller Tip', group.dealer);
-			const dealerSide = buildTipSide(group.dealer, 'Dealer Tip', group.roller);
+			// Game-linked tips keep the "Roller Tip" / "Dealer Tip" label; manually
+			// encoded tip-in entries are shown as "IN".
+			const fromGame = group.GAME_ID != null;
+			const rollerSide = buildTipSide(group.roller, fromGame ? 'Roller Tip' : 'IN', group.dealer);
+			const dealerSide = buildTipSide(group.dealer, fromGame ? 'Dealer Tip' : '', group.roller);
 			const rowRemarksRaw = (group.roller && group.roller.remarksRaw) ||
 				(group.dealer && group.dealer.remarksRaw) ||
 				'';
@@ -414,7 +420,16 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				REMARKS_SOURCE: remarksRecordId ? 'tip' : null,
 				REMARKS_RECORD_ID: remarksRecordId,
 				SORT_ID: group.sortId,
-				ROW_KIND: 'tip'
+				ROW_KIND: 'tip',
+				EDIT_ID: group.rollerTipId || group.dealerTipId || null,
+				CAN_EDIT: !!(group.roller && group.GAME_ID == null),
+				EDIT_AMOUNT: group.roller ? group.roller.amount : 0,
+				EDIT_ACCOUNT_ID: group.roller ? group.roller.accountId : null,
+				EDIT_GUEST_ID: group.roller ? group.roller.guestId : null,
+				EDIT_STATUS: group.roller ? group.roller.status : '',
+				EDIT_NAME: group.roller ? group.roller.name : '',
+				EDIT_REMARKS: (group.roller && group.roller.remarksRaw) || '',
+				EDIT_PROGRAM_DATE: group.PROGRAM_DATE
 			});
 		});
 
@@ -442,7 +457,14 @@ router.get('/tip_data', checkSession, async (req, res) => {
 				REMARKS_SOURCE: 'tip_settlement',
 				REMARKS_RECORD_ID: row.IDNo,
 				SORT_ID: 'TS-' + row.IDNo,
-				ROW_KIND: 'tip_settlement'
+				ROW_KIND: 'tip_settlement',
+				EDIT_ID: row.IDNo,
+				CAN_EDIT: true,
+				EDIT_AMOUNT: amount,
+				EDIT_STATUS: (row.TIP_STATUS && String(row.TIP_STATUS).trim()) || tipStatus,
+				EDIT_NAME: (row.ROLLER_NAME && String(row.ROLLER_NAME).trim()) || personName,
+				EDIT_REMARKS: remarksEditValue(row.REMARKS),
+				EDIT_PROGRAM_DATE: formatProgramDateValue(row.PROGRAM_DATE)
 			});
 		});
 
@@ -730,10 +752,327 @@ router.put('/tip/remove/:id', checkSession, async (req, res) => {
 			[userId, dateNow, id]
 		);
 
-		res.json({ message: 'Deleted successfully' });
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({ message: 'Deleted successfully', availableBalance: updatedBalance.available });
 	} catch (err) {
 		console.error('tip remove:', err);
 		res.status(500).json({ message: 'Failed to delete tip' });
+	}
+});
+
+// Edit a manually-encoded roller tip-in entry (not game-linked).
+router.put('/tip_in/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const amount = parseAmount(req.body.txtAmount);
+		const accountId = parseAccountId(req.body.txtAccountId);
+		const guestId = parseGuestId(req.body.txtGuestId);
+		const tipStatus = parseTipStatus(req.body.txtTipStatus);
+		const rollerName = parseRollerName(req.body.txtRollerName);
+		const remarks = parseRemarks(req.body.txtRemarks);
+		const programDate = parseProgramDate(req.body.txtProgramDate);
+		const userId = req.session.user_id || null;
+		const dateNow = new Date();
+
+		if (!id) {
+			return res.status(400).json({ message: 'Invalid ID' });
+		}
+		if (Number.isNaN(amount)) {
+			return res.status(400).json({ message: 'Enter a valid amount greater than zero.' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ message: 'Please select a program date.' });
+		}
+		if (!tipStatus) {
+			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
+		}
+		if (!rollerName) {
+			return res.status(400).json({ message: 'Please enter the name.' });
+		}
+
+		const [existingRows] = await pool.execute(
+			`SELECT IDNo, GAME_ID FROM tip WHERE IDNo = ? AND ACTIVE = 1 AND TIP_TYPE = ? LIMIT 1`,
+			[id, TIP_TYPE.ROLLER]
+		);
+		if (!existingRows || !existingRows.length) {
+			return res.status(404).json({ message: 'Record not found' });
+		}
+		if (existingRows[0].GAME_ID != null) {
+			return res.status(400).json({ message: 'Game-linked tips cannot be edited here.' });
+		}
+
+		let account = null;
+		if (accountId) {
+			account = await validateActiveAccount(accountId);
+			if (!account) {
+				return res.status(400).json({ message: 'Invalid or inactive account.' });
+			}
+		}
+
+		let guest = null;
+		if (guestId) {
+			guest = await validateActiveGuest(guestId);
+			if (!guest) {
+				return res.status(400).json({ message: 'Invalid or inactive guest.' });
+			}
+		}
+
+		if (account && guest && parseInt(account.AGENT_ID, 10) !== parseInt(guest.AGENT_ID, 10)) {
+			return res.status(400).json({ message: 'Selected guest does not belong to the selected account.' });
+		}
+
+		await pool.execute(
+			`UPDATE tip
+			 SET AMOUNT = ?, ACCOUNT_ID = ?, GUEST_ID = ?, PROGRAM_DATE = ?, REMARKS = ?,
+			     ROLLER_NAME = ?, TIP_STATUS = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[amount, accountId, guestId, programDate, remarks, rollerName, tipStatus, userId, dateNow, id]
+		);
+
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({ message: 'Updated successfully.', availableBalance: updatedBalance.available });
+	} catch (err) {
+		console.error('tip_in update:', err);
+		res.status(500).json({ message: 'Failed to update roller tip.' });
+	}
+});
+
+// Edit a tip settlement (roller tip payout) entry.
+router.put('/tip_settlement/:id', checkSession, async (req, res) => {
+	const connection = await pool.getConnection();
+	let released = false;
+	const release = () => {
+		if (!released) {
+			released = true;
+			connection.release();
+		}
+	};
+	try {
+		const id = parseInt(req.params.id, 10);
+		const amount = parseAmount(req.body.txtAmount);
+		const remarks = parseRemarks(req.body.txtRemarks);
+		const tipStatus = parseTipStatus(req.body.txtTipStatus);
+		const rollerName = parseRollerName(req.body.txtRollerName);
+		const programDate = parseProgramDate(req.body.txtProgramDate);
+		const userId = req.session.user_id || null;
+		const dateNow = new Date();
+
+		if (!id) {
+			return res.status(400).json({ message: 'Invalid ID' });
+		}
+		if (Number.isNaN(amount)) {
+			return res.status(400).json({ message: 'Enter a valid settlement amount greater than zero.' });
+		}
+		if (!programDate) {
+			return res.status(400).json({ message: 'Please select a program date.' });
+		}
+		if (!tipStatus) {
+			return res.status(400).json({ message: 'Please enter the tip status (Roller or GM).' });
+		}
+		if (!rollerName) {
+			return res.status(400).json({ message: 'Please enter the name.' });
+		}
+
+		await connection.beginTransaction();
+
+		const [existingRows] = await connection.execute(
+			`SELECT IDNo, AMOUNT FROM tip_settlement WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1`,
+			[id]
+		);
+		if (!existingRows || !existingRows.length) {
+			await connection.rollback();
+			return res.status(404).json({ message: 'Record not found' });
+		}
+
+		const currentAmount = parseFloat(existingRows[0].AMOUNT) || 0;
+		const balance = await getRollerTipAvailableBalance(connection);
+		const allowed = balance.available + currentAmount;
+		if (amount > allowed) {
+			await connection.rollback();
+			return res.status(400).json({
+				message: 'Settlement amount cannot exceed available roller tip balance.'
+			});
+		}
+
+		await connection.execute(
+			`UPDATE tip_settlement
+			 SET AMOUNT = ?, PROGRAM_DATE = ?, REMARKS = ?, ROLLER_NAME = ?, TIP_STATUS = ?,
+			     EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[amount, programDate, remarks, rollerName, tipStatus, userId, dateNow, id]
+		);
+
+		await connection.commit();
+
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({ message: 'Updated successfully.', availableBalance: updatedBalance.available });
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('tip_settlement update rollback:', rbErr);
+		}
+		console.error('tip_settlement update:', err);
+		res.status(500).json({ message: 'Failed to update tip settlement.' });
+	} finally {
+		release();
+	}
+});
+
+// Soft-delete a tip settlement entry.
+router.put('/tip_settlement/remove/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		const dateNow = new Date();
+		const userId = req.session.user_id || null;
+
+		if (!id) return res.status(400).json({ message: 'Invalid ID' });
+
+		const [rows] = await pool.execute(
+			`SELECT IDNo FROM tip_settlement WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1`,
+			[id]
+		);
+		if (!rows || !rows.length) {
+			return res.status(404).json({ message: 'Record not found' });
+		}
+
+		await pool.execute(
+			`UPDATE tip_settlement SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[userId, dateNow, id]
+		);
+
+		const updatedBalance = await getRollerTipAvailableBalance(pool);
+		res.json({ message: 'Deleted successfully', availableBalance: updatedBalance.available });
+	} catch (err) {
+		console.error('tip_settlement remove:', err);
+		res.status(500).json({ message: 'Failed to delete tip settlement.' });
+	}
+});
+
+// Receipt slip data for a tip entry.
+router.get('/tip/:id/receipt', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+		const [rows] = await pool.execute(
+			`SELECT
+				t.IDNo,
+				t.AMOUNT,
+				t.GAME_ID,
+				t.ACCOUNT_ID,
+				t.TIP_TYPE,
+				t.PROGRAM_DATE,
+				t.ENCODED_DT,
+				t.ROLLER_NAME,
+				t.TIP_STATUS,
+				t.REMARKS,
+				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(t.GAME_ID AS CHAR)) AS GAME_NO,
+				ag.AGENT_CODE,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(NULLIF(TRIM(g_direct.NAME), ''), NULLIF(TRIM(g.NAME), '')) AS GUEST_NAME
+			 FROM tip t
+			 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
+			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
+			 LEFT JOIN guest g_direct ON g_direct.IDNo = t.GUEST_ID
+			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
+			 LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE t.IDNo = ? AND t.ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!rows || !rows.length) {
+			return res.status(404).json({ error: 'Record not found' });
+		}
+
+		const row = rows[0];
+		const base = {
+			title: '* Tip *',
+			created_dt: row.ENCODED_DT,
+			program_date: formatProgramDateValue(row.PROGRAM_DATE),
+			account: row.AGENT_CODE || null,
+			name: row.AGENT_NAME || null,
+			guest: row.GUEST_NAME || null,
+			game_no: row.GAME_NO || null,
+			remarks: row.REMARKS || null
+		};
+
+		// Game-linked tips: show both Roller and Dealer amounts, no single AMOUNT line.
+		if (row.GAME_ID != null) {
+			const [siblings] = await pool.execute(
+				`SELECT TIP_TYPE, AMOUNT, TIP_STATUS
+				 FROM tip
+				 WHERE ACTIVE = 1 AND GAME_ID = ? AND ENCODED_DT = ?
+				   AND (ACCOUNT_ID <=> ?)`,
+				[row.GAME_ID, row.ENCODED_DT, row.ACCOUNT_ID]
+			);
+			let rollerAmount = 0;
+			let dealerAmount = 0;
+			(siblings || []).forEach((s) => {
+				const amt = parseFloat(s.AMOUNT) || 0;
+				if (Number(s.TIP_TYPE) === TIP_TYPE.ROLLER) rollerAmount += amt;
+				else if (Number(s.TIP_TYPE) === TIP_TYPE.DEALER) dealerAmount += amt;
+			});
+			return res.json(Object.assign(base, {
+				from_game: true,
+				category: 'Game Tip',
+				roller_amount: rollerAmount,
+				dealer_amount: dealerAmount
+			}));
+		}
+
+		res.json(Object.assign(base, {
+			category: tipTypeLabel(row.TIP_TYPE) + ' Tip',
+			status: row.TIP_STATUS || null,
+			person_name: row.ROLLER_NAME || null,
+			amount: parseFloat(row.AMOUNT) || 0
+		}));
+	} catch (err) {
+		console.error('tip receipt:', err);
+		res.status(500).json({ error: 'Unable to load tip receipt.' });
+	}
+});
+
+// Receipt slip data for a tip settlement entry.
+router.get('/tip_settlement/:id/receipt', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!id) return res.status(400).json({ error: 'Invalid ID' });
+
+		const [rows] = await pool.execute(
+			`SELECT
+				ts.IDNo,
+				ts.AMOUNT,
+				ts.SETTLEMENT_DATETIME,
+				ts.PROGRAM_DATE,
+				ts.ENCODED_DT,
+				ts.ROLLER_NAME,
+				ts.TIP_STATUS,
+				ts.REMARKS
+			 FROM tip_settlement ts
+			 WHERE ts.IDNo = ? AND ts.ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!rows || !rows.length) {
+			return res.status(404).json({ error: 'Record not found' });
+		}
+
+		const row = rows[0];
+		res.json({
+			title: '* Tip Settlement *',
+			category: 'Roller Tip Payout',
+			is_settlement: true,
+			created_dt: row.ENCODED_DT || row.SETTLEMENT_DATETIME,
+			program_date: formatProgramDateValue(row.PROGRAM_DATE),
+			amount: parseFloat(row.AMOUNT) || 0,
+			status: row.TIP_STATUS || 'GM',
+			name: row.ROLLER_NAME || null,
+			remarks: row.REMARKS || null
+		});
+	} catch (err) {
+		console.error('tip_settlement receipt:', err);
+		res.status(500).json({ error: 'Unable to load settlement receipt.' });
 	}
 });
 

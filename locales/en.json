@@ -1650,6 +1650,10 @@
 		"settlement_missing_status": "Please enter the tip status (Roller or GM).",
 		"settlement_missing_name": "Please enter the name.",
 		"settlement_confirm": "Settle roller tips?",
-		"settlement_confirm_text": "This will record a roller tip settlement of"
+		"settlement_confirm_text": "This will record a roller tip settlement of",
+		"receipt": "Receipt",
+		"receipt_load_error": "Unable to load receipt.",
+		"yes": "Yes",
+		"cancel": "Cancel"
 	}
 }
