@@ -1469,6 +1469,7 @@
 		"transfer_account": "계정",
 		"print": "인쇄",
 		"export": "내보내기",
+		"select_date_range": "날짜 범위 선택",
 		"date": "날짜",
 		"transaction": "트랜잭션",
 		"amount": "금액",

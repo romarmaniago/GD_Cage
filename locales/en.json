@@ -1435,6 +1435,7 @@
 		"transfer_account": "Transfer",
 		"print": "Print",
 		"export": "Export",
+		"select_date_range": "Select date range",
 		"date": "DATE",
 		"transaction": "TRANSACTION",
 		"amount": "AMOUNT",

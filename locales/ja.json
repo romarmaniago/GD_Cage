@@ -1469,6 +1469,7 @@
 		"transfer_account": "アカウント",
 		"print": "印刷",
 		"export": "エクスポート",
+		"select_date_range": "日付範囲を選択",
 		"date": "日付",
 		"transaction": "トランザクション",
 		"amount": "金額",

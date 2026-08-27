@@ -1,5 +1,8 @@
 var account_id;
 var creditDetailsRequestSeq = 0;
+var guestPortalDateRangeStart = null;
+var guestPortalDateRangeEnd = null;
+var guestPortalDateRangeSearchRegistered = false;
 var GUEST_DEFAULT_PROFILE = '/assets/images/guest-default-profile.webp';
 
 function isDefaultGuestPhoto(photo) {
@@ -767,6 +770,64 @@ function applyAccountDetailsTransactionFilter(regex) {
 	table.column(1).search(regex, true, false).draw();
 }
 
+function guestPortalDateToYmd(d) {
+	if (!(d instanceof Date) || isNaN(d.getTime())) return null;
+	var y = d.getFullYear();
+	var m = String(d.getMonth() + 1).padStart(2, '0');
+	var day = String(d.getDate()).padStart(2, '0');
+	return y + '-' + m + '-' + day;
+}
+
+function getGuestPortalDefaultDateRange() {
+	if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+		return window.MonthEndCutoffRange.getMonthEndCutoffRange();
+	}
+	var now = new Date();
+	var startAt = new Date(now.getFullYear(), now.getMonth(), 0);
+	var endAt = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+	endAt.setDate(endAt.getDate() - 1);
+	return {
+		startAt: startAt,
+		endAt: endAt,
+		startDate: guestPortalDateToYmd(startAt),
+		endDate: guestPortalDateToYmd(endAt),
+		defaultDate: [startAt, endAt]
+	};
+}
+
+function syncGuestPortalDateRangeFromDates(startAt, endAt) {
+	guestPortalDateRangeStart = guestPortalDateToYmd(startAt);
+	guestPortalDateRangeEnd = guestPortalDateToYmd(endAt);
+}
+
+function applyGuestPortalDefaultDateRange(redraw) {
+	var range = getGuestPortalDefaultDateRange();
+	syncGuestPortalDateRangeFromDates(range.startAt, range.endAt);
+	var el = document.getElementById('guest-portal-daterange');
+	if (el && el._flatpickr) {
+		el._flatpickr.setDate([range.startAt, range.endAt], false);
+	}
+	if (redraw) {
+		var table = getAccountDetailsDt();
+		if (table) table.draw();
+	}
+}
+
+function clearGuestPortalDateRangeFilter(redraw) {
+	guestPortalDateRangeStart = null;
+	guestPortalDateRangeEnd = null;
+	var el = document.getElementById('guest-portal-daterange');
+	if (el && el._flatpickr) {
+		el._flatpickr.clear();
+	} else if (el) {
+		el.value = '';
+	}
+	if (redraw) {
+		var table = getAccountDetailsDt();
+		if (table) table.draw();
+	}
+}
+
 // Deposit-only filter
 $(document).off('click', '#btn-filter-deposit').on('click', '#btn-filter-deposit', function (e) {
 	e.preventDefault();
@@ -791,6 +852,7 @@ $(document).off('click', '#btn-reset-account-details-filter').on('click', '#btn-
 	if (!table) return;
 	table.search('');
 	table.columns().search('');
+	applyGuestPortalDefaultDateRange(false);
 	table.draw();
 });
 
@@ -1086,6 +1148,9 @@ $('#modal-credit-return').on('hidden.bs.modal', function () {
 });
 
 $('#modal-account-details').on('hidden.bs.modal', function () {
+	salvageGuestPortalPrintExportButtons();
+	salvageGuestPortalDateRangeControl();
+	clearGuestPortalDateRangeFilter(false);
 	setGuestPortalChildModalOpen(false);
 	resetGuestPortalChildModalStack($('#modal-game-history'));
 	resetGuestPortalChildModalStack($('#modal-credit-details'));
@@ -1093,6 +1158,10 @@ $('#modal-account-details').on('hidden.bs.modal', function () {
 	resetGuestPortalChildModalStack($('#modal-change-photo'));
 	resetGuestPortalChildModalStack($('#modal-edit-account-ledger'));
 	resetGuestPortalChildModalStack($('#modal-guest-portal-receipt'));
+});
+
+$('#modal-account-details').on('shown.bs.modal', function () {
+	placeGuestPortalTableControls();
 });
 
 $(document).off('click', '#btn-credit-return').on('click', '#btn-credit-return', function () {
@@ -1473,6 +1542,7 @@ function account_details(account_id_data, agent_code, account_name) {
 		accountDetailsDataTable = getOrInitAccountDetailsDataTable();
 		accountDetailsDataTable.search('');
 		accountDetailsDataTable.columns().search('');
+		applyGuestPortalDefaultDateRange(false);
 		currentAccountDetailsId = account_id_data;
 		reloadDataDetails();
 	} catch (err) {
@@ -1502,7 +1572,7 @@ function isJunketCreditReturnEntry(transaction, transactionDesc) {
 	return trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:CREDIT';
 }
 
-function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
+function formatAccountLedgerTransactionCell(transaction, transactionDesc, serviceType) {
 	const trans = String(transaction || '').trim();
 	const desc = String(transactionDesc || '').trim();
 
@@ -1510,13 +1580,14 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 		return 'Transffered from Junket Funds';
 	}
 	if (isJunketCreditReturnEntry(trans, desc)) {
-		return 'JUNKET CREDIT RETURN THRU DEPOSIT';
+		return 'WITHDRAW - <strong>JUNKET CREDIT RETURN</strong>';
 	}
 	if (trans === 'IOU RETURN DEPOSIT' && desc === 'RETURN_SOURCE:BUYIN') {
-		return 'GAME CREDIT RETURN THRU DEPOSIT';
+		return 'WITHDRAW - <strong>GAME CREDIT RETURN</strong>';
 	}
 	if (isPlainGuestPortalLedgerDesc(desc)) {
-		return `${trans} - ${desc}`;
+		const serviceLabel = String(serviceType || '').trim().toUpperCase();
+		return serviceLabel ? `${trans} - <strong>${serviceLabel}</strong>` : `${trans} - ${desc}`;
 	}
 	return desc ? `${trans} - <strong>${desc}</strong>` : trans;
 }
@@ -1530,9 +1601,9 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc) {
 			const formatted = n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 			return `<span class="text-danger">(${formatted})</span>`;
 		}
-		const isOut = !isPlainGuestPortalLedgerDesc(transactionDesc)
-			&& !isJunketCreditReturnEntry(transaction, transactionDesc)
-			&& (transaction === 'WITHDRAW' || transaction === 'MARKER REDEEM' || transaction === 'IOU RETURN DEPOSIT');
+		const isOut = transaction === 'WITHDRAW'
+			|| transaction === 'MARKER REDEEM'
+			|| transaction === 'IOU RETURN DEPOSIT';
 		if (window.AmountFormat) {
 			if (isOut) return window.AmountFormat.formatAmountNegativeHtml(n);
 			return window.AmountFormat.formatCommas(n);
@@ -1563,10 +1634,8 @@ function isGuestPortalLedgerEditable(row) {
 	var transId = parseInt(row.TRANSACTION_ID, 10);
 	var transType = parseInt(row.TRANSACTION_TYPE, 10);
 	var isManualTransfer = isTransfer && transType === 2 && (transId === 1 || transId === 2) && !desc;
-	var isManualCash = !isTransfer && transType === 2 && (transId === 1 || transId === 2) && desc === 'ACCOUNT DETAILS';
-	var isManualCredit = !isTransfer && transType === 3 && transId === 3 && desc === 'ACCOUNT DETAILS';
-	var isJunketCreditReturn = !isTransfer && transType === 3 && (transId === 11 || transId === 12) && desc === 'RETURN_SOURCE:CREDIT';
-	return isManualTransfer || isManualCash || isManualCredit || isJunketCreditReturn;
+	var isManualDepositOrWithdraw = !isTransfer && transType === 2 && (transId === 1 || transId === 2) && desc === 'ACCOUNT DETAILS';
+	return isManualTransfer || isManualDepositOrWithdraw;
 }
 
 function renderAccountLedgerActionCell(ledgerId, rawAmount, remarks, editable) {
@@ -1687,14 +1756,152 @@ function getOrInitAccountDetailsAltDataTable() {
 	});
 }
 
+function salvageGuestPortalPrintExportButtons() {
+	var $host = $('#modal-account-details #guest-portal-print-export-host');
+	var $btns = $('#modal-account-details #guest-portal-print-export');
+	if (!$host.length || !$btns.length) return;
+	if ($btns.closest('#accountDetails_wrapper').length) {
+		$host.append($btns);
+	}
+}
+
+function salvageGuestPortalDateRangeControl() {
+	var $host = $('#modal-account-details #guest-portal-daterange-host');
+	var $wrap = $('#modal-account-details #guest-portal-daterange-wrap');
+	if (!$host.length || !$wrap.length) return;
+	if ($wrap.closest('#accountDetails_wrapper').length) {
+		$host.append($wrap);
+	}
+}
+
+function ensureGuestPortalPrintExportButtons() {
+	var $host = $('#modal-account-details #guest-portal-print-export-host');
+	var $btns = $('#modal-account-details #guest-portal-print-export');
+	if ($btns.length) return $btns;
+	if (!$host.length) {
+		$host = $('<div id="guest-portal-print-export-host" class="d-none" aria-hidden="true"></div>');
+		$('#modal-account-details #accountDetails').before($host);
+	}
+	$btns = $(
+		'<div id="guest-portal-print-export" class="guest-portal-print-export">' +
+			'<button type="button" class="btn btn-alt-success" id="btn-guest-portal-print">' +
+				'<i class="fa fa-print me-1" aria-hidden="true"></i>Print' +
+			'</button>' +
+			'<button type="button" class="btn btn-success" id="btn-guest-portal-export">' +
+				'<i class="fa fa-file-excel me-1" aria-hidden="true"></i>Export' +
+			'</button>' +
+		'</div>'
+	);
+	$host.append($btns);
+	return $btns;
+}
+
+function ensureGuestPortalDateRangeControl() {
+	var $host = $('#modal-account-details #guest-portal-daterange-host');
+	var $wrap = $('#modal-account-details #guest-portal-daterange-wrap');
+	if ($wrap.length) return $wrap;
+	if (!$host.length) {
+		$host = $('<div id="guest-portal-daterange-host" class="d-none" aria-hidden="true"></div>');
+		$('#modal-account-details #accountDetails').before($host);
+	}
+	$wrap = $(
+		'<div id="guest-portal-daterange-wrap" class="guest-portal-daterange-wrap">' +
+			'<input type="text" id="guest-portal-daterange" class="form-control form-control-sm guest-portal-daterange" ' +
+			'placeholder="Select date range" autocomplete="off" readonly>' +
+		'</div>'
+	);
+	$host.append($wrap);
+	return $wrap;
+}
+
+function registerGuestPortalDateRangeSearch() {
+	if (guestPortalDateRangeSearchRegistered) return;
+	if (!$.fn.dataTable || !$.fn.dataTable.ext || !$.fn.dataTable.ext.search) return;
+	$.fn.dataTable.ext.search.push(function (settings, data) {
+		if (!settings.nTable || settings.nTable.id !== 'accountDetails') return true;
+		if (!guestPortalDateRangeStart || !guestPortalDateRangeEnd) return true;
+		var raw = String(data[0] || '').replace(/<[^>]*>/g, ' ').trim();
+		if (!raw) return false;
+		var rowDay = raw.slice(0, 10);
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(rowDay) && window.moment) {
+			var m = moment.utc(raw);
+			if (!m.isValid()) m = moment(raw);
+			if (m.isValid()) rowDay = m.utcOffset(8).format('YYYY-MM-DD');
+		}
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(rowDay)) return true;
+		return rowDay >= guestPortalDateRangeStart && rowDay <= guestPortalDateRangeEnd;
+	});
+	guestPortalDateRangeSearchRegistered = true;
+}
+
+function initGuestPortalDateRangePicker() {
+	var el = document.getElementById('guest-portal-daterange');
+	if (!el || typeof flatpickr !== 'function') return null;
+	if (el._flatpickr) {
+		if (el._flatpickr.config && el._flatpickr.config.showMonths !== 3) {
+			el._flatpickr.destroy();
+		} else {
+			if (!guestPortalDateRangeStart || !guestPortalDateRangeEnd) {
+				applyGuestPortalDefaultDateRange(false);
+			}
+			return el._flatpickr;
+		}
+	}
+
+	var config = {
+		mode: 'range',
+		showMonths: 3,
+		allowInput: false,
+		onChange: function (selectedDates) {
+			if (selectedDates.length === 2) {
+				syncGuestPortalDateRangeFromDates(selectedDates[0], selectedDates[1]);
+				var table = getAccountDetailsDt();
+				if (table) table.draw();
+				return;
+			}
+			if (selectedDates.length === 0) {
+				guestPortalDateRangeStart = null;
+				guestPortalDateRangeEnd = null;
+				var tableClear = getAccountDetailsDt();
+				if (tableClear) tableClear.draw();
+			}
+		}
+	};
+	var fp = flatpickr(el, config);
+	if (fp && fp.selectedDates && fp.selectedDates.length === 2) {
+		syncGuestPortalDateRangeFromDates(fp.selectedDates[0], fp.selectedDates[1]);
+	} else {
+		applyGuestPortalDefaultDateRange(false);
+	}
+	return fp;
+}
+
+function placeGuestPortalDateRangeControl() {
+	var $length = $('#modal-account-details #accountDetails_wrapper .dataTables_length');
+	if (!$length.length) return;
+	var $wrap = ensureGuestPortalDateRangeControl();
+	if (!$wrap.length) return;
+	if (!$length.find('#guest-portal-daterange-wrap').length) {
+		$length.append($wrap);
+	}
+	initGuestPortalDateRangePicker();
+}
+
 function placeGuestPortalPrintExportButtons() {
 	var $filter = $('#modal-account-details #accountDetails_wrapper .dataTables_filter');
-	var $btns = $('#guest-portal-print-export');
-	if (!$filter.length || !$btns.length) return;
+	if (!$filter.length) return;
+	var $btns = ensureGuestPortalPrintExportButtons();
+	if (!$btns.length) return;
 	$btns.removeClass('d-none');
 	if (!$filter.find('#guest-portal-print-export').length) {
 		$filter.prepend($btns);
 	}
+}
+
+function placeGuestPortalTableControls() {
+	registerGuestPortalDateRangeSearch();
+	placeGuestPortalDateRangeControl();
+	placeGuestPortalPrintExportButtons();
 }
 
 function getOrInitAccountDetailsDataTable() {
@@ -1703,9 +1910,11 @@ function getOrInitAccountDetailsDataTable() {
 	if ($.fn.DataTable.isDataTable($tbl[0])) {
 		var existing = $tbl.DataTable();
 		if (existing.columns().count() === expectedCols) {
-			placeGuestPortalPrintExportButtons();
+			placeGuestPortalTableControls();
 			return existing;
 		}
+		salvageGuestPortalPrintExportButtons();
+		salvageGuestPortalDateRangeControl();
 		existing.destroy();
 		$tbl.find('tbody').empty();
 	}
@@ -1721,7 +1930,7 @@ function getOrInitAccountDetailsDataTable() {
 			}
 		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs()),
 		initComplete: function () {
-			placeGuestPortalPrintExportButtons();
+			placeGuestPortalTableControls();
 		}
 	});
 }
@@ -1818,15 +2027,14 @@ function accountDetailsRemarksColumnDefs(opts) {
 							type: 'GET',
 							data: { transferAgentId: row.TRANSFER_AGENT },
 							success: function (response) {
-								const transferAgentName = response.transfer_agent_name?.trim() || 'Unknown';
 								const agentCode = response.agent_code?.trim() || 'N/A';
 								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `DEPOSIT ( <strong>Received from ${agentCode} - ${transferAgentName} </strong> )`
-									: `WITHDRAW ( <strong>Transferred to ${agentCode} - ${transferAgentName} </strong> )`;
+									? `DEPOSIT ( <strong>Received from ${agentCode}</strong> )`
+									: `WITHDRAW ( <strong>Transferred to ${agentCode}</strong> )`;
 
 								rowsToAdd.push(buildAccountDetailsLedgerRow(
 									encodedDate,
-									`${trans} - <strong>${transactionDesc}</strong>`,
+									trans,
 									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
 									balanceAfterCell,
 									row.REMARKS || '',
@@ -1836,12 +2044,12 @@ function accountDetailsRemarksColumnDefs(opts) {
 							},
 							error: function () {
 								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `DEPOSIT ( <strong>Received from Error fetching name</strong> )`
-									: `WITHDRAW ( <strong>Transferred to Error fetching name</strong> )`;
+									? `DEPOSIT ( <strong>Received from N/A</strong> )`
+									: `WITHDRAW ( <strong>Transferred to N/A</strong> )`;
 
 								rowsToAdd.push(buildAccountDetailsLedgerRow(
 									encodedDate,
-									`${trans} - <strong>${transactionDesc}</strong>`,
+									trans,
 									formatAccountLedgerAmount(amount, row.TRANSACTION, transactionDesc),
 									balanceAfterCell,
 									row.REMARKS || '',
@@ -1851,7 +2059,11 @@ function accountDetailsRemarksColumnDefs(opts) {
 							}
 						});
 					} else {
-						const transactionCell = formatAccountLedgerTransactionCell(row.TRANSACTION, transactionDesc);
+						const transactionCell = formatAccountLedgerTransactionCell(
+							row.TRANSACTION,
+							transactionDesc,
+							row.SERVICE_TYPE
+						);
 
 						rowsToAdd.push(buildAccountDetailsLedgerRow(
 							encodedDate,
@@ -2557,10 +2769,8 @@ function openEditAccountLedgerModal($btn) {
 	var ledgerId = $btn.data('id');
 	var amount = String($btn.data('amount') || '').replace(/,/g, '');
 	var remarks = String($btn.data('remarks') || '');
-	var transactionLabel = $btn.closest('tr').find('td').eq(1).text().trim();
 
 	$('#edit-ledger-id').val(ledgerId);
-	$('#edit-ledger-transaction').val(transactionLabel);
 	$('#edit-ledger-amount').val(amount ? Number(amount).toLocaleString('en-US') : '');
 	$('#edit-ledger-remarks').val(remarks);
 

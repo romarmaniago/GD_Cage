@@ -10,7 +10,7 @@
                         alt="Golden Dragon"
                         decoding="async"
                     >
-                    <h5 class="guest-portal-title mb-0">GUEST PORTAL</h5>
+                    <h5 class="guest-portal-title mb-0">AGENT PORTAL</h5>
                 </div>
                 <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -91,12 +91,12 @@
                                                 <span class="d-flex align-items-center"><%= __('modal_account_details.withdraw') %></span>
                                             </label>
                                         </div>
-                                        <div class="form-check">
+                                        <!-- <div class="form-check">
                                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="issue_trans" name="txtTrans">
                                             <label class="form-check-label" for="issue_trans">
                                                 <span class="d-flex align-items-center"><%= __('modal_account_details.credit') %></span>
                                             </label>
-                                        </div>
+                                        </div> -->
                                         <div class="form-check">
                                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="transfer_trans" name="transferAction" onclick="transfer_account()">
                                             <label class="form-check-label" for="transfer_trans">
@@ -164,13 +164,20 @@
                                     </div>
                                 </div>
                                 <input type="hidden" id="account_id">
-                                <div id="guest-portal-print-export" class="guest-portal-print-export d-none">
-                                    <button type="button" class="btn btn-alt-success" id="btn-guest-portal-print">
-                                        <i class="fa fa-print me-1" aria-hidden="true"></i><%= __('modal_account_details.print') %>
-                                    </button>
-                                    <button type="button" class="btn btn-success" id="btn-guest-portal-export">
-                                        <i class="fa fa-file-excel me-1" aria-hidden="true"></i><%= __('modal_account_details.export') %>
-                                    </button>
+                                <div id="guest-portal-daterange-host" class="d-none" aria-hidden="true">
+                                    <div id="guest-portal-daterange-wrap" class="guest-portal-daterange-wrap">
+                                        <input type="text" id="guest-portal-daterange" class="form-control form-control-sm guest-portal-daterange" placeholder="<%= __('modal_account_details.select_date_range') %>" autocomplete="off" readonly>
+                                    </div>
+                                </div>
+                                <div id="guest-portal-print-export-host" class="d-none" aria-hidden="true">
+                                    <div id="guest-portal-print-export" class="guest-portal-print-export">
+                                        <button type="button" class="btn btn-alt-success" id="btn-guest-portal-print">
+                                            <i class="fa fa-print me-1" aria-hidden="true"></i><%= __('modal_account_details.print') %>
+                                        </button>
+                                        <button type="button" class="btn btn-success" id="btn-guest-portal-export">
+                                            <i class="fa fa-file-excel me-1" aria-hidden="true"></i><%= __('modal_account_details.export') %>
+                                        </button>
+                                    </div>
                                 </div>
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
                                     <thead>
@@ -210,10 +217,6 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="edit-ledger-id" value="">
-                <div class="mb-3">
-                    <label class="form-label mb-1" for="edit-ledger-transaction"><%= __('modal_account_details.transaction') %></label>
-                    <input type="text" class="form-control" id="edit-ledger-transaction" readonly>
-                </div>
                 <div class="mb-3">
                     <label class="form-label mb-1" for="edit-ledger-amount"><%= __('modal_account_details.amount') %></label>
                     <input type="text" class="form-control" id="edit-ledger-amount" onkeypress="return onlyNumberKey(event)" data-type="number" placeholder="<%= __('modal_account_details.amount_placeholder') %>" autocomplete="off">
@@ -654,6 +657,33 @@ body.guest-portal-child-open .modal-backdrop.show {
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 0.4rem;
+}
+#modal-account-details #accountDetails_wrapper .dataTables_length {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+#modal-account-details #guest-portal-daterange-wrap {
+    display: inline-flex;
+    align-items: center;
+}
+#modal-account-details #guest-portal-daterange,
+#modal-account-details .guest-portal-daterange.input {
+    min-width: 11.5rem;
+    max-width: 15rem;
+    height: 1.7rem;
+    font-size: 0.72rem;
+    padding: 0.18rem 0.45rem;
+    border-radius: 5px;
+    border: 1px solid rgba(92, 83, 70, 0.28);
+    background: #fff;
+    color: #5c5346;
+    cursor: pointer;
+}
+body > .flatpickr-calendar {
+    z-index: 2000;
 }
 #modal-account-details #guest-portal-print-export {
     display: inline-flex;
