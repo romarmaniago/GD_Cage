@@ -441,6 +441,7 @@ router.get('/dashboard-statement', async (req, res) => {
       success: true,
       date_from: summary.date_from,
       date_to: summary.date_to,
+      main_available_amount: summary.main_available_amount,
       company: summary.company_capital_balance,
       credit: summary.cage.credit,
       expenses: summary.expense,
@@ -471,11 +472,18 @@ router.get('/dashboard-statement', async (req, res) => {
 
 // ========== MONTHLY GAMES (On-Going / Settled) ==========
 
-/** Per-day settled-games totals — same computeGameMetrics formula as game_list.js / utils/netProfitCalc.js. */
+/**
+ * Per-day settled-games totals — same computeGameMetrics formula as game_list.js /
+ * utils/netProfitCalc.js. Also returns the individual per-game breakdown (same shape as the
+ * On-Going Game rows) so the Flutter "Settled Game" card can expand to show each game.
+ */
 async function computeSettledDayTotals(dateStr) {
   const [games] = await pool.execute(
-    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE
+    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE,
+            ag.AGENT_CODE, ag.NAME AS agent_name
      FROM game_list gl
+     JOIN account a ON gl.ACCOUNT_ID = a.IDNo
+     JOIN agent ag ON a.AGENT_ID = ag.IDNo
      WHERE gl.ACTIVE IN (1, 2) AND gl.SETTLED = 1 AND DATE(gl.PROGRAM_DATE) = ?`,
     [dateStr]
   );
@@ -487,19 +495,36 @@ async function computeSettledDayTotals(dateStr) {
   let cashOut = 0;
   let winLoss = 0;
   let commission = 0;
+  const perGame = [];
 
   for (const g of games) {
     const recs = recordsByGame.get(g.game_id) || [];
+    let gameBuyIn = 0;
+    let gameCashOut = 0;
     for (const rec of recs) {
       const ct = Number(rec.CAGE_TYPE);
       const nn = Number(rec.NN_CHIPS) || 0;
       const cc = Number(rec.CC_CHIPS) || 0;
-      if (ct === 1) buyIn += nn + cc;
-      if (ct === 2) cashOut += nn + cc;
+      if (ct === 1) gameBuyIn += nn + cc;
+      if (ct === 2) gameCashOut += nn + cc;
     }
     const m = computeGameMetrics(recs, g);
+    buyIn += gameBuyIn;
+    cashOut += gameCashOut;
     winLoss += m.winLoss;
     commission += m.commission;
+
+    const agentName = (g.agent_name || '').toString().trim();
+    const agentCode = (g.AGENT_CODE || '').toString().trim();
+    const account = agentName && agentCode ? `${agentName} (${agentCode})` : (agentCode || agentName);
+    perGame.push({
+      game_id: g.game_id,
+      account,
+      buy_in: Math.round(gameBuyIn),
+      cash_out: Math.round(gameCashOut),
+      commission: Math.round(m.commission),
+      win_loss: Math.round(m.winLoss),
+    });
   }
 
   return {
@@ -509,6 +534,7 @@ async function computeSettledDayTotals(dateStr) {
     cash_out: Math.round(cashOut),
     commission: Math.round(commission),
     win_loss: Math.round(winLoss),
+    games: perGame,
   };
 }
 
