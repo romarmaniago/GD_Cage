@@ -11,6 +11,19 @@ $(document).ready(function () {
 	var tipAutocompleteInstances = [];
 	var i18n = window.tipSettlementI18n || {};
 	var tipInI18n = window.tipInI18n || {};
+	var tipInEditId = null;
+	var tipSettlementEditId = null;
+	var tipSettlementEditBaseAmount = 0;
+
+	function tipHtmlEscape(value) {
+		return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+			return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+		});
+	}
+
+	function getTipActionsI18n() {
+		return window.tipActionsI18n || {};
+	}
 
 	function formatMoney(n) {
 		return (Number(n) || 0).toLocaleString('en-US', {
@@ -38,10 +51,12 @@ $(document).ready(function () {
 		if (type === 'sort' || type === 'filter') return label;
 		if (!label) return '';
 		var normalized = label.toLowerCase();
-		if (normalized === 'in') return '+';
-		if (normalized === 'out' || normalized === 'settlement' || normalized === 'settle') return '-';
-		if (numericAmount > 0) return '+';
-		if (numericAmount < 0) return '-';
+		if (normalized === 'out' || normalized === 'settlement' || normalized === 'settle') return 'OUT';
+		if (normalized === 'roller tip') return 'Roller Tip';
+		if (normalized === 'dealer tip') return 'Dealer Tip';
+		if (normalized === 'in') return 'IN';
+		if (numericAmount < 0) return 'OUT';
+		if (numericAmount > 0) return 'IN';
 		return label;
 	}
 
@@ -269,6 +284,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'ROLLER_TRANSACTION',
+					className: 'tip-col-roller',
 					defaultContent: 'Roller Tip',
 					render: function (data, type, row) {
 						return renderTipTransactionCell(data, row && row.ROLLER_AMOUNT, type);
@@ -276,6 +292,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'ROLLER_AMOUNT',
+					className: 'tip-col-roller',
 					defaultContent: 0,
 					render: function (data, type) {
 						return renderAmountCell(data, type);
@@ -283,6 +300,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'ROLLER_STATUS',
+					className: 'tip-col-roller',
 					defaultContent: '—',
 					render: function (data) {
 						return data != null && String(data).trim() !== '' ? String(data) : '—';
@@ -290,6 +308,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'ROLLER_NAME',
+					className: 'tip-col-roller',
 					defaultContent: '—',
 					render: function (data) {
 						return data != null && String(data).trim() !== '' ? String(data) : '—';
@@ -297,6 +316,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'DEALER_TRANSACTION',
+					className: 'tip-col-dealer',
 					defaultContent: 'Dealer Tip',
 					render: function (data, type, row) {
 						return renderTipTransactionCell(data, row && row.DEALER_AMOUNT, type);
@@ -304,6 +324,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'DEALER_AMOUNT',
+					className: 'tip-col-dealer',
 					defaultContent: 0,
 					render: function (data, type) {
 						return renderAmountCell(data, type);
@@ -311,6 +332,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'DEALER_STATUS',
+					className: 'tip-col-dealer',
 					defaultContent: '—',
 					render: function (data) {
 						return data != null && String(data).trim() !== '' ? String(data) : '—';
@@ -318,9 +340,21 @@ $(document).ready(function () {
 				},
 				{
 					data: 'DEALER_NAME',
+					className: 'tip-col-dealer',
 					defaultContent: '—',
 					render: function (data) {
 						return data != null && String(data).trim() !== '' ? String(data) : '—';
+					}
+				},
+				{
+					data: null,
+					className: 'tip-action-col',
+					orderable: false,
+					searchable: false,
+					defaultContent: '',
+					render: function (data, type, row) {
+						if (type !== 'display') return '';
+						return renderTipActions(row);
 					}
 				}
 			],
@@ -737,6 +771,8 @@ $(document).ready(function () {
 	}
 
 	function openTipInModal() {
+		tipInEditId = null;
+		setTipInModalTitle(false);
 		resetTipInModal();
 		showBsModal('modal-tip-in');
 		$.when(loadTipInAccounts(), loadTipInGuests(null), fetchTipRollerHistory(null)).fail(function () {
@@ -767,6 +803,9 @@ $(document).ready(function () {
 	}
 
 	function openTipSettlementModal() {
+		tipSettlementEditId = null;
+		tipSettlementEditBaseAmount = 0;
+		setTipSettlementModalTitle(false);
 		resetTipSettlementModal();
 		var availableText = ($('#dash-tip-available-balance').text() || '').replace(/,/g, '').trim();
 		$('#tip-settlement-modal-balance').text(formatMoney(Number(availableText) || 0));
@@ -816,7 +855,8 @@ $(document).ready(function () {
 		}
 
 		$btn.prop('disabled', true);
-		$.post('/tip_in', {
+		var isEdit = tipInEditId != null;
+		var payload = {
 			txtAmount: $amountInput.val(),
 			txtAccountId: ($('#tip-in-modal-account').val() || '').toString().trim(),
 			txtGuestId: ($('#tip-in-modal-guest').val() || '').toString().trim(),
@@ -824,10 +864,15 @@ $(document).ready(function () {
 			txtRollerName: nameVal,
 			txtProgramDate: programDate,
 			txtRemarks: ($('#tip-in-modal-remarks').val() || '').toString().trim()
-		})
+		};
+		var request = isEdit
+			? $.ajax({ url: '/tip_in/' + tipInEditId, method: 'PUT', data: payload })
+			: $.post('/tip_in', payload);
+		request
 			.done(function (resp) {
 				if (resp && resp.availableBalance != null) updateAvailableBalance(resp.availableBalance);
 				hideBsModal('modal-tip-in');
+				tipInEditId = null;
 				resetTipInModal();
 				return refreshDashTip();
 			})
@@ -835,7 +880,9 @@ $(document).ready(function () {
 				Swal.fire({
 					icon: 'success',
 					title: 'Saved',
-					text: tipInI18n.saved || 'Roller tip saved successfully.',
+					text: isEdit
+						? (tipInI18n.updated || 'Updated successfully.')
+						: (tipInI18n.saved || 'Roller tip saved successfully.'),
 					timer: 1800,
 					showConfirmButton: false
 				});
@@ -864,7 +911,8 @@ $(document).ready(function () {
 		var nameVal = ($nameInput.val() || '').toString().trim();
 		var programDate = getProgramDateValue('tip-settlement-modal-program-date');
 		var availableText = ($('#dash-tip-available-balance').text() || '').replace(/,/g, '').trim();
-		var available = Number(availableText) || 0;
+		var isEdit = tipSettlementEditId != null;
+		var available = (Number(availableText) || 0) + (isEdit ? tipSettlementEditBaseAmount : 0);
 
 		$amountInput.add($statusInput).add($nameInput).add($programDateInput).removeClass('is-invalid');
 
@@ -895,16 +943,22 @@ $(document).ready(function () {
 		}
 
 		$btn.prop('disabled', true);
-		$.post('/tip_settlement', {
+		var settlementPayload = {
 			txtAmount: $amountInput.val(),
 			txtTipStatus: statusVal,
 			txtRollerName: nameVal,
 			txtProgramDate: programDate,
 			txtRemarks: ($('#tip-settlement-modal-remarks').val() || '').toString().trim()
-		})
+		};
+		var settlementRequest = isEdit
+			? $.ajax({ url: '/tip_settlement/' + tipSettlementEditId, method: 'PUT', data: settlementPayload })
+			: $.post('/tip_settlement', settlementPayload);
+		settlementRequest
 			.done(function (resp) {
 				if (resp && resp.availableBalance != null) updateAvailableBalance(resp.availableBalance);
 				hideBsModal('modal-tip-settlement');
+				tipSettlementEditId = null;
+				tipSettlementEditBaseAmount = 0;
 				resetTipSettlementModal();
 				return refreshDashTip();
 			})
@@ -912,7 +966,9 @@ $(document).ready(function () {
 				Swal.fire({
 					icon: 'success',
 					title: 'Saved',
-					text: i18n.saved || 'Tip settlement saved successfully.',
+					text: isEdit
+						? (i18n.updated || 'Updated successfully.')
+						: (i18n.saved || 'Tip settlement saved successfully.'),
 					timer: 1800,
 					showConfirmButton: false
 				});
@@ -927,6 +983,357 @@ $(document).ready(function () {
 				$btn.prop('disabled', false);
 			});
 	}
+
+	/* ------------------------------------------------------------------ *
+	 * Row actions: Edit / Delete / Receipt
+	 * ------------------------------------------------------------------ */
+
+	function setTipInModalTitle(isEdit) {
+		var $label = $('#modal-tip-in-label');
+		if (!$label.data('default-title')) $label.data('default-title', $.trim($label.text()));
+		$label.text(isEdit ? (tipInI18n.editTitle || 'Edit Tip') : ($label.data('default-title') || 'Tip In'));
+	}
+
+	function setTipSettlementModalTitle(isEdit) {
+		var $label = $('#modal-tip-settlement-label');
+		if (!$label.data('default-title')) $label.data('default-title', $.trim($label.text()));
+		$label.text(isEdit ? (i18n.editTitle || 'Edit Tip') : ($label.data('default-title') || 'Tip Settlement'));
+	}
+
+	function renderTipActions(row) {
+		if (!row || !row.EDIT_ID) return '';
+		var actI18n = getTipActionsI18n();
+		var kind = row.ROW_KIND === 'tip_settlement' ? 'tip_settlement' : 'tip';
+		var viewOnly = window.PermissionViewOnly && typeof window.PermissionViewOnly.isViewOnly === 'function' &&
+			window.PermissionViewOnly.isViewOnly();
+		var canEdit = row.CAN_EDIT !== false && !viewOnly;
+		var attrs = ' data-tip-kind="' + kind + '" data-tip-id="' + row.EDIT_ID + '"';
+		var html = '<div class="tip-action-btns">';
+		html += '<button type="button" class="btn btn-sm btn-alt-secondary tip-receipt-btn"' + attrs +
+			' title="' + tipHtmlEscape(actI18n.receiptTitle || 'Receipt') + '"><i class="fa fa-receipt"></i></button>';
+		if (canEdit) {
+			html += '<button type="button" class="btn btn-sm btn-alt-primary tip-edit-btn" data-view-only-disable' + attrs +
+				' title="' + tipHtmlEscape(actI18n.editTitle || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>';
+			html += '<button type="button" class="btn btn-sm btn-alt-danger tip-delete-btn" data-view-only-disable' + attrs +
+				' title="' + tipHtmlEscape(actI18n.deleteTitle || 'Delete') + '"><i class="fa fa-trash-alt"></i></button>';
+		}
+		html += '</div>';
+		return html;
+	}
+
+	function getTipRowFromButton(btn) {
+		if (!tipTable) return null;
+		var tr = $(btn).closest('tr');
+		if (!tr.length) return null;
+		return tipTable.row(tr).data() || null;
+	}
+
+	function openTipInEditModal(row) {
+		if (!row || !row.EDIT_ID) return;
+		tipInEditId = row.EDIT_ID;
+		setTipInModalTitle(true);
+		resetTipInModal();
+		showBsModal('modal-tip-in');
+
+		var accountId = row.EDIT_ACCOUNT_ID != null ? String(row.EDIT_ACCOUNT_ID) : '';
+		var guestId = row.EDIT_GUEST_ID != null ? String(row.EDIT_GUEST_ID) : '';
+
+		tipInResetting = true;
+		$.when(loadTipInAccounts(), loadTipInGuests(null), fetchTipRollerHistory(accountId || null))
+			.always(function () {
+				var $accountSel = $('#tip-in-modal-account');
+				if (accountId) {
+					$accountSel.val(accountId);
+					if ($accountSel.data('select2')) $accountSel.trigger('change.select2');
+				}
+				var agentId = ($accountSel.find('option:selected').data('agent-id') || '').toString().trim();
+				$.when(loadTipInGuests(agentId || null)).always(function () {
+					var $guestSel = $('#tip-in-modal-guest');
+					if (guestId) {
+						$guestSel.val(guestId);
+						if ($guestSel.data('select2')) $guestSel.trigger('change.select2');
+					}
+					tipInResetting = false;
+				});
+				$('#tip-in-modal-amount').val(formatMoney(row.EDIT_AMOUNT));
+				$('#tip-in-modal-status').val(row.EDIT_STATUS && row.EDIT_STATUS !== '—' ? row.EDIT_STATUS : '');
+				$('#tip-in-modal-name').val(row.EDIT_NAME && row.EDIT_NAME !== '—' ? row.EDIT_NAME : '');
+				$('#tip-in-modal-remarks').val(row.EDIT_REMARKS || '');
+				if (row.EDIT_PROGRAM_DATE) {
+					ensureProgramDatePicker('tip-in-modal-program-date', String(row.EDIT_PROGRAM_DATE).slice(0, 10));
+				}
+				refreshTipAutocompletes();
+			});
+	}
+
+	function openTipSettlementEditModal(row) {
+		if (!row || !row.EDIT_ID) return;
+		tipSettlementEditId = row.EDIT_ID;
+		tipSettlementEditBaseAmount = Number(row.EDIT_AMOUNT) || 0;
+		setTipSettlementModalTitle(true);
+		resetTipSettlementModal();
+
+		var availableText = ($('#dash-tip-available-balance').text() || '').replace(/,/g, '').trim();
+		var available = (Number(availableText) || 0) + tipSettlementEditBaseAmount;
+		$('#tip-settlement-modal-balance').text(formatMoney(available));
+
+		$('#tip-settlement-modal-amount').val(formatMoney(tipSettlementEditBaseAmount));
+		$('#tip-settlement-modal-status').val(row.EDIT_STATUS && row.EDIT_STATUS !== '—' ? row.EDIT_STATUS : '');
+		$('#tip-settlement-modal-name').val(row.EDIT_NAME && row.EDIT_NAME !== '—' ? row.EDIT_NAME : '');
+		$('#tip-settlement-modal-remarks').val(row.EDIT_REMARKS || '');
+		if (row.EDIT_PROGRAM_DATE) {
+			ensureProgramDatePicker('tip-settlement-modal-program-date', String(row.EDIT_PROGRAM_DATE).slice(0, 10));
+		}
+		showBsModal('modal-tip-settlement');
+		fetchTipRollerHistory(null).always(refreshTipAutocompletes);
+	}
+
+	function handleTipEditClick() {
+		var row = getTipRowFromButton(this);
+		if (!row) return;
+		if (row.ROW_KIND === 'tip_settlement') openTipSettlementEditModal(row);
+		else openTipInEditModal(row);
+	}
+
+	function handleTipDeleteClick() {
+		var row = getTipRowFromButton(this);
+		if (!row || !row.EDIT_ID) return;
+		var actI18n = getTipActionsI18n();
+		var kind = row.ROW_KIND === 'tip_settlement' ? 'tip_settlement' : 'tip';
+		var url = kind === 'tip_settlement'
+			? '/tip_settlement/remove/' + row.EDIT_ID
+			: '/tip/remove/' + row.EDIT_ID;
+
+		Swal.fire({
+			icon: 'warning',
+			title: actI18n.deleteConfirm || 'Delete this record?',
+			text: actI18n.deleteConfirmText || 'This cannot be undone.',
+			showCancelButton: true,
+			confirmButtonText: actI18n.yes || 'Yes',
+			cancelButtonText: actI18n.cancel || 'Cancel',
+			confirmButtonColor: '#dc3545'
+		}).then(function (result) {
+			if (!result.isConfirmed) return;
+			$.ajax({ url: url, method: 'PUT' })
+				.done(function (resp) {
+					if (resp && resp.availableBalance != null) updateAvailableBalance(resp.availableBalance);
+					refreshDashTip();
+					Swal.fire({
+						icon: 'success', title: 'Deleted',
+						text: actI18n.deleted || 'Deleted successfully.',
+						timer: 1600, showConfirmButton: false
+					});
+				})
+				.fail(function (xhr) {
+					var message = xhr.responseJSON && xhr.responseJSON.message
+						? xhr.responseJSON.message : 'Failed to delete record.';
+					Swal.fire({ icon: 'error', title: 'Error', text: message });
+				});
+		});
+	}
+
+	/* ---- Receipt slip ---- */
+
+	var tipReceiptHtml2CanvasPromise = null;
+
+	function loadTipReceiptHtml2Canvas() {
+		if (typeof html2canvas !== 'undefined') return Promise.resolve();
+		if (tipReceiptHtml2CanvasPromise) return tipReceiptHtml2CanvasPromise;
+		tipReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+			var script = document.createElement('script');
+			script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+			script.onload = function () { resolve(); };
+			script.onerror = function () {
+				tipReceiptHtml2CanvasPromise = null;
+				reject(new Error('Failed to load image copy library.'));
+			};
+			document.body.appendChild(script);
+		});
+		return tipReceiptHtml2CanvasPromise;
+	}
+
+	function tipReceiptDateTime(value) {
+		if (!value) return '';
+		if (window.moment) {
+			var m = moment.utc(value).utcOffset(8);
+			return m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
+		}
+		return String(value).slice(0, 16).replace('T', ' ');
+	}
+
+	function tipReceiptHasValue(value) {
+		if (value == null) return false;
+		if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+		var s = String(value).trim();
+		return s !== '' && s !== '—' && s !== '-';
+	}
+
+	function tipReceiptTextRow(label, value) {
+		if (!tipReceiptHasValue(value)) return '';
+		return '<tr><td class="trs-label">' + tipHtmlEscape(label) + '</td><td class="trs-value">' +
+			tipHtmlEscape(String(value)) + '</td></tr>';
+	}
+
+	function tipReceiptAmountRow(label, value, withBorder, isSettlement) {
+		var rowClass = withBorder === false ? '' : ' class="trs-total-row"';
+		var num = Math.abs(Number(value) || 0);
+		var display = isSettlement ? '(' + formatMoney(num) + ')' : formatMoney(num);
+		var valueClass = isSettlement ? 'trs-value trs-amount-value' : 'trs-value trs-amount-black';
+		return '<tr' + rowClass + '><td class="trs-label trs-total-label">' + tipHtmlEscape(label) +
+			'</td><td class="' + valueClass + '">' + display + '</td></tr>';
+	}
+
+	function buildTipReceiptSlipHtml(data) {
+		data = data || {};
+		var programDate = data.program_date ? String(data.program_date).slice(0, 10) : '';
+		var rows =
+			tipReceiptTextRow('PROGRAM DATE', programDate) +
+			tipReceiptTextRow('ACCOUNT', data.account) +
+			tipReceiptTextRow('NAME', data.name) +
+			tipReceiptTextRow('GUEST', data.guest) +
+			tipReceiptTextRow('GAME #', data.game_no) +
+			tipReceiptTextRow('STATUS', data.status) +
+			tipReceiptTextRow('NAME', data.person_name) +
+			tipReceiptTextRow('REMARKS', data.remarks);
+
+		if (data.from_game) {
+			rows +=
+				tipReceiptAmountRow('ROLLER', data.roller_amount, true, false) +
+				tipReceiptAmountRow('DEALER', data.dealer_amount, false, false);
+		} else {
+			rows += tipReceiptAmountRow('AMOUNT', data.amount, true, !!data.is_settlement);
+		}
+
+		return (
+			'<div class="tip-receipt-slip">' +
+			'<div class="tip-receipt-slip-body">' +
+			'<p class="trs-brand">GOLDEN DRAGON</p>' +
+			'<p class="trs-title">' + tipHtmlEscape(data.title || '* Tip *') + '</p>' +
+			'<p class="trs-datetime">' + tipHtmlEscape(tipReceiptDateTime(data.created_dt)) + '</p>' +
+			'<table class="trs-table"><tbody>' + rows + '</tbody></table>' +
+			'</div>' +
+			'<div class="tip-receipt-slip-actions">' +
+			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-image">Copy image</button>' +
+			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-text">Copy text</button>' +
+			'</div>' +
+			'</div>'
+		);
+	}
+
+	function showTipReceiptModal() {
+		var modalEl = document.getElementById('modal-tip-receipt');
+		if (!modalEl) return;
+		$('#modal-tip-receipt').appendTo('body');
+		if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+			bootstrap.Modal.getOrCreateInstance(modalEl).show();
+		}
+	}
+
+	function handleTipReceiptClick() {
+		var row = getTipRowFromButton(this);
+		if (!row || !row.EDIT_ID) return;
+		var actI18n = getTipActionsI18n();
+		var kind = row.ROW_KIND === 'tip_settlement' ? 'tip_settlement' : 'tip';
+		var url = kind === 'tip_settlement'
+			? '/tip_settlement/' + row.EDIT_ID + '/receipt'
+			: '/tip/' + row.EDIT_ID + '/receipt';
+
+		$.getJSON(url)
+			.done(function (data) {
+				$('#tip-receipt-container').html(buildTipReceiptSlipHtml(data));
+				showTipReceiptModal();
+			})
+			.fail(function (xhr) {
+				var message = xhr.responseJSON && xhr.responseJSON.error
+					? xhr.responseJSON.error
+					: (actI18n.loadReceiptError || 'Unable to load receipt.');
+				Swal.fire({ icon: 'error', title: 'Error', text: message });
+			});
+	}
+
+	function tipReceiptCopyUi($btn) {
+		var originalHtml = $btn.html();
+		$btn.prop('disabled', true)
+			.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+		return {
+			success: function (message) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'success', title: 'Copied!', text: message, timer: 1800, showConfirmButton: false });
+				}
+			},
+			error: function (message) {
+				if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Copy failed', text: message });
+			},
+			restore: function () { $btn.prop('disabled', false).html(originalHtml); }
+		};
+	}
+
+	function copyTipReceiptImage($btn) {
+		var slipBody = $btn.closest('.tip-receipt-slip').find('.tip-receipt-slip-body')[0];
+		if (!slipBody) return;
+		var ui = tipReceiptCopyUi($btn);
+		var blobPromise = loadTipReceiptHtml2Canvas()
+			.then(function () {
+				return html2canvas(slipBody, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+			})
+			.then(function (canvas) {
+				return new Promise(function (resolve, reject) {
+					canvas.toBlob(function (blob) {
+						if (blob) resolve(blob);
+						else reject(new Error('Failed to create receipt image.'));
+					}, 'image/png');
+				});
+			});
+
+		if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+			navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
+				.then(function () { ui.success('Receipt image copied. You can paste it anywhere.'); })
+				.catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+				.finally(function () { ui.restore(); });
+		} else {
+			blobPromise
+				.then(function (blob) {
+					var link = document.createElement('a');
+					link.href = URL.createObjectURL(blob);
+					link.download = 'tip-receipt.png';
+					document.body.appendChild(link);
+					link.click();
+					document.body.removeChild(link);
+					ui.success('Receipt image downloaded.');
+				})
+				.catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+				.finally(function () { ui.restore(); });
+		}
+	}
+
+	function copyTipReceiptText($btn) {
+		var slipBody = $btn.closest('.tip-receipt-slip').find('.tip-receipt-slip-body')[0];
+		var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+		var ui = tipReceiptCopyUi($btn);
+		if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+			ui.error('Clipboard is not supported in this browser.');
+			ui.restore();
+			return;
+		}
+		navigator.clipboard.writeText(text)
+			.then(function () { ui.success('Receipt text copied. You can paste it anywhere.'); })
+			.catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt text.'); })
+			.finally(function () { ui.restore(); });
+	}
+
+	$('#dash-tip-table tbody').on('click', '.tip-edit-btn', handleTipEditClick);
+	$('#dash-tip-table tbody').on('click', '.tip-delete-btn', handleTipDeleteClick);
+	$('#dash-tip-table tbody').on('click', '.tip-receipt-btn', handleTipReceiptClick);
+	$(document)
+		.on('click', '.js-copy-tip-receipt-image', function () { copyTipReceiptImage($(this)); })
+		.on('click', '.js-copy-tip-receipt-text', function () { copyTipReceiptText($(this)); })
+		.on('shown.bs.modal', '#modal-tip-receipt', function () {
+			$('body').addClass('tip-receipt-open');
+			loadTipReceiptHtml2Canvas().catch(function () {});
+		})
+		.on('hidden.bs.modal', '#modal-tip-receipt', function () {
+			$('body').removeClass('tip-receipt-open');
+		});
 
 	$('#modal-dash-tip').on('show.bs.modal', function () {
 		initDateRangePicker();

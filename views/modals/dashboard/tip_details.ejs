@@ -46,6 +46,7 @@
 								<th rowspan="2"><%= __('tip.remarks') %></th>
 								<th colspan="4" class="text-center tip-group-head tip-group-head-roller"><%= __('tip.roller') %></th>
 								<th colspan="4" class="text-center tip-group-head tip-group-head-dealer"><%= __('tip.dealer') %></th>
+								<th rowspan="2" class="tip-action-col-head"><%= __('tip.action') %></th>
 							</tr>
 							<tr>
 								<th class="tip-col tip-col-roller"><%= __('tip.transaction') %></th>
@@ -70,6 +71,13 @@
 </div>
 
 <style>
+#modal-dash-tip .modal-dialog.modal-xl {
+	max-width: 96vw;
+	width: 1600px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
 .dash-tip-page {
 	--gd-marker-gold-solid: rgba(200, 162, 76, 0.07);
 	--gd-marker-gold-text: #4a3208;
@@ -267,6 +275,48 @@
 	color: var(--gd-marker-gold-text) !important;
 	background: transparent !important;
 }
+
+/* Roller vs Dealer group tinting — subtle, on the gold theme */
+#dash-tip-table thead .tip-group-head-roller,
+#dash-tip-table thead th.tip-col-roller {
+	background: #efe6d2 !important;
+	color: #8a6c27 !important;
+}
+#dash-tip-table thead .tip-group-head-roller {
+	border-bottom: 2px solid rgba(198, 158, 74, 0.55);
+}
+#dash-tip-table thead .tip-group-head-dealer,
+#dash-tip-table thead th.tip-col-dealer {
+	background: #e2e7da !important;
+	color: #5b6a48 !important;
+}
+#dash-tip-table thead .tip-group-head-dealer {
+	border-bottom: 2px solid rgba(118, 133, 88, 0.55);
+}
+#dash-tip-table tbody td.tip-col-roller {
+	background-image: linear-gradient(rgba(198, 158, 74, 0.15), rgba(198, 158, 74, 0.15));
+}
+#dash-tip-table tbody td.tip-col-dealer {
+	background-image: linear-gradient(rgba(118, 133, 88, 0.15), rgba(118, 133, 88, 0.15));
+}
+
+#dash-tip-table thead th.tip-action-col-head,
+#dash-tip-table tbody td.tip-action-col {
+	text-align: center;
+	white-space: nowrap;
+}
+#dash-tip-table td.tip-action-col .tip-action-btns {
+	display: inline-flex;
+	gap: 0.25rem;
+	justify-content: center;
+}
+#dash-tip-table td.tip-action-col .btn {
+	padding: 0.2rem 0.45rem;
+	line-height: 1;
+}
+
+#dash-tip-table .tip-transaction-in { color: #198754; font-weight: 600; }
+#dash-tip-table .tip-transaction-out { color: #dc3545; font-weight: 600; }
 #dash-tip-table tbody tr {
 	border-bottom: 1px solid #eee;
 }

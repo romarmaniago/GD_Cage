@@ -799,6 +799,7 @@
 <%- include ('modals/dashboard/junket_loss') %>
 <%- include ('modals/tip/tip_in') %>
 <%- include ('modals/tip/tip_settlement') %>
+<%- include ('modals/tip/tip_receipt') %>
 <%- include ('modals/junket/edit_service_record') %>
 <%- include('partials/permission_view_only_script') %>
 <%- include ('modals/dashboard/marker') %>
@@ -832,7 +833,9 @@
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
   missingProgramDate: __('tip.missing_program_date'),
-  saved: __('tip.in_saved')
+  saved: __('tip.in_saved'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record')
 }) %></script>
 <script type="application/json" id="tip-settlement-i18n"><%- JSON.stringify({
   invalidAmount: __('tip.settlement_invalid_amount'),
@@ -840,7 +843,20 @@
   missingStatus: __('tip.settlement_missing_status'),
   missingName: __('tip.settlement_missing_name'),
   missingProgramDate: __('tip.missing_program_date'),
-  saved: __('tip.settlement_saved')
+  saved: __('tip.settlement_saved'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record')
+}) %></script>
+<script type="application/json" id="tip-actions-i18n"><%- JSON.stringify({
+  deleteConfirm: __('tip.delete_confirm'),
+  deleteConfirmText: __('tip.delete_confirm_text'),
+  deleted: __('tip.deleted'),
+  updated: __('tip.updated'),
+  editTitle: __('tip.edit_record'),
+  receiptTitle: __('tip.receipt'),
+  yes: __('tip.yes') || 'Yes',
+  cancel: __('tip.cancel') || 'Cancel',
+  loadReceiptError: __('tip.receipt_load_error') || 'Unable to load receipt.'
 }) %></script>
 <script>
    (function () {
@@ -855,6 +871,10 @@
       var tipInEl = document.getElementById('tip-in-i18n');
       if (tipInEl) {
         try { window.tipInI18n = JSON.parse(tipInEl.textContent || '{}'); } catch (e) { window.tipInI18n = {}; }
+      }
+      var tipActionsEl = document.getElementById('tip-actions-i18n');
+      if (tipActionsEl) {
+        try { window.tipActionsI18n = JSON.parse(tipActionsEl.textContent || '{}'); } catch (e) { window.tipActionsI18n = {}; }
       }
    })();
 </script>
