@@ -216,7 +216,7 @@
     }
 
     function getTypeLabel(type) {
-      if (type === 'deposit') return 'Deposit';
+      if (type === 'deposit') return 'Transfer';
       if (type === 'cashout') return 'Cash-out';
       return '';
     }
@@ -1076,7 +1076,7 @@
 
       if (selectedType !== TYPE_DEPOSIT && selectedType !== TYPE_CASHOUT) {
         if (typeof Swal !== 'undefined') {
-          Swal.fire('Validation', 'Please select type (Deposit or Cash-out).', 'warning');
+          Swal.fire('Validation', 'Please select type (Transfer or Cash-out).', 'warning');
         }
         return;
       }
