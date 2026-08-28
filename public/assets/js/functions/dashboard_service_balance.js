@@ -67,12 +67,24 @@
 		return null;
 	};
 
-	function updateCompanyExpenseTotal(junketOutTotal) {
+	function sumCategoryBalances(data) {
+		if (data && Array.isArray(data.categories) && data.categories.length) {
+			return data.categories.reduce(function (sum, cat) {
+				return sum + (Number(cat && cat.balance) || 0);
+			}, 0);
+		}
+		return ['fnb', 'hotel', 'incidental', 'delivery'].reduce(function (sum, key) {
+			return sum + (Number(data && data[key]) || 0);
+		}, 0);
+	}
+
+	function updateCompanyExpenseTotal(balanceTotal) {
 		var panel = document.getElementById('dash-anticipated-panel');
 		if (!panel) return;
 
 		var base = Number(panel.dataset.companyExpenseBase) || 0;
-		var total = base + (Number(junketOutTotal) || 0);
+		// "Company" total = base costs minus the net service balance shown in the rows.
+		var total = base - (Number(balanceTotal) || 0);
 		panel.dataset.companyExpense = String(total);
 
 		var totalEl = document.getElementById('dash-company-expense-total');
@@ -122,7 +134,7 @@
 						}
 					});
 				}
-				updateCompanyExpenseTotal(data.junketOutTotal);
+				updateCompanyExpenseTotal(sumCategoryBalances(data));
 				return data;
 			})
 			.catch(function (err) {

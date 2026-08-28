@@ -240,10 +240,15 @@ $(document).ready(function() {
 
 					const safeRemarks = (service.REMARKS || '').replace(/"/g, '&quot;');
 
+					const receiptBtn = (window.fnbHotelReceipt && window.fnbHotelReceipt.buttonHtml)
+						? window.fnbHotelReceipt.buttonHtml(service)
+						: '';
+
 					let actionHtml = '';
 					if (canEdit && canDelete) {
 						actionHtml = `
 							<div class="btn-group">
+								${receiptBtn}
 								<button type="button"
 									class="btn btn-sm bg-info-subtle edit-service-btn"
 									data-id="${service.IDNo}"
@@ -262,23 +267,29 @@ $(document).ready(function() {
 									class="btn btn-sm bg-danger-subtle delete-service-btn"
 									data-id="${service.IDNo}"
 									title="Delete">
-									<i class="fa fa-trash"></i>
+									<i class="fa fa-trash-alt"></i>
 								</button>
 							</div>`;
 					} else if (hasGameId && isGameSettled) {
 						actionHtml = `
-							<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">
-								Settled
-							</span>`;
+							<div class="btn-group">
+								${receiptBtn}
+								<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">
+									Settled
+								</span>
+							</div>`;
 					} else if (hasGameId && !isGameSettled) {
 						actionHtml = `
 							<div class="btn-group">
+								${receiptBtn}
 								<button type="button"
 									class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
 									title="Edit in Gamebook">
 									<i class="fa fa-info-circle"></i>
 								</button>
 							</div>`;
+					} else {
+						actionHtml = receiptBtn ? `<div class="btn-group">${receiptBtn}</div>` : '';
 					}
 
 					dataTable.row.add([

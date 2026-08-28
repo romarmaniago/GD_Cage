@@ -259,7 +259,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [junketCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -275,7 +275,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [guestCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -656,10 +656,11 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 	);
 
 	const companyExpenseBase = expense + junketLoss + commissionSettlement + additionalCommission;
-	const companyExpenseTotal = companyExpenseBase + serviceJunketOutTotal;
 	const serviceBalanceTotal = Math.round(
 		serviceCategories.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
 	);
+	// "Company" section total = base costs minus the net service balance shown in the rows.
+	const companyExpenseTotal = companyExpenseBase - serviceBalanceTotal;
 	const mainAvailableAmount = Math.round(
 		companyCapitalBalance
 		- (Number(cageMain.credit) || 0)

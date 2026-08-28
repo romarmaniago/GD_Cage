@@ -230,7 +230,9 @@
          junketLossAmount +
          commissionSettlement +
          additionalCommissionSettlement;
-      var companyExpenseTotal = companyExpenseBase + serviceJunketOutTotal;
+      // "Company" section total = manual sum of the rows shown (base costs minus each
+      // service category's net balance, matching the F&B/Hotel/Incidental/Others rows).
+      var companyExpenseTotal = companyExpenseBase - mainServiceBalanceTotal;
 
       var grandAnticipatedProfit = casinoAnticipatedTotal - companyExpenseTotal;
 
@@ -795,6 +797,7 @@
 <%- include ('modals/dashboard/incidental_details') %>
 <%- include ('modals/dashboard/delivery_details') %>
 <%- include ('modals/dashboard/service_category_details') %>
+<%- include ('partials/fnb_hotel_receipt_modal') %>
 <%- include ('modals/dashboard/tip_details') %>
 <%- include ('modals/dashboard/junket_loss') %>
 <%- include ('modals/tip/tip_in') %>
@@ -822,6 +825,7 @@
 <script src="/assets/js/functions/service_category_select.js"></script>
 <script src="/assets/js/functions/dashboard_service_balance.js?v=3"></script>
 <script src="/assets/js/functions/dash_service_table_controls.js"></script>
+<script src="/assets/js/functions/fnb_hotel_receipt.js"></script>
 <script src="/assets/js/functions/dashboard_service_category.js?v=2"></script>
 <script src="/assets/js/functions/dashboard_fnb.js"></script>
 <script src="/assets/js/functions/dashboard_hotel.js"></script>

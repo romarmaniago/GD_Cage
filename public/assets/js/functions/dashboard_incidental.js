@@ -158,10 +158,14 @@ $(document).ready(function () {
 		var canEdit = !hasGameId;
 		var canDelete = !hasGameId;
 		var safeRemarks = (service.REMARKS || '').replace(/"/g, '&quot;');
+		var receiptBtn = (window.fnbHotelReceipt && window.fnbHotelReceipt.buttonHtml)
+			? window.fnbHotelReceipt.buttonHtml(service)
+			: '';
 
 		if (canEdit && canDelete) {
 			return [
 				'<div class="btn-group">',
+				receiptBtn,
 				'<button type="button" class="btn btn-sm bg-info-subtle edit-service-btn"',
 				' data-id="', service.IDNo, '"',
 				' data-source="', escapeHtml(service.SOURCE_TYPE || ''), '"',
@@ -175,17 +179,17 @@ $(document).ready(function () {
 				' title="Edit"><i class="fa fa-pencil-alt"></i></button>',
 				'<button type="button" class="btn btn-sm bg-danger-subtle delete-service-btn"',
 				' data-id="', service.IDNo, '"',
-				' title="Delete"><i class="fa fa-trash"></i></button>',
+				' title="Delete"><i class="fa fa-trash-alt"></i></button>',
 				'</div>'
 			].join('');
 		}
 		if (hasGameId && isGameSettled) {
-			return '<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">Settled</span>';
+			return '<div class="btn-group">' + receiptBtn + '<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">Settled</span></div>';
 		}
 		if (hasGameId && !isGameSettled) {
-			return '<div class="btn-group"><button type="button" class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn" title="Edit in Gamebook"><i class="fa fa-info-circle"></i></button></div>';
+			return '<div class="btn-group">' + receiptBtn + '<button type="button" class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn" title="Edit in Gamebook"><i class="fa fa-info-circle"></i></button></div>';
 		}
-		return '';
+		return receiptBtn ? '<div class="btn-group">' + receiptBtn + '</div>' : '';
 	}
 
 	function reloadData() {

@@ -70,7 +70,7 @@ async function loadDashboardServiceExpenseData() {
 	const [junketCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
+		WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [guestDepositRows] = await pool.execute(`
@@ -82,7 +82,7 @@ async function loadDashboardServiceExpenseData() {
 	const [guestCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
+		WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 		GROUP BY SERVICE_TYPE
 	`);
 	const categories = await fetchActiveServiceCategories(pool);
@@ -583,7 +583,7 @@ let sqlServiceCashGuest = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 	FROM game_services
 	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
-	
+
 `;
 let sqlServiceDepositGuest = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
@@ -595,7 +595,7 @@ let sqlServiceCashJunket = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 	FROM game_services
 	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
-	
+
 `;
 let sqlServiceDepositJunket = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL

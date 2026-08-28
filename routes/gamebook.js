@@ -3178,13 +3178,20 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 		const encodedBy = req.session?.user_id || null;
 		const now = new Date();
-		const [gameRows] = await pool.execute(`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`, [gameId]);
+		const [gameRows] = await pool.execute(
+			`SELECT ACCOUNT_ID, DATE_FORMAT(PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE FROM game_list WHERE IDNo = ? LIMIT 1`,
+			[gameId]
+		);
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
+		// Inherit the game's PROGRAM_DATE so the charge lands on the same program day (not the encode date).
+		const programDate = (Array.isArray(gameRows) && gameRows.length > 0)
+			? normalizeSettlementDateYmd(gameRows[0].PROGRAM_DATE)
+			: null;
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, DELIVERY_FEE, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
-			[gameId, svc, amt, deliveryFee, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, DELIVERY_FEE, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE, PROGRAM_DATE)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+			[gameId, svc, amt, deliveryFee, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST', programDate]
 		);
 
 
@@ -5618,6 +5625,11 @@ router.put('/game_list/:id/program_date', async (req, res) => {
 		await connection.execute(
 			'UPDATE game_record SET TRADING_DATE = ? WHERE GAME_ID = ?',
 			[trading_date, id]
+		);
+		// Keep game-sourced charges (F&B / Hotel / Incidental / …) on the same program day.
+		await connection.execute(
+			'UPDATE game_services SET PROGRAM_DATE = ? WHERE GAME_ID = ? AND ACTIVE = 1',
+			[program_date, id]
 		);
 		await connection.commit();
 		res.json({ success: true, program_date });
