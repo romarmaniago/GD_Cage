@@ -1,5 +1,5 @@
 <div class="modal fade" id="modal-dash-junket-loss" tabindex="-1" aria-labelledby="modal-dash-junket-loss-label" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable dash-junket-loss-dialog">
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white" id="modal-dash-junket-loss-label"><%= __('junket_loss.title') %></h5>
@@ -55,14 +55,14 @@
                 <th>Person(s) Involved</th>
                 <th>Description</th>
                 <%# <th>Encoded By</th> %>
-                <%# <th>Action</th> %>
+                <th class="text-center">Action</th>
               </tr>
             </thead>
             <tfoot>
               <tr>
                 <th colspan="4" class="text-end">Total</th>
                 <th id="junket-loss-total-amount" class="text-end"></th>
-                <th colspan="3"></th>
+                <th colspan="4"></th>
               </tr>
             </tfoot>
             <tbody></tbody>
@@ -102,6 +102,11 @@
     --gd-marker-gold-text: #4a3208;
     --gd-marker-gold-border: rgba(200, 162, 76, 0.28);
     --gd-marker-gold-hover: #f6f3ec;
+  }
+
+  #modal-dash-junket-loss .dash-junket-loss-dialog {
+    --bs-modal-width: min(96vw, 1400px);
+    max-width: min(96vw, 1400px);
   }
 
   #modal-dash-junket-loss .junket-loss-filter-bar--modal {
@@ -207,6 +212,19 @@
   #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(6),
   #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(6) {
     text-align: center;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(9),
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(9) {
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns {
+    display: inline-flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: nowrap;
   }
 
   #modal-dash-junket-loss #junket-loss-tbl tfoot th {
@@ -356,3 +374,5 @@
     padding-right: 0;
   }
 </style>
+
+<%- include('../../partials/junket_loss_receipt_modal') %>

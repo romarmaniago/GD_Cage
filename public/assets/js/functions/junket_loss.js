@@ -503,6 +503,252 @@ function removeJunketLoss(id) {
     });
 }
 
+function isJunketLossSuperAdmin() {
+    const perms = parseInt($('#user-role').data('permissions'), 10);
+    return perms === 0;
+}
+
+function findJunketLossRowById(id) {
+    if (!junketLossTable) return null;
+    return junketLossTable
+        .rows()
+        .data()
+        .toArray()
+        .find(function (r) {
+            return String(r.IDNo) === String(id);
+        }) || null;
+}
+
+function buildJunketLossActionButtons(row) {
+    const id = row && row.IDNo != null ? row.IDNo : '';
+    const editDeleteButtons = isJunketLossSuperAdmin()
+        ? '<button type="button" class="btn btn-sm btn-alt-primary btn-junket-loss-edit" data-id="' + id + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
+          '<button type="button" class="btn btn-sm btn-alt-danger btn-junket-loss-remove" data-id="' + id + '" title="Delete"><i class="fa fa-trash-alt"></i></button>'
+        : '';
+    return (
+        '<div class="junket-loss-action-btns">' +
+        '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-receipt" data-id="' + id + '" title="Receipt"><i class="fa fa-receipt"></i></button>' +
+        editDeleteButtons +
+        '</div>'
+    );
+}
+
+function junketLossReceiptEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function junketLossReceiptHasValue(value) {
+    if (value == null) return false;
+    if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+    const s = String(value).trim();
+    return s !== '' && s !== '-' && s !== '—';
+}
+
+function junketLossReceiptTextRow(label, value) {
+    if (!junketLossReceiptHasValue(value)) return '';
+    return (
+        '<tr><td class="jlr-label">' +
+        junketLossReceiptEscape(label) +
+        '</td><td class="jlr-value">' +
+        junketLossReceiptEscape(String(value)) +
+        '</td></tr>'
+    );
+}
+
+function junketLossReceiptAmountRow(label, value) {
+    const num = Math.abs(Number(value) || 0);
+    const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const display = num ? '(' + formatted + ')' : '0';
+    return (
+        '<tr class="jlr-total-row"><td class="jlr-label jlr-total-label">' +
+        junketLossReceiptEscape(label) +
+        '</td><td class="jlr-value jlr-amount-value">' +
+        display +
+        '</td></tr>'
+    );
+}
+
+function junketLossReceiptDateTime(value) {
+    if (!value) return '';
+    const m = moment(value);
+    return m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
+}
+
+function buildJunketLossReceiptHtml(row) {
+    row = row || {};
+    const rawProgramDate = row.PROGRAM_DATE || row.ENCODED_DT || '';
+    const programDate = rawProgramDate ? moment(rawProgramDate).format('YYYY-MM-DD') : '';
+    const paymentType = Number(row.PAYMENT_TYPE);
+    const amountLabel = paymentType === 1 ? 'CHIPS' : paymentType === 2 ? 'CASH' : 'AMOUNT';
+    const rowsHtml =
+        junketLossReceiptTextRow('PROGRAM DATE', programDate) +
+        junketLossReceiptTextRow('ACCOUNT', row.ACCOUNT_CODE) +
+        junketLossReceiptTextRow('NAME', row.ACCOUNT_HOLDER) +
+        junketLossReceiptTextRow('PERSON INVOLVED', row.IN_CHARGE) +
+        junketLossReceiptTextRow('DESCRIPTION', row.DESCRIPTION) +
+        junketLossReceiptAmountRow(amountLabel, row.AMOUNT);
+
+    return (
+        '<div class="junket-loss-receipt-slip">' +
+        '<div class="junket-loss-receipt-slip-body">' +
+        '<p class="jlr-brand">GOLDEN DRAGON</p>' +
+        '<p class="jlr-title">* Loss Amount *</p>' +
+        '<p class="jlr-datetime">' +
+        junketLossReceiptEscape(junketLossReceiptDateTime(row.ENCODED_DT)) +
+        '</p>' +
+        '<table class="jlr-table"><tbody>' +
+        rowsHtml +
+        '</tbody></table>' +
+        '</div>' +
+        '<div class="junket-loss-receipt-slip-actions">' +
+        '<button type="button" class="btn junket-loss-receipt-copy-btn js-copy-junket-loss-receipt-image">Copy image</button>' +
+        '<button type="button" class="btn junket-loss-receipt-copy-btn js-copy-junket-loss-receipt-text">Copy text</button>' +
+        '</div>' +
+        '</div>'
+    );
+}
+
+function showJunketLossReceipt(id) {
+    const row = findJunketLossRowById(id);
+    if (!row) {
+        Swal.fire('Error', 'Record not found.', 'error');
+        return;
+    }
+    const modalEl = document.getElementById('modal-junket-loss-receipt');
+    const container = document.getElementById('junket-loss-receipt-container');
+    if (!modalEl || !container) return;
+    container.innerHTML = buildJunketLossReceiptHtml(row);
+    $(modalEl).appendTo('body');
+    if (document.getElementById('modal-dash-junket-loss')) {
+        modalEl.style.zIndex = '1065';
+    }
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    } else {
+        $(modalEl).modal('show');
+    }
+}
+
+var junketLossReceiptHtml2CanvasPromise = null;
+
+function loadJunketLossReceiptHtml2Canvas() {
+    if (typeof html2canvas !== 'undefined') return Promise.resolve();
+    if (junketLossReceiptHtml2CanvasPromise) return junketLossReceiptHtml2CanvasPromise;
+    junketLossReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = function () {
+            resolve();
+        };
+        script.onerror = function () {
+            junketLossReceiptHtml2CanvasPromise = null;
+            reject(new Error('Failed to load image copy library.'));
+        };
+        document.body.appendChild(script);
+    });
+    return junketLossReceiptHtml2CanvasPromise;
+}
+
+function junketLossReceiptCopyUi(btn) {
+    var originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    return {
+        success: function (message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'success', title: 'Copied!', text: message, timer: 1800, showConfirmButton: false });
+            }
+        },
+        error: function (message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Copy failed', text: message });
+            }
+        },
+        restore: function () {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    };
+}
+
+function copyJunketLossReceiptImage(btn) {
+    var slip = btn.closest('.junket-loss-receipt-slip');
+    var slipBody = slip ? slip.querySelector('.junket-loss-receipt-slip-body') : null;
+    if (!slipBody) return;
+    var ui = junketLossReceiptCopyUi(btn);
+    var blobPromise = loadJunketLossReceiptHtml2Canvas()
+        .then(function () {
+            return html2canvas(slipBody, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+        })
+        .then(function (canvas) {
+            return new Promise(function (resolve, reject) {
+                canvas.toBlob(function (blob) {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Failed to create receipt image.'));
+                }, 'image/png');
+            });
+        });
+
+    if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        navigator.clipboard
+            .write([new ClipboardItem({ 'image/png': blobPromise })])
+            .then(function () {
+                ui.success('Receipt image copied. You can paste it anywhere.');
+            })
+            .catch(function (err) {
+                ui.error((err && err.message) || 'Unable to copy receipt image.');
+            })
+            .finally(function () {
+                ui.restore();
+            });
+    } else {
+        blobPromise
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'junket-loss-receipt.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                ui.success('Receipt image downloaded.');
+            })
+            .catch(function (err) {
+                ui.error((err && err.message) || 'Unable to copy receipt image.');
+            })
+            .finally(function () {
+                ui.restore();
+            });
+    }
+}
+
+function copyJunketLossReceiptText(btn) {
+    var slip = btn.closest('.junket-loss-receipt-slip');
+    var slipBody = slip ? slip.querySelector('.junket-loss-receipt-slip-body') : null;
+    var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+    var ui = junketLossReceiptCopyUi(btn);
+    if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        ui.error('Clipboard is not supported in this browser.');
+        ui.restore();
+        return;
+    }
+    navigator.clipboard
+        .writeText(text)
+        .then(function () {
+            ui.success('Receipt text copied. You can paste it anywhere.');
+        })
+        .catch(function (err) {
+            ui.error((err && err.message) || 'Unable to copy receipt text.');
+        })
+        .finally(function () {
+            ui.restore();
+        });
+}
+
 function applyJunketLossControlsLayout() {
     var wrapper = document.getElementById('junket-loss-tbl_wrapper');
     var lengthWrap = document.getElementById('junket-loss-tbl_length');
@@ -601,22 +847,18 @@ function ensureJunketLossTable() {
                 }
             },
             { data: 'IN_CHARGE', defaultContent: '' },
-            { data: 'DESCRIPTION', defaultContent: '' }
+            { data: 'DESCRIPTION', defaultContent: '' },
             // Encoded By — uncomment to restore
-            // , { data: 'ENCODED_BY_NAME', defaultContent: '' }
-            // Action column — uncomment to restore edit/remove buttons
-            // , {
-            //     data: null,
-            //     orderable: false,
-            //     searchable: false,
-            //     render: function (row) {
-            //         return '' +
-            //             '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-junket-loss-edit" data-id="' + row.IDNo + '">' +
-            //             '<i class="fa fa-pencil-alt"></i></button>' +
-            //             '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-remove" data-id="' + row.IDNo + '">' +
-            //             '<i class="fa fa-trash-alt"></i></button>';
-            //     }
-            // }
+            // { data: 'ENCODED_BY_NAME', defaultContent: '' },
+            {
+                data: null,
+                orderable: false,
+                searchable: false,
+                className: 'text-center junket-loss-action-cell',
+                render: function (data, type, row) {
+                    return buildJunketLossActionButtons(row);
+                }
+            }
         ],
         footerCallback: function () {
             updateJunketLossTableTotal(this.api());
@@ -722,8 +964,8 @@ $(document).ready(function () {
         junketLossTable = ensureJunketLossTable();
     }
 
-    // Action is last column when restored (Encoded By + Action); set to 9 and uncomment th + columns above
-    var actionColIndex = -1;
+    // Action column is last (index 8). Excluded from print/export payloads.
+    var actionColIndex = 8;
 
     function getJunketLossTablePayload() {
         var headers = [];
@@ -894,15 +1136,39 @@ $(document).ready(function () {
 
     $('#junket-loss-account').on('change', onJunketLossAccountChange);
 
+    $('#junket-loss-tbl').on('click', '.btn-junket-loss-receipt', function () {
+        showJunketLossReceipt($(this).data('id'));
+    });
+
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-edit', function () {
-        const id = $(this).data('id');
-        const row = junketLossTable.rows().data().toArray().find(function (r) { return r.IDNo === id; });
-        openJunketLossModal(row || null);
+        if (!isJunketLossSuperAdmin()) return;
+        openJunketLossModal(findJunketLossRowById($(this).data('id')));
     });
 
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-remove', function () {
+        if (!isJunketLossSuperAdmin()) return;
         removeJunketLoss($(this).data('id'));
     });
+
+    $(document).on('click', '.js-copy-junket-loss-receipt-image', function () {
+        copyJunketLossReceiptImage(this);
+    });
+
+    $(document).on('click', '.js-copy-junket-loss-receipt-text', function () {
+        copyJunketLossReceiptText(this);
+    });
+
+    (function () {
+        var receiptModalEl = document.getElementById('modal-junket-loss-receipt');
+        if (!receiptModalEl) return;
+        receiptModalEl.addEventListener('shown.bs.modal', function () {
+            document.body.classList.add('junket-loss-receipt-open');
+            loadJunketLossReceiptHtml2Canvas().catch(function () {});
+        });
+        receiptModalEl.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('junket-loss-receipt-open');
+        });
+    })();
 
     $('#junket-loss-amount').on('input', function () {
         $(this).val(formatAmountInput($(this).val()));

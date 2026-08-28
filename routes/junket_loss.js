@@ -108,6 +108,8 @@ router.get('/loss_amount_data', async (req, res) => {
 				jl.ENCODED_DT,
 				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME,
 				NULLIF(TRIM(CONCAT_WS(' - ', NULLIF(TRIM(ag.AGENT_CODE), ''), NULLIF(TRIM(ag.NAME), ''))), '') AS ACCOUNT_NAME,
+				NULLIF(TRIM(ag.AGENT_CODE), '') AS ACCOUNT_CODE,
+				NULLIF(TRIM(ag.NAME), '') AS ACCOUNT_HOLDER,
 				NULLIF(TRIM(g.NAME), '') AS GUEST_NAME
 			FROM junket_loss jl
 			LEFT JOIN user_info ui ON ui.IDNo = jl.ENCODED_BY
@@ -185,7 +187,10 @@ router.post('/add_loss_amount', async (req, res) => {
 	}
 });
 
-router.put('/loss_amount/:id', async (req, res) => {
+router.put('/loss_amount/:id', checkSession, async (req, res) => {
+	if (req.session?.permissions !== 0) {
+		return res.status(403).json({ message: 'Only Super Admin can edit loss amount.' });
+	}
 	try {
 		const id = parseInt(req.params.id, 10);
 		const {
@@ -245,7 +250,10 @@ router.put('/loss_amount/:id', async (req, res) => {
 	}
 });
 
-router.put('/loss_amount/remove/:id', async (req, res) => {
+router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
+	if (req.session?.permissions !== 0) {
+		return res.status(403).json({ message: 'Only Super Admin can delete loss amount.' });
+	}
 	try {
 		const id = parseInt(req.params.id, 10);
 		const date_now = new Date();
