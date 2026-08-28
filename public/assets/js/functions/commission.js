@@ -771,13 +771,26 @@ $(document).ready(function() {
 
     function placeCommissionDateFilter() {
         var $mount = $('#commission-daterange-mount');
-        var $length = $('#commission-tbl_length');
-        var $controls = $('#commission-tbl_wrapper').find('.commission-controls-highlight').first();
-        if (!$mount.length || !$length.length || !$controls.length) return;
-        if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $length[0]) {
-            $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+        if (!$mount.length) return;
+
+        // Dashboard modal: date filters live in the top toolbar.
+        // Standalone /commission page: keep them in the Show/Search controls bar.
+        var $toolbar = $('#modal-dash-commission .commission-toolbar').first();
+        if ($toolbar.length) {
+            if ($mount.parent()[0] !== $toolbar[0] || $toolbar.children().first()[0] !== $mount[0]) {
+                $mount.detach().prependTo($toolbar).addClass('is-placed').data('placed', true);
+            } else {
+                $mount.addClass('is-placed').data('placed', true);
+            }
         } else {
-            $mount.addClass('is-placed').data('placed', true);
+            var $length = $('#commission-tbl_length');
+            var $controls = $('#commission-tbl_wrapper').find('.commission-controls-highlight').first();
+            if (!$length.length || !$controls.length) return;
+            if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $length[0]) {
+                $mount.detach().insertAfter($length).addClass('is-placed').data('placed', true);
+            } else {
+                $mount.addClass('is-placed').data('placed', true);
+            }
         }
         if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.fitRangePickerInstance === 'function') {
             var el = getCommissionDateInput();
@@ -809,10 +822,9 @@ $(document).ready(function() {
         var $mount = $('#commission-compare-selection-mount');
         var $date = $('#commission-daterange-mount');
         var $length = $('#commission-tbl_length');
-        var $controls = $('#commission-tbl_wrapper').find('.commission-controls-highlight').first();
         if (!$mount.length) return;
-        if ($date.length && $date.hasClass('is-placed') && $controls.length) {
-            if ($mount.parent()[0] !== $controls[0] || $mount.prev()[0] !== $date[0]) {
+        if ($date.length && $date.hasClass('is-placed') && $date.parent().length) {
+            if ($mount.prev()[0] !== $date[0]) {
                 $mount.detach().insertAfter($date).addClass('is-placed').data('placed', true);
             } else {
                 $mount.addClass('is-placed').data('placed', true);
