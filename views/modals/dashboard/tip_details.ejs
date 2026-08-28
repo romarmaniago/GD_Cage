@@ -32,6 +32,12 @@
 							<i class="fa fa-minus" aria-hidden="true"></i>
 						</button>
 						<% } %>
+						<button type="button" id="btn-dash-tip-print" class="btn btn-sm btn-alt-success">
+							<i class="fa fa-print" aria-hidden="true"></i> <%= __('tip.print') || 'Print' %>
+						</button>
+						<button type="button" id="btn-dash-tip-export" class="btn btn-sm btn-success">
+							<i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('tip.export') || 'Export' %>
+						</button>
 					</div>
 				</div>
 				<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
@@ -398,3 +404,26 @@
 	height: calc(1.5em + 0.75rem + 6px);
 }
 </style>
+
+<script type="application/json" id="dash-tip-table-i18n"><%- JSON.stringify({
+	title: __('sidebar.tip') || 'Tip',
+	print_label: __('tip.print') || 'Print',
+	export_label: __('tip.export') || 'Export',
+	no_data_print: __('tip.no_data_print') || 'No data to print for the current filter.',
+	no_data_export: __('tip.no_data_export') || 'No data to export for the current filter.',
+	error: __('tip.export_error') || 'Export failed',
+	headers: {
+		program_date: __('tip.program_date') || 'Program Date',
+		date_time: __('tip.date_time') || 'Date & Time',
+		account: __('tip.account') || 'Account',
+		guest: __('tip.guest') || 'Guest',
+		game_no: __('tip.game_no') || 'Game #',
+		remarks: __('tip.remarks') || 'Remarks',
+		roller: __('tip.roller') || 'Roller',
+		dealer: __('tip.dealer') || 'Dealer',
+		transaction: __('tip.transaction') || 'Transaction',
+		amount: __('tip.amount') || 'Amount',
+		status: __('tip.status') || 'Status',
+		name: __('tip.name') || 'Name'
+	}
+}) %></script>

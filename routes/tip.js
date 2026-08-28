@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 
 const TIP_TYPE = {
 	ROLLER: 1,
@@ -155,6 +156,25 @@ router.get('/tip', checkSession, function (req, res) {
 	const data = sessions(req, 'tip');
 	data.permissions = req.session.permissions;
 	res.render('tip/tip', data);
+});
+
+// Client sends the currently visible rows (ACTION column omitted).
+router.post('/tip/export_xlsx', checkSession, async function (req, res) {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey: 'tip',
+			sheetName: 'Tip',
+			headers,
+			rows,
+			filename: filename || 'Tip-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('tip/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
 });
 
 router.get('/tip_roller_balance', checkSession, async (req, res) => {

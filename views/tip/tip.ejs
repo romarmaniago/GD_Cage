@@ -61,6 +61,12 @@
               <button type="button" class="tip-action-icon-btn" id="btn-tip-settlement-open" title="<%= __('tip.settle') %>" aria-label="<%= __('tip.settle') %>">
                 <i class="fa fa-minus" aria-hidden="true"></i>
               </button>
+              <button type="button" id="btn-tip-print" class="btn btn-sm btn-alt-success">
+                <i class="fa fa-print" aria-hidden="true"></i> <%= __('tip.print') || 'Print' %>
+              </button>
+              <button type="button" id="btn-tip-export" class="btn btn-sm btn-success">
+                <i class="fa fa-file-excel" aria-hidden="true"></i> <%= __('tip.export') || 'Export' %>
+              </button>
             </div>
           </div>
 
@@ -187,6 +193,28 @@
   saved: __('tip.settlement_saved'),
   updated: __('tip.updated'),
   editTitle: __('tip.edit_record')
+}) %></script>
+<script type="application/json" id="tip-table-i18n"><%- JSON.stringify({
+  title: __('sidebar.tip') || 'Tip',
+  print_label: __('tip.print') || 'Print',
+  export_label: __('tip.export') || 'Export',
+  no_data_print: __('tip.no_data_print') || 'No data to print for the current filter.',
+  no_data_export: __('tip.no_data_export') || 'No data to export for the current filter.',
+  error: __('tip.export_error') || 'Export failed',
+  headers: {
+    program_date: __('tip.program_date') || 'Program Date',
+    date_time: __('tip.date_time') || 'Date & Time',
+    account: __('tip.account') || 'Account',
+    guest: __('tip.guest') || 'Guest',
+    game_no: __('tip.game_no') || 'Game #',
+    remarks: __('tip.remarks') || 'Remarks',
+    roller: __('tip.roller') || 'Roller',
+    dealer: __('tip.dealer') || 'Dealer',
+    transaction: __('tip.transaction') || 'Transaction',
+    amount: __('tip.amount') || 'Amount',
+    status: __('tip.status') || 'Status',
+    name: __('tip.name') || 'Name'
+  }
 }) %></script>
 <script src="/assets/js/functions/credit_guarantor_autocomplete.js"></script>
 <script src="/assets/js/functions/tip.js"></script>
@@ -547,6 +575,32 @@
 
   .dataTables_length select {
     font-size: 12px;
+  }
+
+  /* Date-range filter relocated into the DataTables controls row */
+  #tip-tbl_wrapper > .row:first-child {
+    padding: 16px 14px 4px;
+  }
+
+  #tip-tbl_wrapper .dataTables_length.tip-dt-length {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  #tip-tbl_wrapper .dataTables_length.tip-dt-length label {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  #tip-tbl_wrapper .dataTables_length.tip-dt-length select {
+    height: calc(1.5em + 0.5rem + 2px);
+  }
+
+  #tip-tbl_wrapper .tip-dt-length .tip-daterange-group {
+    margin-right: 0;
   }
 
   .dataTables_wrapper .row {

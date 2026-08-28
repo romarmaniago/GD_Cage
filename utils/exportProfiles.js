@@ -58,6 +58,13 @@ const PROFILES = {
 		labelCols: 2,
 		leftAlignCols: [1, 2, 4, 5]
 	},
+	tip: {
+		amountCols: [8, 12],
+		signedCols: [8],
+		labelCols: 6,
+		leftAlignCols: [3, 4, 6, 10, 14],
+		centerAlignCols: [1, 2, 5, 7, 9, 11, 13]
+	},
 	authorizedMasterAccount: {
 		amountCols: [3],
 		signedCols: [3],

@@ -1350,6 +1350,217 @@ $(document).ready(function () {
 		}
 	});
 
+	/* ------------------------------------------------------------------ *
+	 * Print / Export
+	 * ------------------------------------------------------------------ */
+
+	var DASH_TIP_ACTION_COL_INDEX = 14;
+
+	function getDashTipTableI18n() {
+		if (window.dashTipTableI18n) return window.dashTipTableI18n;
+		var el = document.getElementById('dash-tip-table-i18n');
+		var parsed = {};
+		if (el) {
+			try { parsed = JSON.parse(el.textContent || '{}'); } catch (e) { parsed = {}; }
+		}
+		window.dashTipTableI18n = parsed;
+		return parsed;
+	}
+
+	function getDashTipExportHeaders() {
+		var h = (getDashTipTableI18n().headers) || {};
+		var roller = h.roller || 'Roller';
+		var dealer = h.dealer || 'Dealer';
+		return [
+			h.program_date || 'Program Date',
+			h.date_time || 'Date & Time',
+			h.account || 'Account',
+			h.guest || 'Guest',
+			h.game_no || 'Game #',
+			h.remarks || 'Remarks',
+			roller + ' ' + (h.transaction || 'Transaction'),
+			roller + ' ' + (h.amount || 'Amount'),
+			roller + ' ' + (h.status || 'Status'),
+			roller + ' ' + (h.name || 'Name'),
+			dealer + ' ' + (h.transaction || 'Transaction'),
+			dealer + ' ' + (h.amount || 'Amount'),
+			dealer + ' ' + (h.status || 'Status'),
+			dealer + ' ' + (h.name || 'Name')
+		];
+	}
+
+	function getDashTipTablePayload() {
+		var headers = getDashTipExportHeaders();
+		var rows = [];
+		if (!tipTable) return { headers: headers, rows: rows };
+		tipTable.rows({ search: 'applied' }).every(function () {
+			var cells = [];
+			$(this.node()).find('td').each(function (i) {
+				if (i === DASH_TIP_ACTION_COL_INDEX) return;
+				cells.push($(this).text().replace(/\s+/g, ' ').trim());
+			});
+			if (cells.length) rows.push(cells);
+		});
+		return { headers: headers, rows: rows };
+	}
+
+	function getDashTipDateRangeLabel() {
+		if (tipDateStart && tipDateEnd) {
+			return formatProgramDateYmd(tipDateStart) + ' to ' + formatProgramDateYmd(tipDateEnd);
+		}
+		return '';
+	}
+
+	function getDashTipExportFilename() {
+		if (tipDateStart && tipDateEnd) {
+			return 'Tip_' + formatProgramDateYmd(tipDateStart) + '_to_' + formatProgramDateYmd(tipDateEnd) + '.xlsx';
+		}
+		return 'Tip-export.xlsx';
+	}
+
+	function dashTipPrintEscapeHtml(value) {
+		return String(value == null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function getDashTipPrintStyles() {
+		return [
+			'@page{size:landscape;margin:10mm;}',
+			'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+			'.print-wrap{width:100%;}',
+			'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+			'.subtitle{text-align:center;margin:0 0 12px;font-size:12px;color:#444;}',
+			'table{width:100%;border-collapse:collapse;font-size:10px;}',
+			'th,td{border:1px solid #777;padding:5px 6px;vertical-align:middle;}',
+			'th{background:#d9e1f2;text-align:center;font-weight:700;}',
+			'td{text-align:center;}',
+			'th:nth-child(8),td:nth-child(8),th:nth-child(12),td:nth-child(12){text-align:right;}',
+			'td:nth-child(6){text-align:left;}'
+		].join('');
+	}
+
+	function printDashTipTable() {
+		var t = getDashTipTableI18n();
+		var payload = getDashTipTablePayload();
+		if (payload.rows.length === 0) {
+			Swal.fire({
+				icon: 'info',
+				title: t.print_label || 'Print',
+				text: t.no_data_print || 'No data to print for the current filter.',
+				confirmButtonColor: '#0d6efd'
+			});
+			return;
+		}
+
+		var headerHtml = payload.headers.map(function (h) {
+			return '<th>' + dashTipPrintEscapeHtml(h) + '</th>';
+		}).join('');
+		var rowsHtml = payload.rows.map(function (row) {
+			return '<tr>' + row.map(function (cell) {
+				return '<td>' + dashTipPrintEscapeHtml(cell) + '</td>';
+			}).join('') + '</tr>';
+		}).join('');
+
+		var iframe = document.createElement('iframe');
+		iframe.style.position = 'fixed';
+		iframe.style.right = '0';
+		iframe.style.bottom = '0';
+		iframe.style.width = '0';
+		iframe.style.height = '0';
+		iframe.style.border = '0';
+		document.body.appendChild(iframe);
+
+		var frameWindow = iframe.contentWindow;
+		var frameDoc = frameWindow.document;
+		var rangeLabel = getDashTipDateRangeLabel();
+		frameDoc.open();
+		frameDoc.write([
+			'<!doctype html><html><head><title>', dashTipPrintEscapeHtml(t.title || 'Tip'), '</title><style>',
+			getDashTipPrintStyles(),
+			'</style></head><body><div class="print-wrap">',
+			'<h2>', dashTipPrintEscapeHtml(t.title || 'Tip'), '</h2>',
+			rangeLabel ? '<div class="subtitle">' + dashTipPrintEscapeHtml(rangeLabel) + '</div>' : '',
+			'<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+			'</div></body></html>'
+		].join(''));
+		frameDoc.close();
+
+		var cleanup = function () {
+			setTimeout(function () {
+				if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+			}, 300);
+		};
+		frameWindow.onafterprint = cleanup;
+		setTimeout(function () {
+			frameWindow.focus();
+			frameWindow.print();
+			cleanup();
+		}, 250);
+	}
+
+	function exportDashTipTable($btn) {
+		var t = getDashTipTableI18n();
+		var payload = getDashTipTablePayload();
+		if (payload.rows.length === 0) {
+			Swal.fire({
+				icon: 'info',
+				title: t.export_label || 'Export',
+				text: t.no_data_export || 'No data to export for the current filter.',
+				confirmButtonColor: '#0d6efd'
+			});
+			return;
+		}
+		var outName = getDashTipExportFilename();
+		if ($btn) $btn.prop('disabled', true);
+		fetch('/tip/export_xlsx', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify({ headers: payload.headers, rows: payload.rows, filename: outName })
+		})
+			.then(function (res) {
+				if (!res.ok) {
+					return res.json().catch(function () { return {}; }).then(function (j) {
+						throw new Error((j && j.error) ? j.error : (t.error || 'Export failed'));
+					});
+				}
+				return res.blob();
+			})
+			.then(function (blob) {
+				var link = document.createElement('a');
+				link.href = URL.createObjectURL(blob);
+				link.download = outName;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(link.href);
+			})
+			.catch(function (err) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Error',
+					text: err.message || (t.error || 'Export failed'),
+					confirmButtonColor: '#0d6efd'
+				});
+			})
+			.finally(function () {
+				if ($btn) $btn.prop('disabled', false);
+			});
+	}
+
+	$('#btn-dash-tip-print').on('click', function (e) {
+		e.preventDefault();
+		printDashTipTable();
+	});
+	$('#btn-dash-tip-export').on('click', function (e) {
+		e.preventDefault();
+		exportDashTipTable($(this));
+	});
+
 	$('#btn-dash-tip-in-open').on('click', openTipInModal);
 	$('#btn-dash-tip-settlement-open').on('click', openTipSettlementModal);
 	$('#tip-in-modal-account').on('change', onTipInAccountChange);

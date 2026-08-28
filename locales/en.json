@@ -1659,6 +1659,11 @@
 		"receipt": "Receipt",
 		"receipt_load_error": "Unable to load receipt.",
 		"yes": "Yes",
-		"cancel": "Cancel"
+		"cancel": "Cancel",
+		"print": "Print",
+		"export": "Export",
+		"no_data_print": "No data to print for the current filter.",
+		"no_data_export": "No data to export for the current filter.",
+		"export_error": "Export failed"
 	}
 }
