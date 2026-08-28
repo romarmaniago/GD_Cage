@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const { fetchGamebookGameInformationRows } = require('../utils/gameInformationGamebook');
 
 const GAME_INFORMATION_SELECT = `
 	SELECT
@@ -164,16 +165,35 @@ router.get('/categorize_group', checkSession, function (req, res) {
 	res.render('game_information/categorize_group', data);
 });
 
-/** List rows from game_information table only. */
+/**
+ * List Game Information rows: manual entries from the game_information table plus
+ * read-only records sourced from the Game Book (game_list). Game Book rows carry no
+ * manual_id and are not editable.
+ */
 router.get('/game_information_data', checkSession, async (req, res) => {
 	try {
 		const filter = buildProgramDateWhere(req.query);
 		if (filter.error) return res.status(400).json({ error: filter.error });
 
-		const [rows] = await pool.execute(
+		const [manualRows] = await pool.execute(
 			`${GAME_INFORMATION_SELECT} ${filter.where} ORDER BY gi.PROGRAM_DATE ASC, gi.IDNo ASC`,
 			filter.params
 		);
+
+		const gamebook = await fetchGamebookGameInformationRows(pool, req.query);
+		if (gamebook.error) return res.status(400).json({ error: gamebook.error });
+
+		const rows = manualRows.concat(gamebook.rows);
+		const toTime = (v) => {
+			const t = new Date(v).getTime();
+			return Number.isNaN(t) ? 0 : t;
+		};
+		rows.sort((a, b) => {
+			const dateCmp = toTime(a.PROGRAM_DATE) - toTime(b.PROGRAM_DATE);
+			if (dateCmp !== 0) return dateCmp;
+			return toTime(a.GAME_START) - toTime(b.GAME_START);
+		});
+
 		res.json(rows);
 	} catch (err) {
 		console.error('[game_information_data]', err);

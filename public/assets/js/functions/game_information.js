@@ -249,13 +249,18 @@
 		return { buyin: 0, cashout: 0, winloss: 0, rolling: 0, commission: 0, addChg: 0, settle: 0 };
 	}
 
+	function isGamebookRow(row) {
+		return String(row.SOURCE || '') === 'gamebook' || !row.manual_id;
+	}
+
 	function addRowToTable(row) {
-		manualGamesById[row.manual_id] = row;
+		var gamebookRow = isGamebookRow(row);
+		if (row.manual_id) manualGamesById[row.manual_id] = row;
 		var addChg = parseFloat(row.ADD_CHARGE) || 0;
 		var net = parseFloat(row.COMMISSION) || 0;
 		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
 		var rollingNegative = (parseFloat(row.ROLLING) || 0) < 0;
-		var sharedGame = isSharedGame(row);
+		var sharedGame = !gamebookRow && isSharedGame(row);
 		var displayCommission = sharedGame ? giSharedPositiveAmount(net, row) : net;
 		var displaySettle = sharedGame ? giSharedSettleAmount(net, addChg, row.WIN_LOSS) : settle;
 		if (sharedGame) {
@@ -292,8 +297,12 @@
 			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
 			formatManualGameEnd(row)
 		];
-		var actionCell = buildManualActionCell(row.manual_id);
-		if (actionCell !== '') cells.push(actionCell);
+		if (gamebookRow) {
+			if (hasActionColumn()) cells.push('');
+		} else {
+			var actionCell = buildManualActionCell(row.manual_id);
+			if (actionCell !== '') cells.push(actionCell);
+		}
 		var rowNode = dataTable.row.add(cells).node();
 		$(rowNode).data('giTotals', {
 			buyin: parseFloat(row.BUY_IN) || 0,
@@ -402,7 +411,7 @@
 			info: true,
 			searching: true,
 			ordering: true,
-			order: [[3, 'asc']],
+			order: [[0, 'desc'], [1, 'desc']],
 			autoWidth: false,
 			columnDefs: [
 				{ targets: [4, 5], className: 'text-start' },
