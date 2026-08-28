@@ -508,6 +508,7 @@ async function insertCutoffCashoutLeg(db, {
 	leg,
 	encodedBy,
 	dateNow,
+	programDate = null,
 	agentQuery
 }) {
 	const legTotal = leg.nn + leg.cc;
@@ -550,6 +551,7 @@ async function insertCutoffCashoutLeg(db, {
 			amount: legTotal,
 			ledgerId: ledgerResult.insertId,
 			gameId: parentGameId,
+			programDate: programDate || null,
 			remarks: 'Chips Returned',
 			encodedBy,
 			encodedDt: dateNow
@@ -799,6 +801,7 @@ async function performGameCutoff(db, params) {
 			leg,
 			encodedBy,
 			dateNow,
+			programDate,
 			agentQuery
 		});
 	}
@@ -1162,6 +1165,7 @@ async function performInGameSettlement(db, params) {
 			leg,
 			encodedBy,
 			dateNow,
+			programDate,
 			agentQuery
 		});
 	}
@@ -6457,6 +6461,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	try {
 		await connection.beginTransaction();
 
+		const programDate = await getGameProgramDate(connection, game_id);
+
 		if (cashLeg > 0) {
 			const [r1] = await connection.execute(query1, [
 				game_id,
@@ -6544,6 +6550,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				amount: creditLeg,
 				ledgerId: ledgerResult.insertId,
 				gameId: game_id,
+				programDate: programDate || null,
 				guarantor: creditGuarantor || null,
 				remarks: creditTxnRemarksOnly(creditRemarks) || CashOutDESC,
 				encodedBy: userId,

@@ -1,0 +1,198 @@
+<div class="modal fade" id="modal-marker-receipt" tabindex="-1" aria-labelledby="modalMarkerReceiptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered marker-receipt-dialog">
+        <div class="modal-content marker-receipt-content position-relative">
+            <button type="button" class="btn-close marker-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-body p-0">
+                <div id="marker-receipt-container" class="marker-receipt-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#modal-marker-receipt .marker-receipt-dialog {
+    --bs-modal-width: min(98vw, 360px);
+    width: min(98vw, 360px) !important;
+    max-width: min(98vw, 360px) !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#modal-marker-receipt .marker-receipt-content {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+}
+
+#modal-marker-receipt .modal-body {
+    background: transparent;
+    width: 100%;
+}
+
+#modal-marker-receipt .marker-receipt-close-btn {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.25rem;
+    z-index: 10;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    margin: 0;
+    opacity: 1;
+    border-radius: 50%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    background-size: 1.35rem;
+    filter: none;
+    --bs-btn-close-opacity: 1;
+}
+
+#modal-marker-receipt .marker-receipt-close-btn:hover {
+    opacity: 1;
+    background-color: #f8f9fa;
+    transform: scale(1.05);
+}
+
+#modal-marker-receipt .marker-receipt-container {
+    width: 100%;
+    padding: 2.5rem 0.5rem 0.75rem;
+    background: transparent;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+}
+
+#modal-marker-receipt .marker-receipt-slip {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.75rem 0.65rem;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+}
+
+#modal-marker-receipt .marker-receipt-slip-body {
+    flex: 1 1 auto;
+    padding: 0.5rem 0.25rem 0;
+}
+
+#modal-marker-receipt .mrr-brand {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.35rem;
+    text-transform: uppercase;
+}
+
+#modal-marker-receipt .mrr-datetime {
+    text-align: center;
+    font-size: 0.85rem;
+    margin: 0 0 0.35rem;
+}
+
+#modal-marker-receipt .mrr-title {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.85rem;
+    margin: 0 0 0.5rem;
+}
+
+#modal-marker-receipt .mrr-title-out {
+    color: #dc3545 !important;
+    font-weight: 700;
+}
+
+#modal-marker-receipt .mrr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    border: 1px solid #000;
+    box-sizing: border-box;
+}
+
+#modal-marker-receipt .mrr-table td {
+    border: none;
+    border-bottom: 1px dotted #000;
+    padding: 0.35rem 0.45rem;
+    vertical-align: middle;
+}
+
+#modal-marker-receipt .mrr-table tr:last-child td {
+    border-bottom: none;
+}
+
+#modal-marker-receipt .mrr-table tr:has(+ tr.mrr-total-row) td {
+    border-bottom: none;
+}
+
+#modal-marker-receipt .mrr-table tr.mrr-total-row td {
+    border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
+}
+
+#modal-marker-receipt .mrr-label {
+    text-align: left;
+    white-space: nowrap;
+}
+
+#modal-marker-receipt .mrr-value {
+    text-align: right;
+    white-space: normal;
+    width: 100%;
+}
+
+#modal-marker-receipt .mrr-total-row td {
+    font-weight: 700;
+}
+
+#modal-marker-receipt .mrr-total-label {
+    font-weight: 700;
+}
+
+#modal-marker-receipt .mrr-amount-out {
+    color: #dc3545 !important;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+}
+
+#modal-marker-receipt .mrr-amount-in {
+    color: #000 !important;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+}
+
+#modal-marker-receipt .marker-receipt-slip-actions {
+    display: flex;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+}
+
+#modal-marker-receipt .marker-receipt-slip-actions .marker-receipt-copy-btn {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.55rem 0.5rem;
+    white-space: nowrap;
+    color: #fff;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    border-color: transparent;
+    border-radius: 0.2rem;
+}
+
+body.marker-receipt-open .modal-backdrop.show {
+    --bs-backdrop-opacity: 0.38;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+</style>

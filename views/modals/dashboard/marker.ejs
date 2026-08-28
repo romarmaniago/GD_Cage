@@ -126,9 +126,10 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
                 </li>
-                <li class="nav-item" role="presentation">
+                <%# Credit tab temporarily hidden %>
+                <!-- <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
-                </li>
+                </li> -->
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
                 </li>
@@ -176,7 +177,6 @@
                                 <th><%= __('dashboard_marker.type') %></th>
                                 <th><%= __('dashboard_marker.guarantor') %></th>
                                 <th><%= __('dashboard_marker.remarks') %></th>
-                                <th class="text-center"><%= __('dashboard_marker.action') %></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -184,7 +184,7 @@
                             <tr>
                                 <th colspan="5" class="fw-semibold text-end"></th>
                                 <th class="text-end fw-semibold marker-total-col-amount"></th>
-                                <th colspan="4"></th>
+                                <th colspan="3"></th>
                             </tr>
                         </tfoot>
                     </table>
@@ -209,6 +209,7 @@
                         <th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.type') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.guarantor') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
+                        <th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.action') %></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -741,6 +742,27 @@
     padding: 0.2rem 0.45rem;
   }
 
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    padding: 0.15rem 0.3rem;
+    color: #6c757d;
+  }
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain-danger {
+    color: #dc3545;
+  }
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain:hover,
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain:focus {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #000;
+  }
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain-danger:hover,
+  #modal-new-marker #marker-tbl .marker-row-actions .btn-icon-plain-danger:focus {
+    color: #b02a37;
+  }
+
   #modal-new-marker #marker-tbl thead th {
     color: var(--gd-marker-gold-text) !important;
     font-weight: 600;
@@ -999,5 +1021,7 @@ window.__markerModalInit = function() {
     });
 };
 </script>
+
+<%- include('../../partials/marker_receipt_modal') %>
 
 

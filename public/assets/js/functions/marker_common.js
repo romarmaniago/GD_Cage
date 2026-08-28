@@ -85,15 +85,28 @@
         var translations = window.markerTranslations || {};
         return $table.DataTable({
             order: [[0, 'asc']],
-            searching: false,
-            paging: false,
-            info: false,
+            searching: true,
+            paging: true,
+            info: true,
+            pageLength: 10,
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
             autoWidth: false,
             language: {
+                info: translations.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries',
+                infoEmpty: translations.info_empty || 'Showing 0 to 0 of 0 entries',
+                infoFiltered: translations.info_filtered || '(filtered from _MAX_ total entries)',
+                lengthMenu: translations.length_menu || 'Show _MENU_ entries',
+                search: translations.search || 'Search:',
+                paginate: {
+                    first: translations.first || 'First',
+                    last: translations.last || 'Last',
+                    previous: translations.previous || 'Previous',
+                    next: translations.next || 'Next'
+                },
                 emptyTable: translations.no_data_available || 'No data available in table',
                 zeroRecords: translations.no_data_available || 'No matching records found'
             },
-            dom: 't',
+            dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
             columns: [
                 { data: 'code', defaultContent: '—', render: creditStatusTextColumn },
                 { data: 'agent', defaultContent: '—', render: creditStatusTextColumn },
@@ -470,21 +483,56 @@
                         }
                         var safe = escapeHtml(raw);
                         var textHtml = safe ? safe : '<span class="text-muted">—</span>';
-                        if (!(window.RemarksEditor ? window.RemarksEditor.canEdit() : isSuperAdmin)) {
+                        if (!isSuperAdmin) {
                             return textHtml;
                         }
                         var id = row.IDNo != null ? String(row.IDNo) : '';
                         var enc = encodeURIComponent(raw);
                         var t = translations;
                         var editTitle = (t.edit_remarks || 'Edit remarks').replace(/"/g, '&quot;');
-                        var delTitle = (t.delete || 'Delete').replace(/"/g, '&quot;');
                         return (
-                            '<div class="marker-history-remarks-cell d-flex align-items-start gap-2 justify-content-between">' +
-                            '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer flex-grow-1 text-break btn-edit-marker-remarks"' +
-                            ' role="button" tabindex="0" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>' +
-                            '<span class="marker-history-remarks-actions flex-shrink-0 d-flex gap-1">' +
-                            '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
-                            '</span></div>'
+                            '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer text-break btn-edit-marker-remarks"' +
+                            ' role="button" tabindex="0" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>'
+                        );
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-center',
+                    render: function (_data, type, row) {
+                        if (type !== 'display') return '';
+                        if (!isSuperAdmin) return '—';
+                        var id = row.IDNo != null ? String(row.IDNo) : '';
+                        if (!id) return '—';
+                        var editTitle = (translations.edit || 'Edit').replace(/"/g, '&quot;');
+                        var delTitle = (translations.delete || 'Delete').replace(/"/g, '&quot;');
+                        var receiptTitle = (translations.receipt || 'Receipt').replace(/"/g, '&quot;');
+                        var programYmd = row.PROGRAM_DATE != null
+                            ? (formatProgramDateCell(row.PROGRAM_DATE, 'sort') || '')
+                            : '';
+                        var guarantorEnc = encodeURIComponent(row.GUARANTOR != null ? String(row.GUARANTOR) : '');
+                        var remarksEnc = encodeURIComponent(row.REMARKS != null ? String(row.REMARKS) : '');
+                        var amountVal = row.AMOUNT != null ? String(Math.abs(Number(row.AMOUNT) || 0)) : '';
+                        var guestIdVal = row.GUEST_ID != null ? String(row.GUEST_ID) : '';
+                        var agentIdVal = row.AGENT_ID != null ? String(row.AGENT_ID) : '';
+                        return (
+                            '<div class="d-inline-flex align-items-center gap-1 marker-row-actions">' +
+                            '<button type="button" class="btn btn-sm btn-icon-plain btn-marker-receipt" ' +
+                            'data-id="' + id + '" title="' + receiptTitle + '"><i class="fa fa-receipt"></i></button>' +
+                            '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-history" ' +
+                            'data-id="' + id + '" ' +
+                            'data-program-date="' + programYmd + '" ' +
+                            'data-amount="' + escapeHtml(amountVal) + '" ' +
+                            'data-guest-id="' + escapeHtml(guestIdVal) + '" ' +
+                            'data-agent-id="' + escapeHtml(agentIdVal) + '" ' +
+                            'data-guarantor="' + guarantorEnc + '" ' +
+                            'data-remarks="' + remarksEnc + '" ' +
+                            'title="' + editTitle + '"><i class="fa fa-edit"></i></button>' +
+                            '<button type="button" class="btn btn-sm btn-icon-plain btn-icon-plain-danger btn-delete-marker" ' +
+                            'data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
+                            '</div>'
                         );
                     }
                 }
@@ -680,7 +728,317 @@
             }
         });
 
+        // Edit button (moved here from the Credit / Total Credit tab)
+        $table.off('click.markerHistoryEdit').on('click.markerHistoryEdit', '.btn-edit-marker-history', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var btn = $(this);
+            if (btn.hasClass('marker-history-edit-busy')) return;
+            var id = btn.data('id');
+            if (!id) return;
+            if (window.RemarksEditor && !window.RemarksEditor.canEdit()) return;
+
+            var programDate = String(btn.attr('data-program-date') || '').trim();
+            var amountVal = String(btn.attr('data-amount') || '').trim();
+            var guestIdVal = String(btn.attr('data-guest-id') || '').trim();
+            var agentIdVal = String(btn.attr('data-agent-id') || '').trim();
+            var guarantorVal = '';
+            var remarksVal = '';
+            try { guarantorVal = decodeURIComponent(String(btn.attr('data-guarantor') || '')); } catch (err) { guarantorVal = ''; }
+            try { remarksVal = decodeURIComponent(String(btn.attr('data-remarks') || '')); } catch (err) { remarksVal = ''; }
+
+            openEditCreditTransactionModal({
+                id: id,
+                programDate: programDate,
+                amount: amountVal,
+                guestId: guestIdVal,
+                agentId: agentIdVal,
+                guarantor: guarantorVal,
+                remarks: remarksVal,
+                onSaved: function () {
+                    if (table && table.ajax) table.ajax.reload(null, false);
+                    if (window._markerTotalCreditTable && window._markerTotalCreditTable.ajax) {
+                        try { window._markerTotalCreditTable.ajax.reload(null, false); } catch (err) { /* noop */ }
+                    }
+                    if (typeof window._markerReloadBalanceTables === 'function') {
+                        window._markerReloadBalanceTables();
+                    }
+                    $.getJSON('/marker_total_credits_issue', function (data) {
+                        var total = (data && data.total != null) ? data.total : 0;
+                        var numStr = Number(total).toLocaleString('en-US');
+                        $('#txtTotalMarkerIssue').val(numStr);
+                        $('#dashboard-credit-value').html('₱ ' + numStr);
+                    });
+                }
+            });
+        });
+
+        // Receipt button
+        bindMarkerReceiptEventsOnce();
+        $table.off('click.markerHistoryReceipt').on('click.markerHistoryReceipt', '.btn-marker-receipt', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = $(this).data('id');
+            if (id) showMarkerReceipt(id);
+        });
+
         return table;
+    }
+
+    /* ---------- Credit receipt slip (History tab) ---------- */
+    function markerReceiptEscape(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function markerReceiptHasValue(value) {
+        if (value == null) return false;
+        if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+        var s = String(value).trim();
+        return s !== '' && s !== '-' && s !== '—';
+    }
+
+    function markerReceiptTextRow(label, value) {
+        if (!markerReceiptHasValue(value)) return '';
+        return (
+            '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
+            '</td><td class="mrr-value">' + markerReceiptEscape(String(value)) + '</td></tr>'
+        );
+    }
+
+    function markerReceiptFormatAmount(value) {
+        return Math.abs(Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function markerReceiptInOutRow(label, value, isOut) {
+        var num = Math.abs(Number(value) || 0);
+        var formatted = markerReceiptFormatAmount(num);
+        var display = num && isOut ? '(' + formatted + ')' : formatted;
+        var cls = isOut ? 'mrr-value mrr-amount-out' : 'mrr-value mrr-amount-in';
+        return (
+            '<tr class="mrr-total-row"><td class="mrr-label mrr-total-label">' + markerReceiptEscape(label) +
+            '</td><td class="' + cls + '">' + display + '</td></tr>'
+        );
+    }
+
+    function markerReceiptBalanceRow(label, value) {
+        if (value == null || value === '') return '';
+        var num = Number(value);
+        if (!Number.isFinite(num)) return '';
+        var formatted = markerReceiptFormatAmount(num);
+        var display = num < 0 ? '(' + formatted + ')' : formatted;
+        return (
+            '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
+            '</td><td class="mrr-value">' + display + '</td></tr>'
+        );
+    }
+
+    function markerReceiptDateTime(value) {
+        if (!value) return '';
+        var m = window.moment ? parseMarkerHistoryDateString(value) : null;
+        return m && m.isValid() ? m.format('YYYY-MM-DD HH:mm') : String(value);
+    }
+
+    function markerReceiptDateOnly(value) {
+        if (!value) return '';
+        var m = window.moment ? parseMarkerHistoryDateString(value) : null;
+        return m && m.isValid() ? m.format('YYYY-MM-DD') : String(value).slice(0, 10);
+    }
+
+    function buildMarkerReceiptHtml(row) {
+        row = row || {};
+        var t = window.markerTranslations || {};
+        var isOut = isMarkerCreditOutTransaction(row);
+        var titleClass = isOut ? 'mrr-title mrr-title-out' : 'mrr-title';
+        var rowsHtml =
+            markerReceiptTextRow('DATE', formatProgramDateCell(row.PROGRAM_DATE, 'sort') || markerReceiptDateOnly(row.ENCODED_DT)) +
+            markerReceiptTextRow('ACCOUNT', row.AGENT_CODE) +
+            markerReceiptTextRow('NAME', row.AGENT_NAME) +
+            markerReceiptInOutRow('IN AND OUT', row.AMOUNT, isOut) +
+            markerReceiptBalanceRow('BALANCE', row.BALANCE_AFTER) +
+            markerReceiptTextRow('CONFIRMER', row.GUARANTOR) +
+            markerReceiptTextRow('REMARKS', row.REMARKS);
+
+        return (
+            '<div class="marker-receipt-slip">' +
+            '<div class="marker-receipt-slip-body">' +
+            '<p class="mrr-brand">GOLDEN DRAGON</p>' +
+            '<p class="' + titleClass + '">* Credit *</p>' +
+            '<p class="mrr-datetime">' + markerReceiptEscape(markerReceiptDateTime(row.ENCODED_DT)) + '</p>' +
+            '<table class="mrr-table"><tbody>' + rowsHtml + '</tbody></table>' +
+            '</div>' +
+            '<div class="marker-receipt-slip-actions">' +
+            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-image">' + markerReceiptEscape(t.copy_image || 'Copy image') + '</button>' +
+            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-text">' + markerReceiptEscape(t.copy_text || 'Copy text') + '</button>' +
+            '</div>' +
+            '</div>'
+        );
+    }
+
+    function findMarkerReceiptRowById(id) {
+        var found = null;
+        [window._markerHistoryTable, window._markerTotalCreditTable].forEach(function (dt) {
+            if (found || !dt || !dt.rows) return;
+            dt.rows().data().toArray().forEach(function (r) {
+                if (!found && r && String(r.IDNo) === String(id)) found = r;
+            });
+        });
+        return found;
+    }
+
+    function showMarkerReceipt(id) {
+        var row = findMarkerReceiptRowById(id);
+        if (!row) {
+            if (window.Swal) window.Swal.fire('Error', 'Record not found.', 'error');
+            return;
+        }
+        var modalEl = document.getElementById('modal-marker-receipt');
+        var container = document.getElementById('marker-receipt-container');
+        if (!modalEl || !container) return;
+        container.innerHTML = buildMarkerReceiptHtml(row);
+        $(modalEl).appendTo('body');
+
+        var openModals = $('.modal.show').not('#modal-marker-receipt');
+        if (openModals.length) {
+            var z = 1060;
+            openModals.each(function () {
+                var mz = parseInt($(this).css('z-index'), 10) || 1050;
+                if (mz >= z) z = mz + 10;
+            });
+            modalEl.style.zIndex = z;
+            $(modalEl).one('shown.bs.modal', function () {
+                var $backs = $('.modal-backdrop');
+                if ($backs.length > 1) {
+                    $backs.slice(1).addClass('d-none');
+                }
+            });
+        } else {
+            modalEl.style.zIndex = '';
+        }
+
+        if (window.bootstrap && window.bootstrap.Modal) {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    }
+    window.showMarkerReceipt = showMarkerReceipt;
+
+    var markerReceiptHtml2CanvasPromise = null;
+    function loadMarkerReceiptHtml2Canvas() {
+        if (typeof html2canvas !== 'undefined') return Promise.resolve();
+        if (markerReceiptHtml2CanvasPromise) return markerReceiptHtml2CanvasPromise;
+        markerReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            script.onload = function () { resolve(); };
+            script.onerror = function () {
+                markerReceiptHtml2CanvasPromise = null;
+                reject(new Error('Failed to load image copy library.'));
+            };
+            document.body.appendChild(script);
+        });
+        return markerReceiptHtml2CanvasPromise;
+    }
+
+    function markerReceiptCopyUi(btn) {
+        var originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        return {
+            success: function (message) {
+                if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Copied!', text: message, timer: 1800, showConfirmButton: false });
+            },
+            error: function (message) {
+                if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Copy failed', text: message });
+            },
+            restore: function () {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        };
+    }
+
+    function copyMarkerReceiptImage(btn) {
+        var slip = btn.closest('.marker-receipt-slip');
+        var slipBody = slip ? slip.querySelector('.marker-receipt-slip-body') : null;
+        if (!slipBody) return;
+        var ui = markerReceiptCopyUi(btn);
+        var blobPromise = loadMarkerReceiptHtml2Canvas()
+            .then(function () {
+                return html2canvas(slipBody, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+            })
+            .then(function (canvas) {
+                return new Promise(function (resolve, reject) {
+                    canvas.toBlob(function (blob) {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Failed to create receipt image.'));
+                    }, 'image/png');
+                });
+            });
+
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            navigator.clipboard
+                .write([new ClipboardItem({ 'image/png': blobPromise })])
+                .then(function () { ui.success('Receipt image copied. You can paste it anywhere.'); })
+                .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+                .finally(function () { ui.restore(); });
+        } else {
+            blobPromise
+                .then(function (blob) {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'credit-receipt.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    ui.success('Receipt image downloaded.');
+                })
+                .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+                .finally(function () { ui.restore(); });
+        }
+    }
+
+    function copyMarkerReceiptText(btn) {
+        var slip = btn.closest('.marker-receipt-slip');
+        var slipBody = slip ? slip.querySelector('.marker-receipt-slip-body') : null;
+        var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+        var ui = markerReceiptCopyUi(btn);
+        if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            ui.error('Clipboard is not supported in this browser.');
+            ui.restore();
+            return;
+        }
+        navigator.clipboard
+            .writeText(text)
+            .then(function () { ui.success('Receipt text copied. You can paste it anywhere.'); })
+            .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt text.'); })
+            .finally(function () { ui.restore(); });
+    }
+
+    function bindMarkerReceiptEventsOnce() {
+        if (window.__markerReceiptBound) return;
+        window.__markerReceiptBound = true;
+        $(document).on('click', '.js-copy-marker-receipt-image', function () { copyMarkerReceiptImage(this); });
+        $(document).on('click', '.js-copy-marker-receipt-text', function () { copyMarkerReceiptText(this); });
+        var modalEl = document.getElementById('modal-marker-receipt');
+        if (modalEl) {
+            modalEl.addEventListener('shown.bs.modal', function () {
+                document.body.classList.add('marker-receipt-open');
+                loadMarkerReceiptHtml2Canvas().catch(function () {});
+            });
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                document.body.classList.remove('marker-receipt-open');
+                $('.modal-backdrop.d-none').removeClass('d-none');
+                if ($('.modal.show').length) {
+                    document.body.classList.add('modal-open');
+                }
+            });
+        }
     }
 
     function formatProgramDateCell(value, type) {
@@ -1143,162 +1501,8 @@
                         var raw = data != null ? String(data).trim() : '';
                         return raw ? escapeHtml(raw) : '—';
                     }
-                },
-                {
-                    data: null,
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-center',
-                    render: function (_data, type, row) {
-                        if (type !== 'display') return '';
-                        var id = row.IDNo != null ? String(row.IDNo) : '';
-                        if (!id) return '—';
-                        var canEdit = window.RemarksEditor ? window.RemarksEditor.canEdit() : (perms !== 2);
-                        var editTitle = (translations.edit || 'Edit').replace(/"/g, '&quot;');
-                        var delTitle = (translations.delete || 'Delete').replace(/"/g, '&quot;');
-                        var programYmd = '';
-                        if (row.PROGRAM_DATE != null) {
-                            // Reuse UTC-safe formatter so Edit form gets the same date as the table.
-                            programYmd = formatProgramDateCell(row.PROGRAM_DATE, 'sort') || '';
-                        }
-                        var guarantorEnc = encodeURIComponent(row.GUARANTOR != null ? String(row.GUARANTOR) : '');
-                        var remarksEnc = encodeURIComponent(row.REMARKS != null ? String(row.REMARKS) : '');
-                        var amountVal = row.AMOUNT != null ? String(Math.abs(Number(row.AMOUNT) || 0)) : '';
-                        var guestIdVal = row.GUEST_ID != null ? String(row.GUEST_ID) : '';
-                        var agentIdVal = row.AGENT_ID != null ? String(row.AGENT_ID) : '';
-                        var html = '<div class="d-inline-flex align-items-center gap-1">';
-                        if (canEdit) {
-                            html +=
-                                '<button type="button" class="btn btn-sm btn-primary-subtle btn-edit-total-credit" ' +
-                                'data-id="' + id + '" ' +
-                                'data-program-date="' + programYmd + '" ' +
-                                'data-amount="' + escapeHtml(amountVal) + '" ' +
-                                'data-guest-id="' + escapeHtml(guestIdVal) + '" ' +
-                                'data-agent-id="' + escapeHtml(agentIdVal) + '" ' +
-                                'data-guarantor="' + guarantorEnc + '" ' +
-                                'data-remarks="' + remarksEnc + '" ' +
-                                'title="' + editTitle + '"><i class="fa fa-edit"></i></button>';
-                        }
-                        if (isSuperAdmin) {
-                            html +=
-                                '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' +
-                                id +
-                                '" title="' +
-                                delTitle +
-                                '"><i class="fa fa-trash-alt"></i></button>';
-                        }
-                        html += '</div>';
-                        if (!canEdit && !isSuperAdmin) return '—';
-                        return html;
-                    }
                 }
             ]
-        });
-
-        $table.off('click.markerTotalEdit').on('click.markerTotalEdit', '.btn-edit-total-credit', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var btn = $(this);
-            if (btn.hasClass('marker-total-edit-busy')) return;
-            var id = btn.data('id');
-            if (!id) return;
-            if (window.RemarksEditor && !window.RemarksEditor.canEdit()) return;
-
-            var programDate = String(btn.attr('data-program-date') || '').trim();
-            var amountVal = String(btn.attr('data-amount') || '').trim();
-            var guestIdVal = String(btn.attr('data-guest-id') || '').trim();
-            var agentIdVal = String(btn.attr('data-agent-id') || '').trim();
-            var guarantorVal = '';
-            var remarksVal = '';
-            try { guarantorVal = decodeURIComponent(String(btn.attr('data-guarantor') || '')); } catch (err) { guarantorVal = ''; }
-            try { remarksVal = decodeURIComponent(String(btn.attr('data-remarks') || '')); } catch (err) { remarksVal = ''; }
-
-            openEditCreditTransactionModal({
-                id: id,
-                programDate: programDate,
-                amount: amountVal,
-                guestId: guestIdVal,
-                agentId: agentIdVal,
-                guarantor: guarantorVal,
-                remarks: remarksVal,
-                onSaved: function () {
-                    if (table && table.ajax) table.ajax.reload(null, false);
-                    if (window._markerHistoryTable && window._markerHistoryTable.ajax) {
-                        try { window._markerHistoryTable.ajax.reload(null, false); } catch (err) { /* noop */ }
-                    }
-                    if (typeof window._markerReloadBalanceTables === 'function') {
-                        window._markerReloadBalanceTables();
-                    }
-                    $.getJSON('/marker_total_credits_issue', function (data) {
-                        var total = (data && data.total != null) ? data.total : 0;
-                        var numStr = Number(total).toLocaleString('en-US');
-                        $('#txtTotalMarkerIssue').val(numStr);
-                        $('#dashboard-credit-value').html('₱ ' + numStr);
-                    });
-                }
-            });
-        });
-
-        $table.off('click.markerTotalDelete').on('click.markerTotalDelete', '.btn-delete-marker', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var btn = $(this);
-            var id = btn.data('id');
-            if (!id) return;
-            var p = parseInt($('#user-role').data('permissions'), 10);
-            if ($('#user-role').length && p !== 0) return;
-
-            var confirmMsg = (window.markerTranslations && window.markerTranslations.confirm_delete) || 'Are you sure you want to delete this record?';
-            var confirmTitle = (window.markerTranslations && window.markerTranslations.delete) || 'Delete';
-
-            function afterDeleteSuccess(res) {
-                if (table && table.ajax) table.ajax.reload(null, false);
-                if (window._markerHistoryTable && window._markerHistoryTable.ajax) {
-                    try { window._markerHistoryTable.ajax.reload(null, false); } catch (err) { /* noop */ }
-                }
-                $.getJSON('/marker_total_credits_issue', function (data) {
-                    var total = (data && data.total != null) ? data.total : 0;
-                    var numStr = Number(total).toLocaleString('en-US');
-                    $('#txtTotalMarkerIssue').val(numStr);
-                    $('#dashboard-credit-value').html('₱ ' + numStr);
-                });
-                if (typeof window._markerReloadBalanceTables === 'function') {
-                    window._markerReloadBalanceTables();
-                }
-                if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Success', text: (res && res.message) || 'Record deleted.' });
-                if (typeof window.reloadData === 'function') window.reloadData();
-            }
-
-            if (window.Swal) {
-                window.SwalConfirm.fire({
-                    title: confirmTitle,
-                    message: confirmMsg,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: (window.markerTranslations && window.markerTranslations.yes_delete) || 'Yes, delete'
-                }).then(function (result) {
-                    if (!result.isConfirmed) return;
-                    btn.prop('disabled', true);
-                    $.ajax({
-                        url: '/marker_record/' + id,
-                        method: 'DELETE',
-                        success: afterDeleteSuccess,
-                        error: function (xhr) {
-                            var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error deleting record.';
-                            if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
-                        },
-                        complete: function () { btn.prop('disabled', false); }
-                    });
-                });
-            } else if (confirm(confirmMsg)) {
-                btn.prop('disabled', true);
-                $.ajax({
-                    url: '/marker_record/' + id,
-                    method: 'DELETE',
-                    success: afterDeleteSuccess,
-                    complete: function () { btn.prop('disabled', false); }
-                });
-            }
         });
 
         return table;
@@ -1839,6 +2043,24 @@
         }
         bootstrapGuarantorField();
 
+        // select2 4.0.13 re-opens the dropdown right after the "x" clear (it fires
+        // an internal 'toggle'). Inside a modal that reads as a broken clear. Swallow
+        // the single 'opening' that immediately follows a clear so the value just clears.
+        function suppressSelect2ReopenOnClear($sel) {
+            $sel.off('select2:clearing.markerClear select2:opening.markerClear');
+            $sel.on('select2:clearing.markerClear', function () {
+                $sel.data('markerJustCleared', true);
+                // self-heal: the reopen is synchronous, so drop the flag right after
+                setTimeout(function () { $sel.removeData('markerJustCleared'); }, 0);
+            });
+            $sel.on('select2:opening.markerClear', function (e) {
+                if ($sel.data('markerJustCleared')) {
+                    $sel.removeData('markerJustCleared');
+                    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                }
+            });
+        }
+
         function initAccountSelect2() {
             if (typeof $accountSelect.select2 !== 'function') return;
             if ($accountSelect.data('select2')) {
@@ -1850,6 +2072,7 @@
                 allowClear: true,
                 dropdownParent: $parent.length ? $parent : $('body')
             });
+            suppressSelect2ReopenOnClear($accountSelect);
         }
 
         function initGuestSelect2() {
@@ -1863,6 +2086,7 @@
                 allowClear: true,
                 dropdownParent: $parent.length ? $parent : $('body')
             });
+            suppressSelect2ReopenOnClear($guestSelect);
         }
 
         function clearGuestOptions() {

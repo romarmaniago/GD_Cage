@@ -348,13 +348,26 @@ function getCreditHistorySql() {
 			ct.GUEST_ID,
 			ct.GAME_ID,
 			ct.AMOUNT,
+			COALESCE(
+				ct.BALANCE_AFTER,
+				(
+					SELECT SUM(
+						CASE WHEN x.CREDIT_ACTION IN ('Cash-out', 'Buy-in') THEN x.AMOUNT ELSE -x.AMOUNT END
+					)
+					FROM credit_transaction x
+					WHERE x.ACCOUNT_ID = ct.ACCOUNT_ID
+					  AND x.ACTIVE = 1
+					  AND (x.ENCODED_DT < ct.ENCODED_DT OR (x.ENCODED_DT = ct.ENCODED_DT AND x.IDNo <= ct.IDNo))
+				)
+			) AS BALANCE_AFTER,
 			ct.REMARKS,
 			ct.ENCODED_DT,
 			ct.CREDIT_ACTION,
 			ct.CREDIT_SOURCE,
 			ct.DIRECTION,
-			DATE_FORMAT(ct.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
+			DATE_FORMAT(COALESCE(ct.PROGRAM_DATE, gl.PROGRAM_DATE), '%Y-%m-%d') AS PROGRAM_DATE,
 			ct.GUARANTOR,
+			agent.IDNo AS AGENT_ID,
 			agent.NAME AS AGENT_NAME,
 			agent.AGENT_CODE AS AGENT_CODE,
 			COALESCE(NULLIF(TRIM(guest.NAME), ''), NULL) AS GUEST_NAME,
@@ -375,6 +388,7 @@ function getCreditHistorySql() {
 		JOIN account ON account.IDNo = ct.ACCOUNT_ID
 		JOIN agent ON agent.IDNo = account.AGENT_ID
 		LEFT JOIN guest ON guest.IDNo = ct.GUEST_ID
+		LEFT JOIN game_list gl ON gl.IDNo = ct.GAME_ID
 		WHERE ct.ACTIVE = 1
 		ORDER BY ct.ENCODED_DT DESC, ct.IDNo DESC
 	`;
@@ -471,12 +485,24 @@ function getCreditIssueTransactionsSql() {
 			ct.GUEST_ID,
 			ct.GAME_ID,
 			ct.AMOUNT,
+			COALESCE(
+				ct.BALANCE_AFTER,
+				(
+					SELECT SUM(
+						CASE WHEN x.CREDIT_ACTION IN ('Cash-out', 'Buy-in') THEN x.AMOUNT ELSE -x.AMOUNT END
+					)
+					FROM credit_transaction x
+					WHERE x.ACCOUNT_ID = ct.ACCOUNT_ID
+					  AND x.ACTIVE = 1
+					  AND (x.ENCODED_DT < ct.ENCODED_DT OR (x.ENCODED_DT = ct.ENCODED_DT AND x.IDNo <= ct.IDNo))
+				)
+			) AS BALANCE_AFTER,
 			ct.REMARKS,
 			ct.ENCODED_DT,
 			ct.CREDIT_ACTION,
 			ct.CREDIT_SOURCE,
 			ct.DIRECTION,
-			DATE_FORMAT(ct.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
+			DATE_FORMAT(COALESCE(ct.PROGRAM_DATE, gl.PROGRAM_DATE), '%Y-%m-%d') AS PROGRAM_DATE,
 			ct.GUARANTOR,
 			agent.IDNo AS AGENT_ID,
 			agent.NAME AS AGENT_NAME,
@@ -491,6 +517,7 @@ function getCreditIssueTransactionsSql() {
 		JOIN account ON account.IDNo = ct.ACCOUNT_ID
 		JOIN agent ON agent.IDNo = account.AGENT_ID
 		LEFT JOIN guest ON guest.IDNo = ct.GUEST_ID
+		LEFT JOIN game_list gl ON gl.IDNo = ct.GAME_ID
 		WHERE ct.ACTIVE = 1
 		  AND ct.CREDIT_ACTION IN ('Buy-in', 'Cash-out')
 		ORDER BY ct.ENCODED_DT DESC, ct.IDNo DESC

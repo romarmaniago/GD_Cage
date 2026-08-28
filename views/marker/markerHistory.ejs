@@ -135,9 +135,10 @@
 						<li class="nav-item" role="presentation">
 							<button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
 						</li>
-						<li class="nav-item" role="presentation">
+						<%# Credit tab temporarily hidden %>
+						<!-- <li class="nav-item" role="presentation">
 							<button class="nav-link" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
-						</li>
+						</li> -->
 						<li class="nav-item" role="presentation">
 							<button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
 						</li>
@@ -190,7 +191,6 @@
 										<th><%= __('dashboard_marker.type') %></th>
 										<th><%= __('dashboard_marker.guarantor') %></th>
 										<th><%= __('dashboard_marker.remarks') %></th>
-										<th class="text-center"><%= __('dashboard_marker.action') %></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
@@ -198,7 +198,7 @@
 									<tr>
 										<th colspan="5" class="fw-semibold text-end"></th>
 										<th class="text-end fw-semibold marker-total-col-amount"></th>
-										<th colspan="4"></th>
+										<th colspan="3"></th>
 									</tr>
 								</tfoot>
 							</table>
@@ -221,6 +221,7 @@
 								<th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.type') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.guarantor') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
+								<th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.action') %></th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -271,6 +272,7 @@
 </div>
 <%- include ('../modals/game_book/new_game_list') %>
 <%- include ('../modals/marker/edit_credit_transaction') %>
+<%- include ('../partials/marker_receipt_modal') %>
 <%- include ('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
 <script>
@@ -788,6 +790,23 @@ $(document).ready(function() {
 }
 #marker-history-tbl .marker-history-remarks-actions .btn { padding: 0.2rem 0.45rem; }
 
+#marker-history-tbl .marker-row-actions .btn-icon-plain {
+	background: transparent !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	padding: 0.15rem 0.3rem;
+	color: #6c757d;
+}
+#marker-history-tbl .marker-row-actions .btn-icon-plain-danger { color: #dc3545; }
+#marker-history-tbl .marker-row-actions .btn-icon-plain:hover,
+#marker-history-tbl .marker-row-actions .btn-icon-plain:focus {
+	background: transparent !important;
+	border-color: transparent !important;
+	color: #000;
+}
+#marker-history-tbl .marker-row-actions .btn-icon-plain-danger:hover,
+#marker-history-tbl .marker-row-actions .btn-icon-plain-danger:focus { color: #b02a37; }
+
 .marker-history-page .dataTables_length label {
 	font-size: 0.8125rem;
 	color: #64748b;
@@ -930,7 +949,8 @@ $(document).ready(function() {
 		'marker-accounts-total-tbl',
 		'marker-history-tbl',
 		'marker-accounts-credit-tbl',
-		'marker-accounts-buyin-tbl'
+		'marker-accounts-buyin-tbl',
+		'marker-credit-status-breakdown-tbl'
 	];
 
 	function applyMarkerHistoryControlsLayout(tableId) {
