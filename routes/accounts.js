@@ -20,6 +20,7 @@ async function ensureAgencyNameColorColumn() {
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { applyCommaThousandsToNumericCells, autoFitExcelWorksheetColumns } = require('../utils/excelAmountFormat');
 const path = require('path');
 const fs = require('fs/promises');
@@ -3699,6 +3700,25 @@ router.get('/account_game_history/:id', async (req, res) => {
 	} catch (error) {
 		console.error('Error fetching game history:', error);
 		res.status(500).send('Error fetching game history');
+	}
+});
+
+/** Build the Game History modal table as .xlsx (client omits the ROLLER CHIPS column). */
+router.post('/account_game_history/export_xlsx', checkSession, async function (req, res) {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey: 'accountGameHistory',
+			sheetName: 'Game History',
+			headers,
+			rows,
+			filename: filename || 'GameHistory-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('account_game_history/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
 	}
 });
 

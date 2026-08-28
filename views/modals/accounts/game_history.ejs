@@ -20,9 +20,31 @@
 
       <div class="modal-body">
 
-        <div class="table-responsive">
+        <div id="game-history-daterange-mount" class="gh-daterange-wrap">
 
-          <table class="table nowrap small-text" style="width:100%" id="game-history-tbl">
+          <input type="text" id="game-history-daterange" class="form-control form-control-sm" placeholder="Select date range" readonly>
+
+        </div>
+
+        <div id="game-history-actions-mount">
+
+          <button type="button" id="btn-game-history-print" class="btn btn-alt-success game-history-action-btn">
+
+            <i class="fa fa-print" aria-hidden="true"></i> Print
+
+          </button>
+
+          <button type="button" id="btn-game-history-export" class="btn btn-success game-history-action-btn">
+
+            <i class="fa fa-file-excel" aria-hidden="true"></i> Export
+
+          </button>
+
+        </div>
+
+        <div class="game-history-table-card table-responsive">
+
+          <table class="table nowrap small-text mb-0" style="width:100%" id="game-history-tbl">
 
             <thead class="table-light">
 
@@ -56,8 +78,6 @@
 
                 <th class="text-center col-game-end">GAME END</th>
 
-                <th class="text-center col-roller-chips">ROLLER CHIPS</th>
-
               </tr>
 
             </thead>
@@ -89,8 +109,6 @@
                 <td class="col-total-settle" id="gh-total-totalsettle">0</td>
 
                 <td class="col-game-end text-center">—</td>
-
-                <td class="col-roller-chips" id="gh-total-rollerchips">0</td>
 
               </tr>
 
@@ -288,15 +306,23 @@
 
 #game-history-tbl td.col-guest {
 
-    width: 120px !important;
+    width: 150px !important;
 
-    min-width: 120px !important;
+    min-width: 150px !important;
 
-    max-width: 120px !important;
+    max-width: 150px !important;
 
     box-sizing: border-box;
 
-    text-align: center !important;
+    text-align: left !important;
+
+    padding-left: 12px;
+
+    white-space: normal !important;
+
+    word-break: break-word;
+
+    overflow-wrap: anywhere;
 
 }
 
@@ -354,18 +380,6 @@
 
 
 
-#game-history-tbl th.col-roller-chips,
-
-#game-history-tbl td.col-roller-chips {
-
-    text-align: right !important;
-
-    padding-right: 12px;
-
-}
-
-
-
 #game-history-tbl th.col-game-end,
 
 #game-history-tbl td.col-game-end {
@@ -408,6 +422,210 @@
 
 }
 
+
+
+#modal-game-history #game-history-daterange-mount:not(.is-placed),
+
+#modal-game-history #game-history-actions-mount:not(.is-placed) {
+
+    position: absolute;
+
+    width: 1px;
+
+    height: 1px;
+
+    padding: 0;
+
+    margin: -1px;
+
+    overflow: hidden;
+
+    clip: rect(0, 0, 0, 0);
+
+    white-space: nowrap;
+
+    border: 0;
+
+}
+
+
+
+#modal-game-history #game-history-tbl_wrapper {
+
+    padding-top: 1rem;
+
+}
+
+
+
+#modal-game-history #game-history-tbl_wrapper > .row:has(.dataTables_length) > [class*="col-"]:first-child {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    gap: 0.5rem;
+
+}
+
+
+
+#modal-game-history #game-history-tbl_wrapper .dataTables_length {
+
+    display: inline-flex;
+
+    align-items: center;
+
+}
+
+
+
+#modal-game-history #game-history-tbl_wrapper > .row:has(.dataTables_filter) > [class*="col-"]:last-child {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 0.5rem;
+
+}
+
+
+
+#modal-game-history #game-history-actions-mount.is-placed {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.35rem;
+
+    flex: 0 0 auto;
+
+    margin: 0;
+
+}
+
+
+
+#modal-game-history #game-history-actions-mount .game-history-action-btn {
+
+    padding: 0.15rem 0.5rem;
+
+    font-size: 0.72rem;
+
+    line-height: 1.4;
+
+}
+
+
+
+#modal-game-history #game-history-actions-mount .game-history-action-btn i {
+
+    font-size: 0.7rem;
+
+}
+
+
+
+#modal-game-history #game-history-daterange-mount.is-placed {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 0.4rem;
+
+    margin: 0;
+
+    flex: 0 0 auto;
+
+}
+
+
+
+#modal-game-history #game-history-daterange-mount .flatpickr-wrapper {
+
+    flex: 0 0 auto;
+
+}
+
+
+
+#modal-game-history #game-history-daterange-mount .form-control,
+
+#modal-game-history #game-history-daterange-mount .flatpickr-alt-input {
+
+    border-radius: 8px;
+
+    font-size: 0.8125rem;
+
+    background-color: #fff;
+
+}
+
+
+
+#modal-game-history .game-history-table-card {
+
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px);
+
+    border: 1px solid rgba(15, 23, 42, 0.08);
+
+    border-radius: 12px;
+
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+
+    padding: 0;
+
+    overflow: auto;
+
+}
+
+
+
+#modal-game-history .game-history-table-card #game-history-tbl {
+
+    border: none;
+
+    margin-bottom: 0;
+
+}
+
+
+
+#modal-game-history .game-history-table-card #game-history-tbl > thead > tr > th {
+
+    border-top: none;
+
+    border-bottom: 1px solid #e9ecef;
+
+}
+
+
+
+#modal-game-history .game-history-table-card #game-history-tbl > tbody > tr > td {
+
+    border-top: none;
+
+    border-bottom: 1px solid #f1f3f5;
+
+}
+
+
+
+#modal-game-history .game-history-table-card #game-history-tbl > tbody > tr:last-child > td {
+
+    border-bottom: none;
+
+}
+
 </style>
 
 
@@ -419,6 +637,488 @@
     let gameHistoryModal = null;
 
     let gameHistoryDataTable = null;
+
+    let gameHistoryDateFilterRegistered = false;
+
+    let gameHistoryDatePicker = null;
+
+    let gameHistoryToolbarBound = false;
+
+    let gameHistoryAccountId = null;
+
+    let ghRangeStart = null;
+
+    let ghRangeEnd = null;
+
+
+
+    const parseYmd = (str) => {
+
+        if (!str) return null;
+
+        const d = new Date(String(str).trim().slice(0, 10) + 'T00:00:00');
+
+        return isNaN(d.getTime()) ? null : d;
+
+    };
+
+
+
+    function registerGameHistoryDateFilter() {
+
+        if (gameHistoryDateFilterRegistered) return;
+
+        if (!($.fn.dataTable && $.fn.dataTable.ext)) return;
+
+        gameHistoryDateFilterRegistered = true;
+
+        $.fn.dataTable.ext.search.push(function (settings, data) {
+
+            if (settings.nTable.id !== 'game-history-tbl') return true;
+
+            if (!ghRangeStart && !ghRangeEnd) return true;
+
+            const rowDate = parseYmd(data[0]);
+
+            if (!rowDate) return false;
+
+            if (ghRangeStart && rowDate < ghRangeStart) return false;
+
+            if (ghRangeEnd && rowDate > ghRangeEnd) return false;
+
+            return true;
+
+        });
+
+    }
+
+
+
+    const atMidnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+
+
+    // Same month-end cut-off default range used by the other date filters.
+
+    function getDefaultGhRange() {
+
+        if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
+
+            const r = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+
+            return { start: atMidnight(r.startAt), end: atMidnight(r.endAt), defaultDate: r.defaultDate };
+
+        }
+
+        const now = new Date();
+
+        const y = now.getFullYear();
+
+        const m = now.getMonth();
+
+        const startAt = new Date(y, m, 0);
+
+        const endAt = new Date(y, m + 1, 0);
+
+        endAt.setDate(endAt.getDate() - 1);
+
+        return { start: atMidnight(startAt), end: atMidnight(endAt), defaultDate: [startAt, endAt] };
+
+    }
+
+
+
+    function applyDefaultGhRange() {
+
+        const d = getDefaultGhRange();
+
+        ghRangeStart = d.start;
+
+        ghRangeEnd = d.end;
+
+        if (gameHistoryDatePicker) gameHistoryDatePicker.setDate(d.defaultDate, false);
+
+    }
+
+
+
+    function initGameHistoryDatePicker() {
+
+        if (gameHistoryDatePicker || typeof flatpickr === 'undefined') return;
+
+        const def = getDefaultGhRange();
+
+        gameHistoryDatePicker = flatpickr('#game-history-daterange', {
+
+            mode: 'range',
+
+            showMonths: 3,
+
+            defaultDate: def.defaultDate,
+
+            onChange: function (selectedDates) {
+
+                if (selectedDates.length === 2) {
+
+                    ghRangeStart = new Date(selectedDates[0].getFullYear(), selectedDates[0].getMonth(), selectedDates[0].getDate());
+
+                    ghRangeEnd = new Date(selectedDates[1].getFullYear(), selectedDates[1].getMonth(), selectedDates[1].getDate());
+
+                } else if (selectedDates.length === 0) {
+
+                    ghRangeStart = null;
+
+                    ghRangeEnd = null;
+
+                } else {
+
+                    return;
+
+                }
+
+                if (gameHistoryDataTable) gameHistoryDataTable.draw();
+
+            }
+
+        });
+
+        applyDefaultGhRange();
+
+    }
+
+
+
+    function resetGameHistoryDateFilter() {
+
+        applyDefaultGhRange();
+
+    }
+
+
+
+    function placeGameHistoryDateFilter() {
+
+        const $mount = $('#game-history-daterange-mount');
+
+        const $length = $('#game-history-tbl_wrapper .dataTables_length').first();
+
+        if ($mount.length && $length.length &&
+
+            !($mount.hasClass('is-placed') && $mount.prev()[0] === $length[0])) {
+
+            $mount.detach().insertAfter($length).addClass('is-placed');
+
+        }
+
+
+
+        const $actions = $('#game-history-actions-mount');
+
+        const $filter = $('#game-history-tbl_wrapper .dataTables_filter').first();
+
+        if ($actions.length && $filter.length &&
+
+            !($actions.hasClass('is-placed') && $actions.next()[0] === $filter[0])) {
+
+            $actions.detach().insertBefore($filter).addClass('is-placed');
+
+        }
+
+    }
+
+
+
+    const stripHtml = (v) => String(v == null ? '' : v)
+
+        .replace(/<[^>]*>/g, ' ')
+
+        .replace(/&nbsp;/g, ' ')
+
+        .replace(/\s+/g, ' ')
+
+        .trim();
+
+
+
+    function getGameHistoryTablePayload() {
+
+        const headers = [];
+
+        $('#game-history-tbl thead th').each(function () {
+
+            headers.push($(this).text().trim());
+
+        });
+
+        const rows = [];
+
+        if (gameHistoryDataTable) {
+
+            gameHistoryDataTable.rows({ search: 'applied', order: 'applied' }).every(function (rowIdx) {
+
+                const row = [];
+
+                for (let c = 0; c < headers.length; c++) {
+
+                    row.push(stripHtml(gameHistoryDataTable.cell(rowIdx, c).render('display')));
+
+                }
+
+                rows.push(row);
+
+            });
+
+        }
+
+        return { headers, rows };
+
+    }
+
+
+
+    function getGameHistoryRangeLabel() {
+
+        const val = $('#game-history-daterange').val();
+
+        return val ? val.replace(/\s+to\s+/i, ' to ') : 'All dates';
+
+    }
+
+
+
+    function getGameHistoryExportFilename() {
+
+        const now = new Date();
+
+        const ts = now.getFullYear() + ('0' + (now.getMonth() + 1)).slice(-2) + ('0' + now.getDate()).slice(-2);
+
+        const acct = gameHistoryAccountId ? ('-' + gameHistoryAccountId) : '';
+
+        return 'GameHistory' + acct + '-' + ts + '.xlsx';
+
+    }
+
+
+
+    function notifyGameHistory(icon, title, text) {
+
+        if (typeof Swal !== 'undefined') {
+
+            Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: '#0d6efd' });
+
+        } else {
+
+            alert(text);
+
+        }
+
+    }
+
+
+
+    function printGameHistory() {
+
+        const payload = getGameHistoryTablePayload();
+
+        if (!payload.rows.length) {
+
+            notifyGameHistory('info', 'Print', 'No rows to print for the current filter.');
+
+            return;
+
+        }
+
+        const headerHtml = payload.headers.map((h) => '<th>' + stripHtml(h) + '</th>').join('');
+
+        const rowsHtml = payload.rows.map((row) => (
+
+            '<tr>' + row.map((cell) => '<td>' + stripHtml(cell) + '</td>').join('') + '</tr>'
+
+        )).join('');
+
+
+
+        const totalText = (id) => {
+
+            const el = document.getElementById(id);
+
+            return el ? stripHtml(el.textContent) : '0';
+
+        };
+
+        const footHtml = '<tr class="total-row">' +
+
+            '<td colspan="5">TOTAL</td>' +
+
+            '<td>' + totalText('gh-total-buyin') + '</td>' +
+
+            '<td>' + totalText('gh-total-cashout') + '</td>' +
+
+            '<td>' + totalText('gh-total-winloss') + '</td>' +
+
+            '<td>' + totalText('gh-total-total-rolling') + '</td>' +
+
+            '<td>&mdash;</td>' +
+
+            '<td>' + totalText('gh-total-commission') + '</td>' +
+
+            '<td>' + totalText('gh-total-addchg') + '</td>' +
+
+            '<td>' + totalText('gh-total-totalsettle') + '</td>' +
+
+            '<td>&mdash;</td>' +
+
+            '</tr>';
+
+
+
+        const iframe = document.createElement('iframe');
+
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+
+        document.body.appendChild(iframe);
+
+        const fw = iframe.contentWindow;
+
+        const fd = fw.document;
+
+        fd.open();
+
+        fd.write([
+
+            '<!doctype html><html><head><title>Game History</title><style>',
+
+            '@page{size:A4 landscape;margin:10mm;}',
+
+            '*{box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#212529;}',
+
+            'h2{margin:0 0 4px;font-size:16px;}.subtitle{margin:0 0 12px;font-size:12px;color:#6c757d;}',
+
+            'table{width:100%;border-collapse:collapse;font-size:9px;}',
+
+            'th,td{border:1px solid #adb5bd;padding:3px 5px;text-align:right;white-space:nowrap;}',
+
+            'th{background:#e9ecef;text-align:center;}',
+
+            'td:nth-child(1),td:nth-child(2),td:nth-child(3),td:nth-child(4),td:nth-child(5),td:nth-child(10),td:nth-child(14){text-align:left;}',
+
+            'tfoot .total-row td{background:#e9ecef;font-weight:bold;text-align:right;}',
+
+            'tfoot .total-row td:first-child{text-align:center;}',
+
+            '</style></head><body>',
+
+            '<h2>Game History</h2>',
+
+            '<div class="subtitle">', stripHtml(getGameHistoryRangeLabel()), '</div>',
+
+            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody><tfoot>', footHtml, '</tfoot></table>',
+
+            '</body></html>'
+
+        ].join(''));
+
+        fd.close();
+
+
+
+        const cleanup = () => setTimeout(() => {
+
+            if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+
+        }, 300);
+
+        fw.onafterprint = cleanup;
+
+        setTimeout(() => { fw.focus(); fw.print(); cleanup(); }, 250);
+
+    }
+
+
+
+    function exportGameHistory() {
+
+        const payload = getGameHistoryTablePayload();
+
+        if (!payload.rows.length) {
+
+            notifyGameHistory('info', 'Export', 'No rows to export for the current filter.');
+
+            return;
+
+        }
+
+        const outName = getGameHistoryExportFilename();
+
+        const $btn = $('#btn-game-history-export');
+
+        $btn.prop('disabled', true);
+
+        fetch('/account_game_history/export_xlsx', {
+
+            method: 'POST',
+
+            headers: { 'Content-Type': 'application/json' },
+
+            credentials: 'same-origin',
+
+            body: JSON.stringify({ headers: payload.headers, rows: payload.rows, filename: outName })
+
+        })
+
+            .then((res) => {
+
+                if (!res.ok) {
+
+                    return res.json().catch(() => ({})).then((j) => {
+
+                        throw new Error((j && j.error) ? j.error : 'Export failed');
+
+                    });
+
+                }
+
+                return res.blob();
+
+            })
+
+            .then((blob) => {
+
+                const link = document.createElement('a');
+
+                link.href = URL.createObjectURL(blob);
+
+                link.download = outName;
+
+                document.body.appendChild(link);
+
+                link.click();
+
+                document.body.removeChild(link);
+
+                URL.revokeObjectURL(link.href);
+
+            })
+
+            .catch((err) => notifyGameHistory('error', 'Error', err.message || 'Export failed'))
+
+            .finally(() => $btn.prop('disabled', false));
+
+    }
+
+
+
+    function bindGameHistoryToolbar() {
+
+        if (gameHistoryToolbarBound) return;
+
+        gameHistoryToolbarBound = true;
+
+        $('#btn-game-history-print').on('click', function (e) { e.preventDefault(); printGameHistory(); });
+
+        $('#btn-game-history-export').on('click', function (e) { e.preventDefault(); exportGameHistory(); });
+
+    }
 
 
 
@@ -498,9 +1198,7 @@
 
             'gh-total-addchg',
 
-            'gh-total-totalsettle',
-
-            'gh-total-rollerchips'
+            'gh-total-totalsettle'
 
         ];
 
@@ -522,7 +1220,7 @@
 
         }
 
-        let buyIn = 0, cashOut = 0, totalRolling = 0, commission = 0, addChg = 0, totalSettle = 0, rollerChips = 0, winLoss = 0;
+        let buyIn = 0, cashOut = 0, totalRolling = 0, commission = 0, addChg = 0, totalSettle = 0, winLoss = 0;
 
         rows.forEach(r => {
 
@@ -537,8 +1235,6 @@
             addChg += Number(r.ADD_CHG) || 0;
 
             totalSettle += Number(r.TOTAL_SETTLE) || 0;
-
-            rollerChips += Number(r.ROLLER_CHIPS) || 0;
 
             winLoss += Number(r.WIN_LOSS) || 0;
 
@@ -566,8 +1262,6 @@
 
         set('gh-total-totalsettle', totalSettle);
 
-        set('gh-total-rollerchips', rollerChips);
-
         setHtml('gh-total-winloss', formatSignedAmountDisplay(winLoss));
 
         const winlossEl = document.getElementById('gh-total-winloss');
@@ -585,6 +1279,8 @@
 
         try {
 
+            gameHistoryAccountId = accountId;
+
             const url = guestId
 
                 ? `/account_game_history/${accountId}?guestId=${encodeURIComponent(guestId)}`
@@ -599,11 +1295,13 @@
 
 
 
+            registerGameHistoryDateFilter();
+
+
+
             if (gameHistoryDataTable) {
 
                 gameHistoryDataTable.clear().rows.add(dataRows).draw();
-
-                updateGameHistoryTotals(dataRows);
 
                 return;
 
@@ -623,7 +1321,7 @@
 
                 columnDefs: [
 
-                    { className: 'col-program-date', width: '120px', targets: 0 },
+                    { className: 'col-program-date', width: '95px', targets: 0 },
 
                     { width: '150px', targets: 1 },
 
@@ -631,7 +1329,7 @@
 
                     { width: '80px', targets: 3 },
 
-                    { className: 'col-guest', width: '120px', targets: 4 },
+                    { className: 'col-guest', width: '150px', targets: 4 },
 
                     { className: 'col-buyin', width: '130px', targets: 5 },
 
@@ -649,9 +1347,7 @@
 
                     { className: 'col-total-settle', width: '110px', targets: 12 },
 
-                    { className: 'col-game-end', width: '150px', targets: 13 },
-
-                    { className: 'col-roller-chips', width: '100px', targets: 14 }
+                    { className: 'col-game-end', width: '150px', targets: 13 }
 
                 ],
 
@@ -894,23 +1590,27 @@
 
                         }
 
-                    },
-
-                    {
-
-                        data: 'ROLLER_CHIPS',
-
-                        className: 'col-roller-chips',
-
-                        render: function (data) { return formatAmount(data); }
-
                     }
 
                 ]
 
             });
 
-            updateGameHistoryTotals(dataRows);
+            gameHistoryDataTable.on('draw', function () {
+
+                const filtered = gameHistoryDataTable.rows({ search: 'applied' }).data().toArray();
+
+                updateGameHistoryTotals(filtered);
+
+            });
+
+            placeGameHistoryDateFilter();
+
+            initGameHistoryDatePicker();
+
+            bindGameHistoryToolbar();
+
+            gameHistoryDataTable.draw();
 
         } catch (err) {
 
@@ -979,6 +1679,8 @@
         const modal = getGameHistoryModal();
 
         if (modal) {
+
+            resetGameHistoryDateFilter();
 
             await loadGameHistoryRows(accountId, guestId);
 

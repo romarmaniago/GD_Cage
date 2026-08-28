@@ -142,6 +142,18 @@ const PROFILES = {
 		leftAlignCols: [1, 2, 3, 4, 5, 6, 15],
 		centerAlignCols: [3, 4, 5, 6]
 	},
+	accountGameHistory: {
+		// Cols: 1 PROGRAM DATE, 2 GAME START, 3 TYPE, 4 GAME #, 5 GUEST, 6 BUY-IN,
+		// 7 CASH-OUT, 8 WIN/LOSS, 9 ROLLING, 10 GAME RATE, 11 COMMISSION, 12 ADD CHG,
+		// 13 TOTAL SETTLE, 14 GAME END
+		amountCols: [6, 7, 8, 9, 11, 12, 13],
+		outflowCols: [7],
+		signedCols: [8],
+		labelCols: 5,
+		leftAlignCols: [1, 2, 3, 4, 5, 10, 14],
+		centerAlignCols: [3, 4],
+		amountNumFmt: '#,##0;(#,##0)'
+	},
 	categorizeGroupSummary: {
 		amountCols: [4, 5, 6, 7, 8, 9, 10],
 		outflowCols: [5, 8, 9, 10],
