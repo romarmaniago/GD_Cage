@@ -76,6 +76,21 @@
         return (type === 'sort' || type === 'type') ? v : escapeHtml(v);
     }
 
+    function getMarkerUserPermissions() {
+        var el = document.getElementById('user-role');
+        if (!el) return 99;
+        return parseInt(el.getAttribute('data-permissions') || el.dataset.permissions || '99', 10);
+    }
+
+    function isMarkerSuperAdmin() {
+        var perms = getMarkerUserPermissions();
+        return perms === 0;
+    }
+
+    function canEditMarkerRecords() {
+        return getMarkerUserPermissions() !== 2;
+    }
+
     function ensureCreditStatusDataTable() {
         var selector = '#marker-credit-status-breakdown-tbl';
         var $table = $(selector);
@@ -363,8 +378,8 @@
         var orderCol = options.orderCol != null ? options.orderCol : 1;
         var orderDir = options.orderDir || 'desc';
 
-        var perms = parseInt($('#user-role').data('permissions'), 10);
-        var isSuperAdmin = $('#user-role').length && perms === 0;
+        var isSuperAdmin = isMarkerSuperAdmin();
+        var canEditMarker = canEditMarkerRecords();
 
         // Get translations from window object
         var translations = window.markerTranslations || {};
@@ -483,7 +498,7 @@
                         }
                         var safe = escapeHtml(raw);
                         var textHtml = safe ? safe : '<span class="text-muted">—</span>';
-                        if (!isSuperAdmin) {
+                        if (!canEditMarker) {
                             return textHtml;
                         }
                         var id = row.IDNo != null ? String(row.IDNo) : '';
@@ -503,7 +518,6 @@
                     className: 'text-center',
                     render: function (_data, type, row) {
                         if (type !== 'display') return '';
-                        if (!isSuperAdmin) return '—';
                         var id = row.IDNo != null ? String(row.IDNo) : '';
                         if (!id) return '—';
                         var editTitle = (translations.edit || 'Edit').replace(/"/g, '&quot;');
@@ -517,23 +531,29 @@
                         var amountVal = row.AMOUNT != null ? String(Math.abs(Number(row.AMOUNT) || 0)) : '';
                         var guestIdVal = row.GUEST_ID != null ? String(row.GUEST_ID) : '';
                         var agentIdVal = row.AGENT_ID != null ? String(row.AGENT_ID) : '';
-                        return (
+                        var html =
                             '<div class="d-inline-flex align-items-center gap-1 marker-row-actions">' +
                             '<button type="button" class="btn btn-sm btn-icon-plain btn-marker-receipt" ' +
-                            'data-id="' + id + '" title="' + receiptTitle + '"><i class="fa fa-receipt"></i></button>' +
-                            '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-history" ' +
-                            'data-id="' + id + '" ' +
-                            'data-program-date="' + programYmd + '" ' +
-                            'data-amount="' + escapeHtml(amountVal) + '" ' +
-                            'data-guest-id="' + escapeHtml(guestIdVal) + '" ' +
-                            'data-agent-id="' + escapeHtml(agentIdVal) + '" ' +
-                            'data-guarantor="' + guarantorEnc + '" ' +
-                            'data-remarks="' + remarksEnc + '" ' +
-                            'title="' + editTitle + '"><i class="fa fa-edit"></i></button>' +
-                            '<button type="button" class="btn btn-sm btn-icon-plain btn-icon-plain-danger btn-delete-marker" ' +
-                            'data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
-                            '</div>'
-                        );
+                            'data-id="' + id + '" title="' + receiptTitle + '"><i class="fa fa-receipt"></i></button>';
+                        if (canEditMarker) {
+                            html +=
+                                '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-history" ' +
+                                'data-id="' + id + '" ' +
+                                'data-program-date="' + programYmd + '" ' +
+                                'data-amount="' + escapeHtml(amountVal) + '" ' +
+                                'data-guest-id="' + escapeHtml(guestIdVal) + '" ' +
+                                'data-agent-id="' + escapeHtml(agentIdVal) + '" ' +
+                                'data-guarantor="' + guarantorEnc + '" ' +
+                                'data-remarks="' + remarksEnc + '" ' +
+                                'title="' + editTitle + '"><i class="fa fa-edit"></i></button>';
+                        }
+                        if (isSuperAdmin) {
+                            html +=
+                                '<button type="button" class="btn btn-sm btn-icon-plain btn-icon-plain-danger btn-delete-marker" ' +
+                                'data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>';
+                        }
+                        html += '</div>';
+                        return html;
                     }
                 }
             ]
@@ -648,8 +668,7 @@
             var btn = $(this);
             var id = btn.data('id');
             if (!id) return;
-            var perms = parseInt($('#user-role').data('permissions'), 10);
-            if ($('#user-role').length && perms !== 0) return; // Super Admin only
+            if (!isMarkerSuperAdmin()) return; // Super Admin only
 
             var confirmMsg = (window.markerTranslations && window.markerTranslations.confirm_delete) || 'Are you sure you want to delete this record?';
             var confirmTitle = (window.markerTranslations && window.markerTranslations.delete) || 'Delete';
@@ -1372,8 +1391,6 @@
         }
 
         var translations = window.markerTranslations || {};
-        var perms = parseInt($('#user-role').data('permissions'), 10);
-        var isSuperAdmin = $('#user-role').length && perms === 0;
 
         var table = $table.DataTable({
             order: [[1, 'desc']],
