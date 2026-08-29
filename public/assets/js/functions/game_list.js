@@ -10843,7 +10843,8 @@ function applySettlementLockMetaFromFetch($modal, meta) {
 		allGamesEnded: meta.allGamesEnded,
 		openGameIds: meta.openGameIds || [],
 		continuationGameId: meta.continuationGameId,
-		hasCutoffPair: meta.hasCutoffPair
+		hasCutoffPair: meta.hasCutoffPair,
+		gameIds: meta.gameIds || []
 	});
 	applySettlementSettleButtonLock($modal);
 }
@@ -10913,6 +10914,7 @@ function applySettlementSettleButtonLock($modal) {
 	if (Number($modal.data('is-settled')) === 1) {
 		$notice.hide();
 		$btn.show().prop('disabled', true).text('Settled');
+		$modal.find('.deposit-cashout-row').hide();
 		if (typeof window.updateSettlementCopyButtons === 'function') {
 			window.updateSettlementCopyButtons($modal);
 		}
@@ -10920,37 +10922,62 @@ function applySettlementSettleButtonLock($modal) {
 	}
 
 	$btn.prop('disabled', false).text('Settle');
+	$modal.find('.deposit-cashout-row').show();
 	if (typeof window.updateSettlementCopyButtons === 'function') {
 		window.updateSettlementCopyButtons($modal);
 	}
 
-	var lockMeta = $modal.data('settlementLockMeta');
-	var viewMode = $modal.data('settlementViewMode') || 'total';
-	var hasCutoffPair = lockMeta && lockMeta.hasCutoffPair;
+	var lockMeta = $modal.data('settlementLockMeta') || {};
+	var hasCutoffPair = !!lockMeta.hasCutoffPair;
+	var viewMode = $modal.data('settlementViewMode') || (hasCutoffPair ? 'original' : 'total');
+	var openGameIds = lockMeta.openGameIds || [];
+	var lockGameIds = lockMeta.gameIds || [];
+	var metricsByGame = $modal.data('settlementMetricsByGame') || {};
+	var viewGameId = parseInt($modal.data('settlementViewGameId'), 10);
 
-	if (hasCutoffPair && viewMode === 'original') {
-		$notice.find('#settlement-cutoff-notice-text').text('View only. Switch to the Total tab to settle the combined games.');
-		$notice.show();
-		$btn.prop('disabled', true).show();
-		$modal.find('.deposit-cashout-row').hide();
+	// Original tab = per-game settle: only THIS game is settled, only its own END GAME state matters
+	if (viewMode === 'original') {
+		if (viewGameId && openGameIds.indexOf(viewGameId) !== -1) {
+			$notice.find('#settlement-cutoff-notice-text').text('Cannot settle until Game #' + viewGameId + ' is END GAME.');
+			$notice.show();
+			$btn.prop('disabled', true).show();
+			return;
+		}
+		$notice.hide();
+		$btn.prop('disabled', false).show();
 		return;
 	}
 
-	if (!$modal.data('is-settled')) {
-		$modal.find('.deposit-cashout-row').show();
-	}
-
-	if (lockMeta && lockMeta.allGamesEnded === false) {
+	// Total tab needs every linked game to be END GAME
+	if (lockMeta.allGamesEnded === false) {
 		$notice.find('#settlement-cutoff-notice-text').text(getSettlementBlockedMessage(lockMeta));
 		$notice.show();
 		$btn.prop('disabled', true).show();
 		return;
 	}
 
-	$notice.hide();
-	if (!$btn.is(':hidden')) {
-		$btn.prop('disabled', false);
+	// Total tab is view-only once any linked game has been settled individually —
+	// the remaining game(s) must be settled from the Original (per-game) tab
+	if (hasCutoffPair) {
+		var settledIds = lockGameIds.filter(function (id) {
+			var sm = metricsByGame[id];
+			return sm && sm.SETTLED;
+		});
+		var remainingIds = lockGameIds.filter(function (id) {
+			var rm = metricsByGame[id];
+			return rm && !rm.SETTLED;
+		});
+		if (settledIds.length && remainingIds.length) {
+			$notice.find('#settlement-cutoff-notice-text').text('Game #' + settledIds.join(', #') + ' already settled. Settle the remaining game' + (remainingIds.length > 1 ? 's' : '') + ' (#' + remainingIds.join(', #') + ') from the Original tab.');
+			$notice.show();
+			$btn.prop('disabled', true).show();
+			$modal.find('.deposit-cashout-row').hide();
+			return;
+		}
 	}
+
+	$notice.hide();
+	$btn.prop('disabled', false).show();
 }
 
 /** Cut-off pair metadata for settlement tabs (original vs total). */
@@ -11315,7 +11342,7 @@ function settlement_history(record_id, acc_id) {
     $settlementModal.data('is-settled', 0);
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $settlementModal.data('cutoffSettlementGameIds', [record_id]);
-    $settlementModal.data('settlementViewMode', 'total');
+    $settlementModal.data('settlementViewMode', 'original');
     $settlementModal.find('#txtCutoffLinkedGameIds').val('');
     $settlementModal.find('#settlement-cutoff-tabs').hide();
     $settlementModal.find('#settlement-cutoff-notice').hide();
@@ -11324,7 +11351,7 @@ function settlement_history(record_id, acc_id) {
         refreshSettlementModalLockIfOpen();
     });
     $settlementModal.find('#settlement-cutoff-tabs .nav-link').removeClass('active');
-    $settlementModal.find('#settlement-tab-total').addClass('active');
+    $settlementModal.find('#settlement-tab-original').addClass('active');
     $('#settlement-agent-code').text('');
     $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
     if (typeof window.updateSettlementCopyButtons === 'function') {
@@ -11395,7 +11422,6 @@ function settlement_history(record_id, acc_id) {
     function applySettlementTab(viewMode) {
         var gameIds = $settlementModal.data('settlementGameIds') || $settlementModal.data('cutoffSettlementGameIds') || [record_id];
         var metricsByGame = $settlementModal.data('settlementMetricsByGame') || {};
-        var merged = $settlementModal.data('settlementMergedMetrics');
         var viewGameId = parseInt($settlementModal.data('settlementViewGameId'), 10) || parseInt(record_id, 10);
         var mode = viewMode === 'original' ? 'original' : 'total';
 
@@ -11417,6 +11443,11 @@ function settlement_history(record_id, acc_id) {
                     }
                 }
             }
+            // Per-game settle: submit only this one game, leave linked siblings untouched
+            $settlementModal.find('#txtCutoffLinkedGameIds').val('');
+            $settlementModal.data('settlementSubmitGameId', viewGameId);
+            isSettled = !!(viewMetrics && viewMetrics.SETTLED);
+            $settlementModal.data('is-settled', isSettled ? 1 : 0);
             loadServicesTotal([viewGameId]);
         } else {
             var primaryDt = $settlementModal.data('settlementPrimaryDateTime');
@@ -11427,10 +11458,22 @@ function settlement_history(record_id, acc_id) {
                     window.syncSettlementDateTimeDisplay($settlementModal);
                 }
             }
+            // Total tab always shows the true combined figures of EVERY linked game
+            var totalMetrics = gameIds.map(function (id) { return metricsByGame[id]; }).filter(Boolean);
+            var merged = mergeGameSettlementMetrics(totalMetrics);
+            $settlementModal.data('settlementMergedMetrics', merged);
             applySettlementMetricsToForm(merged, formatSettlementGameNoDisplay(gameIds));
             if (merged) {
                 currentCommissionType = merged.CommissionType;
             }
+            // Total-tab settlement is only allowed while NO linked game is settled yet;
+            // once one is settled the rest must go through the Original (per-game) tab.
+            $settlementModal.find('#txtCutoffLinkedGameIds').val(gameIds.length > 1 ? gameIds.join(',') : '');
+            var recNum = parseInt(record_id, 10);
+            var submitPrimary = (metricsByGame[recNum] && !metricsByGame[recNum].SETTLED) ? recNum : gameIds[0];
+            $settlementModal.data('settlementSubmitGameId', submitPrimary);
+            isSettled = !!(merged && merged.SETTLED);
+            $settlementModal.data('is-settled', isSettled ? 1 : 0);
             loadServicesTotal(gameIds);
         }
         updatePayment();
@@ -11554,28 +11597,9 @@ function settlement_history(record_id, acc_id) {
                 clearSettlementChooseAccount($settlementModal);
                 $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
 
-                var settledFlag = merged.SETTLED;
-                $settlementModal.data('is-settled', settledFlag ? 1 : 0);
-
-                if (settledFlag) {
-                    $settlementModal.find('#submit-settlement-btn').prop('disabled', true).text('Settled').show();
-                    isSettled = true;
-                    $settlementModal.find('.deposit-cashout-row').hide();
-                    $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
-                    if (typeof window.updateSettlementCopyButtons === 'function') {
-                        window.updateSettlementCopyButtons($settlementModal);
-                    }
-                } else {
-                    $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
-                    isSettled = false;
-                    $settlementModal.find('.deposit-cashout-row').show();
-                    applySettlementSettleButtonLock($settlementModal);
-                    if (typeof window.updateSettlementCopyButtons === 'function') {
-                        window.updateSettlementCopyButtons($settlementModal);
-                    }
-                }
-
-                applySettlementTab('total');
+                // Cut-off pairs open on the Original (per-game) tab; single games keep the Total path.
+                // applySettlementTab handles is-settled, button state, deposit row and copy buttons.
+                applySettlementTab(meta.hasCutoffPair ? 'original' : 'total');
             }).fail(function (xhr, status, error) {
                 console.error('Error fetching settlement data:', error);
             });
@@ -11616,25 +11640,30 @@ function settlement_history(record_id, acc_id) {
             return; // Exit if already settled
         }
 
-        var lockMeta = $settlementModal.data('settlementLockMeta');
-        var viewMode = $settlementModal.data('settlementViewMode') || 'total';
+        var lockMeta = $settlementModal.data('settlementLockMeta') || {};
+        var viewMode = $settlementModal.data('settlementViewMode') || 'original';
 
-        if (lockMeta && lockMeta.hasCutoffPair && viewMode === 'original') {
-            Swal.fire({
-                icon: 'info',
-                title: 'View Only',
-                text: 'Original game is for viewing only. Switch to the Total tab to settle.',
-                confirmButtonText: 'OK',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                customClass: {
-                    confirmButton: 'custom-ok-btn'
-                }
-            });
-            return;
-        }
+        // Refresh form values for whichever tab is active (Original = per-game, Total = combined remaining)
+        applySettlementTab(viewMode);
 
-        if (lockMeta && !lockMeta.allGamesEnded) {
+        if (viewMode === 'original') {
+            var settleGameId = parseInt($settlementModal.data('settlementViewGameId'), 10);
+            var openIds = lockMeta.openGameIds || [];
+            if (settleGameId && openIds.indexOf(settleGameId) !== -1) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cannot Settle',
+                    text: 'Game #' + settleGameId + ' is not END GAME yet.',
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        confirmButton: 'custom-ok-btn'
+                    }
+                });
+                return;
+            }
+        } else if (lockMeta.allGamesEnded === false) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Cannot Settle',
@@ -11647,9 +11676,28 @@ function settlement_history(record_id, acc_id) {
                 }
             });
             return;
+        } else {
+            var lockGameIds = lockMeta.gameIds || [];
+            var submitMetricsByGame = $settlementModal.data('settlementMetricsByGame') || {};
+            var alreadySettledIds = lockGameIds.filter(function (id) {
+                var m = submitMetricsByGame[id];
+                return m && m.SETTLED;
+            });
+            if (alreadySettledIds.length) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Cannot Settle as Total',
+                    text: 'Game #' + alreadySettledIds.join(', #') + ' is already settled. Settle the remaining game from the Original tab.',
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        confirmButton: 'custom-ok-btn'
+                    }
+                });
+                return;
+            }
         }
-
-        applySettlementTab('total');
 
         // Get form values for confirmation
         var buyIn = $('#buyIn').val().replace(/,/g, '') || '0';
@@ -11712,6 +11760,7 @@ function settlement_history(record_id, acc_id) {
         }
         
         var settlementRows = [
+            ['Game No.', $('#gameNo').text() || 'N/A'],
             ['Buy-In', parseFloat(buyIn).toLocaleString('en-US')],
             ['Chips Return', parseFloat(chipsReturn).toLocaleString('en-US')],
             ['Win/Loss', parseFloat(winLoss).toLocaleString('en-US')],
@@ -11754,6 +11803,11 @@ function settlement_history(record_id, acc_id) {
                 formDataArr.forEach(function (item) {
                     payload[item.name] = item.value;
                 });
+                // Original tab settles just the viewed game; Total settles the first unsettled linked game
+                var submitGameId = $settlementModal.data('settlementSubmitGameId');
+                if (submitGameId) {
+                    payload.game_id_settle = String(submitGameId);
+                }
                 if (transType === 'choose') {
                     payload.txtTransType = '1';
                     payload.txtAccountIDSettle = chooseAccountId;
