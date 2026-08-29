@@ -417,14 +417,13 @@ function collectChangeStatusCutoffChipData() {
 }
 
 /**
- * Remaining CC on cut-off: thousands → new-game buy-in; remainder → account deposit.
- * e.g. 999 → {0, 999}; 2000 → {2000, 0}; 1250 → {1000, 250}
+ * Remaining CC on cut-off: the full amount carries over to the new-game buy-in.
+ * (Sub-thousand remainders are no longer cashed out as an account deposit.)
+ * e.g. 999 → {999, 0}; 2000 → {2000, 0}; 1250 → {1250, 0}
  */
 function splitCutoffRemainingCc(remainingCc) {
 	var amount = Math.max(0, parseCutoffFieldAmount(remainingCc));
-	var transferCc = Math.floor(amount / 1000) * 1000;
-	var depositCc = Math.round((amount - transferCc) * 100) / 100;
-	return { transferCc: transferCc, depositCc: depositCc };
+	return { transferCc: amount, depositCc: 0 };
 }
 
 function syncChangeStatusCutoffHiddenBuyIn(data) {
@@ -7562,12 +7561,6 @@ $('#edit_status').submit(function (event) {
 		var confirmCcSplit = splitCutoffRemainingCc(confirmCutoffData.remainingCc);
 		if (confirmCutoffData.remainingNn > 0 || confirmCcSplit.transferCc > 0) {
 			pushChipPair('New Game Buy-in', confirmCutoffData.remainingNn, confirmCcSplit.transferCc);
-		}
-		if (confirmCcSplit.depositCc > 0) {
-			statusConfirmRows.push([
-				'Account Deposit (CC)',
-				confirmCcSplit.depositCc.toLocaleString('en-US')
-			]);
 		}
 		if (confirmCutoffData.useSplit) {
 			pushChipPair('Cash (Additional)', confirmCutoffData.cashNn, confirmCutoffData.cashCc);

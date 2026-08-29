@@ -227,18 +227,16 @@ function isCutoffSplitEnabled(body) {
 }
 
 /**
- * Remaining CC on cut-off: thousands continue to the new game; sub-thousand
- * remainder is cashed out as Deposit into the account (not buy-in).
- * e.g. 999 → {0, 999}; 2000 → {2000, 0}; 1250 → {1000, 250}
+ * Remaining CC on cut-off: the full amount continues to the new game as buy-in.
+ * (Sub-thousand remainders are no longer cashed out as a Deposit into the account.)
+ * e.g. 999 → {999, 0}; 2000 → {2000, 0}; 1250 → {1250, 0}
  */
 function splitCutoffRemainingCc(remainingCc) {
 	const amount = Math.max(0, parseChipAmount(remainingCc));
-	const transferCc = Math.floor(amount / 1000) * 1000;
-	const depositCc = Math.round((amount - transferCc) * 100) / 100;
-	return { transferCc, depositCc };
+	return { transferCc: amount, depositCc: 0 };
 }
 
-/** NN + thousands-portion of Remaining CC — transferred parent mop → new-game buy-in. */
+/** NN + full Remaining CC — transferred parent mop → new-game buy-in. */
 function buildCutoffTransferLegs(body, parentTransType) {
 	const nn = parseChipAmount(body.txtCutoffRemainingNN || body.txtCutoffBuyInNN);
 	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
@@ -249,21 +247,8 @@ function buildCutoffTransferLegs(body, parentTransType) {
 	return [{ nn, cc: transferCc, transType: parentTransType }];
 }
 
-/** Sub-thousand Remaining CC → cashout as Deposit (account credit). */
-function buildCutoffCcDepositCashoutLegs(body) {
-	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
-	const { depositCc } = splitCutoffRemainingCc(cc);
-	if (depositCc <= 0) {
-		return [];
-	}
-	return [{ nn: 0, cc: depositCc, transType: 2 }];
-}
-
 function buildCutoffParentCashoutLegs(body, parentTransType) {
-	return [
-		...buildCutoffTransferLegs(body, parentTransType),
-		...buildCutoffCcDepositCashoutLegs(body)
-	];
+	return [...buildCutoffTransferLegs(body, parentTransType)];
 }
 
 function buildCutoffSplitBuyInLegs(body) {
@@ -811,9 +796,9 @@ async function performGameCutoff(db, params) {
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`;
 
-	// 2b. Remaining CC thousands → rolling on previous game (CC counts via CAGE_TYPE 4)
+	// 2b. Remaining CC carried to the new game → rolling on previous game (CC counts via CAGE_TYPE 4)
 	const parentTransferCcForRolling = parentCashoutLegs.reduce(
-		(sum, leg) => sum + Math.floor(Math.max(0, leg.cc || 0) / 1000) * 1000,
+		(sum, leg) => sum + Math.max(0, leg.cc || 0),
 		0
 	);
 	if (parentTransferCcForRolling > 0) {
