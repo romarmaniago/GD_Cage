@@ -291,8 +291,10 @@
 
 	async function refreshDashboardTotals() {
 		try {
-			if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-date-from')) {
-				await window.dashboardPeriodReload();
+			// The Cage Balance card (incl. USD/GCASH) is period-independent — refresh it
+			// via the house-balance loader, not the period summary.
+			if (typeof window.dashboardHouseBalanceReload === 'function' && document.getElementById('dash-cage-cash-panel')) {
+				await window.dashboardHouseBalanceReload();
 				return;
 			}
 			updateDashboardTotals(await fetchTotals());

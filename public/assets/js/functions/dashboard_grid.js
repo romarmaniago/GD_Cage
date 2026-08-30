@@ -1840,31 +1840,18 @@
     setHtmlById('dash-company-expense-total', formatDashAmtHtml(companyExpenseTotal, true));
     setHtmlById('dash-grand-total', formatDashAmtHtml(grandTotal));
 
-    // Cage Balance + Main panel period amounts
+    // Main panel period amounts.
+    // NOTE: the "Cage Balance" card (USD/GCASH/PHP/NN/CC/RC/Balance Total/The
+    // difference) is deliberately NOT updated here — it must show the cumulative
+    // actual cage balance, independent of the selected reporting period. Those
+    // cells are refreshed by loadHouseBalances() / applyHouseBalances() instead.
     const cage = summary.cage || {};
-    setHtmlById('dash-cage-usd-total', formatDashAmtHtml(cage.usd));
-    setHtmlById('dash-cage-gcash-total', formatDashAmtHtml(cage.gcash));
-    setHtmlById('dash-cage-php-total', formatDashAmtHtml(cage.php_cash));
-    setHtmlById('dash-cage-nn-total', formatDashAmtHtml(cage.nn_chips));
-    setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cage.cc_chips));
-    setHtmlById('dash-cage-rc-total', formatDashAmtHtml(cage.rc_chips));
-    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(cage.house_balance));
-    setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(cage.cage_balance_diff));
     setHtmlById('dash-company-balance-total', formatDashAmtHtml(summary.company_capital_balance));
     setHtmlById('dash-main-available-amount', formatDashAmtHtml(summary.main_available_amount));
     setHtmlById('dash-utang-total', formatDashAmtHtml(cage.credit, true));
     setHtmlById('dash-tip-balance-value', formatDashAmtHtml(cage.tip_balance));
     setHtmlById('dash-guest-line-total', formatDashAmtHtml(cage.guest_balance));
-    setHtmlById('dash-actual-chips', formatDashAmtHtml(cage.total_chips));
-    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(cage.nn_chips));
     setHtmlById('dash-actual-rolling-amount', formatDashAmtHtml(cage.actual_rolling));
-
-    const cashPanel = document.getElementById('dash-cage-cash-panel');
-    if (cashPanel) {
-      cashPanel.dataset.phpBalance = String(cage.php_cash || 0);
-      cashPanel.dataset.chipsBalance = String(cage.total_chips || 0);
-      cashPanel.dataset.houseBalance = String(cage.house_balance || 0);
-    }
 
     // Main + Anticipated Add Charge: period signed balances
     renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);
@@ -1903,8 +1890,54 @@
     }
   }
 
+  // The "Cage Balance" card shows the cumulative actual cage balance and must not
+  // follow the dashboard period/month filter. It is fed by /dashboard_house_balances
+  // (no date range) rather than by applyDashboardPeriodSummary().
+  function applyHouseBalances(b) {
+    if (!b || b.message) return;
+    const usd = Math.round(Number(b.usd) || 0);
+    const gcash = Math.round(Number(b.gcash) || 0);
+    const php = Math.round(Number(b.php_cash != null ? b.php_cash : b.cashBalance) || 0);
+    const nn = Math.round(Number(b.nn_chips != null ? b.nn_chips : b.nnChipsBalance) || 0);
+    const cc = Math.round(Number(b.cc_chips != null ? b.cc_chips : b.ccChipsBalance) || 0);
+    const rc = Math.round(Number(b.rc_chips) || 0);
+    const totalChips = Math.round(Number(b.total_chips != null ? b.total_chips : nn + cc) || 0);
+    const house = Math.round(Number(b.house_balance != null ? b.house_balance : b.houseBalance) || 0);
+
+    setHtmlById('dash-cage-usd-total', formatDashAmtHtml(usd));
+    setHtmlById('dash-cage-gcash-total', formatDashAmtHtml(gcash));
+    setHtmlById('dash-cage-php-total', formatDashAmtHtml(php));
+    setHtmlById('dash-cage-nn-total', formatDashAmtHtml(nn));
+    setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cc));
+    setHtmlById('dash-cage-rc-total', formatDashAmtHtml(rc));
+    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(house));
+    setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(Math.round(Number(b.cage_balance_diff) || 0)));
+    setHtmlById('dash-actual-chips', formatDashAmtHtml(totalChips));
+    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(nn));
+
+    const cashPanel = document.getElementById('dash-cage-cash-panel');
+    if (cashPanel) {
+      cashPanel.dataset.phpBalance = String(php);
+      cashPanel.dataset.chipsBalance = String(totalChips);
+      cashPanel.dataset.houseBalance = String(house);
+    }
+  }
+
+  async function loadHouseBalances() {
+    try {
+      const res = await fetch('/dashboard_house_balances', { credentials: 'same-origin' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load house balances');
+      applyHouseBalances(data);
+    } catch (err) {
+      console.error('dashboard_house_balances:', err);
+    }
+  }
+
   function reloadDashboardByDateRange() {
-    return Promise.all([loadGridData(), loadPeriodSummary()]);
+    // loadHouseBalances() is period-independent but refreshed on the same triggers
+    // so the Cage Balance card stays current after transactions / tab refocus.
+    return Promise.all([loadGridData(), loadPeriodSummary(), loadHouseBalances()]);
   }
 
   const DASH_ROLLING_MONTH_NAMES = [
@@ -1917,11 +1950,17 @@
     if (!select) return;
 
     const today = new Date();
-    const currentValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    // On the last day of a month the cut-off range rolls over into the next
+    // month (see getMonthEndCutoffRange), so anchor the picker on that next
+    // month to keep the Month label consistent with the shown date range.
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const isLastDayOfMonth = today.getDate() === lastDayOfMonth;
+    const anchor = new Date(today.getFullYear(), today.getMonth() + (isLastDayOfMonth ? 1 : 0), 1);
+    const currentValue = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}`;
 
     const options = [];
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() - i, 1);
       const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = `${DASH_ROLLING_MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
       options.push(`<option value="${value}">${label}</option>`);
@@ -2046,5 +2085,6 @@
 
   window.dashboardGridReload = loadGridData;
   window.dashboardPeriodReload = loadPeriodSummary;
+  window.dashboardHouseBalanceReload = loadHouseBalances;
   window.dashboardReloadByDateRange = reloadDashboardByDateRange;
 })();

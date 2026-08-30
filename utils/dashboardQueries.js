@@ -318,18 +318,83 @@ async function computeCashBalance() {
   return cashIn - cashOut + mx;
 }
 
+/** Manual USD / GCASH cage cash (cumulative, not period-scoped). */
+async function computeCageManualCash() {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT UPPER(CURRENCY) AS CURRENCY, COALESCE(SUM(AMOUNT), 0) AS total
+       FROM cage_manual_cash
+       WHERE ACTIVE = 1
+       GROUP BY UPPER(CURRENCY)`
+    );
+    const map = { USD: 0, GCASH: 0 };
+    (rows || []).forEach((row) => {
+      map[String(row.CURRENCY || '').toUpperCase()] = Math.round(Number(row.total) || 0);
+    });
+    return map;
+  } catch (err) {
+    console.error('computeCageManualCash:', err.message || err);
+    return { USD: 0, GCASH: 0 };
+  }
+}
+
+/** RC chips = unreturned roller chips (cumulative net per game, positives only). */
+async function computeUnreturnedRollerChips() {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT COALESCE(SUM(GREATEST(0, balances.net_balance)), 0) AS TOTAL_UNRETURNED
+      FROM (
+        SELECT gr.GAME_ID,
+          SUM(
+            CASE
+              WHEN COALESCE(gr.ROLLER_TRANSACTION, 1) = 1
+                THEN COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0)
+              WHEN gr.ROLLER_TRANSACTION = 2
+                THEN -(COALESCE(gr.ROLLER_NN_CHIPS, 0) + COALESCE(gr.ROLLER_CC_CHIPS, 0))
+              ELSE 0
+            END
+          ) AS net_balance
+        FROM game_record gr
+        INNER JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+        WHERE gr.CAGE_TYPE = 5 AND gr.ACTIVE = 1 AND gl.ACTIVE != 0
+        GROUP BY gr.GAME_ID
+      ) balances
+      WHERE balances.net_balance > 0
+    `);
+    return Math.round(Number(rows && rows[0] && rows[0].TOTAL_UNRETURNED) || 0);
+  } catch (err) {
+    console.error('computeUnreturnedRollerChips:', err.message || err);
+    return 0;
+  }
+}
+
 /** Cash + NN + CC chips balances (same as dashboard house balance components). */
 async function computeHouseBalance() {
-  const [cashBalance, nnChipsBalance, ccChipsBalance] = await Promise.all([
+  const [cashBalance, nnChipsBalance, ccChipsBalance, manualCash, rcChips] = await Promise.all([
     computeCashBalance(),
     computeNnChipsBalance(),
-    computeCcChipsBalance()
+    computeCcChipsBalance(),
+    computeCageManualCash(),
+    computeUnreturnedRollerChips()
   ]);
+  const totalChips = nnChipsBalance + ccChipsBalance;
+  const houseBalance = cashBalance + totalChips;
   return {
+    // Legacy keys (kept for existing consumers).
     cashBalance,
     nnChipsBalance,
     ccChipsBalance,
-    houseBalance: cashBalance + nnChipsBalance + ccChipsBalance
+    houseBalance,
+    // Full cumulative Cage Balance panel figures (never period-scoped).
+    usd: Math.round(Number(manualCash.USD) || 0),
+    gcash: Math.round(Number(manualCash.GCASH) || 0),
+    php_cash: Math.round(cashBalance),
+    nn_chips: Math.round(nnChipsBalance),
+    cc_chips: Math.round(ccChipsBalance),
+    rc_chips: rcChips,
+    total_chips: Math.round(totalChips),
+    house_balance: Math.round(houseBalance),
+    cage_balance_diff: 0
   };
 }
 
