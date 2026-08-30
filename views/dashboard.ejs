@@ -159,12 +159,10 @@
          (+sqlWinlossManual[0].WINLOSS || 0)
       );
 
-      var totalRollingAmount =
-         (+sqlTotalRollingReset[0].RESET_ROLLING || 0) -
-         (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) +
-         (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) +
-         (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) -
-         (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0);
+      // Actual Rolling = CC rolling chips only from junket_total_chips (TRANSACTION_ID 3),
+      // i.e. the exact "Rolling" (rolling_cc) component of the Main Cage Rolling Check
+      // table. No NN, cash-out, buy-in or roller-return adjustments.
+      var totalRollingAmount = (+sqlActualRollingCcReset[0].ACTUAL_ROLLING_CC || 0);
 
       var houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
       var commissionSettlement = Math.round(+sqlCommissionSettlement || 0);

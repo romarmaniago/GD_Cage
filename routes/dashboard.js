@@ -151,6 +151,11 @@ async function renderDashboardPage(req, res, viewName) {
 	let sqlTotalCashOutRollingReset = `SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
 	let sqlReturnRollerCCChips = 'SELECT SUM(ROLLER_CC_CHIPS) AS RETURN_ROLLER_CC FROM game_record WHERE ACTIVE = 1 AND ROLLER_TRANSACTION = 2 AND RESET=1';
 
+	// Actual Rolling = CC rolling chips only from junket_total_chips (TRANSACTION_ID 3),
+	// i.e. the exact "Rolling" (rolling_cc) component of the Main Cage Rolling Check table.
+	// No NN, cash-out, buy-in or roller-return adjustments.
+	let sqlActualRollingCcReset = 'SELECT SUM(CC_CHIPS) AS ACTUAL_ROLLING_CC FROM junket_total_chips WHERE ACTIVE = 1 AND TRANSACTION_ID = 3 AND RESET = 1';
+
 	let sqlUnreturnedRollerChips = `
 		SELECT COALESCE(SUM(GREATEST(0, balances.net_balance)), 0) AS TOTAL_UNRETURNED
 		FROM (
@@ -707,6 +712,7 @@ let sqlServiceSettle = `
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
 		const [HouseRollingResetResult] = await pool.execute(sqlHouseRollingReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
+		const [ActualRollingCcResetResult] = await pool.execute(sqlActualRollingCcReset);
 		const [TotalCashOutResetResult] = await pool.execute(sqlTotalCashOutReset);
 		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
 		const [WinLossResetResult] = await pool.execute(sqlWinLossReset);
@@ -1098,6 +1104,7 @@ let sqlServiceSettle = `
 			sqlTotalRealRolling: totalRealRolling,
 			sqlTotalRolling: totalRolling,
 			sqlTotalRollingReset: TotalRollingResetResult,
+			sqlActualRollingCcReset: ActualRollingCcResetResult,
 			sqlTotalCashOut: totalCashOut,
 			sqlRollerTipCashOut: rollerTipCashOut,
 			sqlRollerTipIn: rollerTipIn,

@@ -583,13 +583,11 @@ async function computeManualCashForPeriod(pool, dateFrom, dateTo) {
 
 async function computeRollingForPeriod(pool, dateFrom, dateTo) {
 	const p = [dateFrom, dateTo];
-	const [rolling, cashoutNn, rollerReturnCc, ccBuyinGame] = await Promise.all([
-		sumScalar(pool, `SELECT COALESCE(SUM(gr.NN_CHIPS+gr.CC_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE IN (3,4) AND ${gameDt('gl')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(gr.NN_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE=2 AND ${gameDt('gl')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(gr.ROLLER_CC_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE=5 AND gr.ROLLER_TRANSACTION=2 AND ${gameDt('gl')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(gr.CC_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE=1 AND ${gameDt('gl')} BETWEEN ? AND ?`, p)
-	]);
-	return rolling - cashoutNn + rollerReturnCc - ccBuyinGame;
+	// Actual Rolling = CC rolling chips only from junket_total_chips (TRANSACTION_ID 3),
+	// i.e. the exact "Rolling" (rolling_cc) component of the Main Cage Rolling Check
+	// table. No NN, cash-out, buy-in or roller-return adjustments. Date-filtered on
+	// PROGRAM_DATE (fallback ENCODED_DT), matching the Rolling Check grid query.
+	return sumScalar(pool, `SELECT COALESCE(SUM(j.CC_CHIPS),0) AS total FROM junket_total_chips j WHERE j.ACTIVE=1 AND j.TRANSACTION_ID=3 AND COALESCE(j.PROGRAM_DATE, DATE(j.ENCODED_DT)) BETWEEN ? AND ?`, p);
 }
 
 async function computeCageMainForPeriod(pool, dateFrom, dateTo) {
