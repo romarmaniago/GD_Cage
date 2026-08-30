@@ -384,6 +384,27 @@ ON
 		AND agent.ACTIVE = 1
 	`;
 
+	// Guest "Line" (Deposit Of Guests) balance — mirrors the canonical account
+	// ledger formula used across the accounts module (/agency_line_stats, ledger
+	// view, exports) so the dashboard figure matches the Agency (LINE) page.
+	let sqlGuestLineBalance = `
+	  SELECT COALESCE(SUM(
+	           CASE
+	             WHEN transaction_type.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN account_ledger.AMOUNT
+	             WHEN transaction_type.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -account_ledger.AMOUNT
+	             ELSE 0
+	           END
+	         ), 0) AS GUEST_LINE_BALANCE
+	  FROM account_ledger
+	  JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+	  JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+	  JOIN agent ON agent.IDNo = account.AGENT_ID
+	  WHERE account_ledger.ACTIVE = 1
+	    AND account_ledger.TRANSACTION_TYPE IN (2, 3, 5)
+	    AND account.ACTIVE = 1
+	    AND agent.ACTIVE = 1
+	`;
+
 	let sqlAccountDeduct = `
 	  SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT
 	  FROM account_ledger
@@ -732,6 +753,7 @@ let sqlServiceSettle = `
 		const [cashWithdrawResult] = await pool.execute(sqlCashWithdraw);
 		const [accountDepositResult] = await pool.execute(sqlAccountDeposit);
 		const [accountDepositCashInResult] = await pool.execute(sqlAccountDepositCashIn);
+		const [guestLineBalanceResult] = await pool.execute(sqlGuestLineBalance);
 		const [accountCCChips] = await pool.execute(sqlAccountCCChips);
 		const [accountNNChips] = await pool.execute(sqlAccountNNChips);
 		const [markerIssueGame] = await pool.execute(sqlMarkerIssueGame);
@@ -1065,6 +1087,7 @@ let sqlServiceSettle = `
 			sqlCashWithdraw: cashWithdrawResult,
 			sqlAccountDeposit: accountDepositResult,
 			sqlAccountDepositCashIn: accountDepositCashInResult,
+			sqlGuestLineBalance: guestLineBalanceResult,
 			sqlAccountWithdraw: accountWithdrawResult,
 			sqlAccountDeduct: accountDeductResult,
 			sqlAccountServicesDeduct: accountServicesDeductResult,

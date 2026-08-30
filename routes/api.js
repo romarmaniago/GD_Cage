@@ -285,8 +285,26 @@ async function getRealtimeData() {
   const TOTAL_ISSUE_RECORD = rowVal(rMarkerIssueAccount, 'TOTAL_ISSUE_RECORD');
   const MARKER_RETURN_DEPOSIT = rowVal(rMArkerReturnDeposit, 'MARKER_RETURN_DEPOSIT');
 
-  // Guest Balance (same as dashboard.ejs lines 262-269)
-  const guest_balance = Math.round(ACCOUNT_DEPOSIT + SETTLEMENT_DEPOSIT - ACCOUNT_WITHDRAW - ACCOUNT_DEDUCT - ACCOUNT_DEDUCT_SERVICES + TOTAL_ISSUE_RECORD - MARKER_RETURN_DEPOSIT);
+  // Guest Balance — canonical account-ledger formula, shared with the dashboard
+  // (guestBalance) and the Agency (LINE) page (/agency_line_stats "Total Balance").
+  const [rGuestLineBalance] = await pool.execute(`
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN transaction_type.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN account_ledger.AMOUNT
+        WHEN transaction_type.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -account_ledger.AMOUNT
+        ELSE 0
+      END
+    ), 0) AS GUEST_LINE_BALANCE
+    FROM account_ledger
+    JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+    JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+    JOIN agent ON agent.IDNo = account.AGENT_ID
+    WHERE account_ledger.ACTIVE = 1
+      AND account_ledger.TRANSACTION_TYPE IN (2, 3, 5)
+      AND account.ACTIVE = 1
+      AND agent.ACTIVE = 1
+  `);
+  const guest_balance = Math.round(rowVal(rGuestLineBalance, 'GUEST_LINE_BALANCE'));
 
   // houseBalance & net (same as dashboard.ejs 272-276)
   const houseBalance = cash_balance + total_chips;

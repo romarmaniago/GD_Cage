@@ -138,13 +138,12 @@
       var mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
       var cashBalance = cashInTotal - cashOutTotal + mxCashNet;
 
+      // Deposit Of Guests / Line — uses the same canonical ledger formula as the
+      // Agency (LINE) page (/agency_line_stats) so the two figures match.
       var guestBalance = Math.round(
-         (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-         (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-         (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
-         (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
-         (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) -
-         (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
+         (typeof sqlGuestLineBalance !== 'undefined' && sqlGuestLineBalance[0]
+            ? (+sqlGuestLineBalance[0].GUEST_LINE_BALANCE || 0)
+            : 0)
       );
 
       var houseBalance = cashBalance + totalChipsBalance;

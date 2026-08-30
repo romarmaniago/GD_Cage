@@ -519,16 +519,26 @@ async function computeRcChipsForPeriod(pool, dateFrom, dateTo) {
 }
 
 // Guest Line is all-time (not period-filtered), matching dashboard SSR guestBalance.
+// Uses the canonical account-ledger formula shared with the Agency (LINE) page
+// (/agency_line_stats) so the dashboard figure matches "Total Balance" there.
 async function computeGuestBalanceForPeriod(pool) {
-	const [deposit, settlementDeposit, withdraw, deduct, servicesDeduct, markerReturnDeposit] = await Promise.all([
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=2 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=5 AND al.TRANSACTION_ID=1 AND a.ACTIVE=1 AND ag.ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='ACCOUNT DETAILS' AND a.ACTIVE=1 AND ag.ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS', 'SERVICES') AND a.ACTIVE=1 AND ag.ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='SERVICES' AND a.ACTIVE=1 AND ag.ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_TYPE=3 AND al.TRANSACTION_ID=12 AND a.ACTIVE=1 AND ag.ACTIVE=1`)
-	]);
-	return deposit + settlementDeposit - withdraw - deduct - servicesDeduct - markerReturnDeposit;
+	return sumScalar(pool, `
+		SELECT COALESCE(SUM(
+			CASE
+				WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+				WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+				ELSE 0
+			END
+		), 0) AS total
+		FROM account_ledger al
+		JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+		JOIN account a ON a.IDNo = al.ACCOUNT_ID
+		JOIN agent ag ON ag.IDNo = a.AGENT_ID
+		WHERE al.ACTIVE = 1
+		  AND al.TRANSACTION_TYPE IN (2, 3, 5)
+		  AND a.ACTIVE = 1
+		  AND ag.ACTIVE = 1
+	`);
 }
 
 async function computeCreditGrandTotal(pool) {
