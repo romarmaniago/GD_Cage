@@ -4527,6 +4527,11 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		let totalBuyInAuto = 0;
 		let totalCashOutAuto = 0;
 		let totalRollingAuto = 0;
+		// Gamebook-only rolling (game_list / game_record via computeGamebookAutoTotalsByDate),
+		// ignoring any manual Total Chips (junket_total_chips) entry for the date. Drives the
+		// dashboard "Gaming Acc." rolling line so it always mirrors the Gamebook's Total Rolling
+		// for the selected program-date range.
+		let totalRollingGamebook = 0;
 		let totalBeyond = 0;
 		let totalCasinoWl = 0;
 		let totalCasinoWlAuto = 0;
@@ -4608,6 +4613,8 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				totalCashOutAuto += cashOut;
 				totalRollingAuto += rolling;
 				totalCasinoWlAuto += casinoWl;
+				const gbAuto = gamebookAutoByDate.get(date);
+				totalRollingGamebook += gbAuto ? (Number(gbAuto.rolling) || 0) : 0;
 			}
 			totalBeyond += beyond;
 			totalCasinoWl += casinoWl;
@@ -4761,6 +4768,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				buy_in_auto: totalBuyInAuto,
 				cash_out_auto: totalCashOutAuto,
 				rolling_auto: totalRollingAuto,
+				rolling_gamebook: totalRollingGamebook,
 				beyond_chips: totalBeyond,
 				wl_total: totalCasinoWlAuto,
 				casino_wl: totalCasinoWl,

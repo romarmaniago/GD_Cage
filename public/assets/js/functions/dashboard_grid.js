@@ -901,7 +901,11 @@
     set('dash-actual-wl', t.wl_total);
     set('dash-actual-rolling', t.rolling_auto);
     set('dash-actual-gaming-wl', t.wl_total);
-    set('dash-actual-gaming-rolling', t.rolling_auto);
+    // Gaming Acc. rolling mirrors the Gamebook's Total Rolling for the selected
+    // program-date range — it must not pick up manual Total Chips entries the way
+    // Main Cage (rolling_auto) does. Fall back to rolling_auto only if an older
+    // server response omits the field.
+    set('dash-actual-gaming-rolling', t.rolling_gamebook != null ? t.rolling_gamebook : t.rolling_auto);
   }
 
   function updateOnGameSummary(payload) {
