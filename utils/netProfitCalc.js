@@ -122,6 +122,8 @@ function computeGameMetrics(records, gl) {
 		winLoss,
 		rolling: total_rolling_chips,
 		commission,
+		buyIn: total_initial + total_buy_in_chips,
+		cashOut: total_cash_out_chips,
 	};
 }
 
@@ -436,6 +438,38 @@ async function computeNetProfitTotals(startStr, endStr) {
 	return totals;
 }
 
+/**
+ * Per-program-date Gamebook auto totals for [startStr, endStr] — the auto-computed
+ * fallback for the dashboard's "Current Time W/L" panel when no manual entry exists
+ * for a date. Reuses the same per-game aggregation (computeGameMetrics) as on-game
+ * details and Net Profit, so figures line up with what game history already reports.
+ * Returns Map<date, { buyIn, cashOut, rolling, wl }>.
+ */
+async function computeGamebookAutoTotalsByDate(startStr, endStr) {
+	const gameRows = await loadGamesInDateRange(startStr, endStr);
+	const recordsByGame = await fetchRecordsForGames(gameRows.map((r) => r.game_id));
+
+	const byDate = new Map();
+	for (const row of gameRows) {
+		const d = String(row.program_day || '').slice(0, 10);
+		if (!isValidYmd(d)) continue;
+		const gl = {
+			game_id: row.game_id,
+			COMMISSION_TYPE: row.COMMISSION_TYPE,
+			COMMISSION_PERCENTAGE: row.COMMISSION_PERCENTAGE,
+			HOUSE_SHARE: row.HOUSE_SHARE,
+		};
+		const m = computeGameMetrics(recordsByGame.get(row.game_id) || [], gl);
+		if (!byDate.has(d)) byDate.set(d, { buyIn: 0, cashOut: 0, rolling: 0, wl: 0 });
+		const bucket = byDate.get(d);
+		bucket.buyIn += m.buyIn;
+		bucket.cashOut += m.cashOut;
+		bucket.rolling += m.rolling;
+		bucket.wl += m.winLoss;
+	}
+	return byDate;
+}
+
 function monthKeyFromYmd(ymd) {
 	return String(ymd || '').slice(0, 7);
 }
@@ -528,6 +562,7 @@ module.exports = {
 	fetchRecordsForGames,
 	computeNetProfitRows,
 	computeNetProfitTotals,
+	computeGamebookAutoTotalsByDate,
 	monthKeyFromYmd,
 	formatMonthLabel,
 	aggregateRowsByMonth,

@@ -3,6 +3,7 @@ const path = require('path');
 const router = express.Router();
 const pool = require('../config/db');
 const dashboardQueries = require('../utils/dashboardQueries');
+const { computeGamebookAutoTotalsByDate } = require('../utils/netProfitCalc');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
 
 const { checkSession, sessions } = require('./auth');
@@ -4489,6 +4490,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		const sumDayWinlossTotal = (dayTables) => Object.values(dayTables || {})
 			.reduce((sum, row) => sum + (Number(row.winloss_amt) || 0), 0);
 
+		// Gamebook auto fallback: used for a date's Buy In / Cash Out / Rolling / Cage W-L
+		// only when no manual entry exists for that date (junket_total_chips / daily_table_reports).
+		const gamebookAutoByDate = await computeGamebookAutoTotalsByDate(dateFrom, dateTo);
+
 		const rollingRows = [];
 		const wlRows = [];
 		let totalBuyIn = 0;
@@ -4521,21 +4526,36 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				cashOutNn = 0;
 				rollingCc = 0;
 				rolling = Number(manual.rolling) || 0;
-			} else {
-				const chips = chipsByDate[date] || {};
+			} else if (chipsByDate[date]) {
+				// Cage staff already keyed in a Total Chips entry for this date — it overrides
+				// the Gamebook auto figure.
+				const chips = chipsByDate[date];
 				buyIn = Number(chips.buy_in) || 0;
 				cashOut = Number(chips.cash_out) || 0;
 				cashOutNn = Number(chips.cash_out_nn) || 0;
 				rollingCc = Number(chips.rolling_cc) || 0;
 				// Legacy house rolling: Buy In (NN) + Rolling (CC) - Cash Out (NN only)
 				rolling = buyIn + rollingCc - cashOutNn;
+			} else {
+				// No manual Total Chips entry for this date — fall back to what the
+				// Gamebook (game_list/game_record) actually recorded.
+				const auto = gamebookAutoByDate.get(date) || { buyIn: 0, cashOut: 0, rolling: 0 };
+				buyIn = auto.buyIn;
+				cashOut = auto.cashOut;
+				cashOutNn = 0;
+				rollingCc = 0;
+				rolling = auto.rolling;
 			}
 
 			const dayTables = dailyByDateTable[date] || {};
 			const beyond = Number(beyondByDate[date]) || 0;
 
-			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT)
-			const casinoWl = sumDayWinlossTotal(dayTables);
+			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT),
+			// falling back to the Gamebook auto win/loss when no manual Daily Report exists yet.
+			const hasManualWl = isManualZone || Object.keys(dayTables).length > 0;
+			const casinoWl = hasManualWl
+				? sumDayWinlossTotal(dayTables)
+				: (Number((gamebookAutoByDate.get(date) || {}).wl) || 0);
 			// W/L Check — Gold Dragon: buy-in minus cash-out per program date (game_list + game_information)
 			const goldWl = Number(goldWlByDate[date]) || 0;
 

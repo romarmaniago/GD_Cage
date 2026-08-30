@@ -893,7 +893,8 @@
       if (el) el.textContent = formatAmount(val);
     };
     // Auto-computed totals only — manual Main Cage Rolling Check entries (pre-cutoff dates)
-    // must not move this reconciliation panel.
+    // must not move this reconciliation panel. Buy In/Cash Out/Rolling/W-L fall back to
+    // the Gamebook (game_list/game_record) automatically when no manual entry exists for a date.
     set('dash-actual-buyin', t.buy_in_auto);
     set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
     set('dash-actual-beyond-chips', t.beyond_chips);
