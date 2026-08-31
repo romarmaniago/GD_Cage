@@ -3959,6 +3959,7 @@ function computeReceiptWinLossRolling(records) {
 	let totalCashOutNn = 0;
 	let totalCashOutCc = 0;
 	let totalRollingNn = 0;
+	let totalRollingAmount = 0;
 	let totalRollingReal = 0;
 	let totalRollingNnReal = 0;
 	let totalRollingCcReal = 0;
@@ -3978,6 +3979,7 @@ function computeReceiptWinLossRolling(records) {
 			totalCashOutCc += cc;
 		} else if (cageType === 3) {
 			totalRollingNn += nn;
+			totalRollingAmount += parseFloat(row.AMOUNT || 0);
 		} else if (cageType === 4) {
 			totalRollingReal += parseFloat(row.AMOUNT || 0);
 			totalRollingNnReal += nn;
@@ -3988,7 +3990,7 @@ function computeReceiptWinLossRolling(records) {
 	});
 
 	const totalCashOutChips = totalCashOutNn + totalCashOutCc;
-	const totalRollingChips = totalRollingNn + totalRollerReturnCc + totalRollingReal + totalRollingNnReal + totalRollingCcReal - totalCashOutNn;
+	const totalRollingChips = totalRollingNn + totalRollingAmount + totalRollerReturnCc + totalRollingReal + totalRollingNnReal + totalRollingCcReal - totalCashOutNn;
 	const winLoss = totalInitial + totalAdditional - totalCashOutChips;
 
 	return { win_loss: winLoss, rolling: totalRollingChips };
@@ -4125,7 +4127,7 @@ async function buildGameReceipts(gameId) {
 
 	const game = gameRows[0];
 	const [recordRows] = await pool.execute(`
-		SELECT TRANSACTION, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ENCODED_DT
+		SELECT TRANSACTION, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ENCODED_DT, AMOUNT, ROLLER_TRANSACTION, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS
 		FROM game_record
 		WHERE GAME_ID = ? AND ACTIVE != 0
 		ORDER BY IDNo ASC`,
