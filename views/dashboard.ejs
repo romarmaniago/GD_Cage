@@ -242,9 +242,12 @@
       var usdBalance = pickManualCash(sqlCageManualCash, 'USD');
       var gcashBalance = pickManualCash(sqlCageManualCash, 'GCASH');
       var phpBalance = cashBalance;
+      // Cage Balance "Balance Total" now includes RC (outstanding roller chips):
+      //   Balance Total = PHP + NN + CC + RC
+      var cageBalanceDisplayTotal = houseBalance + rcChipsBalance;
       // USD/GCASH are manual entries — keep them on display, but exclude from The difference
-      var cageBalanceTotal = phpBalance + totalChipsBalance;
-      var cageBalanceDiff = houseBalance - cageBalanceTotal;
+      var cageBalanceTotal = phpBalance + totalChipsBalance + rcChipsBalance;
+      var cageBalanceDiff = cageBalanceDisplayTotal - cageBalanceTotal;
 
       var nowStamp = new Date();
       var pad2 = function(n) { return (n < 10 ? '0' : '') + n; };
@@ -282,8 +285,8 @@
                   </div>
                   <div class="card-body" id="dash-cage-cash-panel"
                      data-php-balance="<%= phpBalance %>"
-                     data-chips-balance="<%= totalChipsBalance %>"
-                     data-house-balance="<%= houseBalance %>">
+                     data-chips-balance="<%= totalChipsBalance + rcChipsBalance %>"
+                     data-house-balance="<%= cageBalanceDisplayTotal %>">
                      <div class="dash-kv-group-title is-warn">Cash</div>
                      <div class="dash-kv">
                         <span class="dash-kv-label">USD $</span>
@@ -299,7 +302,7 @@
                      <div class="dash-kv"><span class="dash-kv-label"><a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>CC</a></span><span class="dash-kv-value" id="dash-cage-cc-total"><%- fmtAmt(ccChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">RC</span><span class="dash-kv-value" id="dash-cage-rc-total"><%- fmtAmt(rcChipsBalance) %></span></div>
                      <div class="dash-kv-group-title is-warn">Balance Total</div>
-                     <div class="dash-kv is-total dash-kv-balance-total"><span class="dash-kv-value" id="dash-cage-balance-total"><%- fmtAmt(houseBalance) %></span></div>
+                     <div class="dash-kv is-total dash-kv-balance-total"><span class="dash-kv-value" id="dash-cage-balance-total"><%- fmtAmt(cageBalanceDisplayTotal) %></span></div>
                   </div>
                </div>
 
@@ -368,7 +371,7 @@
                   <div class="card-body">
                      <div class="dash-kv"><span class="dash-kv-label">Buy In</span><span class="dash-kv-value" id="dash-actual-buyin">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Cash Out</span><span class="dash-kv-value text-dash-neg" id="dash-actual-cashout">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Chips</span><span class="dash-kv-value" id="dash-actual-chips"><%- fmtAmt(totalChipsBalance) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Chips (incl. RC)</span><span class="dash-kv-value" id="dash-actual-chips"><%- fmtAmt(totalChipsBalance + rcChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Beyond Chips</span><span class="dash-kv-value" id="dash-actual-beyond-chips">—</span></div>
                      <div class="dash-kv-group-title is-muted">Win / Lose</div>
                      <div class="dash-kv"><span class="dash-kv-label">Cage</span><span class="dash-kv-value" id="dash-actual-wl">—</span></div>
@@ -387,7 +390,7 @@
                   </div>
                   <div class="card-body">
                      <div class="dash-kv"><span class="dash-kv-label">Main Cage</span><span class="dash-kv-value" id="dash-actual-rolling">—</span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value" id="dash-actual-nn-chips"><%- fmtAmt(nnChipsBalance) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">NN Chips (incl. RC)</span><span class="dash-kv-value" id="dash-actual-nn-chips"><%- fmtAmt(nnChipsBalance + rcChipsBalance) %></span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value" id="dash-actual-rolling-amount">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
                   </div>

@@ -1928,16 +1928,24 @@
     setHtmlById('dash-cage-nn-total', formatDashAmtHtml(nn));
     setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cc));
     setHtmlById('dash-cage-rc-total', formatDashAmtHtml(rc));
-    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(house));
+    // Balance Total includes RC (outstanding roller chips): PHP + NN + CC + RC.
+    const balanceTotalWithRc = house + rc;
+    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(balanceTotalWithRc));
     setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(Math.round(Number(b.cage_balance_diff) || 0)));
-    setHtmlById('dash-actual-chips', formatDashAmtHtml(totalChips));
-    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(nn));
+    // "Chips" (Current Time W/L) and "NN Chips" (Current Time Rolling) both include
+    // the outstanding Roller Chips (RC) so the on-screen math reconciles:
+    //   Buy In - Chips(incl RC)      ≈ Cage W/L
+    //   Main Cage - NN Chips(incl RC) = Actual Rolling
+    setHtmlById('dash-actual-chips', formatDashAmtHtml(totalChips + rc));
+    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(nn + rc));
 
     const cashPanel = document.getElementById('dash-cage-cash-panel');
     if (cashPanel) {
+      // chips + house datasets include RC so recalcDiff() (USD/GCASH modal) keeps
+      // "The difference" at 0 against the RC-inclusive Balance Total.
       cashPanel.dataset.phpBalance = String(php);
-      cashPanel.dataset.chipsBalance = String(totalChips);
-      cashPanel.dataset.houseBalance = String(house);
+      cashPanel.dataset.chipsBalance = String(totalChips + rc);
+      cashPanel.dataset.houseBalance = String(balanceTotalWithRc);
     }
   }
 
