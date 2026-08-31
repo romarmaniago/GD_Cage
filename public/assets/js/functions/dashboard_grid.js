@@ -898,9 +898,13 @@
     set('dash-actual-buyin', t.buy_in_auto);
     set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
     set('dash-actual-beyond-chips', t.beyond_chips);
-    set('dash-actual-wl', t.wl_total);
     set('dash-actual-rolling', t.rolling_auto);
-    set('dash-actual-gaming-wl', t.wl_total);
+    // Both Win / Lose rows (Cage + Gaming Acc.) mirror the GD Cage (Gold Dragon) column
+    // of the W/L Check table for the selected program-date range — NOT the external
+    // casino's W/L. Fall back to wl_total only if an older server response omits the field.
+    var gamingWl = t.gold_dragon_wl_auto != null ? t.gold_dragon_wl_auto : t.wl_total;
+    set('dash-actual-wl', gamingWl);
+    set('dash-actual-gaming-wl', gamingWl);
     // Gaming Acc. rolling mirrors the Gamebook's Total Rolling for the selected
     // program-date range — it must not pick up manual Total Chips entries the way
     // Main Cage (rolling_auto) does. Fall back to rolling_auto only if an older

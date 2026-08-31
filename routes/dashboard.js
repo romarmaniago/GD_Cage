@@ -4543,6 +4543,10 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 		let totalCasinoWl = 0;
 		let totalCasinoWlAuto = 0;
 		let totalGoldWl = 0;
+		// Auto-computed-only Gold Dragon (GD Cage) W/L — same manual-zone exclusion as
+		// totalCasinoWlAuto so the "Current Time W/L" reconciliation panel's Gaming Acc.
+		// line reflects GD Cage figures, not the external casino's.
+		let totalGoldWlAuto = 0;
 
 		listDatesInclusive(dateFrom, dateTo).forEach((date) => {
 			const isManualZone = date < DASH_ROLLING_MANUAL_CUTOFF;
@@ -4620,6 +4624,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				totalCashOutAuto += cashOut;
 				totalRollingAuto += rolling;
 				totalCasinoWlAuto += casinoWl;
+				totalGoldWlAuto += goldWl;
 				const gbAuto = gamebookAutoByDate.get(date);
 				totalRollingGamebook += gbAuto ? (Number(gbAuto.rolling) || 0) : 0;
 			}
@@ -4778,6 +4783,7 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				rolling_gamebook: totalRollingGamebook,
 				beyond_chips: totalBeyond,
 				wl_total: totalCasinoWlAuto,
+				gold_dragon_wl_auto: totalGoldWlAuto,
 				casino_wl: totalCasinoWl,
 				gold_dragon_wl: totalGoldWl
 			},
