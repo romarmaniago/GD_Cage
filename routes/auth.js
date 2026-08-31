@@ -71,9 +71,12 @@ const checkSession = async (req, res, next) => {
         const currentToken = rows[0].SESSION_TOKEN;
 
         // If there's a token in DB and it doesn't match this session -> kicked out by another login
-        // Exception: admin (permission = 1) allows multi-login — do not disconnect existing sessions
-        const isAdmin = req.session.permissions === 1;
-        if (currentToken && sessionToken && currentToken !== sessionToken && !isAdmin) {
+        // Exception: admin (permission = 1) and manager (permission = 11) allow multi-login — do not disconnect existing sessions
+        // Exception: the "3core" account is always allowed multi-login, even as SuperAdmin (permission = 0)
+        const isAdmin = req.session.permissions === 1 || req.session.permissions === 11;
+        const isMultiLoginUser = String(req.session.username || '').toLowerCase() === '3core';
+        const allowMultiLogin = isAdmin || isMultiLoginUser;
+        if (currentToken && sessionToken && currentToken !== sessionToken && !allowMultiLogin) {
             console.warn('Session token mismatch', {
                 userId,
                 path: req.originalUrl,
