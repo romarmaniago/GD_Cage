@@ -3008,6 +3008,19 @@ $(document).off('click', '#accountDetails .btn-ledger-receipt').on('click', '#ac
 	if (ledgerId) showGuestPortalLedgerReceipt(ledgerId);
 });
 
+// Make each payment record row clickable — opens the receipt slip.
+// Ignore clicks on the action buttons, the inline remarks editor, and responsive child rows.
+$(document).off('click', '#accountDetails tbody tr').on('click', '#accountDetails tbody tr', function (e) {
+	if ($(e.target).closest('.account-ledger-action-wrap, .remarks-editor-td, button, a, input, textarea, select, .dtr-control').length) return;
+	var $row = $(this);
+	if ($row.hasClass('child') || $row.hasClass('dtr-details')) return;
+	if (!accountDetailsDataTable) return;
+	var rowData = accountDetailsDataTable.row($row).data();
+	if (!rowData) return;
+	var ledgerId = rowData[accountDetailsHiddenIdColIndex()];
+	if (ledgerId) showGuestPortalLedgerReceipt(ledgerId);
+});
+
 $(document).off('click', '.js-copy-guest-portal-receipt-image').on('click', '.js-copy-guest-portal-receipt-image', function (e) {
 	e.preventDefault();
 	var $btn = $(this);

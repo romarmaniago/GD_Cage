@@ -149,7 +149,7 @@
                                 <th><%= __('dashboard_marker.account') %></th>
                                 <th><%= __('dashboard_marker.agent') %></th>
                                 <th><%= __('dashboard_marker.guest') %></th>
-                                <th class="text-end"><%= __('dashboard_marker.amount') %></th>
+                                <th class="text-end"><%= __('dashboard_marker.amount_remaining') %></th>
                             </tr>
                         </thead>
                         <tbody id="marker-credit-status-body"></tbody>
@@ -688,6 +688,24 @@
             background-color: var(--gd-marker-gold-hover) !important;
         }
 
+        #marker-credit-status-wrapper .marker-total-table tbody tr[data-account-id] {
+            cursor: pointer;
+        }
+
+        #marker-credit-status-wrapper .mcs-credit-note {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #9a8748;
+            line-height: 1.2;
+        }
+        #marker-credit-status-wrapper .mcs-remaining-amt {
+            display: block;
+            font-size: 0.84rem;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
         #marker-accounts-total-wrapper .marker-total-table tfoot th,
         #marker-credit-status-wrapper .marker-total-table tfoot th {
             border-top: 2px solid var(--gd-marker-gold-border);
@@ -938,6 +956,7 @@ window.markerTranslations = window.markerTranslations || {
 	no_data_available: "<%= __('dashboard_marker.no_data_available') %>",
 	total: "<%= __('dashboard_marker.total') %>",
 	total_amount: "<%= __('dashboard_marker.total_amount') %>",
+	total_credit: "<%= __('dashboard_marker.total_credit') %>",
 	form_mode_return: "<%= __('dashboard_marker.form_mode_return') %>",
 	form_mode_issue: "<%= __('dashboard_marker.form_mode_issue') %>",
 	credits_add: "<%= __('dashboard_marker.credits_add') %>",

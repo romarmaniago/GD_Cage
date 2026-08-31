@@ -394,7 +394,10 @@ function getCreditHistorySql() {
 	`;
 }
 
-/** Credit Status tab: outstanding balance per account + guest (matches getCreditGrandTotalSql). */
+/** Credit Status tab: outstanding (remaining) balance per account — matches getCreditGrandTotalSql
+ *  and the Account Details credit computation. Aggregated at account level so returns booked
+ *  without a GUEST_ID still reduce the outstanding amount; the GUEST column shows the guest from
+ *  the account's latest credit issue. */
 function getCreditStatusBreakdownSql() {
 	return `
 		SELECT
@@ -402,41 +405,25 @@ function getCreditStatusBreakdownSql() {
 			agent.IDNo AS AGENT_ID,
 			agent.AGENT_CODE AS AGENT_CODE,
 			agent.NAME AS AGENT_NAME,
-			ct_bal.GUEST_ID,
+			issue_guest.GUEST_ID AS GUEST_ID,
 			COALESCE(NULLIF(TRIM(guest.NAME), ''), NULL) AS GUEST_NAME,
+			ROUND(GREATEST(0, COALESCE(acc_bal.ISSUED_CREDIT, 0)), 0) AS TOTAL_CREDIT,
 			ROUND(
-				GREATEST(0, COALESCE(ct_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(ct_bal.BALANCE_BUYIN, 0)),
+				GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(acc_bal.BALANCE_BUYIN, 0)),
 				0
 			) AS AMOUNT
 		FROM (
 			SELECT
 				ct.ACCOUNT_ID,
-				ct.GUEST_ID,
 				SUM(CASE
 					WHEN ct.CREDIT_ACTION = 'Cash-out'
 						OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
 						THEN ct.AMOUNT
-					WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
-						THEN -ct.AMOUNT
-					ELSE 0
-				END) AS BALANCE_CREDIT,
-				SUM(CASE
 					WHEN ct.CREDIT_ACTION = 'Buy-in'
 						OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
 						THEN ct.AMOUNT
-					WHEN ct.DIRECTION = 'return' AND (
-						ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
-					)
-						THEN -ct.AMOUNT
 					ELSE 0
-				END) AS BALANCE_BUYIN
-			FROM credit_transaction ct
-			WHERE ct.ACTIVE = 1
-			GROUP BY ct.ACCOUNT_ID, ct.GUEST_ID
-		) ct_bal
-		INNER JOIN (
-			SELECT
-				ct.ACCOUNT_ID,
+				END) AS ISSUED_CREDIT,
 				SUM(CASE
 					WHEN ct.CREDIT_ACTION = 'Cash-out'
 						OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
@@ -458,17 +445,24 @@ function getCreditStatusBreakdownSql() {
 			FROM credit_transaction ct
 			WHERE ct.ACTIVE = 1
 			GROUP BY ct.ACCOUNT_ID
-		) acc_bal ON acc_bal.ACCOUNT_ID = ct_bal.ACCOUNT_ID
-		JOIN account ON account.IDNo = ct_bal.ACCOUNT_ID
+		) acc_bal
+		JOIN account ON account.IDNo = acc_bal.ACCOUNT_ID
 		JOIN agent ON agent.IDNo = account.AGENT_ID
-		LEFT JOIN guest ON guest.IDNo = ct_bal.GUEST_ID
+		LEFT JOIN (
+			SELECT ci.ACCOUNT_ID, ci.GUEST_ID
+			FROM credit_transaction ci
+			INNER JOIN (
+				SELECT ACCOUNT_ID, MAX(IDNo) AS PICK_ID
+				FROM credit_transaction
+				WHERE ACTIVE = 1 AND DIRECTION = 'issue' AND GUEST_ID IS NOT NULL
+				GROUP BY ACCOUNT_ID
+			) pick ON pick.ACCOUNT_ID = ci.ACCOUNT_ID AND pick.PICK_ID = ci.IDNo
+		) issue_guest ON issue_guest.ACCOUNT_ID = acc_bal.ACCOUNT_ID
+		LEFT JOIN guest ON guest.IDNo = issue_guest.GUEST_ID
 		WHERE account.ACTIVE = 1
 		  AND agent.ACTIVE = 1
 		  AND (
 			GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(acc_bal.BALANCE_BUYIN, 0))
-		  ) <> 0
-		  AND (
-			GREATEST(0, COALESCE(ct_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(ct_bal.BALANCE_BUYIN, 0))
 		  ) <> 0
 		ORDER BY agent.AGENT_CODE ASC, guest.NAME ASC
 	`;

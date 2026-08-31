@@ -122,6 +122,13 @@
                 zeroRecords: translations.no_data_available || 'No matching records found'
             },
             dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+            createdRow: function (rowEl, rowData) {
+                if (!rowData || rowData.accountId == null || rowData.accountId === '') return;
+                $(rowEl)
+                    .attr('data-account-id', rowData.accountId)
+                    .attr('data-agent-code', rowData.code || '')
+                    .attr('data-agent-name', rowData.agent || '');
+            },
             columns: [
                 { data: 'code', defaultContent: '—', render: creditStatusTextColumn },
                 { data: 'agent', defaultContent: '—', render: creditStatusTextColumn },
@@ -130,16 +137,41 @@
                     data: 'amount',
                     defaultContent: 0,
                     className: 'text-end marker-total-col-amount',
-                    render: function (data, type) {
+                    render: function (data, type, row) {
                         var n = data != null ? Number(data) : 0;
                         if (isNaN(n)) n = 0;
                         if (type === 'sort' || type === 'type') return Math.abs(n);
-                        return formatCreditStatusShortcutAmount(n);
+                        return renderCreditRemainingCell(n, row && row.totalCredit);
                     }
                 }
             ]
         });
     }
+
+    /** Remaining-balance cell. On a partial payment (some credit already returned) it also
+     *  shows a small "(total credit: …)" note above the larger remaining-balance amount. */
+    function renderCreditRemainingCell(remaining, totalCredit) {
+        var rem = Math.abs(Number(remaining) || 0);
+        var tc = Number(totalCredit);
+        var remainingHtml = '<span class="mcs-remaining-amt">' + formatCreditStatusShortcutAmount(rem) + '</span>';
+        if (!isNaN(tc) && Math.round(Math.abs(tc)) > Math.round(rem)) {
+            var label = (window.markerTranslations && window.markerTranslations.total_credit) || 'Total Credit';
+            return '<span class="mcs-credit-note">(' + escapeHtml(label) + ': ' + formatMarkerHistoryAmount(Math.abs(tc)) + ')</span>' + remainingHtml;
+        }
+        return remainingHtml;
+    }
+
+    // Row click on the Credit Status breakdown → open that account's payment record (Agent Portal).
+    $(document)
+        .off('click.markerCreditStatusRow', '#marker-credit-status-breakdown-tbl tbody tr')
+        .on('click.markerCreditStatusRow', '#marker-credit-status-breakdown-tbl tbody tr', function () {
+            var $row = $(this);
+            var accountId = $row.attr('data-account-id');
+            if (!accountId) return;
+            if (typeof window.account_details === 'function') {
+                window.account_details(accountId, $row.attr('data-agent-code') || '', $row.attr('data-agent-name') || '');
+            }
+        });
 
     function renderCreditStatusBreakdownShortcut(filterAccountId) {
         var $table = $('#marker-credit-status-breakdown-tbl');
@@ -160,11 +192,15 @@
         var data = (rows || []).map(function (row) {
             var amount = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
             if (isNaN(amount)) amount = 0;
+            var totalCredit = row.TOTAL_CREDIT != null ? Number(row.TOTAL_CREDIT) : amount;
+            if (isNaN(totalCredit)) totalCredit = amount;
             sum += amount;
             return {
+                accountId: row.ACCOUNT_ID != null ? String(row.ACCOUNT_ID) : '',
                 code: creditStatusTextOrDash(row.AGENT_CODE),
                 agent: creditStatusTextOrDash(row.AGENT_NAME),
                 guest: creditStatusTextOrDash(row.GUEST_NAME),
+                totalCredit: totalCredit,
                 amount: amount
             };
         });
@@ -173,12 +209,15 @@
 
         if (typeof $.fn.DataTable === 'undefined') {
             var html = data.map(function (r) {
+                var attrs = r.accountId
+                    ? ' data-account-id="' + escapeHtml(r.accountId) + '" data-agent-code="' + escapeHtml(r.code) + '" data-agent-name="' + escapeHtml(r.agent) + '"'
+                    : '';
                 return (
-                    '<tr>' +
+                    '<tr' + attrs + '>' +
                     '<td>' + escapeHtml(r.code) + '</td>' +
                     '<td>' + escapeHtml(r.agent) + '</td>' +
                     '<td>' + escapeHtml(r.guest) + '</td>' +
-                    '<td class="text-end marker-total-col-amount">' + formatCreditStatusShortcutAmount(r.amount) + '</td>' +
+                    '<td class="text-end marker-total-col-amount">' + renderCreditRemainingCell(r.amount, r.totalCredit) + '</td>' +
                     '</tr>'
                 );
             }).join('');

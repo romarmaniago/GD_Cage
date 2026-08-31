@@ -1151,6 +1151,8 @@
 		"balance_from_buyin": "Buy-in (10)",
 		"total": "Total",
 		"total_amount": "Total Amount",
+		"total_credit": "total credit",
+		"amount_remaining": "Remaining Balance",
 		"game_start": "Game Start",
 		"form_mode_return": "Return Credit",
 		"form_mode_issue": "Add Credit",
