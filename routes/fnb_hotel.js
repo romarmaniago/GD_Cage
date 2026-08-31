@@ -254,7 +254,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 								: `Service: ${serviceLabel}`;
 							const signLabel = amt < 0 ? '-' : '+';
 
-							const text = `Demo Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${signLabel}${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+							const text = `GD Cage\n\n* Service Payment *\n\nAccount: ${AGENT_CODE} - ${NAME}\n${serviceLine}\nAmount: ${signLabel}${formattedAmount} - Deposit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 							await sendTelegramMessage(text, TELEGRAM_ID);
 							await sendTelegramToAdditionalChats(text);
@@ -279,7 +279,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 					: `Service: ${serviceLabel}`;
 				const gameLine = resolvedGameId ? `Game #: ${resolvedGameId}\n` : '';
 
-				const text = `Demo Cage\n\n* Service Payment (Junket) *\n\n${gameLine}${serviceLine}\nAmount: ${formattedAmount}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const text = `GD Cage\n\n* Service Payment (Junket) *\n\n${gameLine}${serviceLine}\nAmount: ${formattedAmount}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				await sendTelegramToAdditionalChats(text);
 			} catch (telegramErr) {

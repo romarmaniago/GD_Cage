@@ -68,7 +68,7 @@ async function sendNewHouseExpenseTelegram(pool, payload) {
 	const dateFormatted = formatDateDisplay(dateNow);
 	const timeFormatted = formatDateTimeDisplay(dateNow).slice(11);
 	const telegramMessage =
-		`Demo Cage\n\n* Junket Expense${statusLabel ? ' (' + statusLabel + ')' : ''} *\n\n` +
+		`GD Cage\n\n* Junket Expense${statusLabel ? ' (' + statusLabel + ')' : ''} *\n\n` +
 		`Category: ${categoryName}\n` +
 		`Receipt No: ${receiptNo || 'N/A'}\n` +
 		`In-Charge: ${description || 'N/A'}\n` +
@@ -1210,7 +1210,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString('en-US')}\n` : '';
 			const editMsg =
-				'Demo Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
+				'GD Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
 				`Name: ${expenseCategoryName}\n` +
 				`Type: ${typeLabel}\n` +
 				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
@@ -1285,7 +1285,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		// Telegram to Management: expense deleted with details
 		try {
 			const deleteMsg =
-				'Demo Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
+				'GD Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
 				`Name: ${categoryName}\n` +
 				`Type: ${typeLabel}\n` +
 				`Receipt #: ${receiptNo}\n` +

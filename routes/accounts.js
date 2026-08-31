@@ -270,19 +270,19 @@ const telegramAccountCashMessage = (_req, opts) => {
 	const title = telegramCashTransactionTitle(transaction);
 	const balanceLabel = String(txtTrans) === '3' ? L.totalCredit : L.balance;
 	const remarksLine = txtRemarks ? `${L.remarks}: ${txtRemarks}\n` : '';
-	return `Demo Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString('en-US')}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString('en-US')}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+	return `GD Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString('en-US')}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString('en-US')}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
 };
 
 const telegramBalanceCheckMessage = (_req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now) => {
-	return `Demo Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
+	return `GD Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
 };
 
 const telegramTransferFromMessage = (_req, fromCode, fromName, toCode, toName, totalAmount, senderBalance, date_nowTG, updated_time) => {
-	return `Demo Cage\n\n* Transfer *\n\nAccount: ${fromCode} - ${fromName}\nTo: ${toCode} - ${toName}\nAmount: -${totalAmount.toLocaleString('en-US')}\nBalance: ${senderBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+	return `GD Cage\n\n* Transfer *\n\nAccount: ${fromCode} - ${fromName}\nTo: ${toCode} - ${toName}\nAmount: -${totalAmount.toLocaleString('en-US')}\nBalance: ${senderBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
 const telegramTransferToMessage = (_req, toCode, toName, fromCode, fromName, totalAmount, receiverBalance, date_nowTG, updated_time) => {
-	return `Demo Cage\n\n* Transfer *\n\nTo: ${toCode} - ${toName}\nFrom: ${fromCode} - ${fromName}\nAmount: ${totalAmount.toLocaleString('en-US')}\nBalance: ${receiverBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+	return `GD Cage\n\n* Transfer *\n\nTo: ${toCode} - ${toName}\nFrom: ${fromCode} - ${fromName}\nAmount: ${totalAmount.toLocaleString('en-US')}\nBalance: ${receiverBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
 // Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)

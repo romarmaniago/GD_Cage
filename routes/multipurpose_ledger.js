@@ -183,7 +183,7 @@ function buildJflManagementTelegramText(payload) {
 	const { date, time } = formatTelegramDateTime(new Date());
 	const ccyLabel = currencyCode ? ` ${currencyCode}` : '';
 	const lines = [
-		'Demo Cage',
+		'GD Cage',
 		'',
 		transTypeTelegramHeadline(action, transType),
 		'',

@@ -727,7 +727,7 @@ async function startGuestBot() {
       const date_now = new Date().toLocaleDateString();
       const time_now = new Date().toLocaleTimeString();
 
-      const msg = `Demo Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balance.toLocaleString()}\n\nDate: ${date_now}\nTime: ${time_now}`;
+      const msg = `GD Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balance.toLocaleString()}\n\nDate: ${date_now}\nTime: ${time_now}`;
       bot.sendMessage(telegramId, msg);
 
     } catch (err) {
