@@ -551,11 +551,13 @@ async function computeCreditGrandTotal(pool) {
 	}
 }
 
-async function computeTipBalanceForPeriod(pool, dateFrom, dateTo) {
-	const p = [dateFrom, dateTo];
+async function computeTipBalanceForPeriod(pool) {
+	// Tip Balance is a running (all-time) balance, not a period total — matches
+	// the canonical formula in routes/dashboard.js (sqlRollerTipGross/sqlTipSettlement)
+	// and routes/tip.js getRollerTipAvailableBalance() (used by /tip_roller_balance).
 	const [gross, settled] = await Promise.all([
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip WHERE ACTIVE=1 AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip_settlement WHERE ACTIVE=1 AND COALESCE(PROGRAM_DATE, DATE(SETTLEMENT_DATETIME)) BETWEEN ? AND ?`, p)
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip WHERE ACTIVE=1 AND TIP_TYPE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip_settlement WHERE ACTIVE=1`)
 	]);
 	return Math.max(0, gross - settled);
 }
@@ -598,7 +600,7 @@ async function computeCageMainForPeriod(pool, dateFrom, dateTo) {
 		computeRcChipsForPeriod(pool, dateFrom, dateTo),
 		computeGuestBalanceForPeriod(pool),
 		computeCreditGrandTotal(pool),
-		computeTipBalanceForPeriod(pool, dateFrom, dateTo),
+		computeTipBalanceForPeriod(pool),
 		computeManualCashForPeriod(pool, dateFrom, dateTo),
 		computeRollingForPeriod(pool, dateFrom, dateTo)
 	]);
