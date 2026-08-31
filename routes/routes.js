@@ -4134,19 +4134,32 @@ pageRouter.get('/game_list/:id/record', (req, res) => {
 
 
 // DELETE GAME LIST
+// NOTE: shadowed by routes/gamebook.js PUT /game_list/remove/:id (mounted first).
+// Kept in sync so behaviour stays identical if the mount order ever changes.
 pageRouter.put('/game_list/remove/:id', (req, res) => {
 	const id = parseInt(req.params.id);
 	let date_now = new Date();
 
-	const query = `UPDATE game_list SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-	connection.query(query, [0, req.session.user_id, date_now, id], (err, result) => {
-		if (err) {
-			console.error('Error updating GAME LIST:', err);
+	// Soft-delete linked tip entries (roller/dealer game tips) so the tip
+	// listing and roller tip balance stay in sync with the deleted game.
+	const tipQuery = `UPDATE tip SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1`;
+	connection.query(tipQuery, [req.session.user_id, date_now, id], (tipErr) => {
+		if (tipErr) {
+			console.error('Error soft-deleting linked tips:', tipErr);
 			res.status(500).send('Error updating GAME LIST');
 			return;
 		}
 
-		res.send('GAME LIST updated successfully');
+		const query = `UPDATE game_list SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+		connection.query(query, [0, req.session.user_id, date_now, id], (err, result) => {
+			if (err) {
+				console.error('Error updating GAME LIST:', err);
+				res.status(500).send('Error updating GAME LIST');
+				return;
+			}
+
+			res.send('GAME LIST updated successfully');
+		});
 	});
 });
 

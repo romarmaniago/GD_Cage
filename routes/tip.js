@@ -129,6 +129,8 @@ async function validateActiveGame(gameId) {
 
 async function getRollerTipAvailableBalance(db) {
 	const conn = db || pool;
+	// tip.ACTIVE is kept in sync with game_list.ACTIVE by the game-delete cascade
+	// (and self-healed on startup by ensureTipSchema), so t.ACTIVE = 1 is enough here.
 	const [[rollerRow]] = await conn.execute(
 		`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TOTAL
 		 FROM tip t

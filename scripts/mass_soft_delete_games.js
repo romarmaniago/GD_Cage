@@ -111,6 +111,14 @@ async function run() {
       WHERE gr.ACTIVE != 0
     `, [EDITED_BY, editedDt]);
 
+    // 5b) tip (roller/dealer game tips) - keep tip listing + roller tip balance in sync
+    const [r5b] = await conn.query(`
+      UPDATE tip tp
+      JOIN target_games t ON t.game_id = tp.GAME_ID
+      SET tp.ACTIVE = 0, tp.EDITED_BY = ?, tp.EDITED_DT = ?
+      WHERE tp.ACTIVE = 1
+    `, [EDITED_BY, editedDt]);
+
     // 6) clear cutoff on partners
     try {
       await conn.query(`
@@ -160,6 +168,7 @@ async function run() {
       { step: 'account_ledger', affected: r3.affectedRows },
       { step: 'junket_loss', affected: r4.affectedRows },
       { step: 'game_record', affected: r5.affectedRows },
+      { step: 'tip', affected: r5b.affectedRows },
       { step: 'game_list', affected: r7.affectedRows },
     ]);
 

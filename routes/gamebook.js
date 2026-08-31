@@ -4319,6 +4319,12 @@ router.put('/game_list/remove/:id', async (req, res) => {
 		}
 
 		await softDeleteJunketLossLinkedToGame(pool, id, junketLossId, editedBy, date_now);
+		// Soft-delete linked tip entries (roller/dealer game tips) so tip listing
+		// and roller tip balance stay in sync with the deleted game.
+		await pool.execute(
+			'UPDATE tip SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1',
+			[editedBy, date_now, id]
+		);
 		await pool.execute(
 			'UPDATE game_list SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 			[0, editedBy, date_now, id]
@@ -4500,6 +4506,13 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 		// 6. Soft delete game_record
 		await connection.execute(
 			'UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ?',
+			[editedBy, date_now, gameId]
+		);
+
+		// 6b. Soft delete linked tip entries (roller/dealer game tips) so the tip
+		// listing and roller tip balance stay consistent with the deleted game.
+		await connection.execute(
+			'UPDATE tip SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1',
 			[editedBy, date_now, gameId]
 		);
 

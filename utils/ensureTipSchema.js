@@ -142,6 +142,19 @@ async function ensureTipSchema(pool) {
 		   AND (gl.PROGRAM_DATE IS NOT NULL OR t.ENCODED_DT IS NOT NULL)`
 	);
 
+	// Self-heal: a game-linked tip must mirror its game's ACTIVE flag. The game-delete
+	// paths cascade this, but repair any historical rows left ACTIVE = 1 under a
+	// deleted game so tip listing / roller tip balance stay consistent.
+	const [orphanFix] = await pool.execute(
+		`UPDATE tip t
+		 JOIN game_list gl ON gl.IDNo = t.GAME_ID
+		 SET t.ACTIVE = 0, t.EDITED_DT = NOW()
+		 WHERE t.ACTIVE = 1 AND gl.ACTIVE = 0`
+	);
+	if (orphanFix && orphanFix.affectedRows) {
+		console.log(`[tip] Soft-deleted ${orphanFix.affectedRows} tip row(s) linked to deleted games`);
+	}
+
 	if (await columnExists(pool, 'tip', 'TIP_DATETIME')) {
 		if (await indexExists(pool, 'tip', 'idx_tip_active_dt')) {
 			await pool.execute('ALTER TABLE tip DROP INDEX idx_tip_active_dt');
