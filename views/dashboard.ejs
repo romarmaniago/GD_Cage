@@ -53,7 +53,9 @@
 
       function signedServiceBalance(category) {
          var guestIn = sumServiceRows(sqlServiceCashGuest, category) + sumServiceRows(sqlServiceDepositGuest, category);
-         var junketOut = sumServiceRows(sqlServiceCashJunket, category) + sumServiceRows(sqlServiceDepositJunket, category);
+         // JUNKET rows are a company outflow; normalise to a magnitude so they
+         // always subtract whether stored negative (new) or positive (legacy).
+         var junketOut = Math.abs(sumServiceRows(sqlServiceCashJunket, category)) + Math.abs(sumServiceRows(sqlServiceDepositJunket, category));
          return guestIn - junketOut;
       }
 

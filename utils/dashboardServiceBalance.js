@@ -51,7 +51,12 @@ function sumCategoryAcrossRowSets(rowSets, category) {
 
 function signedCategoryBalance(junketCashRows, junketDepositRows, guestCashRows, guestDepositRows, category) {
 	const guestIn = sumCategoryAcrossRowSets([guestCashRows, guestDepositRows], category);
-	const junketOut = sumCategoryAcrossRowSets([junketCashRows, junketDepositRows], category);
+	// JUNKET service rows are a company outflow. Newer entries store AMOUNT as a
+	// negative value; legacy rows stored it positive. Normalise each set to a
+	// magnitude so the outflow always subtracts from the balance regardless of sign.
+	const junketOut =
+		Math.abs(sumDepositsByCategory(junketCashRows, category)) +
+		Math.abs(sumDepositsByCategory(junketDepositRows, category));
 	return guestIn - junketOut;
 }
 
