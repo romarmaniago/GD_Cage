@@ -883,15 +883,16 @@
         );
     }
 
-    function markerReceiptBalanceRow(label, value) {
+    function markerReceiptBalanceRow(label, value, isOut) {
         if (value == null || value === '') return '';
         var num = Number(value);
         if (!Number.isFinite(num)) return '';
         var formatted = markerReceiptFormatAmount(num);
         var display = num < 0 ? '(' + formatted + ')' : formatted;
+        var cls = isOut ? 'mrr-value mrr-balance-out' : 'mrr-value';
         return (
             '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
-            '</td><td class="mrr-value">' + display + '</td></tr>'
+            '</td><td class="' + cls + '">' + display + '</td></tr>'
         );
     }
 
@@ -917,7 +918,7 @@
             markerReceiptTextRow('ACCOUNT', row.AGENT_CODE) +
             markerReceiptTextRow('NAME', row.AGENT_NAME) +
             markerReceiptInOutRow('IN AND OUT', row.AMOUNT, isOut) +
-            markerReceiptBalanceRow('BALANCE', row.BALANCE_AFTER) +
+            markerReceiptBalanceRow('BALANCE', row.BALANCE_AFTER, isOut) +
             markerReceiptTextRow('CONFIRMER', row.GUARANTOR) +
             markerReceiptTextRow('REMARKS', row.REMARKS);
 
