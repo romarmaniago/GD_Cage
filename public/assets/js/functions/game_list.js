@@ -3192,6 +3192,17 @@ function buildGameReceiptLegRow(label, value, options) {
 	return '<tr' + rowClass + '><td class="' + labelClass + '">' + label + '</td><td class="' + valueClass + '">' + formatted + '</td></tr>';
 }
 
+function formatGameReceiptSignedAmount(value) {
+	var n = Number(value || 0);
+	if (n < 0) return '(' + formatGameStartReceiptAmount(Math.abs(n)) + ')';
+	return formatGameStartReceiptAmount(n);
+}
+
+function buildGameReceiptSummaryRow(label, value) {
+	var valueClass = 'gsr-value gsr-total-value' + (Number(value || 0) < 0 ? ' gsr-negative' : '');
+	return '<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + label + '</td><td class="' + valueClass + '">' + formatGameReceiptSignedAmount(value) + '</td></tr>';
+}
+
 function buildGameReceiptSectionTable(sectionClass, bodyRows) {
 	if (!bodyRows) return '';
 	return '<table class="gsr-table ' + sectionClass + '"><tbody>' + bodyRows + '</tbody></table>';
@@ -3247,8 +3258,8 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 		summaryRows =
 			'<table class="gsr-table gsr-section-summary">' +
 			'<tbody>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* WIN / LOSS</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.win_loss) + '</td></tr>' +
-			'<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">* ROLLING</td><td class="gsr-value gsr-total-value">' + formatGameStartReceiptAmount(data.rolling) + '</td></tr>' +
+			buildGameReceiptSummaryRow('* WIN / LOSS', data.win_loss) +
+			buildGameReceiptSummaryRow('* ROLLING', data.rolling) +
 			'</tbody></table>';
 	}
 
