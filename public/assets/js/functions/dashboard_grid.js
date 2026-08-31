@@ -906,6 +906,14 @@
     // Main Cage (rolling_auto) does. Fall back to rolling_auto only if an older
     // server response omits the field.
     set('dash-actual-gaming-rolling', t.rolling_gamebook != null ? t.rolling_gamebook : t.rolling_auto);
+
+    // Actual Rolling = Main Cage (rolling_auto) minus the live NN Chips balance
+    // (chips sitting idle, not rolling) minus the live outstanding Roller Chips (RC)
+    // balance — isolates the amount actually rolling right now.
+    const panel = document.getElementById('dash-anticipated-panel');
+    const rcChipsBalance = panel ? Number(panel.dataset.rcChipsBalance) || 0 : 0;
+    const nnChipsBalance = panel ? Number(panel.dataset.nnChipsBalance) || 0 : 0;
+    set('dash-actual-rolling-amount', (Number(t.rolling_auto) || 0) - nnChipsBalance - rcChipsBalance);
   }
 
   function updateOnGameSummary(payload) {
@@ -1855,7 +1863,9 @@
     setHtmlById('dash-utang-total', formatDashAmtHtml(cage.credit, true));
     setHtmlById('dash-tip-balance-value', formatDashAmtHtml(cage.tip_balance));
     setHtmlById('dash-guest-line-total', formatDashAmtHtml(cage.guest_balance));
-    setHtmlById('dash-actual-rolling-amount', formatDashAmtHtml(cage.actual_rolling));
+    // dash-actual-rolling-amount ("Actual Rolling") is owned by updateActualCheck()
+    // (Main Cage minus live RC) — do not also set it here, the two fetches run
+    // concurrently and would otherwise race for the same element.
 
     // Main + Anticipated Add Charge: period signed balances
     renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);

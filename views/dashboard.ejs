@@ -358,7 +358,9 @@
                data-additional-commission="<%= additionalCommissionSettlement %>"
                data-month-key="<%= dashboardMonthKey || '' %>"
                data-wl-rate="<%= wlSharePct %>"
-               data-wl-default="<%= dashboardWlShareDefault || 65 %>">
+               data-wl-default="<%= dashboardWlShareDefault || 65 %>"
+               data-rc-chips-balance="<%= rcChipsBalance %>"
+               data-nn-chips-balance="<%= nnChipsBalance %>">
                <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body dash-current-time-wl">
                   <div class="card-header dash-card-header-compact d-flex align-items-center is-center">
                      <span>Current Time W/L</span>
@@ -386,7 +388,7 @@
                   <div class="card-body">
                      <div class="dash-kv"><span class="dash-kv-label">Main Cage</span><span class="dash-kv-value" id="dash-actual-rolling">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">NN Chips</span><span class="dash-kv-value" id="dash-actual-nn-chips"><%- fmtAmt(nnChipsBalance) %></span></div>
-                     <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value" id="dash-actual-rolling-amount"><%- fmtAmt(totalRollingAmount) %></span></div>
+                     <div class="dash-kv"><span class="dash-kv-label">Actual Rolling</span><span class="dash-kv-value" id="dash-actual-rolling-amount">—</span></div>
                      <div class="dash-kv"><span class="dash-kv-label">Gaming Acc.</span><span class="dash-kv-value" id="dash-actual-gaming-rolling">—</span></div>
                   </div>
                </div>
