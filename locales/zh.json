@@ -1634,6 +1634,8 @@
 		"select_transaction_type": "选择交易类型。",
 		"invalid_amount": "无效金额",
 		"amount_must_be_greater": "金额必须大于0。",
+		"insufficient_balance": "余额不足",
+		"amount_exceeds_balance": "金额超出可用余额。",
 		"error": "错误",
 		"failed_to_save": "保存记录失败。",
 		"failed_to_update": "更新记录失败。",

@@ -8,8 +8,8 @@ $(function () {
 		const $accountSelect = $('#edit-services-account');
 		const $guestSelect = $('#edit-services-guest');
 		const $accountWrapper = $('#edit-services-account-wrapper');
-		const $transactionType = $('#edit-transaction-type');
 		const $transactionId = $('#edit-services-transaction-id');
+		const $amountInput = $('#edit-services-amount');
 		const $agentInput = $('#edit-services-agent-id');
 		const $saveBtn = $('#edit-services-save');
 		const $balanceHint = $('#edit-deposit-balance');
@@ -19,8 +19,39 @@ $(function () {
 		const $programDate = $('#edit-services-program-date');
 		let depositBalance = 0;
 		let suppressAccountChange = false;
+		// Amount of this record when the modal opened — added back when checking the
+		// available balance, since the edit flow reverses the old ledger row first.
+		let originalChargeAmount = 0;
 
 		const t = window.fnbHotelTranslations || {};
+
+		function formatSignedAmountInput(value) {
+			var raw = String(value == null ? '' : value);
+			var sign = '';
+			if (raw.charAt(0) === '+' || raw.charAt(0) === '-') {
+				sign = raw.charAt(0);
+				raw = raw.slice(1);
+			}
+			raw = raw.replace(/[^\d.]/g, '');
+			var parts = raw.split('.');
+			if (parts.length > 2) {
+				raw = parts[0] + '.' + parts.slice(1).join('');
+				parts = raw.split('.');
+			}
+			var intPart = parts[0] || '';
+			var decPart = parts[1];
+			var formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+			var formatted = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
+			if (!formatted && !sign) return '';
+			return sign + formatted;
+		}
+
+		function parseSignedAmount(value) {
+			var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+			if (!raw || raw === '+' || raw === '-') return NaN;
+			var n = parseFloat(raw);
+			return Number.isFinite(n) ? n : NaN;
+		}
 
 		function escapeHtml(value) {
 			return String(value == null ? '' : value)
@@ -206,26 +237,10 @@ $(function () {
 			}
 		}
 
-		function toggleAccountByTransactionType() {
-			const type = $transactionType.val();
-			const isActive = type === 'GUEST' || type === 'JUNKET';
-
+		function enableAccountFields() {
 			$accountWrapper.show();
-			if (isActive) {
-				$accountSelect.prop('disabled', false);
-				$guestSelect.prop('disabled', !$accountSelect.val());
-			} else {
-				if ($accountSelect.data('select2')) {
-					$accountSelect.val('').trigger('change');
-				} else {
-					$accountSelect.val('');
-				}
-				resetGuestSelect();
-				$accountSelect.prop('disabled', true);
-				$agentInput.val('');
-				depositBalance = 0;
-				updateBalanceHint();
-			}
+			$accountSelect.prop('disabled', false);
+			$guestSelect.prop('disabled', !$accountSelect.val());
 		}
 
 		async function populateAccounts() {
@@ -256,7 +271,7 @@ $(function () {
 				$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
 				initAccountSelect2();
 			} finally {
-				toggleAccountByTransactionType();
+				enableAccountFields();
 			}
 		}
 
@@ -285,7 +300,7 @@ $(function () {
 				let marker_return = 0;
 
 				data.forEach(function (row) {
-					const amount = parseFloat(row.amount || 0);
+					const amount = parseFloat(row.AMOUNT || 0);
 					if (row.TRANSACTION === 'DEPOSIT') {
 						deposit_amount += amount;
 					} else if (row.TRANSACTION === 'WITHDRAW') {
@@ -320,21 +335,8 @@ $(function () {
 			updateBalanceHint();
 		});
 
-		$transactionType.on('change', toggleAccountByTransactionType);
-
-		$('#edit-services-amount').on('input', function () {
-			const $input = $(this);
-			let raw = $input.val() || '';
-			raw = raw.replace(/[^\d.]/g, '');
-			const parts = raw.split('.');
-			if (parts.length > 2) {
-				raw = parts[0] + '.' + parts.slice(1).join('');
-			}
-			const intPart = raw.split('.')[0];
-			const decPart = raw.split('.')[1];
-			const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-			const formatted = decPart !== undefined ? formattedInt + '.' + decPart : formattedInt;
-			$input.val(formatted);
+		$amountInput.on('input', function () {
+			$(this).val(formatSignedAmountInput($(this).val()));
 		});
 
 		$modal.on('show.bs.modal', function () {
@@ -352,35 +354,35 @@ $(function () {
 			const transactionId = pending.transactionId != null ? String(pending.transactionId) : '';
 			const amount = pending.amount;
 
+			originalChargeAmount = transactionId === '2'
+				? Math.abs(parseFloat(String(amount == null ? '' : amount).replace(/,/g, '')) || 0)
+				: 0;
+
 			if (pending.id != null && pending.id !== '') {
 				$('#edit-services-id').val(pending.id);
 			}
 			if (amount != null && amount !== '') {
-				const num = parseFloat(String(amount).replace(/,/g, '')) || 0;
-				$('#edit-services-amount').val(num.toLocaleString('en-US'));
+				let num = parseFloat(String(amount).replace(/,/g, '')) || 0;
+				// Sign carries the source: + = GUEST (In), - = JUNKET (Out).
+				// Normalize legacy positive-JUNKET rows to a negative amount.
+				if (num > 0 && sourceType === 'JUNKET') num = -num;
+				$amountInput.val(formatSignedAmountInput(num === 0 ? '' : (num < 0 ? '-' : '') + Math.abs(num).toString()));
+			} else {
+				$amountInput.val('');
 			}
 			$('#edit-services-remarks').val(remarks);
 			$transactionId.val(transactionId);
 
 			ensureProgramDatePicker(programDate);
 			initGuestSelect2();
-
-			if (sourceType === 'GUEST' || sourceType === 'JUNKET') {
-				$transactionType.val(sourceType);
-			} else {
-				$transactionType.val('');
-			}
-			toggleAccountByTransactionType();
+			enableAccountFields();
 
 			await Promise.all([
 				populateAccounts(),
 				populateServiceTypeRadios(serviceType)
 			]);
 
-			if (sourceType === 'GUEST' || sourceType === 'JUNKET') {
-				$transactionType.val(sourceType);
-			}
-			toggleAccountByTransactionType();
+			enableAccountFields();
 
 			if (agentId) {
 				suppressAccountChange = true;
@@ -434,11 +436,11 @@ $(function () {
 			const accountId = $accountSelect.val();
 			const agentId = $agentInput.val();
 			const serviceType = ($serviceTypeValue.val() || '').trim();
-			const amountRaw = $('#edit-services-amount').val().replace(/,/g, '').trim();
-			const amount = parseFloat(amountRaw) || 0;
+			const amount = parseSignedAmount($amountInput.val());
 			const remarks = $('#edit-services-remarks').val().trim();
 			const transactionId = String($transactionId.val() || '').trim();
-			const sourceType = $transactionType.val();
+			// + amount = addition (GUEST / In), - amount = bawas (JUNKET / Out)
+			const sourceType = amount < 0 ? 'JUNKET' : 'GUEST';
 			const guestId = ($guestSelect.val() || '').trim();
 			const programDate = getProgramDateValue();
 
@@ -448,10 +450,6 @@ $(function () {
 			}
 			if (!programDate) {
 				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_program_date || 'Select a program date.' });
-				return;
-			}
-			if (!sourceType) {
-				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
 				return;
 			}
 			if (!serviceType) {
@@ -466,9 +464,25 @@ $(function () {
 				Swal.fire({ icon: 'error', title: t.error || 'Error', text: t.service_id_missing || 'Payment method is missing on this record.' });
 				return;
 			}
-			if (amount <= 0) {
-				Swal.fire({ icon: 'warning', title: t.invalid_amount || 'Invalid amount', text: t.amount_must_be_greater || 'Amount must be greater than 0.' });
+			if (!Number.isFinite(amount) || amount === 0) {
+				Swal.fire({ icon: 'warning', title: t.invalid_amount || 'Invalid amount', text: t.amount_must_be_greater || 'Enter an amount with + (addition) or - (bawas).' });
 				return;
+			}
+
+			// Hard check: a GUEST deposit charge must fit the available balance.
+			// The record's own old charge is added back — it is reversed on update.
+			if (transactionId === '2' && sourceType === 'GUEST') {
+				await loadDepositBalance(accountId);
+				const available = depositBalance + originalChargeAmount;
+				if (Math.abs(amount) > available + 0.009) {
+					Swal.fire({
+						icon: 'warning',
+						title: t.insufficient_balance || 'Insufficient balance',
+						text: (t.amount_exceeds_balance || 'Amount exceeds the available balance.') +
+							' (' + available.toLocaleString('en-US') + ')'
+					});
+					return;
+				}
 			}
 
 			$saveBtn.prop('disabled', true).text(t.updating || 'Updating...');

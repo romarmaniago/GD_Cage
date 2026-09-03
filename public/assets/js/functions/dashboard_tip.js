@@ -381,6 +381,11 @@ $(document).ready(function () {
 	}
 
 	function refreshDashTip() {
+		// Tip Balance feeds the Cage Balance card's "Balance Total" (cumulative
+		// Main-panel sum) — refresh that too so it updates without a page reload.
+		if (typeof window.dashboardHouseBalanceReload === 'function') {
+			try { window.dashboardHouseBalanceReload(); } catch (e) { /* noop */ }
+		}
 		return $.when(fetchRollerBalance(), reloadTipData());
 	}
 

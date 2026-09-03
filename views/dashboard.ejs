@@ -243,11 +243,15 @@
 
       var usdBalance = pickManualCash(sqlCageManualCash, 'USD');
       var gcashBalance = pickManualCash(sqlCageManualCash, 'GCASH');
-      var phpBalance = cashBalance;
-      // Cage Balance "Balance Total" now includes RC (outstanding roller chips):
-      //   Balance Total = PHP + NN + CC + RC
-      var cageBalanceDisplayTotal = houseBalance + rcChipsBalance;
-      // USD/GCASH are manual entries — keep them on display, but exclude from The difference
+      // Cage Balance "Balance Total" = cumulative sum of the Main panel:
+      //   Company - Credit - Expenses - Loss - Commission - Additional
+      //   + Add Charge + Tip Balance + Line   ( = 可用金額 + Tip Balance + Line ).
+      // Never period-scoped; the live refresh uses main_panel_sum_total from
+      // /dashboard_house_balances (utils/dashboardPeriodSummary computeMainPanelSumTotal).
+      var cageBalanceDisplayTotal = mainAvailableAmount + tipAvailableBalance + guestBalance;
+      // PHP is shown as the balancing figure so the card always foots to Balance
+      // Total (NN/CC/RC are the live chip counts; USD/GCASH are manual, excluded).
+      var phpBalance = cageBalanceDisplayTotal - totalChipsBalance - rcChipsBalance;
       var cageBalanceTotal = phpBalance + totalChipsBalance + rcChipsBalance;
       var cageBalanceDiff = cageBalanceDisplayTotal - cageBalanceTotal;
 
@@ -558,9 +562,9 @@
                   <div class="dash-section-header is-alt d-flex flex-wrap justify-content-between align-items-center gap-2">
                      <span><%= __('dashboard.house_balance') %> / <%= __('dashboard.cash_balance') %></span>
                      <div class="dash-balance-hero">
-                        <span class="item" id="house-balance-value">₱ <%= houseBalance.toLocaleString('en-US') %></span>
+                        <span class="item" id="house-balance-value">₱ <%= cageBalanceDisplayTotal.toLocaleString('en-US') %></span>
                         <span class="sep">/</span>
-                        <span class="item" id="cash-balance-value">₱ <%= cashBalance.toLocaleString('en-US') %></span>
+                        <span class="item" id="cash-balance-value">₱ <%= phpBalance.toLocaleString('en-US') %></span>
                      </div>
                   </div>
                   <div class="dash-house-body">
@@ -914,6 +918,8 @@
       service_id_missing: "<%= __('fnb_hotel.service_id_missing') %>",
       invalid_amount: "<%= __('fnb_hotel.invalid_amount') %>",
       amount_must_be_greater: "<%= __('fnb_hotel.amount_must_be_greater') %>",
+      insufficient_balance: "<%= __('fnb_hotel.insufficient_balance') %>",
+      amount_exceeds_balance: "<%= __('fnb_hotel.amount_exceeds_balance') %>",
       error: "<%= __('fnb_hotel.error') %>",
       failed_to_save: "<%= __('fnb_hotel.failed_to_save') %>",
       failed_to_update: "<%= __('fnb_hotel.failed_to_update') %>",

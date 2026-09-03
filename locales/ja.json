@@ -1634,6 +1634,8 @@
 		"select_transaction_type": "取引タイプを選択してください。",
 		"invalid_amount": "無効な金額",
 		"amount_must_be_greater": "金額は0より大きい必要があります。",
+		"insufficient_balance": "残高不足",
+		"amount_exceeds_balance": "金額が利用可能な残高を超えています。",
 		"error": "エラー",
 		"failed_to_save": "記録の保存に失敗しました。",
 		"failed_to_update": "記録の更新に失敗しました。",

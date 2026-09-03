@@ -81,8 +81,7 @@
 									type="button"
 									id="btn-fnb-hotel-new-record"
 									class="expense-cat-panel-add-btn js-fnb-hotel-add-record d-none"
-									data-bs-toggle="modal"
-									data-bs-target="#modal-services-new-record"
+									data-service-add-trigger
 									title="<%= __('fnb_hotel.new_record') %>"
 									aria-label="<%= __('fnb_hotel.new_record') %>"
 									data-view-only-disable
@@ -546,6 +545,8 @@
 		service_updated: "<%= __('fnb_hotel.service_updated') %>",
 		invalid_amount: "<%= __('fnb_hotel.invalid_amount') %>",
 		amount_must_be_greater: "<%= __('fnb_hotel.amount_must_be_greater') %>",
+		insufficient_balance: "<%= __('fnb_hotel.insufficient_balance') %>",
+		amount_exceeds_balance: "<%= __('fnb_hotel.amount_exceeds_balance') %>",
 		service_id_missing: "<%= __('fnb_hotel.service_id_missing') %>",
 		failed_to_update: "<%= __('fnb_hotel.failed_to_update') %>",
 		update: "<%= __('fnb_hotel.update') %>",

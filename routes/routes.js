@@ -1109,9 +1109,19 @@ pageRouter.get("/telegramAPI", function (req, res) {
 //=============== JUNKET =============
 pageRouter.get("/capital", async function (req, res) {
 	const cashBalance = await dashboardQueries.computeCashBalance();
+	// Balancing PHP figure (Balance Total - NN - CC - RC) so the New Capital modal's
+	// cash limit matches the dashboard Cage Balance card.
+	let housePhpDisplay = null;
+	try {
+		const houseBalance = await dashboardQueries.computeHouseBalance();
+		housePhpDisplay = houseBalance.php_display != null ? Number(houseBalance.php_display) : null;
+	} catch (err) {
+		console.error('/capital computeHouseBalance:', err.message || err);
+	}
 	res.render("junket/capital", {
 		...sessions(req, 'capital'),
-		cashBalance
+		cashBalance,
+		housePhpDisplay
 	});
 });
 

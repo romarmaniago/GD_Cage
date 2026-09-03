@@ -337,6 +337,19 @@ $(function () {
 		setSelectedServiceType(value || '');
 	};
 
+	// Open via JS (not data-bs-toggle) so an already-open modal — e.g. the dashboard
+	// Hotel / Incidental list — stays open behind this one instead of being auto-hidden
+	// by Bootstrap's modal data-API.
+	$(document).on('click', '[data-service-add-trigger]', function () {
+		var el = document.getElementById('modal-services-new-record');
+		if (!el) return;
+		if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+			bootstrap.Modal.getOrCreateInstance(el).show(this);
+		} else {
+			$(el).modal('show');
+		}
+	});
+
 	$modal.on('show.bs.modal', async function (e) {
 		resetForm();
 		ensureProgramDatePicker(todayProgramDateValue());
@@ -468,6 +481,20 @@ $(function () {
 		if (!Number.isFinite(amount) || amount === 0) {
 			Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.amount_must_be_greater || 'Enter an amount with + (addition) or - (bawas).' });
 			return;
+		}
+
+		// Hard check: a GUEST deposit charge must fit the guest's available deposit balance
+		if (transactionId === '2' && sourceType === 'GUEST') {
+			await loadDepositBalance(accountId);
+			if (amount > depositBalance + 0.009) {
+				Swal.fire({
+					icon: 'warning',
+					title: t.insufficient_balance || 'Insufficient balance',
+					text: (t.amount_exceeds_balance || 'Amount exceeds the available balance.') +
+						' (' + depositBalance.toLocaleString('en-US') + ')'
+				});
+				return;
+			}
 		}
 
 		$saveBtn.prop('disabled', true).text(t.saving || 'Saving...');

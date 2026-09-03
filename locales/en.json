@@ -1594,6 +1594,8 @@
 		"select_transaction_type": "Select a transaction type.",
 		"invalid_amount": "Invalid amount",
 		"amount_must_be_greater": "Amount must be greater than 0.",
+		"insufficient_balance": "Insufficient balance",
+		"amount_exceeds_balance": "Amount exceeds the available balance.",
 		"error": "Error",
 		"failed_to_save": "Failed to save record.",
 		"failed_to_update": "Failed to update record.",

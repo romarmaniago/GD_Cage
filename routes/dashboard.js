@@ -1024,7 +1024,19 @@ let sqlServiceSettle = `
 		const dashboardWlSharePct = await loadDashboardWlSharePct(pool, dashboardMonthKey);
 		const serviceExpenseData = await loadDashboardServiceExpenseData();
 
+		// Cumulative Cage Balance figures (Balance Total = Main-panel sum; PHP shown
+		// as the balancing figure). Passed so the SSR of the Cage Balance card and
+		// the Total Chips / New Capital modals render the same values the live
+		// /dashboard_house_balances refresh will show — no flash of stale cash.
+		let houseBalanceRender = {};
+		try {
+			houseBalanceRender = await dashboardQueries.computeHouseBalance();
+		} catch (houseBalanceErr) {
+			console.error('dashboard computeHouseBalance:', houseBalanceErr.message || houseBalanceErr);
+		}
+
 		res.render(viewName, {
+			housePhpDisplay: houseBalanceRender.php_display != null ? Number(houseBalanceRender.php_display) : null,
 
 			username: req.session.username,
 			firstname: req.session.firstname,
@@ -4576,24 +4588,29 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 				// Legacy house rolling: Buy In (NN) + Rolling (CC) - Cash Out (NN only)
 				rolling = buyIn + rollingCc - cashOutNn;
 			} else {
-				// No manual Total Chips entry for this date — fall back to what the
-				// Gamebook (game_list/game_record) actually recorded.
-				const auto = gamebookAutoByDate.get(date) || { buyIn: 0, cashOut: 0, rolling: 0 };
-				buyIn = auto.buyIn;
-				cashOut = auto.cashOut;
+				// No manual Total Chips entry for this date — the Main Cage Rolling Check
+				// grid shows nothing for it. (Only junket_total_chips / dashboard_rolling_manual
+				// feed the grid; the Gamebook is NOT used as a fallback here. The "Current Time"
+				// reconciliation panel's *_auto totals below still apply the Gamebook fallback.)
+				buyIn = 0;
+				cashOut = 0;
 				cashOutNn = 0;
 				rollingCc = 0;
-				rolling = auto.rolling;
+				rolling = 0;
 			}
 
 			const dayTables = dailyByDateTable[date] || {};
 			const beyond = Number(beyondByDate[date]) || 0;
 
-			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table WINLOSS_AMT),
-			// falling back to the Gamebook auto win/loss when no manual Daily Report exists yet.
+			// W/L Check — Casino: winloss report TOTAL for the date (sum of all table
+			// WINLOSS_AMT) from the Daily Table Reports only. The Gamebook is NOT used as a
+			// fallback for the grid — a date with no daily_table_reports entry stays blank.
+			const casinoWl = sumDayWinlossTotal(dayTables);
+			// The "Current Time W/L" reconciliation panel keeps the Gamebook fallback: when
+			// no Daily Report exists yet, use the Gamebook auto win/loss for its *_auto total.
 			const hasManualWl = isManualZone || Object.keys(dayTables).length > 0;
-			const casinoWl = hasManualWl
-				? sumDayWinlossTotal(dayTables)
+			const casinoWlAuto = hasManualWl
+				? casinoWl
 				: (Number((gamebookAutoByDate.get(date) || {}).wl) || 0);
 			// W/L Check — Gold Dragon: buy-in minus cash-out per program date (game_list + game_information)
 			const goldWl = Number(goldWlByDate[date]) || 0;
@@ -4620,12 +4637,16 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			totalCashOut += cashOut;
 			totalRolling += rolling;
 			if (!isManualZone) {
-				totalBuyInAuto += buyIn;
-				totalCashOutAuto += cashOut;
-				totalRollingAuto += rolling;
-				totalCasinoWlAuto += casinoWl;
-				totalGoldWlAuto += goldWl;
+				// Reconciliation panel keeps the Gamebook fallback: when there is no
+				// junket_total_chips entry for the date, fall back to the Gamebook figures
+				// here even though the grid row above stays blank.
 				const gbAuto = gamebookAutoByDate.get(date);
+				const hasChips = !!chipsByDate[date];
+				totalBuyInAuto += hasChips ? buyIn : (gbAuto ? Number(gbAuto.buyIn) || 0 : 0);
+				totalCashOutAuto += hasChips ? cashOut : (gbAuto ? Number(gbAuto.cashOut) || 0 : 0);
+				totalRollingAuto += hasChips ? rolling : (gbAuto ? Number(gbAuto.rolling) || 0 : 0);
+				totalCasinoWlAuto += casinoWlAuto;
+				totalGoldWlAuto += goldWl;
 				totalRollingGamebook += gbAuto ? (Number(gbAuto.rolling) || 0) : 0;
 			}
 			totalBeyond += beyond;

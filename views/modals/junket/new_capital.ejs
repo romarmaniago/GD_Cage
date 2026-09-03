@@ -560,7 +560,13 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 										(+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
 									refCashBal = refCashInTotal - refCashOutTotal + (+sqlMxCashNet[0].MX_CASH_NET || 0);
 								}
-								const refCashBalStr = Number(refCashBal || 0).toLocaleString('en-US');
+								// Prefer the dashboard's balancing PHP figure (Balance Total - NN - CC - RC)
+								// so the SSR value matches the live /dashboard_house_balances refresh and
+								// the capital-withdraw limit reconciles with the Cage Balance card.
+								const refCashDisplay = (typeof housePhpDisplay !== 'undefined' && housePhpDisplay !== null)
+									? Number(housePhpDisplay)
+									: Number(refCashBal || 0);
+								const refCashBalStr = refCashDisplay.toLocaleString('en-US');
 							%>
 							<input type="hidden" value="<%= refCashBalStr %>" id="cashbal" name="txtcashbal"/>
 							
@@ -642,7 +648,9 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 				.then(function(res) { return res.json(); })
 				.then(function(data) {
 					if (!data || data.message) return;
-					const cash = Math.round(Number(data.cashBalance) || 0);
+					// Mirror the dashboard PHP figure (Balance Total - NN - CC - RC) so the
+					// capital-withdraw limit reconciles with the Cage Balance card.
+					const cash = Math.round(Number(data.php_display != null ? data.php_display : data.cashBalance) || 0);
 					$('#cashbal').val(cash.toLocaleString('en-US'));
 				})
 				.catch(function(err) {

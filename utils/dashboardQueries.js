@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('./saveCashoutTips');
 const { sqlJunketExpenseTotal } = require('./houseExpenseQueries');
 const { SQL_EXCLUDE_HOUSE_BALANCE_LEDGER } = require('./junketCapitalTransfer');
+const { computeMainPanelSumTotal } = require('./dashboardPeriodSummary');
 
 // Function para kunin ang NN Chips Buyin
 async function getNNChipsBuyin() {
@@ -370,15 +371,30 @@ async function computeUnreturnedRollerChips() {
 
 /** Cash + NN + CC chips balances (same as dashboard house balance components). */
 async function computeHouseBalance() {
-  const [cashBalance, nnChipsBalance, ccChipsBalance, manualCash, rcChips] = await Promise.all([
+  const [cashBalance, nnChipsBalance, ccChipsBalance, manualCash, rcChips, mainPanelSumTotal] = await Promise.all([
     computeCashBalance(),
     computeNnChipsBalance(),
     computeCcChipsBalance(),
     computeCageManualCash(),
-    computeUnreturnedRollerChips()
+    computeUnreturnedRollerChips(),
+    computeMainPanelSumTotal(pool).catch((err) => {
+      console.error('computeMainPanelSumTotal:', err && err.message ? err.message : err);
+      return null;
+    })
   ]);
   const totalChips = nnChipsBalance + ccChipsBalance;
   const houseBalance = cashBalance + totalChips;
+  const rcChipsRounded = Math.round(Number(rcChips) || 0);
+  const hasMainSum = mainPanelSumTotal != null;
+  const mainPanelSum = Math.round(Number(mainPanelSumTotal) || 0);
+  // "PHP" is shown across the app (dashboard card, Total Chips, New Capital,
+  // Add Cashout) as the balancing figure so every "Cash Balance" reconciles with
+  // the dashboard: Balance Total - NN - CC - RC. `php_display` is that figure;
+  // `cashBalance` / `php_cash` stay the true physical cash for anything that
+  // still needs it (e.g. Cash Balance History).
+  const phpDisplay = hasMainSum
+    ? mainPanelSum - Math.round(totalChips) - rcChipsRounded
+    : Math.round(cashBalance);
   return {
     // Legacy keys (kept for existing consumers).
     cashBalance,
@@ -389,12 +405,17 @@ async function computeHouseBalance() {
     usd: Math.round(Number(manualCash.USD) || 0),
     gcash: Math.round(Number(manualCash.GCASH) || 0),
     php_cash: Math.round(cashBalance),
+    php_display: phpDisplay,
     nn_chips: Math.round(nnChipsBalance),
     cc_chips: Math.round(ccChipsBalance),
-    rc_chips: rcChips,
+    rc_chips: rcChipsRounded,
     total_chips: Math.round(totalChips),
     house_balance: Math.round(houseBalance),
-    cage_balance_diff: 0
+    cage_balance_diff: 0,
+    // Cage Balance card "Balance Total" = cumulative sum of the Main panel
+    // (Company - Credit - Expenses - Loss - Commission - Additional
+    //  + Add Charge + Tip Balance + Line). Never period-scoped.
+    main_panel_sum_total: mainPanelSum
   };
 }
 

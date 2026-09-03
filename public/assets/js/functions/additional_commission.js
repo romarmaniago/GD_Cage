@@ -149,17 +149,12 @@
       return `<span class="text-dash-neg">(${Math.abs(amount).toLocaleString('en-US')})</span>`;
     }
 
-    function parseDashboardAmount(value) {
-      return Math.round(Number(String(value || '').replace(/,/g, '')) || 0);
-    }
-
     function updateDashboardAdditionalCommissionTotal(total) {
       const mainTotalEl = document.getElementById('dash-additional-commission-total');
       const anticipatedEl = document.getElementById('dash-additional-commission-anticipated');
       const anticipatedPanel = document.getElementById('dash-anticipated-panel');
       const companyExpenseEl = document.querySelector('#dash-anticipated-panel .dash-kv.is-total .dash-kv-value');
       const grandTotalEl = document.getElementById('dash-grand-total');
-      const cageBalanceTotalEl = document.getElementById('dash-cage-balance-total');
 
       if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
       if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
@@ -185,9 +180,11 @@
       if (companyExpenseEl) companyExpenseEl.innerHTML = formatDashboardNegHtml(nextCompanyExpense);
       if (grandTotalEl) grandTotalEl.textContent = formatDashboardAmount(grandTotal);
 
-      if (additionalDelta && cageBalanceTotalEl) {
-        const nextCageBalance = parseDashboardAmount(cageBalanceTotalEl.textContent) - additionalDelta;
-        cageBalanceTotalEl.textContent = formatDashboardAmount(nextCageBalance);
+      // Additional commission is a Main-panel row, so it moves the Cage Balance
+      // card's "Balance Total" (and its balancing PHP figure). Re-derive both from
+      // the server rather than patching the text in place.
+      if (additionalDelta && typeof window.dashboardHouseBalanceReload === 'function') {
+        try { window.dashboardHouseBalanceReload(); } catch (e) { /* noop */ }
       }
     }
 

@@ -1915,12 +1915,22 @@
     if (!b || b.message) return;
     const usd = Math.round(Number(b.usd) || 0);
     const gcash = Math.round(Number(b.gcash) || 0);
-    const php = Math.round(Number(b.php_cash != null ? b.php_cash : b.cashBalance) || 0);
     const nn = Math.round(Number(b.nn_chips != null ? b.nn_chips : b.nnChipsBalance) || 0);
     const cc = Math.round(Number(b.cc_chips != null ? b.cc_chips : b.ccChipsBalance) || 0);
     const rc = Math.round(Number(b.rc_chips) || 0);
     const totalChips = Math.round(Number(b.total_chips != null ? b.total_chips : nn + cc) || 0);
     const house = Math.round(Number(b.house_balance != null ? b.house_balance : b.houseBalance) || 0);
+    // "Balance Total" = cumulative sum of the Main panel
+    // (utils/dashboardPeriodSummary computeMainPanelSumTotal). Falls back to the
+    // physical PHP + NN + CC + RC only if the API response predates that field.
+    const mainPanelSumTotal = b.main_panel_sum_total != null
+      ? Math.round(Number(b.main_panel_sum_total) || 0)
+      : house + rc;
+    // PHP is shown as the balancing figure so the card always foots to Balance
+    // Total (NN/CC/RC are the live chip counts; USD/GCASH are manual, excluded).
+    const php = b.php_display != null
+      ? Math.round(Number(b.php_display) || 0)
+      : mainPanelSumTotal - totalChips - rc;
 
     setHtmlById('dash-cage-usd-total', formatDashAmtHtml(usd));
     setHtmlById('dash-cage-gcash-total', formatDashAmtHtml(gcash));
@@ -1928,9 +1938,7 @@
     setHtmlById('dash-cage-nn-total', formatDashAmtHtml(nn));
     setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cc));
     setHtmlById('dash-cage-rc-total', formatDashAmtHtml(rc));
-    // Balance Total includes RC (outstanding roller chips): PHP + NN + CC + RC.
-    const balanceTotalWithRc = house + rc;
-    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(balanceTotalWithRc));
+    setHtmlById('dash-cage-balance-total', formatDashAmtHtml(mainPanelSumTotal));
     setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(Math.round(Number(b.cage_balance_diff) || 0)));
     // "Chips" (Current Time W/L) and "NN Chips" (Current Time Rolling) both include
     // the outstanding Roller Chips (RC) so the on-screen math reconciles:
@@ -1945,7 +1953,7 @@
       // "The difference" at 0 against the RC-inclusive Balance Total.
       cashPanel.dataset.phpBalance = String(php);
       cashPanel.dataset.chipsBalance = String(totalChips + rc);
-      cashPanel.dataset.houseBalance = String(balanceTotalWithRc);
+      cashPanel.dataset.houseBalance = String(mainPanelSumTotal);
     }
   }
 
@@ -1964,6 +1972,14 @@
     // loadHouseBalances() is period-independent but refreshed on the same triggers
     // so the Cage Balance card stays current after transactions / tab refocus.
     return Promise.all([loadGridData(), loadPeriodSummary(), loadHouseBalances()]);
+  }
+
+  // Refresh every amount panel after a Main-panel record changes (service record,
+  // house expense, junket loss, SOA, …). The period summary updates the Main /
+  // Anticipated rows; loadHouseBalances() re-derives the Cage Balance card's
+  // "Balance Total" (cumulative sum of the Main panel) so it never needs a reload.
+  function reloadDashboardAmounts() {
+    return Promise.all([loadPeriodSummary(), loadHouseBalances()]);
   }
 
   const DASH_ROLLING_MONTH_NAMES = [
@@ -2110,7 +2126,9 @@
   });
 
   window.dashboardGridReload = loadGridData;
-  window.dashboardPeriodReload = loadPeriodSummary;
+  // dashboardPeriodReload now also refreshes the Cage Balance card so its
+  // "Balance Total" (cumulative Main-panel sum) updates without a page reload.
+  window.dashboardPeriodReload = reloadDashboardAmounts;
   window.dashboardHouseBalanceReload = loadHouseBalances;
   window.dashboardReloadByDateRange = reloadDashboardByDateRange;
 })();

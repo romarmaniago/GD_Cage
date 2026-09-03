@@ -142,6 +142,98 @@ async function computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
+// Per-game commission net — shared by the period and all-time settlement totals.
+// Mirrors the per-game math in routes/dashboard.js (totalCommissionSettlement).
+function commissionNetFromGameRecords(records, rollingRate, commissionType) {
+	let totalNnInit = 0;
+	let totalCcInit = 0;
+	let totalNn = 0;
+	let totalCc = 0;
+	let totalCashOutNn = 0;
+	let totalCashOutCc = 0;
+	let totalRollingNn = 0;
+	let totalRolling = 0;
+	let totalRollingReal = 0;
+	let totalRollingNnReal = 0;
+	let totalRollingCcReal = 0;
+	let totalRollerReturnCc = 0;
+
+	for (const rec of records) {
+		const cageType = Number(rec.CAGE_TYPE);
+		if (cageType === 1 && (totalNnInit !== 0 || totalCcInit !== 0)) {
+			totalNn += Number(rec.NN_CHIPS) || 0;
+			totalCc += Number(rec.CC_CHIPS) || 0;
+		}
+		if (cageType === 1 && totalNnInit === 0 && totalCcInit === 0) {
+			totalNnInit += Number(rec.NN_CHIPS) || 0;
+			totalCcInit += Number(rec.CC_CHIPS) || 0;
+		}
+		if (cageType === 2) {
+			totalCashOutNn += Number(rec.NN_CHIPS) || 0;
+			totalCashOutCc += Number(rec.CC_CHIPS) || 0;
+		}
+		if (cageType === 3) {
+			totalRolling += Number(rec.AMOUNT) || 0;
+			totalRollingNn += Number(rec.NN_CHIPS) || 0;
+		}
+		if (cageType === 4) {
+			totalRollingReal += Number(rec.AMOUNT) || 0;
+			totalRollingNnReal += Number(rec.NN_CHIPS) || 0;
+			totalRollingCcReal += Number(rec.CC_CHIPS) || 0;
+		}
+		if (cageType === 5) {
+			const rollerTransaction = parseInt(rec.ROLLER_TRANSACTION, 10) || 1;
+			if (rollerTransaction === 2) {
+				totalRollerReturnCc += Number(rec.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	}
+
+	const totalInitial = totalNnInit + totalCcInit;
+	const totalBuyInChips = totalNn + totalCc;
+	const totalCashOutChips = totalCashOutNn + totalCashOutCc;
+	const totalRollingChips =
+		totalRollingNn +
+		totalRollerReturnCc +
+		totalRolling +
+		totalRollingReal +
+		totalRollingNnReal +
+		totalRollingCcReal -
+		totalCashOutNn;
+	const totalAmount = totalBuyInChips + totalInitial;
+	const winlossValue = totalAmount - totalCashOutChips;
+
+	if (commissionType === 1 || commissionType === 3) {
+		return Math.round((totalRollingChips * rollingRate) / 100);
+	}
+	if (commissionType === 2) {
+		return Math.round((winlossValue * rollingRate) / 100);
+	}
+	return 0;
+}
+
+async function accumulateCommissionSettlement(pool, games, { resetOnly = false } = {}) {
+	if (!games || !games.length) return 0;
+	let total = 0;
+	for (const row of games) {
+		const gameId = row.game_list_id;
+		const rollingRate = Number(row.COMMISSION_PERCENTAGE) || 0;
+		const commissionType = Number(row.COMMISSION_TYPE);
+		if (!gameId || !rollingRate) continue;
+
+		const [records] = await pool.execute(
+			`SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS
+			 FROM game_record
+			 WHERE ACTIVE != 0 ${resetOnly ? 'AND RESET = 1 ' : ''}AND GAME_ID = ?
+			 ORDER BY IDNo ASC`,
+			[gameId]
+		);
+		if (!records || !records.length) continue;
+		total += commissionNetFromGameRecords(records, rollingRate, commissionType);
+	}
+	return Math.round(total);
+}
+
 async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo) {
 	const [games] = await pool.execute(
 		`SELECT
@@ -155,93 +247,104 @@ async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo) {
 		 ORDER BY gl.IDNo ASC`,
 		[dateFrom, dateTo]
 	);
+	return accumulateCommissionSettlement(pool, games);
+}
 
-	if (!games || !games.length) return 0;
+// All-time commission settlement — matches the dashboard SSR figure
+// (routes/dashboard.js totalCommissionSettlement): every settled game, counting
+// RESET=1 game_record rows only, with no reporting-period filter.
+async function computeCommissionSettlementAllTime(pool) {
+	const [games] = await pool.execute(
+		`SELECT
+			game_list.IDNo AS game_list_id,
+			game_list.COMMISSION_PERCENTAGE,
+			game_list.COMMISSION_TYPE
+		 FROM game_list
+		 WHERE game_list.ACTIVE IN (1, 2)
+			AND game_list.SETTLED = 1
+		 ORDER BY game_list.IDNo ASC`
+	);
+	return accumulateCommissionSettlement(pool, games, { resetOnly: true });
+}
 
-	let total = 0;
-	for (const row of games) {
-		const gameId = row.game_list_id;
-		const rollingRate = Number(row.COMMISSION_PERCENTAGE) || 0;
-		const commissionType = Number(row.COMMISSION_TYPE);
-		if (!gameId || !rollingRate) continue;
+async function loadServiceExpenseDataAllTime(pool) {
+	const [junketDepositRows] = await pool.execute(
+		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+	);
+	const [junketCashRows] = await pool.execute(
+		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+	);
+	const [guestDepositRows] = await pool.execute(
+		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+	);
+	const [guestCashRows] = await pool.execute(
+		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
+		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+	);
+	const categories = await fetchActiveServiceCategories(pool);
+	return buildDashboardServiceExpensePayload(
+		categories,
+		junketCashRows || [],
+		junketDepositRows || [],
+		guestCashRows || [],
+		guestDepositRows || []
+	);
+}
 
-		const [records] = await pool.execute(
-			`SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS
-			 FROM game_record
-			 WHERE ACTIVE != 0 AND GAME_ID = ?
-			 ORDER BY IDNo ASC`,
-			[gameId]
-		);
-		if (!records || !records.length) continue;
+/**
+ * All-time "sum of the Main panel" — the Cage Balance card's Balance Total.
+ * Mirrors views/dashboard.ejs:  mainAvailableAmount + Tip Balance + Line
+ *   = Company capital
+ *     - Credit - Expenses (RESET=1) - Loss - Commission settlement - Additional commission
+ *     + Add Charge (signed service balance)
+ *     + Tip Balance + Deposit Of Guests (Line)
+ * Never period-scoped: uses the same cumulative/RESET figures the SSR renders.
+ */
+async function computeMainPanelSumTotal(pool) {
+	const [
+		capitalDeposit,
+		capitalWithdraw,
+		credit,
+		expense,
+		junketLoss,
+		additionalCommission,
+		commissionSettlement,
+		servicePayload,
+		tipBalance,
+		guestBalance
+	] = await Promise.all([
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2`),
+		computeCreditGrandTotal(pool),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND GAME_ID IS NULL`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1`),
+		computeCommissionSettlementAllTime(pool),
+		loadServiceExpenseDataAllTime(pool),
+		computeTipBalanceForPeriod(pool),
+		computeGuestBalanceForPeriod(pool)
+	]);
 
-		let totalNnInit = 0;
-		let totalCcInit = 0;
-		let totalNn = 0;
-		let totalCc = 0;
-		let totalCashOutNn = 0;
-		let totalCashOutCc = 0;
-		let totalRollingNn = 0;
-		let totalRolling = 0;
-		let totalRollingReal = 0;
-		let totalRollingNnReal = 0;
-		let totalRollingCcReal = 0;
-		let totalRollerReturnCc = 0;
+	const companyCapitalBalance = Math.round(capitalDeposit - capitalWithdraw);
+	const serviceBalanceTotal = Math.round(
+		(servicePayload && Array.isArray(servicePayload.categories) ? servicePayload.categories : [])
+			.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
+	);
 
-		for (const rec of records) {
-			const cageType = Number(rec.CAGE_TYPE);
-			if (cageType === 1 && (totalNnInit !== 0 || totalCcInit !== 0)) {
-				totalNn += Number(rec.NN_CHIPS) || 0;
-				totalCc += Number(rec.CC_CHIPS) || 0;
-			}
-			if (cageType === 1 && totalNnInit === 0 && totalCcInit === 0) {
-				totalNnInit += Number(rec.NN_CHIPS) || 0;
-				totalCcInit += Number(rec.CC_CHIPS) || 0;
-			}
-			if (cageType === 2) {
-				totalCashOutNn += Number(rec.NN_CHIPS) || 0;
-				totalCashOutCc += Number(rec.CC_CHIPS) || 0;
-			}
-			if (cageType === 3) {
-				totalRolling += Number(rec.AMOUNT) || 0;
-				totalRollingNn += Number(rec.NN_CHIPS) || 0;
-			}
-			if (cageType === 4) {
-				totalRollingReal += Number(rec.AMOUNT) || 0;
-				totalRollingNnReal += Number(rec.NN_CHIPS) || 0;
-				totalRollingCcReal += Number(rec.CC_CHIPS) || 0;
-			}
-			if (cageType === 5) {
-				const rollerTransaction = parseInt(rec.ROLLER_TRANSACTION, 10) || 1;
-				if (rollerTransaction === 2) {
-					totalRollerReturnCc += Number(rec.ROLLER_CC_CHIPS) || 0;
-				}
-			}
-		}
-
-		const totalInitial = totalNnInit + totalCcInit;
-		const totalBuyInChips = totalNn + totalCc;
-		const totalCashOutChips = totalCashOutNn + totalCashOutCc;
-		const totalRollingChips =
-			totalRollingNn +
-			totalRollerReturnCc +
-			totalRolling +
-			totalRollingReal +
-			totalRollingNnReal +
-			totalRollingCcReal -
-			totalCashOutNn;
-		const totalAmount = totalBuyInChips + totalInitial;
-		const winlossValue = totalAmount - totalCashOutChips;
-
-		let net = 0;
-		if (commissionType === 1 || commissionType === 3) {
-			net = Math.round((totalRollingChips * rollingRate) / 100);
-		} else if (commissionType === 2) {
-			net = Math.round((winlossValue * rollingRate) / 100);
-		}
-		total += net;
-	}
-
-	return Math.round(total);
+	return Math.round(
+		companyCapitalBalance
+		- credit
+		- expense
+		- junketLoss
+		- commissionSettlement
+		- additionalCommission
+		+ serviceBalanceTotal
+		+ tipBalance
+		+ guestBalance
+	);
 }
 
 async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
@@ -702,5 +805,6 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 
 module.exports = {
 	resolvePeriodDates,
-	computeDashboardPeriodSummary
+	computeDashboardPeriodSummary,
+	computeMainPanelSumTotal
 };

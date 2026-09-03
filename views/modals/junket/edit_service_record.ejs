@@ -17,12 +17,11 @@
             <input type="text" id="edit-services-program-date" class="form-control" autocomplete="off" placeholder="YYYY-MM-DD" required />
           </div>
           <div class="col-sm-6">
-            <label for="edit-transaction-type" class="form-label"><%= __('fnb_hotel.transaction_type') %></label>
-            <select id="edit-transaction-type" class="form-control">
-              <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
-              <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
-              <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
-            </select>
+            <label for="edit-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
+            <input type="text" id="edit-services-amount" class="form-control" data-type="signed-amount" autocomplete="off" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
+            <div id="edit-deposit-balance" class="text-muted small mt-1" style="display:none">
+              <%= __('fnb_hotel.available_balance') %> <span id="edit-deposit-balance-value">0</span>
+            </div>
           </div>
         </div>
 
@@ -38,16 +37,6 @@
             <select id="edit-services-guest" class="js-select2 form-control" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.select_guest_optional') %>" disabled>
               <option value=""><%= __('fnb_hotel.select_guest_optional') %></option>
             </select>
-          </div>
-        </div>
-
-        <div class="row mb-3">
-          <div class="col-sm-6">
-            <label for="edit-services-amount" class="form-label"><%= __('fnb_hotel.amount') %></label>
-            <input type="text" id="edit-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
-            <div id="edit-deposit-balance" class="text-muted small mt-1" style="display:none">
-              <%= __('fnb_hotel.available_balance') %> <span id="edit-deposit-balance-value">0</span>
-            </div>
           </div>
         </div>
 

@@ -29,6 +29,7 @@ const { ensureCreditSchema, backfillCreditFromLedger } = require('../utils/ensur
 const { ensureGameInformationSchema } = require('../utils/ensureGameInformationSchema');
 const { ensureGiAgentGroupSchema } = require('../utils/ensureGiAgentGroupSchema');
 const { ensureAgencyNameColorSchema } = require('../utils/ensureAgencyNameColorSchema');
+const { ensureAccountLedgerServiceIdSchema } = require('../utils/ensureAccountLedgerServiceIdSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -75,6 +76,7 @@ const pool = mysql.createPool({
 		await ensureGameInformationSchema(pool);
 		await ensureGiAgentGroupSchema(pool);
 		await ensureAgencyNameColorSchema(pool);
+		await ensureAccountLedgerServiceIdSchema(pool);
 		await backfillCreditFromLedger(pool);
 		await dropGameDailySettlementSchema(pool);
 	} catch (err) {
