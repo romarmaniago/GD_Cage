@@ -21,6 +21,11 @@ const SQL_DASHBOARD_GAME_CASHOUT_FILTER = `AND TRANSACTION NOT IN (${CASHOUT_TRA
 /** Roller tip cash-out — counted as cash IN on dashboard */
 const SQL_ROLLER_TIP_CASHOUT_ONLY = `AND TRANSACTION = ${CASHOUT_TRANSACTION.TIP_ROLLER}`;
 
+/** Dealer tip cash-out only — its NN / CC chips stay physically in the cage tray,
+ *  so they are added back to the Cage Balance NN / CC chip counts (display only:
+ *  PHP absorbs the offset, Balance Total is unchanged). */
+const SQL_DEALER_TIP_CASHOUT_ONLY = `AND TRANSACTION = ${CASHOUT_TRANSACTION.TIP_DEALER}`;
+
 /** Manual roller tip entry (Tip In) — cash IN on dashboard; excludes cash-out tips (game_record) */
 const SQL_ROLLER_TIP_IN_CASHIN_ONLY = `AND TIP_TYPE = ${TIP_TYPE.ROLLER} AND CASHOUT_ID IS NULL`;
 
@@ -172,6 +177,7 @@ module.exports = {
 	SQL_EXCLUDE_DEALER_TIP_CASHOUT,
 	SQL_DASHBOARD_GAME_CASHOUT_FILTER,
 	SQL_ROLLER_TIP_CASHOUT_ONLY,
+	SQL_DEALER_TIP_CASHOUT_ONLY,
 	SQL_ROLLER_TIP_IN_CASHIN_ONLY,
 	isTipEnabled,
 	parseTipAmount,

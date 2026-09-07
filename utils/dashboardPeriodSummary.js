@@ -55,21 +55,21 @@ function gameDt(alias) {
 }
 
 async function computeWinLossForPeriod(pool, dateFrom, dateTo) {
-	const [rows] = await pool.execute(
-		`SELECT
-			SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN (gr.NN_CHIPS + gr.CC_CHIPS) ELSE 0 END) AS cashin,
-			SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN (gr.NN_CHIPS + gr.CC_CHIPS) ELSE 0 END) AS cashout
-		 FROM game_list gl
-		 INNER JOIN game_record gr ON gr.GAME_ID = gl.IDNo
-		 WHERE gr.ACTIVE = 1
-			AND gl.ACTIVE != 0
-			AND gl.PROGRAM_DATE IS NOT NULL
-			AND ${gameDt('gl')} BETWEEN ? AND ?`,
+	// Anticipated Profit → Casino → W/L = the "Casino" column of the dashboard
+	// W/L Check table: the sum of the Daily Table Reports (daily_table_reports
+	// .WINLOSS_AMT) for the period. Mirrors the W/L Check grid query in
+	// routes/dashboard.js (/dashboard_grid_data) so the two figures match exactly.
+	// No Daily Report rows for the period ⇒ 0 — the Gamebook / game_record W/L is
+	// NOT used as a fallback here.
+	return sumScalar(
+		pool,
+		`SELECT COALESCE(SUM(dtr.WINLOSS_AMT), 0) AS total
+		 FROM daily_table_reports dtr
+		 INNER JOIN junket_tables jt ON jt.IDNo = dtr.JUNKET_TABLE_ID
+		 WHERE dtr.ACTIVE = 1
+			AND dtr.REPORT_DATE BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
-	const cashin = Number(rows && rows[0] && rows[0].cashin) || 0;
-	const cashout = Number(rows && rows[0] && rows[0].cashout) || 0;
-	return Math.round(cashin - cashout);
 }
 
 async function computeExpenseForPeriod(pool, dateFrom, dateTo) {

@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('./saveCashoutTips');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_DEALER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('./saveCashoutTips');
 const { sqlJunketExpenseTotal } = require('./houseExpenseQueries');
 const { SQL_EXCLUDE_HOUSE_BALANCE_LEDGER } = require('./junketCapitalTransfer');
 const { computeMainPanelSumTotal } = require('./dashboardPeriodSummary');
@@ -130,6 +130,20 @@ async function getCCReturn() {
   return rows;
 }
 
+/** Dealer-tip NN chips left in the cage tray (game cash-out, TRANSACTION = TIP_DEALER). */
+async function getDealerTipNNChips() {
+  const sql = `SELECT SUM(NN_CHIPS) AS DEALER_TIP_NN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2 ${SQL_DEALER_TIP_CASHOUT_ONLY}`;
+  const [rows] = await pool.execute(sql);
+  return rows;
+}
+
+/** Dealer-tip CC chips left in the cage tray (game cash-out, TRANSACTION = TIP_DEALER). */
+async function getDealerTipCCChips() {
+  const sql = `SELECT SUM(CC_CHIPS) AS DEALER_TIP_CC FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE = 2 ${SQL_DEALER_TIP_CASHOUT_ONLY}`;
+  const [rows] = await pool.execute(sql);
+  return rows;
+}
+
 /** First row numeric field; matches dashboard.ejs (+row[0].KEY || 0) */
 function rowNum(rows, key) {
   const v = rows?.[0]?.[key];
@@ -151,7 +165,8 @@ async function computeNnChipsBalance() {
     nnReturn,
     rollerSub,
     rollerAdd,
-    monthlyRows
+    monthlyRows,
+    dealerTipNN
   ] = await Promise.all([
     getNNChipsBuyin(),
     getNNChipsCashout(),
@@ -166,7 +181,8 @@ async function computeNnChipsBalance() {
     getRollerNNAdd(),
     pool.execute(
       'SELECT SUM(NN_CHIPS) AS NNChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0'
-    ).then(([r]) => r)
+    ).then(([r]) => r),
+    getDealerTipNNChips()
   ]);
 
   return (
@@ -181,7 +197,8 @@ async function computeNnChipsBalance() {
     rowNum(nnReturn, 'NNReturn') -
     rowNum(rollerSub, 'ROLLER_NN_SUBTRACT') +
     rowNum(rollerAdd, 'ROLLER_NN_ADD') -
-    rowNum(monthlyRows, 'NNChipsMonthlySettle')
+    rowNum(monthlyRows, 'NNChipsMonthlySettle') +
+    rowNum(dealerTipNN, 'DEALER_TIP_NN')
   );
 }
 
@@ -199,7 +216,8 @@ async function computeCcChipsBalance() {
     ccReturnJ,
     rollerSub,
     rollerAdd,
-    monthlyRows
+    monthlyRows,
+    dealerTipCC
   ] = await Promise.all([
     getCCChipsBuyin(),
     getCCChipsCashout(),
@@ -214,7 +232,8 @@ async function computeCcChipsBalance() {
     getRollerCCAdd(),
     pool.execute(
       'SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0'
-    ).then(([r]) => r)
+    ).then(([r]) => r),
+    getDealerTipCCChips()
   ]);
 
   return (
@@ -229,7 +248,8 @@ async function computeCcChipsBalance() {
     rowNum(ccReturnJ, 'CCReturn') -
     rowNum(rollerSub, 'ROLLER_CC_SUBTRACT') +
     rowNum(rollerAdd, 'ROLLER_CC_ADD') -
-    rowNum(monthlyRows, 'CCChipsMonthlySettle')
+    rowNum(monthlyRows, 'CCChipsMonthlySettle') +
+    rowNum(dealerTipCC, 'DEALER_TIP_CC')
   );
 }
 
@@ -439,6 +459,8 @@ module.exports = {
   getCCChipsBuyinGame,
   getCCBuyin,
   getCCReturn,
+  getDealerTipNNChips,
+  getDealerTipCCChips,
   computeNnChipsBalance,
   computeCcChipsBalance,
   computeCashBalance,

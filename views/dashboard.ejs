@@ -86,7 +86,11 @@
          (+sqlNNReturn[0].NNReturn || 0) -
          (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
          (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
-         (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0);
+         (+sqlNNChipsMonthlySettle[0].NNChipsMonthlySettle || 0) +
+         // Dealer tip NN chips stay in the cage tray (display only: PHP absorbs the
+         // offset below, Balance Total is unchanged).
+         (typeof sqlDealerTipNNChips !== 'undefined' && sqlDealerTipNNChips[0]
+            ? (+sqlDealerTipNNChips[0].DEALER_TIP_NN || 0) : 0);
 
       var ccChipsBalance =
          (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
@@ -100,7 +104,11 @@
          (+sqlCCReturn[0].CCReturn || 0) -
          (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
          (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) -
-         (+sqlCCChipsMonthlySettle[0].CCChipsMonthlySettle || 0);
+         (+sqlCCChipsMonthlySettle[0].CCChipsMonthlySettle || 0) +
+         // Dealer tip CC chips stay in the cage tray (display only: PHP absorbs the
+         // offset below, Balance Total is unchanged).
+         (typeof sqlDealerTipCCChips !== 'undefined' && sqlDealerTipCCChips[0]
+            ? (+sqlDealerTipCCChips[0].DEALER_TIP_CC || 0) : 0);
 
       var totalChipsBalance = nnChipsBalance + ccChipsBalance;
       var rcChipsBalance = (+sqlUnreturnedRollerChips[0].TOTAL_UNRETURNED || 0);
@@ -155,10 +163,14 @@
       var netJunketMoney = houseBalance - guestBalance;
       var netJunketCash = cashBalance - guestBalance;
 
+      // Anticipated Profit → Casino → W/L: the "Casino" column of the W/L Check
+      // table (sum of the Daily Table Reports for the cut-off period). Shows 0
+      // when no Daily Table Report has been entered yet. The live refresh uses
+      // the same source (utils/dashboardPeriodSummary computeWinLossForPeriod).
       var winLossTotal = parseFloat(
-         (+sqlWinLossReset[0].RESET_CASHIN || 0) -
-         (+sqlTotalCashOutReset[0].CASHOUT_RESET || 0) +
-         (+sqlWinlossManual[0].WINLOSS || 0)
+         (typeof sqlCasinoWinLoss !== 'undefined' && sqlCasinoWinLoss[0]
+            ? (+sqlCasinoWinLoss[0].CASINO_WINLOSS || 0)
+            : 0)
       );
 
       // Actual Rolling = CC rolling chips only from junket_total_chips (TRANSACTION_ID 3),

@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const dashboardQueries = require('../utils/dashboardQueries');
 const { computeGamebookAutoTotalsByDate } = require('../utils/netProfitCalc');
-const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
+const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_DEALER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
 
 const { checkSession, sessions } = require('./auth');
 
@@ -183,6 +183,17 @@ async function renderDashboardPage(req, res, viewName) {
 	// Dealer tip cash-out included in W/L for now (exclusion kept on rolling/cash-balance queries only).
 	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
+
+	// Anticipated Profit → Casino → W/L = the "Casino" column of the dashboard W/L
+	// Check table (sum of daily_table_reports.WINLOSS_AMT for the cut-off period).
+	// Mirrors the W/L Check grid query below and utils/dashboardPeriodSummary
+	// computeWinLossForPeriod, so the SSR paint matches the live refresh. No Daily
+	// Table Report rows for the period ⇒ 0.
+	let sqlCasinoWinLoss = `SELECT COALESCE(SUM(dtr.WINLOSS_AMT), 0) AS CASINO_WINLOSS
+		FROM daily_table_reports dtr
+		INNER JOIN junket_tables jt ON jt.IDNo = dtr.JUNKET_TABLE_ID
+		WHERE dtr.ACTIVE = 1
+			AND dtr.REPORT_DATE BETWEEN ? AND ?`;
 
 	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
 
@@ -543,6 +554,11 @@ ON
 	let sqlTotalRolling = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4)';
 	let sqlAccountCCChipsReturn = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
 	let sqlTotalCashOutRolling = `SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_EXCLUDE_DEALER_TIP_CASHOUT}`;
+	// Dealer-tip chips stay physically in the cage tray → added back to the Cage
+	// Balance NN / CC chip counts (display only: PHP absorbs the offset, Balance
+	// Total is unchanged). NN vs CC split lives on the game_record cash-out row.
+	let sqlDealerTipNNChips = `SELECT SUM(NN_CHIPS) AS DEALER_TIP_NN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DEALER_TIP_CASHOUT_ONLY}`;
+	let sqlDealerTipCCChips = `SELECT SUM(CC_CHIPS) AS DEALER_TIP_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DEALER_TIP_CASHOUT_ONLY}`;
 	let sqlTotalCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER}`;
 	let sqlRollerTipCashOut = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS ROLLER_TIP_CASHIN FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 2 ${SQL_ROLLER_TIP_CASHOUT_ONLY}`;
 	let sqlRollerTipIn = `SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_IN_CASHIN FROM tip WHERE ACTIVE = 1 ${SQL_ROLLER_TIP_IN_CASHIN_ONLY}`;
@@ -716,6 +732,10 @@ let sqlServiceSettle = `
 		const [TotalCashOutResetResult] = await pool.execute(sqlTotalCashOutReset);
 		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
 		const [WinLossResetResult] = await pool.execute(sqlWinLossReset);
+		const [CasinoWinLossResult] = await pool.execute(sqlCasinoWinLoss, [
+			dashboardCutoffRange.startDate,
+			dashboardCutoffRange.endDate
+		]);
 		const [AccountMarkerReturnResult] = await pool.execute(sqlAccountMarkerReturn);
 		const [MxDepositExchangeAmountResult] = await pool.execute(sqlMxDepositExchangeAmount);
 		const [MxReturnAmountResult] = await pool.execute(sqlMxReturnAmount);
@@ -768,6 +788,8 @@ let sqlServiceSettle = `
 		const [totalRolling] = await pool.execute(sqlTotalRolling);
 
 		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
+		const [dealerTipNNChips] = await pool.execute(sqlDealerTipNNChips);
+		const [dealerTipCCChips] = await pool.execute(sqlDealerTipCCChips);
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
 		const [rollerTipCashOut] = await pool.execute(sqlRollerTipCashOut);
 		const [rollerTipIn] = await pool.execute(sqlRollerTipIn);
@@ -1124,9 +1146,12 @@ let sqlServiceSettle = `
 			sqlRollerTipGross: rollerTipGrossResult,
 			sqlTotalCashOutReset: TotalCashOutResetResult,
 			sqlTotalCashOutRolling: totalCashOutRolling,
+			sqlDealerTipNNChips: dealerTipNNChips,
+			sqlDealerTipCCChips: dealerTipCCChips,
 			sqlTotalCashOutRollingReset: TotalCashOutRollingResetResult,
 			sqlWinLoss: totalWinLoss,
 			sqlWinLossReset: WinLossResetResult,
+			sqlCasinoWinLoss: CasinoWinLossResult,
 			sqlCommision: totalCommission,
 			sqlCommissionReset: totalCommissionReset,
 			sqlShared: totalShared,

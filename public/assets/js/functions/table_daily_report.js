@@ -1517,7 +1517,12 @@
 
     dashWinlossReportModalEl.addEventListener('hidden.bs.modal', () => {
       destroyMatrixDataTable();
-      if (typeof window.dashboardGridReload === 'function') {
+      // Refresh the W/L Check grid AND the amount panels (Anticipated Profit →
+      // Casino → W/L reads the "Casino" column = Daily Table Reports), so entering
+      // a report updates the card without a manual page reload.
+      if (typeof window.dashboardReloadByDateRange === 'function') {
+        window.dashboardReloadByDateRange();
+      } else if (typeof window.dashboardGridReload === 'function') {
         window.dashboardGridReload();
       }
     });

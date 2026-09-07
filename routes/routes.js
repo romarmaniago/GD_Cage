@@ -5782,7 +5782,8 @@ pageRouter.post('/delete-test-data', async (req, res) => {
 		'multipurpose_ledger_exchange',
 		'additional_commission',
 		'junket_funds_ledger',
-		'beyond_chips'
+		'beyond_chips',
+		'credit_transaction'
 
 	];
 
