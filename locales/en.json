@@ -1060,13 +1060,13 @@
 		"edit_title": "Edit Authorized Master Account"
 	},
 	"account_dashboard": {
-		"guest_accounts": "Guest Accounts",
-		"guest_balance_only": "Guest Balance Only",
-		"all_guest_balance": "All Guest Balance",
+		"guest_accounts": "Agent Accounts",
+		"guest_balance_only": "Agent Balance Only",
+		"all_guest_balance": "All Agent Balance",
 		"account_loading": "Loading...",
-		"guest_name": "GUEST",
+		"guest_name": "AGENT",
 		"account_number": "ACCOUNT #",
-		"agent": "AGENT",
+		"agent": "LINE",
 		"telegram_chat_id": "TELEGRAM CHAT ID",
 		"contact_number": "CONTACT #",
 		"total_balance": "TOTAL BALANCE",
