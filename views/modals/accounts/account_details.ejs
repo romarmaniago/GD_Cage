@@ -179,7 +179,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
+                                <table id="accountDetails" class="table table-bordered nowrap" style="width: 100%;">
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.date') %></th>
@@ -525,12 +525,12 @@ body.guest-portal-child-open .modal-backdrop.show {
 
 /* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
 #modal-account-details .modal-dialog {
-    width: min(98vw, 88rem);
-    max-width: 88rem;
+    width: min(98vw, 100rem);
+    max-width: 100rem;
 }
 @media (min-width: 1200px) {
     #modal-account-details .modal-dialog {
-        min-width: 78rem;
+        min-width: 82rem;
     }
 }
 #modal-account-details .account-photo-upload-label {
@@ -703,7 +703,13 @@ body > .flatpickr-calendar {
 }
 #modal-account-details #accountDetails {
     border-radius: 10px;
-    overflow: hidden;
+    width: 100% !important;
+    min-width: 720px;
+}
+#modal-account-details #accountDetails_wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
 }
 #modal-account-details #accountDetails thead th {
     color: #5c5346 !important;

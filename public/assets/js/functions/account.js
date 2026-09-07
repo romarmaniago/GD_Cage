@@ -1920,6 +1920,7 @@ function getOrInitAccountDetailsDataTable() {
 	}
 	return $tbl.DataTable({
 		order: [[0, 'desc']],
+		autoWidth: false,
 		columnDefs: [
 			{
 				targets: 0,

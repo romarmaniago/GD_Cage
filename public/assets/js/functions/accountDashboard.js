@@ -185,9 +185,22 @@ $(document).ready(function () {
     });
 
     let openedFromGuestAccount = false;
+    // True while the Agent Portal has been fully hidden only so one of its child modals
+    // (Game / Credit / Info / ...) can show. The portal is restored when that child closes.
+    let portalSuppressedForChild = false;
 
     function isGuestAccountModalOpen() {
         return $('#modal-guestAccount').hasClass('show');
+    }
+
+    // Portal child modals. account.js normally keeps the Agent Portal open and just hides it
+    // with visibility:hidden while one of these shows. Stacked on top of the Guest Accounts
+    // list that would be three modals deep and Bootstrap's shared backdrop / .modal-open
+    // bookkeeping collapses — the portal ends up closed and a backdrop is left orphaned.
+    var portalChildSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo, #modal-edit-account-ledger, #modal-guest-portal-receipt, #modal-credit-return';
+
+    function anyPortalChildOpen() {
+        return $(portalChildSelectors).filter('.show').length > 0;
     }
 
     function bumpGuestAccountPortalStack() {
@@ -197,10 +210,10 @@ $(document).ready(function () {
             $guestAccount.css('z-index', 1055);
             $portal.css('z-index', 1065);
             var backs = document.querySelectorAll('.modal-backdrop');
-            if (backs.length > 1) {
+            while (backs.length > 1) {
                 backs[backs.length - 1].remove();
+                backs = document.querySelectorAll('.modal-backdrop');
             }
-            backs = document.querySelectorAll('.modal-backdrop');
             if (backs.length) {
                 backs[0].style.zIndex = 1050;
             }
@@ -227,7 +240,7 @@ $(document).ready(function () {
         document.body.classList.add('modal-open');
     }
 
-    // When account details modal opens from Guest Accounts list
+    // When the Agent Portal opens from the Guest Accounts list
     $('#modal-account-details').on('show.bs.modal', function () {
         if (isGuestAccountModalOpen()) {
             openedFromGuestAccount = true;
@@ -240,20 +253,46 @@ $(document).ready(function () {
         }
     });
 
-    // When account details modal closes — do not re-show Guest Accounts (still open); only fix backdrop stack
     $('#modal-account-details').on('hidden.bs.modal', function () {
+        // Hidden only so a child modal can show — keep all state, it will be restored.
+        if (portalSuppressedForChild) {
+            return;
+        }
         if (!$('#modal-transfer_account').is(':visible') && openedFromGuestAccount) {
             resetGuestAccountPortalStack();
             openedFromGuestAccount = false;
         }
     });
 
+    // A child modal is opening: fully hide the Agent Portal (and drop the Guest Accounts
+    // list far behind the backdrop) so only [child] is on screen — never three modals deep.
+    $(document).on('show.bs.modal', portalChildSelectors, function () {
+        if (!$('#modal-account-details').hasClass('show')) {
+            return;
+        }
+        portalSuppressedForChild = true;
+        // Undo account.js's parent/child coupling — we drive the portal from here instead.
+        $('body').removeClass('guest-portal-child-open');
+        $('#modal-account-details').removeClass('guest-portal-parent-hidden');
+        $('#modal-guestAccount').css('visibility', 'hidden');
+        $('#modal-account-details').modal('hide');
+    });
+
+    // The child modal closed: bring the Agent Portal back on top of the Guest Accounts list.
+    $(document).on('hidden.bs.modal', portalChildSelectors, function () {
+        if (!portalSuppressedForChild || anyPortalChildOpen()) {
+            return;
+        }
+        portalSuppressedForChild = false;
+        $('#modal-guestAccount').css('visibility', '');
+        $('#modal-account-details').modal('show');
+    });
+
 // When transfer account modal opens
 $('#modal-transfer_account').on('show.bs.modal', function () {
     openedFromGuestAccount = false;
-    // Prevent closing guestAccount modal
     if ($('#modal-guestAccount').is(':visible')) {
-        $('#modal-guestAccount').css('z-index', 1050); // Keep guestAccount in background
+        $('#modal-guestAccount').css('z-index', 1050);
     }
     $('#modal-account-details').modal('hide');
     $('#modal-guestAccount').modal('hide');
