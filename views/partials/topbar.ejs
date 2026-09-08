@@ -37,6 +37,52 @@
     .iq-header-img::before {
       display: none;
     }
+
+    /* Pare-parehong top spacing sa LAHAT ng pages (dashboard = standard) */
+    .iq-banner .iq-navbar-header,
+    .iq-navbar-header {
+      height: 90px !important;
+    }
+    .iq-banner .iq-navbar-header .iq-container {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    .iq-banner .iq-navbar-header .iq-header-img {
+      height: 180px !important;
+    }
+    /* Kanselahin ang -3rem pull-up ng hope-ui (safe lang yun noong 215px pa ang band).
+       Wala nang negative margin kahit saan — header height lang ang kumokontrol. */
+    .iq-banner:not(.hide) + .content-inner,
+    .iq-banner:not(.hide) + .content-inner.dash-grid-wrap {
+      margin-top: 0 !important;
+    }
+    /* Ang transparent/stretched na navbar ay huwag humarang sa mga control sa
+       ilalim nito (hal. "September 2026" filter sa dashboard).
+       Ang totoong nav items lang ang clickable. */
+    .iq-navbar,
+    .iq-navbar .navbar-inner,
+    .iq-navbar .navbar-collapse {
+      pointer-events: none;
+    }
+    .iq-navbar .navbar-brand,
+    .iq-navbar .sidebar-toggle,
+    .iq-navbar .navbar-toggler,
+    .iq-navbar .navbar-nav,
+    .iq-navbar .navbar-nav *,
+    .iq-navbar .dropdown-menu,
+    .iq-navbar .dropdown-menu * {
+      pointer-events: auto;
+    }
+    /* Siguraduhing nasa ibabaw ng navbar ang dashboard date filter */
+    .dash-rolling-daterange-toolbar {
+      z-index: 1050 !important;
+    }
+    @media (max-width: 767.98px) {
+      .iq-banner .iq-navbar-header,
+      .iq-navbar-header {
+        height: 60px !important;
+      }
+    }
   </style>
   <div class="position-relative iq-banner">
     <!--Nav Start-->
@@ -111,7 +157,7 @@
                   alt="Current Language" 
                   style="height: 28px; min-width: 28px; width: 28px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
                 >
-                <span class="ms-2 text-white fw-semibold d-none d-md-inline" style="font-size: 14px;"><%= langNames[currentLang] %></span>
+                <span class="ms-2 text-white fw-semibold d-none d-md-inline" style="font-size: 16px;"><%= langNames[currentLang] %></span>
                 <svg class="ms-1 d-none d-md-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: brightness(0) invert(1);">
                   <path d="M7 10L12 15L17 10H7Z" fill="currentColor"/>
                 </svg>
@@ -119,7 +165,7 @@
             
               <div class="sub-drop dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton2" style="min-width: 220px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08); border-radius: 16px; padding: 8px; background: #ffffff; margin-top: 8px;">
                 <div class="px-2 py-1 mb-2" style="border-bottom: 1px solid #f0f0f0;">
-                  <span class="text-muted small fw-semibold" style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;">Select Language</span>
+                  <span class="text-muted small fw-semibold" style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 13px;">Select Language</span>
                 </div>
                 <div class="d-flex flex-column gap-1">
                   <!-- Korean -->
@@ -139,10 +185,10 @@
                       />
                     </div>
                     <div class="ms-3 flex-grow-1">
-                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.kr') %></div>
-                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">한국어</div>
+                      <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.kr') %></div>
+                      <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">한국어</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Kr</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Kr</span>
                   </a>
             
                   <!-- Japanese -->
@@ -162,10 +208,10 @@
                       />
                     </div>
                     <div class="ms-3 flex-grow-1">
-                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.jp') %></div>
-                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">日本語</div>
+                      <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.jp') %></div>
+                      <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">日本語</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Jp</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Jp</span>
                   </a>
             
                   <!-- English -->
@@ -185,10 +231,10 @@
                       />
                     </div>
                     <div class="ms-3 flex-grow-1">
-                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.us') %></div>
-                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">English</div>
+                      <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.us') %></div>
+                      <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">English</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Us</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Us</span>
                   </a>
             
                   <!-- Chinese -->
@@ -208,10 +254,10 @@
                       />
                     </div>
                     <div class="ms-3 flex-grow-1">
-                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.zh') %></div>
-                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">中文</div>
+                      <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.zh') %></div>
+                      <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">中文</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Zh</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Zh</span>
                   </a>
                 </div>
               </div>

@@ -201,6 +201,96 @@ aside.sidebar.gd-sidebar .nav-item-gapped {
 aside.sidebar.gd-sidebar .sub-nav {
     margin-bottom: 0.5rem !important;
 }
+
+/* ===================================================================
+   COLLAPSED / MINI SIDEBAR — pag naka-liit, malinaw na icon column
+   =================================================================== */
+
+/* Let fly-out sub-menus escape the scroll container */
+aside.sidebar.gd-sidebar.sidebar-mini .sidebar-body {
+    overflow: visible !important;
+    padding-right: 0 !important;
+}
+
+/* I-center ang bawat icon sa rail */
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item > .nav-link {
+    justify-content: center;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+}
+
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item > .nav-link .icon {
+    margin: 0 !important;
+}
+
+/* Tanggalin ang natitirang label box para tunay na naka-center ang icon */
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item > .nav-link > .item-name {
+    display: none !important;
+}
+
+/* Itago ang dropdown caret kapag naka-liit */
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item > .nav-link .right-icon {
+    display: none !important;
+}
+
+/* Itago ang section headers ("Home", "Manage", "Security") — icon lang ang kita */
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item.static-item {
+    display: none !important;
+}
+
+/* Sub-menu -> hover fly-out panel, para walang nawawalang item */
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item:has(> .sub-nav) {
+    position: relative;
+}
+
+aside.sidebar.gd-sidebar.sidebar-mini .sub-nav {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 12rem;
+    margin: 0 !important;
+    padding: 0.35rem 0 !important;
+    background: linear-gradient(180deg, var(--gd-sidebar-bg-top) 0%, var(--gd-sidebar-bg-bottom) 100%);
+    border: 1px solid var(--gd-sidebar-border);
+    border-radius: 0.5rem;
+    box-shadow: 6px 10px 28px rgba(0, 0, 0, 0.22);
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-6px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 1200;
+}
+
+/* Bootstrap collapse (Settings) — huwag itago sa mini, hover ang bahala */
+aside.sidebar.gd-sidebar.sidebar-mini .sub-nav.collapse {
+    display: block !important;
+}
+
+aside.sidebar.gd-sidebar.sidebar-mini .nav-item:hover > .sub-nav {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* Ipakita ang label ng bawat child sa loob ng fly-out */
+aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link {
+    justify-content: flex-start;
+    padding: 0.5rem 1rem !important;
+}
+
+aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .icon {
+    display: flex !important;
+    margin-right: 0.5rem;
+}
+
+aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .item-name {
+    display: inline !important;
+    opacity: 1 !important;
+    transform: none !important;
+    margin-left: 0;
+}
 </style>
 
 <aside class="sidebar sidebar-default gd-sidebar sidebar-base navs-rounded-all " >  <div class="sidebar-header d-flex align-items-center justify-content-start">
@@ -649,6 +739,33 @@ aside.sidebar.gd-sidebar .sub-nav {
   <div class="sidebar-footer text-center py-2">
     <small class="text-muted">v2.0.0</small>
   </div>
+  <script>
+    // Tandaan ang collapsed/expanded state ng sidebar kahit mag-reload
+    (function () {
+      var KEY = 'gd-sidebar-mini';
+      var sidebar = document.querySelector('.sidebar');
+      if (!sidebar) return;
+
+      // Ibalik agad ang naka-save na state (bago mag-paint para walang flicker)
+      try {
+        if (localStorage.getItem(KEY) === '1') {
+          sidebar.classList.add('sidebar-mini');
+        }
+      } catch (e) {}
+
+      // I-save tuwing pinipindot ng user ang toggle
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          // patakbuhin pagkatapos ng sariling handler ng hope-ui
+          setTimeout(function () {
+            try {
+              localStorage.setItem(KEY, sidebar.classList.contains('sidebar-mini') ? '1' : '0');
+            } catch (e) {}
+          }, 0);
+        });
+      });
+    })();
+  </script>
   <script>
     // Pass translations to JavaScript for monthly reset
     window.monthlyResetTranslations = {

@@ -17,7 +17,7 @@ div.dataTables_wrapper div.dataTables_filter input,
   box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
   padding: 0.4rem 1.1rem !important;
   height: 34px !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   line-height: 1.35;
   color: #333;
   min-width: 10rem;
@@ -55,7 +55,7 @@ div.dataTables_wrapper div.dataTables_length select,
   border-radius: 999px !important;
   padding: 0.35rem 1.75rem 0.35rem 0.85rem !important;
   height: 34px;
-  font-size: 13px !important;
+  font-size: 15px !important;
   color: #333;
   box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
   cursor: pointer;
@@ -112,7 +112,7 @@ div.dataTables_wrapper div.dataTables_length select option:hover,
   padding-left: 0.85rem !important;
   padding-right: 1.75rem !important;
   color: #333 !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
 }
 .dataTables_length .select2-container .select2-selection--single .select2-selection__arrow {
   height: 32px !important;
@@ -131,7 +131,7 @@ div.dataTables_wrapper div.dataTables_length select option:hover,
 }
 .select2-dropdown.gd-dt-length-dropdown .select2-results__option {
   padding: 0.4rem 0.85rem;
-  font-size: 13px;
+  font-size: 15px;
   color: #333;
 }
 .select2-dropdown.gd-dt-length-dropdown .select2-results__option--highlighted[aria-selected],
@@ -232,7 +232,7 @@ input.split-date-input {
   height: 34px !important;
   padding-left: 0.9rem !important;
   padding-right: 0.9rem !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   color: #333;
   text-align: center;
   outline: none !important;
@@ -267,7 +267,7 @@ input.split-date-input:focus {
   height: 34px !important;
   padding-left: 0.9rem !important;
   padding-right: 0.9rem !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
 }
 
 .expense-item-search-wrap input.form-control:focus,

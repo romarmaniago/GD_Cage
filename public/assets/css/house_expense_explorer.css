@@ -479,16 +479,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     align-items: center;
     gap: 0.35rem;
     margin: 0;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .house-expense-filter-shell .filter-mode-container label {
-    font-size: 14px;
+    font-size: 16px;
     color: #667085;
 }
 
 .house-expense-filter-shell .filter-mode-container label span {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .expense-dash-kpi {

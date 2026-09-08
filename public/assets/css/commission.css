@@ -63,7 +63,7 @@
   table-layout: fixed;
   width: 100% !important;
   max-width: 100% !important;
-  font-size: 10px;
+  font-size: 12px;
   border-collapse: collapse;
   border: none;
   margin-top: 0 !important;
@@ -106,7 +106,7 @@
   text-overflow: clip;
   max-width: none !important;
   line-height: 1.25;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 #commission-tbl.commission-fit-table tbody td.col-type,
@@ -118,7 +118,7 @@
 
 #commission-tbl.commission-fit-table thead th {
   padding: 12px 4px !important;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   white-space: normal;
   word-break: break-word;
@@ -173,7 +173,7 @@
  /* Base table styles — compare modal only (main table uses .commission-fit-table) */
  #commission-compare-modal-tbl {
     width: 100%;
-    font-size: 13px;
+    font-size: 15px;
     border-collapse: collapse;
     border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
@@ -182,7 +182,7 @@
 #commission-tbl thead th {
     color: #000;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 13px;
     padding: 12px 4px;
     text-align: center;
     border: none;
@@ -287,7 +287,7 @@
 
 .commission-compare-selection-mount .badge {
 	font-weight: 500;
-	font-size: 12px;
+	font-size: 14px;
 }
 
 /* One shared outer border so cream bar + gold header edges stay pantay */
@@ -368,7 +368,7 @@
 	background: #fff;
 	border-radius: 999px;
 	padding: 0.4rem 1.1rem;
-	font-size: 13px;
+	font-size: 15px;
 	line-height: 1.35;
 	height: 34px;
 	color: #333;
@@ -399,7 +399,7 @@
 	border-radius: 999px;
 	padding: 0.35rem 1.75rem 0.35rem 0.85rem;
 	height: 34px;
-	font-size: 13px;
+	font-size: 15px;
 	color: #333;
 	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 	cursor: pointer;
@@ -426,7 +426,7 @@
 	height: 34px;
 	padding-left: 0.9rem !important;
 	padding-right: 0.9rem !important;
-	font-size: 13px;
+	font-size: 15px;
 	color: #333;
 	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 	text-align: center;
@@ -452,7 +452,7 @@
 	height: 34px;
 	padding-left: 0.9rem !important;
 	padding-right: 0.9rem !important;
-	font-size: 13px;
+	font-size: 15px;
 	color: #333;
 	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 	text-align: center;
@@ -573,7 +573,7 @@
 	height: 34px;
 	padding-left: 0.9rem;
 	padding-right: 0.9rem;
-	font-size: 13px;
+	font-size: 15px;
 	text-align: center;
 	cursor: pointer;
 	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
@@ -634,7 +634,7 @@
 	border: 1px solid rgba(58, 46, 18, 0.18);
 	border-radius: 999px;
 	height: 34px;
-	font-size: 13px;
+	font-size: 15px;
 	box-shadow: 0 1px 2px rgba(58, 46, 18, 0.04);
 }
 
@@ -903,7 +903,7 @@
 }
 
 .commission-compare-sort-indicator {
-	font-size: 10px;
+	font-size: 12px;
 	margin-left: 4px;
 	color: var(--gd-marker-gold-text, #3a2e12);
 }
@@ -955,7 +955,7 @@
 @media (max-width: 768px) {
     #commission-tbl,
     #commission-compare-modal-tbl {
-        font-size: 10px;
+        font-size: 12px;
     }
 
     #commission-tbl th,
@@ -967,12 +967,12 @@
 }
 /* Match Additional Commission — keep "Show … entries" visible */
 #commission-tbl_wrapper .dataTables_length label {
-    font-size: 12px;
+    font-size: 14px;
     color: #666;
 }
 
 #commission-tbl_wrapper .dataTables_length select {
-    font-size: 13px;
+    font-size: 15px;
 }
 
 
@@ -980,7 +980,7 @@
 	/* Adjust spacing and alignment for date range picker */
 .dataTables_wrapper .row {
     margin-bottom: 15px;
-    font-size: 12px; /* Pareho sa commission-tbl */
+    font-size: 14px; /* Pareho sa commission-tbl */
 }
 /* Don't leave a white gap under the commission controls bar */
 #commission-tbl_wrapper > .row {
@@ -998,14 +998,14 @@
     left: 7.5rem;
     top: 4rem;
     max-width: 300px;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .dataTables_wrapper .input-daterange .form-control {
     flex: 1;
     margin-right: 5px;
     max-width: 120px;
-    font-size: 12px;
+    font-size: 14px;
     padding: 8px;
 }
 
@@ -1025,7 +1025,7 @@
     .dataTables_wrapper .row,
     .dataTables_wrapper .input-daterange,
     .dataTables_wrapper .input-daterange .form-control {
-        font-size: 10px;
+        font-size: 12px;
     }
 
     .dataTables_wrapper .input-daterange .form-control {
@@ -1083,7 +1083,7 @@
   table-layout: fixed;
   width: 100% !important;
   max-width: 100% !important;
-  font-size: 10px;
+  font-size: 12px;
   border-collapse: collapse;
   border: none;
   margin-top: 0 !important;
@@ -1110,7 +1110,7 @@
 #commission-settlement-tbl.commission-fit-table thead th,
 #commission-settlement-detail-tbl.commission-fit-table thead th {
   padding: 12px 4px !important;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   white-space: normal;
   word-break: break-word;
@@ -1121,7 +1121,7 @@
 #commission-settlement-detail-tbl thead th {
   color: #000;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 13px;
   border: none;
   border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
@@ -1167,7 +1167,7 @@
   border: 1px solid rgba(58, 46, 18, 0.18);
   border-radius: 999px;
   padding: 0.4rem 1.1rem;
-  font-size: 13px;
+  font-size: 15px;
   height: 34px;
   min-width: 11rem;
   background: #fff;
@@ -1178,7 +1178,7 @@
   border-radius: 999px;
   padding: 0.35rem 1.75rem 0.35rem 0.85rem;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
 }
 
@@ -1187,7 +1187,7 @@
   border: 1px solid rgba(58, 46, 18, 0.18);
   border-radius: 999px;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
 }
 
@@ -1279,7 +1279,7 @@
   border: 1px solid rgba(58, 46, 18, 0.18);
   border-radius: 999px;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
   min-width: 9rem;
 }
@@ -1288,7 +1288,7 @@
   border: 1px solid rgba(58, 46, 18, 0.18);
   border-radius: 999px;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
   min-width: 12rem;
 }
@@ -1306,7 +1306,7 @@
 .commission-settlement-agent-filter-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
   line-height: 32px;
   padding-left: 0.85rem;
-  font-size: 13px;
+  font-size: 15px;
   color: #555;
 }
 
@@ -1327,7 +1327,7 @@
 }
 
 #commission-settlement-tbl_wrapper .commission-settlement-rate-label {
-  font-size: 13px;
+  font-size: 15px;
   color: #555;
   white-space: nowrap;
 }
@@ -1340,7 +1340,7 @@
   border: 1px solid rgba(58, 46, 18, 0.18);
   border-radius: 999px 0 0 999px;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
 }
 
@@ -1349,7 +1349,7 @@
   border-left: 0;
   border-radius: 0 999px 999px 0;
   height: 34px;
-  font-size: 13px;
+  font-size: 15px;
   background: #fff;
 }
 
@@ -1407,7 +1407,7 @@
 }
 
 .commission-settlement-workspace .cs-panel-finished .cs-panel-title {
-  font-size: 10px;
+  font-size: 12px;
   padding: 6px 6px;
   letter-spacing: 0;
   text-align: center;
@@ -1415,7 +1415,7 @@
 
 .cs-panel-datetime {
   padding: 4px 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
   color: #3a2e12;
@@ -1426,13 +1426,13 @@
 }
 
 .cs-division-game-card .cs-panel-datetime {
-  font-size: 9px;
+  font-size: 11px;
   padding: 3px 4px;
 }
 
 .commission-settlement-workspace .cs-panel-finished .cs-kv-table th,
 .commission-settlement-workspace .cs-panel-finished .cs-kv-table td {
-  font-size: 10px;
+  font-size: 12px;
   padding: 4px 4px;
   line-height: 1.2;
 }
@@ -1446,7 +1446,7 @@
 }
 
 .commission-settlement-workspace .cs-percentage-calculator .cs-panel-title {
-  font-size: 10px;
+  font-size: 12px;
   padding: 6px 6px;
   letter-spacing: 0;
   white-space: normal;
@@ -1455,7 +1455,7 @@
 }
 
 .commission-settlement-workspace .cs-percentage-calculator table {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .commission-settlement-workspace .cs-percentage-calculator th,
@@ -1515,7 +1515,7 @@
   padding: 8px 12px;
   background: #d9b96a;
   color: #3a2e12;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   text-align: center;
   text-transform: uppercase;
@@ -1569,7 +1569,7 @@
 .cs-division-game-card .cs-kv-table th,
 .cs-division-game-card .cs-kv-table td {
   padding: 3px 4px;
-  font-size: 9px;
+  font-size: 11px;
   height: 22px;
   line-height: 1.1;
   overflow: hidden;
@@ -1582,13 +1582,13 @@
 .cs-panel-division .cs-calc-table th,
 .cs-panel-division .cs-calc-table td {
   padding: 4px 3px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .cs-panel-division .cs-inline-input {
   max-width: 76px;
   height: 24px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .cs-panel-division {
@@ -1606,7 +1606,7 @@
   min-height: 32px;
   background: var(--gd-marker-gold-solid);
   color: var(--gd-marker-gold-text);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
   text-transform: none;
@@ -1627,11 +1627,11 @@
   flex-direction: column;
   justify-content: center;
   border-left: 1px solid var(--gd-marker-gold-border);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .cs-excel-rate-header strong {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -1722,12 +1722,12 @@
 .cs-excel-calc-table tfoot th {
   background: var(--gd-marker-gold-hover);
   color: var(--gd-marker-gold-text);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .cs-percentage-calculator .cs-panel-title {
   padding: 7px 5px;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
   white-space: nowrap;
 }
@@ -1738,7 +1738,7 @@
 }
 
 .cs-percentage-calculator table {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cs-percentage-calculator th,
@@ -1772,7 +1772,7 @@
   .cs-division-game-card .cs-kv-table td,
   .cs-panel-division .cs-calc-table th,
   .cs-panel-division .cs-calc-table td {
-    font-size: 9px;
+    font-size: 11px;
     padding: 2px 3px;
   }
 
@@ -1797,7 +1797,7 @@
   }
 
   .cs-excel-rate-header strong {
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 
@@ -1838,7 +1838,7 @@
   background: #d9b96a;
   color: #3a2e12;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 8px 12px;
@@ -1857,7 +1857,7 @@
 .cs-kv-table th,
 .cs-calc-table th {
   width: 42%;
-  font-size: 11px;
+  font-size: 13px;
   color: #555;
   font-weight: 600;
   vertical-align: middle;
@@ -1877,14 +1877,14 @@
 
 .cs-kv-table td,
 .cs-calc-table td {
-  font-size: 11px;
+  font-size: 13px;
   color: #333;
   vertical-align: middle;
 }
 
 .cs-calc-table thead th {
   background: #f5f5f5;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cs-kv-table .cs-total-row th,
@@ -1898,7 +1898,7 @@
   max-width: 120px;
   margin-left: auto;
   height: 28px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .commission-settlement-detail-wrap {
@@ -1917,7 +1917,7 @@
   background: #d9b96a;
   color: #3a2e12;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   border-bottom: 1px solid rgba(58, 46, 18, 0.15);

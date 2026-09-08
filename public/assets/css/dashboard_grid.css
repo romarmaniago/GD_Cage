@@ -31,7 +31,7 @@ body {
 }
 
 .dash-grid-wrap {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
@@ -238,16 +238,16 @@ body {
 }
 
 .dash-panel-narrow {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-panel-narrow > .card-header {
   padding: 0.45rem 0.65rem;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-panel-narrow > .card-header .dash-card-meta {
-  font-size: 9px;
+  font-size: 11px;
   max-width: 52%;
   text-align: right;
   line-height: 1.25;
@@ -255,7 +255,7 @@ body {
 
 .dash-panel-narrow .dash-kv-group-title {
   padding: 0.45rem 0.65rem;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.1;
 }
@@ -266,7 +266,7 @@ body {
 
 .dash-panel-narrow .dash-section-header {
   padding: 0.45rem 0.65rem;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-panel-narrow .dash-kv {
@@ -275,15 +275,15 @@ body {
 }
 
 .dash-panel-narrow .dash-kv .dash-kv-label {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .dash-panel-narrow .dash-kv .dash-kv-value {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .dash-panel-narrow .dash-kv.is-grand .dash-kv-value {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* Cage Balance + Main — fonts, stack layout, diff alignment (height locked in JS) */
@@ -297,13 +297,13 @@ body {
 #dash-cage-main-panel .dash-kv .dash-kv-label a,
 #dash-cage-main-panel .dash-kv .dash-kv-value a,
 #dash-cage-main-panel .dash-card-link {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
 #dash-cage-main-panel .card-header {
   padding: 0.6rem 0.85rem;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 #dash-cage-main-panel > .card:first-of-type {
@@ -320,7 +320,7 @@ body {
 
 #dash-cage-main-panel > .card:first-of-type .dash-kv-group-title {
   padding: 0.6rem 0.75rem;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
@@ -370,7 +370,7 @@ body {
 #dash-anticipated-panel .dash-current-time-wl > .card-header,
 #dash-anticipated-panel .dash-current-time-rolling > .card-header,
 #dash-anticipated-panel .dash-anticipated-profit > .card-header {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
   /* keep standard narrow header padding (do not copy Cage Balance padding bump) */
   padding: 0.45rem 0.65rem;
@@ -404,7 +404,7 @@ body {
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-label a,
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-value a,
 #dash-anticipated-panel .dash-anticipated-profit .dash-card-link {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
@@ -412,7 +412,7 @@ body {
 #dash-anticipated-panel .dash-current-time-rolling .dash-kv-group-title,
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv-group-title,
 #dash-anticipated-panel .dash-on-game .dash-kv-group-title {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
   padding: 0.38rem 0.65rem;
 }
@@ -448,7 +448,7 @@ body {
 }
 
 .dash-card > .card-header .dash-card-meta {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: #6c757d;
 }
@@ -473,7 +473,7 @@ body {
   justify-content: space-between;
   padding: 0.5rem 0.9rem;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--bs-primary, #0d6efd);
   background: var(--bs-primary-bg-subtle, #eef4ff);
   border-top: 1px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
@@ -493,7 +493,7 @@ body {
 
 .dash-kv-group-title {
   padding: 0.55rem 1.1rem;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -521,7 +521,7 @@ body {
 .dash-card-header-compact.is-center {
   justify-content: center;
   text-align: center;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.15;
 }
@@ -541,7 +541,7 @@ body {
 
 .dash-kv .dash-kv-label {
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -578,7 +578,7 @@ body {
 }
 
 .dash-kv.is-grand .dash-kv-label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--bs-primary, #0d6efd);
 }
@@ -615,7 +615,7 @@ body {
 }
 
 .dash-stat-card .dash-stat-label {
-  font-size: 11px;
+  font-size: 13px;
   color: #64748b;
   margin-bottom: 0.35rem;
 }
@@ -630,7 +630,7 @@ body {
 .dash-stat-card .dash-stat-link {
   display: inline-block;
   margin-top: 0.25rem;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--bs-primary, #0d6efd);
   text-decoration: none;
 }
@@ -667,7 +667,7 @@ body {
 
 .dash-guest-summary-label {
   color: #0f172a;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.15;
   text-align: left;
@@ -675,7 +675,7 @@ body {
 
 .dash-guest-summary-value {
   color: #0f172a;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   line-height: 1.2;
   margin-top: 12px;
@@ -703,7 +703,7 @@ body {
 }
 
 .dash-line-qv-stat-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -746,7 +746,7 @@ body {
 .dash-line-qv-panel-header {
   border-bottom: 1px solid #edf0f7;
   padding: 10px 14px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.6px;
   color: #1f2937;
@@ -816,7 +816,7 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   color: #9ca3af;
   border: 1px dashed #dbe2ef;
   border-radius: 10px;
@@ -856,7 +856,7 @@ body {
 .dash-line-qv-list-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #44506a;
   text-transform: uppercase;
@@ -875,7 +875,7 @@ body {
 
 .dash-line-qv-list-balance {
   flex: 0 0 auto;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: #334155;
   font-variant-numeric: tabular-nums;
@@ -886,11 +886,11 @@ body {
 
 .dash-line-qv-guest-table {
   width: 100%;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-line-qv-guest-table thead th {
-  font-size: 11px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--dash-wl-muted-color, #7a6a4a);
@@ -922,7 +922,7 @@ body {
 
 #dash-on-game-details-tbl {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
   border-collapse: collapse;
 }
 
@@ -985,7 +985,7 @@ body {
   color: var(--bs-primary, #0d6efd);
   text-decoration: none;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dash-flow-row a:hover {
@@ -1001,7 +1001,7 @@ body {
 }
 
 .dash-mini-metric .label {
-  font-size: 11px;
+  font-size: 13px;
   color: #64748b;
   margin-bottom: 0.25rem;
 }
@@ -1023,7 +1023,7 @@ body {
 .dash-balance-hero .item {
   font-weight: 700;
   color: #0f172a;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-balance-hero .sep {
@@ -1040,13 +1040,13 @@ body {
 }
 
 .dash-section-header .dash-balance-hero {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
 }
 
 .dash-section-header .dash-balance-hero .item {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-matrix-wrap {
@@ -1461,7 +1461,7 @@ body {
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-total.dash-kv-balance-total .dash-kv-value {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand {
@@ -1486,7 +1486,7 @@ body {
 .dash-panel-narrow .dash-kv-company .dash-kv-label,
 .dash-panel-narrow .dash-kv-company .dash-kv-value,
 .dash-panel-narrow .dash-kv-company .dash-kv-value .dash-card-link {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1501,7 +1501,7 @@ body {
 
 .dash-cage-balance-diff .dash-kv-label {
   color: #f5f0e6;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -1575,7 +1575,7 @@ body {
 }
 
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-actions .btn {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   padding: 0.2rem 0.5rem;
   line-height: 1.25;
@@ -1821,12 +1821,12 @@ body {
 
 /* Main Cage Rolling Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
 .dash-dual-matrix-col.is-rolling .dash-section-header {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
 .dash-dual-matrix-col.is-rolling #dash-rolling-root {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dash-dual-matrix-col.is-rolling .dash-rolling-head-cell,
@@ -1837,7 +1837,7 @@ body {
 .dash-dual-matrix-col.is-rolling .dash-rolling-head-cell .dash-card-link,
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell .dash-card-link,
 .dash-dual-matrix-col.is-rolling .dash-card-link {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
@@ -1877,12 +1877,12 @@ body {
 
 /* W/L Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
 .dash-dual-matrix-col.is-wl .dash-section-header {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
 .dash-dual-matrix-col.is-wl #dash-wl-root {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell,
@@ -1892,7 +1892,7 @@ body {
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell .dash-card-link,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell .dash-card-link,
 .dash-dual-matrix-col.is-wl .dash-card-link {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.15;
 }
 
@@ -1956,14 +1956,14 @@ body {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-matrix-table thead th {
   background: var(--bs-primary-bg-subtle, #eef4ff);
   color: var(--bs-primary, #0d6efd);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 8px 10px;
@@ -2036,7 +2036,7 @@ body {
 .dash-matrix-foot .dash-matrix-table tfoot tr.dash-matrix-total-row th {
   padding: 0.35rem 0.45rem;
   min-height: 1.65rem;
-  font-size: 10px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   border-top: 2px solid rgba(var(--bs-primary-rgb, 13, 110, 253), 0.15);
 }
@@ -2197,7 +2197,7 @@ body {
 }
 
 #dash-rolling-root {
-  font-size: 11px;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -2299,7 +2299,7 @@ body {
   display: flex;
   align-items: center;
   padding: 0.45rem 0.45rem;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #0f172a;
   min-height: 1.65rem;
@@ -2341,7 +2341,7 @@ body {
   grid-row: 1;
   justify-content: center;
   background: var(--rolling-excel-casino);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: none;
   letter-spacing: 0;
   border-bottom: 1px solid var(--dash-col-line);
@@ -2352,7 +2352,7 @@ body {
   grid-row: 1;
   justify-content: center;
   background: var(--rolling-excel-gold);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: none;
   letter-spacing: 0;
   border-bottom: 1px solid var(--dash-col-line);
@@ -2364,7 +2364,7 @@ body {
   justify-content: center;
   background: var(--rolling-excel-subhead);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .dash-rolling-head-cell.is-remarks {
@@ -2399,7 +2399,7 @@ body {
 }
 
 .dash-rolling-head-cell .dash-card-link {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: #0f172a;
   text-decoration: underline;
@@ -2481,7 +2481,7 @@ body {
   display: flex;
   align-items: center;
   padding: 0.45rem 0.45rem;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #0f172a;
   min-height: 1.65rem;
@@ -2521,7 +2521,7 @@ body {
 .dash-rolling-body-cell.is-col-remarks {
   justify-content: center;
   background: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -2574,7 +2574,7 @@ body {
 }
 
 .dash-card-link {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--bs-primary, #0d6efd);
   text-decoration: none;
@@ -2597,7 +2597,7 @@ body {
 }
 
 #dash-wl-root {
-  font-size: 11px;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -2664,7 +2664,7 @@ body {
   grid-row: 1 / 3;
   justify-content: center;
   background: var(--rolling-excel-gold);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
 }
@@ -2686,7 +2686,7 @@ body {
 }
 
 .dash-wl-head-cell.is-gold small {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -2709,7 +2709,7 @@ body {
 
 .dash-wl-body-cell.is-col-remarks {
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .dash-wl-row.is-today .dash-wl-body-cell {
@@ -2763,7 +2763,7 @@ body {
 }
 
 .dash-beyond-chips-history-tbl {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dash-beyond-chips-history-tbl th,

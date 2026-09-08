@@ -75,7 +75,7 @@
 
 #additional-commission-tbl {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
   border-collapse: collapse;
   border: 1px solid var(--gd-marker-gold-border);
 }
@@ -99,7 +99,7 @@
 }
 
 #additional-commission-tbl .sort-indicator {
-  font-size: 10px;
+  font-size: 12px;
   margin-left: 4px;
   color: var(--gd-marker-gold-text);
 }
@@ -237,7 +237,7 @@
   background: #fff;
   border: 1px solid rgba(58, 46, 18, 0.2);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   height: 34px;
   cursor: text;
 }
@@ -264,7 +264,7 @@
   background: #fff;
   border: 1px solid rgba(58, 46, 18, 0.2);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   height: 34px;
 }
 
@@ -454,7 +454,7 @@
 
 @media (max-width: 1280px) {
   #additional-commission-tbl {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   #additional-commission-tbl th,
@@ -482,7 +482,7 @@
 
 @media (max-width: 768px) {
   #additional-commission-tbl {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   #additional-commission-tbl th,

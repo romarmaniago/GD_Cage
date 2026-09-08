@@ -841,7 +841,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                    sqlTotalCashOutReset[0].CASHOUT_RESET +
                                                    sqlWinlossManual[0].WINLOSS).toLocaleString('en-US') %></h6>
                                              <div id="winloss-comparison" class="mt-1"
-                                                style="font-weight: 100;  font-size: 12px;"></div>
+                                                style="font-weight: 100;  font-size: 14px;"></div>
                                              <input type="hidden" name="WINLOSS_HISTORY"
                                                 value="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>">
                                              </h6>
@@ -1287,7 +1287,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       </div>
                                                       <div class="modal-body">
                                                          <div class="table-responsive">
-                                                            <table class="table table-bordered table-hover mb-0" style="font-size: 15px;">
+                                                            <table class="table table-bordered table-hover mb-0" style="font-size: 17px;">
                                                                <thead>
                                                                   <tr>
                                                                      <th width="8%" class="text-center" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Sign</th>
@@ -1295,7 +1295,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                                      <th class="text-end" width="40%" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Amount (₱)</th>
                                                                   </tr>
                                                                </thead>
-                                                               <tbody style="font-size: 15px;">
+                                                               <tbody style="font-size: 17px;">
                                                                   <% 
                                                                      let debugSubtotal = 0; 
                                                                      cashBalanceDebug.forEach(row => { 
@@ -1309,11 +1309,11 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                                            <span class="<%= signColor %>"><%= row.sign %></span>
                                                                         </td>
                                                                         <td style="padding: 12px; font-weight: 500;"><%= row.label %></td>
-                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 15px;">₱ <%= row.value.toLocaleString('en-US') %></td>
+                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 17px;">₱ <%= row.value.toLocaleString('en-US') %></td>
                                                                      </tr>
                                                                   <% }); %>
                                                                </tbody>
-                                                               <tfoot style="font-size: 16px; font-weight: bold;">
+                                                               <tfoot style="font-size: 18px; font-weight: bold;">
                                                                   <tr class="table-primary">
                                                                      <th colspan="2" style="padding: 14px;">Computed Cash Balance (debug)</th>
                                                                      <th class="text-end" style="padding: 14px;">₱ <%= debugSubtotal.toLocaleString('en-US') %></th>
@@ -1556,12 +1556,12 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          min-width: 100px;
                                                          text-align: center;
                                                          font-weight: 500;
-                                                         font-size: 14px;
+                                                         font-size: 16px;
                                                          line-height: 1.2;
                                                       }
 
                                                       #week-date-range {
-                                                         font-size: 12px;
+                                                         font-size: 14px;
                                                          line-height: 1.2;
                                                       }
 
@@ -1588,7 +1588,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                       /* Trend indicator styles */
                                                       .trend-indicator {
-                                                         font-size: 12px;
+                                                         font-size: 14px;
                                                          padding: 4px 8px;
                                                          border-radius: 4px;
                                                          font-weight: 500;
@@ -1612,7 +1612,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       #on_game-tbl th,
                                                       #on_game-tbl td {
                                                          text-align: center;
-                                                         font-size: 14px;
+                                                         font-size: 16px;
                                                          vertical-align: middle;
                                                          /* Para naka-center rin vertically */
                                                       }

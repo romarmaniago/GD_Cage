@@ -86,7 +86,7 @@
 
 .dash-service-split-daterange input.split-date-input,
 .dash-service-modal-body .house-expense-split-daterange input.split-date-input {
-  font-size: 12px !important;
+  font-size: 14px !important;
   height: 30px !important;
   padding: 0.15rem 0.55rem !important;
   width: auto;

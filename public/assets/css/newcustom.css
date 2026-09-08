@@ -241,7 +241,7 @@
 /* Make trash glyph slightly smaller inside square action buttons */
 .action-btn-square .fa-trash-alt,
 .action-btn-square .fa-trash {
-    font-size: 10px !important;
+    font-size: 12px !important;
 }
 
 .bg-gradient-secondary {
@@ -512,7 +512,7 @@ opacity: 0.95;
 	outline: none;
 	display: block;
 	float: left;
-	font-size: 12px;
+	font-size: 14px;
 	line-height: 36px;
 	color: var(--bs-white);
 	/* center label inside each breadcrumb step */
