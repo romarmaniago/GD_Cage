@@ -294,7 +294,10 @@
 
       <div class="row g-3 mb-3 dash-top-row">
          <!-- Cage Balance + Main -->
-         <div class="col-xl-2 col-lg-3 dash-top-stack-col">
+         <div class="col-xl-2 col-lg-3 dash-top-stack-col dash-copy-image-col">
+            <button type="button" id="btn-dash-copy-image" class="btn btn-sm btn-dash-copy-image d-inline-flex align-items-center gap-1">
+               <i class="fa fa-copy opacity-90" aria-hidden="true"></i><span>Copy</span>
+            </button>
             <div class="dash-card-stack" id="dash-cage-main-panel">
                <div class="card dash-card dash-panel-narrow gd-dash-panel is-light-body">
                   <div class="card-header dash-card-header-compact d-flex justify-content-between align-items-center">
@@ -492,6 +495,9 @@
                            <input type="text" id="dash-rolling-daterange" class="form-control form-control-sm text-center" placeholder="Select date range" autocomplete="off" />
                         </div>
                      </div>
+                     <button type="button" class="btn btn-sm btn-dash-matrix-copy btn-dash-rolling-copy-toolbar d-inline-flex align-items-center gap-1 ms-auto" id="btn-dash-rolling-copy" data-matrix="rolling">
+                        <i class="fa fa-copy opacity-90" aria-hidden="true"></i><span>Copy</span>
+                     </button>
                   </div>
                   <div class="card dash-card dash-dual-matrix-panel gd-dash-panel is-light-body is-rolling h-100">
                      <div class="card-body p-0">
@@ -518,6 +524,11 @@
                   </div>
                </div>
                <div class="dash-dual-matrix-col is-wl">
+                  <div class="dash-wl-toolbar">
+                     <button type="button" class="btn btn-sm btn-dash-matrix-copy btn-dash-rolling-copy-toolbar d-inline-flex align-items-center gap-1" id="btn-dash-wl-copy" data-matrix="wl">
+                        <i class="fa fa-copy opacity-90" aria-hidden="true"></i><span>Copy</span>
+                     </button>
+                  </div>
                   <div class="card dash-card dash-dual-matrix-panel gd-dash-panel is-light-body is-wl h-100">
                      <div class="card-body p-0">
                         <div class="dash-section-header d-flex justify-content-between align-items-center gap-2">
@@ -840,6 +851,7 @@
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
 <script src="/assets/js/functions/dashboard_grid.js?v=23"></script>
+<script src="/assets/js/functions/dashboard_copy_image.js"></script>
 <script src="/assets/js/functions/dashboard_cage_cash_manual.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
 <script src="/assets/js/functions/service_category_select.js"></script>

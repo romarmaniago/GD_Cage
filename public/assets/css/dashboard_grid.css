@@ -1598,6 +1598,22 @@ body {
   filter: brightness(0.92);
 }
 
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-copy,
+.dash-card.gd-dash-panel.dash-dual-matrix-panel.is-light-body .btn-dash-matrix-copy {
+  color: #fff;
+  border: 0;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-copy:hover {
+  color: #fff;
+  filter: brightness(0.92);
+}
+
+.dash-card.gd-dash-panel.dash-dual-matrix-panel .btn-dash-matrix-copy:disabled {
+  opacity: 0.65;
+}
+
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-foot,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-matrix-preview,
 .dash-card.gd-dash-panel.dash-dual-matrix-panel .dash-rolling-foot,
@@ -2055,14 +2071,75 @@ body {
 .dash-rolling-daterange-toolbar {
   position: absolute;
   left: 0;
-  right: auto;
+  right: 0;
   bottom: 100%;
   margin-bottom: 0.4rem;
   z-index: 6;
   flex: 0 0 auto;
   flex-wrap: nowrap;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* Centre the month / date-range group; keep Copy pinned to the right edge. */
+.dash-rolling-daterange-toolbar .dash-rolling-daterange-group {
+  margin: 0 auto;
+}
+
+.dash-rolling-daterange-toolbar .btn-dash-rolling-copy-toolbar {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0 !important;
+}
+
+/* W/L Check has no filter row, so give its Copy button its own floating strip
+   above the card, aligned to the same top edge as the Rolling toolbar. */
+.dash-dual-matrix-col.is-wl {
+  overflow: visible;
+}
+
+.dash-wl-toolbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 0.4rem;
+  z-index: 6;
+  display: flex;
   justify-content: flex-start;
   pointer-events: auto;
+}
+
+/* Copy button lives in a toolbar strip, pushed to the right edge, styled to
+   match the dark-glass month filter / date-range pills beside it. */
+.dash-rolling-daterange-toolbar .btn-dash-rolling-copy-toolbar,
+.dash-wl-toolbar .btn-dash-rolling-copy-toolbar {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 0.78rem;
+  height: 1.85rem;
+  padding: 0.2rem 0.8rem;
+  line-height: 1.25;
+  border-radius: 999px;
+  color: #f5f0e6;
+  background: rgba(12, 10, 8, 0.72);
+  border: 1px solid rgba(200, 162, 76, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.dash-rolling-daterange-toolbar .btn-dash-rolling-copy-toolbar:hover,
+.dash-wl-toolbar .btn-dash-rolling-copy-toolbar:hover {
+  color: #fbf0d4;
+  background: rgba(18, 14, 10, 0.88);
+  border-color: rgba(241, 212, 138, 0.75);
+  filter: none;
+}
+
+.dash-rolling-daterange-toolbar .btn-dash-rolling-copy-toolbar:disabled,
+.dash-wl-toolbar .btn-dash-rolling-copy-toolbar:disabled {
+  opacity: 0.6;
 }
 
 .dash-rolling-daterange-group {
@@ -2843,4 +2920,45 @@ body {
 #dash-cage-manual-cash-history-tbl .cage-manual-cash-col-action .btn {
   padding: 0.1rem 0.35rem;
   line-height: 1.2;
+}
+
+/* Dashboard "Copy as Image" button — floats in the strip above the summary
+   panels, aligned to the top-right of the Current Time W/L column. Dark glass
+   pill to match the Rolling Check filter controls. */
+.dash-top-row .dash-copy-image-col {
+  position: relative;
+}
+
+.btn-dash-copy-image {
+  position: absolute;
+  top: -2rem;
+  left: 0.5rem;
+  z-index: 6;
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 0.78rem;
+  height: 1.85rem;
+  padding: 0.2rem 0.8rem;
+  line-height: 1.25;
+  border-radius: 999px;
+  color: #f5f0e6;
+  background: rgba(12, 10, 8, 0.72);
+  border: 1px solid rgba(200, 162, 76, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.btn-dash-copy-image:hover {
+  color: #fbf0d4;
+  background: rgba(18, 14, 10, 0.88);
+  border-color: rgba(241, 212, 138, 0.75);
+}
+
+.btn-dash-copy-image:disabled {
+  opacity: 0.6;
+}
+
+@media (max-width: 1199px) {
+  .btn-dash-copy-image {
+    top: -1.85rem;
+  }
 }
