@@ -248,13 +248,6 @@
 
       applyMatrixCellDisplay(cell, amount);
       recalculateMatrixRowAndFooter();
-      Swal.fire({
-        icon: 'success',
-        title: 'Saved',
-        text: result.message || 'Cell saved successfully.',
-        timer: 1300,
-        showConfirmButton: false
-      });
     } catch (err) {
       console.error('saveMatrixCellValue:', err);
       applyMatrixCellDisplay(cell, originalAmount);
@@ -549,6 +542,20 @@
   function resetDailyReportDateFilterMount() {
     const $ = window.jQuery;
     if (!$) return;
+    const $actions = $('#modal-dash-winloss-report .daily-report-winloss-actions');
+    const $actionsHome = $('#modal-dash-winloss-report .daily-report-winloss-toolbar');
+    if ($actions.length && $actionsHome.length) {
+      // The add button is relocated into the DataTables filter area separately,
+      // so pull it back into the actions group before the wrapper is destroyed
+      // (otherwise destroy() removes it from the DOM and it never returns).
+      const $addBtn = $('#modal-dash-winloss-report #btn-add-daily-report');
+      if ($addBtn.length && $addBtn.closest('.daily-report-winloss-actions').length === 0) {
+        $actions.prepend($addBtn.detach());
+      }
+      if ($actions.parent()[0] !== $actionsHome[0]) {
+        $actionsHome.append($actions.detach());
+      }
+    }
     const $mount = $('#daily-report-daterange-mount');
     if (!$mount.length) return;
     const $container = $mount.closest('.card-body, .modal-body, .daily-report-winloss-body');
@@ -638,6 +645,15 @@
       filterHighlight.appendChild(searchLabel);
     }
     if (addBtn) addBtn.classList.remove('d-none');
+
+    const winlossModal = wrapper.closest('#modal-dash-winloss-report');
+    if (winlossModal) {
+      const actions = winlossModal.querySelector('.daily-report-winloss-actions');
+      if (actions && actions.parentElement !== filterHighlight) {
+        filterHighlight.appendChild(actions);
+      }
+      searchLabel.style.display = 'none';
+    }
 
     wrapper.querySelectorAll(':scope > .row').forEach((row) => {
       if (row.classList.contains('dt-row')) return;
@@ -732,7 +748,7 @@
 
     if (inModal && amountCols > 0) {
       const datePct = 5;
-      const totalPct = 7;
+      const totalPct = 6;
       const amountPct = (100 - datePct - totalPct) / amountCols;
       matrixTable.style.minWidth = '';
       matrixTable.style.width = '100%';
@@ -1383,13 +1399,6 @@
       dailyReportModal.hide();
       resetDailyReportForm();
       await loadSubmittedReports();
-      Swal.fire({
-        icon: 'success',
-        title: 'Saved',
-        text: payload.message || 'Daily report saved successfully.',
-        timer: 1300,
-        showConfirmButton: false
-      });
     } catch (error) {
       console.error('saveDailyReport:', error);
       Swal.fire({ icon: 'error', title: 'Error', text: error.message || 'Unable to save report.' });

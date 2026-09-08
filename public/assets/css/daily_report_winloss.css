@@ -451,13 +451,18 @@
 
 #daily-report-modal .daily-report-entries-table thead th:not(:first-child),
 #daily-report-modal .daily-report-entries-table tbody td:not(:first-child) {
-  width: 7.5rem;
+  width: 11rem;
   text-align: center;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
 }
 
 #daily-report-modal .daily-report-entries-table .form-control {
-  text-align: center;
+  text-align: right;
+  width: 100%;
   max-width: 100%;
+  font-size: 0.95rem;
+  padding-right: 0.6rem;
 }
 
 #modal-dash-winloss-report {
@@ -465,21 +470,29 @@
 }
 
 #modal-dash-winloss-report .dash-winloss-report-dialog {
-  max-width: min(calc(100vw - 2rem), 98rem) !important;
-  width: min(calc(100vw - 2rem), 98rem) !important;
-  max-height: calc(100vh - 2.5rem);
-  margin: 1.25rem auto;
+  max-width: min(calc(100vw - 0.5rem), 132rem) !important;
+  width: min(calc(100vw - 0.5rem), 132rem) !important;
+  max-height: calc(100vh - 0.5rem);
+  margin: 0.25rem auto;
 }
 
 #modal-dash-winloss-report .daily-report-winloss-toolbar {
-  background: #fff;
-  flex-shrink: 0;
+  display: none !important;
+}
+
+#modal-dash-winloss-report .daily-report-filter-highlight label {
+  display: none !important;
+}
+
+#modal-dash-winloss-report .daily-report-filter-highlight .daily-report-winloss-actions {
+  display: inline-flex !important;
 }
 
 #modal-dash-winloss-report .modal-content {
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 0.5rem);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 #modal-dash-winloss-report .modal-body {
@@ -500,7 +513,7 @@
 #modal-dash-winloss-report .daily-report-winloss-body {
   flex: 1;
   min-height: 0;
-  max-height: min(80vh, 58rem);
+  max-height: min(96vh, 92rem);
   overflow-y: auto;
   overflow-x: auto;
   padding-left: 0.75rem;
@@ -513,6 +526,27 @@
   overflow-y: visible;
 }
 
+/* Bootstrap .row wrappers DataTables injects carry negative side margins that
+   push a few px past the body and create a phantom horizontal scrollbar. */
+#modal-dash-winloss-report #daily-report-view-table_wrapper > .row,
+#modal-dash-winloss-report .daily-report-controls-highlight {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100%;
+}
+
+/* Zero the Bootstrap gutter padding on the column that wraps the table so the
+   table's gold frame lines up flush with the toolbar box above it and the two
+   borders join into one continuous frame down to the bottom. */
+#modal-dash-winloss-report #daily-report-view-table_wrapper > .row > [class*="col-"] {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+#modal-dash-winloss-report .daily-report-controls-highlight {
+  margin-bottom: -1px;
+}
+
 #modal-dash-winloss-report #daily-report-view-table_wrapper,
 #modal-dash-winloss-report #daily-report-view-table_wrapper .dataTables_scroll,
 #modal-dash-winloss-report #daily-report-view-table_wrapper .dataTables_scrollBody,
@@ -523,6 +557,7 @@
 
 #modal-dash-winloss-report #daily-report-view-table {
   width: 100% !important;
+  table-layout: fixed;
 }
 
 #modal-dash-winloss-report #daily-report-view-table thead th,
@@ -539,7 +574,12 @@
 }
 
 #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-date-col {
-  min-width: 5.5rem;
+  min-width: 5rem;
+}
+
+#modal-dash-winloss-report #daily-report-view-table td.daily-report-date-col {
+  font-size: 12px;
+  overflow: hidden;
 }
 
 #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-amount-col {
@@ -547,7 +587,7 @@
 }
 
 #modal-dash-winloss-report #daily-report-view-table thead th.daily-report-total-col {
-  min-width: 6.5rem;
+  min-width: 5.25rem;
 }
 
 #modal-dash-winloss-report #daily-report-view-table td,
@@ -579,6 +619,26 @@
 #modal-dash-winloss-report #daily-report-view-table .daily-report-cell-input {
   padding: 6px 8px;
   font-size: 14px;
+}
+
+#modal-dash-winloss-report .dataTables_info,
+#modal-dash-winloss-report .dataTables_paginate,
+#modal-dash-winloss-report #daily-report-view-table_length {
+  display: none !important;
+}
+
+/* One uniform theme-matched shade for every TOTAL cell (header total col,
+   body total col, and the whole TOTAL footer row) */
+#modal-dash-winloss-report #daily-report-view-table thead th.daily-report-total-col,
+#modal-dash-winloss-report #daily-report-view-table tbody tr td.daily-report-total-col,
+#modal-dash-winloss-report #daily-report-view-table tbody tr:nth-child(even) td.daily-report-total-col,
+#modal-dash-winloss-report #daily-report-view-table tbody tr:hover td.daily-report-total-col,
+#modal-dash-winloss-report #daily-report-view-table tfoot tr,
+#modal-dash-winloss-report #daily-report-view-table tfoot th {
+  background: #eae0b8 !important;
+  background-color: #eae0b8 !important;
+  color: var(--gd-marker-gold-text);
+  font-weight: 600;
 }
 
 #daily-report-modal,
