@@ -269,8 +269,9 @@
 		var php = Number(els.panel.dataset.phpBalance) || 0;
 		var chips = Number(els.panel.dataset.chipsBalance) || 0;
 		var house = Number(els.panel.dataset.houseBalance) || 0;
-		// USD/GCASH are manual — exclude from The difference
-		els.diffValue.innerHTML = formatAmtHtml(house - (php + chips));
+		// "The difference" = |(PHP + NN + CC + RC) - Balance Total|. USD/GCASH are
+		// manual and excluded. Magnitude only — never shown negative.
+		els.diffValue.innerHTML = formatAmtHtml(Math.abs((php + chips) - house));
 	}
 
 	function updateDashboardTotals(totals) {

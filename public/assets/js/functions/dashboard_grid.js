@@ -899,12 +899,16 @@
     set('dash-actual-cashout', -Math.abs(t.cash_out_auto || 0));
     set('dash-actual-beyond-chips', t.beyond_chips);
     set('dash-actual-rolling', t.rolling_auto);
-    // Both Win / Lose rows (Cage + Gaming Acc.) mirror the GD Cage (Gold Dragon) column
-    // of the W/L Check table for the selected program-date range — NOT the external
-    // casino's W/L. Fall back to wl_total only if an older server response omits the field.
+    // "Gaming Acc." W/L mirrors the GD Cage (Gold Dragon) column of the W/L Check table
+    // for the selected program-date range — NOT the external casino's W/L. Fall back to
+    // wl_total only if an older server response omits the field.
     var gamingWl = t.gold_dragon_wl_auto != null ? t.gold_dragon_wl_auto : t.wl_total;
-    set('dash-actual-wl', gamingWl);
     set('dash-actual-gaming-wl', gamingWl);
+    // "Cage" W/L is the running total of the rows above it on this panel:
+    //   Buy In - Cash Out + Beyond Chips - Cage Chips (chips incl. RC).
+    // Combines the grid totals (buy_in_auto/cash_out_auto/beyond_chips) with the live
+    // chip balances from applyHouseBalances(); recomputeCageWl() foots both sources.
+    recomputeCageWl(t);
     // Gaming Acc. rolling mirrors the Gamebook's Total Rolling for the selected
     // program-date range — it must not pick up manual Total Chips entries the way
     // Main Cage (rolling_auto) does. Fall back to rolling_auto only if an older
@@ -913,11 +917,73 @@
 
     // Actual Rolling = Main Cage (rolling_auto) minus the live NN Chips balance
     // (chips sitting idle, not rolling) minus the live outstanding Roller Chips (RC)
-    // balance — isolates the amount actually rolling right now.
+    // balance — isolates the amount actually rolling right now. The NN/RC side is
+    // kept live by applyHouseBalances(); recomputeActualRolling() combines both
+    // sources so the figure refreshes after a chip transaction too, not only after
+    // a grid date-range change.
+    recomputeActualRolling(t);
+  }
+
+  // "Actual Rolling" (#dash-actual-rolling-amount) depends on two independently
+  // refreshed sources: rolling_auto from /dashboard_grid_data (lastGridPayload) and
+  // the live NN + RC chip balances from /dashboard_house_balances (written onto the
+  // #dash-anticipated-panel dataset by applyHouseBalances). Called from both refresh
+  // paths — whichever fetch lands last produces the correct final value.
+  function recomputeActualRolling(totalsOverride) {
     const panel = document.getElementById('dash-anticipated-panel');
-    const rcChipsBalance = panel ? Number(panel.dataset.rcChipsBalance) || 0 : 0;
-    const nnChipsBalance = panel ? Number(panel.dataset.nnChipsBalance) || 0 : 0;
-    set('dash-actual-rolling-amount', (Number(t.rolling_auto) || 0) - nnChipsBalance - rcChipsBalance);
+    const el = document.getElementById('dash-actual-rolling-amount');
+    if (!panel || !el) return;
+    const t = totalsOverride
+      || (lastGridPayload && lastGridPayload.totals ? lastGridPayload.totals : {});
+    const rollingAuto = Number(t.rolling_auto) || 0;
+    const nnChipsBalance = Number(panel.dataset.nnChipsBalance) || 0;
+    const rcChipsBalance = Number(panel.dataset.rcChipsBalance) || 0;
+    const actualRolling = rollingAuto - nnChipsBalance - rcChipsBalance;
+    el.textContent = formatAmount(actualRolling);
+
+    // "The difference" below the card = Actual Rolling - Gaming Acc. (Gaming Acc.
+    // mirrors the Gamebook's Total Rolling). 0 when the cage reconciles to the book.
+    const diffEl = document.getElementById('dash-actual-rolling-diff');
+    if (diffEl) {
+      const gamingRolling = t.rolling_gamebook != null
+        ? Number(t.rolling_gamebook) || 0
+        : rollingAuto;
+      // Magnitude only — how far apart the two figures are, not which side is larger.
+      diffEl.textContent = formatAmount(Math.abs(actualRolling - gamingRolling));
+    }
+  }
+
+  // "Cage" W/L (#dash-actual-wl) = Buy In - Cash Out + Beyond Chips - Cage Chips, i.e.
+  // the running total of the rows shown above it on the Current Time W/L panel. Buy In /
+  // Cash Out / Beyond Chips come from the grid fetch (lastGridPayload); Cage Chips (NN +
+  // CC + RC) from the live house-balance fetch (panel dataset). Called from both paths.
+  function recomputeCageWl(totalsOverride) {
+    const panel = document.getElementById('dash-anticipated-panel');
+    const el = document.getElementById('dash-actual-wl');
+    if (!panel || !el) return;
+    const t = totalsOverride
+      || (lastGridPayload && lastGridPayload.totals ? lastGridPayload.totals : {});
+    const buyIn = Number(t.buy_in_auto) || 0;
+    const cashOut = Math.abs(Number(t.cash_out_auto) || 0);
+    const beyond = Number(t.beyond_chips) || 0;
+    const nnChipsBalance = Number(panel.dataset.nnChipsBalance) || 0;
+    const ccChipsBalance = Number(panel.dataset.ccChipsBalance) || 0;
+    const rcChipsBalance = Number(panel.dataset.rcChipsBalance) || 0;
+    const cageChips = nnChipsBalance + ccChipsBalance + rcChipsBalance;
+    const cageWl = buyIn - cashOut + beyond - cageChips;
+    el.textContent = formatAmount(cageWl);
+
+    // "The difference" below the card = Cage - Gaming Acc. (Gaming Acc. mirrors the
+    // GD Cage / Gold Dragon gamebook W/L). 0 when the physical cage reconciles to
+    // the gamebook.
+    const diffEl = document.getElementById('dash-actual-wl-diff');
+    if (diffEl) {
+      const gamingWl = t.gold_dragon_wl_auto != null ? Number(t.gold_dragon_wl_auto) || 0
+        : Number(t.wl_total) || 0;
+      // Magnitude only — the row shows how far apart the two figures are, not which
+      // side is larger.
+      diffEl.textContent = formatAmount(Math.abs(cageWl - gamingWl));
+    }
   }
 
   function updateOnGameSummary(payload) {
@@ -1867,9 +1933,9 @@
     setHtmlById('dash-utang-total', formatDashAmtHtml(cage.credit, true));
     setHtmlById('dash-tip-balance-value', formatDashAmtHtml(cage.tip_balance));
     setHtmlById('dash-guest-line-total', formatDashAmtHtml(cage.guest_balance));
-    // dash-actual-rolling-amount ("Actual Rolling") is owned by updateActualCheck()
-    // (Main Cage minus live RC) — do not also set it here, the two fetches run
-    // concurrently and would otherwise race for the same element.
+    // dash-actual-rolling-amount ("Actual Rolling") is recomputed by
+    // recomputeActualRolling(), which reads rolling_auto from lastGridPayload and the
+    // live NN/RC balances from applyHouseBalances() — see below.
 
     // Main + Anticipated Add Charge: period signed balances
     renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);
@@ -1939,13 +2005,32 @@
     setHtmlById('dash-cage-cc-total', formatDashAmtHtml(cc));
     setHtmlById('dash-cage-rc-total', formatDashAmtHtml(rc));
     setHtmlById('dash-cage-balance-total', formatDashAmtHtml(mainPanelSumTotal));
-    setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(Math.round(Number(b.cage_balance_diff) || 0)));
-    // "Chips" (Current Time W/L) and "NN Chips" (Current Time Rolling) both include
-    // the outstanding Roller Chips (RC) so the on-screen math reconciles:
-    //   Buy In - Chips(incl RC)      ≈ Cage W/L
-    //   Main Cage - NN Chips(incl RC) = Actual Rolling
-    setHtmlById('dash-actual-chips', formatDashAmtHtml(totalChips + rc));
-    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(nn + rc));
+    // "The difference" = |(PHP + NN + CC + RC) - Balance Total| — the gap between the
+    // rows shown on the card and the cumulative Main-panel Balance Total. Magnitude
+    // only. With PHP as the balancing figure this is normally 0 (can be ±1 from the
+    // independent rounding of NN / CC).
+    setHtmlById('dash-cage-balance-diff-value', formatDashAmtHtml(Math.abs((php + nn + cc + rc) - mainPanelSumTotal)));
+    // "Cage Chips" (Current Time W/L) and "NN Chips" (Current Time Rolling) both
+    // include the outstanding Roller Chips (RC) so the on-screen math foots exactly:
+    //   Buy In - Cash Out + Beyond Chips - Cage Chips(incl RC) = Cage W/L
+    //   Main Cage - NN Chips(incl RC)                          = Actual Rolling
+    // Both chip figures are shown as a subtraction — parenthesised red — since they
+    // net against Buy In / Main Cage on this panel.
+    setHtmlById('dash-actual-chips', formatDashAmtHtml(totalChips + rc, true));
+    setHtmlById('dash-actual-nn-chips', formatDashAmtHtml(nn + rc, true));
+
+    // "Actual Rolling" and "Cage" W/L both subtract live chip balances from grid
+    // totals. Publish the fresh NN / CC / RC values onto the shared dataset then
+    // recompute so both rows stay current after a chip transaction (not just after a
+    // grid reload).
+    const antPanel = document.getElementById('dash-anticipated-panel');
+    if (antPanel) {
+      antPanel.dataset.nnChipsBalance = String(nn);
+      antPanel.dataset.ccChipsBalance = String(cc);
+      antPanel.dataset.rcChipsBalance = String(rc);
+    }
+    recomputeActualRolling();
+    recomputeCageWl();
 
     const cashPanel = document.getElementById('dash-cage-cash-panel');
     if (cashPanel) {

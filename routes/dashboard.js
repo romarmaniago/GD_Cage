@@ -4662,14 +4662,15 @@ router.get('/dashboard_grid_data', checkSession, async (req, res) => {
 			totalCashOut += cashOut;
 			totalRolling += rolling;
 			if (!isManualZone) {
-				// Reconciliation panel keeps the Gamebook fallback: when there is no
-				// junket_total_chips entry for the date, fall back to the Gamebook figures
-				// here even though the grid row above stays blank.
+				// Buy In / Cash Out / Main Cage Rolling on the "Current Time" panel must
+				// match the Main Cage Rolling Check grid Total exactly — the grid is fed
+				// only by junket_total_chips (dashboard_rolling_manual for the pre-cutoff
+				// zone). No Gamebook fallback here: a date with no Total Chips entry
+				// contributes 0, same as the blank grid row.
 				const gbAuto = gamebookAutoByDate.get(date);
-				const hasChips = !!chipsByDate[date];
-				totalBuyInAuto += hasChips ? buyIn : (gbAuto ? Number(gbAuto.buyIn) || 0 : 0);
-				totalCashOutAuto += hasChips ? cashOut : (gbAuto ? Number(gbAuto.cashOut) || 0 : 0);
-				totalRollingAuto += hasChips ? rolling : (gbAuto ? Number(gbAuto.rolling) || 0 : 0);
+				totalBuyInAuto += buyIn;
+				totalCashOutAuto += cashOut;
+				totalRollingAuto += rolling;
 				totalCasinoWlAuto += casinoWlAuto;
 				totalGoldWlAuto += goldWl;
 				totalRollingGamebook += gbAuto ? (Number(gbAuto.rolling) || 0) : 0;
