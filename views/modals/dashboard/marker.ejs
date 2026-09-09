@@ -121,20 +121,13 @@
 
             <hr style="border: none; border-top: 0.2rem solid black;">
 
-            <!-- 5 Tabs: Credit Status (default), Credit, Cash Credit, Game Credit, History -->
+            <!-- Tabs: Credit (breakdown), Credit Status (Cash/Chips/Total), History -->
             <ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
-                </li>
-                <%# Credit tab temporarily hidden %>
-                <!-- <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
-                </li> -->
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
+                    <button class="nav-link active" id="tab-credit-status" data-tab="credit-status" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-buyin-balance" data-tab="buyin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin') %></button>
+                    <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit_status') %></button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-marker-history" data-tab="marker-history" type="button" role="tab"><%= __('dashboard_marker.marker_history') %></button>
@@ -142,24 +135,29 @@
             </ul>
 
             <div id="marker-credit-status-wrapper" class="marker-tab-panel mb-3" data-panel="credit-status">
-                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
-                    <table id="marker-credit-status-breakdown-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
-                        <thead>
-                            <tr>
-                                <th><%= __('dashboard_marker.account') %></th>
-                                <th><%= __('dashboard_marker.agent') %></th>
-                                <th><%= __('dashboard_marker.guest') %></th>
-                                <th class="text-end"><%= __('dashboard_marker.amount_remaining') %></th>
-                            </tr>
-                        </thead>
-                        <tbody id="marker-credit-status-body"></tbody>
-                        <tfoot>
-                            <tr>
-                                <th colspan="3" class="fw-semibold text-end"><%= __('dashboard_marker.total_amount') %></th>
-                                <th class="text-end fw-semibold marker-total-col-amount" id="marker-status-grand-display">0</th>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div class="marker-credit-status-tab-panel">
+                    <div class="marker-status-shell">
+                        <div class="marker-status-titlebar">
+                            <span><%= __('dashboard_marker.tab_total_credit') %></span>
+                            <div class="text-end">
+                                <span class="marker-status-total-label"><%= __('dashboard_marker.total_amount') %></span>
+                                <span class="marker-status-grand-total" id="marker-status-grand-display">0</span>
+                            </div>
+                        </div>
+                        <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                            <table id="marker-credit-status-breakdown-tbl" class="table marker-balance-tbl marker-total-table w-100 mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center"><%= __('dashboard_marker.account') %></th>
+                                        <th class="text-center"><%= __('dashboard_marker.agent') %></th>
+                                        <th class="text-center"><%= __('dashboard_marker.guest') %></th>
+                                        <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.amount_remaining') %></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="marker-credit-status-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -192,11 +190,11 @@
             </div>
 
             <div id="marker-history-wrapper" class="marker-tab-panel mb-3" data-panel="marker-history" style="display: none;">
-                <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2 marker-history-export-row">
-                    <button type="button" id="export-excel" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 shadow-sm">
-                        <i class="fa fa-file-excel opacity-90"></i><span><%= __('dashboard_marker.export') %></span>
-                    </button>
-                </div>
+                <div class="marker-credit-card marker-credit-card--wide">
+                    <div class="marker-credit-card-head">
+                        <span class="marker-credit-card-title"><%= __('dashboard_marker.marker_history') %></span>
+                        <button type="button" id="export-excel" class="btn btn-sm marker-credit-export"><%= __('dashboard_marker.export') %></button>
+                    </div>
                 <div class="marker-history-dt-wrap marker-history-card table-responsive">
                 <table id="marker-tbl" class="table marker-history-table w-100 mb-0">
                 <thead>
@@ -216,45 +214,80 @@
                 </tbody>
                 </table>
                 </div>
+                </div>
             </div>
 
             <div id="marker-accounts-credit-wrapper" class="marker-tab-panel mb-3" data-panel="credit" style="display: none;">
-                <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2 marker-history-export-row">
-                    <button type="button" id="export-excel-credit" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 shadow-sm">
-                        <i class="fa fa-file-excel opacity-90"></i><span><%= __('dashboard_marker.export') %></span>
-                    </button>
-                </div>
-                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
-                    <table id="marker-accounts-credit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
-                        <thead>
-                            <tr>
-                                <th><%= __('dashboard_marker.account_name') %></th>
-                                <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
-                <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2 marker-history-export-row">
-                    <button type="button" id="export-excel-buyin" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 shadow-sm">
-                        <i class="fa fa-file-excel opacity-90"></i><span><%= __('dashboard_marker.export') %></span>
-                    </button>
-                </div>
-                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
-                    <table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
-                        <thead>
-                            <tr>
-                                <th><%= __('dashboard_marker.account_name') %></th>
-                                <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
-                    </table>
+                <div class="row g-3 marker-credit-split">
+                    <div class="col-12 col-lg-4">
+                        <div class="marker-credit-card">
+                            <div class="marker-credit-card-head">
+                                <span class="marker-credit-card-title"><%= __('dashboard_marker.tab_credit') %></span>
+                                <span class="marker-credit-card-actions">
+                                    <button type="button" class="btn btn-sm marker-credit-receipt" data-receipt-kind="credit" title="<%= __('dashboard_marker.receipt') %>" aria-label="<%= __('dashboard_marker.receipt') %>"><i class="fa fa-receipt" aria-hidden="true"></i></button>
+                                    <button type="button" id="export-excel-credit" class="btn btn-sm marker-credit-export"><%= __('dashboard_marker.export') %></button>
+                                </span>
+                            </div>
+                            <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                                <table id="marker-accounts-credit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th><%= __('dashboard_marker.account_name') %></th>
+                                            <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                    <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="marker-credit-card">
+                            <div class="marker-credit-card-head">
+                                <span class="marker-credit-card-title"><%= __('dashboard_marker.credit_chips') %></span>
+                                <span class="marker-credit-card-actions">
+                                    <button type="button" class="btn btn-sm marker-credit-receipt" data-receipt-kind="buyin" title="<%= __('dashboard_marker.receipt') %>" aria-label="<%= __('dashboard_marker.receipt') %>"><i class="fa fa-receipt" aria-hidden="true"></i></button>
+                                    <button type="button" id="export-excel-buyin" class="btn btn-sm marker-credit-export"><%= __('dashboard_marker.export') %></button>
+                                </span>
+                            </div>
+                            <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                                <table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th><%= __('dashboard_marker.account_name') %></th>
+                                            <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                    <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="marker-credit-card marker-credit-card--total">
+                            <div class="marker-credit-card-head">
+                                <span class="marker-credit-card-title"><%= __('dashboard_marker.credit_total') %></span>
+                                <span class="marker-credit-card-actions">
+                                    <button type="button" class="btn btn-sm marker-credit-receipt" data-receipt-kind="totalcredit" title="<%= __('dashboard_marker.receipt') %>" aria-label="<%= __('dashboard_marker.receipt') %>"><i class="fa fa-receipt" aria-hidden="true"></i></button>
+                                    <button type="button" id="export-excel-totalcredit" class="btn btn-sm marker-credit-export"><%= __('dashboard_marker.export') %></button>
+                                </span>
+                            </div>
+                            <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                                <table id="marker-accounts-totalcredit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th><%= __('dashboard_marker.account_name') %></th>
+                                            <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                    <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -551,7 +584,8 @@
 
         /* Cash Credit / Game Credit — gold theme + narrow Balance */
         #marker-accounts-credit-tbl.dataTable.marker-balance-table,
-        #marker-accounts-buyin-tbl.dataTable.marker-balance-table {
+        #marker-accounts-buyin-tbl.dataTable.marker-balance-table,
+        #marker-accounts-totalcredit-tbl.dataTable.marker-balance-table {
             width: 100% !important;
             max-width: 100% !important;
             font-size: 0.8125rem;
@@ -626,6 +660,151 @@
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th:first-child,
         #marker-accounts-buyin-wrapper .marker-balance-table tfoot th:first-child {
             text-align: left;
+        }
+
+        /* Cash / Chips / Total credit — 3 mini-cards side by side */
+        #modal-new-marker .marker-credit-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            border-radius: 0.6rem;
+            border: 1px solid var(--gd-marker-gold-border);
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 22px rgba(15, 23, 42, 0.07);
+            overflow: hidden;
+        }
+        #modal-new-marker .marker-credit-card--wide { height: auto; }
+        #modal-new-marker .marker-credit-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            padding: 0.6rem 0.75rem;
+            background: linear-gradient(180deg, #f7f4ec 0%, #efe6d2 100%);
+            border-bottom: 2px solid #c8a24c;
+        }
+        #modal-new-marker .marker-credit-card--total .marker-credit-card-head {
+            background: linear-gradient(180deg, #efe6d0 0%, #e4d4ad 100%);
+        }
+        #modal-new-marker .marker-credit-card-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #4a3208;
+            line-height: 1.1;
+        }
+        #modal-new-marker .marker-credit-card-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+        #modal-new-marker .marker-credit-export,
+        #modal-new-marker .marker-credit-receipt {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+            border: 0;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.72rem;
+            line-height: 1;
+            padding: 0.34rem 0.7rem;
+            border-radius: 0.4rem;
+            white-space: nowrap;
+            transition: filter 0.15s ease;
+        }
+        #modal-new-marker .marker-credit-receipt {
+            background: linear-gradient(135deg, #6b4a12 0%, #9a7326 100%);
+            padding: 0.34rem 0.5rem;
+            font-size: 0.82rem;
+        }
+        #modal-new-marker .marker-credit-export:hover,
+        #modal-new-marker .marker-credit-export:focus,
+        #modal-new-marker .marker-credit-receipt:hover,
+        #modal-new-marker .marker-credit-receipt:focus {
+            color: #fff;
+            filter: brightness(1.1);
+        }
+        #modal-new-marker .marker-credit-card .marker-balance-card,
+        #modal-new-marker .marker-credit-card .marker-history-card {
+            flex: 1 1 auto;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+            padding: 0.55rem 0.4rem 0.35rem 0.7rem !important;
+        }
+        #marker-accounts-credit-wrapper .marker-balance-neg {
+            color: #dc3545;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Length dropdown + Search on one line inside the narrow credit cards */
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child {
+            flex-wrap: nowrap !important;
+            gap: 0.4rem;
+        }
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter {
+            min-width: 0;
+        }
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter label {
+            width: auto !important;
+            flex-wrap: nowrap;
+        }
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter input {
+            width: 6.5rem !important;
+            min-width: 0 !important;
+            max-width: 6.5rem !important;
+            flex: 0 0 auto;
+        }
+
+        /* Credit tab — gold titlebar shell (match Credit History page) */
+        #modal-new-marker .marker-credit-status-tab-panel {
+            background: transparent;
+            min-width: 0;
+        }
+        #modal-new-marker .marker-status-shell {
+            border-radius: 0.6rem;
+            border: 1px solid var(--gd-marker-gold-border);
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 22px rgba(15, 23, 42, 0.07);
+            overflow: hidden;
+        }
+        #modal-new-marker .marker-status-titlebar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            background: linear-gradient(180deg, #f7f4ec 0%, #efe6d2 100%);
+            color: #4a3208;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border-bottom: 2px solid #c8a24c;
+        }
+        #modal-new-marker .marker-status-total-label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        #modal-new-marker .marker-status-grand-total {
+            display: block;
+            margin-top: 0.15rem;
+            font-weight: 700;
+            color: #dc3545;
+            font-variant-numeric: tabular-nums;
+        }
+        #modal-new-marker .marker-status-shell .marker-balance-card {
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+            padding: 0.55rem 0.4rem 0.35rem 0.7rem !important;
         }
 
         #marker-accounts-total-wrapper .marker-balance-dt-wrap,
@@ -929,7 +1108,7 @@ window.markerTranslations = window.markerTranslations || {
 	remarks: "<%= __('dashboard_marker.remarks') %>",
 	balance: "<%= __('dashboard_marker.balance') %>",
 	export_sheet_junket_credit: "<%= __('dashboard_marker.tab_credit') %>",
-	export_sheet_game_credit: "<%= __('dashboard_marker.tab_buyin') %>",
+	export_sheet_game_credit: "<%= __('dashboard_marker.credit_chips') %>",
 	export: "<%= __('dashboard_marker.export') %>",
 	no_data_export: "<%= __('dashboard_marker.no_data_export') %>",
 	export_error: "<%= __('dashboard_marker.export_error') %>",
@@ -957,6 +1136,10 @@ window.markerTranslations = window.markerTranslations || {
 	total: "<%= __('dashboard_marker.total') %>",
 	total_amount: "<%= __('dashboard_marker.total_amount') %>",
 	total_credit: "<%= __('dashboard_marker.total_credit') %>",
+	credit_total: "<%= __('dashboard_marker.credit_total') %>",
+	credit_chips: "<%= __('dashboard_marker.credit_chips') %>",
+	tab_credit: "<%= __('dashboard_marker.tab_credit') %>",
+	receipt: "<%= __('dashboard_marker.receipt') %>",
 	form_mode_return: "<%= __('dashboard_marker.form_mode_return') %>",
 	form_mode_issue: "<%= __('dashboard_marker.form_mode_issue') %>",
 	credits_add: "<%= __('dashboard_marker.credits_add') %>",

@@ -148,17 +148,10 @@
         });
     }
 
-    /** Remaining-balance cell. On a partial payment (some credit already returned) it also
-     *  shows a small "(total credit: …)" note above the larger remaining-balance amount. */
-    function renderCreditRemainingCell(remaining, totalCredit) {
+    /** Remaining-balance cell. Shows just the remaining-balance amount. */
+    function renderCreditRemainingCell(remaining) {
         var rem = Math.abs(Number(remaining) || 0);
-        var tc = Number(totalCredit);
-        var remainingHtml = '<span class="mcs-remaining-amt">' + formatCreditStatusShortcutAmount(rem) + '</span>';
-        if (!isNaN(tc) && Math.round(Math.abs(tc)) > Math.round(rem)) {
-            var label = (window.markerTranslations && window.markerTranslations.total_credit) || 'Total Credit';
-            return '<span class="mcs-credit-note">(' + escapeHtml(label) + ': ' + formatMarkerHistoryAmount(Math.abs(tc)) + ')</span>' + remainingHtml;
-        }
-        return remainingHtml;
+        return '<span class="mcs-remaining-amt">' + formatCreditStatusShortcutAmount(rem) + '</span>';
     }
 
     // Row click on the Credit Status breakdown → open that account's payment record (Agent Portal).
@@ -258,6 +251,11 @@
             return Math.round(rounded).toLocaleString('en-US');
         }
         return rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    /** Balance amount shown as red "(x,xxx)" for the Cash / Chips / Total credit tables. */
+    function formatCreditBalanceRedAmount(value) {
+        return '<span class="marker-balance-neg">(' + formatMarkerHistoryAmount(value) + ')</span>';
     }
 
     /** Junket Credit + Buy-in thru Credit display as (x,xxx) red — same as buy-in/cash-out */
@@ -876,9 +874,9 @@
         var num = Math.abs(Number(value) || 0);
         var formatted = markerReceiptFormatAmount(num);
         var display = num && isOut ? '(' + formatted + ')' : formatted;
-        var cls = isOut ? 'mrr-value mrr-amount-out' : 'mrr-value mrr-amount-in';
+        var cls = isOut ? 'mrr-value mrr-amount-out' : 'mrr-value';
         return (
-            '<tr class="mrr-total-row"><td class="mrr-label mrr-total-label">' + markerReceiptEscape(label) +
+            '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
             '</td><td class="' + cls + '">' + display + '</td></tr>'
         );
     }
@@ -888,8 +886,8 @@
         var num = Number(value);
         if (!Number.isFinite(num)) return '';
         var formatted = markerReceiptFormatAmount(num);
-        var display = num < 0 ? '(' + formatted + ')' : formatted;
-        var cls = isOut ? 'mrr-value mrr-balance-out' : 'mrr-value';
+        var display = '(' + formatted + ')';
+        var cls = 'mrr-value mrr-balance-out';
         return (
             '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
             '</td><td class="' + cls + '">' + display + '</td></tr>'
@@ -949,16 +947,11 @@
         return found;
     }
 
-    function showMarkerReceipt(id) {
-        var row = findMarkerReceiptRowById(id);
-        if (!row) {
-            if (window.Swal) window.Swal.fire('Error', 'Record not found.', 'error');
-            return;
-        }
+    function presentMarkerReceipt(html) {
         var modalEl = document.getElementById('modal-marker-receipt');
         var container = document.getElementById('marker-receipt-container');
         if (!modalEl || !container) return;
-        container.innerHTML = buildMarkerReceiptHtml(row);
+        container.innerHTML = html;
         $(modalEl).appendTo('body');
 
         var openModals = $('.modal.show').not('#modal-marker-receipt');
@@ -985,7 +978,87 @@
             $(modalEl).modal('show');
         }
     }
+
+    function showMarkerReceipt(id) {
+        var row = findMarkerReceiptRowById(id);
+        if (!row) {
+            if (window.Swal) window.Swal.fire('Error', 'Record not found.', 'error');
+            return;
+        }
+        presentMarkerReceipt(buildMarkerReceiptHtml(row));
+    }
     window.showMarkerReceipt = showMarkerReceipt;
+
+    /** Receipt slip for a whole Cash / Chips / Total credit balance table. */
+    function buildCreditBalanceReceiptHtml(kind) {
+        var t = window.markerTranslations || {};
+        var store = (window._markerCreditBalanceData || {})[kind] || { rows: [], total: 0 };
+        var titleMap = {
+            credit: t.tab_credit || 'Cash Credit',
+            buyin: t.credit_chips || 'Chips Credit',
+            totalcredit: t.credit_total || 'Total Credit'
+        };
+        var title = String(titleMap[kind] || 'Credit');
+        var totalLabel = t.total || 'Total';
+        var dt = window.moment ? moment().format('YYYY-MM-DD HH:mm') : new Date().toLocaleString();
+
+        var rowsHtml = '';
+        // Match the order shown in the table: use the DataTable's current row order
+        // when available, otherwise fall back to balance (highest first).
+        var receiptRows = (store.rows || []).slice();
+        var tblSel = '#marker-accounts-' + kind + '-tbl';
+        if (typeof $.fn.DataTable !== 'undefined' && $.fn.DataTable.isDataTable(tblSel)) {
+            try {
+                var byName = {};
+                receiptRows.forEach(function (r) { byName[String(r.name).trim()] = r; });
+                var ordered = [];
+                // order:'current' = displayed sort; search:'none' = keep every account so the
+                // Total row always matches the listed rows even if the table is filtered.
+                $(tblSel).DataTable().rows({ order: 'current', search: 'none' }).every(function () {
+                    var nm = $(this.node()).find('td').eq(0).text().trim();
+                    if (byName[nm]) { ordered.push(byName[nm]); delete byName[nm]; }
+                });
+                Object.keys(byName).forEach(function (k) { ordered.push(byName[k]); });
+                if (ordered.length) receiptRows = ordered;
+            } catch (e) { /* noop */ }
+        } else {
+            receiptRows.sort(function (a, b) {
+                return Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0);
+            });
+        }
+        receiptRows.forEach(function (r) {
+            rowsHtml +=
+                '<tr><td class="mrr-label">' + markerReceiptEscape(r.agent || r.name) +
+                '</td><td class="mrr-value mrr-amount-out">(' + markerReceiptFormatAmount(r.amount) + ')</td></tr>';
+        });
+        if (!rowsHtml) {
+            rowsHtml = '<tr><td class="mrr-label" colspan="2" style="text-align:center;">' +
+                markerReceiptEscape(t.no_data_available || 'No data') + '</td></tr>';
+        }
+        rowsHtml +=
+            '<tr class="mrr-total-row"><td class="mrr-label mrr-total-label">' + markerReceiptEscape(totalLabel) +
+            '</td><td class="mrr-value mrr-amount-out">(' + markerReceiptFormatAmount(store.total) + ')</td></tr>';
+
+        return (
+            '<div class="marker-receipt-slip">' +
+            '<div class="marker-receipt-slip-body">' +
+            '<p class="mrr-brand">GOLDEN DRAGON</p>' +
+            '<p class="mrr-title mrr-title-out">* ' + markerReceiptEscape(title) + ' *</p>' +
+            '<p class="mrr-datetime">' + markerReceiptEscape(dt) + '</p>' +
+            '<table class="mrr-table"><tbody>' + rowsHtml + '</tbody></table>' +
+            '</div>' +
+            '<div class="marker-receipt-slip-actions">' +
+            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-image">' + markerReceiptEscape(t.copy_image || 'Copy image') + '</button>' +
+            '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-text">' + markerReceiptEscape(t.copy_text || 'Copy text') + '</button>' +
+            '</div>' +
+            '</div>'
+        );
+    }
+
+    function showCreditBalanceReceipt(kind) {
+        presentMarkerReceipt(buildCreditBalanceReceiptHtml(kind));
+    }
+    window.showCreditBalanceReceipt = showCreditBalanceReceipt;
 
     var markerReceiptHtml2CanvasPromise = null;
     function loadMarkerReceiptHtml2Canvas() {
@@ -1084,6 +1157,10 @@
         window.__markerReceiptBound = true;
         $(document).on('click', '.js-copy-marker-receipt-image', function () { copyMarkerReceiptImage(this); });
         $(document).on('click', '.js-copy-marker-receipt-text', function () { copyMarkerReceiptText(this); });
+        $(document).on('click', '.marker-credit-receipt', function (e) {
+            e.preventDefault();
+            showCreditBalanceReceipt($(this).data('receipt-kind'));
+        });
         var modalEl = document.getElementById('modal-marker-receipt');
         if (modalEl) {
             modalEl.addEventListener('shown.bs.modal', function () {
@@ -1584,7 +1661,7 @@
 
     function parseBalanceCellToNumber(text) {
         if (text == null || text === '') return NaN;
-        var s = String(text).replace(/,/g, '').trim();
+        var s = String(text).replace(/,/g, '').replace(/[()]/g, '').trim();
         if (s === '' || s === '—' || s === '-') return NaN;
         var n = Number(s);
         return Number.isFinite(n) ? n : NaN;
@@ -3195,13 +3272,17 @@
         function updateAccountsBalanceTable() {
             var $creditTbl = $('#marker-accounts-credit-tbl');
             var $buyinTbl = $('#marker-accounts-buyin-tbl');
+            var $totalCreditTbl = $('#marker-accounts-totalcredit-tbl');
             if (!$creditTbl.length || !$buyinTbl.length) return;
             destroyBalanceDataTable('#marker-accounts-credit-tbl');
             destroyBalanceDataTable('#marker-accounts-buyin-tbl');
+            if ($totalCreditTbl.length) destroyBalanceDataTable('#marker-accounts-totalcredit-tbl');
             var $creditTbody = $creditTbl.find('tbody');
             var $buyinTbody = $buyinTbl.find('tbody');
+            var $totalCreditTbody = $totalCreditTbl.find('tbody');
             $creditTbody.empty();
             $buyinTbody.empty();
+            $totalCreditTbody.empty();
             $.when(
                 $.ajax({ url: '/marker_data_breakdown', method: 'GET' }),
                 $.ajax({ url: '/marker_credit_status_breakdown', method: 'GET' })
@@ -3210,42 +3291,62 @@
                 headerCreditState.creditStatusBreakdown = Array.isArray(statusResp[0]) ? statusResp[0] : [];
                     var creditRows = [];
                     var buyinRows = [];
+                    var totalCreditRows = [];
                     var totalCredit = 0;
                     var totalBuyin = 0;
                     var grandTotal = 0;
                     list.forEach(function (row) {
                         var name = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
+                        var agentName = (row.AGENT_NAME || '').trim() || name;
                         var credit = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
                         var buyin = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
                         var accountTotal = row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : (credit + buyin);
-                        if (credit !== 0) { creditRows.push({ name: name, amount: credit }); totalCredit += credit; }
-                        if (buyin !== 0) { buyinRows.push({ name: name, amount: buyin }); totalBuyin += buyin; }
+                        if (credit !== 0) { creditRows.push({ name: name, agent: agentName, amount: credit }); totalCredit += credit; }
+                        if (buyin !== 0) { buyinRows.push({ name: name, agent: agentName, amount: buyin }); totalBuyin += buyin; }
                         if (accountTotal !== 0) {
+                            totalCreditRows.push({ name: name, agent: agentName, amount: accountTotal });
                             grandTotal += accountTotal;
                         }
                     });
                     var t = window.markerTranslations || {};
                     var totalLabel = t.total || 'Total';
                     creditRows.forEach(function (r) {
-                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
+                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
                     });
                     if (creditRows.length > 0) {
                         $creditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').text(formatMarkerHistoryAmount(totalCredit));
+                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(totalCredit));
                         $creditTbl.find('tfoot').show();
                     } else {
                         $creditTbl.find('tfoot').hide();
                     }
                     buyinRows.forEach(function (r) {
-                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
+                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
                     });
                     if (buyinRows.length > 0) {
                         $buyinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').text(formatMarkerHistoryAmount(totalBuyin));
+                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(totalBuyin));
                         $buyinTbl.find('tfoot').show();
                     } else {
                         $buyinTbl.find('tfoot').hide();
                     }
+                    if ($totalCreditTbl.length) {
+                        totalCreditRows.forEach(function (r) {
+                            $totalCreditTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
+                        });
+                        if (totalCreditRows.length > 0) {
+                            $totalCreditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
+                            $totalCreditTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(grandTotal));
+                            $totalCreditTbl.find('tfoot').show();
+                        } else {
+                            $totalCreditTbl.find('tfoot').hide();
+                        }
+                    }
+                    window._markerCreditBalanceData = {
+                        credit: { rows: creditRows.slice(), total: totalCredit },
+                        buyin: { rows: buyinRows.slice(), total: totalBuyin },
+                        totalcredit: { rows: totalCreditRows.slice(), total: grandTotal }
+                    };
                     $('#txtTotalJunketCredit').val(formatMarkerHistoryAmount(totalCredit));
                     $('#txtTotalGameCredit').val(formatMarkerHistoryAmount(totalBuyin));
                     cacheOverallHeaderTotals(totalCredit, totalBuyin, list, grandTotal);
@@ -3257,8 +3358,14 @@
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 }).fail(function () {
                     headerCreditState.creditStatusBreakdown = [];
+                    window._markerCreditBalanceData = {
+                        credit: { rows: [], total: 0 },
+                        buyin: { rows: [], total: 0 },
+                        totalcredit: { rows: [], total: 0 }
+                    };
                     $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
+                    if ($totalCreditTbl.length) $totalCreditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $('#txtTotalJunketCredit').val('0');
                     $('#txtTotalGameCredit').val('0');
                     cacheOverallHeaderTotals(0, 0, [], 0);
@@ -3278,13 +3385,14 @@
                 info: t.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries',
                 infoEmpty: t.info_empty || 'Showing 0 to 0 of 0 entries',
                 infoFiltered: t.info_filtered || '(filtered from _MAX_ total entries)',
-                lengthMenu: t.length_menu || 'Show _MENU_ entries',
+                lengthMenu: '_MENU_',
                 search: t.search || 'Search:',
                 paginate: { first: t.first || 'First', last: t.last || 'Last', previous: t.previous || 'Previous', next: t.next || 'Next' },
                 zeroRecords: t.no_data_available || 'No matching records found'
             };
             var creditLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
             var buyinLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
+            var totalCreditLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
             var dtOpts = {
                 pageLength: 10,
                 lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
@@ -3300,6 +3408,9 @@
             };
             $('#marker-accounts-credit-tbl').DataTable(Object.assign({}, dtOpts, { language: creditLang }));
             $('#marker-accounts-buyin-tbl').DataTable(Object.assign({}, dtOpts, { language: buyinLang }));
+            if ($('#marker-accounts-totalcredit-tbl').length) {
+                $('#marker-accounts-totalcredit-tbl').DataTable(Object.assign({}, dtOpts, { language: totalCreditLang }));
+            }
         }
 
         function getMarkerTabPanelSelector(tab) {
@@ -3330,6 +3441,13 @@
                         try { creditStatusTable.columns.adjust(); } catch (e) { /* noop */ }
                     }
                 }
+                if (tab === 'credit') {
+                    ['#marker-accounts-credit-tbl', '#marker-accounts-buyin-tbl', '#marker-accounts-totalcredit-tbl'].forEach(function (sel) {
+                        if ($.fn.DataTable.isDataTable(sel)) {
+                            try { $(sel).DataTable().columns.adjust(); } catch (e) { /* noop */ }
+                        }
+                    });
+                }
             }
         });
 
@@ -3346,6 +3464,13 @@
             sheetName: (options.balanceExport || {}).gameSheetName,
             fileName: (options.balanceExport || {}).gameFileName
         });
+        if ($('#marker-accounts-totalcredit-tbl').length) {
+            initBalanceTableExport('#marker-accounts-totalcredit-tbl', '#export-excel-totalcredit', {
+                kind: 'credit',
+                sheetName: (window.markerTranslations || {}).credit_total || 'Total Credit',
+                fileName: 'TotalCredit_' + new Date().toISOString().slice(0, 10) + '.xlsx'
+            });
+        }
 
         var formApi = null;
         if (options.withForm !== false) {
