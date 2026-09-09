@@ -53,8 +53,7 @@ const {
 	insertCapitalTransferAccountLedger,
 	updateCapitalTransferAccountLedger,
 	archiveCapitalTransferAccountLedger,
-	SQL_EXCLUDE_HOUSE_BALANCE_LEDGER,
-	buildCapitalTransferRemarks
+	SQL_EXCLUDE_HOUSE_BALANCE_LEDGER
 } = require('../utils/junketCapitalTransfer');
 const {
 	buildDashboardServiceExpensePayload
@@ -1334,15 +1333,14 @@ router.post('/add_junket_capital', async (req, res) => {
 		await connection.beginTransaction();
 
 		let accountLedgerId = null;
-		let storedRemarks = Remarks;
+		// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
+		const storedRemarks = Remarks;
 		if (isTransfer) {
 			const account = await validateActiveAccount(connection, accountId);
 			if (!account) {
 				await connection.rollback();
 				return res.status(400).send('Invalid or inactive account.');
 			}
-
-			storedRemarks = await buildCapitalTransferRemarks(connection, accountId, Remarks);
 
 			if (txn === 1) {
 				const accountBalance = await getAccountCashBalance(connection, accountId);
@@ -1358,7 +1356,7 @@ router.post('/add_junket_capital', async (req, res) => {
 				accountId,
 				amount: txtAmount2,
 				houseTxn: txn,
-				remarks: storedRemarks,
+				remarks: Remarks,
 				userId: req.session?.user_id ?? null,
 				dateNow: date_now
 			});
@@ -2458,7 +2456,8 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 
 		const existing = existingRows[0];
 		let accountLedgerId = existing.ACCOUNT_LEDGER_ID || null;
-		let storedRemarks = Remarks;
+		// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
+		const storedRemarks = Remarks;
 
 		if (isTransfer) {
 			const account = await validateActiveAccount(connection, accountId);
@@ -2466,8 +2465,6 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 				await connection.rollback();
 				return res.status(400).send('Invalid or inactive account.');
 			}
-
-			storedRemarks = await buildCapitalTransferRemarks(connection, accountId, Remarks);
 
 			if (txn === 1) {
 				let accountBalance = await getAccountCashBalance(connection, accountId);
@@ -2494,7 +2491,7 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 					accountId,
 					amount,
 					houseTxn: txn,
-					remarks: storedRemarks,
+					remarks: Remarks,
 					userId: req.session.user_id,
 					dateNow: date_now
 				});
@@ -2503,7 +2500,7 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 					accountId,
 					amount,
 					houseTxn: txn,
-					remarks: storedRemarks,
+					remarks: Remarks,
 					userId: req.session.user_id,
 					dateNow: date_now
 				});

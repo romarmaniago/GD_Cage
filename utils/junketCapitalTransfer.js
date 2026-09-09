@@ -6,12 +6,26 @@
  *   house txn 1 (+) = house in  → account withdraw (txn 2)
  */
 
-const HOUSE_BALANCE_TRANSFER_DESC_OUT = 'TRANSFERRED FROM HOUSE BALANCE';
-const HOUSE_BALANCE_TRANSFER_DESC_IN = 'TRANSFERRED TO HOUSE BALANCE';
+const HOUSE_BALANCE_TRANSFER_DESC_OUT = 'COMPANY';
+const HOUSE_BALANCE_TRANSFER_DESC_IN = 'COMPANY';
+
+// Legacy wording kept so pre-existing account_ledger rows stay excluded from
+// dashboard totals after the rename to "COMPANY".
+const HOUSE_BALANCE_TRANSFER_DESC_LEGACY = ['TRANSFERRED FROM HOUSE BALANCE', 'TRANSFERRED TO HOUSE BALANCE'];
+const HOUSE_BALANCE_TRANSFER_DESCS = [
+	...new Set([
+		HOUSE_BALANCE_TRANSFER_DESC_OUT,
+		HOUSE_BALANCE_TRANSFER_DESC_IN,
+		...HOUSE_BALANCE_TRANSFER_DESC_LEGACY
+	])
+];
+const HOUSE_BALANCE_TRANSFER_DESC_LIST = HOUSE_BALANCE_TRANSFER_DESCS
+	.map((d) => `'${d}'`)
+	.join(', ');
 
 /** Mirror entries in account_ledger — house side is already in junket_capital. */
-const SQL_EXCLUDE_HOUSE_BALANCE_LEDGER = `COALESCE(account_ledger.TRANSACTION_DESC, '') NOT IN ('${HOUSE_BALANCE_TRANSFER_DESC_OUT}', '${HOUSE_BALANCE_TRANSFER_DESC_IN}')`;
-const SQL_EXCLUDE_HOUSE_BALANCE_LEDGER_AL = `COALESCE(al.TRANSACTION_DESC, '') NOT IN ('${HOUSE_BALANCE_TRANSFER_DESC_OUT}', '${HOUSE_BALANCE_TRANSFER_DESC_IN}')`;
+const SQL_EXCLUDE_HOUSE_BALANCE_LEDGER = `COALESCE(account_ledger.TRANSACTION_DESC, '') NOT IN (${HOUSE_BALANCE_TRANSFER_DESC_LIST})`;
+const SQL_EXCLUDE_HOUSE_BALANCE_LEDGER_AL = `COALESCE(al.TRANSACTION_DESC, '') NOT IN (${HOUSE_BALANCE_TRANSFER_DESC_LIST})`;
 
 function stripHtml(value) {
 	return String(value || '').replace(/<[^>]*>/g, '').trim();
@@ -108,7 +122,9 @@ async function insertCapitalTransferAccountLedger(connection, {
 	const accountTxnId = houseTxnNum === 2 ? 1 : 2;
 	const transactionDesc =
 		houseTxnNum === 2 ? HOUSE_BALANCE_TRANSFER_DESC_OUT : HOUSE_BALANCE_TRANSFER_DESC_IN;
-	const ledgerRemarks = String(remarks || '').trim() || transactionDesc;
+	// Keep REMARKS blank when the user didn't type one — TRANSACTION_DESC already
+	// identifies the row as a house-balance transfer.
+	const ledgerRemarks = String(remarks || '').trim() || null;
 
 	const [result] = await connection.execute(
 		`INSERT INTO account_ledger (
@@ -133,7 +149,9 @@ async function updateCapitalTransferAccountLedger(connection, {
 	const accountTxnId = houseTxnNum === 2 ? 1 : 2;
 	const transactionDesc =
 		houseTxnNum === 2 ? HOUSE_BALANCE_TRANSFER_DESC_OUT : HOUSE_BALANCE_TRANSFER_DESC_IN;
-	const ledgerRemarks = String(remarks || '').trim() || transactionDesc;
+	// Keep REMARKS blank when the user didn't type one — TRANSACTION_DESC already
+	// identifies the row as a house-balance transfer.
+	const ledgerRemarks = String(remarks || '').trim() || null;
 
 	await connection.execute(
 		`UPDATE account_ledger

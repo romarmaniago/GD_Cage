@@ -1494,7 +1494,7 @@
 		"date": "日期",
 		"transaction": "交易",
 		"amount": "金额",
-		"balance_after": "之后余额",
+		"balance_after": "余额",
 		"remarks": "备注",
 		"close": "关闭",
 		"balance_check": "余额检查",

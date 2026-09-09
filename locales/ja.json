@@ -1494,7 +1494,7 @@
 		"date": "日付",
 		"transaction": "トランザクション",
 		"amount": "金額",
-		"balance_after": "変更後残高",
+		"balance_after": "残高",
 		"remarks": "備考",
 		"close": "閉じる",
 		"balance_check": "残高チェック",

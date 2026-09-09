@@ -1451,7 +1451,7 @@
 		"date": "DATE",
 		"transaction": "TRANSACTION",
 		"amount": "AMOUNT",
-		"balance_after": "BALANCE AFTER",
+		"balance_after": "BALANCE",
 		"remarks": "REMARKS",
 		"action": "ACTION",
 		"receipt": "Receipt",

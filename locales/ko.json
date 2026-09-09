@@ -1494,7 +1494,7 @@
 		"date": "날짜",
 		"transaction": "트랜잭션",
 		"amount": "금액",
-		"balance_after": "이후 잔액",
+		"balance_after": "잔액",
 		"remarks": "발언",
 		"close": "닫기",
 		"balance_check": "잔액 확인",

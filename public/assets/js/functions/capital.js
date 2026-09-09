@@ -556,23 +556,9 @@ function inferCapitalRemarksSource(row) {
     return 'junket_capital';
 }
 
-function mergeCapitalTransferRemarks(userRemarks, accountLabel) {
-    const label = String(accountLabel || '').trim();
-    const notes = String(userRemarks || '').trim();
-    if (!label) return notes;
-    if (!notes) return label;
-    if (notes.indexOf(label) !== -1) return notes;
-    return label + ' — ' + notes;
-}
-
 function resolveCapitalRemarksText(row) {
-    const typeLabel = normalizeHouseBalanceTypeLabel(getHouseBalanceTypeDesc(row));
-    const remarksText = row.REMARKS || '';
-    const accountLabel = row.capital_account_label || '';
-    if (typeLabel === 'Transfer') {
-        return mergeCapitalTransferRemarks(remarksText, accountLabel);
-    }
-    return remarksText;
+    // Show remarks exactly as encoded — no auto-injected account label / prefix.
+    return row.REMARKS || '';
 }
 
 function renderCapitalRemarksCell(row, displayText, suffixHtml) {
@@ -589,7 +575,10 @@ function renderCapitalRemarksCell(row, displayText, suffixHtml) {
     });
 }
 
-function reloadData() {
+// NOTE: named uniquely on purpose — other bundles on the dashboard (house_expense.js,
+// game_list.js) also define a global `reloadData` / `window.reloadData`, so a bare
+// `reloadData()` here would hit the wrong table. Always call this one by name.
+function reloadCapitalData() {
     // Ipakita ang loading overlay at simulate progress...
     $('#modal-new-capital .loading-overlay').show();
     $('#modal-new-capital .progress-bar').css('width', '0%');
@@ -795,8 +784,24 @@ function reloadData() {
                 $('#modal-new-capital .loading-overlay').fadeOut();
             }, 300); // Short delay for user to notice 100% before hiding
         }
-       
+
     });
+}
+
+// Back-compat alias for any old callers.
+window.reloadCapitalData = reloadCapitalData;
+
+// After a house-balance record changes, also refresh the dashboard's Main panel
+// ("Company" total / Cage Balance) — it lives outside this modal so reloadCapitalData()
+// alone won't touch it. No-op on pages without the dashboard grid.
+function refreshDashboardAfterCapitalChange() {
+    try {
+        if (typeof window.dashboardPeriodReload === 'function'
+            && document.getElementById('dash-date-from')
+            && document.getElementById('dash-date-to')) {
+            window.dashboardPeriodReload();
+        }
+    } catch (e) { /* noop */ }
 }
 
 $(document).ready(function () {
@@ -942,7 +947,7 @@ $(document).ready(function () {
     });
 
     // Initial data load
-    reloadData();
+    reloadCapitalData();
 
     $(document).off('click.capitalPrint', '#btn-capital-print').on('click.capitalPrint', '#btn-capital-print', function (e) {
         e.preventDefault();
@@ -984,8 +989,9 @@ function archive_capital(id) {
                         Swal.fire('Deleted Successfully', '', 'success');
                         return;
                     }
-                    if ($('#capital-tbl').length && typeof reloadData === 'function') {
-                        reloadData();
+                    if ($('#capital-tbl').length && typeof reloadCapitalData === 'function') {
+                        reloadCapitalData();
+                        refreshDashboardAfterCapitalChange();
                         Swal.fire('Deleted Successfully', '', 'success');
                         return;
                     }
@@ -1009,7 +1015,9 @@ function addCapital() {
     $('#txtCategory').val('');
     $('#txtDescription').val('');
     $('#txtAmount').val('');
-    $('#Remarks').val('');
+    $('#capitalRemarks').val('');
+    $('#add_junket_capital .hb-type-check').prop('checked', false);
+    if (typeof updateDescription === 'function') updateDescription();
     transaction_type();
     capital_category();
 }
@@ -1191,7 +1199,8 @@ $(document).off('submit.editCapital', '#edit_junket_capital').on('submit.editCap
         success: function () {
             $('#modal-edit-capital').modal('hide');
             Swal.fire({ icon: 'success', title: 'Updated', text: 'Record updated successfully.', timer: 1200, showConfirmButton: false });
-            if (typeof reloadData === 'function') reloadData();
+            if (typeof reloadCapitalData === 'function') reloadCapitalData();
+            refreshDashboardAfterCapitalChange();
         },
         error: function (xhr) {
             const msg = (xhr && xhr.responseText) ? String(xhr.responseText).slice(0, 200) : 'Failed to update record.';

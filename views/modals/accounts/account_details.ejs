@@ -179,13 +179,13 @@
                                         </button>
                                     </div>
                                 </div>
-                                <table id="accountDetails" class="table table-bordered nowrap" style="width: 100%;">
+                                <table id="accountDetails" class="table table-bordered" style="width: 100%;">
                                     <thead>
                                         <tr>
-                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.date') %></th>
-                                            <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
-                                            <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
-                                            <th class="text-center" style="width: 110px;"><%= __('modal_account_details.balance_after') %></th>
+                                            <th class="text-center" style="width: 122px;"><%= __('modal_account_details.date') %></th>
+                                            <th class="text-center" style="width: 190px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 84px;"><%= __('modal_account_details.amount') %></th>
+                                            <th class="text-center" style="width: 88px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
                                             <th class="text-center account-ledger-actions-col" style="width: 110px;"><%= __('modal_account_details.action') %></th>
                                             <th class="d-none account-ledger-id-col" aria-hidden="true"></th>
@@ -704,7 +704,7 @@ body > .flatpickr-calendar {
 #modal-account-details #accountDetails {
     border-radius: 10px;
     width: 100% !important;
-    min-width: 720px;
+    min-width: 620px;
 }
 #modal-account-details #accountDetails_wrapper {
     overflow-x: auto;
@@ -735,6 +735,19 @@ body > .flatpickr-calendar {
 }
 #modal-account-details #accountDetails tbody td:nth-child(5) {
     text-align: left !important;
+}
+#modal-account-details #accountDetails thead th:nth-child(1),
+#modal-account-details #accountDetails tbody td:nth-child(1),
+#modal-account-details #accountDetails thead th:nth-child(3),
+#modal-account-details #accountDetails tbody td:nth-child(3),
+#modal-account-details #accountDetails thead th:nth-child(4),
+#modal-account-details #accountDetails tbody td:nth-child(4) {
+    white-space: nowrap;
+}
+#modal-account-details #accountDetails tbody td:nth-child(2),
+#modal-account-details #accountDetails tbody td:nth-child(5) {
+    white-space: normal;
+    word-break: break-word;
 }
 #modal-account-details #accountDetails thead th.account-ledger-id-col,
 #modal-account-details #accountDetails tbody td.account-ledger-id-col {
