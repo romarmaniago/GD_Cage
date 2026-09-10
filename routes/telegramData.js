@@ -8,6 +8,10 @@ const {
 	serializeChatIdEntries,
 	validateChatIdsPayload
 } = require('../utils/telegramChatIds');
+const {
+	getGuestPortalContacts,
+	saveGuestPortalContacts
+} = require('../utils/guestPortalContacts');
 
 //=============== TELEGRAM API =============
 router.get('/telegramAPI/logs', checkSession, (req, res) => {
@@ -324,4 +328,28 @@ router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	}
 });
 
-module.exports = router; 
+// --------------- Guest Portal contact settings (Info modal — Details section) ---------------
+
+// Read the Cage / Concierge / Company contacts + channel link
+router.get('/guest-portal-contacts', checkSession, async (req, res) => {
+	try {
+		const contacts = await getGuestPortalContacts();
+		res.json({ contacts });
+	} catch (err) {
+		console.error('guest-portal-contacts GET:', err);
+		res.status(500).json({ error: 'Failed to load guest portal contacts' });
+	}
+});
+
+// Update the Cage / Concierge / Company contacts + channel link
+router.put('/guest-portal-contacts', checkSession, async (req, res) => {
+	try {
+		const contacts = await saveGuestPortalContacts(req.body || {}, req.session.user_id || null);
+		res.json({ success: true, contacts });
+	} catch (err) {
+		console.error('guest-portal-contacts PUT:', err);
+		res.status(500).json({ error: 'Failed to save guest portal contacts' });
+	}
+});
+
+module.exports = router;

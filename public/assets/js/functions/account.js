@@ -1148,6 +1148,7 @@ $('#modal-credit-return').on('hidden.bs.modal', function () {
 });
 
 $('#modal-account-details').on('hidden.bs.modal', function () {
+	disposeAccountDetailsRemarksTooltips();
 	salvageGuestPortalPrintExportButtons();
 	salvageGuestPortalDateRangeControl();
 	clearGuestPortalDateRangeFilter(false);
@@ -1932,7 +1933,36 @@ function getOrInitAccountDetailsDataTable() {
 		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs()),
 		initComplete: function () {
 			placeGuestPortalTableControls();
+		},
+		drawCallback: function () {
+			initAccountDetailsRemarksTooltips();
 		}
+	});
+}
+
+function initAccountDetailsRemarksTooltips() {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+	$('#modal-account-details #accountDetails tbody td.remarks-editor-td').each(function () {
+		var el = this;
+		var existing = bootstrap.Tooltip.getInstance(el);
+		if (existing) existing.dispose();
+		var full = el.getAttribute('data-full-remarks');
+		if (!full) return;
+		new bootstrap.Tooltip(el, {
+			title: full,
+			placement: 'top',
+			container: 'body',
+			customClass: 'remarks-portal-tooltip',
+			trigger: 'hover'
+		});
+	});
+}
+
+function disposeAccountDetailsRemarksTooltips() {
+	if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+	$('#modal-account-details #accountDetails tbody td.remarks-editor-td').each(function () {
+		var existing = bootstrap.Tooltip.getInstance(this);
+		if (existing) existing.dispose();
 	});
 }
 
@@ -1956,6 +1986,7 @@ function accountDetailsRemarksColumnDefs(opts) {
 				render: function (data, type, row) {
 					var raw = data != null ? String(data) : '';
 					if (type !== 'display') return raw;
+					var esc = window.RemarksEditor ? window.RemarksEditor.escapeHtml(raw) : raw;
 					var ledgerId = row[accountDetailsHiddenIdColIndex()];
 					if (window.RemarksEditor && ledgerId) {
 						return window.RemarksEditor.renderCell(raw, {
@@ -1964,12 +1995,20 @@ function accountDetailsRemarksColumnDefs(opts) {
 						});
 					}
 					if (!raw) return '<span class="text-muted">-</span>';
-					return raw;
+					return '<span class="remarks-editor-text">' + esc + '</span>';
 				},
 				createdCell: function (cell, cellData, rowData) {
 					var ledgerId = rowData && rowData[accountDetailsHiddenIdColIndex()];
 					var $cell = $(cell);
 					$cell.addClass('remarks-editor-td text-start');
+					var full = cellData != null ? String(cellData) : '';
+					if (full) {
+						$cell.attr('data-full-remarks', full);
+					} else {
+						$cell.removeAttr('data-full-remarks');
+					}
+					// Avoid a duplicate native tooltip next to the styled one
+					$cell.find('.remarks-editor-cell').removeAttr('title');
 					if (ledgerId && window.RemarksEditor && window.RemarksEditor.canEdit()) {
 						$cell.addClass('cursor-pointer');
 					}

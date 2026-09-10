@@ -183,7 +183,7 @@
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 122px;"><%= __('modal_account_details.date') %></th>
-                                            <th class="text-center" style="width: 190px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 230px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 84px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 88px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
@@ -379,7 +379,7 @@
 
 <!-- Passport Details Modal -->
 <div class="modal fade" id="modal-passport-details" tabindex="-1" aria-labelledby="modalPassportDetailsLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content passport-details-modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header passport-details-header py-3 px-4">
                 <h5 class="modal-title d-flex align-items-center gap-2 fw-semibold" id="modalPassportDetailsLabel">
@@ -400,22 +400,23 @@
                 </div>
                 <div id="passport-details-content" class="d-none">
                     <div class="row g-4 align-items-stretch">
-                        <div class="col-12 col-md-5 d-flex">
+                        <!-- Column 1: Passport image -->
+                        <div class="col-12 col-lg-4 d-flex">
                             <div class="passport-image-wrapper rounded-3 overflow-hidden position-relative w-100 d-flex align-items-center justify-content-center">
                                 <img id="passport-detail-image" src="" alt="Passport" class="passport-detail-img w-100">
+                                <div id="passport-detail-no-image" class="passport-detail-no-image d-none text-center">
+                                    <i class="fa fa-id-card-o"></i>
+                                    <p class="mb-0"><%= __('modal_account_details.passport_no_image') %></p>
+                                </div>
                                 <div class="passport-hover-hint"><i class="fa fa-search-plus me-1"></i>Hover to enlarge</div>
                                 <img id="passport-zoomed-image" src="" alt="Passport zoomed" class="passport-zoomed">
                             </div>
                         </div>
-                        <div class="col-12 col-md-7 d-flex">
+                        <!-- Column 2: Passport Details -->
+                        <div class="col-12 col-md-6 col-lg-4 d-flex">
                             <div class="passport-details-card rounded-3 overflow-hidden w-100">
                                 <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
-                                        <tr><th colspan="2" class="passport-section-title">Details</th></tr>
-                                        <tr><th scope="row">Contact no.</th><td id="p-contact">—</td></tr>
-                                        <tr><th scope="row">Telegram chat id</th><td id="p-telegram">—</td></tr>
-                                        <tr><th scope="row">Remarks</th><td id="p-remarks">—</td></tr>
-                                        <tr class="passport-section-gap"><td colspan="2"></td></tr>
                                         <tr><th colspan="2" class="passport-section-title">Passport Details</th></tr>
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_document_type') %></th><td id="p-doc-type">—</td></tr>
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_country_code') %></th><td id="p-country">—</td></tr>
@@ -427,6 +428,39 @@
                                         <tr><th scope="row"><%= __('modal_account_details.passport_lbl_gender') %></th><td id="p-gender">—</td></tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                        <!-- Column 3: Details -->
+                        <div class="col-12 col-md-6 col-lg-4 d-flex">
+                            <div class="passport-details-card rounded-3 overflow-hidden w-100 d-flex flex-column" id="gd-details-card">
+                                <div id="gd-details-capture" class="flex-grow-1 position-relative">
+                                <button type="button" class="btn" id="btn-copy-gd-details"
+                                    title="<%= __('modal_account_details.copy_as_image') %>"
+                                    data-copied="<%= __('modal_account_details.copied') %>"
+                                    data-fail="<%= __('modal_account_details.copy_image_failed') %>">
+                                    <i class="fa fa-clone"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy') %></span>
+                                </button>
+                                <table class="table table-bordered passport-modal-details-table mb-0 w-100">
+                                    <tbody>
+                                        <tr><th colspan="2" class="passport-section-title gd-details-title">GOLDEN DRAGON</th></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_acc_no') %></th><td id="p-acc-no">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_name') %></th><td id="p-acc-name">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cp') %></th><td id="p-contact">—</td></tr>
+                                        <tr><th scope="row">Telegram</th><td id="p-telegram">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_channel') %></th><td id="p-channel">—</td></tr>
+
+                                        <tr class="passport-section-gap"><td colspan="2"></td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-number">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-number">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-number">—</td></tr>
+
+                                        <tr class="passport-section-gap"><td colspan="2"></td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_cage') %></th><td id="p-cage-username">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_concierge') %></th><td id="p-concierge-username">—</td></tr>
+                                        <tr><th scope="row"><%= __('modal_account_details.details_lbl_company') %></th><td id="p-company-username">—</td></tr>
+                                    </tbody>
+                                </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -704,10 +738,10 @@ body > .flatpickr-calendar {
 #modal-account-details #accountDetails {
     border-radius: 10px;
     width: 100% !important;
-    min-width: 620px;
+    min-width: 0;
 }
 #modal-account-details #accountDetails_wrapper {
-    overflow-x: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     border-radius: 10px;
 }
@@ -744,10 +778,48 @@ body > .flatpickr-calendar {
 #modal-account-details #accountDetails tbody td:nth-child(4) {
     white-space: nowrap;
 }
-#modal-account-details #accountDetails tbody td:nth-child(2),
 #modal-account-details #accountDetails tbody td:nth-child(5) {
     white-space: normal;
     word-break: break-word;
+}
+/* Transaction column: keep on one line */
+#modal-account-details #accountDetails thead th:nth-child(2),
+#modal-account-details #accountDetails tbody td:nth-child(2) {
+    white-space: nowrap;
+    width: 230px;
+    min-width: 230px;
+}
+/* Remarks column: clamp to one line with "..."; full text shows in a tooltip above on hover */
+#modal-account-details #accountDetails tbody td:nth-child(5) {
+    max-width: 200px;
+}
+#modal-account-details #accountDetails tbody td:nth-child(5) .remarks-editor-text {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Bigger remarks tooltip (rendered on <body>, so not scoped to the modal) */
+.remarks-portal-tooltip {
+    --bs-tooltip-max-width: 360px;
+    --bs-tooltip-bg: #1f2430;
+    --bs-tooltip-opacity: 1;
+    z-index: 1090;
+}
+.remarks-portal-tooltip .tooltip-inner {
+    max-width: 360px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background-color: #1f2430;
+    border-radius: 7px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.remarks-portal-tooltip .tooltip-arrow::before {
+    border-top-color: #1f2430;
 }
 #modal-account-details #accountDetails thead th.account-ledger-id-col,
 #modal-account-details #accountDetails tbody td.account-ledger-id-col {
@@ -761,13 +833,13 @@ body > .flatpickr-calendar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
+    gap: 0.5rem;
 }
 .account-ledger-action-receipt-slot,
 .account-ledger-action-edit-slot,
 .account-ledger-action-delete-slot {
-    width: 1.25rem;
-    flex: 0 0 1.25rem;
+    width: 1.6rem;
+    flex: 0 0 1.6rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -777,7 +849,7 @@ body > .flatpickr-calendar {
     color: #6c757d !important;
 }
 .account-ledger-action-receipt-slot .btn-ledger-receipt i {
-    font-size: 0.95rem;
+    font-size: 1.2rem;
 }
 .account-ledger-action-receipt-slot .btn-ledger-receipt:hover,
 .account-ledger-action-receipt-slot .btn-ledger-receipt:focus {
@@ -791,7 +863,7 @@ body > .flatpickr-calendar {
 .account-ledger-action-edit-slot .btn-ledger-edit i,
 .account-ledger-action-delete-slot .btn-ledger-delete i,
 .account-ledger-action-receipt-slot .btn-ledger-receipt i {
-    font-size: 0.95rem;
+    font-size: 1.2rem;
 }
 .account-ledger-action-edit-slot .btn-ledger-edit:hover,
 .account-ledger-action-edit-slot .btn-ledger-edit:focus {
@@ -1013,7 +1085,10 @@ body > .flatpickr-calendar {
 
 /* Passport Details modal – improved styling */
 .passport-details-modal-content { border-radius: 12px; }
-.passport-details-body { min-height: 320px; }
+.passport-details-body {
+    min-height: 320px;
+    background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%)) !important;
+}
 .credit-history-dt-wrap {
     max-width: 100%;
     overflow-x: auto;
@@ -1147,9 +1222,23 @@ body > .flatpickr-calendar {
     transition: opacity 0.2s ease;
 }
 .passport-image-wrapper:hover .passport-hover-hint { opacity: 1; }
+.passport-detail-no-image {
+    color: #a1927a;
+    padding: 1rem;
+}
+.passport-detail-no-image i {
+    font-size: 3.25rem;
+    opacity: 0.55;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.passport-detail-no-image p {
+    font-size: 0.85rem;
+}
 .passport-details-card {
     background: #fff;
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border: 1px solid rgba(200, 162, 76, 0.28);
     display: flex;
     flex-direction: column;
 }
@@ -1158,19 +1247,57 @@ body > .flatpickr-calendar {
     padding: 10px 12px;
     font-weight: 600;
     font-size: 0.8rem;
-    color: #475569;
-    background: #fafbfd;
-    border-color: #e2e8f0;
+    color: #5c5346;
+    background: rgba(200, 162, 76, 0.06);
+    border-color: rgba(200, 162, 76, 0.22);
     vertical-align: middle;
 }
 #modal-passport-details .passport-modal-details-table tbody .passport-section-title {
-    background: #eef2ff;
-    color: #1e3a8a;
+    background: rgba(200, 162, 76, 0.18);
+    color: #5c5346;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     font-size: 0.74rem;
     font-weight: 700;
     padding: 8px 12px;
+    border-color: rgba(200, 162, 76, 0.3);
+}
+#modal-passport-details .passport-modal-details-table tbody .passport-section-title.gd-details-title {
+    text-align: center;
+    letter-spacing: 0.12em;
+}
+#modal-passport-details #gd-details-capture {
+    background: #fff;
+}
+#modal-passport-details #btn-copy-gd-details {
+    position: absolute;
+    top: 7px;
+    right: 8px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.24rem 0.6rem;
+    line-height: 1;
+    border-radius: 999px;
+    color: #3a2e12;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(58, 46, 18, 0.28);
+    box-shadow: 0 1px 3px rgba(58, 46, 18, 0.14);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+#modal-passport-details #btn-copy-gd-details i {
+    font-size: 0.78rem;
+}
+#modal-passport-details #btn-copy-gd-details:hover {
+    background: #3a2e12;
+    color: #f1d48a;
+    box-shadow: 0 2px 6px rgba(58, 46, 18, 0.28);
+}
+#modal-passport-details #btn-copy-gd-details:disabled {
+    opacity: 0.75;
 }
 #modal-passport-details .passport-modal-details-table tbody .passport-section-gap td {
     padding: 6px 0;
@@ -1180,13 +1307,13 @@ body > .flatpickr-calendar {
 #modal-passport-details .passport-modal-details-table tbody td {
     padding: 10px 12px;
     font-size: 0.9rem;
-    color: #1e293b;
-    border-color: #e2e8f0;
+    color: #1a1a1a;
+    border-color: rgba(200, 162, 76, 0.22);
     vertical-align: middle;
 }
 #modal-passport-details .passport-modal-details-table tbody tr:nth-child(even) td,
 #modal-passport-details .passport-modal-details-table tbody tr:nth-child(even) th {
-    background-color: #f8fafc;
+    background-color: rgba(200, 162, 76, 0.05);
 }
 .passport-zoomed {
     display: none;
@@ -1424,6 +1551,82 @@ body > .flatpickr-calendar {
         zoomedImage.classList.remove('show');
     });
 
+    // Show the passport image, or a "no image" placeholder when there is none.
+    function setPassportDetailImage(src) {
+        var img = document.getElementById('passport-detail-image');
+        var placeholder = document.getElementById('passport-detail-no-image');
+        var wrapper = img ? img.closest('.passport-image-wrapper') : null;
+        var hint = wrapper ? wrapper.querySelector('.passport-hover-hint') : null;
+        if (src) {
+            if (img) { img.src = src; img.style.display = ''; }
+            if (placeholder) placeholder.classList.add('d-none');
+            if (hint) hint.style.display = '';
+        } else {
+            if (img) { img.removeAttribute('src'); img.style.display = 'none'; }
+            if (placeholder) placeholder.classList.remove('d-none');
+            if (hint) hint.style.display = 'none';
+        }
+    }
+
+    // Resolve the agent's Telegram chat id to an @username; fall back to the raw id.
+    function setPassportTelegram(chatId) {
+        var el = document.getElementById('p-telegram');
+        if (!el) return;
+        if (!chatId) { el.textContent = '—'; return; }
+        el.textContent = chatId;
+        if (typeof fetchTelegramUsername === 'function') {
+            fetchTelegramUsername(chatId, 'GUEST')
+                .then(function (username) {
+                    el.textContent = username ? '@' + username : chatId;
+                })
+                .catch(function () { el.textContent = chatId; });
+        }
+    }
+
+    function setDetailText(id, value) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var v = value != null ? String(value).trim() : '';
+        el.textContent = v || '—';
+    }
+
+    // Cage / Concierge / Company contacts + channel link (from Telegram settings page)
+    var guestPortalContactsCache = null;
+    function loadGuestPortalContacts() {
+        if (guestPortalContactsCache) return Promise.resolve(guestPortalContactsCache);
+        return fetch('/guest-portal-contacts')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                guestPortalContactsCache = (data && data.contacts) || {};
+                return guestPortalContactsCache;
+            })
+            .catch(function () { return {}; });
+    }
+    function applyGuestPortalContacts(c) {
+        c = c || {};
+        setDetailText('p-cage-number', c.cage_number);
+        setDetailText('p-concierge-number', c.concierge_number);
+        setDetailText('p-company-number', c.company_number);
+        setDetailText('p-cage-username', c.cage_username);
+        setDetailText('p-concierge-username', c.concierge_username);
+        setDetailText('p-company-username', c.company_username);
+        var chEl = document.getElementById('p-channel');
+        if (chEl) {
+            var link = c.channel_link != null ? String(c.channel_link).trim() : '';
+            if (link) {
+                chEl.textContent = '';
+                var a = document.createElement('a');
+                a.href = link;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = link;
+                chEl.appendChild(a);
+            } else {
+                chEl.textContent = '—';
+            }
+        }
+    }
+
     // Passport Details button
     var btnPassportDetails = document.getElementById('btn-passport-details');
     var modalPassportDetails = document.getElementById('modal-passport-details');
@@ -1453,16 +1656,13 @@ body > .flatpickr-calendar {
                 document.getElementById('p-dob').textContent = p.date_of_birth || '—';
                 document.getElementById('p-expiry').textContent = p.expiry_date || '—';
                 document.getElementById('p-gender').textContent = p.gender || '—';
+                setDetailText('p-acc-no', '');
+                setDetailText('p-acc-name', p.full_name || '');
                 document.getElementById('p-contact').textContent = '—';
                 document.getElementById('p-telegram').textContent = '—';
-                document.getElementById('p-remarks').textContent = '—';
+                loadGuestPortalContacts().then(applyGuestPortalContacts);
                 var img = document.getElementById('passport-detail-image');
-                if (window.__pendingPassportImageDataUrl) {
-                    img.src = window.__pendingPassportImageDataUrl;
-                    img.style.display = '';
-                } else {
-                    img.style.display = 'none';
-                }
+                setPassportDetailImage(window.__pendingPassportImageDataUrl || null);
                 return;
             }
 
@@ -1500,16 +1700,12 @@ body > .flatpickr-calendar {
                         ? (window.fmtDate ? window.fmtDate(data.EXPIRY_DATE, '—') : String(data.EXPIRY_DATE).slice(0, 10))
                         : '—';
                     document.getElementById('p-gender').textContent = hasPassport ? (data.GENDER || '—') : '—';
+                    setDetailText('p-acc-no', accountInfo ? accountInfo.agent_code : '');
+                    setDetailText('p-acc-name', accountInfo ? accountInfo.account_name : '');
                     document.getElementById('p-contact').textContent = accountInfo && accountInfo.agent_contact ? accountInfo.agent_contact : '—';
-                    document.getElementById('p-telegram').textContent = accountInfo && accountInfo.agent_telegram ? accountInfo.agent_telegram : '—';
-                    document.getElementById('p-remarks').textContent = accountInfo && accountInfo.agent_remarks ? accountInfo.agent_remarks : '—';
-                    var img = document.getElementById('passport-detail-image');
-                    if (hasPassport && data.PASSPORT_IMAGE) {
-                        img.src = '/PassportUpload/' + data.PASSPORT_IMAGE;
-                        img.style.display = '';
-                    } else {
-                        img.style.display = 'none';
-                    }
+                    setPassportTelegram(accountInfo && accountInfo.agent_telegram ? String(accountInfo.agent_telegram).trim() : '');
+                    loadGuestPortalContacts().then(applyGuestPortalContacts);
+                    setPassportDetailImage(hasPassport && data.PASSPORT_IMAGE ? '/PassportUpload/' + data.PASSPORT_IMAGE : null);
                 })
                 .catch(function () {
                     document.getElementById('passport-details-loading').classList.add('d-none');
@@ -1535,6 +1731,73 @@ body > .flatpickr-calendar {
     if (modalPassportDetails && passportZoomed) {
         modalPassportDetails.addEventListener('hidden.bs.modal', function () {
             passportZoomed.classList.remove('show');
+        });
+    }
+
+    // Copy the GOLDEN DRAGON details card as an image
+    var btnCopyGdDetails = document.getElementById('btn-copy-gd-details');
+    if (btnCopyGdDetails) {
+        var gdCopyLabel = btnCopyGdDetails.innerHTML;
+        var GD_COPIED = btnCopyGdDetails.getAttribute('data-copied') || 'Copied';
+        var GD_COPY_FAIL = btnCopyGdDetails.getAttribute('data-fail') || 'Copy failed';
+
+        var ensureGdHtml2Canvas = function () {
+            if (typeof html2canvas !== 'undefined') return Promise.resolve();
+            if (typeof loadGuestPortalReceiptHtml2Canvas === 'function') return loadGuestPortalReceiptHtml2Canvas();
+            return new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                s.onload = function () { resolve(); };
+                s.onerror = function () { reject(new Error(GD_COPY_FAIL)); };
+                document.head.appendChild(s);
+            });
+        };
+
+        btnCopyGdDetails.addEventListener('click', function () {
+            var target = document.getElementById('gd-details-capture');
+            if (!target) return;
+            btnCopyGdDetails.disabled = true;
+            btnCopyGdDetails.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+            ensureGdHtml2Canvas()
+                .then(function () {
+                    return html2canvas(target, {
+                        backgroundColor: '#ffffff',
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        ignoreElements: function (el) { return el.id === 'btn-copy-gd-details'; }
+                    });
+                })
+                .then(function (canvas) {
+                    return new Promise(function (resolve, reject) {
+                        canvas.toBlob(function (blob) {
+                            if (blob) resolve(blob);
+                            else reject(new Error(GD_COPY_FAIL));
+                        }, 'image/png');
+                    });
+                })
+                .then(function (blob) {
+                    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+                        throw new Error(GD_COPY_FAIL);
+                    }
+                    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                })
+                .then(function () {
+                    btnCopyGdDetails.innerHTML = '<i class="fa fa-check me-1"></i>' + GD_COPIED;
+                })
+                .catch(function (err) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: GD_COPY_FAIL, text: (err && err.message) || '' });
+                    } else {
+                        alert((err && err.message) || GD_COPY_FAIL);
+                    }
+                })
+                .finally(function () {
+                    setTimeout(function () {
+                        btnCopyGdDetails.disabled = false;
+                        btnCopyGdDetails.innerHTML = gdCopyLabel;
+                    }, 1200);
+                });
         });
     }
 

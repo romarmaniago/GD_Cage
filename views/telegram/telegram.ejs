@@ -316,6 +316,59 @@
 									<div class="chat-ids-empty text-muted text-center py-3" data-user-type="EMPLOYEE" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
 								</div>
 
+								<!-- GUEST PORTAL CONTACTS SECTION (Info modal — Details) -->
+								<div class="bot-section">
+									<h4><i class="fa fa-address-book me-2"></i><%= __('telegram_api.guest_portal_contacts_title') %></h4>
+									<p class="text-muted small mb-3"><%= __('telegram_api.guest_portal_contacts_hint') %></p>
+
+									<form id="guest-portal-contacts-form">
+										<div class="row g-3">
+											<div class="col-12 col-lg-6">
+												<label class="form-label mb-1" for="gpc-channel_link"><%= __('telegram_api.gpc_channel_link') %></label>
+												<input type="text" class="form-control" id="gpc-channel_link" name="channel_link">
+											</div>
+										</div>
+
+										<hr class="my-3">
+										<h6 class="text-muted mb-2"><%= __('telegram_api.gpc_numbers') %></h6>
+										<div class="row g-3">
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-cage_number"><%= __('telegram_api.gpc_cage') %></label>
+												<input type="text" class="form-control" id="gpc-cage_number" name="cage_number">
+											</div>
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-concierge_number"><%= __('telegram_api.gpc_concierge') %></label>
+												<input type="text" class="form-control" id="gpc-concierge_number" name="concierge_number">
+											</div>
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-company_number"><%= __('telegram_api.gpc_company') %></label>
+												<input type="text" class="form-control" id="gpc-company_number" name="company_number">
+											</div>
+										</div>
+
+										<hr class="my-3">
+										<h6 class="text-muted mb-2"><%= __('telegram_api.gpc_usernames') %></h6>
+										<div class="row g-3">
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-cage_username"><%= __('telegram_api.gpc_cage') %></label>
+												<input type="text" class="form-control" id="gpc-cage_username" name="cage_username">
+											</div>
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-concierge_username"><%= __('telegram_api.gpc_concierge') %></label>
+												<input type="text" class="form-control" id="gpc-concierge_username" name="concierge_username">
+											</div>
+											<div class="col-12 col-md-4">
+												<label class="form-label mb-1" for="gpc-company_username"><%= __('telegram_api.gpc_company') %></label>
+												<input type="text" class="form-control" id="gpc-company_username" name="company_username">
+											</div>
+										</div>
+
+										<div class="mt-3">
+											<button type="submit" class="btn btn-success"><%= __('telegram_api.save') %></button>
+										</div>
+									</form>
+								</div>
+
 							</div>
 							<%- include('./telegram-message-log'); -%>
 
@@ -490,5 +543,60 @@
 				} else {
 					showTab('settings');
 				}
+			})();
+			</script>
+
+			<script>
+			// Guest Portal contacts (Info modal — Details section) load / save
+			(function () {
+				var form = document.getElementById('guest-portal-contacts-form');
+				if (!form) return;
+				var FIELDS = ['channel_link', 'cage_number', 'concierge_number', 'company_number', 'cage_username', 'concierge_username', 'company_username'];
+
+				function fill(contacts) {
+					contacts = contacts || {};
+					FIELDS.forEach(function (f) {
+						var el = document.getElementById('gpc-' + f);
+						if (el) el.value = contacts[f] != null ? contacts[f] : '';
+					});
+				}
+
+				fetch('/guest-portal-contacts')
+					.then(function (r) { return r.json(); })
+					.then(function (data) { fill(data && data.contacts); })
+					.catch(function () {});
+
+				form.addEventListener('submit', function (e) {
+					e.preventDefault();
+					var payload = {};
+					FIELDS.forEach(function (f) {
+						var el = document.getElementById('gpc-' + f);
+						payload[f] = el ? el.value.trim() : '';
+					});
+					var btn = form.querySelector('button[type="submit"]');
+					if (btn) btn.disabled = true;
+					fetch('/guest-portal-contacts', {
+						method: 'PUT',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload)
+					})
+						.then(function (r) { return r.json(); })
+						.then(function (data) {
+							if (data && data.success) {
+								fill(data.contacts);
+								if (typeof Swal !== 'undefined') {
+									Swal.fire({ icon: 'success', title: (window.telegramAPITranslations && window.telegramAPITranslations.saved) || 'Saved', timer: 1400, showConfirmButton: false });
+								}
+							} else {
+								throw new Error('save failed');
+							}
+						})
+						.catch(function () {
+							if (typeof Swal !== 'undefined') {
+								Swal.fire({ icon: 'error', title: (window.telegramAPITranslations && window.telegramAPITranslations.error_title) || 'Error' });
+							}
+						})
+						.finally(function () { if (btn) btn.disabled = false; });
+				});
 			})();
 			</script>
