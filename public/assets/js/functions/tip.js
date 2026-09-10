@@ -1396,6 +1396,11 @@ $(document).ready(function () {
 		initComplete: function () {
 			relocateTipDateFilterIntoControls();
 		},
+		drawCallback: function () {
+			if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+				window.RemarksEditor.initCellTooltips('#tip-tbl');
+			}
+		},
 		columns: [
 			{
 				data: 'PROGRAM_DATE',

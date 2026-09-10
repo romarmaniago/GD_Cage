@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=4">
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=12">
 <%- include('../partials/loader') %>
 
 
@@ -814,6 +814,9 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     padding-left: 0.35rem;
     padding-right: 0.35rem;
 }
+#expense-tbl th:last-child {
+    text-align: center;
+}
 
 
 /* Footer total row */
@@ -1038,16 +1041,16 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 flex-wrap: nowrap;
                 align-items: center;
                 justify-content: flex-start;
-                gap: 0.2rem;
+                gap: 0;
                 white-space: nowrap;
             }
             #expense-item-cat-tbl .house-expense-actions .btn i.fa,
             #expense-tbl .house-expense-actions .btn i.fa {
-                font-size: 0.85rem;
+                font-size: 1.2rem;
             }
             #expense-item-cat-tbl .house-expense-actions .btn,
             #expense-tbl .house-expense-actions .btn {
-                padding: 0.22rem 0.38rem;
+                padding: 0.15rem 0.1rem;
                 flex: 0 0 auto;
             }
 
@@ -1153,6 +1156,10 @@ body.open-pool-select-mode .house-expense-select-all-slot {
                 text-align: left !important;
                 padding-left: 0.35rem;
                 padding-right: 0.35rem;
+            }
+            #expense-item-cat-tbl th:last-child,
+            #expense-tbl th:last-child {
+                text-align: center !important;
             }
 
             /* Stat columns stretch with date column; card fills column height */

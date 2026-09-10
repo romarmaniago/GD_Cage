@@ -238,6 +238,31 @@
       return formatAmount(amount);
     }
 
+    /** Truncated remarks cell (CSS ellipsis) with a hover tooltip carrying the full text. */
+    function buildRemarksCell(remarks, type) {
+      const text = remarks == null ? '' : String(remarks);
+      if (type !== 'display') return text;
+      if (!text.trim()) return '';
+      const safe = escapeHtml(text);
+      return `<span class="additional-commission-clip-cell" data-bs-toggle="tooltip" data-bs-placement="top" title="${safe}">${safe}</span>`;
+    }
+
+    /** (Re)build Bootstrap tooltips for the truncated remarks cells after every DataTables draw. */
+    function initAdditionalCommissionRemarksTooltips() {
+      if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+      document
+        .querySelectorAll('#additional-commission-tbl tbody .additional-commission-clip-cell[data-bs-toggle="tooltip"]')
+        .forEach(function (el) {
+          const existing = bootstrap.Tooltip.getInstance(el);
+          if (existing) existing.dispose();
+          new bootstrap.Tooltip(el, {
+            container: 'body',
+            placement: 'top',
+            customClass: 'additional-commission-cell-tip'
+          });
+        });
+    }
+
     function updateAdditionalCommissionTableTotal(api) {
       const totalEl = document.getElementById('additional-commission-total-amount');
       if (!totalEl) return;
@@ -544,7 +569,7 @@
                 return escapeHtml(typeLabel);
               }
             },
-            { data: null, className: 'col-remarks', render: (data, type, row) => escapeHtml(row.REMARKS || '') },
+            { data: null, className: 'col-remarks', render: (data, type, row) => buildRemarksCell(row.REMARKS, type) },
             {
               data: null,
               className: 'text-center text-nowrap',
@@ -562,6 +587,7 @@
         });
 
         $table.on('init.dt draw.dt', layoutAdditionalCommissionControls);
+        $table.on('draw.dt', initAdditionalCommissionRemarksTooltips);
       }
 
       layoutAdditionalCommissionControls();

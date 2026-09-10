@@ -183,7 +183,7 @@
   width: 11rem;
   max-width: 11rem;
   min-width: 10rem;
-  text-align: left !important;
+  text-align: center !important;
   padding-left: 0.25rem;
   padding-right: 0.25rem;
 }
@@ -193,18 +193,18 @@
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.15rem;
+  gap: 0;
   max-width: 100%;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn {
-  padding: 0.12rem 0.28rem;
+  padding: 0.1rem 0.08rem;
   line-height: 1;
   flex: 0 0 auto;
 }
 
 #modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn i.fa {
-  font-size: 0.8rem;
+  font-size: 1.2rem;
 }
 
 @media (min-width: 992px) {
@@ -1355,16 +1355,98 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     display: flex;
     justify-content: flex-start;
     flex-wrap: nowrap;
-    gap: 0.15rem;
+    gap: 0;
 }
 #expense-item-cat-tbl .house-expense-actions .btn i.fa,
 .expense-item-tbl .house-expense-actions .btn i.fa {
-    font-size: 0.85rem;
+    font-size: 1.2rem;
 }
 #expense-item-cat-tbl .house-expense-actions .btn,
 .expense-item-tbl .house-expense-actions .btn {
-    padding: 0.22rem 0.38rem;
+    padding: 0.15rem 0.1rem;
     flex: 0 0 auto;
+}
+
+/* Action column: drop button backgrounds, colour the icons instead */
+.house-expense-actions .btn,
+.house-expense-actions .btn:hover,
+.house-expense-actions .btn:focus,
+.house-expense-actions .btn:focus-visible,
+.house-expense-actions .btn:active,
+.house-expense-actions .btn.active,
+.house-expense-actions .btn.show,
+.house-expense-actions .btn.focus,
+.house-expense-actions .btn.btn-edit-row,
+.house-expense-actions .btn.btn-alt-success,
+.house-expense-actions .btn.btn-alt-success:hover,
+.house-expense-actions .btn.btn-alt-success:focus,
+.house-expense-actions .btn.btn-alt-success:active,
+.house-expense-actions .btn:not(:disabled):not(.disabled):active,
+.house-expense-actions .btn:not(:disabled):not(.disabled).active,
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn,
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn:hover,
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn:focus,
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn:focus-visible,
+#modal-dash-house-expense .expense-item-tbl-layout .house-expense-actions .btn:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: inherit !important;
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: transparent;
+    --bs-btn-focus-shadow-rgb: transparent;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-active-border-color: transparent;
+}
+
+.house-expense-actions .btn i.fa {
+    color: #64748b;
+    transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.house-expense-actions .btn:hover i.fa {
+    transform: translateY(-1px);
+    filter: brightness(0.82);
+}
+
+.house-expense-actions .house-expense-btn-approve i.fa,
+.house-expense-actions .btn i.fa-check {
+    color: #16a34a;
+}
+
+.house-expense-actions .house-expense-btn-reject i.fa,
+.house-expense-actions .btn i.fa-times {
+    color: #dc2626;
+}
+
+.house-expense-actions .btn i.fa-receipt {
+    color: #212529;
+}
+
+.house-expense-actions .btn i.fa-eye {
+    color: #2563eb;
+}
+
+.house-expense-actions .btn i.fa-pencil-alt {
+    color: #d97706;
+}
+
+.house-expense-actions .btn i.fa-history {
+    color: #7c3aed;
+}
+
+.house-expense-actions .btn i.fa-trash-alt {
+    color: #dc2626;
+}
+
+.house-expense-actions .btn:disabled i.fa,
+.house-expense-actions .btn.disabled i.fa {
+    color: #cbd5e1 !important;
 }
 @media (min-width: 992px) {
     .expense-explorer-main-col {

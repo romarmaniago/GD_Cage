@@ -605,6 +605,7 @@ function reloadCapitalData() {
             var dataTable = $('#capital-tbl').DataTable(); // Ensure you have the DataTable reference
             dataTable.clear();
             window.__capitalEditRows = {};
+            window.__capitalReceiptRows = {};
             var total_in = 0;
             var total_out = 0;
             var displayedCount = 0;
@@ -682,30 +683,50 @@ function reloadCapitalData() {
                 const permissions = parseInt($('#user-role').data('permissions'));
                 const isSuperAdmin = permissions === 0;
                 if (isCashBalance) {
+                    const cbalProgramDate = (row.PROGRAM_DATE ? String(row.PROGRAM_DATE).slice(0, 10) : '') ||
+                        (row.ENCODED_DT ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD') : '');
+                    const cbalTypeLabel = normalizeHouseBalanceTypeLabel(typeDesc);
+                    const cbalRemarks = resolveCapitalRemarksText(row);
                     window.__capitalEditRows = window.__capitalEditRows || {};
                     window.__capitalEditRows[row.IDNo] = {
                         id: row.IDNo,
                         amount: cbal,
-                        remarks: resolveCapitalRemarksText(row),
-                        programDate: (row.PROGRAM_DATE ? String(row.PROGRAM_DATE).slice(0, 10) : '') ||
-                            (row.ENCODED_DT ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD') : ''),
-                        typeLabel: normalizeHouseBalanceTypeLabel(typeDesc),
+                        remarks: cbalRemarks,
+                        programDate: cbalProgramDate,
+                        typeLabel: cbalTypeLabel,
                         txn: row.TRANSACTION_ID,
                         accountId: row.capital_account_id || null
                     };
-                    if (isSuperAdmin) {
-                        btn =
-                            `<div class="capital-action-btns">` +
-                            `<button type="button" onclick="edit_capital(${row.IDNo})" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled"
+                    window.__capitalReceiptRows = window.__capitalReceiptRows || {};
+                    window.__capitalReceiptRows[row.IDNo] = {
+                        id: row.IDNo,
+                        amount: cbal,
+                        direction: houseBalanceDirectionFromTxn(row.TRANSACTION_ID),
+                        remarks: cbalRemarks,
+                        programDate: cbalProgramDate,
+                        typeLabel: cbalTypeLabel,
+                        encodedBy: fullName,
+                        encodedDt: row.ENCODED_DT
+                            ? moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm')
+                            : ''
+                    };
+
+                    const receiptBtn =
+                        `<button type="button" onclick="showCapitalReceipt(${row.IDNo})" class="btn btn-sm btn-alt-secondary btn-capital-receipt"
+                                    title="Receipt" aria-label="Receipt">
+                                    <i class="fa fa-receipt"></i>
+                              </button>`;
+                    const editArchiveBtns = isSuperAdmin
+                        ? `<button type="button" onclick="edit_capital(${row.IDNo})" class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled"
                                         data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
                                         <i class="fa fa-edit"></i>
                                   </button>` +
-                            `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+                          `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
                                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                                         <i class="fa fa-trash-alt"></i>
-                                  </button>` +
-                            `</div>`;
-                    }
+                                  </button>`
+                        : '';
+                    btn = `<div class="capital-action-btns">` + receiptBtn + editArchiveBtns + `</div>`;
                 }
 
                 var formattedProgramDate = '—';
@@ -886,6 +907,9 @@ $(document).ready(function () {
         "scrollX": false,
         "drawCallback": function () {
             layoutCapitalTableControls();
+            if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+                window.RemarksEditor.initCellTooltips('#capital-tbl');
+            }
         },
         "initComplete": function () {
             layoutCapitalTableControls();
@@ -2727,4 +2751,219 @@ function exportAuthorizedMasterAccount($btn) {
 }
 
 
+/* ============================================================================
+ * Authorized Master Account — printable receipt slip
+ * Built entirely from the row data already loaded in #capital-tbl (see
+ * window.__capitalReceiptRows). Mirrors the junket-loss receipt behaviour.
+ * ========================================================================== */
+
+function capitalReceiptEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function capitalReceiptHasValue(value) {
+    if (value == null) return false;
+    if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+    const s = String(value).trim();
+    return s !== '' && s !== '-' && s !== '—';
+}
+
+function capitalReceiptTextRow(label, value) {
+    if (!capitalReceiptHasValue(value)) return '';
+    return (
+        '<tr><td class="cr-label">' +
+        capitalReceiptEscape(label) +
+        '</td><td class="cr-value">' +
+        capitalReceiptEscape(String(value)) +
+        '</td></tr>'
+    );
+}
+
+function capitalReceiptAmountRow(value, direction) {
+    const num = Math.abs(Number(value) || 0);
+    const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const isOut = direction === 'out';
+    // IN: plain text; OUT: red text (accounting parentheses)
+    const display = isOut ? '(' + formatted + ')' : formatted;
+    const cls = isOut ? 'cr-amount-out' : 'cr-amount-plain';
+    return (
+        '<tr class="cr-total-row"><td class="cr-label cr-total-label">AMOUNT</td>' +
+        '<td class="cr-value ' + cls + '">' +
+        display +
+        '</td></tr>'
+    );
+}
+
+function buildCapitalReceiptHtml(row) {
+    row = row || {};
+    const rowsHtml =
+        capitalReceiptTextRow('DATE', row.programDate) +
+        capitalReceiptTextRow('TYPE', row.typeLabel) +
+        capitalReceiptAmountRow(row.amount, row.direction) +
+        capitalReceiptTextRow('REMARKS', row.remarks);
+
+    return (
+        '<div class="capital-receipt-slip">' +
+        '<div class="capital-receipt-slip-body">' +
+        '<p class="cr-brand">GOLDEN DRAGON</p>' +
+        '<p class="cr-title">* Company *</p>' +
+        '<p class="cr-datetime">' +
+        capitalReceiptEscape(row.encodedDt || '') +
+        '</p>' +
+        '<table class="cr-table"><tbody>' +
+        rowsHtml +
+        '</tbody></table>' +
+        '</div>' +
+        '<div class="capital-receipt-slip-actions">' +
+        '<button type="button" class="btn capital-receipt-copy-btn js-copy-capital-receipt-image">Copy image</button>' +
+        '<button type="button" class="btn capital-receipt-copy-btn js-copy-capital-receipt-text">Copy text</button>' +
+        '</div>' +
+        '</div>'
+    );
+}
+
+function showCapitalReceipt(id) {
+    const store = window.__capitalReceiptRows || {};
+    const row = store[id];
+    if (!row) {
+        if (typeof Swal !== 'undefined') Swal.fire('Error', 'Record not found.', 'error');
+        return;
+    }
+    const modalEl = document.getElementById('modal-capital-receipt');
+    const container = document.getElementById('capital-receipt-container');
+    if (!modalEl || !container) return;
+    container.innerHTML = buildCapitalReceiptHtml(row);
+    $(modalEl).appendTo('body');
+    if (document.getElementById('modal-new-capital')) {
+        modalEl.style.zIndex = '1065';
+    }
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    } else {
+        $(modalEl).modal('show');
+    }
+}
+window.showCapitalReceipt = showCapitalReceipt;
+
+var capitalReceiptHtml2CanvasPromise = null;
+
+function loadCapitalReceiptHtml2Canvas() {
+    if (typeof html2canvas !== 'undefined') return Promise.resolve();
+    if (capitalReceiptHtml2CanvasPromise) return capitalReceiptHtml2CanvasPromise;
+    capitalReceiptHtml2CanvasPromise = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+        script.onload = function () { resolve(); };
+        script.onerror = function () {
+            capitalReceiptHtml2CanvasPromise = null;
+            reject(new Error('Failed to load image copy library.'));
+        };
+        document.body.appendChild(script);
+    });
+    return capitalReceiptHtml2CanvasPromise;
+}
+
+function capitalReceiptCopyUi(btn) {
+    var originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    return {
+        success: function (message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'success', title: 'Copied!', text: message, timer: 1800, showConfirmButton: false });
+            }
+        },
+        error: function (message) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Copy failed', text: message });
+            }
+        },
+        restore: function () {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    };
+}
+
+function copyCapitalReceiptImage(btn) {
+    var slip = btn.closest('.capital-receipt-slip');
+    var slipBody = slip ? slip.querySelector('.capital-receipt-slip-body') : null;
+    if (!slipBody) return;
+    var ui = capitalReceiptCopyUi(btn);
+    var blobPromise = loadCapitalReceiptHtml2Canvas()
+        .then(function () {
+            return html2canvas(slipBody, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
+        })
+        .then(function (canvas) {
+            return new Promise(function (resolve, reject) {
+                canvas.toBlob(function (blob) {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Failed to create receipt image.'));
+                }, 'image/png');
+            });
+        });
+
+    if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        navigator.clipboard
+            .write([new ClipboardItem({ 'image/png': blobPromise })])
+            .then(function () { ui.success('Receipt image copied. You can paste it anywhere.'); })
+            .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+            .finally(function () { ui.restore(); });
+    } else {
+        blobPromise
+            .then(function (blob) {
+                var link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'company-receipt.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                ui.success('Receipt image downloaded.');
+            })
+            .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt image.'); })
+            .finally(function () { ui.restore(); });
+    }
+}
+
+function copyCapitalReceiptText(btn) {
+    var slip = btn.closest('.capital-receipt-slip');
+    var slipBody = slip ? slip.querySelector('.capital-receipt-slip-body') : null;
+    var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+    var ui = capitalReceiptCopyUi(btn);
+    if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        ui.error('Clipboard is not supported in this browser.');
+        ui.restore();
+        return;
+    }
+    navigator.clipboard
+        .writeText(text)
+        .then(function () { ui.success('Receipt text copied. You can paste it anywhere.'); })
+        .catch(function (err) { ui.error((err && err.message) || 'Unable to copy receipt text.'); })
+        .finally(function () { ui.restore(); });
+}
+
+$(document).ready(function () {
+    $(document).on('click', '.js-copy-capital-receipt-image', function () {
+        copyCapitalReceiptImage(this);
+    });
+    $(document).on('click', '.js-copy-capital-receipt-text', function () {
+        copyCapitalReceiptText(this);
+    });
+
+    var capitalReceiptModalEl = document.getElementById('modal-capital-receipt');
+    if (capitalReceiptModalEl) {
+        capitalReceiptModalEl.addEventListener('shown.bs.modal', function () {
+            document.body.classList.add('capital-receipt-open');
+            loadCapitalReceiptHtml2Canvas().catch(function () {});
+        });
+        capitalReceiptModalEl.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('capital-receipt-open');
+        });
+    }
+});
 

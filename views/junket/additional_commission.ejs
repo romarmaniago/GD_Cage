@@ -127,4 +127,26 @@
 .select2-results__options::-webkit-scrollbar {
 	display: none;
 }
+
+/* Standalone page only: tighten the other columns, hand the width to Remarks */
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(1),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(1) { width: 8%; }
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(2),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(2) { width: 10%; }
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(3),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(3) { width: 14%; }
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(4),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(4) { width: 9%; }
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(5),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(5) { width: 8%; }
+
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl thead th:nth-child(6),
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(6) {
+	width: auto;
+	max-width: none;
+}
+
+.additional-commission-panel-body:not(.additional-commission-modal-body) #additional-commission-tbl tbody td:nth-child(6) .additional-commission-clip-cell {
+	max-width: min(52vw, 900px);
+}
 </style>

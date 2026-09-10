@@ -321,10 +321,30 @@ background-color: var(--gd-marker-gold-hover) !important;
 #capital-tbl td:nth-child(5) {
 	width: 1%;
 	min-width: 64px;
-	max-width: 120px;
+	max-width: 240px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+#capital-tbl td:nth-child(5) .remarks-editor-cell,
+#capital-tbl td:nth-child(5) .remarks-editor-text {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Truncated-cell tooltip — a touch larger, shown above */
+.remarks-editor-tip .tooltip-inner {
+	max-width: 380px;
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	text-align: left;
+	padding: 0.4rem 0.6rem;
+	white-space: pre-wrap;
 }
 
 #capital-tbl th:nth-child(7),
@@ -341,13 +361,57 @@ background-color: var(--gd-marker-gold-hover) !important;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 4px;
+	gap: 0.3rem;
+	flex-wrap: nowrap;
 }
 
-#capital-tbl td.col-action-cell .btn {
-	padding: 0.2rem 0.35rem;
+/* Action column: drop button backgrounds, colour the icons instead */
+#capital-tbl td.col-action-cell .capital-action-btns .btn,
+#capital-tbl td.col-action-cell .capital-action-btns .btn:hover,
+#capital-tbl td.col-action-cell .capital-action-btns .btn:focus,
+#capital-tbl td.col-action-cell .capital-action-btns .btn:focus-visible,
+#capital-tbl td.col-action-cell .capital-action-btns .btn:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	background-image: none !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+	color: inherit !important;
+	margin: 0;
+	padding: 0.15rem 0.1rem;
 	line-height: 1;
 	flex: 0 0 auto;
+	--bs-btn-bg: transparent;
+	--bs-btn-hover-bg: transparent;
+	--bs-btn-active-bg: transparent;
+	--bs-btn-border-color: transparent;
+	--bs-btn-hover-border-color: transparent;
+	--bs-btn-active-border-color: transparent;
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns .btn i.fa {
+	font-size: 1.2rem;
+	color: #64748b;
+	transition: color 0.15s ease, transform 0.15s ease;
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns .btn:hover i.fa {
+	transform: translateY(-1px);
+	filter: brightness(0.82);
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns .btn i.fa-receipt {
+	color: #212529;
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns .btn i.fa-edit,
+#capital-tbl td.col-action-cell .capital-action-btns .btn i.fa-pencil-alt {
+	color: #d97706;
+}
+
+#capital-tbl td.col-action-cell .capital-action-btns .btn i.fa-trash-alt {
+	color: #dc2626;
 }
 
 #modal-new-capital .dataTables_wrapper {
@@ -631,6 +695,8 @@ border-bottom: 1px solid var(--gd-marker-gold-border);
 		</div>
 	</div>
 </div>
+
+<%- include('../../partials/capital_receipt_modal') %>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script>

@@ -812,13 +812,6 @@ function buildHouseExpenseActionButtons(row, amount) {
             (window.houseExpenseTranslations?.edit_expense || 'Edit Expense') +
             '"><i class="fa fa-pencil-alt"></i></button>' +
             historyBtnHtml +
-            '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="downloadReceipt(\'' +
-            houseExpenseJsQuote(row.photoUrl || '') +
-            '\')" ' +
-            '' +
-            ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-            (window.houseExpenseTranslations?.download_receipt || 'Download Receipt') +
-            '"><i class="fa fa-download"></i></button>' +
             '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="archive_expense(' +
             row.expense_id +
             ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
@@ -843,13 +836,6 @@ function buildHouseExpenseActionButtons(row, amount) {
         (window.houseExpenseTranslations?.edit_expense || 'Edit Expense') +
         '"><i class="fa fa-pencil-alt"></i></button>' +
         historyBtnHtml +
-        '<button type="button" class="btn btn-sm btn-secondary" onclick="downloadReceipt(\'' +
-        houseExpenseJsQuote(row.photoUrl || '') +
-        '\')" ' +
-        '' +
-        ' data-bs-toggle="tooltip" data-bs-placement="top" title="' +
-        (window.houseExpenseTranslations?.download_receipt || 'Download Receipt') +
-        '"><i class="fa fa-download"></i></button>' +
         '<button type="button" class="btn btn-sm btn-alt-secondary" disabled data-bs-toggle="tooltip" data-bs-placement="top" title="' +
         (window.houseExpenseTranslations?.archive_expense || 'Archive Expense') +
         '"><i class="fa fa-trash-alt"></i></button>' +
@@ -3065,10 +3051,17 @@ $(document).ready(function () {
             imageUrl: photoUrl,
             imageAlt: window.houseExpenseTranslations?.receipt_image || 'Receipt Image',
             showCloseButton: true,
-            showConfirmButton: false,
+            showConfirmButton: true,
+            confirmButtonText:
+                '<i class="fa fa-download"></i> ' +
+                (window.houseExpenseTranslations?.download_receipt || 'Download Receipt'),
             width: 'auto',
             padding: '1rem',
             background: '#fff'
+        }).then(function (result) {
+            if (result.isConfirmed) {
+                window.downloadReceipt(photoUrl);
+            }
         });
     };
 

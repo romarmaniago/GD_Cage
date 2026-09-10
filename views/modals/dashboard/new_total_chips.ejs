@@ -270,6 +270,77 @@
   </div>
 </div>
 
+<!-- Edit Total Chips Modal (Super Admin only) -->
+<div class="modal fade" id="modal-edit-total-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="editTotalChipsLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="editTotalChipsLabel">Edit Chips Transaction</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="edit_junket_total_chips">
+          <input type="hidden" id="editTotalChipsId" name="editTotalChipsId" />
+          <input type="hidden" id="editTotalChipsTxn" />
+
+          <!-- Type (read-only) -->
+          <div class="row mb-2">
+            <div class="col-sm-12">
+              <label class="form-label text-muted small mb-1"><%= __('dashboard_total_chips.type') %></label>
+              <div id="editTotalChipsTypeBadge" class="fw-semibold"></div>
+            </div>
+          </div>
+
+          <!-- Program Date -->
+          <div class="row mb-2">
+            <div class="col-sm-12 total-chips-program-date-wrap">
+              <label class="form-label text-muted small mb-1" for="editTotalChipsProgramDate"><%= __('dashboard_total_chips.program_date') %></label>
+              <input
+                type="text"
+                id="editTotalChipsProgramDate"
+                name="txtProgramDate"
+                class="form-control input-program-date"
+                placeholder="<%= __('dashboard_total_chips.program_date') %>"
+                autocomplete="off"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- NN Chips -->
+          <div class="row mb-2" id="editNnChipsRow">
+            <div class="col-sm-12">
+              <label class="form-label text-muted small mb-1" for="editNnChips"><%= __('dashboard_total_chips.nn_chips') %></label>
+              <input type="text" class="form-control" placeholder="<%= __('dashboard_total_chips.nn_chips') %>"
+                id="editNnChips" name="txtNNChips" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off" />
+            </div>
+          </div>
+
+          <!-- CC Chips -->
+          <div class="row mb-2" id="editCcChipsRow">
+            <div class="col-sm-12">
+              <label class="form-label text-muted small mb-1" for="editCcChips"><%= __('dashboard_total_chips.cc_chips') %></label>
+              <input type="text" class="form-control" placeholder="<%= __('dashboard_total_chips.cc_chips') %>"
+                id="editCcChips" name="txtCCChips" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i>
+              <%= __('dashboard_total_chips.save') %>
+            </button>
+            <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+              <%= __('dashboard_total_chips.close') %>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script>
   // Ensure moment available for modal (load order can vary)
@@ -461,6 +532,80 @@
 
   .total-chips-ref-balances .total-chips-ref-value--cc {
     color: #56127e;
+  }
+
+  /* Action column: drop button background, colour the icon */
+  #total-chips-history-tbl tbody td:last-child {
+    text-align: center;
+  }
+
+  #total-chips-history-tbl tbody td:last-child .btn,
+  #total-chips-history-tbl tbody td:last-child .btn:hover,
+  #total-chips-history-tbl tbody td:last-child .btn:focus,
+  #total-chips-history-tbl tbody td:last-child .btn:focus-visible,
+  #total-chips-history-tbl tbody td:last-child .btn:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: inherit !important;
+    margin: 0;
+    padding: 0.15rem 0.1rem;
+    line-height: 1;
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: transparent;
+    --bs-btn-border-color: transparent;
+  }
+
+  #total-chips-history-tbl tbody td:last-child .btn i.fa {
+    font-size: 1.2rem;
+    color: #64748b;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  #total-chips-history-tbl tbody td:last-child .btn:hover i.fa {
+    transform: translateY(-1px);
+    filter: brightness(0.82);
+  }
+
+  #total-chips-history-tbl tbody td:last-child .btn i.fa-trash-alt {
+    color: #dc2626;
+  }
+
+  #total-chips-history-tbl tbody td:last-child .btn i.fa-edit,
+  #total-chips-history-tbl tbody td:last-child .btn i.fa-pencil-alt {
+    color: #d97706;
+  }
+
+  /* Remarks: truncate long text, full text via hover tooltip */
+  #total-chips-history-tbl thead th:nth-child(5),
+  #total-chips-history-tbl tbody td:nth-child(5) {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #total-chips-history-tbl tbody td:nth-child(5) .remarks-editor-cell,
+  #total-chips-history-tbl tbody td:nth-child(5) .remarks-editor-text {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remarks-editor-tip .tooltip-inner {
+    max-width: 380px;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+    white-space: pre-wrap;
   }
 </style>
 
@@ -926,7 +1071,7 @@ $(document).ready(function() {
           remarksRaw: row.REMARKS || '',
           programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
-          action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
+          action: (typeof window.totalChipsRowActions === 'function' ? window.totalChipsRowActions(row) : ''),
           sortDate: window.formatTotalChipsProgramDate(row)
         };
       });
@@ -958,7 +1103,7 @@ $(document).ready(function() {
           remarksRaw: row.REMARKS || '',
           programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
-          action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
+          action: (typeof window.totalChipsRowActions === 'function' ? window.totalChipsRowActions(row) : ''),
           sortDate: window.formatTotalChipsProgramDate(row)
         };
       });
@@ -1029,6 +1174,9 @@ $(document).ready(function() {
         },
         drawCallback: function(settings) {
           $('[data-bs-toggle="tooltip"]').tooltip();
+          if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+            window.RemarksEditor.initCellTooltips('#total-chips-history-tbl');
+          }
         },
         footerCallback: function(row, data, start, end, display) {
           // Calculate total of all filtered data (Buy-in + Rolling)
@@ -1112,6 +1260,159 @@ $(document).ready(function() {
     } else {
       console.error('total-chips-daterange element not found');
     }
+  });
+
+  // ── Edit Total Chips ──────────────────────────────────────────────
+  // Action column for the history table: edit (Super Admin, non-settle
+  // rows) + the existing archive button that calls archive_capital().
+  window.totalChipsRowActions = function(row) {
+    const permissions = parseInt($('#user-role').data('permissions'), 10) || 0;
+    if (permissions !== 0) return '';
+    const id = row && row.IDNo;
+    if (!id) return '';
+    const isSettle = String(row.TRANSACTION_ID) === '4';
+    let html = '';
+    if (!isSettle) {
+      html += `<button type="button" onclick="openEditTotalChipsModal(${id})"
+                class="btn btn-sm btn-alt-primary js-bs-tooltip-enabled" data-bs-toggle="tooltip"
+                aria-label="Edit" data-bs-original-title="Edit"><i class="fa fa-edit"></i></button> `;
+    }
+    html += `<button type="button" onclick="archive_capital(${id})"
+              class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" data-bs-toggle="tooltip"
+              aria-label="Archive" data-bs-original-title="Archive"><i class="fa fa-trash-alt"></i></button>`;
+    return html;
+  };
+
+  function ensureEditTotalChipsProgramDatePicker(dateStr) {
+    const el = document.getElementById('editTotalChipsProgramDate');
+    if (!el) return;
+    if (typeof flatpickr === 'undefined') { el.value = dateStr || ''; return; }
+    if (el._flatpickr) el._flatpickr.destroy();
+    flatpickr(el, {
+      enableTime: false,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'M j, Y',
+      defaultDate: dateStr || new Date(),
+      allowInput: true,
+      disableMobile: true
+    });
+  }
+
+  // Type is fixed on edit — only the amount and program date can change.
+  const EDIT_TOTAL_CHIPS_TYPE = {
+    '1': '<span class="badge-cashin">Chips Buy-in</span>',
+    '2': '<span class="badge-cashout">Chips Cashout</span>',
+    '3': '<span class="badge-rolling">Chips Rolling</span>'
+  };
+
+  window.openEditTotalChipsModal = function(id) {
+    $.ajax({ url: '/junket_total_chips/' + id + '?_=' + new Date().getTime(), type: 'GET' })
+      .done(function(row) {
+        if (!row || !row.IDNo) {
+          Swal.fire({ icon: 'error', title: 'Not found', text: 'Record not found.' });
+          return;
+        }
+        const t = String(row.TRANSACTION_ID);
+        if (t === '4' || row.MONTH_SETTLE_ID || !EDIT_TOTAL_CHIPS_TYPE[t]) {
+          Swal.fire({ icon: 'warning', title: 'Cannot edit', text: 'This entry cannot be edited here.' });
+          return;
+        }
+        $('#editTotalChipsId').val(row.IDNo);
+        $('#editTotalChipsTxn').val(t);
+        $('#editTotalChipsTypeBadge').html(EDIT_TOTAL_CHIPS_TYPE[t]);
+
+        const nn = parseFloat(row.NN_CHIPS) || 0;
+        const cc = parseFloat(row.CC_CHIPS) || 0;
+        $('#editNnChips').val(nn ? nn.toLocaleString('en-US') : '').removeClass('is-invalid');
+        $('#editCcChips').val(cc ? cc.toLocaleString('en-US') : '').removeClass('is-invalid');
+
+        // Buy-in => NN only, Rolling => CC only, Cash-out => both.
+        $('#editNnChipsRow').toggleClass('d-none', !(t === '1' || t === '2'));
+        $('#editCcChipsRow').toggleClass('d-none', !(t === '2' || t === '3'));
+
+        ensureEditTotalChipsProgramDatePicker(row.PROGRAM_DATE);
+        const modalEl = document.getElementById('modal-edit-total-chips');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      })
+      .fail(function() {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Could not load the record.' });
+      });
+  };
+
+  $('#edit_junket_total_chips').on('submit', function(e) {
+    e.preventDefault();
+
+    const id = $('#editTotalChipsId').val();
+    const txn = $('#editTotalChipsTxn').val();
+    if (!id || !EDIT_TOTAL_CHIPS_TYPE[txn]) return;
+
+    const nn = txn === '3' ? 0 : (parseFloat(($('#editNnChips').val() || '').replace(/,/g, '')) || 0);
+    const cc = txn === '1' ? 0 : (parseFloat(($('#editCcChips').val() || '').replace(/,/g, '')) || 0);
+
+    if (txn === '1' && nn <= 0) {
+      Swal.fire({ icon: 'error', title: 'Chips Buy-in', text: 'Enter a valid positive NN chips amount.' });
+      return;
+    }
+    if (txn === '3' && cc <= 0) {
+      Swal.fire({ icon: 'error', title: 'Chips Rolling', text: 'Enter a valid positive CC chips amount.' });
+      return;
+    }
+    if (txn === '2' && nn <= 0 && cc <= 0) {
+      Swal.fire({ icon: 'error', title: 'Amount required', text: 'Enter NN chips and/or CC chips to cash out.' });
+      return;
+    }
+
+    const programDateEl = document.getElementById('editTotalChipsProgramDate');
+    const programDateVal = (programDateEl && programDateEl.value ? programDateEl.value : '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(programDateVal)) {
+      Swal.fire({ icon: 'warning', title: 'Program Date required', text: 'Select a valid Program Date before saving.' });
+      return;
+    }
+
+    SwalConfirm.fire({
+      title: 'Confirm edit',
+      rows: [
+        ['Program Date', programDateVal],
+        ['Type', EDIT_TOTAL_CHIPS_TYPE[txn]],
+        ['Amount', '₱ ' + (nn + cc).toLocaleString('en-US')]
+      ],
+      confirmButtonText: 'Yes, save'
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+
+      const $btn = $(this).find("button[type='submit']");
+      $btn.prop('disabled', true).html(
+        '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
+      );
+
+      $.ajax({
+        url: '/edit_junket_total_chips/' + id,
+        type: 'PUT',
+        data: {
+          txtNNChips: nn,
+          txtCCChips: cc,
+          txtProgramDate: programDateVal
+        }
+      }).done(function() {
+        const modalEl = document.getElementById('modal-edit-total-chips');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+          const inst = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+          inst.hide();
+        }
+        if (typeof window.loadTotalChipsHistory === 'function') window.loadTotalChipsHistory();
+        if (typeof window.refreshTotalChipsRefBalances === 'function') window.refreshTotalChipsRefBalances();
+        if (typeof chipsTransactionComputation === 'function') chipsTransactionComputation();
+        Swal.fire('Saved Successfully', '', 'success');
+      }).fail(function(xhr) {
+        const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not save changes.';
+        Swal.fire({ icon: 'error', title: 'Error', text: msg });
+      }).always(function() {
+        $btn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i> <%= __('dashboard_total_chips.save') %>');
+      });
+    });
   });
 });
 </script>

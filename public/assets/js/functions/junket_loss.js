@@ -542,6 +542,37 @@ function junketLossReceiptEscape(value) {
         .replace(/'/g, '&#39;');
 }
 
+/** Truncated table cell (CSS handles the ellipsis) with a hover tooltip carrying the full text. */
+function junketLossClipCell(data, type) {
+    var text = data == null ? '' : String(data);
+    if (type !== 'display') return text;
+    if (!text.trim()) return '';
+    var safe = junketLossReceiptEscape(text);
+    return (
+        '<span class="junket-loss-clip-cell" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+        safe +
+        '">' +
+        safe +
+        '</span>'
+    );
+}
+
+/** (Re)build Bootstrap tooltips for the truncated cells after every DataTables draw. */
+function initJunketLossCellTooltips() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    document
+        .querySelectorAll('#junket-loss-tbl tbody .junket-loss-clip-cell[data-bs-toggle="tooltip"]')
+        .forEach(function (el) {
+            var existing = bootstrap.Tooltip.getInstance(el);
+            if (existing) existing.dispose();
+            new bootstrap.Tooltip(el, {
+                container: 'body',
+                placement: 'top',
+                customClass: 'junket-loss-cell-tip'
+            });
+        });
+}
+
 function junketLossReceiptHasValue(value) {
     if (value == null) return false;
     if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
@@ -846,8 +877,20 @@ function ensureJunketLossTable() {
                     return paymentTypeLabel(data);
                 }
             },
-            { data: 'IN_CHARGE', defaultContent: '' },
-            { data: 'DESCRIPTION', defaultContent: '' },
+            {
+                data: 'IN_CHARGE',
+                defaultContent: '',
+                render: function (data, type) {
+                    return junketLossClipCell(data, type);
+                }
+            },
+            {
+                data: 'DESCRIPTION',
+                defaultContent: '',
+                render: function (data, type) {
+                    return junketLossClipCell(data, type);
+                }
+            },
             // Encoded By — uncomment to restore
             // { data: 'ENCODED_BY_NAME', defaultContent: '' },
             {
@@ -868,6 +911,7 @@ function ensureJunketLossTable() {
         },
         drawCallback: function () {
             applyJunketLossControlsLayout();
+            initJunketLossCellTooltips();
         }
     });
 

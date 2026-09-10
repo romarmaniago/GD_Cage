@@ -159,6 +159,11 @@ $(document).ready(function() {
 					next: translations.next || "Next"
 				},
 				emptyTable: translations.no_data_found || "No data available in table"
+			},
+			drawCallback: function () {
+				if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+					window.RemarksEditor.initCellTooltips('#fnb-hotel-table');
+				}
 			}
 		});
 

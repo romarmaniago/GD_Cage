@@ -313,12 +313,84 @@
 }
 #dash-tip-table td.tip-action-col .tip-action-btns {
 	display: inline-flex;
-	gap: 0.25rem;
+	align-items: center;
+	gap: 0.3rem;
 	justify-content: center;
+	flex-wrap: nowrap;
 }
-#dash-tip-table td.tip-action-col .btn {
-	padding: 0.2rem 0.45rem;
+
+/* Action column: drop button backgrounds, colour the icons instead */
+#dash-tip-table td.tip-action-col .tip-action-btns .btn,
+#dash-tip-table td.tip-action-col .tip-action-btns .btn:hover,
+#dash-tip-table td.tip-action-col .tip-action-btns .btn:focus,
+#dash-tip-table td.tip-action-col .tip-action-btns .btn:focus-visible,
+#dash-tip-table td.tip-action-col .tip-action-btns .btn:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	background-image: none !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	outline: none !important;
+	color: inherit !important;
+	margin: 0;
+	padding: 0.15rem 0.1rem;
 	line-height: 1;
+	--bs-btn-bg: transparent;
+	--bs-btn-hover-bg: transparent;
+	--bs-btn-active-bg: transparent;
+	--bs-btn-border-color: transparent;
+	--bs-btn-hover-border-color: transparent;
+	--bs-btn-active-border-color: transparent;
+}
+
+#dash-tip-table td.tip-action-col .tip-action-btns .btn i.fa {
+	font-size: 1.2rem;
+	color: #64748b;
+	transition: color 0.15s ease, transform 0.15s ease;
+}
+
+#dash-tip-table td.tip-action-col .tip-action-btns .btn:hover i.fa {
+	transform: translateY(-1px);
+	filter: brightness(0.82);
+}
+
+#dash-tip-table td.tip-action-col .tip-action-btns .btn i.fa-receipt {
+	color: #212529;
+}
+
+#dash-tip-table td.tip-action-col .tip-action-btns .btn i.fa-pencil-alt {
+	color: #d97706;
+}
+
+#dash-tip-table td.tip-action-col .tip-action-btns .btn i.fa-trash-alt {
+	color: #dc2626;
+}
+
+/* Remarks: truncate long text, full text via hover tooltip */
+#dash-tip-table tbody td.remarks-editor-td {
+	max-width: 220px;
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#dash-tip-table tbody td.remarks-editor-td .remarks-editor-cell,
+#dash-tip-table tbody td.remarks-editor-td .remarks-editor-text {
+	display: block;
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.remarks-editor-tip .tooltip-inner {
+	max-width: 380px;
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	text-align: left;
+	padding: 0.4rem 0.6rem;
+	white-space: pre-wrap;
 }
 
 #dash-tip-table .tip-transaction-in { color: #198754; font-weight: 600; }

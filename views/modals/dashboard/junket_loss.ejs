@@ -214,17 +214,99 @@
     text-align: center;
   }
 
-  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(9),
-  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(9) {
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(8),
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(8) {
+    max-width: 240px;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(8) .junket-loss-clip-cell {
+    display: block;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Truncated-cell tooltip — a touch larger, shown above */
+  .junket-loss-cell-tip .tooltip-inner {
+    max-width: 380px;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl thead th:nth-child(9) {
     text-align: center;
+    white-space: nowrap;
+  }
+
+  #modal-dash-junket-loss #junket-loss-tbl tbody td:nth-child(9) {
+    text-align: left;
     white-space: nowrap;
   }
 
   #modal-dash-junket-loss .junket-loss-action-btns {
     display: inline-flex;
-    gap: 4px;
-    justify-content: center;
+    gap: 0.3rem;
+    justify-content: flex-start;
+    align-items: center;
     flex-wrap: nowrap;
+  }
+
+  /* Action icons: no button background, coloured glyphs only */
+  #modal-dash-junket-loss .junket-loss-action-btns .btn,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:hover,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:focus,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:focus-visible,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:active,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn.active {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: inherit !important;
+    padding: 0.15rem 0.1rem;
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: transparent;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-active-border-color: transparent;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn i.fa {
+    font-size: 1.2rem;
+    color: #64748b;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:hover i.fa {
+    transform: translateY(-1px);
+    filter: brightness(0.82);
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn i.fa-receipt {
+    color: #212529;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn i.fa-eye {
+    color: #2563eb;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn i.fa-pencil-alt {
+    color: #d97706;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn i.fa-trash-alt {
+    color: #dc2626;
+  }
+
+  #modal-dash-junket-loss .junket-loss-action-btns .btn:disabled i.fa,
+  #modal-dash-junket-loss .junket-loss-action-btns .btn.disabled i.fa {
+    color: #cbd5e1 !important;
   }
 
   #modal-dash-junket-loss #junket-loss-tbl tfoot th {

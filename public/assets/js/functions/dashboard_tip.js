@@ -220,6 +220,9 @@ $(document).ready(function () {
 			order: [[0, 'desc'], [1, 'desc']],
 			drawCallback: function () {
 				layoutDashTipControls();
+				if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+					window.RemarksEditor.initCellTooltips('#dash-tip-table');
+				}
 			},
 			initComplete: function () {
 				layoutDashTipControls();
@@ -262,6 +265,7 @@ $(document).ready(function () {
 				},
 				{
 					data: 'REMARKS',
+					className: 'remarks-editor-td',
 					defaultContent: '—',
 					render: function (data, type, row) {
 						if (type === 'sort' || type === 'filter') {

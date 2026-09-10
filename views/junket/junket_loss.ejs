@@ -232,17 +232,111 @@
     background: transparent;
   }
 
-  #junket-loss-tbl thead th:nth-child(9),
-  #junket-loss-tbl tbody td:nth-child(9) {
+  #junket-loss-tbl thead th:nth-child(7),
+  #junket-loss-tbl tbody td:nth-child(7) {
+    max-width: 150px;
+  }
+
+  #junket-loss-tbl thead th:nth-child(8),
+  #junket-loss-tbl tbody td:nth-child(8) {
+    max-width: 260px;
+  }
+
+  #junket-loss-tbl tbody td:nth-child(7) .junket-loss-clip-cell {
+    max-width: 150px;
+  }
+
+  #junket-loss-tbl tbody td:nth-child(8) .junket-loss-clip-cell {
+    max-width: 260px;
+  }
+
+  #junket-loss-tbl tbody .junket-loss-clip-cell {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Truncated-cell tooltip — a touch larger, shown above */
+  .junket-loss-cell-tip .tooltip-inner {
+    max-width: 380px;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    text-align: left;
+    padding: 0.4rem 0.6rem;
+  }
+
+  #junket-loss-tbl thead th:nth-child(9) {
     text-align: center;
+    white-space: nowrap;
+  }
+
+  #junket-loss-tbl tbody td:nth-child(9) {
+    text-align: left;
     white-space: nowrap;
   }
 
   .junket-loss-action-btns {
     display: inline-flex;
-    gap: 4px;
-    justify-content: center;
+    gap: 0.3rem;
+    justify-content: flex-start;
+    align-items: center;
     flex-wrap: nowrap;
+  }
+
+  /* Action icons: no button background, coloured glyphs only */
+  .junket-loss-action-btns .btn,
+  .junket-loss-action-btns .btn:hover,
+  .junket-loss-action-btns .btn:focus,
+  .junket-loss-action-btns .btn:focus-visible,
+  .junket-loss-action-btns .btn:active,
+  .junket-loss-action-btns .btn.active {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: inherit !important;
+    padding: 0.15rem 0.1rem;
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: transparent;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-active-border-color: transparent;
+  }
+
+  .junket-loss-action-btns .btn i.fa {
+    font-size: 1.2rem;
+    color: #64748b;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .junket-loss-action-btns .btn:hover i.fa {
+    transform: translateY(-1px);
+    filter: brightness(0.82);
+  }
+
+  .junket-loss-action-btns .btn i.fa-receipt {
+    color: #212529;
+  }
+
+  .junket-loss-action-btns .btn i.fa-eye {
+    color: #2563eb;
+  }
+
+  .junket-loss-action-btns .btn i.fa-pencil-alt {
+    color: #d97706;
+  }
+
+  .junket-loss-action-btns .btn i.fa-trash-alt {
+    color: #dc2626;
+  }
+
+  .junket-loss-action-btns .btn:disabled i.fa,
+  .junket-loss-action-btns .btn.disabled i.fa {
+    color: #cbd5e1 !important;
   }
 
   #junket-loss-tbl tbody tr {

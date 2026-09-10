@@ -147,6 +147,11 @@ $(document).ready(function () {
 					next: t.next || 'Next'
 				},
 				emptyTable: t.no_data_available || 'No data available in table'
+			},
+			drawCallback: function () {
+				if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
+					window.RemarksEditor.initCellTooltips('#dash-fnb-table');
+				}
 			}
 		});
 

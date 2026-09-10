@@ -235,12 +235,47 @@
 		openRemarksFromTrigger($(this));
 	});
 
+	/**
+	 * (Re)build hover tooltips carrying the full remarks text for truncated remarks cells
+	 * inside `rootSelector`. Safe to call after every DataTables redraw. Requires Bootstrap 5.
+	 */
+	function initCellTooltips(rootSelector) {
+		if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+		var root = typeof rootSelector === 'string'
+			? document.querySelector(rootSelector)
+			: (rootSelector || document);
+		if (!root) return;
+		// Drop any tooltip popups left over from the previous draw.
+		document.querySelectorAll('body > .tooltip.remarks-editor-tip').forEach(function (el) {
+			el.parentNode.removeChild(el);
+		});
+		root.querySelectorAll('.remarks-editor-cell').forEach(function (cell) {
+			var full = '';
+			try {
+				full = decodeURIComponent(String(cell.getAttribute('data-remarks') || ''));
+			} catch (err) {
+				full = '';
+			}
+			full = full.trim();
+			var existing = bootstrap.Tooltip.getInstance(cell);
+			if (existing) existing.dispose();
+			if (!full || full === '-' || full === '—') return;
+			new bootstrap.Tooltip(cell, {
+				title: full,
+				container: 'body',
+				placement: 'top',
+				customClass: 'remarks-editor-tip'
+			});
+		});
+	}
+
 	window.RemarksEditor = {
 		canEdit: canEdit,
 		escapeHtml: escapeHtml,
 		renderCell: renderCell,
 		patchRemarks: patchRemarks,
 		openEditor: openEditor,
-		showSuccessToast: showSuccessToast
+		showSuccessToast: showSuccessToast,
+		initCellTooltips: initCellTooltips
 	};
 })(window);

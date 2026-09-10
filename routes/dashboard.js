@@ -2769,6 +2769,140 @@ router.post('/add_junket_total_chips', async (req, res) => {
 	}
 });
 
+// GET A SINGLE JUNKET TOTAL CHIPS ROW (for the edit modal)
+router.get('/junket_total_chips/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!Number.isFinite(id) || id <= 0) {
+			return res.status(400).json({ error: 'Invalid id.' });
+		}
+		const [rows] = await pool.execute(
+			`SELECT IDNo, TRANSACTION_ID, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, MONTH_SETTLE_ID,
+			        DATE_FORMAT(COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)), '%Y-%m-%d') AS PROGRAM_DATE
+			 FROM junket_total_chips
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!rows.length) {
+			return res.status(404).json({ error: 'Record not found.' });
+		}
+		res.json(rows[0]);
+	} catch (err) {
+		console.error('Error fetching junket total chips row', err);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
+// EDIT JUNKET TOTAL CHIPS (Super Admin only)
+router.put('/edit_junket_total_chips/:id', checkSession, requireSuperAdmin, async (req, res) => {
+	let connection;
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (!Number.isFinite(id) || id <= 0) {
+			return res.status(400).json({ success: false, error: 'Invalid id.' });
+		}
+
+		const { txtNNChips, txtCCChips, txtProgramDate } = req.body;
+
+		const programDate = parseJunketCapitalProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).json({ success: false, error: 'Select a valid Program Date before saving.' });
+		}
+
+		const nnChipsStr = String(txtNNChips ?? '').replace(/,/g, '');
+		const ccChipsStr = String(txtCCChips ?? '').replace(/,/g, '');
+		const nnChipsIn = isNaN(parseFloat(nnChipsStr)) ? 0 : parseFloat(nnChipsStr);
+		const ccChipsIn = isNaN(parseFloat(ccChipsStr)) ? 0 : parseFloat(ccChipsStr);
+
+		if (!Number.isFinite(nnChipsIn) || !Number.isFinite(ccChipsIn) || nnChipsIn < 0 || ccChipsIn < 0) {
+			return res.status(400).json({ success: false, error: 'Chips amounts must be valid non-negative numbers.' });
+		}
+
+		const date_now = new Date();
+		const userId = req.session.user_id;
+
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const [existingRows] = await connection.execute(
+			`SELECT IDNo, TRANSACTION_ID, MONTH_SETTLE_ID
+			 FROM junket_total_chips
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!existingRows.length) {
+			await connection.rollback();
+			return res.status(404).json({ success: false, error: 'Record not found.' });
+		}
+		const existing = existingRows[0];
+		const txn = parseInt(existing.TRANSACTION_ID, 10);
+		if (![1, 2, 3].includes(txn) || existing.MONTH_SETTLE_ID) {
+			await connection.rollback();
+			return res.status(400).json({ success: false, error: 'This entry cannot be edited here.' });
+		}
+
+		// Type stays fixed — only the amount and program date change.
+		// Buy-in => NN only, Rolling => CC only, Cash-out => NN and/or CC.
+		const nnChips = txn === 3 ? 0 : nnChipsIn;
+		const ccChips = txn === 1 ? 0 : ccChipsIn;
+
+		if (txn === 1 && nnChips <= 0) {
+			await connection.rollback();
+			return res.status(400).json({ success: false, error: 'Enter a valid positive NN amount for buy-in.' });
+		}
+		if (txn === 3 && ccChips <= 0) {
+			await connection.rollback();
+			return res.status(400).json({ success: false, error: 'Enter a valid positive CC amount for rolling.' });
+		}
+		if (txn === 2 && nnChips <= 0 && ccChips <= 0) {
+			await connection.rollback();
+			return res.status(400).json({ success: false, error: 'Enter at least one chips amount for cash-out.' });
+		}
+
+		const totalChips = nnChips + ccChips;
+
+		await connection.execute(
+			`UPDATE junket_total_chips
+			 SET NN_CHIPS = ?, CC_CHIPS = ?, TOTAL_CHIPS = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ? AND ACTIVE = 1`,
+			[nnChips, ccChips, totalChips, programDate, userId, date_now, id]
+		);
+
+		// Keep the linked cash_transaction amount in sync: archive the active
+		// row for this record, then re-create it (buy-in / cash-out only).
+		await connection.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+			[userId, date_now, id]
+		);
+
+		const cashConfig = {
+			1: { category: 'Chips Buy-in', type: 2 },
+			2: { category: 'Chips Cash-out to Casino', type: 1 }
+		}[txn];
+
+		if (cashConfig) {
+			await connection.execute(
+				`INSERT INTO cash_transaction (TRANSACTION_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				[id, totalChips.toString(), cashConfig.category, cashConfig.type, null, userId, date_now]
+			);
+		}
+
+		await connection.commit();
+		res.json({ success: true });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		console.error('Error editing junket total chips', err);
+		res.status(500).json({ success: false, error: 'Error editing junket total chips' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
 
 
 // END JUNKET TOTAL CHIPS
