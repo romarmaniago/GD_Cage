@@ -75,6 +75,13 @@
 </div>
 
 <style>
+  /* Opened on top of an already-open dashboard list modal (F&B/Hotel/Incidental/etc.) —
+     without this it ties with that modal's default z-index and, being earlier in the
+     DOM, ends up rendered behind it instead of on top. */
+  body.modal-open #modal-services-new-record.show {
+    z-index: 1065;
+  }
+
   /* Keep modal-lg size even when dashboard pages override .modal-lg globally */
   #modal-services-new-record .modal-dialog.modal-lg {
     max-width: 800px !important;
