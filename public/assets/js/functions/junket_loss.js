@@ -1166,6 +1166,52 @@ $(document).ready(function () {
         printJunketLoss();
     });
 
+    $('#btn-junket-loss-settle').on('click', function (e) {
+        e.preventDefault();
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $.get('/junket-monthly-settlement/check', { category: 'loss' })
+            .done(function (check) {
+                if (!check || !check.canSettle) {
+                    Swal.fire('Cannot Settle', (check && check.message) || 'This period cannot be settled yet.', 'info');
+                    return;
+                }
+                $.get('/junket-monthly-settlement/preview', { category: 'loss' })
+                    .done(function (preview) {
+                        var amount = Number(preview && preview.amount) || 0;
+                        SwalConfirm.fire({
+                            title: 'Settle ' + check.periodLabel + '?',
+                            html: 'Loss Amount to settle: <strong>' + amount.toLocaleString('en-US') + '</strong>',
+                            confirmButtonText: 'Settle',
+                            cancelButtonText: 'Cancel'
+                        }).then(function (result) {
+                            if (!result.isConfirmed) return;
+                            $.ajax({
+                                url: '/junket-monthly-settlement/settle',
+                                method: 'POST',
+                                contentType: 'application/json',
+                                data: JSON.stringify({ categories: ['loss'] })
+                            }).done(function () {
+                                Swal.fire('Settled', check.periodLabel + ' has been settled.', 'success');
+                                fetchJunketLossData();
+                                refreshDashboardJunketLossTotal();
+                            }).fail(function (xhr) {
+                                Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to settle.', 'error');
+                            });
+                        });
+                    })
+                    .fail(function () {
+                        Swal.fire('Error', 'Failed to load settlement preview.', 'error');
+                    });
+            })
+            .fail(function () {
+                Swal.fire('Error', 'Failed to check settle status.', 'error');
+            })
+            .always(function () {
+                $btn.prop('disabled', false);
+            });
+    });
+
     $(document).on('click', '#btn-add-junket-loss', function () {
         openJunketLossModal(null);
     });

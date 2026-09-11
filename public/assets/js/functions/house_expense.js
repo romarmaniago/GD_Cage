@@ -1910,10 +1910,12 @@ function updateDashboardExpensesTotal(amount) {
     var html = !v
         ? '0'
         : '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
-    ['dash-expenses-total', 'dash-expenses-total-anticipated'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.innerHTML = html;
-    });
+    // "dash-expenses-total" (no "-anticipated" suffix) is the Main panel's
+    // outstanding/unsettled-aware figure (Junket Monthly Settlement-aware,
+    // server-rendered) — it must NOT be overwritten with this page's own
+    // period-filtered footer total. Only "-anticipated" mirrors this filter.
+    var anticipatedEl = document.getElementById('dash-expenses-total-anticipated');
+    if (anticipatedEl) anticipatedEl.innerHTML = html;
     if (typeof window.dashboardPeriodReload === 'function' && document.getElementById('dash-anticipated-panel')) {
         window.dashboardPeriodReload();
     }
@@ -2831,6 +2833,51 @@ $(document).ready(function () {
     $('#btn-house-expense-print').on('click', function (e) {
         e.preventDefault();
         printHouseExpenseTable();
+    });
+
+    $('#btn-house-expense-settle').on('click', function (e) {
+        e.preventDefault();
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $.get('/junket-monthly-settlement/check', { category: 'expense' })
+            .done(function (check) {
+                if (!check || !check.canSettle) {
+                    Swal.fire('Cannot Settle', (check && check.message) || 'This period cannot be settled yet.', 'info');
+                    return;
+                }
+                $.get('/junket-monthly-settlement/preview', { category: 'expense' })
+                    .done(function (preview) {
+                        var amount = Number(preview && preview.amount) || 0;
+                        SwalConfirm.fire({
+                            title: 'Settle ' + check.periodLabel + '?',
+                            html: 'Expense (net of Return Money) to settle: <strong>' + amount.toLocaleString('en-US') + '</strong>',
+                            confirmButtonText: 'Settle',
+                            cancelButtonText: 'Cancel'
+                        }).then(function (result) {
+                            if (!result.isConfirmed) return;
+                            $.ajax({
+                                url: '/junket-monthly-settlement/settle',
+                                method: 'POST',
+                                contentType: 'application/json',
+                                data: JSON.stringify({ categories: ['expense'] })
+                            }).done(function () {
+                                Swal.fire('Settled', check.periodLabel + ' has been settled.', 'success');
+                                if (typeof window.reloadData === 'function') window.reloadData();
+                            }).fail(function (xhr) {
+                                Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to settle.', 'error');
+                            });
+                        });
+                    })
+                    .fail(function () {
+                        Swal.fire('Error', 'Failed to load settlement preview.', 'error');
+                    });
+            })
+            .fail(function () {
+                Swal.fire('Error', 'Failed to check settle status.', 'error');
+            })
+            .always(function () {
+                $btn.prop('disabled', false);
+            });
     });
 
     $('#btn-house-expense-export').on('click', function () {

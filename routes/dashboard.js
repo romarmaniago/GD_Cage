@@ -68,25 +68,25 @@ async function loadDashboardServiceExpenseData() {
 	const [junketDepositRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+		WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [junketCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
+		WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [guestDepositRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+		WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [guestCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
+		WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 		GROUP BY SERVICE_TYPE
 	`);
 	const categories = await fetchActiveServiceCategories(pool);
@@ -334,6 +334,10 @@ ON
 	let sqlJunketExpense = sqlJunketExpenseTotal();
 	let sqlJunketReturnMoney = sqlJunketReturnMoneyTotal();
 	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL';
+	// Same as sqlJunketLoss but excludes rows settled via Junket Monthly Settlement —
+	// used only for the Loss Amount liability display, never for cash-flow totals
+	// (a settled loss was still real cash paid out, so cashOutTotal keeps using sqlJunketLoss unfiltered).
+	let sqlJunketLossReset = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL AND MONTHLY_SETTLE_ID IS NULL';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
 
@@ -729,6 +733,7 @@ let sqlServiceSettle = `
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
 		const [JunketReturnMoneyResult] = await pool.execute(sqlJunketReturnMoney);
 		const [JunketLossResult] = await pool.execute(sqlJunketLoss);
+		const [JunketLossResetResult] = await pool.execute(sqlJunketLossReset);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
@@ -996,7 +1001,7 @@ let sqlServiceSettle = `
 			const [additionalRows] = await pool.execute(
 				`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 				 FROM additional_commission
-				 WHERE ACTIVE = 1`
+				 WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL`
 			);
 			totalAdditionalCommission = Math.round(Number(additionalRows[0]?.total || 0));
 		} catch (err) {
@@ -1083,6 +1088,7 @@ let sqlServiceSettle = `
 			sqlJunketExpense: JunketExpenseResult,
 			sqlJunketReturnMoney: JunketReturnMoneyResult,
 			sqlJunketLoss: JunketLossResult,
+			sqlJunketLossReset: JunketLossResetResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
 			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
 			sqlJunketExpenseReset: ResetExpenseResult,

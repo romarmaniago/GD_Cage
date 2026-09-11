@@ -66,6 +66,26 @@ function getMonthEndCutoffRange(refDate) {
 	};
 }
 
+/**
+ * Next month-end cutoff window to settle, given the last settled PERIOD_END
+ * (YYYY-MM-DD) or null/undefined if nothing has been settled yet.
+ * - No history: returns the window containing today (the cycle currently in
+ *   progress) — there is no earlier backlog to catch up on for a category
+ *   that has never been settled, so this is also what a "preview" of an
+ *   in-progress cycle resolves against; the caller still gates the actual
+ *   settle action separately on whether that window has ended.
+ * - With history: returns the window right after the last one (day after
+ *   PERIOD_END fed back into getMonthEndCutoffRange, same rollover logic).
+ */
+function getNextSettlementWindow(lastPeriodEndYmd) {
+	if (!lastPeriodEndYmd) {
+		return getMonthEndCutoffRange();
+	}
+	const dayAfterLastEnd = new Date(`${String(lastPeriodEndYmd).slice(0, 10)}T00:00:00`);
+	dayAfterLastEnd.setDate(dayAfterLastEnd.getDate() + 1);
+	return getMonthEndCutoffRange(dayAfterLastEnd);
+}
+
 function parseDisplayDate(value) {
 	const s = String(value || '').trim();
 	if (!s) return '';
@@ -121,6 +141,7 @@ module.exports = {
 	MONTH_ABBR,
 	RANGE_DISPLAY_FORMAT: 'M j, Y',
 	getMonthEndCutoffRange,
+	getNextSettlementWindow,
 	expandApiEndDateToMonthEnd,
 	toApiDate,
 	formatDisplayDate,

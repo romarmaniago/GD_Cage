@@ -144,7 +144,7 @@ const additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0)
 const expenseReset =
    (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0) -
    (+sqlJunketReturnMoneyReset[0].RESET_RETURN_MONEY || 0);
-const junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
+const junketLossAmount = (+sqlJunketLossReset[0].JUNKET_LOSS || 0);
 const junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
 const tipSettlementAmount = (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
 const tipRollerGross = (+sqlRollerTipGross[0].ROLLER_TIP_GROSS || 0);

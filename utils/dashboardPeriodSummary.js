@@ -285,19 +285,19 @@ async function computeCommissionSettlementAllTime(pool) {
 async function loadServiceExpenseDataAllTime(pool) {
 	const [junketDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
 	);
 	const [junketCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
 	);
 	const [guestDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
 	);
 	const [guestCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND MONTHLY_SETTLE_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
 	);
 	const categories = await fetchActiveServiceCategories(pool);
 	return buildDashboardServiceExpensePayload(
@@ -335,10 +335,10 @@ async function computeMainPanelSumTotal(pool) {
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2`),
 		computeCreditGrandTotal(pool),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_return_money WHERE ACTIVE=1 AND RESET=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND GAME_ID IS NULL`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND MONTHLY_SETTLE_ID IS NULL AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_return_money WHERE ACTIVE=1 AND RESET=1 AND MONTHLY_SETTLE_ID IS NULL`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND GAME_ID IS NULL AND MONTHLY_SETTLE_ID IS NULL`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1 AND MONTHLY_SETTLE_ID IS NULL`),
 		computeCommissionSettlementAllTime(pool),
 		loadServiceExpenseDataAllTime(pool),
 		computeTipBalanceForPeriod(pool),
@@ -410,6 +410,18 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 		guestCashRows || [],
 		guestDepositRows || []
 	);
+}
+
+/**
+ * One service category's junket-out amount for a period (F&B/Hotel/Incidental),
+ * built on the same loadServiceExpenseDataForPeriod() used by the period summary,
+ * so the Monthly Settlement preview always matches what the dashboard shows.
+ */
+async function computeServiceCategoryAmountForPeriod(pool, dateFrom, dateTo, categoryKey) {
+	const payload = await loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo);
+	const categories = Array.isArray(payload && payload.categories) ? payload.categories : [];
+	const match = categories.find((cat) => cat && cat.key === categoryKey);
+	return Math.round(Number(match && match.junketOut) || 0);
 }
 
 async function computeNnChipsForPeriod(pool, dateFrom, dateTo) {
@@ -824,5 +836,9 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 module.exports = {
 	resolvePeriodDates,
 	computeDashboardPeriodSummary,
-	computeMainPanelSumTotal
+	computeMainPanelSumTotal,
+	computeExpenseForPeriod,
+	computeJunketLossForPeriod,
+	computeAdditionalCommissionForPeriod,
+	computeServiceCategoryAmountForPeriod
 };

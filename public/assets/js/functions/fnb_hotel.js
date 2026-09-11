@@ -493,6 +493,86 @@ $(document).ready(function() {
 		printFnbHotelTable();
 	});
 
+	$('#btn-fnb-hotel-settle').on('click', function (e) {
+		e.preventDefault();
+		const $btn = $(this);
+		const categories = ['fnb', 'hotel', 'incidental'];
+		const labels = { fnb: 'F & B', hotel: 'Hotel', incidental: 'Incidental' };
+
+		function notify(icon, title, text) {
+			if (window.Swal) {
+				Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: '#0d6efd' });
+			} else {
+				alert(text || title);
+			}
+		}
+
+		$btn.prop('disabled', true);
+		Promise.all(categories.map(function (category) {
+			return fetch('/junket-monthly-settlement/check?category=' + category, { credentials: 'same-origin' })
+				.then(function (res) { return res.json(); })
+				.then(function (data) { return { category: category, data: data }; });
+		}))
+			.then(function (checks) {
+				const blocked = checks.find(function (c) { return !c.data || !c.data.canSettle; });
+				if (blocked) {
+					throw new Error((blocked.data && blocked.data.message) || ('Cannot settle ' + labels[blocked.category] + ' yet.'));
+				}
+				return Promise.all(categories.map(function (category) {
+					return fetch('/junket-monthly-settlement/preview?category=' + category, { credentials: 'same-origin' })
+						.then(function (res) { return res.json(); })
+						.then(function (data) { return { category: category, data: data }; });
+				})).then(function (previews) { return { checks: checks, previews: previews }; });
+			})
+			.then(function (result) {
+				const periodLabel = result.checks[0].data.periodLabel;
+				const lines = result.previews.map(function (p) {
+					const amount = Number(p.data && p.data.amount) || 0;
+					return labels[p.category] + ': <strong>' + amount.toLocaleString('en-US') + '</strong>';
+				}).join('<br>');
+
+				if (!window.Swal) {
+					if (!confirm('Settle ' + periodLabel + '?\n' + lines.replace(/<br>/g, '\n').replace(/<[^>]+>/g, ''))) return;
+					return doSettle();
+				}
+				return window.SwalConfirm.fire({
+					title: 'Settle ' + periodLabel + '?',
+					html: lines,
+					confirmButtonText: 'Settle',
+					cancelButtonText: 'Cancel'
+				}).then(function (r) {
+					if (r.isConfirmed) return doSettle();
+				});
+
+				function doSettle() {
+					return fetch('/junket-monthly-settlement/settle', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						credentials: 'same-origin',
+						body: JSON.stringify({ categories: categories })
+					})
+						.then(function (res) {
+							if (!res.ok) {
+								return res.json().catch(function () { return {}; }).then(function (j) {
+									throw new Error((j && j.message) || 'Failed to settle.');
+								});
+							}
+							return res.json();
+						})
+						.then(function () {
+							notify('success', 'Settled', periodLabel + ' has been settled.');
+							reloadData();
+						});
+				}
+			})
+			.catch(function (err) {
+				notify('info', 'Cannot Settle', err.message || 'Unable to settle this period.');
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
+	});
+
 	function getFnbHotelDateInput() {
 		return document.getElementById('fnb-hotel-daterange');
 	}

@@ -1911,13 +1911,17 @@
     setHtmlById('dash-wl-settlement', formatDashAmtHtml(wlSettlement));
     setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa, true));
     setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
-    setHtmlById('dash-expenses-total', formatDashAmtHtml(expense, true));
+    // NOTE: the "Main" panel's Expenses/Loss Amount/Commission/Additional cells
+    // (dash-expenses-total, dash-junket-loss-total, dash-commission-settlement-total,
+    // dash-additional-commission-total — no "-anticipated" suffix) are deliberately
+    // NOT updated here. They represent the current outstanding/unsettled liability
+    // (Junket Monthly Settlement-aware, server-rendered on page load) and must stay
+    // independent of whatever reporting period is selected here — same principle as
+    // the Cage Balance card below. Only the period-scoped "-anticipated" (Anticipated
+    // Profit / Company) cells reflect the selected date range.
     setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expense, true));
-    setHtmlById('dash-junket-loss-total', formatDashAmtHtml(junketLoss, true));
     setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(junketLoss, true));
-    setHtmlById('dash-commission-settlement-total', formatDashAmtHtml(commission, true));
     setHtmlById('dash-commission-settlement-anticipated', formatDashAmtHtml(commission, true));
-    setHtmlById('dash-additional-commission-total', formatDashAmtHtml(additional, true));
     setHtmlById('dash-additional-commission-anticipated', formatDashAmtHtml(additional, true));
     setHtmlById('dash-company-expense-total', formatDashAmtHtml(companyExpenseTotal, true));
     setHtmlById('dash-grand-total', formatDashAmtHtml(grandTotal));
@@ -1937,8 +1941,10 @@
     // recomputeActualRolling(), which reads rolling_auto from lastGridPayload and the
     // live NN/RC balances from applyHouseBalances() — see below.
 
-    // Main + Anticipated Add Charge: period signed balances
-    renderPeriodServiceCategoryRows('dash-service-category-rows-main', categories, false);
+    // Anticipated (Company) Add Charge only: period signed balances for the
+    // selected date range. The Main panel's Add Charge rows
+    // (dash-service-category-rows-main) stay outstanding/unsettled-aware and
+    // server-rendered on page load — same reasoning as above.
     renderPeriodServiceCategoryRows('dash-service-category-rows-anticipated', categories, false);
 
     const periodLabel = document.getElementById('dash-period-label');

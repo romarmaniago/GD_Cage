@@ -150,13 +150,14 @@
     }
 
     function updateDashboardAdditionalCommissionTotal(total) {
-      const mainTotalEl = document.getElementById('dash-additional-commission-total');
+      // "dash-additional-commission-total" (no "-anticipated" suffix) is the Main
+      // panel's outstanding/unsettled-aware figure (Junket Monthly Settlement-aware,
+      // server-rendered) — must NOT be overwritten with this page's own period total.
       const anticipatedEl = document.getElementById('dash-additional-commission-anticipated');
       const anticipatedPanel = document.getElementById('dash-anticipated-panel');
       const companyExpenseEl = document.querySelector('#dash-anticipated-panel .dash-kv.is-total .dash-kv-value');
       const grandTotalEl = document.getElementById('dash-grand-total');
 
-      if (mainTotalEl) mainTotalEl.innerHTML = formatDashboardNegHtml(total);
       if (anticipatedEl) anticipatedEl.innerHTML = formatDashboardNegHtml(total);
 
       if (!anticipatedPanel) return;
@@ -1154,9 +1155,82 @@
     });
   }
 
+  function initAdditionalCommissionSettle() {
+    const settleButton = document.getElementById('btn-additional-commission-settle');
+    if (!settleButton) return;
+
+    function notify(icon, title, text) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire(title, text, icon);
+      } else {
+        window.alert(text || title);
+      }
+    }
+
+    settleButton.addEventListener('click', function (e) {
+      e.preventDefault();
+      settleButton.disabled = true;
+
+      fetch('/junket-monthly-settlement/check?category=additional_commission')
+        .then((res) => res.json())
+        .then((check) => {
+          if (!check || !check.canSettle) {
+            notify('info', 'Cannot Settle', (check && check.message) || 'This period cannot be settled yet.');
+            return;
+          }
+          return fetch('/junket-monthly-settlement/preview?category=additional_commission')
+            .then((res) => res.json())
+            .then((preview) => {
+              const amount = Number(preview && preview.amount) || 0;
+              const settle = () =>
+                fetch('/junket-monthly-settlement/settle', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ categories: ['additional_commission'] })
+                })
+                  .then((res) => {
+                    if (!res.ok) {
+                      return res.json().catch(() => ({})).then((j) => {
+                        throw new Error((j && j.message) || 'Failed to settle.');
+                      });
+                    }
+                    return res.json();
+                  })
+                  .then(() => {
+                    notify('success', 'Settled', check.periodLabel + ' has been settled.');
+                    if (typeof window.loadAdditionalCommissionData === 'function') {
+                      window.loadAdditionalCommissionData();
+                    }
+                  })
+                  .catch((err) => notify('error', 'Error', err.message || 'Failed to settle.'));
+
+              if (window.SwalConfirm) {
+                return window.SwalConfirm.fire({
+                  title: 'Settle ' + check.periodLabel + '?',
+                  html: 'Additional Commission to settle: <strong>' + amount.toLocaleString('en-US') + '</strong>',
+                  confirmButtonText: 'Settle',
+                  cancelButtonText: 'Cancel'
+                }).then((result) => {
+                  if (result.isConfirmed) return settle();
+                });
+              }
+              if (window.confirm('Settle ' + check.periodLabel + ' for ' + amount.toLocaleString('en-US') + '?')) {
+                return settle();
+              }
+            });
+        })
+        .catch(() => notify('error', 'Error', 'Failed to check settle status.'))
+        .finally(() => {
+          settleButton.disabled = false;
+        });
+    });
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAdditionalCommission);
+    document.addEventListener('DOMContentLoaded', initAdditionalCommissionSettle);
   } else {
     initAdditionalCommission();
+    initAdditionalCommissionSettle();
   }
 })();
