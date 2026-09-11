@@ -666,10 +666,9 @@ async function insertCutoffBuyinLeg(db, {
 }
 
 /**
- * CUT OFF: end parent game, cashout remaining on parent (thousands continue;
- * sub-thousand Remaining CC → Deposit to account; Remaining CC thousands →
- * rolling on previous game), last rolling on parent, create continuation game
- * with thousands buy-in + roller chips.
+ * CUT OFF: end parent game, cashout remaining chips on parent (full amount
+ * carries over as-is, not counted toward parent's rolling), last rolling on
+ * parent, create continuation game with remaining-chips buy-in + roller chips.
  */
 async function performGameCutoff(db, params) {
 	const {
@@ -795,23 +794,6 @@ async function performGameCutoff(db, params) {
 		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`;
-
-	// 2b. Remaining CC carried to the new game → rolling on previous game (CC counts via CAGE_TYPE 4)
-	const parentTransferCcForRolling = parentCashoutLegs.reduce(
-		(sum, leg) => sum + Math.max(0, leg.cc || 0),
-		0
-	);
-	if (parentTransferCcForRolling > 0) {
-		await db.execute(rollingRecordSQL, [
-			parentGameId,
-			dateNow,
-			4,
-			0,
-			parentTransferCcForRolling,
-			encodedBy,
-			dateNow
-		]);
-	}
 
 	// 3. Last rolling → ROLLING column (CAGE_TYPE 4) + roller return on parent
 	// NN portion: CAGE_TYPE 4 adds to rolling; CC-only excess uses CC roller return (also adds to rolling)
