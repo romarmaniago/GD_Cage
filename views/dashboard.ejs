@@ -130,7 +130,8 @@
       var cashOutTotal =
          (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
          (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
-         (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+         (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) -
+         (+sqlJunketReturnMoney[0].JUNKET_RETURN_MONEY || 0) +
          (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
          (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
          (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
@@ -180,7 +181,9 @@
 
       var houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
       var commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
-      var expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
+      var expenseReset =
+         (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0) -
+         (+sqlJunketReturnMoneyReset[0].RESET_RETURN_MONEY || 0);
       var junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
       var junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
       var tipSettlementAmount = (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);
@@ -822,6 +825,8 @@
 <%- include ('modals/dashboard/additional_commission') %>
 <%- include ('modals/junket/edit_house_expense') %>
 <%- include ('modals/junket/new_house_expense') %>
+<%- include ('modals/junket/new_return_money') %>
+<%- include ('modals/junket/edit_return_money') %>
 <%- include ('modals/junket/house_expense_edit_history') %>
 <%- include ('modals/junket/house_expense_category_modals') %>
 <%- include ('modals/junket/house_expense_vehicle_modals') %>

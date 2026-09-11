@@ -561,6 +561,162 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 	}
 });
 
+// ADD RETURN MONEY
+router.post('/add_return_money', checkSession, async (req, res) => {
+	try {
+		const { txtDescription, txtInCharge, txtAmount, txtProgramDate } = req.body;
+
+		const programDate = parseProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).json({ error: 'Invalid or missing program date' });
+		}
+
+		const date_now = new Date();
+		const description = txtDescription ? String(txtDescription).trim() : null;
+		const inCharge = txtInCharge ? String(txtInCharge).trim() : null;
+		const amountStr = txtAmount ? String(txtAmount).replace(/,/g, '').trim() : '0';
+		const amount = parseFloat(amountStr) || 0;
+		if (amount <= 0) {
+			return res.status(400).json({ error: 'Please enter a valid amount' });
+		}
+		const encodedBy = req.session?.user_id || null;
+
+		const query = `
+			INSERT INTO junket_return_money
+			(DESCRIPTION, IN_CHARGE, AMOUNT, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, DAILY_SETTLEMENT)
+			VALUES (?, ?, ?, ?, ?, ?, 1)
+		`;
+		const [insertResult] = await pool.execute(query, [description, inCharge, amount, encodedBy, date_now, programDate]);
+
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
+			const encodedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const message =
+				'GD Cage\n\n* Junket Return Money *\n\n' +
+				`In Charge: ${inCharge || 'N/A'}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Amount: ₱${amount.toLocaleString('en-US')}\n` +
+				`Program Date: ${programDate}\n\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date: ${formatDateDisplay(date_now)}\n` +
+				`Time: ${formatDateTimeDisplay(date_now).slice(11)}`;
+			await sendTelegramToEmployees(message, {
+				logPreview: junketExpenseTelegramLogPreview('add'),
+				logMeta: { guestName: encodedByName, amount }
+			});
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money add):', telegramError);
+		}
+
+		res.json({ success: true, id: insertResult.insertId });
+	} catch (err) {
+		console.error('Error inserting return money:', err);
+		res.status(500).json({ error: 'Error inserting return money' });
+	}
+});
+
+// EDIT RETURN MONEY
+router.put('/edit_return_money/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const { txtDescription, txtInCharge, txtAmount, txtProgramDate } = req.body;
+		const programDate = parseProgramDate(txtProgramDate);
+		if (!programDate) {
+			return res.status(400).json({ error: 'Invalid or missing program date' });
+		}
+		const description = txtDescription ? String(txtDescription).trim() : null;
+		const inCharge = txtInCharge ? String(txtInCharge).trim() : null;
+		const amount = txtAmount ? parseFloat(String(txtAmount).replace(/,/g, '')) : 0;
+		if (!amount || amount <= 0) {
+			return res.status(400).json({ error: 'Please enter a valid amount' });
+		}
+		const date_now = new Date();
+
+		const [oldRows] = await pool.execute(
+			'SELECT DESCRIPTION, AMOUNT FROM junket_return_money WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!oldRows.length) return res.status(404).json({ error: 'Return money record not found' });
+		const oldAmount = Number(oldRows[0].AMOUNT);
+
+		await pool.execute(
+			`UPDATE junket_return_money
+			 SET DESCRIPTION = ?, IN_CHARGE = ?, AMOUNT = ?, PROGRAM_DATE = ?, EDITED_BY = ?, EDITED_DT = ?
+			 WHERE IDNo = ?`,
+			[description, inCharge, amount, programDate, req.session.user_id, date_now, id]
+		);
+
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const message =
+				'GD Cage\n\n✏️ * Junket Return Money (EDIT) *\n\n' +
+				`In Charge: ${inCharge || 'N/A'}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Before Amount: ₱${oldAmount.toLocaleString('en-US')}\n` +
+				`New Amount: ₱${amount.toLocaleString('en-US')}\n` +
+				`Program Date: ${programDate}\n` +
+				`Edited By: ${editedByName}\n` +
+				`Date & Time: ${formatDateDisplay(date_now)} ${date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+			await sendTelegramToEmployees(message, {
+				logPreview: junketExpenseTelegramLogPreview('edit'),
+				logMeta: { guestName: editedByName, amount }
+			});
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money edit):', telegramError);
+		}
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error updating return money:', err);
+		res.status(500).json({ error: 'Error updating return money' });
+	}
+});
+
+// DELETE RETURN MONEY
+router.put('/remove_return_money/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		const date_now = new Date();
+
+		const [rows] = await pool.execute(
+			'SELECT DESCRIPTION, AMOUNT, ENCODED_BY FROM junket_return_money WHERE IDNo = ? LIMIT 1',
+			[id]
+		);
+		const rm = rows[0];
+
+		await pool.execute(
+			'UPDATE junket_return_money SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[req.session.user_id, date_now, id]
+		);
+
+		try {
+			const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const message =
+				'GD Cage\n\n🗑️ * Junket Return Money (DELETED) *\n\n' +
+				`Description: ${rm ? (rm.DESCRIPTION || 'N/A') : 'N/A'}\n` +
+				`Amount: ₱${rm ? Number(rm.AMOUNT).toLocaleString('en-US') : 0}\n` +
+				`Deleted By: ${editedByName}\n` +
+				`Date & Time: ${formatDateDisplay(date_now)} ${date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+			await sendTelegramToEmployees(message, {
+				logPreview: junketExpenseTelegramLogPreview('delete'),
+				logMeta: { guestName: editedByName, amount: rm ? Number(rm.AMOUNT) : 0 }
+			});
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money delete):', telegramError);
+		}
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error deleting return money:', err);
+		res.status(500).json({ error: 'Error deleting return money' });
+	}
+});
+
 router.put('/junket_house_expense/approve/:id', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.params.id, 10);
@@ -718,7 +874,40 @@ router.get('/junket_house_expense_data', async (req, res) => {
 					LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 					WHERE e.ACTIVE = 1
 						AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
-					
+					UNION ALL
+					SELECT
+						rm.IDNo,
+						NULL AS CATEGORY_ID,
+						rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+						NULL AS DATE_TIME,
+						rm.IN_CHARGE COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+						NULL AS RECEIVER,
+						1 AS APPROVAL_STATUS,
+						rm.AMOUNT,
+						NULL AS KM_L,
+						NULL AS VEHICLE_ID,
+						NULL AS vehicle_plate,
+						NULL AS vehicle_model,
+						NULL AS PHOTO,
+						rm.ENCODED_BY,
+						rm.ENCODED_DT,
+						rm.PROGRAM_DATE,
+						rm.EDITED_BY,
+						rm.EDITED_DT,
+						rm.ACTIVE,
+						1 AS RESET,
+						0 AS EDIT_LOG_COUNT,
+						rm.IDNo AS expense_id,
+						NULL AS expense_category_id,
+						'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+						0 AS expense_type,
+						u2.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+						'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+					FROM junket_return_money rm
+					JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY
+					WHERE rm.ACTIVE = 1
+						AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
+
 					ORDER BY ENCODED_DT DESC
 				`;
 				const [result] = await pool.execute(query);
@@ -728,7 +917,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				}));
 				return res.json(updatedResult);
 			}
-			
+
 			const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 			if (isValidDate(date)) {
 				// Check if settlement exists for this date
@@ -829,7 +1018,40 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 						WHERE e.ACTIVE = 1
 							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
-						
+						UNION ALL
+						SELECT
+							rm.IDNo,
+							NULL AS CATEGORY_ID,
+							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							NULL AS DATE_TIME,
+							rm.IN_CHARGE COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							NULL AS RECEIVER,
+							1 AS APPROVAL_STATUS,
+							rm.AMOUNT,
+							NULL AS KM_L,
+							NULL AS VEHICLE_ID,
+							NULL AS vehicle_plate,
+							NULL AS vehicle_model,
+							NULL AS PHOTO,
+							rm.ENCODED_BY,
+							rm.ENCODED_DT,
+							rm.PROGRAM_DATE,
+							rm.EDITED_BY,
+							rm.EDITED_DT,
+							rm.ACTIVE,
+							1 AS RESET,
+							0 AS EDIT_LOG_COUNT,
+							rm.IDNo AS expense_id,
+							NULL AS expense_category_id,
+							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+							0 AS expense_type,
+							u2.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_return_money rm
+						JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY
+						WHERE rm.ACTIVE = 1
+							AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
+
 						ORDER BY ENCODED_DT DESC
 					`;
 					const [result] = await pool.execute(query);
@@ -893,11 +1115,44 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 			WHERE e.ACTIVE = 1
 				AND COALESCE(e.PROGRAM_DATE, DATE(e.ENCODED_DT)) BETWEEN ? AND ?
-			
-			ORDER BY COALESCE(e.PROGRAM_DATE, DATE(e.ENCODED_DT)) DESC, e.ENCODED_DT DESC
+			UNION ALL
+			SELECT
+				rm.IDNo,
+				NULL AS CATEGORY_ID,
+				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+				NULL AS DATE_TIME,
+				rm.IN_CHARGE COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				NULL AS RECEIVER,
+				1 AS APPROVAL_STATUS,
+				rm.AMOUNT,
+				NULL AS KM_L,
+				NULL AS VEHICLE_ID,
+				NULL AS vehicle_plate,
+				NULL AS vehicle_model,
+				NULL AS PHOTO,
+				rm.ENCODED_BY,
+				rm.ENCODED_DT,
+				rm.PROGRAM_DATE,
+				rm.EDITED_BY,
+				rm.EDITED_DT,
+				rm.ACTIVE,
+				1 AS RESET,
+				0 AS EDIT_LOG_COUNT,
+				rm.IDNo AS expense_id,
+				NULL AS expense_category_id,
+				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+				0 AS expense_type,
+				u2.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+			FROM junket_return_money rm
+			JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY
+			WHERE rm.ACTIVE = 1
+				AND COALESCE(rm.PROGRAM_DATE, DATE(rm.ENCODED_DT)) BETWEEN ? AND ?
+
+			ORDER BY COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) DESC, ENCODED_DT DESC
 		`;
 
-		const [result] = await pool.execute(query, [fromDate, toDate]);
+		const [result] = await pool.execute(query, [fromDate, toDate, fromDate, toDate]);
 
 		const updatedResult = result.map(expense => ({
 			...expense,

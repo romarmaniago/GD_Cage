@@ -72,16 +72,31 @@ async function computeWinLossForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
-async function computeExpenseForPeriod(pool, dateFrom, dateTo) {
+async function computeReturnMoneyForPeriod(pool, dateFrom, dateTo) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
-		 FROM junket_house_expense
+		 FROM junket_return_money
 		 WHERE ACTIVE = 1
-			AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}
 			AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
+}
+
+async function computeExpenseForPeriod(pool, dateFrom, dateTo) {
+	const [expense, returnMoney] = await Promise.all([
+		sumScalar(
+			pool,
+			`SELECT COALESCE(SUM(AMOUNT), 0) AS total
+			 FROM junket_house_expense
+			 WHERE ACTIVE = 1
+				AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}
+				AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
+			[dateFrom, dateTo]
+		),
+		computeReturnMoneyForPeriod(pool, dateFrom, dateTo)
+	]);
+	return expense - returnMoney;
 }
 
 async function computeJunketLossForPeriod(pool, dateFrom, dateTo) {
@@ -308,7 +323,8 @@ async function computeMainPanelSumTotal(pool) {
 		capitalDeposit,
 		capitalWithdraw,
 		credit,
-		expense,
+		expenseReset,
+		returnMoneyReset,
 		junketLoss,
 		additionalCommission,
 		commissionSettlement,
@@ -320,6 +336,7 @@ async function computeMainPanelSumTotal(pool) {
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2`),
 		computeCreditGrandTotal(pool),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_return_money WHERE ACTIVE=1 AND RESET=1`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND GAME_ID IS NULL`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1`),
 		computeCommissionSettlementAllTime(pool),
@@ -328,6 +345,7 @@ async function computeMainPanelSumTotal(pool) {
 		computeGuestBalanceForPeriod(pool)
 	]);
 
+	const expense = expenseReset - returnMoneyReset;
 	const companyCapitalBalance = Math.round(capitalDeposit - capitalWithdraw);
 	const serviceBalanceTotal = Math.round(
 		(servicePayload && Array.isArray(servicePayload.categories) ? servicePayload.categories : [])

@@ -94,7 +94,8 @@ const cashInTotal =
 const cashOutTotal =
    (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
    (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
-   (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+   (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) -
+   (+sqlJunketReturnMoney[0].JUNKET_RETURN_MONEY || 0) +
    (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
    (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
    (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
@@ -140,7 +141,9 @@ const totalRollingAmount =
 const houseRollingAmount = (+sqlHouseRollingReset[0].HouseRollingChips || 0);
 const commissionSettlement = Math.round(+sqlCommissionSettlement || 0);
 const additionalCommissionSettlement = Math.round(+sqlAdditionalCommission || 0);
-const expenseReset = (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0);
+const expenseReset =
+   (+sqlJunketExpenseReset[0].RESET_EXPENSE || 0) -
+   (+sqlJunketReturnMoneyReset[0].RESET_RETURN_MONEY || 0);
 const junketLossAmount = (+sqlJunketLoss[0].JUNKET_LOSS || 0);
 const junketCreditAmount = (+sqlJunketCredit[0].JUNKET_CREDIT || 0);
 const tipSettlementAmount = (+sqlTipSettlement[0].TIP_SETTLEMENT || 0);

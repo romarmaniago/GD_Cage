@@ -38,6 +38,10 @@ const {
 	sqlJunketExpenseNonGoodsTotal
 } = require('../utils/houseExpenseQueries');
 const {
+	sqlJunketReturnMoneyResetTotal,
+	sqlJunketReturnMoneyTotal
+} = require('../utils/returnMoneyQueries');
+const {
 	currentMonthKey,
 	loadDashboardWlSharePct,
 	upsertDashboardWlSharePct,
@@ -138,7 +142,8 @@ async function renderDashboardPage(req, res, viewName) {
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
 	let sqlJunketExpenseReset = sqlJunketExpenseResetTotal();
-	let sqlHouseRollingReset = `SELECT 
+	let sqlJunketReturnMoneyReset = sqlJunketReturnMoneyResetTotal();
+	let sqlHouseRollingReset = `SELECT
 		(SUM(CASE WHEN TRANSACTION_ID = 1 AND RESET = 1 THEN NN_CHIPS ELSE 0 END) + 
 		 SUM(CASE WHEN TRANSACTION_ID = 3 AND RESET = 1 THEN CC_CHIPS ELSE 0 END) - 
 		 SUM(CASE WHEN TRANSACTION_ID = 2 AND RESET = 1 THEN NN_CHIPS ELSE 0 END)) 
@@ -327,6 +332,7 @@ ON
 	let sqlAgentCount = 'SELECT COUNT(*) AS TOTAL_AGENT FROM agent WHERE ACTIVE =1';
 	let sqlJunketCredit = getCreditGrandTotalSql();
 	let sqlJunketExpense = sqlJunketExpenseTotal();
+	let sqlJunketReturnMoney = sqlJunketReturnMoneyTotal();
 	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
@@ -721,10 +727,12 @@ let sqlServiceSettle = `
 		const [CChipsBuyinGameResetResult] = await pool.execute(sqlCCChipsBuyinGameReset);
 		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
+		const [JunketReturnMoneyResult] = await pool.execute(sqlJunketReturnMoney);
 		const [JunketLossResult] = await pool.execute(sqlJunketLoss);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
+		const [ResetReturnMoneyResult] = await pool.execute(sqlJunketReturnMoneyReset);
 		const [HouseRollingResetResult] = await pool.execute(sqlHouseRollingReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
 		const [ActualRollingCcResetResult] = await pool.execute(sqlActualRollingCcReset);
@@ -1073,10 +1081,12 @@ let sqlServiceSettle = `
 			sqlCCChipsBuyinGameReset: CChipsBuyinGameResetResult,
 			sqlJunketCredit: JunketCreditResult,
 			sqlJunketExpense: JunketExpenseResult,
+			sqlJunketReturnMoney: JunketReturnMoneyResult,
 			sqlJunketLoss: JunketLossResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
 			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
 			sqlJunketExpenseReset: ResetExpenseResult,
+			sqlJunketReturnMoneyReset: ResetReturnMoneyResult,
 
 			sqlAccountTransfer: AccountTransferResult,
 
@@ -3365,6 +3375,7 @@ router.post('/reset-main-cage-balance', async (req, res) => {
 		// Only update active records that are currently unsettled (RESET = 1)
 		// Kung may month_settle_id (galing sa /insert-dash-history), i-tag ang rows para sa undo
 		// await pool.execute(`UPDATE junket_house_expense SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		// await pool.execute(`UPDATE junket_return_money SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		if (hasSettleId) {
 			await pool.execute(
 				`UPDATE game_record SET RESET = 0, MONTH_SETTLE_ID = ? WHERE RESET = 1 AND ACTIVE = 1`,

@@ -8,8 +8,8 @@
 }
 
 .modal-dash-house-expense-dialog {
-  max-width: min(97vw, 104rem) !important;
-  width: min(97vw, 104rem);
+  max-width: min(98vw, 120rem) !important;
+  width: min(98vw, 120rem);
   margin: 0.5rem auto;
 }
 

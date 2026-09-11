@@ -3,6 +3,9 @@ require('dotenv').config(); // Load .env variables
 const { ensureExpenseCategorySchema } = require('../utils/ensureExpenseCategorySchema');
 const { ensureHouseExpenseApprovalSchema } = require('../utils/ensureHouseExpenseApprovalSchema');
 const { ensureHouseExpenseProgramDateSchema } = require('../utils/ensureHouseExpenseProgramDateSchema');
+const { ensureReturnMoneyProgramDateSchema } = require('../utils/ensureReturnMoneyProgramDateSchema');
+const { ensureReturnMoneyInChargeSchema } = require('../utils/ensureReturnMoneyInChargeSchema');
+const { ensureReturnMoneyResetSchema } = require('../utils/ensureReturnMoneyResetSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
 const { ensureTipSchema } = require('../utils/ensureTipSchema');
 const { ensureJunketLossSchema } = require('../utils/ensureJunketLossSchema');
@@ -51,6 +54,9 @@ const pool = mysql.createPool({
 		await ensureExpenseCategorySchema(pool);
 		await ensureHouseExpenseApprovalSchema(pool);
 		await ensureHouseExpenseProgramDateSchema(pool);
+		await ensureReturnMoneyProgramDateSchema(pool);
+		await ensureReturnMoneyInChargeSchema(pool);
+		await ensureReturnMoneyResetSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
 		await ensureTipSchema(pool);
 		await ensureJunketLossSchema(pool);

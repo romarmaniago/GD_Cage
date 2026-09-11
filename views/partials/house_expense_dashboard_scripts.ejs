@@ -108,6 +108,13 @@
       e.preventDefault();
       e.stopPropagation();
       if ($(this).prop('disabled')) return;
+      var st = window.houseExpenseExplorerState || {};
+      if (st.mainCategoryId === 'return_money') {
+        if (typeof window.openAddReturnMoneyModal === 'function') {
+          window.openAddReturnMoneyModal();
+        }
+        return;
+      }
       if (typeof window.addHouseExpenseFromExplorer === 'function') {
         window.addHouseExpenseFromExplorer();
       } else if (typeof window.addHouseExpense === 'function') {

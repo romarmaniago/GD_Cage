@@ -131,7 +131,8 @@ function houseExpenseSumExpenseRows(rows, predicate) {
     (rows || []).forEach(function (row) {
         if (!row) return;
         if (predicate && !predicate(row)) return;
-        sum += Number(row.AMOUNT) || 0;
+        var amount = Number(row.AMOUNT) || 0;
+        sum += row.record_type === 'return_money' ? -amount : amount;
     });
     return sum;
 }
@@ -176,6 +177,9 @@ function houseExpenseRowMatchesExplorer(row) {
     if (!row) return true;
     var st = window.houseExpenseExplorerState || {};
     var catId = row.expense_category_id != null ? String(row.expense_category_id) : '';
+    if (st.mainCategoryId && houseExpenseIsReturnMoneyMainId(st.mainCategoryId)) {
+        return row.record_type === 'return_money';
+    }
     if (st.itemCategoryId) {
         return catId === String(st.itemCategoryId);
     }
@@ -255,10 +259,27 @@ function houseExpenseGetExplorerSubtitleText(st) {
     return mainName;
 }
 
+/** Return Money isn't a row in expense_category — it's a synthetic main category injected client-side. */
+var HOUSE_EXPENSE_RETURN_MONEY_MAIN_ID = 'return_money';
+
+function houseExpenseReturnMoneyMainRow() {
+    var label = (window.houseExpenseTranslations && window.houseExpenseTranslations.return_money) || 'Return Money';
+    return {
+        IDNo: HOUSE_EXPENSE_RETURN_MONEY_MAIN_ID,
+        CATEGORY: label,
+        TYPE: 0,
+        PARENT_ID: null
+    };
+}
+
+function houseExpenseIsReturnMoneyMainId(mainId) {
+    return String(mainId) === HOUSE_EXPENSE_RETURN_MONEY_MAIN_ID;
+}
+
 function getHouseExpenseMainCategoryRows(expenseRows) {
     var catalogMains = (window.houseExpenseCategoryRows || []).filter(houseExpenseIsMainCategoryRow);
     if (catalogMains.length) {
-        return catalogMains.slice();
+        return catalogMains.slice().concat([houseExpenseReturnMoneyMainRow()]);
     }
     var byId = {};
     (expenseRows || []).forEach(function (r) {
@@ -274,7 +295,7 @@ function getHouseExpenseMainCategoryRows(expenseRows) {
             PARENT_ID: null
         };
     });
-    return Object.keys(byId)
+    var mains = Object.keys(byId)
         .map(function (k) {
             return byId[k];
         })
@@ -283,6 +304,8 @@ function getHouseExpenseMainCategoryRows(expenseRows) {
                 sensitivity: 'base'
             });
         });
+    mains.push(houseExpenseReturnMoneyMainRow());
+    return mains;
 }
 
 function houseExpenseGetApprovalStatus(row) {
@@ -704,7 +727,41 @@ function copyHouseExpenseReceiptSlipTextButton(slipBodyEl, $btn) {
         .finally(ui.restoreBtn);
 }
 
+function buildReturnMoneyActionButtons(row) {
+    var permissions = parseInt($('#user-role').data('permissions'), 10);
+    if (permissions === 2) {
+        return (
+            '<div class="house-expense-actions">' +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" disabled><i class="fa fa-pencil-alt"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" disabled><i class="fa fa-trash-alt"></i></button>' +
+            '</div>'
+        );
+    }
+    var rmProgramDateCell = formatHouseExpenseProgramDateCell(row);
+    return (
+        '<div class="house-expense-actions">' +
+        '<button type="button" class="btn btn-sm btn-alt-secondary btn-edit-row" data-record-type="return_money" data-expense-id="' +
+        row.expense_id +
+        '" data-in-charge="' +
+        attrEncode(row.DESCRIPTION || '') +
+        '" data-description="' +
+        attrEncode(row.RECEIPT_NO || '') +
+        '" data-amount="' +
+        (parseFloat(row.AMOUNT) || 0) +
+        '" data-program-date="' +
+        attrEncode(rmProgramDateCell !== '-' ? rmProgramDateCell : '') +
+        '" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit return money"><i class="fa fa-pencil-alt"></i></button>' +
+        '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="archive_return_money(' +
+        row.expense_id +
+        ')" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete return money"><i class="fa fa-trash-alt"></i></button>' +
+        '</div>'
+    );
+}
+
 function buildHouseExpenseActionButtons(row, amount) {
+    if (row && row.record_type === 'return_money') {
+        return buildReturnMoneyActionButtons(row);
+    }
     var permissions = parseInt($('#user-role').data('permissions'), 10);
     var approvalStatus = houseExpenseGetApprovalStatus(row);
     var t = window.houseExpenseTranslations || {};
@@ -917,11 +974,16 @@ function houseExpenseGetFilteredItemRows(allRows) {
     });
 }
 
+function houseExpenseNetAmountForTotals(row) {
+    var amount = parseFloat(row.AMOUNT) || 0;
+    return row.record_type === 'return_money' ? -amount : amount;
+}
+
 function houseExpenseSumRowsForFooter(rows) {
     var totalExpense = 0;
     (rows || []).forEach(function (row) {
         if (!row) return;
-        if (houseExpenseIsApprovedForTotals(row)) totalExpense += parseFloat(row.AMOUNT) || 0;
+        if (houseExpenseIsApprovedForTotals(row)) totalExpense += houseExpenseNetAmountForTotals(row);
     });
     return { totalExpense: totalExpense };
 }
@@ -1148,9 +1210,12 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
                 });
-                var amountDisplay = window.fmtOut
-                    ? window.fmtOut(amount)
-                    : '<span class="text-dash-neg">(' + formattedAmount + ')</span>';
+                var isReturnMoneyRow = row.record_type === 'return_money';
+                var amountDisplay = isReturnMoneyRow
+                    ? formattedAmount
+                    : (window.fmtOut
+                        ? window.fmtOut(amount)
+                        : '<span class="text-dash-neg">(' + formattedAmount + ')</span>');
                 var nameLabel = houseExpenseGetExpenseNameLabel(row);
                 var inChargeCol = row.DESCRIPTION || row.OIC || '-';
                 var receiverCol = row.RECEIVER || '-';
@@ -1210,7 +1275,7 @@ function refreshHouseExpenseExplorerOnly() {
     var te = 0;
     rows.forEach(function (r) {
         if (!r) return;
-        if (houseExpenseIsApprovedForTotals(r)) te += Number(r.AMOUNT) || 0;
+        if (houseExpenseIsApprovedForTotals(r)) te += houseExpenseNetAmountForTotals(r);
     });
     refreshHouseExpenseDashboard(rows, te);
 }
@@ -1861,7 +1926,7 @@ function houseExpenseApplyLoadedData(data) {
     });
     var total_expense = 0;
     rows.forEach(function (row) {
-        if (houseExpenseIsApprovedForTotals(row)) total_expense += parseFloat(row.AMOUNT) || 0;
+        if (houseExpenseIsApprovedForTotals(row)) total_expense += houseExpenseNetAmountForTotals(row);
     });
     window.houseExpenseLastRows = rows;
     houseExpenseResetItemPage();
@@ -1881,6 +1946,7 @@ function houseExpenseReconcileExplorerState() {
     var st = window.houseExpenseExplorerState || {};
     var catRows = window.houseExpenseCategoryRows || [];
     if (!st.mainCategoryId) return;
+    if (houseExpenseIsReturnMoneyMainId(st.mainCategoryId)) return;
 
     var mainRow = catRows.find(function (c) {
         return c && String(c.IDNo) === String(st.mainCategoryId);
@@ -2023,6 +2089,14 @@ function renderHouseExpenseCategoryLists(data) {
         return !!r;
     });
     var stats = houseExpenseBuildCategoryStats(expenseRows);
+    var returnMoneyStat = { count: 0, sum: 0 };
+    expenseRows.forEach(function (r) {
+        if (r && r.record_type === 'return_money') {
+            returnMoneyStat.count += 1;
+            returnMoneyStat.sum += Number(r.AMOUNT) || 0;
+        }
+    });
+    stats[HOUSE_EXPENSE_RETURN_MONEY_MAIN_ID] = returnMoneyStat;
     var $mainList = $('#expense-main-cat-list');
 
     if (!$mainList.length) return;
@@ -2030,6 +2104,9 @@ function renderHouseExpenseCategoryLists(data) {
     var mainRows = getHouseExpenseMainCategoryRows(expenseRows);
 
     mainRows.sort(function (a, b) {
+        var aIsReturnMoney = houseExpenseIsReturnMoneyMainId(a.IDNo);
+        var bIsReturnMoney = houseExpenseIsReturnMoneyMainId(b.IDNo);
+        if (aIsReturnMoney !== bIsReturnMoney) return aIsReturnMoney ? 1 : -1;
         var sa = stats[String(a.IDNo)] ? stats[String(a.IDNo)].sum : 0;
         var sb = stats[String(b.IDNo)] ? stats[String(b.IDNo)].sum : 0;
         if (sb !== sa) return sb - sa;
@@ -2088,7 +2165,7 @@ function renderHouseExpenseCategoryLists(data) {
                 '">' +
                 houseExpenseHtmlEscape(main.CATEGORY || '') +
                 '</span>' +
-                houseExpenseCatRowEndHtml(itemCount, mainId, 'main') +
+                houseExpenseCatRowEndHtml(itemCount, houseExpenseIsReturnMoneyMainId(mainId) ? '' : mainId, 'main') +
                 '</div>'
         );
     });
@@ -2366,7 +2443,9 @@ function renderExpenseBreakdownModalRows() {
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
                 vehicleCells +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
-                '<td class="fw-semibold text-end">' + (window.fmtOut ? window.fmtOut(amount) : formatHouseExpenseNumber(amount)) + '</td>' +
+                '<td class="fw-semibold text-end">' + (row.record_type === 'return_money'
+                    ? formatHouseExpenseNumber(amount)
+                    : (window.fmtOut ? window.fmtOut(amount) : formatHouseExpenseNumber(amount))) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
             '</tr>'
@@ -2944,6 +3023,14 @@ $(document).ready(function () {
     $(document).on('click', '.btn-edit-row', function () {
         var $btn = $(this);
         var id = $btn.attr('data-expense-id');
+        if ($btn.attr('data-record-type') === 'return_money') {
+            var rmInCharge = $btn.attr('data-in-charge') || '';
+            var rmDescription = $btn.attr('data-description') || '';
+            var rmAmount = $btn.attr('data-amount') || '0';
+            var rmProgramDate = $btn.attr('data-program-date') || '';
+            edit_return_money(id, rmInCharge, rmDescription, rmAmount, rmProgramDate);
+            return;
+        }
         var categoryId = $btn.attr('data-category-id') || '';
         var receiptNo = $btn.attr('data-receipt-no') || '';
         var dateTime = $btn.attr('data-date-time') || '';
@@ -3516,6 +3603,80 @@ function archive_expense(id) {
     })
 }
 
+function ensureReturnMoneyProgramDatePicker(elId) {
+    var el = document.getElementById(elId);
+    if (!el || typeof flatpickr === 'undefined') return;
+    if (el._flatpickr) {
+        el._flatpickr.destroy();
+    }
+    flatpickr(el, {
+        enableTime: false,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'M j, Y',
+        defaultDate: new Date(),
+        allowInput: true,
+        disableMobile: true
+    });
+}
+
+function openAddReturnMoneyModal() {
+    var $form = $('#add_return_money');
+    if ($form.length) $form[0].reset();
+    $('#modal-new-return-money').modal('show');
+    ensureReturnMoneyProgramDatePicker('returnMoneyNewProgramDate');
+}
+
+var returnMoneyEditId = null;
+
+function edit_return_money(id, inCharge, description, amount, programDate) {
+    returnMoneyEditId = id;
+    $('#txtReturnMoneyInCharge').val(inCharge || '');
+    $('#txtReturnMoneyDescription').val(description || '');
+    $('#txtReturnMoneyAmount').val(amount || '');
+    $('#modal-edit-return-money').modal('show');
+    ensureReturnMoneyProgramDatePicker('returnMoneyEditProgramDate');
+    var el = document.getElementById('returnMoneyEditProgramDate');
+    if (el && el._flatpickr && programDate) {
+        el._flatpickr.setDate(programDate, true);
+    } else if (el) {
+        el.value = programDate || '';
+    }
+}
+
+function archive_return_money(id) {
+    SwalConfirm.fire({
+        title: window.houseExpenseTranslations?.delete_confirmation || 'Are you sure you want to delete this?',
+        confirmButtonText: window.houseExpenseTranslations?.yes || 'Yes'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: '/remove_return_money/' + id,
+                type: 'PUT',
+                success: function () {
+                    Swal.fire({
+                        icon: 'success',
+                        title: window.houseExpenseTranslations?.updated_successfully || 'Deleted successfully!',
+                        text: 'Return money has been deleted.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                        allowOutsideClick: false
+                    }).then(function () {
+                        if (typeof window.reloadData === 'function') window.reloadData();
+                    });
+                },
+                error: function () {
+                    Swal.fire({
+                        icon: 'error',
+                        title: window.houseExpenseTranslations?.error || 'Error!',
+                        text: 'Failed to delete return money. Please try again.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+                    });
+                }
+            });
+        }
+    });
+}
+
 /** Original success Swal; on OK reload table and close modal — no full page reload */
 function houseExpenseFinishSaveSuccess(opts) {
     opts = opts || {};
@@ -3627,7 +3788,8 @@ function houseExpenseCategoryAddButtonScope() {
 function houseExpenseSyncCategoryAddButtons() {
     var t = window.houseExpenseTranslations || {};
     var st = window.houseExpenseExplorerState || {};
-    var hasMain = !!(st.mainCategoryId);
+    var isReturnMoneyMain = houseExpenseIsReturnMoneyMainId(st.mainCategoryId);
+    var hasMain = !!(st.mainCategoryId) && !isReturnMoneyMain;
     var $subBtn = $(houseExpenseCategoryAddButtonScope()).filter('.js-house-expense-add-sub-cat');
     $subBtn.prop('disabled', !hasMain);
     $subBtn.attr(
@@ -3637,10 +3799,14 @@ function houseExpenseSyncCategoryAddButtons() {
 
     var itemCatId = houseExpenseGetAddItemCategoryId();
     var $itemBtn = $(houseExpenseCategoryAddButtonScope()).filter('.js-house-expense-add-item');
-    $itemBtn.prop('disabled', !itemCatId);
+    $itemBtn.prop('disabled', !itemCatId && !isReturnMoneyMain);
     $itemBtn.attr(
         'title',
-        itemCatId ? t.add_item || 'Add item' : t.select_sub_for_item || 'Select a sub category first'
+        isReturnMoneyMain
+            ? 'Add return money'
+            : itemCatId
+            ? t.add_item || 'Add item'
+            : t.select_sub_for_item || 'Select a sub category first'
     );
 }
 
@@ -4370,6 +4536,118 @@ $(document).ready(function () {
     });
     $(document).on('change', '#txtCategory', function () {
         houseExpenseToggleCarExpenseFields($(this).val());
+    });
+
+    // Return money: add
+    var isSubmittingReturnMoney = false;
+    $('#modal-new-return-money').on('hidden.bs.modal', function () {
+        isSubmittingReturnMoney = false;
+        var $form = $('#add_return_money');
+        if ($form.length) $form[0].reset();
+    });
+    $('#add_return_money').on('submit', function (event) {
+        event.preventDefault();
+        if (isSubmittingReturnMoney) return false;
+        var $form = $(this);
+        var isValid = true;
+        $form.find(':input[required]').each(function () {
+            if (String($(this).val() || '').trim() === '') {
+                isValid = false;
+                $(this).addClass('is-invalid');
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+        if (!isValid) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Please fill in all required fields.' });
+            return false;
+        }
+        var amountValue = ($form.find('input[name="txtAmount"]').val() || '').toString().replace(/,/g, '').trim();
+        if (!amountValue || parseFloat(amountValue) <= 0) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+            return false;
+        }
+        var formData = {
+            txtProgramDate: $form.find('input[name="txtProgramDate"]').val() || '',
+            txtInCharge: ($form.find('input[name="txtInCharge"]').val() || '').trim(),
+            txtDescription: ($form.find('textarea[name="txtDescription"]').val() || '').trim(),
+            txtAmount: amountValue
+        };
+        isSubmittingReturnMoney = true;
+        var $submitBtn = $('#btn-save-new-return-money');
+        var originalText = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('Saving...');
+        $.ajax({
+            url: '/add_return_money',
+            type: 'POST',
+            data: formData,
+            success: function () {
+                isSubmittingReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                Swal.fire({ icon: 'success', title: 'Added successfully' }).then(function () {
+                    $('#modal-new-return-money').modal('hide');
+                    if (typeof window.reloadData === 'function') window.reloadData();
+                });
+            },
+            error: function (xhr) {
+                isSubmittingReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                var errorMessage = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'An error occurred';
+                Swal.fire({ icon: 'error', title: 'Error', text: errorMessage });
+            }
+        });
+        return false;
+    });
+
+    // Return money: edit
+    var isSubmittingEditReturnMoney = false;
+    $('#modal-edit-return-money').on('hidden.bs.modal', function () {
+        isSubmittingEditReturnMoney = false;
+    });
+    $('#edit_return_money').on('submit', function (event) {
+        event.preventDefault();
+        if (isSubmittingEditReturnMoney || !returnMoneyEditId) return false;
+        var $form = $(this);
+        var amountValue = ($form.find('input[name="txtAmount"]').val() || '').toString().replace(/,/g, '').trim();
+        if (!amountValue || parseFloat(amountValue) <= 0) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+            return false;
+        }
+        var programDateVal = $form.find('input[name="txtProgramDate"]').val() || '';
+        if (!programDateVal) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Please select a program date.' });
+            return false;
+        }
+        var formData = {
+            txtProgramDate: programDateVal,
+            txtInCharge: ($form.find('input[name="txtInCharge"]').val() || '').trim(),
+            txtDescription: ($form.find('textarea[name="txtDescription"]').val() || '').trim(),
+            txtAmount: amountValue
+        };
+        isSubmittingEditReturnMoney = true;
+        var $submitBtn = $('#btn-save-edit-return-money');
+        var originalText = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('Saving...');
+        $.ajax({
+            url: '/edit_return_money/' + returnMoneyEditId,
+            type: 'PUT',
+            data: formData,
+            success: function () {
+                isSubmittingEditReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                Swal.fire({ icon: 'success', title: 'Updated successfully' }).then(function () {
+                    $('#modal-edit-return-money').modal('hide');
+                    if (typeof window.reloadData === 'function') window.reloadData();
+                });
+            },
+            error: function (xhr) {
+                isSubmittingEditReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                var errorMessage = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'An error occurred';
+                Swal.fire({ icon: 'error', title: 'Error', text: errorMessage });
+            }
+        });
+        return false;
     });
 })
 
