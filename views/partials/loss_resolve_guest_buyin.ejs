@@ -1,0 +1,69 @@
+<div class="modal fade" id="modal-loss-resolve-guest-buyin" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white">Resolve Loss - Additional Buy-in - <span id="loss-resolve-guest-agent-code"></span></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="loss_resolve_guest_buyin_form">
+				<div class="modal-body">
+					<div class="alert alert-info mb-3 py-2" role="alert">
+						<small>Outstanding loss amount: <strong id="loss-resolve-guest-balance-display">0</strong></small>
+					</div>
+					<input type="hidden" name="loss_id" id="loss_resolve_guest_loss_id">
+				<input type="hidden" id="loss_resolve_guest_required_balance">
+
+					<div class="row mb-3">
+						<div class="col-sm-6">
+							<label class="form-label">NN Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtNN" id="loss_resolve_guest_txtNN" placeholder="NN Chips">
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label">CC Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtCC" id="loss_resolve_guest_txtCC" placeholder="CC Chips">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<small class="text-muted">Total must equal the outstanding loss amount.</small>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Remarks</label>
+							<textarea class="form-control" name="txtRemarks" id="loss_resolve_guest_txtRemarks" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
+						</div>
+					</div>
+
+					<div class="row mb-2">
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="loss_resolve_guest_cash" name="txtTransType" checked>
+								<label class="form-check-label" for="loss_resolve_guest_cash">Cash</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="loss_resolve_guest_deposit" name="txtTransType">
+								<label class="form-check-label" for="loss_resolve_guest_deposit">Deposit</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="loss_resolve_guest_credit" name="txtTransType">
+								<label class="form-check-label" for="loss_resolve_guest_credit">Credit</label>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" id="submit-loss-resolve-guest-buyin-btn" class="btn btn-sm btn-primary">Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

@@ -525,12 +525,83 @@ function buildJunketLossActionButtons(row) {
         ? '<button type="button" class="btn btn-sm btn-alt-primary btn-junket-loss-edit" data-id="' + id + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
           '<button type="button" class="btn btn-sm btn-alt-danger btn-junket-loss-remove" data-id="' + id + '" title="Delete"><i class="fa fa-trash-alt"></i></button>'
         : '';
+    const isResolvableGameLoss = row && row.GAME_ID && !Number(row.RESOLVED);
+    const resolveButtons = isResolvableGameLoss
+        ? '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-resolve-buyin" data-id="' + id + '" title="Resolve: Additional Buy-in"><i class="fa fa-hand-holding-dollar"></i></button>' +
+          '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-resolve-newgame" data-id="' + id + '" title="Resolve: New Game"><i class="fa fa-dice"></i></button>'
+        : '';
     return (
         '<div class="junket-loss-action-btns">' +
         '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-receipt" data-id="' + id + '" title="Receipt"><i class="fa fa-receipt"></i></button>' +
+        resolveButtons +
         editDeleteButtons +
         '</div>'
     );
+}
+
+function showBootstrapModal(selector) {
+    var el = document.querySelector(selector);
+    if (!el) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(el, { backdrop: 'static', keyboard: false }).show();
+        return;
+    }
+    $(selector).modal('show');
+}
+
+function hideBootstrapModal(selector) {
+    var el = document.querySelector(selector);
+    if (!el) return;
+    if (window.bootstrap && bootstrap.Modal) {
+        var instance = bootstrap.Modal.getInstance(el);
+        if (instance) instance.hide();
+        return;
+    }
+    $(selector).modal('hide');
+}
+
+function openLossResolveGuestBuyinModal(row) {
+    if (!row) return;
+    var balance = parseFloat(row.AMOUNT) || 0;
+    var agentLabel = row.ACCOUNT_NAME || row.ACCOUNT_CODE || ('Account #' + (row.ACCOUNT_ID || ''));
+
+    $('#loss-resolve-guest-agent-code').text(agentLabel);
+    $('#loss_resolve_guest_loss_id').val(row.IDNo);
+    $('#loss_resolve_guest_required_balance').val(balance);
+    $('#loss-resolve-guest-balance-display').text(balance.toLocaleString('en-US'));
+    $('#loss_resolve_guest_txtNN').val('');
+    $('#loss_resolve_guest_txtCC').val('');
+    $('#loss_resolve_guest_txtRemarks').val('');
+    $('#loss_resolve_guest_cash').prop('checked', true);
+    $('#loss_resolve_guest_txtNN, #loss_resolve_guest_txtCC').removeClass('is-invalid');
+
+    showBootstrapModal('#modal-loss-resolve-guest-buyin');
+}
+
+function openLossResolveJunketNewGameModal(row) {
+    if (!row) return;
+    var balance = parseFloat(row.AMOUNT) || 0;
+
+    $('#loss_resolve_junket_loss_id').val(row.IDNo);
+    $('#loss_resolve_junket_required_balance').val(balance);
+    $('#loss-resolve-junket-balance-display').text(balance.toLocaleString('en-US'));
+    $('#loss_resolve_junket_txtNN').val('');
+    $('#loss_resolve_junket_txtCC').val('');
+    $('#loss_resolve_junket_txtRemarks').val('');
+    $('#loss-resolve-junket-account-display').val('Loading account...');
+    $('#loss_resolve_junket_txtNN, #loss_resolve_junket_txtCC').removeClass('is-invalid');
+
+    showBootstrapModal('#modal-loss-resolve-junket-new-game');
+
+    $.getJSON('/game_list/pending_resolve/junket_account')
+        .done(function (data) {
+            var code = String((data && data.agent_code) || '').trim();
+            var name = String((data && data.agent_name) || '').trim();
+            $('#loss-resolve-junket-account-display').val(code && name ? code + '(' + name + ')' : (code || name || 'Junket account'));
+        })
+        .fail(function () {
+            $('#loss-resolve-junket-account-display').val('Junket account');
+        });
 }
 
 function junketLossReceiptEscape(value) {
@@ -861,7 +932,28 @@ function ensureJunketLossTable() {
                     return moment(data).format('YYYY-MM-DD HH:mm');
                 }
             },
-            { data: 'ACCOUNT_NAME', defaultContent: '' },
+            {
+                data: 'ACCOUNT_NAME',
+                defaultContent: '',
+                render: function (data, type, row) {
+                    if (type !== 'display') return data || '';
+                    var safeName = data ? junketLossReceiptEscape(data) : '';
+                    if (!row.GAME_ID) return safeName;
+                    var badge;
+                    if (Number(row.RESOLVED)) {
+                        var method = Number(row.RESOLVE_METHOD) === 2 ? 'New Game' : 'Additional Buy-in';
+                        badge = '<span class="badge bg-success-subtle text-success-emphasis border ms-1" ' +
+                            'title="Game #' + row.GAME_ID + ' — resolved via ' + method +
+                            (row.RESOLVE_LINK_GAME_ID ? ' (new game #' + row.RESOLVE_LINK_GAME_ID + ')' : '') + '">' +
+                            '<i class="fa fa-check" aria-hidden="true"></i> Game #' + row.GAME_ID + ' Resolved</span>';
+                    } else {
+                        badge = '<span class="badge bg-info-subtle text-info-emphasis border ms-1" ' +
+                            'title="Auto-recorded from Game #' + row.GAME_ID + ' (unreturned roller chips on end game)">' +
+                            '<i class="fa fa-dice" aria-hidden="true"></i> Game #' + row.GAME_ID + '</span>';
+                    }
+                    return safeName ? safeName + '<br>' + badge : badge;
+                }
+            },
             { data: 'GUEST_NAME', defaultContent: '' },
             {
                 data: 'AMOUNT',
@@ -1240,6 +1332,14 @@ $(document).ready(function () {
         removeJunketLoss($(this).data('id'));
     });
 
+    $('#junket-loss-tbl').on('click', '.btn-junket-loss-resolve-buyin', function () {
+        openLossResolveGuestBuyinModal(findJunketLossRowById($(this).data('id')));
+    });
+
+    $('#junket-loss-tbl').on('click', '.btn-junket-loss-resolve-newgame', function () {
+        openLossResolveJunketNewGameModal(findJunketLossRowById($(this).data('id')));
+    });
+
     $(document).on('click', '.js-copy-junket-loss-receipt-image', function () {
         copyJunketLossReceiptImage(this);
     });
@@ -1301,6 +1401,119 @@ $(document).ready(function () {
             error: function () {
                 Swal.fire('Error', 'Failed to save record.', 'error');
             }
+        });
+    });
+
+    $('#loss_resolve_guest_buyin_form').on('submit', function (e) {
+        e.preventDefault();
+        var $btn = $('#submit-loss-resolve-guest-buyin-btn');
+        var lossId = $('#loss_resolve_guest_loss_id').val();
+        var requiredBal = parseFloat($('#loss_resolve_guest_required_balance').val()) || 0;
+        var nn = parseFloat(String($('#loss_resolve_guest_txtNN').val() || '').replace(/,/g, '')) || 0;
+        var cc = parseFloat(String($('#loss_resolve_guest_txtCC').val() || '').replace(/,/g, '')) || 0;
+        var total = nn + cc;
+        var transType = $('input[name="txtTransType"]:checked', '#modal-loss-resolve-guest-buyin').val();
+
+        if (!transType) {
+            Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Please select Cash, Deposit, or Credit.' });
+            return;
+        }
+        if (total <= 0 || Math.abs(total - requiredBal) > 0.001) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Amount mismatch',
+                html: 'Total (NN + CC) must equal <strong>' + requiredBal.toLocaleString('en-US') + '</strong>.'
+            });
+            return;
+        }
+        if (nn > 0 && nn % 1000 !== 0) {
+            Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+            return;
+        }
+
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Loading...');
+        $.ajax({
+            url: '/loss_amount/' + lossId + '/resolve/guest_buyin',
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function () {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Resolved',
+                    text: 'Additional buy-in recorded. Loss Amount marked as resolved.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                hideBootstrapModal('#modal-loss-resolve-guest-buyin');
+                fetchJunketLossData();
+                refreshDashboardJunketLossTotal();
+            },
+            error: function (xhr) {
+                Swal.fire({ icon: 'error', title: 'Error', text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save.' });
+            },
+            complete: function () {
+                $btn.prop('disabled', false).text('Save');
+            }
+        });
+    });
+
+    $('#loss_resolve_junket_new_game_form').on('submit', function (e) {
+        e.preventDefault();
+        var $btn = $('#submit-loss-resolve-junket-new-game-btn');
+        var lossId = $('#loss_resolve_junket_loss_id').val();
+        var requiredBal = parseFloat($('#loss_resolve_junket_required_balance').val()) || 0;
+        var nn = parseFloat(String($('#loss_resolve_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
+        var cc = parseFloat(String($('#loss_resolve_junket_txtCC').val() || '').replace(/,/g, '')) || 0;
+        var total = nn + cc;
+
+        if (total <= 0 || Math.abs(total - requiredBal) > 0.001) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Amount mismatch',
+                html: 'Buy-in total must equal <strong>' + requiredBal.toLocaleString('en-US') + '</strong>.'
+            });
+            return;
+        }
+        if (nn > 0 && nn % 1000 !== 0) {
+            Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+            return;
+        }
+
+        SwalConfirm.fire({
+            title: 'Confirm New Game',
+            rows: [
+                ['NN Chips', nn.toLocaleString('en-US')],
+                ['CC Chips', cc.toLocaleString('en-US')],
+                ['Buy-in Total', total.toLocaleString('en-US')]
+            ],
+            message: 'Are you sure you want to proceed?',
+            confirmButtonText: 'Yes, Confirm'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Loading...');
+            $.ajax({
+                url: '/loss_amount/' + lossId + '/resolve/junket_new_game',
+                type: 'POST',
+                data: $('#loss_resolve_junket_new_game_form').serialize(),
+                success: function (res) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Resolved',
+                        text: (res && res.message) || 'New game created. Loss Amount marked as resolved.',
+                        timer: 2200,
+                        showConfirmButton: false
+                    });
+                    hideBootstrapModal('#modal-loss-resolve-junket-new-game');
+                    fetchJunketLossData();
+                    refreshDashboardJunketLossTotal();
+                },
+                error: function (xhr) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to save.' });
+                },
+                complete: function () {
+                    $btn.prop('disabled', false).text('Save');
+                }
+            });
         });
     });
 });

@@ -1,0 +1,56 @@
+<div class="modal fade" id="modal-loss-resolve-junket-new-game" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white">Resolve Loss - New Game</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="loss_resolve_junket_new_game_form">
+				<div class="modal-body">
+					<div class="alert alert-info mb-3 py-2" role="alert">
+						<small>Outstanding loss amount: <strong id="loss-resolve-junket-balance-display">0</strong></small>
+					</div>
+
+					<input type="hidden" name="loss_id" id="loss_resolve_junket_loss_id">
+					<input type="hidden" id="loss_resolve_junket_required_balance">
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Account</label>
+							<input type="text" class="form-control" id="loss-resolve-junket-account-display" readonly placeholder="Loading account...">
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-6">
+							<label class="form-label">Buy-in NN Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtNN" id="loss_resolve_junket_txtNN" placeholder="NN Chips">
+						</div>
+						<div class="col-sm-6">
+							<label class="form-label">Buy-in CC Chips <span class="text-danger">*</span></label>
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center" name="txtCC" id="loss_resolve_junket_txtCC" placeholder="CC Chips">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<small class="text-muted">Total buy-in must equal the outstanding loss amount.</small>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Remarks</label>
+							<textarea class="form-control" name="txtRemarks" id="loss_resolve_junket_txtRemarks" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" id="submit-loss-resolve-junket-new-game-btn" class="btn btn-sm btn-primary">Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
