@@ -39,12 +39,6 @@ async function ensureJunketLossSchema(pool) {
 				GUEST_ID INT NULL DEFAULT NULL COMMENT 'guest.IDNo',
 				PAYMENT_TYPE TINYINT NULL DEFAULT NULL COMMENT '1=Chip, 2=Cash',
 				GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo',
-				RESOLVED TINYINT NOT NULL DEFAULT 0,
-				RESOLVE_METHOD TINYINT NULL DEFAULT NULL COMMENT '1=Guest Buy-in, 2=Junket New Game',
-				RESOLVE_LINK_GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo created to record the repayment',
-				RESOLVE_REMARKS VARCHAR(500) NULL DEFAULT NULL,
-				RESOLVED_BY INT NULL DEFAULT NULL,
-				RESOLVED_DT DATETIME NULL DEFAULT NULL,
 				ENCODED_BY INT NULL DEFAULT NULL,
 				ENCODED_DT DATETIME NULL DEFAULT NULL,
 				EDITED_BY INT NULL DEFAULT NULL,
@@ -55,8 +49,7 @@ async function ensureJunketLossSchema(pool) {
 				KEY idx_junket_loss_program_date (ACTIVE, PROGRAM_DATE),
 				KEY idx_junket_loss_account_id (ACCOUNT_ID),
 				KEY idx_junket_loss_guest_id (GUEST_ID),
-				KEY idx_junket_loss_game_id (GAME_ID),
-				KEY idx_junket_loss_resolve_link_game_id (RESOLVE_LINK_GAME_ID)
+				KEY idx_junket_loss_game_id (GAME_ID)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 		`);
 		console.log('[junket_loss] Created table junket_loss');
@@ -79,30 +72,6 @@ async function ensureJunketLossSchema(pool) {
 		{
 			name: 'PAYMENT_TYPE',
 			ddl: `ADD COLUMN PAYMENT_TYPE TINYINT NULL DEFAULT NULL COMMENT '1=Chip, 2=Cash' AFTER GUEST_ID`
-		},
-		{
-			name: 'RESOLVED',
-			ddl: `ADD COLUMN RESOLVED TINYINT NOT NULL DEFAULT 0 AFTER GAME_ID`
-		},
-		{
-			name: 'RESOLVE_METHOD',
-			ddl: `ADD COLUMN RESOLVE_METHOD TINYINT NULL DEFAULT NULL COMMENT '1=Guest Buy-in, 2=Junket New Game' AFTER RESOLVED`
-		},
-		{
-			name: 'RESOLVE_LINK_GAME_ID',
-			ddl: `ADD COLUMN RESOLVE_LINK_GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo created to record the repayment' AFTER RESOLVE_METHOD`
-		},
-		{
-			name: 'RESOLVE_REMARKS',
-			ddl: `ADD COLUMN RESOLVE_REMARKS VARCHAR(500) NULL DEFAULT NULL AFTER RESOLVE_LINK_GAME_ID`
-		},
-		{
-			name: 'RESOLVED_BY',
-			ddl: `ADD COLUMN RESOLVED_BY INT NULL DEFAULT NULL AFTER RESOLVE_REMARKS`
-		},
-		{
-			name: 'RESOLVED_DT',
-			ddl: `ADD COLUMN RESOLVED_DT DATETIME NULL DEFAULT NULL AFTER RESOLVED_BY`
 		}
 	];
 

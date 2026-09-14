@@ -1693,72 +1693,6 @@ function updateChangeStatusRollerReturnSection() {
 	}
 }
 
-/**
- * Prompts for Description / Person(s) involved / Payment Type before ending a game with an
- * unreturned roller chips balance. Resolves to {description, inCharge, paymentType} on confirm,
- * or null on cancel. Resolves immediately (no prompt) when shortfall <= 0 — nothing to log.
- */
-function promptRollerShortfallLossDetails(shortfall) {
-	if (!(shortfall > 0)) {
-		return Promise.resolve(null);
-	}
-
-	var agentCode = ($('#change-status-agent-code').text() || '').trim();
-	var defaultDescription = 'Roller chips missing - Game #' + game_id + (agentCode ? ' - ' + agentCode : '');
-
-	return Swal.fire({
-		icon: 'warning',
-		title: 'Record Loss Amount',
-		html:
-			'<div class="text-start">' +
-			'<p class="mb-2">Outstanding roller chips of <strong>' + shortfall.toLocaleString('en-US') + '</strong> ' +
-			'will be recorded in <strong>Junket &gt; Loss Amount</strong>.</p>' +
-			'<div class="mb-2">' +
-			'<label class="form-label mb-1" style="font-size:0.85rem;">Description</label>' +
-			'<textarea id="swal-loss-description" class="form-control" rows="2">' + defaultDescription + '</textarea>' +
-			'</div>' +
-			'<div class="mb-2">' +
-			'<label class="form-label mb-1" style="font-size:0.85rem;">Person(s) involved</label>' +
-			'<input type="text" id="swal-loss-incharge" class="form-control" value="-" maxlength="150" />' +
-			'</div>' +
-			'<div>' +
-			'<label class="form-label mb-1" style="font-size:0.85rem;">Payment Type</label><br>' +
-			'<div class="form-check form-check-inline">' +
-			'<input class="form-check-input" type="radio" name="swal-loss-payment-type" id="swal-loss-type-chip" value="1" checked>' +
-			'<label class="form-check-label" for="swal-loss-type-chip">Chip</label>' +
-			'</div>' +
-			'<div class="form-check form-check-inline">' +
-			'<input class="form-check-input" type="radio" name="swal-loss-payment-type" id="swal-loss-type-cash" value="2">' +
-			'<label class="form-check-label" for="swal-loss-type-cash">Cash</label>' +
-			'</div>' +
-			'</div>' +
-			'</div>',
-		showCancelButton: true,
-		confirmButtonText: 'Save & End Game',
-		cancelButtonText: 'Cancel',
-		confirmButtonColor: '#0d6efd',
-		allowOutsideClick: false,
-		allowEscapeKey: false,
-		focusConfirm: false,
-		preConfirm: function () {
-			var description = ($('#swal-loss-description').val() || '').toString().trim();
-			var inCharge = ($('#swal-loss-incharge').val() || '').toString().trim();
-			var paymentType = $('input[name="swal-loss-payment-type"]:checked').val();
-			if (!description) {
-				Swal.showValidationMessage('Description is required.');
-				return false;
-			}
-			if (!inCharge) {
-				Swal.showValidationMessage('Person(s) involved is required.');
-				return false;
-			}
-			return { description: description, inCharge: inCharge, paymentType: paymentType };
-		}
-	}).then(function (result) {
-		return result.isConfirmed ? result.value : null;
-	});
-}
-
 function updateReturnRollerRemainingHint(activeInput) {
 	var $hint = $('#return-roller-remaining-hint');
 	if (!$hint.length) return;
@@ -7329,8 +7263,8 @@ $('#edit_status').submit(function (event) {
 			if (!totalsMatch) {
 				var errorHtml = '<strong>Invalid Roller Chips Return!</strong><br><br>';
 				errorHtml += errorMessages.join('<br>');
-				errorHtml += '<br><br><small class="text-muted">You can return any mix of NN/CC as long as the combined total matches the required amount. Any unreturned balance will be logged in Junket &gt; Loss Amount.</small>';
-
+				errorHtml += '<br><br><small class="text-muted">You can return any mix of NN/CC as long as the combined total matches the required amount. This will be marked as PENDING for review.</small>';
+				
 				Swal.fire({
 					icon: 'error',
 					title: 'Amount Mismatch',
@@ -7343,57 +7277,34 @@ $('#edit_status').submit(function (event) {
 					allowOutsideClick: false,
 					allowEscapeKey: false
 				}).then((result) => {
-					if (!result.isConfirmed) {
-						// User cancelled - show modal again
-						showChangeStatusModal();
-						$btn.prop('disabled', false).html('Save');
-						return;
-					}
-
-					// User chose to proceed anyway - end the game (status = 1) and log the
-					// unreturned balance to Loss Amount instead of marking it PENDING.
-					var shortfall = Math.max(0, requiredReturnTotal - returnTotal);
-
-					promptRollerShortfallLossDetails(shortfall).then(function (lossDetails) {
-						if (shortfall > 0 && !lossDetails) {
-							// User cancelled the loss-details prompt
-							showChangeStatusModal();
-							$btn.prop('disabled', false).html('Save');
-							return;
-						}
-
+					if (result.isConfirmed) {
+						// User chose to proceed anyway - submit with status = 3 (PENDING)
 						$btn.prop('disabled', true).html(`
 							<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
 							Loading...
 						`);
-
+						
 						// Serialize form data first
 						var formData = $form.serialize();
-
-						// Force status = 1 (END GAME) — no more PENDING on amount mismatch
+						
+						// Manually add status = 3 (PENDING) since it's not in the select options
+						// Parse the serialized string and add/update txtStatus parameter
 						var params = new URLSearchParams(formData);
-						params.set('txtStatus', '1');
-						if (lossDetails) {
-							params.set('txtLossShortfall', String(shortfall));
-							params.set('txtLossDescription', lossDetails.description);
-							params.set('txtLossInCharge', lossDetails.inCharge);
-							params.set('txtLossPaymentType', lossDetails.paymentType);
-						}
+						params.set('txtStatus', '3');
 						formData = params.toString();
-
+						
+						// Submit the form via AJAX with status = 3
 						$.ajax({
 							url: '/game_list/change_status/' + game_id,
 							type: 'PUT',
 							data: formData,
 							success: function (response) {
 								Swal.fire({
-									icon: 'success',
-									title: 'Game Ended',
-									html: shortfall > 0
-										? 'Game has ended.<br>Outstanding roller chips (' + shortfall.toLocaleString('en-US') + ') recorded in Junket &gt; Loss Amount.'
-										: 'Game has ended.',
+									icon: 'warning',
+									title: 'Status set to PENDING!',
+									html: 'Game has been marked as PENDING due to amount mismatch.<br>Please review and resolve the discrepancy.',
 									showConfirmButton: false,
-									timer: 2200
+									timer: 2000
 								});
 
 								reloadData();
@@ -7414,7 +7325,11 @@ $('#edit_status').submit(function (event) {
 								$('#status').val('1');
 							}
 						});
-					});
+					} else {
+						// User cancelled - show modal again
+						showChangeStatusModal();
+						$btn.prop('disabled', false).html('Save');
+					}
 				});
 				return;
 			}
