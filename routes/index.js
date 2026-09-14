@@ -22,7 +22,6 @@ module.exports = [
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.
     require('./telegramData'),
     require('./fnb_hotel'),
-    require('./junketMonthlySettlement'),
     require('./announcement'), // POST /announcement/create (agents)
     require('./broadcast') // POST /broadcast/guest (chat IDs)
 ];
