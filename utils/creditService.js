@@ -41,6 +41,65 @@ function ensureCreditTable(pool) {
 	return ensurePromise;
 }
 
+/**
+ * Account-level remarks for the Total Credit summary panel — a free-text note per account,
+ * separate from any single transaction's remarks (this panel is account-, not row-, scoped).
+ * Auto-creates the table on first use, same idempotent pattern as ensureCreditSchema.
+ */
+let ensureAccountRemarksPromise = null;
+
+function ensureAccountRemarksTable(pool) {
+	if (!ensureAccountRemarksPromise) {
+		ensureAccountRemarksPromise = pool.execute(`
+			CREATE TABLE IF NOT EXISTS account_credit_remarks (
+				ACCOUNT_ID INT NOT NULL PRIMARY KEY,
+				REMARKS VARCHAR(500) NULL DEFAULT NULL,
+				EDITED_BY INT NULL DEFAULT NULL,
+				EDITED_DT DATETIME NULL DEFAULT NULL
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+		`).catch((err) => {
+			ensureAccountRemarksPromise = null;
+			throw err;
+		});
+	}
+	return ensureAccountRemarksPromise;
+}
+
+/** @returns {Promise<Map<number, string|null>>} ACCOUNT_ID -> REMARKS */
+async function getAccountRemarksMap(pool) {
+	await ensureAccountRemarksTable(pool);
+	const [rows] = await pool.execute('SELECT ACCOUNT_ID, REMARKS FROM account_credit_remarks');
+	const map = new Map();
+	rows.forEach((r) => map.set(r.ACCOUNT_ID, r.REMARKS));
+	return map;
+}
+
+/** Wipes stored remarks for accounts that are fully settled — a remark belongs to the account's
+ *  current on-credit episode, so it shouldn't resurface once that episode is over and a later,
+ *  unrelated credit is issued. Called from the summary endpoint on every fetch (self-cleaning). */
+async function clearAccountRemarks(pool, accountIds) {
+	const ids = (accountIds || []).map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n) && n > 0);
+	if (!ids.length) return;
+	await ensureAccountRemarksTable(pool);
+	const placeholders = ids.map(() => '?').join(',');
+	await pool.execute(`DELETE FROM account_credit_remarks WHERE ACCOUNT_ID IN (${placeholders})`, ids);
+}
+
+async function upsertAccountRemarks(pool, accountId, remarks, editedBy) {
+	await ensureAccountRemarksTable(pool);
+	const acct = parseInt(accountId, 10);
+	if (!Number.isInteger(acct) || acct <= 0) return false;
+	let r = remarks == null ? null : String(remarks);
+	if (r != null && r.length > 500) r = r.slice(0, 500);
+	await pool.execute(
+		`INSERT INTO account_credit_remarks (ACCOUNT_ID, REMARKS, EDITED_BY, EDITED_DT)
+		 VALUES (?, ?, ?, NOW())
+		 ON DUPLICATE KEY UPDATE REMARKS = VALUES(REMARKS), EDITED_BY = VALUES(EDITED_BY), EDITED_DT = VALUES(EDITED_DT)`,
+		[acct, r, editedBy != null ? editedBy : null]
+	);
+	return true;
+}
+
 function normalizeGuestId(raw) {
 	const n = parseInt(raw, 10);
 	return Number.isInteger(n) && n > 0 ? n : null;
@@ -244,6 +303,60 @@ async function insertCreditRecord(pool, {
 	}
 }
 
+/** Raw per-account CREDIT/BUYIN bucket sums (signed; negative = that bucket was overpaid). */
+function creditBucketSumsSql() {
+	return `
+		SELECT
+			ct.ACCOUNT_ID,
+			SUM(CASE
+				WHEN ct.CREDIT_ACTION = 'Cash-out'
+					OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
+					THEN ct.AMOUNT
+				WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
+					THEN -ct.AMOUNT
+				ELSE 0
+			END) AS BALANCE_CREDIT,
+			SUM(CASE
+				WHEN ct.CREDIT_ACTION = 'Buy-in'
+					OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
+					THEN ct.AMOUNT
+				WHEN ct.DIRECTION = 'return' AND (
+					ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
+				)
+					THEN -ct.AMOUNT
+				ELSE 0
+			END) AS BALANCE_BUYIN
+		FROM credit_transaction ct
+		WHERE ct.ACTIVE = 1
+		GROUP BY ct.ACCOUNT_ID
+	`;
+}
+
+/**
+ * Waterfall netting: a return tagged against one bucket (Cash vs Game/Buy-in) still pays down
+ * debt in the OTHER bucket once its own bucket is fully cleared. Without this, a single payment
+ * that happens to be tagged/recorded against the wrong bucket leaves phantom "credit" outstanding
+ * even though the account's combined debt is already settled.
+ */
+function creditWaterfallDisplaySql() {
+	return `
+		SELECT
+			bal.ACCOUNT_ID,
+			(bal.BALANCE_CREDIT + bal.BALANCE_BUYIN) AS NET_TOTAL,
+			CASE
+				WHEN bal.BALANCE_CREDIT < 0 THEN 0
+				WHEN bal.BALANCE_BUYIN < 0 THEN GREATEST(0, bal.BALANCE_CREDIT + bal.BALANCE_BUYIN)
+				ELSE bal.BALANCE_CREDIT
+			END AS CREDIT_DISPLAY,
+			CASE
+				WHEN bal.BALANCE_BUYIN < 0 THEN 0
+				WHEN bal.BALANCE_CREDIT < 0 THEN GREATEST(0, bal.BALANCE_CREDIT + bal.BALANCE_BUYIN)
+				ELSE bal.BALANCE_BUYIN
+			END AS BUYIN_DISPLAY
+		FROM (${creditBucketSumsSql()}) bal
+	`;
+}
+
 function getCreditDataBreakdownSql() {
 	return `
 		SELECT
@@ -251,90 +364,28 @@ function getCreditDataBreakdownSql() {
 			agent.IDNo AS AGENT_ID,
 			agent.AGENT_CODE AS AGENT_CODE,
 			agent.NAME AS AGENT_NAME,
-			ROUND(GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)), 0) AS BALANCE_CREDIT,
-			ROUND(GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0)), 0) AS BALANCE_BUYIN,
-			ROUND(
-				GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0)),
-				0
-			) AS TOTAL_AMOUNT
+			ROUND(net.CREDIT_DISPLAY, 0) AS BALANCE_CREDIT,
+			ROUND(net.BUYIN_DISPLAY, 0) AS BALANCE_BUYIN,
+			ROUND(GREATEST(0, net.NET_TOTAL), 0) AS TOTAL_AMOUNT
 		FROM account
 		JOIN agent ON agent.IDNo = account.AGENT_ID
-		INNER JOIN (
-			SELECT
-				ct.ACCOUNT_ID,
-				SUM(CASE
-					WHEN ct.CREDIT_ACTION = 'Cash-out'
-						OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
-						THEN ct.AMOUNT
-					WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
-						THEN -ct.AMOUNT
-					ELSE 0
-				END) AS BALANCE_CREDIT,
-				SUM(CASE
-					WHEN ct.CREDIT_ACTION = 'Buy-in'
-						OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
-						THEN ct.AMOUNT
-					WHEN ct.DIRECTION = 'return' AND (
-						ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
-					)
-						THEN -ct.AMOUNT
-					ELSE 0
-				END) AS BALANCE_BUYIN
-			FROM credit_transaction ct
-			WHERE ct.ACTIVE = 1
-			GROUP BY ct.ACCOUNT_ID
-		) bal ON bal.ACCOUNT_ID = account.IDNo
+		INNER JOIN (${creditWaterfallDisplaySql()}) net ON net.ACCOUNT_ID = account.IDNo
 		WHERE account.ACTIVE = 1
 		  AND agent.ACTIVE = 1
-		  AND (
-			GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0))
-		  ) <> 0
+		  AND net.NET_TOTAL > 0
 		ORDER BY agent.AGENT_CODE ASC
 	`;
 }
 
 function getCreditGrandTotalSql() {
 	return `
-		SELECT COALESCE(SUM(t.TOTAL_AMOUNT), 0) AS JUNKET_CREDIT
-		FROM (
-			SELECT
-				ROUND(
-					GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0)),
-					0
-				) AS TOTAL_AMOUNT
-			FROM account
-			JOIN agent ON agent.IDNo = account.AGENT_ID
-			INNER JOIN (
-				SELECT
-					ct.ACCOUNT_ID,
-					SUM(CASE
-						WHEN ct.CREDIT_ACTION = 'Cash-out'
-							OR (ct.DIRECTION = 'issue' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT' AND ct.CREDIT_ACTION NOT IN ('Buy-in', 'Chips Return'))
-							THEN ct.AMOUNT
-						WHEN ct.DIRECTION = 'return' AND COALESCE(ct.CREDIT_SOURCE, 'CREDIT') = 'CREDIT'
-							THEN -ct.AMOUNT
-						ELSE 0
-					END) AS BALANCE_CREDIT,
-					SUM(CASE
-						WHEN ct.CREDIT_ACTION = 'Buy-in'
-							OR (ct.DIRECTION = 'issue' AND ct.CREDIT_SOURCE = 'BUYIN')
-							THEN ct.AMOUNT
-						WHEN ct.DIRECTION = 'return' AND (
-							ct.CREDIT_SOURCE = 'BUYIN' OR ct.CREDIT_ACTION = 'Chips Return'
-						)
-							THEN -ct.AMOUNT
-						ELSE 0
-					END) AS BALANCE_BUYIN
-				FROM credit_transaction ct
-				WHERE ct.ACTIVE = 1
-				GROUP BY ct.ACCOUNT_ID
-			) bal ON bal.ACCOUNT_ID = account.IDNo
-			WHERE account.ACTIVE = 1
-			  AND agent.ACTIVE = 1
-			  AND (
-				GREATEST(0, COALESCE(bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(bal.BALANCE_BUYIN, 0))
-			  ) <> 0
-		) t
+		SELECT COALESCE(SUM(GREATEST(0, net.NET_TOTAL)), 0) AS JUNKET_CREDIT
+		FROM (${creditWaterfallDisplaySql()}) net
+		JOIN account ON account.IDNo = net.ACCOUNT_ID
+		JOIN agent ON agent.IDNo = account.AGENT_ID
+		WHERE account.ACTIVE = 1
+		  AND agent.ACTIVE = 1
+		  AND net.NET_TOTAL > 0
 	`;
 }
 
@@ -394,6 +445,37 @@ function getCreditHistorySql() {
 	`;
 }
 
+/**
+ * Attach a unified running ledger to getCreditHistorySql() rows (mutates in place): CREDIT (this
+ * row's signed amount — negative for debt issued, positive for a return/payment), CREDIT_TOTAL
+ * (running balance for that account), BALANCE (running balance across every account,
+ * system-wide). Both totals are negative while debt is outstanding.
+ *
+ * `historyRows` must be sorted ct.ENCODED_DT DESC, ct.IDNo DESC (getCreditHistorySql's order) —
+ * reversing that gives a valid chronological order since IDNo is a unique primary key, so no
+ * separate DB round-trip or window function is needed.
+ *
+ * @returns {{ rows: object[], finalTotals: Map<number, number> }} rows is the same (mutated)
+ *   array; finalTotals is each account's CREDIT_TOTAL as of its most recent transaction — lets a
+ *   caller classify accounts as "on credit" (non-zero) vs "finished" (zero) without a second pass.
+ */
+function computeCreditLedgerTotals(historyRows) {
+	const chronological = Array.isArray(historyRows) ? [...historyRows].reverse() : [];
+	const perAccountTotal = new Map();
+	let globalRunning = 0;
+	for (const row of chronological) {
+		const signed = row.DIRECTION === 'issue' ? -Number(row.AMOUNT) : Number(row.AMOUNT);
+		const accountId = row.ACCOUNT_ID;
+		const acctTotal = (perAccountTotal.get(accountId) || 0) + signed;
+		perAccountTotal.set(accountId, acctTotal);
+		globalRunning += signed;
+		row.CREDIT = signed;
+		row.CREDIT_TOTAL = acctTotal;
+		row.BALANCE = globalRunning;
+	}
+	return { rows: historyRows, finalTotals: perAccountTotal };
+}
+
 /** Credit Status tab: outstanding (remaining) balance per account — matches getCreditGrandTotalSql
  *  and the Account Details credit computation. Aggregated at account level so returns booked
  *  without a GUEST_ID still reduce the outstanding amount; the GUEST column shows the guest from
@@ -409,7 +491,7 @@ function getCreditStatusBreakdownSql() {
 			COALESCE(NULLIF(TRIM(guest.NAME), ''), NULL) AS GUEST_NAME,
 			ROUND(GREATEST(0, COALESCE(acc_bal.ISSUED_CREDIT, 0)), 0) AS TOTAL_CREDIT,
 			ROUND(
-				GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(acc_bal.BALANCE_BUYIN, 0)),
+				GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0) + COALESCE(acc_bal.BALANCE_BUYIN, 0)),
 				0
 			) AS AMOUNT
 		FROM (
@@ -462,8 +544,8 @@ function getCreditStatusBreakdownSql() {
 		WHERE account.ACTIVE = 1
 		  AND agent.ACTIVE = 1
 		  AND (
-			GREATEST(0, COALESCE(acc_bal.BALANCE_CREDIT, 0)) + GREATEST(0, COALESCE(acc_bal.BALANCE_BUYIN, 0))
-		  ) <> 0
+			COALESCE(acc_bal.BALANCE_CREDIT, 0) + COALESCE(acc_bal.BALANCE_BUYIN, 0)
+		  ) > 0
 		ORDER BY agent.AGENT_CODE ASC, guest.NAME ASC
 	`;
 }
@@ -914,9 +996,13 @@ module.exports = {
 	getCreditGrandTotalSql,
 	getCreditStatusBreakdownSql,
 	getCreditHistorySql,
+	computeCreditLedgerTotals,
 	getCreditIssueTransactionsSql,
 	softDeleteCreditByLedgerId,
 	deleteMarkerCreditRecord,
 	updateCreditRemarksByLedgerId,
-	updateCreditFieldsByLedgerId
+	updateCreditFieldsByLedgerId,
+	getAccountRemarksMap,
+	upsertAccountRemarks,
+	clearAccountRemarks
 };

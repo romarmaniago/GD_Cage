@@ -1185,9 +1185,14 @@
 		"agent": "Agent",
 		"debtor": "Debtor",
 		"type": "Type",
-		"receipt": "dashboard_marker.receipt",
+		"receipt": "Receipt",
 		"credit_chips": "dashboard_marker.credit_chips",
-		"credit_total": "dashboard_marker.credit_total"
+		"credit_total": "Credit Total",
+		"name": "Name",
+		"credit": "Credit",
+		"on_credit": "On Credit",
+		"finished_credit": "Finished Credit",
+		"total_credit_title": "Total Credit"
 	},
 	"modal_new_agent": {
 		"new_guest": "Add Agent",

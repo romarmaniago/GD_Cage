@@ -10,6 +10,15 @@
 
     var skipMarkerModalReload = false;
 
+    /** YYYY-MM-DD for the browser's local "today" — used to default the History table's date navigator. */
+    function todayYmd() {
+        var d = new Date();
+        var yyyy = d.getFullYear();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd;
+    }
+
     var headerCreditState = {
         overallTotalIssue: null,
         overallCash: 0,
@@ -279,6 +288,22 @@
         return formatMarkerHistoryAmount(value);
     }
 
+    /** Signed ledger cell (CREDIT / CREDIT_TOTAL / BALANCE) — red "(x,xxx)" while negative
+     *  (debt outstanding), plain black otherwise. Unlike formatMarkerHistoryAmountCell this
+     *  reads the sign directly off the value instead of inferring it from transaction type. */
+    function formatSignedCreditCell(value, type) {
+        if (type === 'sort' || type === 'type') {
+            var n = value != null ? Number(value) : 0;
+            return isNaN(n) ? 0 : n;
+        }
+        var num = value != null ? Number(value) : 0;
+        if (isNaN(num)) num = 0;
+        if (num < 0) {
+            return '<span style="color:#dc3545 !important;">(' + formatMarkerHistoryAmount(Math.abs(num)) + ')</span>';
+        }
+        return formatMarkerHistoryAmount(num);
+    }
+
     function sumTotalCreditTabAmount(rows) {
         var total = 0;
         if (!rows || !rows.length) return total;
@@ -364,6 +389,117 @@
             .replace(/"/g, '&quot;');
     }
 
+    /** Standalone print sheet styles (title + subtitle + bordered table) — same layout convention
+     *  as Game Book's printGameListTable() in game_list.js. Per-column alignment is applied inline
+     *  per cell (see printMarkerHistoryTable) rather than baked in here as nth-child rules, since the
+     *  column count/order differs between the full ledger and the On Credit/Finished Credit summary. */
+    function getMarkerHistoryPrintStyles() {
+        return [
+            '@page{size:landscape;margin:6mm;}',
+            'body{font-family:Arial,sans-serif;color:#111;margin:0;}',
+            '.print-wrap{width:100%;}',
+            'h2{text-align:center;margin:0 0 4px;font-size:18px;}',
+            '.subtitle{text-align:center;margin:0 0 10px;font-size:12px;color:#444;}',
+            'table{width:100%;border-collapse:collapse;font-size:10px;}',
+            'th,td{border:1px solid #777;padding:4px 6px;vertical-align:middle;text-align:center;}',
+            'th{background:#d9e1f2;font-weight:700;}'
+        ].join('');
+    }
+
+    /** Builds a clean printable sheet (title + date/status subtitle + table, minus the Action
+     *  column) in a hidden iframe and prints it — mirrors Game Book's printGameListTable(). */
+    function printMarkerHistoryTable(opts) {
+        var table = opts.table;
+        var $table = opts.$table;
+        var title = opts.title || 'Credit History';
+        var subtitle = opts.subtitle || '';
+        // The Action column (always last, when present) isn't meaningful on paper — drop it. Callers
+        // in a mode with no Action column (e.g. the On Credit/Finished Credit summary view) pass
+        // false so the last REAL column doesn't get chopped off instead.
+        var dropLastColumn = opts.dropLastColumn !== false;
+        // 1-based column positions (within the printed headers/rows, after dropLastColumn is
+        // applied) to left/right-align — defaults match the full ledger's
+        // Date | Account | Name | Credit | Credit Total | Guarantor | Balance layout.
+        var leftAlignCols = opts.leftAlignCols || [2, 3];
+        var rightAlignCols = opts.rightAlignCols || [4, 5, 7];
+        if (!table || !$table || !$table.length) return;
+
+        var headers = [];
+        var $headerCells = $table.find('thead tr:first th');
+        (dropLastColumn ? $headerCells.slice(0, -1) : $headerCells).each(function () {
+            headers.push($(this).text().trim());
+        });
+        var rows = [];
+        table.rows({ search: 'applied', order: 'applied' }).every(function () {
+            var cells = [];
+            var $cells = $(this.node()).find('td');
+            (dropLastColumn ? $cells.slice(0, -1) : $cells).each(function () {
+                cells.push($(this).text().trim());
+            });
+            if (cells.length) rows.push(cells);
+        });
+
+        if (!rows.length) {
+            if (window.Swal) {
+                Swal.fire({ icon: 'info', title: 'Print', text: 'No rows to print for the current filter.', confirmButtonColor: '#0d6efd' });
+            } else {
+                alert('No rows to print.');
+            }
+            return;
+        }
+
+        function alignStyle(pos1based) {
+            if (leftAlignCols.indexOf(pos1based) !== -1) return 'text-align:left;padding-left:10px;';
+            if (rightAlignCols.indexOf(pos1based) !== -1) return 'text-align:right;padding-right:10px;';
+            return '';
+        }
+        var headerHtml = headers.map(function (h, idx) {
+            return '<th style="' + alignStyle(idx + 1) + '">' + escapeHtml(h) + '</th>';
+        }).join('');
+        var rowsHtml = rows.map(function (row) {
+            return '<tr>' + row.map(function (cell, idx) {
+                // Credit / Credit Total / Balance render negative amounts as "(x,xxx)" — keep
+                // that red on paper too, same as on screen.
+                var isNegAmount = /^\(.*\)$/.test(cell);
+                var style = alignStyle(idx + 1) + (isNegAmount ? 'color:#dc3545;' : '');
+                return '<td style="' + style + '">' + escapeHtml(cell) + '</td>';
+            }).join('') + '</tr>';
+        }).join('');
+
+        var iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+        var frameWindow = iframe.contentWindow;
+        var frameDoc = frameWindow.document;
+        frameDoc.open();
+        frameDoc.write([
+            '<!doctype html><html><head><title>', escapeHtml(title), '</title><style>',
+            getMarkerHistoryPrintStyles(),
+            '</style></head><body><div class="print-wrap">',
+            '<h2>', escapeHtml(title), '</h2>',
+            subtitle ? '<div class="subtitle">' + escapeHtml(subtitle) + '</div>' : '',
+            '<table><thead><tr>', headerHtml, '</tr></thead><tbody>', rowsHtml, '</tbody></table>',
+            '</div></body></html>'
+        ].join(''));
+        frameDoc.close();
+        var cleanup = function () {
+            setTimeout(function () {
+                if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 300);
+        };
+        frameWindow.onafterprint = cleanup;
+        setTimeout(function () {
+            frameWindow.focus();
+            frameWindow.print();
+            cleanup();
+        }, 250);
+    }
+
     function getTransactionLabel(transactionId) {
         switch (parseInt(transactionId, 10)) {
             case 11: return 'Marker Returned Cash';
@@ -411,9 +547,9 @@
             $table.find('tbody').empty();
         }
 
-        // Default sort by Date (ENCODED_DT) — col 1 after Program Date
-        var orderCol = options.orderCol != null ? options.orderCol : 1;
-        var orderDir = options.orderDir || 'desc';
+        // Default sort by Date (ENCODED_DT) — col 0, Program Date column removed
+        var orderCol = options.orderCol != null ? options.orderCol : 0;
+        var orderDir = options.orderDir || 'asc';
 
         var isSuperAdmin = isMarkerSuperAdmin();
         var canEditMarker = canEditMarkerRecords();
@@ -421,13 +557,23 @@
         // Get translations from window object
         var translations = window.markerTranslations || {};
 
+        // On Credit / Finished Credit + Date range filters — read by the ajax.data callback below,
+        // updated by the toolbar wiring further down (which triggers table.ajax.reload()). Status
+        // defaults to "no filter" (shows every account); the date range defaults to today only, and
+        // matches the visible Date & Time column (ENCODED_DT), not Program Date.
+        var currentStatus = null;
+        var currentDateFrom = todayYmd();
+        var currentDateTo = todayYmd();
+
         var table = $table.DataTable({
             order: [[orderCol, orderDir]],
+            pageLength: 100,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
             language: {
                 info: translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
                 infoEmpty: translations.info_empty || "Showing 0 to 0 of 0 entries",
                 infoFiltered: translations.info_filtered || "(filtered from _MAX_ total entries)",
-                lengthMenu: translations.length_menu || "Show _MENU_ entries",
+                lengthMenu: "_MENU_",
                 search: translations.search || "Search:",
                 paginate: {
                     first: translations.first || "First",
@@ -442,6 +588,11 @@
             autoWidth: false,
             ajax: {
                 url: options.ajaxUrl || '/marker_history',
+                data: function (d) {
+                    if (currentStatus) d.status = currentStatus;
+                    if (currentDateFrom) d.dateFrom = currentDateFrom;
+                    if (currentDateTo) d.dateTo = currentDateTo;
+                },
                 dataSrc: function (json) {
                     var data = Array.isArray(json) ? json : (json && json.data && Array.isArray(json.data) ? json.data : []);
                     if (!data.length) return data;
@@ -449,7 +600,9 @@
                         try {
                             return data.map(function (row) {
                                 if (row.ENCODED_DT) {
-                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm');
+                                    // Keep seconds here so same-minute rows still sort correctly —
+                                    // the column's render() drops them again for display.
+                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('YYYY-MM-DD HH:mm:ss');
                                 }
                                 return row;
                             });
@@ -464,13 +617,6 @@
                 }
             },
             columns: [
-                {
-                    data: 'PROGRAM_DATE',
-                    defaultContent: '',
-                    render: function (data, type) {
-                        return formatProgramDateCell(data, type);
-                    }
-                },
                 {
                     data: 'ENCODED_DT',
                     defaultContent: '',
@@ -487,31 +633,32 @@
                     }
                 },
                 {
-                    data: null,
-                    render: function (row) {
-                        return (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
-                    }
-                },
-                {
-                    data: 'GUEST_NAME',
+                    data: 'AGENT_CODE',
                     defaultContent: '',
                     render: function (data) {
                         return data != null && String(data).trim() !== '' ? escapeHtml(data) : '—';
                     }
                 },
                 {
-                    data: 'AMOUNT',
-                    className: 'text-end marker-history-col-amount',
-                    render: function (data, type, row) {
-                        return formatMarkerHistoryAmountCell(data, row, type);
+                    data: 'AGENT_NAME',
+                    defaultContent: '',
+                    render: function (data) {
+                        return data != null && String(data).trim() !== '' ? escapeHtml(data) : '—';
                     }
                 },
                 {
-                    data: 'CREDIT_ACTION',
-                    defaultContent: '',
-                    className: 'text-center',
-                    render: function (data, type, row) {
-                        return renderTransactionType(row && row.TRANSACTION_INFO, type, row);
+                    data: 'CREDIT',
+                    className: 'text-end marker-history-col-amount',
+                    render: function (data, type) {
+                        return formatSignedCreditCell(data, type);
+                    }
+                },
+                {
+                    data: 'CREDIT_TOTAL',
+                    orderable: false,
+                    className: 'text-end marker-history-col-amount',
+                    render: function (data, type) {
+                        return formatSignedCreditCell(data, type);
                     }
                 },
                 {
@@ -522,30 +669,11 @@
                     }
                 },
                 {
-                    data: 'REMARKS',
-                    defaultContent: '',
-                    className: 'marker-history-col-remarks',
-                    render: function (data, type, row) {
-                        var raw = data != null ? String(data) : '';
-                        if (type === 'sort' || type === 'filter') {
-                            return raw;
-                        }
-                        if (type !== 'display') {
-                            return raw;
-                        }
-                        var safe = escapeHtml(raw);
-                        var textHtml = safe ? safe : '<span class="text-muted">—</span>';
-                        if (!canEditMarker) {
-                            return textHtml;
-                        }
-                        var id = row.IDNo != null ? String(row.IDNo) : '';
-                        var enc = encodeURIComponent(raw);
-                        var t = translations;
-                        var editTitle = (t.edit_remarks || 'Edit remarks').replace(/"/g, '&quot;');
-                        return (
-                            '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer text-break btn-edit-marker-remarks"' +
-                            ' role="button" tabindex="0" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>'
-                        );
+                    data: 'BALANCE',
+                    orderable: false,
+                    className: 'text-end marker-history-col-amount',
+                    render: function (data, type) {
+                        return formatSignedCreditCell(data, type);
                     }
                 },
                 {
@@ -558,6 +686,7 @@
                         var id = row.IDNo != null ? String(row.IDNo) : '';
                         if (!id) return '—';
                         var editTitle = (translations.edit || 'Edit').replace(/"/g, '&quot;');
+                        var editRemarksTitle = (translations.edit_remarks || 'Edit remarks').replace(/"/g, '&quot;');
                         var delTitle = (translations.delete || 'Delete').replace(/"/g, '&quot;');
                         var receiptTitle = (translations.receipt || 'Receipt').replace(/"/g, '&quot;');
                         var programYmd = row.PROGRAM_DATE != null
@@ -572,6 +701,12 @@
                             '<div class="d-inline-flex align-items-center gap-1 marker-row-actions">' +
                             '<button type="button" class="btn btn-sm btn-icon-plain btn-marker-receipt" ' +
                             'data-id="' + id + '" title="' + receiptTitle + '"><i class="fa fa-receipt"></i></button>';
+                        if (canEditMarker) {
+                            html +=
+                                '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-remarks" ' +
+                                'data-id="' + id + '" data-remarks="' + remarksEnc + '" ' +
+                                'title="' + editRemarksTitle + '"><i class="fa fa-sticky-note"></i></button>';
+                        }
                         if (canEditMarker) {
                             html +=
                                 '<button type="button" class="btn btn-sm btn-icon-plain btn-edit-marker-history" ' +
@@ -595,6 +730,150 @@
                 }
             ]
         });
+
+        // Re-parent DataTables' auto-generated length/search controls into the custom toolbar
+        // (built in marker.ejs / markerHistory.ejs as #marker-history-length-slot /
+        // #marker-history-search-slot), then hide whatever's left of their original row. Runs once
+        // per init since these DOM nodes are created a single time, not on every draw.
+        (function relocateHistoryToolbarControls() {
+            var tableId = $table.attr('id');
+            var $lengthWrap = $('#' + tableId + '_length');
+            var $filterWrap = $('#' + tableId + '_filter');
+            var $lengthSlot = $('#marker-history-length-slot');
+            var $searchSlot = $('#marker-history-search-slot');
+            if ($lengthSlot.length && $lengthWrap.length) $lengthSlot.append($lengthWrap);
+            if ($searchSlot.length && $filterWrap.length) $searchSlot.append($filterWrap);
+            $table.closest('.dataTables_wrapper').children('.row').each(function () {
+                var $row = $(this);
+                if ($row.find('table').length) return;
+                if (!$row.find('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate').length) {
+                    $row.hide();
+                }
+            });
+        })();
+
+        // On Credit / Finished Credit collapse the table to one summary row per account (Account,
+        // Name, Total, Guarantor) instead of every transaction row — done by hiding the columns
+        // that don't apply (Date & Time, Credit, Balance, Action) and relabeling "Credit Total" to
+        // "Total", rather than destroying/rebuilding the DataTable, so the `table` API reference
+        // captured by initExport()/print stays valid across toggles. A data attribute on the table
+        // element lets those other functions detect the mode without their own state var.
+        function applyHistorySummaryMode(isSummary) {
+            $table.attr('data-marker-mode', isSummary ? 'summary' : '');
+            table.columns([0, 3, 6, 7]).visible(!isSummary);
+            var headerCell = table.column(4).header();
+            if (headerCell) {
+                $(headerCell).text(isSummary ? (translations.total || 'Total') : (translations.credit_total || 'Credit Total'));
+            }
+        }
+
+        // Print: builds a clean standalone sheet (Game Book style) instead of printing the live
+        // page, so the sidebar form / toolbar chrome never show up on paper.
+        $('.marker-history-btn-print').off('click.markerHistoryPrint').on('click.markerHistoryPrint', function (e) {
+            e.preventDefault();
+            var subtitleParts = [];
+            var t = window.markerTranslations || {};
+            var isSummary = currentStatus === 'on_credit' || currentStatus === 'finished';
+            if (currentStatus === 'on_credit') subtitleParts.push(t.on_credit || 'On Credit');
+            else if (currentStatus === 'finished') subtitleParts.push(t.finished_credit || 'Finished Credit');
+            if (currentDateFrom) {
+                subtitleParts.push(currentDateFrom === currentDateTo ? currentDateFrom : (currentDateFrom + ' to ' + currentDateTo));
+            }
+            printMarkerHistoryTable({
+                table: table,
+                $table: $table,
+                title: 'Credit History',
+                subtitle: subtitleParts.join(' — '),
+                dropLastColumn: !isSummary,
+                // Summary view: Account | Name | Total | Guarantor
+                leftAlignCols: isSummary ? [2, 4] : undefined,
+                rightAlignCols: isSummary ? [3] : undefined
+            });
+        });
+
+        // On Credit / Finished Credit toggle + Date range picker (both filter server-side via the
+        // ajax.data callback above; Credit Total / Balance stay correct either way since the backend
+        // computes them over full history before filtering rows down).
+        (function initHistoryToolbarFilters() {
+            var $dateInput = $('#marker-date-picker');
+            var $onCreditBtn = $('#btn-marker-status-oncredit');
+            var $finishedBtn = $('#btn-marker-status-finished');
+            var datePicker = null;
+
+            function applyDateRange(fromYmd, toYmd) {
+                currentDateFrom = fromYmd;
+                currentDateTo = toYmd || fromYmd;
+                if (table && table.ajax) table.ajax.reload(null, false);
+            }
+
+            if ($dateInput.length && typeof flatpickr !== 'undefined') {
+                // showMonths:3 anchors on the selected month as the FIRST of the 3 shown (e.g.
+                // picking Sep 15 shows Sep/Oct/Nov) — recomputed fresh from "today" (not from
+                // whatever the calendar currently displays) so it's safe to call on every open,
+                // with no cumulative drift, landing on prev/current/next (e.g. Aug/Sep/Oct).
+                function centerCalendarOnCurrentMonth() {
+                    if (!datePicker) return;
+                    var anchor = new Date();
+                    anchor.setDate(1);
+                    anchor.setMonth(anchor.getMonth() - 1);
+                    datePicker.jumpToDate(anchor, false);
+                }
+                datePicker = flatpickr($dateInput[0], {
+                    mode: 'range',
+                    showMonths: 3,
+                    appendTo: document.body,
+                    enableTime: false,
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'M j, Y',
+                    defaultDate: [currentDateFrom, currentDateTo],
+                    allowInput: true,
+                    disableMobile: true,
+                    onOpen: function () {
+                        centerCalendarOnCurrentMonth();
+                    },
+                    onClose: function (selectedDates) {
+                        // Opening then closing without finishing a 2-date pick must not lose the
+                        // filter that's actually applied — restore the display to match it.
+                        if (!selectedDates || selectedDates.length < 2) {
+                            datePicker.setDate([currentDateFrom, currentDateTo], false);
+                        }
+                    },
+                    onChange: function (dates) {
+                        if (!dates || dates.length < 2) return;
+                        var from = datePicker.formatDate(dates[0], 'Y-m-d');
+                        var to = datePicker.formatDate(dates[1], 'Y-m-d');
+                        applyDateRange(from, to);
+                    }
+                });
+                centerCalendarOnCurrentMonth();
+                if (datePicker && datePicker.altInput) {
+                    datePicker.altInput.classList.add('marker-date-nav-input');
+                }
+            } else if ($dateInput.length) {
+                $dateInput.val(currentDateFrom + ' to ' + currentDateTo);
+                $dateInput.on('change', function () {
+                    var v = String($(this).val() || '').trim();
+                    var parts = v.split(/\s+to\s+/i);
+                    if (parts[0]) applyDateRange(parts[0].trim(), (parts[1] || parts[0]).trim());
+                });
+            }
+
+            function setStatus(status) {
+                // Clicking the already-active filter clears it back to "all" (no status filter).
+                currentStatus = currentStatus === status ? null : status;
+                $onCreditBtn.toggleClass('active', currentStatus === 'on_credit');
+                $finishedBtn.toggleClass('active', currentStatus === 'finished');
+                applyHistorySummaryMode(currentStatus === 'on_credit' || currentStatus === 'finished');
+                if (table && table.ajax) table.ajax.reload(null, false);
+            }
+            $onCreditBtn.off('click.markerStatusToggle').on('click.markerStatusToggle', function () {
+                setStatus('on_credit');
+            });
+            $finishedBtn.off('click.markerStatusToggle').on('click.markerStatusToggle', function () {
+                setStatus('finished');
+            });
+        })();
 
         // Edit remarks (Super Admin)
         $table.off('click.markerEditRemarks').on('click.markerEditRemarks', '.btn-edit-marker-remarks', function (e) {
@@ -881,13 +1160,16 @@
         );
     }
 
-    function markerReceiptBalanceRow(label, value, isOut) {
+    /** Balance is negative while debt is outstanding (matches the History table's Credit Total
+     *  column) — only shown in red parens when actually negative; zero/positive is plain text. */
+    function markerReceiptBalanceRow(label, value) {
         if (value == null || value === '') return '';
         var num = Number(value);
         if (!Number.isFinite(num)) return '';
         var formatted = markerReceiptFormatAmount(num);
-        var display = '(' + formatted + ')';
-        var cls = 'mrr-value mrr-balance-out';
+        var isNeg = num < 0;
+        var display = isNeg ? '(' + formatted + ')' : formatted;
+        var cls = isNeg ? 'mrr-value mrr-balance-out' : 'mrr-value';
         return (
             '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
             '</td><td class="' + cls + '">' + display + '</td></tr>'
@@ -916,7 +1198,7 @@
             markerReceiptTextRow('ACCOUNT', row.AGENT_CODE) +
             markerReceiptTextRow('NAME', row.AGENT_NAME) +
             markerReceiptInOutRow('IN AND OUT', row.AMOUNT, isOut) +
-            markerReceiptBalanceRow('BALANCE', row.BALANCE_AFTER, isOut) +
+            markerReceiptBalanceRow('BALANCE', row.CREDIT_TOTAL) +
             markerReceiptTextRow('CONFIRMER', row.GUARANTOR) +
             markerReceiptTextRow('REMARKS', row.REMARKS);
 
@@ -1152,11 +1434,64 @@
             .finally(function () { ui.restore(); });
     }
 
+    /** Screenshots a container element (Total Credit panel) and copies it to the clipboard as a
+     *  PNG — same html2canvas + ClipboardItem approach as the receipt "Copy image" button. */
+    function copyElementAsImage(btn, targetEl, opts) {
+        opts = opts || {};
+        if (!targetEl) return;
+        var ui = markerReceiptCopyUi(btn);
+        var blobPromise = loadMarkerReceiptHtml2Canvas()
+            .then(function () {
+                return html2canvas(targetEl, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    // Never capture the trigger button itself — it's UI chrome, not part of the
+                    // content being copied.
+                    ignoreElements: function (el) { return el === btn; }
+                });
+            })
+            .then(function (canvas) {
+                return new Promise(function (resolve, reject) {
+                    canvas.toBlob(function (blob) {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Failed to create image.'));
+                    }, 'image/png');
+                });
+            });
+
+        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+            navigator.clipboard
+                .write([new ClipboardItem({ 'image/png': blobPromise })])
+                .then(function () { ui.success(opts.successMsg || 'Image copied. You can paste it anywhere.'); })
+                .catch(function (err) { ui.error((err && err.message) || 'Unable to copy image.'); })
+                .finally(function () { ui.restore(); });
+        } else {
+            blobPromise
+                .then(function (blob) {
+                    var link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = opts.downloadName || 'image.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    ui.success('Image downloaded.');
+                })
+                .catch(function (err) { ui.error((err && err.message) || 'Unable to copy image.'); })
+                .finally(function () { ui.restore(); });
+        }
+    }
+
     function bindMarkerReceiptEventsOnce() {
         if (window.__markerReceiptBound) return;
         window.__markerReceiptBound = true;
         $(document).on('click', '.js-copy-marker-receipt-image', function () { copyMarkerReceiptImage(this); });
         $(document).on('click', '.js-copy-marker-receipt-text', function () { copyMarkerReceiptText(this); });
+        $(document).on('click', '#btn-marker-credit-summary-copy', function () {
+            var card = this.closest('.marker-credit-card');
+            copyElementAsImage(this, card, { successMsg: 'Total Credit image copied. You can paste it anywhere.', downloadName: 'total-credit.png' });
+        });
         $(document).on('click', '.marker-credit-receipt', function (e) {
             e.preventDefault();
             showCreditBalanceReceipt($(this).data('receipt-kind'));
@@ -1772,26 +2107,35 @@
     }
 
     function buildMarkerExportRow(row) {
-        var programDateCell = formatProgramDateCell(row.PROGRAM_DATE, 'display');
-        if (programDateCell === '—') programDateCell = '';
         var dateCell = row.ENCODED_DT || '';
         if (dateCell && window.moment) {
             var md = parseMarkerHistoryDateString(dateCell);
             if (md) dateCell = md.format('YYYY-MM-DD HH:mm');
         }
-        var amt = row.AMOUNT != null ? Number(row.AMOUNT) : 0;
-        if (isNaN(amt)) amt = 0;
-        var debtor = row.GUEST_NAME != null ? String(row.GUEST_NAME).trim() : '';
+        var credit = row.CREDIT != null ? Number(row.CREDIT) : 0;
+        var creditTotal = row.CREDIT_TOTAL != null ? Number(row.CREDIT_TOTAL) : 0;
+        var balance = row.BALANCE != null ? Number(row.BALANCE) : 0;
         var guarantor = row.GUARANTOR != null ? String(row.GUARANTOR).trim() : '';
         return [
-            programDateCell,
             dateCell,
-            (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
-            debtor,
-            amt,
-            renderTransactionType(row.TRANSACTION_INFO, 'export', row),
+            row.AGENT_CODE || '',
+            row.AGENT_NAME || '',
+            isNaN(credit) ? 0 : credit,
+            isNaN(creditTotal) ? 0 : creditTotal,
             guarantor,
-            row.REMARKS != null ? String(row.REMARKS) : ''
+            isNaN(balance) ? 0 : balance
+        ];
+    }
+
+    /** On Credit / Finished Credit summary view: one row per account (Account, Name, Total, Guarantor). */
+    function buildMarkerSummaryExportRow(row) {
+        var total = row.CREDIT_TOTAL != null ? Number(row.CREDIT_TOTAL) : 0;
+        var guarantor = row.GUARANTOR != null ? String(row.GUARANTOR).trim() : '';
+        return [
+            row.AGENT_CODE || '',
+            row.AGENT_NAME || '',
+            isNaN(total) ? 0 : total,
+            guarantor
         ];
     }
 
@@ -1803,19 +2147,26 @@
 
         $btn.off('click.markerExport').on('click.markerExport', function () {
             var t = window.markerTranslations || {};
-            var headers = [
-                t.program_date || 'Program Date',
-                t.date || 'Date',
-                t.account_name || 'Account Name',
-                t.debtor || 'Debtor',
-                t.amount || 'Amount',
-                t.type || 'Type',
-                t.guarantor || 'Guarantor',
-                t.remarks || 'Remarks'
-            ];
+            var isSummary = $(table.table().node()).attr('data-marker-mode') === 'summary';
+            var headers = isSummary
+                ? [
+                    t.account || 'Account',
+                    t.name || 'Name',
+                    t.total || 'Total',
+                    t.guarantor || 'Guarantor'
+                ]
+                : [
+                    t.date_time || 'Date & Time',
+                    t.account || 'Account',
+                    t.name || 'Name',
+                    t.credit || 'Credit',
+                    t.credit_total || 'Credit Total',
+                    t.guarantor || 'Guarantor',
+                    t.balance || 'Balance'
+                ];
             var data = table.rows({ search: 'applied' }).data().toArray();
             var rows = data.map(function (row) {
-                return buildMarkerExportRow(row);
+                return isSummary ? buildMarkerSummaryExportRow(row) : buildMarkerExportRow(row);
             });
             if (rows.length === 0) {
                 if (window.Swal) {
@@ -1840,7 +2191,7 @@
                     rows: rows,
                     filename: outName,
                     sheetName: options.sheetName || 'Credit History',
-                    profileKey: 'markerHistory'
+                    profileKey: isSummary ? 'markerHistorySummary' : 'markerHistory'
                 })
             })
                 .then(function (res) {
@@ -3269,113 +3620,170 @@
             el.innerHTML = '<span class="text-dash-neg">(' + Math.abs(v).toLocaleString('en-US') + ')</span>';
         }
 
-        function updateAccountsBalanceTable() {
-            var $creditTbl = $('#marker-accounts-credit-tbl');
-            var $buyinTbl = $('#marker-accounts-buyin-tbl');
-            var $totalCreditTbl = $('#marker-accounts-totalcredit-tbl');
-            if (!$creditTbl.length || !$buyinTbl.length) return;
-            destroyBalanceDataTable('#marker-accounts-credit-tbl');
-            destroyBalanceDataTable('#marker-accounts-buyin-tbl');
-            if ($totalCreditTbl.length) destroyBalanceDataTable('#marker-accounts-totalcredit-tbl');
-            var $creditTbody = $creditTbl.find('tbody');
-            var $buyinTbody = $buyinTbl.find('tbody');
-            var $totalCreditTbody = $totalCreditTbl.find('tbody');
-            $creditTbody.empty();
-            $buyinTbody.empty();
-            $totalCreditTbody.empty();
-            $.when(
-                $.ajax({ url: '/marker_data_breakdown', method: 'GET' }),
-                $.ajax({ url: '/marker_credit_status_breakdown', method: 'GET' })
-            ).done(function (breakdownResp, statusResp) {
-                var list = Array.isArray(breakdownResp[0]) ? breakdownResp[0] : [];
-                headerCreditState.creditStatusBreakdown = Array.isArray(statusResp[0]) ? statusResp[0] : [];
-                    var creditRows = [];
-                    var buyinRows = [];
-                    var totalCreditRows = [];
-                    var totalCredit = 0;
-                    var totalBuyin = 0;
-                    var grandTotal = 0;
-                    list.forEach(function (row) {
-                        var name = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
-                        var agentName = (row.AGENT_NAME || '').trim() || name;
-                        var credit = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
-                        var buyin = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
-                        var accountTotal = row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : (credit + buyin);
-                        if (credit !== 0) { creditRows.push({ name: name, agent: agentName, amount: credit }); totalCredit += credit; }
-                        if (buyin !== 0) { buyinRows.push({ name: name, agent: agentName, amount: buyin }); totalBuyin += buyin; }
-                        if (accountTotal !== 0) {
-                            totalCreditRows.push({ name: name, agent: agentName, amount: accountTotal });
-                            grandTotal += accountTotal;
+        // Cash/Game credit is no longer split into separate tables — this only refreshes the
+        // shared header state (headerCreditState, used by applyHeaderCreditTotals for the
+        // "Total Credits Issue" box and per-account lookups) and the dashboard "utang" widget.
+        // Total Credit side panel: one row per account still on credit, independent of the main
+        // table's On Credit/Finished Credit toggle and date range — always reflects current standing.
+        function renderMarkerCreditSummary(list) {
+            var $body = $('#marker-credit-summary-body');
+            var $grand = $('#marker-credit-summary-grand-total');
+            if (!$body.length) return;
+            list = Array.isArray(list) ? list : [];
+            var canEdit = canEditMarkerRecords();
+            var t = window.markerTranslations || {};
+            var editTitle = (t.edit_remarks || 'Edit remarks').replace(/"/g, '&quot;');
+            var grandTotal = 0;
+            var rowsHtml = list.map(function (row) {
+                var amount = row.CREDIT_TOTAL != null ? Number(row.CREDIT_TOTAL) : 0;
+                grandTotal += amount;
+                var name = row.AGENT_NAME != null && String(row.AGENT_NAME).trim() !== ''
+                    ? escapeHtml(row.AGENT_NAME)
+                    : '—';
+                var rawRemarks = row.REMARKS != null ? String(row.REMARKS) : '';
+                var remarksCell;
+                if (canEdit) {
+                    var enc = encodeURIComponent(rawRemarks);
+                    var textHtml = escapeHtml(rawRemarks) || '<span class="text-muted">—</span>';
+                    remarksCell = '<span class="marker-history-remarks-text marker-history-remarks-clickable cursor-pointer btn-edit-account-remarks"' +
+                        ' role="button" tabindex="0" data-account-id="' + (row.ACCOUNT_ID != null ? row.ACCOUNT_ID : '') +
+                        '" data-remarks="' + enc + '" title="' + editTitle + '">' + textHtml + '</span>';
+                } else {
+                    remarksCell = rawRemarks ? escapeHtml(rawRemarks) : '—';
+                }
+                return '<tr><td>' + escapeHtml(row.AGENT_CODE || '') + '</td><td>' + name +
+                    '</td><td class="text-end marker-history-col-amount">' + formatSignedCreditCell(amount) +
+                    '</td><td class="marker-history-col-remarks">' + remarksCell + '</td></tr>';
+            }).join('');
+            $body.html(rowsHtml || '<tr><td colspan="4" class="text-center text-muted">' +
+                ((window.markerTranslations || {}).no_data_available || 'No data available') + '</td></tr>');
+            if ($grand.length) $grand.html(formatSignedCreditCell(grandTotal));
+        }
+
+        function updateMarkerCreditSummary() {
+            $.ajax({ url: '/marker_credit_summary', method: 'GET' })
+                .done(function (list) { renderMarkerCreditSummary(list); })
+                .fail(function () { renderMarkerCreditSummary([]); });
+        }
+
+        // Click-to-edit for the Total Credit panel's per-account Remarks cell.
+        $(document).off('click.markerAccountRemarks').on('click.markerAccountRemarks', '.btn-edit-account-remarks', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var btn = $(this);
+            if (btn.hasClass('marker-history-remarks-busy')) return;
+            var accountId = btn.data('account-id');
+            if (!accountId) return;
+
+            var rawRemarks = '';
+            try {
+                rawRemarks = decodeURIComponent(String(btn.attr('data-remarks') || ''));
+            } catch (err) {
+                rawRemarks = '';
+            }
+
+            var t = window.markerTranslations || {};
+            var title = t.edit_remarks || 'Edit remarks';
+            var saveLabel = t.save || 'Save';
+            var errMsg = t.error_update_remarks || 'Could not update remarks.';
+
+            function doPatch(newVal) {
+                btn.addClass('marker-history-remarks-busy').attr('aria-disabled', 'true').css('pointer-events', 'none');
+                $.ajax({
+                    url: '/marker_account_remarks/' + accountId,
+                    method: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ remarks: newVal != null ? String(newVal) : '' }),
+                    success: function (res) {
+                        if (res.success) {
+                            updateMarkerCreditSummary();
+                            if (window.Swal) {
+                                window.Swal.fire({ icon: 'success', title: 'Saved', showConfirmButton: false, timer: 1200 });
+                            }
+                        } else if (window.Swal) {
+                            window.Swal.fire({ icon: 'error', title: 'Error', text: res.message || errMsg });
                         }
-                    });
-                    var t = window.markerTranslations || {};
-                    var totalLabel = t.total || 'Total';
-                    creditRows.forEach(function (r) {
-                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
-                    });
-                    if (creditRows.length > 0) {
-                        $creditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(totalCredit));
-                        $creditTbl.find('tfoot').show();
-                    } else {
-                        $creditTbl.find('tfoot').hide();
+                    },
+                    error: function (xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) || errMsg;
+                        if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                    },
+                    complete: function () {
+                        btn.removeClass('marker-history-remarks-busy').removeAttr('aria-disabled').css('pointer-events', '');
                     }
-                    buyinRows.forEach(function (r) {
-                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
-                    });
-                    if (buyinRows.length > 0) {
-                        $buyinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(totalBuyin));
-                        $buyinTbl.find('tfoot').show();
-                    } else {
-                        $buyinTbl.find('tfoot').hide();
-                    }
-                    if ($totalCreditTbl.length) {
-                        totalCreditRows.forEach(function (r) {
-                            $totalCreditTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount" data-order="' + r.amount + '">' + formatCreditBalanceRedAmount(r.amount) + '</td></tr>');
-                        });
-                        if (totalCreditRows.length > 0) {
-                            $totalCreditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                            $totalCreditTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').html(formatCreditBalanceRedAmount(grandTotal));
-                            $totalCreditTbl.find('tfoot').show();
-                        } else {
-                            $totalCreditTbl.find('tfoot').hide();
-                        }
-                    }
-                    window._markerCreditBalanceData = {
-                        credit: { rows: creditRows.slice(), total: totalCredit },
-                        buyin: { rows: buyinRows.slice(), total: totalBuyin },
-                        totalcredit: { rows: totalCreditRows.slice(), total: grandTotal }
-                    };
-                    $('#txtTotalJunketCredit').val(formatMarkerHistoryAmount(totalCredit));
-                    $('#txtTotalGameCredit').val(formatMarkerHistoryAmount(totalBuyin));
-                    cacheOverallHeaderTotals(totalCredit, totalBuyin, list, grandTotal);
-                    applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
-                    updateDashboardUtangTotal(grandTotal);
-                    if (totalCreditTable) {
-                        try { updateTotalCreditTableFooter(totalCreditTable); } catch (e) { /* noop */ }
-                    }
-                    if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
-                }).fail(function () {
-                    headerCreditState.creditStatusBreakdown = [];
-                    window._markerCreditBalanceData = {
-                        credit: { rows: [], total: 0 },
-                        buyin: { rows: [], total: 0 },
-                        totalcredit: { rows: [], total: 0 }
-                    };
-                    $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
-                    $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
-                    if ($totalCreditTbl.length) $totalCreditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
-                    $('#txtTotalJunketCredit').val('0');
-                    $('#txtTotalGameCredit').val('0');
-                    cacheOverallHeaderTotals(0, 0, [], 0);
-                    applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
-                    updateDashboardUtangTotal(0);
-                    if (totalCreditTable) {
-                        try { updateTotalCreditTableFooter(totalCreditTable); } catch (e) { /* noop */ }
-                    }
-                    if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 });
+            }
+
+            if (window.Swal) {
+                function allowSwalFocus(evt) {
+                    if (evt.target && evt.target.closest && evt.target.closest('.swal2-container')) {
+                        evt.stopImmediatePropagation();
+                    }
+                }
+                window.addEventListener('focusin', allowSwalFocus, true);
+                window.Swal.fire({
+                    title: title,
+                    input: 'textarea',
+                    inputValue: rawRemarks,
+                    inputAttributes: { maxlength: 500, 'aria-label': title },
+                    showCancelButton: true,
+                    confirmButtonText: saveLabel,
+                    cancelButtonColor: '#6c757d',
+                    focusConfirm: false,
+                    heightAuto: false,
+                    didOpen: function () {
+                        var inp = window.Swal.getInput();
+                        if (inp) {
+                            inp.removeAttribute('readonly');
+                            inp.removeAttribute('disabled');
+                            setTimeout(function () { inp.focus(); }, 50);
+                        }
+                    },
+                    willClose: function () {
+                        window.removeEventListener('focusin', allowSwalFocus, true);
+                    }
+                }).then(function (result) {
+                    window.removeEventListener('focusin', allowSwalFocus, true);
+                    if (result.isConfirmed) {
+                        doPatch(result.value);
+                    }
+                });
+            } else {
+                var p = window.prompt(title, rawRemarks);
+                if (p !== null) doPatch(p);
+            }
+        });
+
+        $(document).off('keydown.markerAccountRemarks').on('keydown.markerAccountRemarks', '.btn-edit-account-remarks', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).trigger('click');
+        });
+
+        function updateAccountsBalanceTable() {
+            updateMarkerCreditSummary();
+            $.ajax({ url: '/marker_data_breakdown', method: 'GET' }).done(function (list) {
+                list = Array.isArray(list) ? list : [];
+                var totalCredit = 0;
+                var totalBuyin = 0;
+                var grandTotal = 0;
+                list.forEach(function (row) {
+                    var credit = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
+                    var buyin = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+                    var accountTotal = row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : (credit + buyin);
+                    totalCredit += credit;
+                    totalBuyin += buyin;
+                    grandTotal += accountTotal;
+                });
+                cacheOverallHeaderTotals(totalCredit, totalBuyin, list, grandTotal);
+                applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
+                updateDashboardUtangTotal(grandTotal);
+            }).fail(function () {
+                cacheOverallHeaderTotals(0, 0, [], 0);
+                applyHeaderCreditTotals($('#txtAccountMarker').val() || null);
+                updateDashboardUtangTotal(0);
+            });
         }
 
         function initBalanceDataTables() {

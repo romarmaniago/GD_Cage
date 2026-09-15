@@ -1247,7 +1247,12 @@
 		"date_time": "Date & Time",
 		"agent": "Agent",
 		"debtor": "Debtor",
-		"type": "Type"
+		"type": "Type",
+		"name": "姓名",
+		"credit": "信用",
+		"on_credit": "欠款中",
+		"finished_credit": "已结清",
+		"total_credit_title": "信用总额"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",

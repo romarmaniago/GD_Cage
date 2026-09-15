@@ -22,10 +22,14 @@ const {
 	getCreditGrandTotalSql,
 	getCreditStatusBreakdownSql,
 	getCreditHistorySql,
+	computeCreditLedgerTotals,
 	getCreditIssueTransactionsSql,
 	deleteMarkerCreditRecord,
 	updateCreditRemarksByLedgerId,
 	updateCreditFieldsByLedgerId,
+	getAccountRemarksMap,
+	upsertAccountRemarks,
+	clearAccountRemarks,
 	CREDIT_SOURCES
 } = require('../utils/creditService');
 const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
@@ -3311,14 +3315,175 @@ router.patch('/marker_record/:id', async (req, res) => {
 	}
 });
 
+// ENCODED_DT's calendar day in UTC+8 — matches the frontend's display conversion
+// (moment.utc(row.ENCODED_DT).utcOffset(8)) so filtering by a date lines up with what's shown in
+// the table's "Date & Time" column, rather than the separate (and no longer displayed) Program Date.
+function encodedDtToDisplayDay(encodedDt) {
+	if (!encodedDt) return null;
+	const utcMs = new Date(encodedDt).getTime();
+	if (Number.isNaN(utcMs)) return null;
+	const shifted = new Date(utcMs + 8 * 60 * 60 * 1000);
+	const yyyy = shifted.getUTCFullYear();
+	const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+	const dd = String(shifted.getUTCDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
+
 // GET MARKER HISTORY (from credit_transaction)
+// Optional filters (applied after totals are computed over the FULL history, so Credit Total /
+// Balance always reflect true running totals regardless of which rows end up visible):
+//   status = 'on_credit' | 'finished' | omitted (default: no status filter, shows everything) —
+//            when set, the response collapses to ONE summary row per account instead of every
+//            transaction row (see below), classified by the account's current (latest) running total
+//   dateFrom / dateTo = 'YYYY-MM-DD' — only rows whose ENCODED_DT falls within that range
+//            (inclusive; displayed date, UTC+8) — dateTo defaults to dateFrom for a single day.
+//            With a status filter set, this narrows which ACCOUNTS appear (must have at least one
+//            transaction in range) rather than re-summing a partial date slice — the totals below
+//            are always the true full-history figures.
 router.get('/marker_history', async (req, res) => {
 	try {
 		const [results] = await pool.execute(getCreditHistorySql());
-		res.json(results);
+		const { finalTotals } = computeCreditLedgerTotals(results);
+
+		const status = req.query.status === 'finished' || req.query.status === 'on_credit'
+			? req.query.status
+			: null;
+
+		const dateFrom = req.query.dateFrom ? String(req.query.dateFrom) : null;
+		const dateTo = req.query.dateTo ? String(req.query.dateTo) : dateFrom;
+
+		if (status) {
+			// One row per account: On Credit's total is the current outstanding (net) balance;
+			// Finished Credit's total is the sum of everything paid back (equal to the sum of
+			// everything issued, since the account nets to exactly 0) — gross, not netted per bucket,
+			// since it's just descriptive of a settled episode, not a live balance calculation.
+			const activeAccountIds = dateFrom
+				? new Set(results.filter((r) => {
+					const day = encodedDtToDisplayDay(r.ENCODED_DT);
+					return day && day >= dateFrom && day <= dateTo;
+				}).map((r) => r.ACCOUNT_ID))
+				: null;
+
+			const latestByAccount = new Map();
+			const paidTotals = new Map();
+			for (const r of results) {
+				if (!latestByAccount.has(r.ACCOUNT_ID)) latestByAccount.set(r.ACCOUNT_ID, r);
+				if (r.DIRECTION === 'return') {
+					paidTotals.set(r.ACCOUNT_ID, (paidTotals.get(r.ACCOUNT_ID) || 0) + Number(r.AMOUNT));
+				}
+			}
+
+			const summaryRows = [];
+			for (const [accountId, total] of finalTotals.entries()) {
+				const isFinished = total === 0;
+				if (status === 'finished' && !isFinished) continue;
+				if (status === 'on_credit' && isFinished) continue;
+				if (activeAccountIds && !activeAccountIds.has(accountId)) continue;
+				const row = latestByAccount.get(accountId);
+				if (!row) continue;
+				summaryRows.push({
+					ACCOUNT_ID: accountId,
+					AGENT_CODE: row.AGENT_CODE,
+					AGENT_NAME: row.AGENT_NAME,
+					GUARANTOR: row.GUARANTOR,
+					CREDIT_TOTAL: status === 'finished' ? (paidTotals.get(accountId) || 0) : total
+				});
+			}
+			summaryRows.sort((a, b) => String(a.AGENT_CODE || '').localeCompare(String(b.AGENT_CODE || '')));
+
+			return res.json(summaryRows);
+		}
+
+		let rows = results;
+		if (dateFrom) {
+			rows = rows.filter((r) => {
+				const day = encodedDtToDisplayDay(r.ENCODED_DT);
+				return day && day >= dateFrom && day <= dateTo;
+			});
+		}
+
+		res.json(rows);
 	} catch (err) {
 		console.error('Error fetching marker history:', err);
 		return res.status(500).json({ success: false, message: 'Error fetching marker history' });
+	}
+});
+
+// GET MARKER CREDIT SUMMARY — one row per account still carrying a non-zero balance (i.e. "on
+// credit"), for the Total Credit side panel. Independent of /marker_history's status/date
+// filters — this always reflects each account's current standing, built from the same unified
+// ledger (computeCreditLedgerTotals) so the numbers always agree with the main table.
+router.get('/marker_credit_summary', async (req, res) => {
+	try {
+		const [results] = await pool.execute(getCreditHistorySql());
+		const { finalTotals } = computeCreditLedgerTotals(results);
+		const remarksMap = await getAccountRemarksMap(pool);
+
+		// A remark belongs to the account's CURRENT on-credit episode — once it's fully settled
+		// (balance back to 0), purge any stored note so a later, unrelated credit starts fresh
+		// instead of silently reusing the old one.
+		const settledWithStaleRemarks = [];
+		for (const [accountId, remark] of remarksMap.entries()) {
+			if (remark != null && (finalTotals.get(accountId) || 0) === 0) {
+				settledWithStaleRemarks.push(accountId);
+			}
+		}
+		if (settledWithStaleRemarks.length) {
+			await clearAccountRemarks(pool, settledWithStaleRemarks);
+			settledWithStaleRemarks.forEach((id) => remarksMap.delete(id));
+		}
+
+		// results is ordered ENCODED_DT DESC, so the first row seen per account is its latest.
+		const latestByAccount = new Map();
+		for (const r of results) {
+			if (!latestByAccount.has(r.ACCOUNT_ID)) latestByAccount.set(r.ACCOUNT_ID, r);
+		}
+
+		const summary = [];
+		for (const [accountId, total] of finalTotals.entries()) {
+			if (!total) continue;
+			const row = latestByAccount.get(accountId);
+			if (!row) continue;
+			summary.push({
+				ACCOUNT_ID: accountId,
+				AGENT_CODE: row.AGENT_CODE,
+				AGENT_NAME: row.AGENT_NAME,
+				GUEST_NAME: row.GUEST_NAME,
+				CREDIT_TOTAL: total,
+				REMARKS: remarksMap.get(accountId) || null
+			});
+		}
+		summary.sort((a, b) => String(a.AGENT_CODE || '').localeCompare(String(b.AGENT_CODE || '')));
+
+		res.json(summary);
+	} catch (err) {
+		console.error('Error fetching marker credit summary:', err);
+		return res.status(500).json({ success: false, message: 'Error fetching marker credit summary' });
+	}
+});
+
+// PATCH per-account remarks shown in the Total Credit summary panel — not tied to any single
+// credit_transaction row, so it's stored separately (account_credit_remarks).
+router.patch('/marker_account_remarks/:accountId', async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions === 2) {
+		return res.status(403).json({ success: false, message: 'Not authorized to edit remarks.' });
+	}
+
+	const accountId = parseInt(req.params.accountId, 10);
+	if (!Number.isInteger(accountId) || accountId <= 0) {
+		return res.status(400).json({ success: false, message: 'Invalid account id.' });
+	}
+
+	let remarks = req.body && req.body.remarks != null ? String(req.body.remarks) : '';
+	if (remarks.length > 500) remarks = remarks.slice(0, 500);
+
+	try {
+		await upsertAccountRemarks(pool, accountId, remarks, req.session.user_id);
+		res.json({ success: true, remarks });
+	} catch (err) {
+		console.error('Error updating account remarks:', err);
+		res.status(500).json({ success: false, message: 'Error updating remarks.' });
 	}
 });
 

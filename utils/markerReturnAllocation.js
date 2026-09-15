@@ -56,10 +56,34 @@ function computeMarkerSourceBalances(row) {
 	const returnsTaggedBuyin = Number(data.RETURNS_TAGGED_BUYIN) || 0;
 	const returnsUntagged = Number(data.RETURNS_UNTAGGED) || 0;
 	const totalIssued = Number(data.TOTAL_ISSUED) || 0;
+	const buyinIssued = totalIssued - creditIssued;
 	const proportionalUntaggedCredit = totalIssued > 0 ? (returnsUntagged * creditIssued / totalIssued) : 0;
-	const balanceCredit = Math.round(Math.max(0, creditIssued - returnsTaggedCredit - proportionalUntaggedCredit));
-	const totalAmount = Math.round(totalIssued - returnsTaggedCredit - returnsTaggedBuyin - returnsUntagged);
-	const balanceBuyin = Math.max(0, totalAmount - balanceCredit);
+	const proportionalUntaggedBuyin = returnsUntagged - proportionalUntaggedCredit;
+
+	// Raw (signed) per-bucket balances — negative means that bucket was overpaid.
+	const rawCredit = creditIssued - returnsTaggedCredit - proportionalUntaggedCredit;
+	const rawBuyin = buyinIssued - returnsTaggedBuyin - proportionalUntaggedBuyin;
+
+	// Waterfall: a bucket's overpayment pays down debt in the OTHER bucket instead of being
+	// discarded — otherwise a single settled payment tagged to the wrong bucket leaves phantom
+	// debt in the account even though it's fully paid off overall. Mirrors the netting in
+	// creditService.js's getCreditDataBreakdownSql / getCreditStatusBreakdownSql.
+	const netTotal = rawCredit + rawBuyin;
+	let balanceCredit;
+	let balanceBuyin;
+	if (rawCredit < 0) {
+		balanceCredit = 0;
+		balanceBuyin = Math.max(0, netTotal);
+	} else if (rawBuyin < 0) {
+		balanceBuyin = 0;
+		balanceCredit = Math.max(0, netTotal);
+	} else {
+		balanceCredit = rawCredit;
+		balanceBuyin = rawBuyin;
+	}
+	balanceCredit = Math.round(Math.max(0, balanceCredit));
+	balanceBuyin = Math.round(Math.max(0, balanceBuyin));
+	const totalAmount = Math.round(Math.max(0, netTotal));
 	return { balanceCredit, balanceBuyin, totalAmount };
 }
 

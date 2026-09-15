@@ -129,7 +129,8 @@ function bodyAlignment(colIndex0, profile, amountSet, leftSet, centerSet) {
 		return { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
 	}
 	if (amountSet.has(col1)) {
-		return { vertical: 'middle', horizontal: 'right', indent: 1, wrapText: true };
+		const amountIndent = profile.amountIndent != null ? profile.amountIndent : 1;
+		return { vertical: 'middle', horizontal: 'right', indent: amountIndent, wrapText: true };
 	}
 	if (centerSet.has(col1)) {
 		return { vertical: 'middle', horizontal: 'center', wrapText: true };

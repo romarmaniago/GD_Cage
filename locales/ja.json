@@ -1247,7 +1247,12 @@
 		"date_time": "Date & Time",
 		"agent": "Agent",
 		"debtor": "Debtor",
-		"type": "Type"
+		"type": "Type",
+		"name": "名前",
+		"credit": "クレジット",
+		"on_credit": "未決済",
+		"finished_credit": "決済済み",
+		"total_credit_title": "クレジット合計"
 	},
 	"modal_new_agent": {
 		"new_guest": "新規ゲスト",

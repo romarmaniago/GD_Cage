@@ -1247,7 +1247,12 @@
 		"date_time": "Date & Time",
 		"agent": "Agent",
 		"debtor": "Debtor",
-		"type": "Type"
+		"type": "Type",
+		"name": "이름",
+		"credit": "크레딧",
+		"on_credit": "미결제",
+		"finished_credit": "결제 완료",
+		"total_credit_title": "총 크레딧"
 	},
 	"modal_new_agent": {
 		"new_guest": "새 게스트",

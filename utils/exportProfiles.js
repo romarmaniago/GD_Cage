@@ -89,10 +89,22 @@ const PROFILES = {
 		leftAlignCols: [1, 2, 3, 5]
 	},
 	markerHistory: {
-		amountCols: [5],
+		// Date & Time | Account | Name | Credit | Credit Total | Guarantor | Balance
+		amountCols: [4, 5, 7],
 		labelCols: 3,
-		leftAlignCols: [1, 3, 4, 7, 8],
-		centerAlignCols: [2, 6]
+		leftAlignCols: [2, 3, 6],
+		centerAlignCols: [1],
+		skipGrandTotal: true,
+		amountIndent: 0
+	},
+	markerHistorySummary: {
+		// Account | Name | Total | Guarantor — On Credit/Finished Credit collapsed to 1 row/account
+		amountCols: [3],
+		labelCols: 2,
+		leftAlignCols: [2, 4],
+		centerAlignCols: [1],
+		skipGrandTotal: true,
+		amountIndent: 0
 	},
 	markerBalance: {
 		amountCols: [2],
@@ -190,7 +202,8 @@ function resolveExportProfile(profileKey, headerCount, headers) {
 		zebraRows: resolved.zebraRows != null ? resolved.zebraRows : !!base.zebraRows,
 		highlightTotalCol: resolved.highlightTotalCol != null ? resolved.highlightTotalCol : !!base.highlightTotalCol,
 		grandTotalLabel: base.grandTotalLabel || 'GRAND TOTAL',
-		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null
+		amountNumFmt: resolved.amountNumFmt || base.amountNumFmt || null,
+		amountIndent: resolved.amountIndent != null ? resolved.amountIndent : base.amountIndent
 	};
 }
 
