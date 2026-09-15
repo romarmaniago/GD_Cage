@@ -4,6 +4,14 @@ body {
   background-color: #333333;
 }
 
+/* Hope UI forces .content-inner to fill the full viewport height
+   (min-height: calc(100vh - 6.6rem)), which leaves a big empty strip of the
+   dark body background below the dashboard cards on short pages / tall
+   screens. Let the dashboard page end at its actual content instead. */
+.main-content .content-inner.dash-grid-wrap {
+  min-height: 0;
+}
+
 /* Hide all scrollbars on dashboard while keeping scroll functionality */
 .dash-grid-wrap,
 .dash-grid-wrap *,
@@ -233,8 +241,8 @@ body {
   --dash-page-gutter: 1rem;
   padding-left: calc(var(--dash-page-gutter) * 0.875);
   padding-right: calc(var(--dash-page-gutter) * 0.875);
-  /* newcustom sets padding-bottom: 0 — keep Quick View / footer reachable when scrolling */
-  padding-bottom: 2.75rem !important;
+  /* .py-3 sets padding-bottom: 1rem !important — override so the page ends at its actual content */
+  padding-bottom: 0 !important;
 }
 
 .dash-panel-narrow {
@@ -297,7 +305,7 @@ body {
 #dash-cage-main-panel .dash-kv .dash-kv-label a,
 #dash-cage-main-panel .dash-kv .dash-kv-value a,
 #dash-cage-main-panel .dash-card-link {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
@@ -404,7 +412,7 @@ body {
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-label a,
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv .dash-kv-value a,
 #dash-anticipated-panel .dash-anticipated-profit .dash-card-link {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
@@ -448,9 +456,9 @@ body {
 }
 
 .dash-card > .card-header .dash-card-meta {
-  font-size: 13px;
-  font-weight: 500;
-  color: #6c757d;
+  font-size: 18px;
+  font-weight: 800;
+  color: #51565a;
 }
 
 .dash-card > .card-header a {
@@ -1837,12 +1845,12 @@ body {
 
 /* Main Cage Rolling Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
 .dash-dual-matrix-col.is-rolling .dash-section-header {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
 .dash-dual-matrix-col.is-rolling #dash-rolling-root {
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .dash-dual-matrix-col.is-rolling .dash-rolling-head-cell,
@@ -1853,7 +1861,7 @@ body {
 .dash-dual-matrix-col.is-rolling .dash-rolling-head-cell .dash-card-link,
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell .dash-card-link,
 .dash-dual-matrix-col.is-rolling .dash-card-link {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
@@ -1874,8 +1882,6 @@ body {
 
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell,
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-date,
-.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-casino,
-.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-gold,
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-remarks,
 .dash-dual-matrix-col.is-rolling .dash-rolling-row.is-total .dash-rolling-body-cell.is-date.is-total-label {
   justify-content: center;
@@ -1891,14 +1897,25 @@ body {
   flex: 1 1 0;
 }
 
+/* Main Cage Rolling Check — right-align amount columns (Buy In/Cash Out/Rolling/Beyond Chips values only); headers stay centered */
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-casino,
+.dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-gold {
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0.25rem 0.35rem;
+  min-height: 0;
+  line-height: 1.1;
+  box-sizing: border-box;
+}
+
 /* W/L Check — match dashboard card font sizes; keep cell padding/min-height so card size stays fixed */
 .dash-dual-matrix-col.is-wl .dash-section-header {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
 .dash-dual-matrix-col.is-wl #dash-wl-root {
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell,
@@ -1908,14 +1925,14 @@ body {
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell .dash-card-link,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell .dash-card-link,
 .dash-dual-matrix-col.is-wl .dash-card-link {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.15;
 }
 
 /* W/L Check — center-align header + cell text; keep "The difference" on one line; lock body row height */
 .dash-dual-matrix-col.is-wl .dash-wl-head-excel,
 .dash-dual-matrix-col.is-wl .dash-wl-row {
-  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
+  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
 }
 
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell,
@@ -1933,9 +1950,6 @@ body {
 
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-date,
-.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-casino,
-.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-gold,
-.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff,
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-remarks,
 .dash-dual-matrix-col.is-wl .dash-wl-row.is-total .dash-wl-body-cell.is-date.is-total-label {
   justify-content: center;
@@ -1953,6 +1967,18 @@ body {
 .dash-dual-matrix-col.is-wl #dash-wl-root > .dash-wl-row {
   min-height: 0;
   flex: 1 1 0;
+}
+
+/* W/L Check — right-align amount columns (Casino/Gold Dragon/The difference values only); headers stay centered */
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-casino,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-gold,
+.dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff {
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0.25rem 0.35rem;
+  min-height: 0;
+  line-height: 1.1;
+  box-sizing: border-box;
 }
 
 /* Prefer page scroll for full data; allow matrix body scroll if panel is shorter than rows */
@@ -2073,7 +2099,7 @@ body {
   left: 0;
   right: 0;
   bottom: 100%;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.15rem;
   z-index: 6;
   flex: 0 0 auto;
   flex-wrap: nowrap;
@@ -2105,7 +2131,7 @@ body {
   left: 0;
   right: 0;
   bottom: 100%;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.15rem;
   z-index: 6;
   display: flex;
   justify-content: flex-start;
@@ -2354,7 +2380,7 @@ body {
 .dash-rolling-head-excel,
 .dash-rolling-row {
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.7fr);
+  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.7fr);
   gap: 0;
 }
 
@@ -2698,7 +2724,7 @@ body {
 .dash-wl-head-excel,
 .dash-wl-row {
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
+  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
   gap: 0;
 }
 

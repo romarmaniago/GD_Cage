@@ -1,4 +1,3 @@
-
 <style>
 /* Golden Dragon sidebar — light gold body, matches dashboard card theme */
 aside.sidebar.gd-sidebar {
@@ -72,6 +71,53 @@ aside.sidebar.gd-sidebar .sidebar-footer {
 aside.sidebar.gd-sidebar .sidebar-footer .text-muted {
     color: var(--gd-sidebar-gold-dark) !important;
     letter-spacing: 0.08em;
+}
+
+/* Language + profile controls moved down from the topbar */
+aside.sidebar.gd-sidebar .gd-sidebar-footer-user {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+}
+aside.sidebar.gd-sidebar .gd-footer-trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    color: var(--gd-sidebar-text) !important;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid transparent;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+aside.sidebar.gd-sidebar .gd-footer-trigger:hover,
+aside.sidebar.gd-sidebar .gd-footer-trigger:focus {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: var(--gd-sidebar-border);
+    color: var(--gd-sidebar-text) !important;
+}
+aside.sidebar.gd-sidebar .gd-footer-trigger .item-name {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+aside.sidebar.gd-sidebar .gd-footer-trigger .caption-sub-title {
+    font-size: 11px;
+    color: var(--gd-sidebar-text-subtle);
+}
+aside.sidebar.gd-sidebar .gd-footer-trigger .chevron-up-icon {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+aside.sidebar.gd-sidebar.sidebar-mini .gd-sidebar-footer-user .item-name,
+aside.sidebar.gd-sidebar.sidebar-mini .gd-sidebar-footer-user .caption,
+aside.sidebar.gd-sidebar.sidebar-mini .gd-sidebar-footer-user .chevron-up-icon {
+    display: none;
 }
 
 aside.sidebar.gd-sidebar .sidebar-list {
@@ -508,13 +554,23 @@ aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .item-name {
                   </a>
                   <ul class="sub-nav" id="sidebar-settlement">
                       <li class="nav-item">
-                          <a class="nav-link <%= (currentPage === 'commission' || currentPage === 'additional_commission' || currentPage === 'commission_analytics' || currentPage === 'commission_settlement') ? 'active bg-gradient-primary text-white' : '' %>" href="/commission">
+                          <a class="nav-link <%= (currentPage === 'commission' || currentPage === 'commission_analytics' || currentPage === 'commission_settlement') ? 'active bg-gradient-primary text-white' : '' %>" href="/commission">
                               <i class="icon">
                                   <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                       <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
                                   </svg>
                               </i>
                               <span class="item-name"><%= __('sidebar.commission') %></span>
+                          </a>
+                      </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'additional_commission' ? 'active bg-gradient-primary text-white' : '' %>" href="/additional_commission">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g><circle cx="12" cy="12" r="8" fill="currentColor"></circle></g>
+                                  </svg>
+                              </i>
+                              <span class="item-name">Additional</span>
                           </a>
                       </li>
                   </ul>
@@ -736,8 +792,117 @@ aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .item-name {
            
           <!-- Sidebar Menu End -->        </div>
   </div>
-  <div class="sidebar-footer text-center py-2">
-    <small class="text-muted">v2.0.0</small>
+  <div class="sidebar-footer">
+    <%
+    const flagImages = {
+      ko: 'kr_circle.png',
+      zh: 'zh_circle2.png',
+      en: 'en_flag.jpg',
+      ja: 'jp_circle.png'
+    };
+    const langNames = {
+      ko: __('topbar.kr'),
+      ja: __('topbar.jp'),
+      en: __('topbar.us'),
+      zh: __('topbar.zh')
+    };
+    %>
+    <div class="gd-sidebar-footer-user">
+      <% if (false) { %>
+      <div class="dropdown dropup">
+        <a href="#" class="gd-footer-trigger" id="sidebarLangDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <img
+            src="/login/images/flags/<%= flagImages[currentLang] %>"
+            class="img-fluid rounded-circle"
+            alt="Current Language"
+            style="height: 22px; min-width: 22px; width: 22px; object-fit: cover; border: 1px solid var(--gd-sidebar-border);"
+          >
+          <span class="item-name"><%= langNames[currentLang] %></span>
+          <svg class="chevron-up-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17 14L12 9L7 14H17Z" fill="currentColor"/>
+          </svg>
+        </a>
+        <div class="sub-drop dropdown-menu" aria-labelledby="sidebarLangDropdown" style="min-width: 220px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08); border-radius: 16px; padding: 8px; background: #ffffff;">
+          <div class="px-2 py-1 mb-2" style="border-bottom: 1px solid #f0f0f0;">
+            <span class="text-muted small fw-semibold" style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 13px;">Select Language</span>
+          </div>
+          <div class="d-flex flex-column gap-1">
+            <a class="lang-option d-flex align-items-center text-decoration-none rounded-lg" href="/change-lang?lang=ko" style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;" onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';">
+              <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                <img src="/login/images/flags/kr_flag.png" alt="Korean Flag" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+              <div class="ms-3 flex-grow-1">
+                <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.kr') %></div>
+                <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">한국어</div>
+              </div>
+              <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Kr</span>
+            </a>
+            <a class="lang-option d-flex align-items-center text-decoration-none rounded-lg" href="/change-lang?lang=ja" style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;" onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';">
+              <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                <img src="/login/images/flags/jpan_flag.png" alt="Japanese Flag" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+              <div class="ms-3 flex-grow-1">
+                <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.jp') %></div>
+                <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">日本語</div>
+              </div>
+              <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Jp</span>
+            </a>
+            <a class="lang-option d-flex align-items-center text-decoration-none rounded-lg" href="/change-lang?lang=en" style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;" onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';">
+              <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                <img src="/login/images/flags/en_flag.jpg" alt="English Flag" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+              <div class="ms-3 flex-grow-1">
+                <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.us') %></div>
+                <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">English</div>
+              </div>
+              <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Us</span>
+            </a>
+            <a class="lang-option d-flex align-items-center text-decoration-none rounded-lg" href="/change-lang?lang=zh" style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;" onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';">
+              <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                <img src="/login/images/flags/zh_flag.jpg" alt="Chinese Flag" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+              <div class="ms-3 flex-grow-1">
+                <div class="fw-semibold" style="font-size: 16px; color: #1a202c;"><%= __('topbar.zh') %></div>
+                <div class="text-muted small" style="font-size: 13px; margin-top: 2px;">中文</div>
+              </div>
+              <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 12px; padding: 4px 8px; font-weight: 600;">Zh</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <div class="dropdown dropup">
+        <a href="#" class="gd-footer-trigger" id="sidebarProfileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <% if (typeof permissions !== 'undefined' && Number(permissions) === 0) { %>
+          <img src="/assets/images/GD-logo.png" alt="Super Admin" class="img-fluid avatar avatar-30 avatar-rounded superadmin-avatar" style="object-fit: cover; background-color: #0b0b0b;">
+          <% } else { %>
+          <img src="../assets/images/avatars/01.png" alt="User-Profile" class="theme-color-default-img img-fluid avatar avatar-30 avatar-rounded">
+          <img src="../assets/images/avatars/avtar_1.png" alt="User-Profile" class="theme-color-purple-img img-fluid avatar avatar-30 avatar-rounded">
+          <img src="../assets/images/avatars/avtar_2.png" alt="User-Profile" class="theme-color-blue-img img-fluid avatar avatar-30 avatar-rounded">
+          <img src="../assets/images/avatars/avtar_4.png" alt="User-Profile" class="theme-color-green-img img-fluid avatar avatar-30 avatar-rounded">
+          <img src="../assets/images/avatars/avtar_5.png" alt="User-Profile" class="theme-color-yellow-img img-fluid avatar avatar-30 avatar-rounded">
+          <img src="../assets/images/avatars/avtar_3.png" alt="User-Profile" class="theme-color-pink-img img-fluid avatar avatar-30 avatar-rounded">
+          <% } %>
+          <span class="caption">
+            <span class="item-name d-block"><%= firstname %></span>
+            <span class="caption-sub-title d-block"><%= lastname %></span>
+          </span>
+          <svg class="chevron-up-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17 14L12 9L7 14H17Z" fill="currentColor"/>
+          </svg>
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="sidebarProfileDropdown">
+          <li><a class="dropdown-item" href="#"><%= __('topbar.profile') %></a></li>
+          <li><a class="dropdown-item" href="#"><%= __('topbar.privacy_settings') %></a></li>
+          <li><hr class="dropdown-divider"></li>
+          <form action="/logout" method="POST">
+          <li><button type="submit" class="dropdown-item"><%= __('topbar.logout') %></button></li></form>
+        </ul>
+      </div>
+
+      <small class="text-muted text-center d-block mt-1">v2.0.0</small>
+    </div>
   </div>
   <script>
     // Tandaan ang collapsed/expanded state ng sidebar kahit mag-reload

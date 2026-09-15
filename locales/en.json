@@ -545,7 +545,9 @@
 		"manual_date_range": "commission.manual_date_range",
 		"manual_date_from": "commission.manual_date_from",
 		"manual_date_to": "commission.manual_date_to",
-		"manual_date_range_hint": "commission.manual_date_range_hint"
+		"manual_date_range_hint": "commission.manual_date_range_hint",
+		"additional_commission": "commission.additional_commission",
+		"additional": "commission.additional"
 	},
 	"commission_settlement": {
 		"title": "Settlement",
