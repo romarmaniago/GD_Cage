@@ -22,55 +22,56 @@
 					<input type="hidden" name="txtTotalAmountBuyin" id="pending_guest_total_buyin">
 					<input type="hidden" name="required_balance" id="pending_guest_required_balance">
 
-					<div class="row mb-3">
-						<div class="col-sm-12">
-							<input type="text" class="form-control text-center" id="pending_guest_balance_guest" readonly />
-						</div>
-					</div>
-
-					<div class="row mb-3">
+					<div class="row mb-2">
 						<div class="col-sm-6">
-							<label class="form-label">NN Chips <span class="text-danger">*</span></label>
+							<label class="form-label">Buy-in</label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 								class="form-control text-center" name="txtNN" id="pending_guest_txtNN" placeholder="NN Chips">
 						</div>
 						<div class="col-sm-6">
-							<label class="form-label">CC Chips <span class="text-danger">*</span></label>
+							<label class="form-label">Loss Amount</label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center" name="txtCC" id="pending_guest_txtCC" placeholder="CC Chips">
+								class="form-control text-center" name="txtLossAmount" id="pending_guest_txtLoss" placeholder="NN Chips">
 						</div>
 					</div>
-					<div class="row mb-2">
+					<div class="row mb-3">
 						<div class="col-sm-12">
-							<small class="text-muted">Total must equal the outstanding balance.</small>
+							<small class="text-muted">Buy-in adds to this guest's game. Loss Amount opens a separate new game under the account below.</small>
+						</div>
+					</div>
+
+					<div class="row mb-3" id="pending-guest-transtype-row" style="display: none;">
+						<div class="col-sm-12 d-flex justify-content-center" style="gap: 5rem;">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="pending_guest_cash" name="txtTransType" checked>
+								<label class="form-check-label" for="pending_guest_cash">Cash</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="pending_guest_deposit" name="txtTransType">
+								<label class="form-check-label" for="pending_guest_deposit">Deposit</label>
+							</div>
+						</div>
+					</div>
+
+					<div class="row mb-3" id="pending-guest-loss-account-row" style="display: none;">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Loss Account <span class="text-danger">*</span></label>
+							<select class="form-select" id="pending_guest_loss_account_select" name="txtLossAccountCode" style="width: 100%;" data-placeholder="Select Account">
+							</select>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Person Involved</label>
+							<input type="text" class="form-control" name="txtPersonInvolved" id="pending_guest_person_involved" maxlength="150" placeholder="">
 						</div>
 					</div>
 
 					<div class="row mb-3">
 						<div class="col-sm-12">
 							<label class="form-label mb-1">Remarks</label>
-							<textarea class="form-control" name="txtRemarks" id="pending_guest_txtRemarks" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
-						</div>
-					</div>
-
-					<div class="row mb-2">
-						<div class="col-sm-4">
-							<div class="form-check">
-								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="pending_guest_cash" name="txtTransType" checked>
-								<label class="form-check-label" for="pending_guest_cash">Cash</label>
-							</div>
-						</div>
-						<div class="col-sm-4">
-							<div class="form-check">
-								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="pending_guest_deposit" name="txtTransType">
-								<label class="form-check-label" for="pending_guest_deposit">Deposit</label>
-							</div>
-						</div>
-						<div class="col-sm-4">
-							<div class="form-check">
-								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="pending_guest_credit" name="txtTransType">
-								<label class="form-check-label" for="pending_guest_credit">Credit</label>
-							</div>
+							<textarea class="form-control" name="txtRemarks" id="pending_guest_txtRemarks" rows="2" maxlength="500" placeholder=""></textarea>
 						</div>
 					</div>
 				</div>

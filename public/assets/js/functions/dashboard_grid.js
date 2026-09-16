@@ -892,6 +892,17 @@
       const el = document.getElementById(id);
       if (el) el.textContent = formatAmount(val);
     };
+    // Same as set(), but also toggles the red "negative" style based on the
+    // actual sign of the value — used for WIN/LOSS figures where negative is
+    // meaningful (unlike Cash Out/Cage Chips, which are always styled red
+    // regardless of sign since they're subtraction line items by convention).
+    const setSigned = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const n = Number(val) || 0;
+      el.textContent = formatAmount(n);
+      el.classList.toggle('text-dash-neg', n < 0);
+    };
     // Auto-computed totals only — manual Main Cage Rolling Check entries (pre-cutoff dates)
     // must not move this reconciliation panel. Buy In/Cash Out/Rolling/W-L fall back to
     // the Gamebook (game_list/game_record) automatically when no manual entry exists for a date.
@@ -903,7 +914,7 @@
     // for the selected program-date range — NOT the external casino's W/L. Fall back to
     // wl_total only if an older server response omits the field.
     var gamingWl = t.gold_dragon_wl_auto != null ? t.gold_dragon_wl_auto : t.wl_total;
-    set('dash-actual-gaming-wl', gamingWl);
+    setSigned('dash-actual-gaming-wl', gamingWl);
     // "Cage" W/L is the running total of the rows above it on this panel:
     //   Buy In - Cash Out + Beyond Chips - Cage Chips (chips incl. RC).
     // Combines the grid totals (buy_in_auto/cash_out_auto/beyond_chips) with the live
@@ -972,6 +983,7 @@
     const cageChips = nnChipsBalance + ccChipsBalance + rcChipsBalance;
     const cageWl = buyIn - cashOut + beyond - cageChips;
     el.textContent = formatAmount(cageWl);
+    el.classList.toggle('text-dash-neg', cageWl < 0);
 
     // "The difference" below the card = Cage - Gaming Acc. (Gaming Acc. mirrors the
     // GD Cage / Gold Dragon gamebook W/L). 0 when the physical cage reconciles to

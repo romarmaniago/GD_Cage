@@ -18,42 +18,59 @@
 					</div>
 
 					<input type="hidden" name="pending_game_id" id="pending_junket_pending_game_id">
-					<input type="hidden" name="txtGameType" id="pending_junket_game_type" value="LIVE">
-					<input type="hidden" name="txtCommisionType" id="pending_junket_commission_type" value="1">
-					<input type="hidden" name="txtCommisionRate" id="pending_junket_commission_rate" value="0">
 					<input type="hidden" name="totalBalanceGuest1" id="pending_junket_total_balance">
 					<input type="hidden" name="required_balance" id="pending_junket_required_balance">
 
-					<input type="hidden" name="txtAccountCode" id="pending_junket_account_id" value="-1">
-					<div class="row mb-3">
-						<div class="col-sm-12">
-							<label class="form-label mb-1">Account</label>
-							<input type="text" class="form-control" id="pending_junket_account_display" readonly placeholder="Loading account...">
-						</div>
-					</div>
-
-					<div class="row mb-3">
+					<div class="row mb-2">
 						<div class="col-sm-6">
-							<label class="form-label">Buy-in NN Chips <span class="text-danger">*</span></label>
+							<label class="form-label">Buy-in </label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 								class="form-control text-center" name="txtNN" id="pending_junket_txtNN" placeholder="NN Chips">
 						</div>
 						<div class="col-sm-6">
-							<label class="form-label">Buy-in CC Chips <span class="text-danger">*</span></label>
+							<label class="form-label">Loss Amount</label>
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-								class="form-control text-center" name="txtCC" id="pending_junket_txtCC" placeholder="CC Chips">
+								class="form-control text-center" name="txtLossAmount" id="pending_junket_txtLoss" placeholder="NN Chips">
 						</div>
 					</div>
-					<div class="row mb-2">
+					<div class="row mb-3">
 						<div class="col-sm-12">
-							<small class="text-muted">Total buy-in must equal the outstanding balance.</small>
+							<small class="text-muted">Buy-in opens a new game for the same guest as the pending game. Loss Amount opens a separate new game under the account below.</small>
+						</div>
+					</div>
+
+					<div class="row mb-3" id="pending-junket-transtype-row" style="display: none;">
+						<div class="col-sm-12 d-flex justify-content-center" style="gap: 5rem;">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="pending_junket_cash" name="txtTransType" checked>
+								<label class="form-check-label" for="pending_junket_cash">Cash</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="pending_junket_deposit" name="txtTransType">
+								<label class="form-check-label" for="pending_junket_deposit">Deposit</label>
+							</div>
+						</div>
+					</div>
+
+					<div class="row mb-3" id="pending-junket-loss-account-row" style="display: none;">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Loss Account <span class="text-danger">*</span></label>
+							<select class="form-select" id="pending_junket_account_select" name="txtAccountCode" style="width: 100%;" data-placeholder="Select Account">
+							</select>
+						</div>
+					</div>
+
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label mb-1">Person Involved</label>
+							<input type="text" class="form-control" name="txtPersonInvolved" id="pending_junket_person_involved" maxlength="150" placeholder="">
 						</div>
 					</div>
 
 					<div class="row mb-3">
 						<div class="col-sm-12">
 							<label class="form-label mb-1">Remarks</label>
-							<textarea class="form-control" name="txtRemarks" id="pending_junket_txtRemarks" rows="2" maxlength="500" placeholder="Optional notes"></textarea>
+							<textarea class="form-control" name="txtRemarks" id="pending_junket_txtRemarks" rows="2" maxlength="500" placeholder=""></textarea>
 						</div>
 					</div>
 				</div>

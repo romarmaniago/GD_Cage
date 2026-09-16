@@ -81,7 +81,7 @@ router.get('/loss_amount', checkSession, function (req, res) {
 router.get('/loss_amount_total', checkSession, async (req, res) => {
 	try {
 		const [rows] = await pool.execute(
-			'SELECT COALESCE(SUM(AMOUNT), 0) AS TOTAL FROM junket_loss WHERE ACTIVE = 1 AND GAME_ID IS NULL'
+			'SELECT COALESCE(SUM(AMOUNT), 0) AS TOTAL FROM junket_loss WHERE ACTIVE = 1'
 		);
 		res.json({ total: Number(rows[0] && rows[0].TOTAL) || 0 });
 	} catch (error) {

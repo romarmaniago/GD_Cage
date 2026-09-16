@@ -337,7 +337,7 @@ ON
 	let sqlJunketCredit = getCreditGrandTotalSql();
 	let sqlJunketExpense = sqlJunketExpenseTotal();
 	let sqlJunketReturnMoney = sqlJunketReturnMoneyTotal();
-	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1 AND GAME_ID IS NULL';
+	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
 

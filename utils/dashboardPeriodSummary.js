@@ -337,7 +337,7 @@ async function computeMainPanelSumTotal(pool) {
 		computeCreditGrandTotal(pool),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_return_money WHERE ACTIVE=1 AND RESET=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND GAME_ID IS NULL`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1`),
 		computeCommissionSettlementAllTime(pool),
 		loadServiceExpenseDataAllTime(pool),

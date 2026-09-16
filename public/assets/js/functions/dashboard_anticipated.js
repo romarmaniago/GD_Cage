@@ -89,8 +89,6 @@
 
 	function updateWlRateDisplay(rate) {
 		var text = formatRateLabel(rate);
-		var link = document.getElementById('dash-wl-rate-link');
-		if (link) link.textContent = text;
 		var display = document.getElementById('dash-wl-rate-display');
 		if (display) display.textContent = text;
 

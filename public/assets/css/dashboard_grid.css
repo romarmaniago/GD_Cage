@@ -1482,10 +1482,6 @@ body {
   color: #3a2e12;
 }
 
-.dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand .dash-kv-value .text-dash-neg {
-  color: #3a2e12 !important;
-}
-
 .dash-panel-narrow .dash-kv-company {
   padding-top: 0.85rem;
   padding-bottom: 0.85rem;

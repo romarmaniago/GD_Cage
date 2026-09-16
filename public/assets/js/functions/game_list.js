@@ -5,9 +5,7 @@ var _servicesSettled = 0;
 // Cache accounts so Select2 doesn't flash "No results found" while AJAX is still loading
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
-/** Junket/house account for pending resolve New Game (account.IDNo). */
-var PENDING_JUNKET_RESOLVE_ACCOUNT_ID = -1;
-	
+
 function resetNewGameSubmitButton() {
 	var $btn = $('#submit-game-list-btn');
 	if (!$btn.length) return;
@@ -1790,10 +1788,10 @@ function updateRollerChipsRemainingHint(activeInput) {
 	}
 }
 
-/** Orange GAME END: ACTIVE=3 (pending) or any game with PENDING_ROLLER_RESOLVE set. */
+/** Orange GAME END: only while the game is still actually PENDING (ACTIVE=3). Once resolved and
+ * ended (ACTIVE=1), it renders/classifies like a normal finished game, even if PENDING_ROLLER_RESOLVE is set. */
 function isPendingRollerOrangeRow(row) {
-	var resolve = parseInt(row.PENDING_ROLLER_RESOLVE, 10) || 0;
-	return parseInt(row.game_status, 10) === 3 || resolve > 0;
+	return parseInt(row.game_status, 10) === 3;
 }
 
 function buildPendingGameEndStatusHtml(row, changeStatusOnclick, opts) {
@@ -2002,37 +2000,10 @@ function setFormattedChipInputValue($input, amount) {
 	$input.val(String(Math.floor(n))).trigger('input');
 }
 
-function openPendingGuestBuyinModal() {
-	var ctx = getPendingResolveContext();
-	if (!ctx.gameId || ctx.balance <= 0) {
-		Swal.fire({ icon: 'warning', title: 'No balance', text: 'There is no outstanding roller chips balance to resolve.' });
-		return;
-	}
-
-	var preNN = ctx.prefillNN;
-	var preCC = ctx.prefillCC;
-	if (preNN <= 0 && preCC <= 0) {
-		preNN = ctx.balance;
-		preCC = 0;
-	}
-
-	$('#pending-guest-agent-code').text(ctx.agentCode);
-	$('#pending_guest_game_id').val(ctx.gameId);
-	$('#pending_guest_account_id').val(ctx.accountId);
-	$('#pending_guest_required_balance').val(ctx.balance);
-	$('#pending-guest-balance-display').text(parseFloat(ctx.balance).toLocaleString('en-US'));
-	setFormattedChipInputValue($('#pending_guest_txtNN'), preNN);
-	setFormattedChipInputValue($('#pending_guest_txtCC'), preCC);
-	$('#pending_guest_txtRemarks').val('');
-	$('#pending_guest_cash').prop('checked', true);
-
-	var $childModal = $('#modal-pending-guest-buyin');
-	ensureModalAppendedToBody($childModal);
-	setPendingResolveChildModalOpen(true);
-	$childModal.modal('show');
-
+function fetchAccountDepositBalanceInto(accountId, $targetInput) {
+	if (!accountId || !$targetInput || !$targetInput.length) return;
 	$.ajax({
-		url: '/account_details_data_deposit/' + ctx.accountId,
+		url: '/account_details_data_deposit/' + accountId,
 		method: 'GET',
 		success: function (data) {
 			var deposit_amount = 0, withdraw_amount = 0, marker_return = 0, marker_deposit_amount = 0;
@@ -2044,12 +2015,38 @@ function openPendingGuestBuyinModal() {
 				else if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
 			});
 			var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
-			$('#pending_guest_total_balance').val(totalBalance);
-			$('#pending_guest_balance_guest').val(
-				Number(totalBalance || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-			);
+			$targetInput.val(totalBalance);
 		}
 	});
+}
+
+function openPendingGuestBuyinModal() {
+	var ctx = getPendingResolveContext();
+	if (!ctx.gameId || ctx.balance <= 0) {
+		Swal.fire({ icon: 'warning', title: 'No balance', text: 'There is no outstanding roller chips balance to resolve.' });
+		return;
+	}
+
+	$('#pending-guest-agent-code').text(ctx.agentCode);
+	$('#pending_guest_game_id').val(ctx.gameId);
+	$('#pending_guest_account_id').val(ctx.accountId);
+	$('#pending_guest_required_balance').val(ctx.balance);
+	$('#pending-guest-balance-display').text(parseFloat(ctx.balance).toLocaleString('en-US'));
+	$('#pending_guest_txtNN').val('');
+	$('#pending_guest_txtLoss').val('');
+	$('#pending_guest_person_involved').val('');
+	$('#pending_guest_txtRemarks').val('');
+	$('#pending_guest_cash').prop('checked', true);
+	$('#pending-guest-loss-account-row').hide();
+	$('#pending-guest-transtype-row').hide();
+	populatePendingGuestLossAccountSelect();
+
+	var $childModal = $('#modal-pending-guest-buyin');
+	ensureModalAppendedToBody($childModal);
+	setPendingResolveChildModalOpen(true);
+	$childModal.modal('show');
+
+	fetchAccountDepositBalanceInto(ctx.accountId, $('#pending_guest_total_balance'));
 
 	$.ajax({
 		url: '/game_list/' + ctx.gameId + '/record',
@@ -2064,31 +2061,40 @@ function openPendingGuestBuyinModal() {
 	});
 }
 
-function formatPendingJunketAccountLabel(row) {
-	if (!row) return 'Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
-	var code = String(row.agent_code || '').trim();
-	var name = String(row.agent_name || '').trim();
-	if (code && name) return code + '(' + name + ')';
-	return code || name || ('Account #' + PENDING_JUNKET_RESOLVE_ACCOUNT_ID);
-}
+/** Populates a plain account <select> (id=selectId) with select2, scoped to dropdownParentId's modal. */
+function populatePendingResolveAccountSelect(selectId, dropdownParentId) {
+	var $select = $('#' + selectId);
+	if (!$select.length) return;
 
-function loadPendingJunketLockedAccount() {
-	var accountId = PENDING_JUNKET_RESOLVE_ACCOUNT_ID;
-	$('#pending_junket_account_id').val(String(accountId));
-	$('#pending_junket_account_display').val('Loading account...');
-	return $.getJSON('/game_list/pending_resolve/junket_account')
-		.done(function (row) {
-			$('#pending_junket_account_display').val(formatPendingJunketAccountLabel(row));
-		})
-		.fail(function () {
-			$('#pending_junket_account_display').val('Account #' + accountId);
+	function render(options) {
+		if ($select.data('select2')) {
+			$select.select2('destroy');
+		}
+		$select.empty();
+		$select.append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
+		(Array.isArray(options) ? options : []).forEach(function (option) {
+			$select.append($('<option>', {
+				value: option.account_id,
+				text: formatAgentAccountSelectLabel(option.agent_code, option.agent_name)
+			}));
 		});
+		$select.select2({
+			placeholder: 'Select Account',
+			dropdownParent: $('#' + dropdownParentId),
+			width: '100%'
+		});
+		$select.val('').trigger('change');
+	}
+
+	preloadAccounts().then(render).catch(function () { render([]); });
 }
 
-function setPendingJunketNewGameDefaults() {
-	$('#pending_junket_game_type').val('LIVE');
-	$('#pending_junket_commission_type').val('1');
-	$('#pending_junket_commission_rate').val('0');
+function populatePendingJunketAccountSelect() {
+	populatePendingResolveAccountSelect('pending_junket_account_select', 'modal-pending-junket-new-game');
+}
+
+function populatePendingGuestLossAccountSelect() {
+	populatePendingResolveAccountSelect('pending_guest_loss_account_select', 'modal-pending-guest-buyin');
 }
 
 function ensureModalAppendedToBody($modal) {
@@ -2247,29 +2253,44 @@ function openPendingJunketNewGameModal() {
 		return;
 	}
 
-	setPendingJunketNewGameDefaults();
-
-	var preNN = ctx.prefillNN;
-	var preCC = ctx.prefillCC;
-	if (preNN <= 0 && preCC <= 0) {
-		preNN = ctx.balance;
-		preCC = 0;
-	}
-
 	$('#pending_junket_pending_game_id').val(ctx.gameId);
 	$('#pending_junket_required_balance').val(ctx.balance);
 	$('#pending-junket-agent-code').text(ctx.agentCode);
 	$('#pending-junket-balance-display').text(parseFloat(ctx.balance).toLocaleString('en-US'));
-	setFormattedChipInputValue($('#pending_junket_txtNN'), preNN);
-	setFormattedChipInputValue($('#pending_junket_txtCC'), preCC);
+	$('#pending_junket_txtNN').val('');
+	$('#pending_junket_txtLoss').val('');
+	$('#pending_junket_person_involved').val('');
 	$('#pending_junket_txtRemarks').val('');
+	$('#pending_junket_cash').prop('checked', true);
+	$('#pending-junket-loss-account-row').hide();
+	$('#pending-junket-transtype-row').hide();
 
 	var $childModal = $('#modal-pending-junket-new-game');
 	ensureModalAppendedToBody($childModal);
 	setPendingResolveChildModalOpen(true);
 	$childModal.modal('show');
-	setPendingJunketNewGameDefaults();
-	loadPendingJunketLockedAccount();
+	populatePendingJunketAccountSelect();
+	fetchAccountDepositBalanceInto(ctx.accountId, $('#pending_junket_total_balance'));
+}
+
+function togglePendingJunketLossAccountRow() {
+	var loss = parseFloat(String($('#pending_junket_txtLoss').val() || '').replace(/,/g, '')) || 0;
+	$('#pending-junket-loss-account-row').toggle(loss > 0);
+}
+
+function togglePendingGuestLossAccountRow() {
+	var loss = parseFloat(String($('#pending_guest_txtLoss').val() || '').replace(/,/g, '')) || 0;
+	$('#pending-guest-loss-account-row').toggle(loss > 0);
+}
+
+function togglePendingGuestTransTypeRow() {
+	var nn = parseFloat(String($('#pending_guest_txtNN').val() || '').replace(/,/g, '')) || 0;
+	$('#pending-guest-transtype-row').toggle(nn > 0);
+}
+
+function togglePendingJunketTransTypeRow() {
+	var nn = parseFloat(String($('#pending_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
+	$('#pending-junket-transtype-row').toggle(nn > 0);
 }
 
 function commissionTypeLabel(type) {
@@ -9987,6 +10008,56 @@ $(document).ready(function () {
 		openPendingGuestBuyinModal();
 	});
 
+	// Buy-in / Loss Amount are a split of the outstanding balance — typing in one
+	// auto-fills the remainder into the other (guarded to avoid re-triggering itself).
+	var pendingSplitSyncing = false;
+	var pendingLossAccountToggles = {
+		pending_junket_txtLoss: togglePendingJunketLossAccountRow,
+		pending_guest_txtLoss: togglePendingGuestLossAccountRow
+	};
+	var pendingTransTypeToggles = {
+		pending_guest_txtNN: togglePendingGuestTransTypeRow,
+		pending_junket_txtNN: togglePendingJunketTransTypeRow
+	};
+	function bindPendingBuyinLossSplit(balanceInputId, nnInputId, lossInputId) {
+		$(document).off('input.pendingSplit', '#' + nnInputId + ', #' + lossInputId)
+			.on('input.pendingSplit', '#' + nnInputId + ', #' + lossInputId, function () {
+				if (pendingSplitSyncing) return;
+				pendingSplitSyncing = true;
+				try {
+					var balance = parseFloat($('#' + balanceInputId).val()) || 0;
+					var $source = $(this);
+					var $target = $source.is('#' + nnInputId) ? $('#' + lossInputId) : $('#' + nnInputId);
+					var sourceAmount = parseFloat(String($source.val() || '').replace(/,/g, '')) || 0;
+					var remaining = Math.max(0, balance - sourceAmount);
+					setFormattedChipInputValue($target, remaining);
+					if (pendingLossAccountToggles[lossInputId]) {
+						pendingLossAccountToggles[lossInputId]();
+					}
+					if (pendingTransTypeToggles[nnInputId]) {
+						pendingTransTypeToggles[nnInputId]();
+					}
+				} finally {
+					pendingSplitSyncing = false;
+				}
+			});
+	}
+	bindPendingBuyinLossSplit('pending_guest_required_balance', 'pending_guest_txtNN', 'pending_guest_txtLoss');
+	bindPendingBuyinLossSplit('pending_junket_required_balance', 'pending_junket_txtNN', 'pending_junket_txtLoss');
+
+	// Loss Amount opens a second, separate game under a selected account — only show/require that
+	// account picker once a Loss Amount is actually entered (New Game and Additional Buy-in modals).
+	$(document).off('input.pendingJunketLossToggle', '#pending_junket_txtLoss')
+		.on('input.pendingJunketLossToggle', '#pending_junket_txtLoss', togglePendingJunketLossAccountRow);
+	$(document).off('input.pendingGuestLossToggle', '#pending_guest_txtLoss')
+		.on('input.pendingGuestLossToggle', '#pending_guest_txtLoss', togglePendingGuestLossAccountRow);
+
+	// Cash/Deposit only matters for an actual Buy-in — hide it until Buy-in has a value.
+	$(document).off('input.pendingGuestTransTypeToggle', '#pending_guest_txtNN')
+		.on('input.pendingGuestTransTypeToggle', '#pending_guest_txtNN', togglePendingGuestTransTypeRow);
+	$(document).off('input.pendingJunketTransTypeToggle', '#pending_junket_txtNN')
+		.on('input.pendingJunketTransTypeToggle', '#pending_junket_txtNN', togglePendingJunketTransTypeRow);
+
 	$('#btn-pending-junket-new-game').on('click', function () {
 		openPendingJunketNewGameModal();
 	});
@@ -9996,24 +10067,33 @@ $(document).ready(function () {
 		var $btn = $('#submit-pending-guest-buyin-btn');
 		var requiredBal = parseFloat($('#pending_guest_required_balance').val()) || 0;
 		var nn = parseFloat(String($('#pending_guest_txtNN').val() || '').replace(/,/g, '')) || 0;
-		var cc = parseFloat(String($('#pending_guest_txtCC').val() || '').replace(/,/g, '')) || 0;
-		var total = nn + cc;
+		var loss = parseFloat(String($('#pending_guest_txtLoss').val() || '').replace(/,/g, '')) || 0;
+		var total = nn + loss;
 		var transType = $('input[name="txtTransType"]:checked', '#modal-pending-guest-buyin').val();
+		var lossAccountId = $('#pending_guest_loss_account_select').val();
 
-		if (!transType) {
-			Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Please select Cash, Deposit, or Credit.' });
+		if (nn > 0 && !transType) {
+			Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Please select Cash or Deposit.' });
+			return;
+		}
+		if (loss > 0 && !lossAccountId) {
+			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Please select an account for the Loss Amount game.' });
 			return;
 		}
 		if (total <= 0 || Math.abs(total - requiredBal) > 0.001) {
 			Swal.fire({
 				icon: 'error',
 				title: 'Amount mismatch',
-				html: 'Total (NN + CC) must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
+				html: 'Buy-in + Loss Amount must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
 			});
 			return;
 		}
 		if (nn > 0 && nn % 1000 !== 0) {
-			Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+			Swal.fire({ icon: 'error', title: 'Invalid Buy-in', text: 'Buy-in must be in thousands.' });
+			return;
+		}
+		if (loss > 0 && loss % 1000 !== 0) {
+			Swal.fire({ icon: 'error', title: 'Invalid Loss Amount', text: 'Loss Amount must be in thousands.' });
 			return;
 		}
 
@@ -10050,6 +10130,8 @@ $(document).ready(function () {
 		})
 		.on('hidden.bs.modal', function () {
 			$('#pending_guest_txtRemarks').val('');
+			$('#pending-guest-loss-account-row').hide();
+			$('#pending-guest-transtype-row').hide();
 			resetPendingResolveChildModalStack($(this));
 			setPendingResolveChildModalOpen(false);
 		});
@@ -10059,8 +10141,9 @@ $(document).ready(function () {
 			bumpPendingResolveChildModalStack($(this));
 		})
 		.on('hidden.bs.modal', function () {
-			$('#pending_junket_account_display').val('');
 			$('#pending_junket_txtRemarks').val('');
+			$('#pending-junket-loss-account-row').hide();
+			$('#pending-junket-transtype-row').hide();
 			resetPendingResolveChildModalStack($(this));
 			setPendingResolveChildModalOpen(false);
 		});
@@ -10070,13 +10153,18 @@ $(document).ready(function () {
 		var $btn = $('#submit-pending-junket-new-game-btn');
 		var requiredBal = parseFloat($('#pending_junket_required_balance').val()) || 0;
 		var nn = parseFloat(String($('#pending_junket_txtNN').val() || '').replace(/,/g, '')) || 0;
-		var cc = parseFloat(String($('#pending_junket_txtCC').val() || '').replace(/,/g, '')) || 0;
-		var total = nn + cc;
-		var accountId = $('#pending_junket_account_id').val();
-		var accountLabel = $('#pending_junket_account_display').val() || ('Account #' + accountId);
+		var loss = parseFloat(String($('#pending_junket_txtLoss').val() || '').replace(/,/g, '')) || 0;
+		var total = nn + loss;
+		var accountId = $('#pending_junket_account_select').val();
+		var accountLabel = $('#pending_junket_account_select option:selected').text() || ('Account #' + accountId);
+		var transType = $('input[name="txtTransType"]:checked', '#modal-pending-junket-new-game').val();
 
-		if (!accountId) {
-			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Junket account is not loaded. Please close and try again.' });
+		if (nn > 0 && !transType) {
+			Swal.fire({ icon: 'warning', title: 'Transaction type', text: 'Please select Cash or Deposit for the Buy-in portion.' });
+			return;
+		}
+		if (loss > 0 && !accountId) {
+			Swal.fire({ icon: 'warning', title: 'Account required', text: 'Please select an account for the Loss Amount game.' });
 			return;
 		}
 
@@ -10084,19 +10172,29 @@ $(document).ready(function () {
 			Swal.fire({
 				icon: 'error',
 				title: 'Amount mismatch',
-				html: 'Buy-in total must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
+				html: 'Buy-in + Loss Amount must equal <strong>' + parseFloat(requiredBal).toLocaleString('en-US') + '</strong>.'
 			});
 			return;
 		}
 		if (nn > 0 && nn % 1000 !== 0) {
-			Swal.fire({ icon: 'error', title: 'Invalid NN', text: 'NN Chips must be in thousands.' });
+			Swal.fire({ icon: 'error', title: 'Invalid Buy-in', text: 'Buy-in must be in thousands.' });
+			return;
+		}
+		if (loss > 0 && loss % 1000 !== 0) {
+			Swal.fire({ icon: 'error', title: 'Invalid Loss Amount', text: 'Loss Amount must be in thousands.' });
 			return;
 		}
 
-		var pendingConfirmRows = [['Account', accountLabel]];
-		if (nn > 0) pendingConfirmRows.push(['NN Chips', nn.toLocaleString('en-US')]);
-		if (cc > 0) pendingConfirmRows.push(['CC Chips', cc.toLocaleString('en-US')]);
-		pendingConfirmRows.push(['Buy-in Total', parseFloat(total).toLocaleString('en-US')]);
+		var pendingConfirmRows = [];
+		if (nn > 0) {
+			pendingConfirmRows.push(['Buy-in (same guest)', nn.toLocaleString('en-US')]);
+			pendingConfirmRows.push(['Payment Type', transType === '2' ? 'Deposit' : 'Cash']);
+		}
+		if (loss > 0) {
+			pendingConfirmRows.push(['Loss Amount', loss.toLocaleString('en-US')]);
+			pendingConfirmRows.push(['Loss Account', accountLabel]);
+		}
+		pendingConfirmRows.push(['Total', parseFloat(total).toLocaleString('en-US')]);
 
 		SwalConfirm.fire({
 			title: 'Confirm New Game',
