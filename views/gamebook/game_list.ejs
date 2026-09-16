@@ -822,30 +822,48 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	border: 1px solid #a5d6a7;
 }
 
-/* Header + Footer Colors - BUY-IN (Blue) */
+/* BUY-IN */
 td.col-buyin,
 th.col-buyin {
-    background-color: #e4f0fb !important; /* Light blue */
-    color: #1565c0 !important; /* Darker blue text */
     font-weight: 600;
     text-align: right !important;
     padding-right: 20px;
 }
 
-/* Header + Footer Colors - TOTAL ROLLING (Green) */
+/* TOTAL ROLLING */
 td.col-total-rolling,
 th.col-total-rolling {
-    background-color: #e8f5e9 !important; /* Light green */
-    color: #2e7d32 !important; /* Darker green text */
     font-weight: 600;
 }
 
-/* Header + Footer Colors - WIN/LOSS (Orange) */
+/* WIN/LOSS */
 td.col-winloss,
 th.col-winloss {
-    background-color: #fff0e1 !important; /* Light orange */
-    color: #ef6c00 !important; /* Darker orange text */
     font-weight: 600;
+}
+
+/* Bigger font for amount/value columns: buy-in, cash-out, win/loss, rolling,
+   game rate, commission, add chg, total settle, roller chips, and the
+   game-end date link (badges/pills like ON GAME and the R commission badge
+   are excluded so their layout stays intact) */
+#game_list-tbl td.col-buyin,
+#game_list-tbl td.col-buyin .btn,
+#game_list-tbl td.col-buyin a,
+#game_list-tbl td.col-cashout,
+#game_list-tbl td.col-cashout .btn,
+#game_list-tbl td.col-cashout span,
+#game_list-tbl td.col-winloss,
+#game_list-tbl td.col-total-rolling,
+#game_list-tbl td.col-total-rolling .btn,
+#game_list-tbl td.col-game-rate,
+#game_list-tbl td.col-commission,
+#game_list-tbl tbody td:nth-child(13),
+#game_list-tbl tbody td:nth-child(13) .btn,
+#game_list-tbl td.col-total-settle,
+#game_list-tbl td.col-roller-chips,
+#game_list-tbl td.col-roller-chips .btn,
+#game_list-tbl td.col-game-end a.status-date-link {
+	font-size: 15px !important;
 }
 
 /* TYPE — compact column */
@@ -970,8 +988,16 @@ th.col-winloss {
 #game_list-tbl td.col-cashout span[style*="dc3545"],
 #game_list-tbl td.col-winloss span[style*="dc3545"],
 #game_list-tbl td.col-commission span[style*="dc3545"],
-#game_list-tbl td.col-total-settle span[style*="dc3545"] {
+#game_list-tbl td.col-total-settle span[style*="dc3545"],
+#game_list-tbl td.col-roller-chips span[style*="dc3545"],
+#game_list-tbl tbody td:nth-child(13) span[style*="dc3545"] {
 	color: #dc3545 !important;
+}
+
+/* Make every red amount match the bold red look of WIN/LOSS (same color,
+   same weight) instead of appearing lighter/thinner inside buttons */
+#game_list-tbl [style*="dc3545"] {
+	font-weight: 600 !important;
 }
 
 /* Cream/light gray theme */

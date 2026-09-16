@@ -5768,9 +5768,9 @@ $(document).ready(function () {
 									}
 								} else if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
 									if (isSettled && userPermissions !== 0) {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:15px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 									} else {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:15px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 									}
 								} else {
 									status = `<a href="#" onclick="showEndGameAlert()">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
