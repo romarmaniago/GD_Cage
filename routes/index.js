@@ -6,6 +6,7 @@ module.exports = [
     require('./gamebook'),
     require('./expense'),
     require('./services_category'),
+    require('./game_group'),
     require('./booking'),
     require('./commission'),
     require('./net_profit'),

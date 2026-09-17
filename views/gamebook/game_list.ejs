@@ -98,18 +98,24 @@
 												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
-												<th class="d-none d-sm-table-cell text-center col-type">
-													<%= __('gamelist.type') %>
-												</th>
-												<th class="d-none d-sm-table-cell text-center">
-													<%= __('gamelist.game#') %>
-												</th>
 											<th class="d-none d-sm-table-cell text-center col-acct-no">
-												<%= __('gamelist.acct_no') %>
+												Acc &amp; Group
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-guest">
 												<%= __('gamelist.guest') %>
 											</th>
+											<th class="d-none d-sm-table-cell text-center col-membership">
+												<%= __('gamelist.membership') %>
+											</th>
+												<th class="d-none d-sm-table-cell text-center col-type">
+													<%= __('gamelist.type') %>
+												</th>
+												<th class="d-none d-sm-table-cell text-center col-game-rate">
+													<%= __('gamelist.game_rate') %>
+												</th>
+												<th class="d-none d-sm-table-cell text-center">
+													<%= __('gamelist.game#') %>
+												</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin">
 												<%= __('gamelist.buyin') %>
 											</th>
@@ -122,17 +128,14 @@
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
 												<%= __('gamelist.real_rolling') %>
 											</th>
-												<th class="d-none d-sm-table-cell text-center col-game-rate">
-													<%= __('gamelist.game_rate') %>
-												</th>
 												<th class="d-none d-sm-table-cell text-center col-commission">
 													<%= __('gamelist.commission') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
-													ADD CHG
+													Add Chg
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
-													TOTAL SETTLE
+													Total Settle
 												</th>
 												<th class="d-none d-sm-table-cell text-center col-game-end">
 													<%= __('gamelist.game_end') %>
@@ -150,7 +153,7 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="6">
+											<th colspan="8">
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
@@ -160,7 +163,6 @@
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
 												0.00</th>
-											<th class="col-game-rate"></th>
 											<th class="d-none d-sm-table-cell text-center col-commission" id="GRAND_COMMISSION">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_ADD_CHG">0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-total-settle" id="GRAND_TOTAL_SETTLE">0.00</th>
@@ -793,6 +795,17 @@ body.open-pool-select-mode .game-list-select-all-slot {
   background-color: transparent;
 }
 
+/* Give the wide Game Book table more room: trim the page's outer gutters on this page only */
+.content-inner {
+	padding-left: 0.75rem;
+	padding-right: 0.75rem;
+}
+
+.card-body.game-list-page {
+	padding-left: 0.75rem;
+	padding-right: 0.75rem;
+}
+
 /* Commission Type Badge Styles */
 .commission-badge {
 	display: inline-block;
@@ -857,8 +870,8 @@ th.col-winloss {
 #game_list-tbl td.col-total-rolling .btn,
 #game_list-tbl td.col-game-rate,
 #game_list-tbl td.col-commission,
-#game_list-tbl tbody td:nth-child(13),
-#game_list-tbl tbody td:nth-child(13) .btn,
+#game_list-tbl tbody td:nth-child(14),
+#game_list-tbl tbody td:nth-child(14) .btn,
 #game_list-tbl td.col-total-settle,
 #game_list-tbl td.col-roller-chips,
 #game_list-tbl td.col-roller-chips .btn,
@@ -921,6 +934,18 @@ th.col-winloss {
 	vertical-align: middle;
 }
 
+/* Membership — single line, expand to fit membership number */
+#game_list-tbl th.col-membership,
+#game_list-tbl td.col-membership {
+	width: 1% !important;
+	min-width: max-content;
+	max-width: none !important;
+	box-sizing: border-box;
+	white-space: nowrap !important;
+	overflow: visible;
+	vertical-align: middle;
+}
+
 #game_list-tbl td.col-acct-no .game-list-cell-truncate,
 #game_list-tbl td.col-acct-no .game-list-acct-link {
 	display: inline;
@@ -934,6 +959,41 @@ th.col-winloss {
 	color: #0d6efd;
 	text-decoration: underline;
 	cursor: pointer;
+}
+
+#game_list-tbl td.col-acct-no .game-list-group-link,
+#game_list-tbl td.col-acct-no .game-list-group-badge {
+	display: inline-block;
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1;
+	vertical-align: baseline;
+	padding: 2px 6px;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+#game_list-tbl td.col-acct-no .game-list-group-link {
+	background-color: #eef2ff;
+	color: #4338ca;
+	border: 1px solid #c7d2fe;
+	text-decoration: none;
+	cursor: pointer;
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+#game_list-tbl td.col-acct-no .game-list-group-link:hover,
+#game_list-tbl td.col-acct-no .game-list-group-link:focus {
+	background-color: #e0e7ff;
+	color: #3730a3;
+}
+
+#game_list-tbl td.col-acct-no .game-list-group-badge {
+	background-color: #f1f5f9;
+	color: #64748b;
+	border: 1px solid #e2e8f0;
 }
 
 #game_list-tbl .js-game-list-add-chg {
@@ -990,7 +1050,7 @@ th.col-winloss {
 #game_list-tbl td.col-commission span[style*="dc3545"],
 #game_list-tbl td.col-total-settle span[style*="dc3545"],
 #game_list-tbl td.col-roller-chips span[style*="dc3545"],
-#game_list-tbl tbody td:nth-child(13) span[style*="dc3545"] {
+#game_list-tbl tbody td:nth-child(14) span[style*="dc3545"] {
 	color: #dc3545 !important;
 }
 
@@ -1051,6 +1111,7 @@ th.col-winloss {
     text-align: center;
     border: none;
     border-bottom: 1px solid var(--gd-marker-gold-border);
+    text-transform: none;
 }
 
 /* Row styles */
@@ -1059,8 +1120,8 @@ th.col-winloss {
     transition: background-color 0.2s ease;
 }
 
-#game_list-tbl tbody tr:nth-child(even) td {
-	background-color: #faf9f6;
+#game_list-tbl tbody tr[data-settled="1"] td {
+	background-color: #faf6ec;
 }
 
 #game_list-tbl tbody tr:hover,
@@ -1070,37 +1131,43 @@ th.col-winloss {
 
 /* Cell styles */
 #game_list-tbl td {
-    padding: 12px 15px;
+    padding: 6px 15px;
     color: #666;
 }
 
+#game_list-tbl thead th:nth-child(3),
+#game_list-tbl thead th:nth-child(4),
 #game_list-tbl thead th:nth-child(5),
 #game_list-tbl thead th:nth-child(6),
+#game_list-tbl thead th:nth-child(8),
+#game_list-tbl tbody td:nth-child(3),
+#game_list-tbl tbody td:nth-child(4),
 #game_list-tbl tbody td:nth-child(5),
-#game_list-tbl tbody td:nth-child(6) {
+#game_list-tbl tbody td:nth-child(6),
+#game_list-tbl tbody td:nth-child(8) {
 	text-align: left !important;
 	padding-left: 20px;
 }
 
-/* Numeric columns (buy-in through total settle): right-aligned — 17-column layout */
+/* Numeric columns (buy-in through total settle): right-aligned — 18-column layout */
 #game_list-tbl thead th:nth-child(7),
-#game_list-tbl thead th:nth-child(8),
 #game_list-tbl thead th:nth-child(9),
 #game_list-tbl thead th:nth-child(10),
 #game_list-tbl thead th:nth-child(11),
 #game_list-tbl thead th:nth-child(12),
 #game_list-tbl thead th:nth-child(13),
 #game_list-tbl thead th:nth-child(14),
+#game_list-tbl thead th:nth-child(15),
 #game_list-tbl tbody td:nth-child(7),
-#game_list-tbl tbody td:nth-child(8),
 #game_list-tbl tbody td:nth-child(9),
 #game_list-tbl tbody td:nth-child(10),
 #game_list-tbl tbody td:nth-child(11),
 #game_list-tbl tbody td:nth-child(12),
 #game_list-tbl tbody td:nth-child(13),
 #game_list-tbl tbody td:nth-child(14),
-#game_list-tbl thead th:nth-child(16),
-#game_list-tbl tbody td:nth-child(16),
+#game_list-tbl tbody td:nth-child(15),
+#game_list-tbl thead th:nth-child(17),
+#game_list-tbl tbody td:nth-child(17),
 #game_list-tbl tfoot th:nth-child(3),
 #game_list-tbl tfoot th:nth-child(4),
 #game_list-tbl tfoot th:nth-child(5),
@@ -1142,23 +1209,23 @@ th.col-winloss {
 }
 
 #game_list-tbl tbody td:nth-child(7) .btn,
-#game_list-tbl tbody td:nth-child(8) .btn,
 #game_list-tbl tbody td:nth-child(9) .btn,
 #game_list-tbl tbody td:nth-child(10) .btn,
 #game_list-tbl tbody td:nth-child(11) .btn,
 #game_list-tbl tbody td:nth-child(12) .btn,
 #game_list-tbl tbody td:nth-child(13) .btn,
 #game_list-tbl tbody td:nth-child(14) .btn,
+#game_list-tbl tbody td:nth-child(15) .btn,
 #game_list-tbl tbody td:nth-child(7) a,
-#game_list-tbl tbody td:nth-child(8) a,
 #game_list-tbl tbody td:nth-child(9) a,
 #game_list-tbl tbody td:nth-child(10) a,
 #game_list-tbl tbody td:nth-child(11) a,
 #game_list-tbl tbody td:nth-child(12) a,
 #game_list-tbl tbody td:nth-child(13) a,
 #game_list-tbl tbody td:nth-child(14) a,
-#game_list-tbl tbody td:nth-child(16) .btn,
-#game_list-tbl tbody td:nth-child(16) a {
+#game_list-tbl tbody td:nth-child(15) a,
+#game_list-tbl tbody td:nth-child(17) .btn,
+#game_list-tbl tbody td:nth-child(17) a {
 	display: inline-block;
 	padding-left: 0 !important;
 	padding-right: 0 !important;
@@ -1172,6 +1239,7 @@ th.col-winloss {
     color: var(--gd-marker-gold-text);
     border-top: 2px solid var(--gd-marker-gold-border);
     border-bottom: 1px solid var(--gd-marker-gold-border);
+    text-transform: none;
 }
 
 /* Highlight row animation */
@@ -1303,10 +1371,21 @@ table.dataTable tbody tr.highlight-row {
 						#game_list-tbl td.col-action {
 							white-space: nowrap;
 						}
-						#game_list-tbl td.col-action .action-btn-square {
-							margin-right: 4px;
+						/* Single flex row for all action icons — matches the compact gap used
+						   elsewhere (e.g. Loss Amount action icons), avoids the whitespace gaps
+						   that separate inline .btn-group wrappers otherwise leave behind. */
+						#game_list-tbl td.col-action .game-list-action-btns {
+							display: inline-flex;
+							gap: 0.1rem;
+							align-items: center;
+							flex-wrap: nowrap;
 						}
-						#game_list-tbl td.col-action .btn-group:last-child .action-btn-square {
+						#game_list-tbl td.col-action .btn-group {
+							margin: 0;
+							display: inline-flex;
+							align-items: center;
+						}
+						#game_list-tbl td.col-action .action-btn-square {
 							margin-right: 0;
 						}
 
@@ -1319,6 +1398,34 @@ table.dataTable tbody tr.highlight-row {
 							align-items: center;
 							justify-content: center;
 							border-radius: 6px !important;
+						}
+						/* Bigger icons for the Game Book Action column specifically —
+						   box sized close to the icon itself so buttons don't add extra
+						   empty space on top of the flex gap. */
+						#game_list-tbl td.col-action .action-btn-square {
+							width: 22px;
+							height: 22px;
+							font-size: 16px;
+						}
+						/* Receipts and Settlement get an extra-large icon */
+						#game_list-tbl td.col-action .action-btn-square-lg {
+							width: 32px;
+							height: 32px;
+						}
+						/* Icon-only look: drop the subtle-variant background/border, but keep each
+						   button's own themed color (e.g. green when settled, red when not) instead
+						   of letting it fall back to the table's default #666 text color. */
+						#game_list-tbl td.col-action .action-btn-square,
+						#game_list-tbl td.col-action .btn {
+							--bs-btn-bg: transparent;
+							--bs-btn-hover-bg: transparent;
+							--bs-btn-active-bg: transparent;
+							--bs-btn-disabled-bg: transparent;
+							background-color: transparent !important;
+							background-image: none !important;
+							border-color: transparent !important;
+							box-shadow: none !important;
+							color: var(--bs-btn-color) !important;
 						}
 						/* Override Bootstrap btn-group - parehas na border-radius sa lahat ng corners */
 						#game_list-tbl td.col-action .btn-group .btn,
@@ -1582,14 +1689,14 @@ table.dataTable tbody tr.highlight-row {
 
 								table.rows({ page: 'current', search: 'applied' }).every(function () {
 									var data = this.data();
-									totalAmount += parseCell(data[6] || '0');
-									totalChipsReturn += parseCell(data[7] || '0');
-									totalWinLoss += parseCell(data[8] || '0', { signed: true });
-									totalRolling += parseCell(data[9] || '0');
-									totalCommission += parseCell(data[11] || '0');
-									totalAddChg += parseCell(data[12] || '0');
-									totalSettle += parseCell(data[13] || '0');
-									totalRollerChips += parseCell(data[15] || '0');
+									totalAmount += parseCell(data[8] || '0');
+									totalChipsReturn += parseCell(data[9] || '0');
+									totalWinLoss += parseCell(data[10] || '0', { signed: true });
+									totalRolling += parseCell(data[11] || '0');
+									totalCommission += parseCell(data[12] || '0');
+									totalAddChg += parseCell(data[13] || '0');
+									totalSettle += parseCell(data[14] || '0');
+									totalRollerChips += parseCell(data[16] || '0');
 								});
 
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
@@ -1627,6 +1734,10 @@ table.dataTable tbody tr.highlight-row {
 							<%- include ('../modals/game_book/pending_junket_new_game') %>
 							<%- include ('../modals/game_book/add_buyin') %>
 							<%- include ('../modals/game_book/assign_game_guest') %>
+							<%- include ('../modals/game_book/assign_game_group') %>
+							<%- include ('../modals/game_book/manage_game_groups') %>
+							<%- include ('../modals/popups/new_game_group') %>
+							<%- include ('../modals/popups/edit_game_group') %>
 							<%- include ('../modals/accounts/add_guest') %>
 							<%- include ('../modals/accounts/edit_guest') %>
 								<%- include ('../modals/game_book/add_rolling') %>
@@ -1642,6 +1753,7 @@ table.dataTable tbody tr.highlight-row {
 
 
 												<script src="/assets/js/functions/game_list.js"></script>
+												<script src="/assets/js/functions/game_group.js"></script>
 												<script src="/assets/js/functions/account.js"></script>
 												<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>
 

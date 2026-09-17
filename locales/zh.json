@@ -424,7 +424,8 @@
 		"deposit": "存款",
 		"marker": "信用",
 		"select_date": "选择日期",
-		"export": "导出"
+		"export": "导出",
+		"membership": "gamelist.membership"
 	},
 	"house_expense": {
 		"junket": "接待",

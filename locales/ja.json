@@ -422,7 +422,8 @@
 		"deposit": "デポジット",
 		"marker": "クレジット",
 		"select_date": "日付を選択",
-		"export": "エクスポート"
+		"export": "エクスポート",
+		"membership": "gamelist.membership"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",

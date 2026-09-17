@@ -424,7 +424,8 @@
 		"deposit": "입금",
 		"marker": "크레딧",
 		"select_date": "날짜 선택",
-		"export": "보내기"
+		"export": "보내기",
+		"membership": "gamelist.membership"
 	},
 	"house_expense": {
 		"junket": "정켓",

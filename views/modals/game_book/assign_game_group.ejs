@@ -1,0 +1,48 @@
+<style>
+#modal-assign-game-group .assign-game-group-action-btn {
+	width: 26px;
+	height: 26px;
+	padding: 0 !important;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50% !important;
+	font-size: 13px;
+}
+#modal-manage-game-groups.show,
+#modal-new-game-group.show,
+#modal-edit-game-group.show {
+	z-index: 1065 !important;
+}
+</style>
+<div class="modal fade" id="modal-assign-game-group" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="assignGameGroupLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary py-2">
+				<h6 class="modal-title text-white mb-0" id="assignGameGroupLabel">Assign group — Game #<span id="assign-group-game-id-label"></span></h6>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="assign_game_group_form">
+				<div class="modal-body">
+					<input type="hidden" id="assign_group_game_id" name="game_id">
+					<div class="row mb-0">
+						<div class="col-sm-12">
+							<div class="d-flex align-items-center mb-1">
+								<label class="form-label mb-0" for="assign_game_group_select">Group <span class="text-danger">*</span></label>
+								<button type="button" id="btn-assign-game-group-manage" class="btn btn-sm btn-success-subtle assign-game-group-action-btn ms-auto" title="Add / manage groups" aria-label="Add / manage groups" onclick="openGameGroupManageModal()">
+									<i class="fa fa-plus" aria-hidden="true"></i>
+								</button>
+							</div>
+							<select class="form-select" id="assign_game_group_select" name="group_id" style="width: 100%;" data-placeholder="Select group" required>
+							</select>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer py-2">
+					<button type="submit" id="submit-assign-game-group-btn" class="btn btn-sm btn-primary">Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

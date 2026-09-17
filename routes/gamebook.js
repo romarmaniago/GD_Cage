@@ -8,6 +8,7 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const { buildGameBookGroupedExportXlsx } = require('../utils/GameBookExportService');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
@@ -682,7 +683,7 @@ async function performGameCutoff(db, params) {
 	} = params;
 
 	const [parentRows] = await db.execute(
-		`SELECT ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE
+		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE
 		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
 		[parentGameId]
 	);
@@ -840,11 +841,12 @@ async function performGameCutoff(db, params) {
 	let newGameId;
 	try {
 		const [newGameResult] = await db.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
+			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
 			[
 				parentAccountId,
 				parent.GUEST_ID,
+				parent.GROUP_ID,
 				parent.GAME_TYPE,
 				initialMOP,
 				parent.COMMISSION_TYPE,
@@ -858,11 +860,12 @@ async function performGameCutoff(db, params) {
 		newGameId = newGameResult.insertId;
 	} catch (insertErr) {
 		const [newGameResult] = await db.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, 2)`,
 			[
 				parentAccountId,
 				parent.GUEST_ID,
+				parent.GROUP_ID,
 				parent.GAME_TYPE,
 				initialMOP,
 				parent.COMMISSION_TYPE,
@@ -976,7 +979,7 @@ async function performInGameSettlement(db, params) {
 	} = params;
 
 	const [parentRows] = await db.execute(
-		`SELECT ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE, SETTLED
+		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE, SETTLED
 		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
 		[parentGameId]
 	);
@@ -1176,11 +1179,12 @@ async function performInGameSettlement(db, params) {
 
 	let newGameId;
 	const [newGameResult] = await db.execute(
-		`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+		`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+		 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, 2)`,
 		[
 			parentAccountId,
 			parent.GUEST_ID,
+			parent.GROUP_ID,
 			parent.GAME_TYPE,
 			initialMOP,
 			parent.COMMISSION_TYPE,
@@ -1702,7 +1706,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 
 async function assertPendingGame(db, gameId) {
 	const [rows] = await db.execute(
-		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE,
+		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE,
 		 PENDING_ROLLER_RESOLVE, PENDING_ROLLER_LINK_GAME_ID
 		 FROM game_list WHERE IDNo = ? AND ACTIVE = 3 LIMIT 1`,
 		[gameId]
@@ -2256,6 +2260,24 @@ router.post('/game_list/export_xlsx', checkSession, async function (req, res) {
 	}
 });
 
+/** Grouped-header Game Book export (Start / Game Information / Add Charge / Finish / Memo),
+ *  matching the reference template. Rows come pre-computed from the client (see
+ *  captureGameListExportRow in game_list.js) so the figures match what's on screen exactly. */
+router.post('/game_list/export_xlsx_grouped', checkSession, async function (req, res) {
+	try {
+		const { rows, filename } = req.body || {};
+		const result = await buildGameBookGroupedExportXlsx({
+			rows,
+			filename: filename || 'Gamebook-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('game_list/export_xlsx_grouped:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
 // Available chips snapshot for New Game modal (same formulas used in new_game_list.ejs)
 router.get('/game_list_available_chips', async (_req, res) => {
 	try {
@@ -2626,8 +2648,8 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
 			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 
@@ -2938,8 +2960,8 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
 			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, encoded_dt, program_date]
 		);
 		const gameId = gameResult.insertId;
@@ -3491,8 +3513,10 @@ router.get('/game_list_data', async (req, res) => {
             account.IDNo AS account_no, 
             agent.IDNo AS AGENT_ID,
             agent.AGENT_CODE AS agent_code, 
-            agent.NAME AS agent_name,  
+            agent.NAME AS agent_name,
             COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
+            g.MEMBERSHIP_NO AS membership_no,
+            COALESCE(NULLIF(TRIM(gg.NAME), ''), 'Main') AS group_name,
             game_list.ENCODED_DT AS GAME_DATE_START,
             COALESCE((
                 SELECT SUM(gs.AMOUNT)
@@ -3500,12 +3524,37 @@ router.get('/game_list_data', async (req, res) => {
                 WHERE gs.GAME_ID = game_list.IDNo
                   AND gs.ACTIVE = 1
                   AND gs.TRANSACTION_ID = 3
-            ), 0) AS ADD_CHG
+            ), 0) AS ADD_CHG,
+            COALESCE((
+                SELECT SUM(gs.AMOUNT)
+                FROM game_services gs
+                WHERE gs.GAME_ID = game_list.IDNo
+                  AND gs.ACTIVE = 1
+                  AND gs.TRANSACTION_ID = 3
+                  AND LOWER(TRIM(gs.SERVICE_TYPE)) = 'f & b'
+            ), 0) AS ADD_CHG_FNB,
+            COALESCE((
+                SELECT SUM(gs.AMOUNT)
+                FROM game_services gs
+                WHERE gs.GAME_ID = game_list.IDNo
+                  AND gs.ACTIVE = 1
+                  AND gs.TRANSACTION_ID = 3
+                  AND LOWER(TRIM(gs.SERVICE_TYPE)) = 'hotel'
+            ), 0) AS ADD_CHG_HOTEL,
+            COALESCE((
+                SELECT SUM(gs.AMOUNT)
+                FROM game_services gs
+                WHERE gs.GAME_ID = game_list.IDNo
+                  AND gs.ACTIVE = 1
+                  AND gs.TRANSACTION_ID = 3
+                  AND LOWER(TRIM(gs.SERVICE_TYPE)) NOT IN ('f & b', 'hotel')
+            ), 0) AS ADD_CHG_INCIDENTAL
         FROM game_list
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
         JOIN agency ON agency.IDNo = agent.AGENCY
         LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
+        LEFT JOIN game_group gg ON gg.IDNo = game_list.GROUP_ID
     `;
 
     // If a specific game ID is requested, bypass date filtering to ensure it shows up.
@@ -3518,8 +3567,10 @@ router.get('/game_list_data', async (req, res) => {
                 account.IDNo AS account_no, 
                 agent.IDNo AS AGENT_ID,
                 agent.AGENT_CODE AS agent_code, 
-                agent.NAME AS agent_name,  
+                agent.NAME AS agent_name,
                 COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name,
+                g.MEMBERSHIP_NO AS membership_no,
+                COALESCE(NULLIF(TRIM(gg.NAME), ''), 'Main') AS group_name,
                 game_list.ENCODED_DT AS GAME_DATE_START,
                 COALESCE((
                     SELECT SUM(gs.AMOUNT)
@@ -3527,13 +3578,38 @@ router.get('/game_list_data', async (req, res) => {
                     WHERE gs.GAME_ID = game_list.IDNo
                       AND gs.ACTIVE = 1
                       AND gs.TRANSACTION_ID = 3
-                ), 0) AS ADD_CHG
+                ), 0) AS ADD_CHG,
+                COALESCE((
+                    SELECT SUM(gs.AMOUNT)
+                    FROM game_services gs
+                    WHERE gs.GAME_ID = game_list.IDNo
+                      AND gs.ACTIVE = 1
+                      AND gs.TRANSACTION_ID = 3
+                      AND LOWER(TRIM(gs.SERVICE_TYPE)) = 'f & b'
+                ), 0) AS ADD_CHG_FNB,
+                COALESCE((
+                    SELECT SUM(gs.AMOUNT)
+                    FROM game_services gs
+                    WHERE gs.GAME_ID = game_list.IDNo
+                      AND gs.ACTIVE = 1
+                      AND gs.TRANSACTION_ID = 3
+                      AND LOWER(TRIM(gs.SERVICE_TYPE)) = 'hotel'
+                ), 0) AS ADD_CHG_HOTEL,
+                COALESCE((
+                    SELECT SUM(gs.AMOUNT)
+                    FROM game_services gs
+                    WHERE gs.GAME_ID = game_list.IDNo
+                      AND gs.ACTIVE = 1
+                      AND gs.TRANSACTION_ID = 3
+                      AND LOWER(TRIM(gs.SERVICE_TYPE)) NOT IN ('f & b', 'hotel')
+                ), 0) AS ADD_CHG_INCIDENTAL
             FROM game_list
             JOIN account ON game_list.ACCOUNT_ID = account.IDNo
             JOIN agent ON agent.IDNo = account.AGENT_ID
             JOIN agency ON agency.IDNo = agent.AGENCY
             LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
-            WHERE game_list.ACTIVE != 0 
+            LEFT JOIN game_group gg ON gg.IDNo = game_list.GROUP_ID
+            WHERE game_list.ACTIVE != 0
               AND game_list.IDNo = ?
             ORDER BY game_list.IDNo ASC
         `;
@@ -4880,6 +4956,55 @@ router.put('/game_list/:id/guest', async (req, res) => {
 	}
 });
 
+router.put('/game_list/:id/group', async (req, res) => {
+	try {
+		const encodedBy = req.session.user_id;
+		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+
+		const gameId = parseInt(req.params.id, 10);
+		if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+		const groupId = parseInt(req.body.group_id, 10);
+		if (!groupId) return res.status(400).json({ error: 'Invalid group ID.' });
+
+		const [gameRows] = await pool.execute(
+			`SELECT IDNo, ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+			[gameId]
+		);
+		if (!gameRows.length) {
+			return res.status(404).json({ error: 'Game not found.' });
+		}
+		const activeStatus = parseInt(gameRows[0].ACTIVE, 10);
+		if (![1, 2, 3].includes(activeStatus)) {
+			return res.status(400).json({ error: 'Group can only be assigned on active games (ON GAME, END GAME, or PENDING).' });
+		}
+
+		const [groupRows] = await pool.execute(
+			`SELECT IDNo, NAME FROM game_group WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1`,
+			[groupId]
+		);
+		if (!groupRows.length) {
+			return res.status(400).json({ error: 'Invalid group selected.' });
+		}
+
+		const dateNow = new Date();
+		await pool.execute(
+			`UPDATE game_list SET GROUP_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[groupId, encodedBy, dateNow, gameId]
+		);
+
+		res.json({
+			success: true,
+			game_id: gameId,
+			group_id: groupId,
+			group_name: groupRows[0].NAME
+		});
+	} catch (error) {
+		console.error('PUT /game_list/:id/group:', error);
+		res.status(500).json({ error: error.message || 'Error updating group.' });
+	}
+});
+
 router.get('/game_list/:id/guest_history', async (req, res) => {
 	try {
 		const gameId = parseInt(req.params.id, 10);
@@ -5003,7 +5128,7 @@ router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
 		let lossGameId = null;
 		if (lossAmount > 0) {
 			const [lossGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
 				[lossAccountId, null, 'LIVE', initialMOP, 1, 0, encodedBy, dateNow, programDate]
 			);
 			lossGameId = lossGameResult.insertId;
@@ -5125,8 +5250,8 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		let buyinGameId = null;
 		if (nnAmount > 0) {
 			const [buyinGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GAME_TYPE || 'LIVE', initialMOP, pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, encodedBy, dateNow, programDate]
+				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?)`,
+				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GROUP_ID, pendingGame.GAME_TYPE || 'LIVE', initialMOP, pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, encodedBy, dateNow, programDate]
 			);
 			buyinGameId = buyinGameResult.insertId;
 			await insertAdditionalBuyinForGame(pool, {
@@ -5145,7 +5270,7 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		let lossGameId = null;
 		if (lossAmount > 0) {
 			const [lossGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
 				[lossAccountId, null, 'LIVE', initialMOP, 1, 0, encodedBy, dateNow, programDate]
 			);
 			lossGameId = lossGameResult.insertId;

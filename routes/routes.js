@@ -3905,7 +3905,7 @@ pageRouter.post('/add_game_list', (req, res) => {
 
 
 	const guestId = parseInt(txtGuestId, 10) || null;
-	const query = `INSERT INTO game_list(ACCOUNT_ID, GUEST_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO game_list(ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`;
 	connection.query(query, [txtAccountCode, guestId, txtGameType, initialMOP, txtGameNo, txtCommisionType, txtCommisionRate, req.session.user_id, date_now], async (err, result) => {
 		if (err) {
 			console.error('Error inserting into game_list:', err);
