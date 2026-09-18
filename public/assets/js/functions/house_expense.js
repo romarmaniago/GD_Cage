@@ -1901,7 +1901,7 @@ window.showHouseExpenseEditHistory = function (expenseId) {
 /** Updates expense footer amount. */
 function setHouseExpenseFooterTotals(totalExpense) {
     var te = Number(totalExpense) || 0;
-    $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpensePeso(te));
+    $('#TOTAL_EXPENSE_AMOUNT').html(window.fmtOut ? window.fmtOut(te) : '(' + formatHouseExpenseNumber(te) + ')');
     updateDashboardExpensesTotal(te);
 }
 
@@ -2739,15 +2739,15 @@ $(document).ready(function () {
             ];
         });
         if (rows.length) {
-            $('.expense-item-table-wrap .expense-item-footer-line').each(function () {
+            $('#expense-item-cat-tbl tfoot tr').each(function () {
                 rows.push([
-                    $(this).find('.expense-item-footer-label').text().trim(),
+                    $(this).find('th').first().text().trim(),
                     '',
                     '',
                     '',
                     '',
                     '',
-                    $(this).find('.expense-item-footer-value').text().trim()
+                    $('#TOTAL_EXPENSE_AMOUNT').text().trim()
                 ]);
             });
         }
