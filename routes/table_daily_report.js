@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse, sanitizeSheetName } = require('../utils/ExcelExportService');
+const { computeGamebookDailyReportRows, isValidYmd } = require('../utils/netProfitCalc');
+const { computeDailyReportSideSummary } = require('../utils/gamebookDailySummary');
 
 router.post('/daily_report_matrix/export_xlsx', checkSession, async function (req, res) {
 	try {
@@ -39,6 +41,32 @@ router.get('/table_daily_report_winloss', checkSession, (req, res) => {
 	const data = sessions(req, 'table_daily_report_winloss');
 	data.permissions = req.session.permissions || 0;
 	res.render('daily_reports/winloss', data);
+});
+
+router.get('/gamebook_daily_report_data', checkSession, async (req, res) => {
+	try {
+		const from = String(req.query.from || '').slice(0, 10);
+		const to = String(req.query.to || '').slice(0, 10);
+		if (!isValidYmd(from) || !isValidYmd(to) || from > to) {
+			return res.status(400).json({ error: 'Invalid date range' });
+		}
+		const { rows, totals } = await computeGamebookDailyReportRows(from, to);
+		return res.json({ rows, totals });
+	} catch (err) {
+		console.error('gamebook_daily_report_data:', err);
+		return res.status(500).json({ error: 'Failed to load report' });
+	}
+});
+
+router.get('/gamebook_daily_report_side_data', checkSession, async (req, res) => {
+	try {
+		const date = String(req.query.date || '').slice(0, 10);
+		const summary = await computeDailyReportSideSummary(date);
+		return res.json(summary);
+	} catch (err) {
+		console.error('gamebook_daily_report_side_data:', err);
+		return res.status(500).json({ error: 'Failed to load report' });
+	}
 });
 
 router.get('/junket_tables_data', checkSession, async (req, res) => {

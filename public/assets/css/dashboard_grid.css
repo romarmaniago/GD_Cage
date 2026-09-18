@@ -2984,3 +2984,39 @@ body {
     top: -1.85rem;
   }
 }
+
+/* Dashboard "Daily Report" button — same pill style as Copy, floats above
+   the Anticipated Profit column, aligned to its top-right. */
+.dash-top-row .dash-daily-report-col {
+  position: relative;
+}
+
+.btn-dash-daily-report {
+  position: absolute;
+  top: -2rem;
+  left: 0.5rem;
+  z-index: 6;
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 0.78rem;
+  height: 1.85rem;
+  padding: 0.2rem 0.8rem;
+  line-height: 1.25;
+  border-radius: 999px;
+  color: #f5f0e6;
+  background: rgba(12, 10, 8, 0.72);
+  border: 1px solid rgba(200, 162, 76, 0.45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.btn-dash-daily-report:hover {
+  color: #fbf0d4;
+  background: rgba(18, 14, 10, 0.88);
+  border-color: rgba(241, 212, 138, 0.75);
+}
+
+@media (max-width: 1199px) {
+  .btn-dash-daily-report {
+    top: -1.85rem;
+  }
+}

@@ -1,0 +1,99 @@
+<div class="modal fade" id="modal-dash-gamebook-report" tabindex="-1" aria-labelledby="modal-dash-gamebook-report-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered gamebook-daily-report-dialog">
+    <!-- Two independent floating boxes (own rounded corners / shadow / header each, with
+         a gap between them — NOT one shared frame) sitting inside the SAME modal-dialog,
+         same technique as the Settlement + Edit Mode panels in
+         views/modals/game_book/settlement.ejs. Being the same modal (not two separate
+         modal instances) guarantees they always open/close together. -->
+    <div class="gamebook-daily-report-cluster">
+      <div class="modal-content gamebook-daily-report-main">
+        <div class="modal-header bg-primary py-2 justify-content-center position-relative">
+          <h5 class="modal-title text-white mb-0 text-center" id="modal-dash-gamebook-report-label">Daily Report</h5>
+          <button type="button" class="btn-close btn-close-white position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="gamebook-daily-report-panel">
+            <div class="gamebook-daily-report-toolbar border-bottom px-3 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center flex-wrap gap-2">
+                <select id="gamebook-daily-report-month-filter" class="form-select form-select-sm gamebook-daily-report-month-select" aria-label="Filter Daily Report by month"></select>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="btn-print-gamebook-daily-report">
+                  <i class="fa fa-print opacity-90" aria-hidden="true"></i><span>Print</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="btn-export-gamebook-daily-report">
+                  <i class="fa fa-file-excel opacity-90" aria-hidden="true"></i><span>Export</span>
+                </button>
+              </div>
+            </div>
+            <div class="gamebook-daily-report-body">
+              <div class="gamebook-daily-report-table-wrap">
+                <table id="gamebook-daily-report-table" class="table small-text mb-0">
+                  <thead>
+                    <tr>
+                      <th class="gdr-date-col">Date</th>
+                      <th class="gdr-num-col">Games</th>
+                      <th class="gdr-amount-col">Buy In</th>
+                      <th class="gdr-amount-col">Cash Out</th>
+                      <th class="gdr-amount-col">Win / Lose</th>
+                      <th class="gdr-amount-col">Rolling</th>
+                    </tr>
+                  </thead>
+                  <tbody id="gamebook-daily-report-tbody">
+                    <tr>
+                      <td colspan="6" class="text-center text-muted py-4">Loading...</td>
+                    </tr>
+                  </tbody>
+                  <tfoot id="gamebook-daily-report-tfoot"></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="gamebook-daily-report-side-card">
+        <div class="gdrs-head-row">
+          <span class="gdrs-date-cell">
+            <input type="date" id="gamebook-daily-report-side-date" class="gdrs-date-input" autocomplete="off" aria-label="Daily Report side card date" />
+          </span>
+          <span class="gdrs-title-cell">Daily Report</span>
+        </div>
+        <div class="gdrs-col-head">
+          <span></span><span>Today</span><span>Total</span>
+        </div>
+        <div class="gamebook-daily-report-side-body">
+          <div class="gdrs-row">
+            <span class="gdrs-label">W / L</span>
+            <span class="gdrs-value gdrs-today-cell" id="gdrs-wl-today">0</span>
+            <span class="gdrs-value gdrs-total-cell" id="gdrs-wl-total">0</span>
+          </div>
+          <div class="gdrs-row">
+            <span class="gdrs-label">Rolling</span>
+            <span class="gdrs-value gdrs-today-cell" id="gdrs-rolling-today">0</span>
+            <span class="gdrs-value gdrs-total-cell" id="gdrs-rolling-total">0</span>
+          </div>
+          <div class="gdrs-row">
+            <span class="gdrs-label">Expenses</span>
+            <span class="gdrs-value gdrs-today-cell" id="gdrs-expenses-today">0</span>
+            <span class="gdrs-value gdrs-total-cell" id="gdrs-expenses-total">0</span>
+          </div>
+          <div class="gdrs-row">
+            <span class="gdrs-label">Settlement Commission</span>
+            <span class="gdrs-value gdrs-today-cell" id="gdrs-commission-today">0</span>
+            <span class="gdrs-value gdrs-total-cell" id="gdrs-commission-total">0</span>
+          </div>
+          <div class="gdrs-row">
+            <span class="gdrs-label">Settlement Additional</span>
+            <span class="gdrs-value gdrs-today-cell" id="gdrs-additional-today">0</span>
+            <span class="gdrs-value gdrs-total-cell" id="gdrs-additional-total">0</span>
+          </div>
+        </div>
+        <div class="gdrs-footer">
+          <button type="button" class="btn btn-sm gdrs-copy-btn" id="btn-copy-gamebook-daily-report-side">
+            <i class="fa fa-camera opacity-90" aria-hidden="true"></i><span>Copy</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

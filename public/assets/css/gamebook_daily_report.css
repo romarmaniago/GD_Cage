@@ -1,0 +1,426 @@
+/* Dashboard "Daily Report" modal — gamebook-derived totals per program date
+   (Number of Games / Buy In / Cash Out / Win-Lose / Rolling). Self-contained so it
+   never collides with the manually-entered Winloss/Rolling report styling. */
+
+/* Custom properties live on the modal wrapper (not .gamebook-daily-report-panel) since
+   the side card below is that panel's SIBLING, not its descendant, and would otherwise
+   fall back to invalid values for these vars. */
+#modal-dash-gamebook-report {
+  --bs-modal-margin: 1.25rem;
+  --gdr-gold-solid: #d9b96a;
+  --gdr-gold-text: #3a2e12;
+  --gdr-gold-border: rgba(58, 46, 18, 0.25);
+  --gdr-gold-hover: #faf3dc;
+  --gdr-today-bg: linear-gradient(180deg, #f8e6b0 0%, #efd087 100%);
+  --gdr-today-text: #5a3d12;
+  --gdr-head-grad: linear-gradient(180deg, #ecc978 0%, #cf9a44 100%);
+  --gdr-foot-grad: linear-gradient(180deg, #d9b56a 0%, #b8863c 100%);
+  --gdr-head-text: #3a2000;
+}
+
+.gamebook-daily-report-panel {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* width (not just max-width) is set so the dialog actually FILLS this fluid size
+   instead of shrink-wrapping to its children's content — otherwise widening the main
+   box / side card below has no visible effect once their combined width already fits,
+   and any extra space on a wide monitor just sits unused beside the modal. */
+#modal-dash-gamebook-report .gamebook-daily-report-dialog {
+  width: min(96vw, 100rem) !important;
+  max-width: min(96vw, 100rem) !important;
+  height: calc(100vh - 0.5rem);
+  max-height: calc(100vh - 0.5rem);
+  margin: 0.25rem auto;
+  align-items: stretch;
+}
+
+/* Two independent floating boxes (own rounded corners / shadow each) with a gap between
+   them — same "cluster" technique as views/modals/game_book/settlement.ejs — instead of
+   one shared modal-content frame, so the side card reads as its own separate panel.
+   Centered (not stretched) within the dialog's fluid width — neither box grows past its
+   own fixed size, so extra room on a wide monitor becomes backdrop margin instead of
+   stretching the table's columns too far apart. */
+.gamebook-daily-report-cluster {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 767.98px) {
+  .gamebook-daily-report-cluster {
+    flex-direction: column;
+    height: auto;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+}
+
+.gamebook-daily-report-main {
+  flex: 0 1 45rem;
+  min-width: 0;
+  height: 100%;
+  max-height: calc(100vh - 0.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#modal-dash-gamebook-report .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gamebook-daily-report-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.gamebook-daily-report-table-wrap {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.gamebook-daily-report-month-select {
+  width: auto !important;
+  flex: 0 0 auto;
+  min-width: 9.5rem;
+  font-size: 0.8rem !important;
+  height: 1.9rem !important;
+  padding: 0.2rem 1.75rem 0.2rem 0.7rem !important;
+  background-color: #fff !important;
+  border: 1px solid var(--gdr-gold-border) !important;
+  border-radius: 999px !important;
+  color: var(--gdr-gold-text) !important;
+}
+
+/* The table is laid out with flexbox rows (not native table row-height
+   distribution, which browsers ignore) so <tbody> rows always stretch to
+   fill the wrap's full height — no gap under the TOTAL row regardless of
+   how many days are in the selected month. Column alignment is kept by
+   giving thead/tbody/tfoot rows identical flex-basis per column class. */
+#gamebook-daily-report-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  font-size: 16px;
+  border: 1px solid var(--gdr-gold-border);
+}
+
+/* display:contents unwraps thead/tbody/tfoot from the box tree so every <tr> —
+   header, each day, and TOTAL — becomes a direct flex child of the table and
+   shares the same flex-basis, i.e. the header row is always exactly as tall
+   as a data row instead of sizing to its own (smaller) content. */
+#gamebook-daily-report-table thead,
+#gamebook-daily-report-table tbody,
+#gamebook-daily-report-table tfoot {
+  display: contents;
+}
+
+#gamebook-daily-report-table tr {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 1.3rem;
+}
+
+#gamebook-daily-report-table th,
+#gamebook-daily-report-table td {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  border-right: 1px solid var(--gdr-gold-border);
+  border-bottom: 1px solid var(--gdr-gold-border);
+}
+
+#gamebook-daily-report-table th:last-child,
+#gamebook-daily-report-table td:last-child {
+  border-right: none;
+}
+
+#gamebook-daily-report-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+#gamebook-daily-report-table th.gdr-date-col,
+#gamebook-daily-report-table td.gdr-date-col,
+#gamebook-daily-report-table th.gdr-num-col,
+#gamebook-daily-report-table td.gdr-num-col {
+  flex: 0 0 4.5rem;
+}
+
+#gamebook-daily-report-table thead th {
+  background: var(--gdr-head-grad);
+  color: var(--gdr-head-text);
+  font-weight: 700;
+  padding: 2px 3px;
+  justify-content: center;
+  text-transform: uppercase;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+#gamebook-daily-report-table tbody td {
+  padding: 0 6px;
+  color: #555;
+  white-space: nowrap;
+  justify-content: flex-end;
+}
+
+#gamebook-daily-report-table tbody td.gdr-date-col,
+#gamebook-daily-report-table tbody td.gdr-num-col {
+  justify-content: center;
+}
+
+#gamebook-daily-report-table tbody td.gdr-date-col {
+  color: #333;
+  font-weight: 500;
+}
+
+#gamebook-daily-report-table tbody tr:nth-child(even) td {
+  background-color: #fbf5e4;
+}
+
+#gamebook-daily-report-table tbody tr:hover td {
+  background-color: var(--gdr-gold-hover) !important;
+}
+
+#gamebook-daily-report-table tbody tr.gdr-today td.gdr-date-col {
+  background: var(--gdr-today-bg) !important;
+  color: var(--gdr-today-text);
+  font-weight: 700;
+}
+
+#gamebook-daily-report-table .gdr-positive {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+#gamebook-daily-report-table .gdr-negative {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+#gamebook-daily-report-table tfoot th {
+  padding: 2px 6px;
+  font-weight: 700;
+  color: var(--gdr-head-text);
+  background: var(--gdr-foot-grad);
+  border-top: 2px solid var(--gdr-gold-border);
+  justify-content: flex-end;
+}
+
+#gamebook-daily-report-table tfoot th.gdr-date-col,
+#gamebook-daily-report-table tfoot th.gdr-num-col {
+  justify-content: center;
+}
+
+@media (max-width: 575.98px) {
+  .gamebook-daily-report-toolbar {
+    justify-content: flex-start !important;
+  }
+}
+
+/* Summary side card — matches the Excel mock's layout: date cell + "Daily Report" title
+   spanning the top, a Today/Total column-head row, then rows with a dark-navy label
+   column and per-column colored value cells (light blue = Today, gold = Total). Its own
+   independent floating box (rounded corners, shadow), separated from the main content
+   by a gap instead of living inside its frame — same "cluster" look as the Settlement +
+   Edit Mode panels in views/modals/game_book/settlement.ejs. Still the same modal
+   underneath, so it always opens/closes in lockstep with the main content beside it. */
+.gamebook-daily-report-side-card {
+  /* Bootstrap sets .modal-dialog { pointer-events: none; } and only re-enables it on
+     .modal-content — this card isn't .modal-content, so without this it silently
+     inherits pointer-events:none from the dialog and nothing inside it is clickable. */
+  pointer-events: auto;
+  --gdrs-label-bg: #faf3dc;
+  --gdrs-today-bg: #f8e6b0;
+  --gdrs-today-text: #5a3d12;
+  --gdrs-total-bg: #d9b96a;
+  flex: 0 0 26rem;
+  min-width: 0;
+  align-self: flex-start;
+  max-height: calc(100vh - 0.5rem);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+@media (max-width: 767.98px) {
+  .gamebook-daily-report-side-card {
+    flex: 0 0 auto;
+    align-self: stretch;
+    max-height: none;
+  }
+}
+
+.gamebook-daily-report-side-card .gdrs-head-row,
+.gamebook-daily-report-side-card .gdrs-col-head,
+.gamebook-daily-report-side-card .gdrs-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) 6.5rem 6.5rem;
+  align-items: stretch;
+}
+
+.gamebook-daily-report-side-card .gdrs-date-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.5rem;
+  background: var(--gdrs-label-bg);
+  border-right: 1px solid var(--gdr-gold-border);
+  border-bottom: 2px solid var(--gdr-gold-solid);
+}
+
+.gamebook-daily-report-side-card .gdrs-date-input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: normal;
+  color: var(--gdr-gold-text);
+  cursor: pointer;
+}
+
+.gamebook-daily-report-side-card .gdrs-title-cell {
+  grid-column: 2 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gdr-head-grad);
+  color: var(--gdr-head-text);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 2px solid var(--gdr-gold-solid);
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--gdr-gold-border);
+  border-right: 1px solid var(--gdr-gold-border);
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head span:last-child {
+  border-right: none;
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head span:first-child {
+  background: var(--gdrs-label-bg);
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head span:nth-child(2) {
+  background: var(--gdrs-today-bg);
+  color: var(--gdrs-today-text);
+}
+
+.gamebook-daily-report-side-card .gdrs-col-head span:nth-child(3) {
+  background: var(--gdrs-total-bg);
+  color: var(--gdr-head-text);
+}
+
+.gamebook-daily-report-side-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.gamebook-daily-report-side-card .gdrs-row {
+  border-bottom: 1px solid var(--gdr-gold-border);
+}
+
+.gamebook-daily-report-side-card .gdrs-row:last-child {
+  border-bottom: none;
+}
+
+.gamebook-daily-report-side-card .gdrs-label,
+.gamebook-daily-report-side-card .gdrs-value {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  border-right: 1px solid var(--gdr-gold-border);
+}
+
+.gamebook-daily-report-side-card .gdrs-total-cell {
+  border-right: none;
+}
+
+.gamebook-daily-report-side-card .gdrs-label {
+  justify-content: flex-end;
+  background: var(--gdrs-label-bg);
+  color: var(--gdr-gold-text);
+  font-weight: 600;
+}
+
+.gamebook-daily-report-side-card .gdrs-value {
+  justify-content: flex-end;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #222;
+}
+
+.gamebook-daily-report-side-card .gdrs-today-cell {
+  background: var(--gdrs-today-bg);
+}
+
+.gamebook-daily-report-side-card .gdrs-total-cell {
+  background: var(--gdrs-total-bg);
+}
+
+.gdrs-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+  background: #fff;
+  border-top: 1px solid var(--gdr-gold-border);
+}
+
+.gdrs-footer .gdrs-copy-btn {
+  color: #fff !important;
+  background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+  border: none !important;
+  font-weight: 600;
+}

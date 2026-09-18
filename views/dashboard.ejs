@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/assets/css/dash_service_table.css">
 <link rel="stylesheet" href="/assets/css/commission.css">
 <link rel="stylesheet" href="/assets/css/additional_commission.css">
+<link rel="stylesheet" href="/assets/css/gamebook_daily_report.css">
 <!-- Loaded last so modal th / gold vars override panel-specific table themes -->
 <link rel="stylesheet" href="/assets/css/dashboard_grid.css">
 
@@ -379,7 +380,10 @@
          </div>
 
          <!-- Anticipated Profit + Actual Check -->
-         <div class="col-xl-2 col-lg-3 dash-top-stack-col">
+         <div class="col-xl-2 col-lg-3 dash-top-stack-col dash-daily-report-col">
+            <a href="#" data-bs-toggle="modal" data-bs-target="#modal-dash-gamebook-report" id="btn-dash-daily-report" data-report-from="<%= dashboardDateFrom %>" data-report-to="<%= dashboardDateTo %>" class="btn btn-sm btn-dash-daily-report d-inline-flex align-items-center gap-1">
+               <i class="fa fa-file-alt opacity-90" aria-hidden="true"></i><span>Daily Report</span>
+            </a>
             <div class="dash-card-stack" id="dash-anticipated-panel"
                data-win-loss="<%= winLossTotal %>"
                data-service-settle="<%= serviceSettleTotal %>"
@@ -823,6 +827,7 @@
 <%- include ('modals/dashboard/house_expense') %>
 <%- include ('modals/dashboard/commission') %>
 <%- include ('modals/dashboard/additional_commission') %>
+<%- include ('modals/dashboard/gamebook_daily_report') %>
 <%- include ('modals/junket/edit_house_expense') %>
 <%- include ('modals/junket/new_house_expense') %>
 <%- include ('modals/junket/new_return_money') %>
@@ -928,6 +933,7 @@
 
 <%- include('partials/footer') %>
 <script src="/assets/js/functions/table_daily_report.js"></script>
+<script src="/assets/js/functions/gamebook_daily_report.js"></script>
 <%- include('partials/house_expense_dashboard_scripts') %>
 <%- include('partials/commission_dashboard_scripts') %>
 <script src="/assets/js/functions/additional_commission.js"></script>

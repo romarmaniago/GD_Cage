@@ -460,14 +460,107 @@ async function computeGamebookAutoTotalsByDate(startStr, endStr) {
 			HOUSE_SHARE: row.HOUSE_SHARE,
 		};
 		const m = computeGameMetrics(recordsByGame.get(row.game_id) || [], gl);
-		if (!byDate.has(d)) byDate.set(d, { buyIn: 0, cashOut: 0, rolling: 0, wl: 0 });
+		if (!byDate.has(d)) byDate.set(d, { buyIn: 0, cashOut: 0, rolling: 0, wl: 0, gameCount: 0 });
 		const bucket = byDate.get(d);
 		bucket.buyIn += m.buyIn;
 		bucket.cashOut += m.cashOut;
 		bucket.rolling += m.rolling;
 		bucket.wl += m.winLoss;
+		bucket.gameCount += 1;
 	}
 	return byDate;
+}
+
+function enumerateDateRange(startStr, endStr) {
+	const out = [];
+	if (!isValidYmd(startStr) || !isValidYmd(endStr)) return out;
+	const start = new Date(`${startStr}T00:00:00`);
+	const end = new Date(`${endStr}T00:00:00`);
+	if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return out;
+	const cur = new Date(start);
+	while (cur <= end) {
+		out.push(`${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`);
+		cur.setDate(cur.getDate() + 1);
+	}
+	return out;
+}
+
+/**
+ * Manually-added games from the Game Information page (game_information table) grouped by
+ * program date, in the same shape as computeGamebookAutoTotalsByDate's buckets. Mirrors how
+ * routes/game_information.js GET /game_information_data merges these rows alongside the
+ * Game Book ones, so the Daily Report's totals include games staff added by hand there too.
+ */
+async function loadManualGameInformationTotalsByDate(startStr, endStr) {
+	const [rows] = await pool.execute(
+		`SELECT
+			CAST(gi.PROGRAM_DATE AS CHAR) AS program_day,
+			gi.BUY_IN, gi.CASH_OUT, gi.WIN_LOSS, gi.ROLLING
+		FROM game_information gi
+		WHERE gi.ACTIVE = 1
+		  AND CAST(gi.PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
+		  AND CAST(gi.PROGRAM_DATE AS DATE) <= CAST(? AS DATE)`,
+		[startStr, endStr]
+	);
+
+	const byDate = new Map();
+	for (const row of rows || []) {
+		const d = String(row.program_day || '').slice(0, 10);
+		if (!isValidYmd(d)) continue;
+		if (!byDate.has(d)) byDate.set(d, { buyIn: 0, cashOut: 0, rolling: 0, wl: 0, gameCount: 0 });
+		const bucket = byDate.get(d);
+		bucket.buyIn += Number(row.BUY_IN) || 0;
+		bucket.cashOut += Number(row.CASH_OUT) || 0;
+		bucket.wl += Number(row.WIN_LOSS) || 0;
+		bucket.rolling += Number(row.ROLLING) || 0;
+		bucket.gameCount += 1;
+	}
+	return byDate;
+}
+
+/**
+ * Per-calendar-date gamebook report rows for the dashboard's "Daily Report" (Number of
+ * Games / Buy In / Cash Out / Win-Lose / Rolling per program date). Every date in
+ * [startStr, endStr] is included, zero-filled when no games were logged that day.
+ * Built on computeGamebookAutoTotalsByDate PLUS the manually-added games from the Game
+ * Information page, the same two sources routes/game_information.js combines, so a game
+ * added by hand there is also reflected in this report instead of only the auto Game Book total.
+ */
+async function computeGamebookDailyReportRows(startStr, endStr) {
+	const byDate = await computeGamebookAutoTotalsByDate(startStr, endStr);
+	const manualByDate = await loadManualGameInformationTotalsByDate(startStr, endStr);
+	for (const [d, manualBucket] of manualByDate.entries()) {
+		if (!byDate.has(d)) byDate.set(d, { buyIn: 0, cashOut: 0, rolling: 0, wl: 0, gameCount: 0 });
+		const bucket = byDate.get(d);
+		bucket.buyIn += manualBucket.buyIn;
+		bucket.cashOut += manualBucket.cashOut;
+		bucket.wl += manualBucket.wl;
+		bucket.rolling += manualBucket.rolling;
+		bucket.gameCount += manualBucket.gameCount;
+	}
+	const rows = enumerateDateRange(startStr, endStr).map((d) => {
+		const bucket = byDate.get(d);
+		return {
+			program_date: d,
+			game_count: bucket ? bucket.gameCount : 0,
+			buy_in: bucket ? ceilAmount(bucket.buyIn) : 0,
+			cash_out: bucket ? ceilAmount(bucket.cashOut) : 0,
+			win_loss: bucket ? ceilAmount(bucket.wl) : 0,
+			rolling: bucket ? ceilAmount(bucket.rolling) : 0,
+		};
+	});
+	const totals = rows.reduce(
+		(acc, r) => {
+			acc.game_count += r.game_count;
+			acc.buy_in += r.buy_in;
+			acc.cash_out += r.cash_out;
+			acc.win_loss += r.win_loss;
+			acc.rolling += r.rolling;
+			return acc;
+		},
+		{ game_count: 0, buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0 }
+	);
+	return { rows, totals };
 }
 
 function monthKeyFromYmd(ymd) {
@@ -563,6 +656,8 @@ module.exports = {
 	computeNetProfitRows,
 	computeNetProfitTotals,
 	computeGamebookAutoTotalsByDate,
+	loadManualGameInformationTotalsByDate,
+	computeGamebookDailyReportRows,
 	monthKeyFromYmd,
 	formatMonthLabel,
 	aggregateRowsByMonth,
