@@ -3,7 +3,7 @@ var creditDetailsRequestSeq = 0;
 var guestPortalDateRangeStart = null;
 var guestPortalDateRangeEnd = null;
 var guestPortalDateRangeSearchRegistered = false;
-var GUEST_DEFAULT_PROFILE = '/assets/images/guest-default-profile.webp';
+var GUEST_DEFAULT_PROFILE = '/assets/images/gd_user.jpg';
 
 function isDefaultGuestPhoto(photo) {
 	if (photo == null) return true;
@@ -767,7 +767,7 @@ function applyAccountDetailsTransactionFilter(regex) {
 	if (!table) return;
 	table.search('');
 	table.columns().search('');
-	table.column(1).search(regex, true, false).draw();
+	table.column(4).search(regex, true, false).draw();
 }
 
 function guestPortalDateToYmd(d) {
@@ -1712,7 +1712,7 @@ function computeGuestPortalBalanceAfterMap(rows) {
 
 function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, balanceAfterCell, remarks, sourceRow) {
 	var ledgerId = accountLedgerRowId(sourceRow);
-	var row = [encodedDate, transactionCell, amountCell, balanceAfterCell, remarks || ''];
+	var row = [encodedDate, remarks || '', amountCell, balanceAfterCell, transactionCell];
 	row.push(
 		renderAccountLedgerActionCell(
 			ledgerId,
@@ -1926,11 +1926,15 @@ function getOrInitAccountDetailsDataTable() {
 			{
 				targets: 0,
 				render: accountDetailsDateRender,
+				// When two rows share the exact same timestamp (e.g. cut-off in/out pairs),
+				// break the tie using the hidden ledger id column so their order still
+				// flips consistently when the date sort direction is toggled.
+				orderData: [0, accountDetailsHiddenIdColIndex()],
 				createdCell: function (cell) {
 					$(cell).addClass('text-center');
 				}
 			}
-		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs()),
+		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs({ remarksColIndex: 1 })),
 		initComplete: function () {
 			placeGuestPortalTableControls();
 		},
@@ -2612,6 +2616,14 @@ function exportGuestPortalTable() {
 		return;
 	}
 	var outName = getGuestPortalExportFilename();
+	var upperHeaders = payload.headers.map(function (h) {
+		return String(h == null ? '' : h).toUpperCase();
+	});
+	var upperRows = payload.rows.map(function (row) {
+		return row.map(function (cell) {
+			return String(cell == null ? '' : cell).toUpperCase();
+		});
+	});
 	var $btn = $('#btn-guest-portal-export');
 	$btn.prop('disabled', true);
 	fetch('/game_list/export_xlsx', {
@@ -2619,8 +2631,8 @@ function exportGuestPortalTable() {
 		headers: { 'Content-Type': 'application/json' },
 		credentials: 'same-origin',
 		body: JSON.stringify({
-			headers: payload.headers,
-			rows: payload.rows,
+			headers: upperHeaders,
+			rows: upperRows,
 			filename: outName,
 			profileKey: 'guestPortal'
 		})
@@ -2713,13 +2725,19 @@ function transaction_type() {
 }
 
 function get_transfer_accounts() {
+	var $select = $('#txtAccount');
+
+	// Destroy any existing select2 instance so the displayed value/options don't carry over from a previous transfer
+	if ($select.hasClass('select2-hidden-accessible')) {
+		$select.select2('destroy');
+	}
+
 	$.ajax({
 		url: '/account_data',
 		method: 'GET',
 		success: function (response) {
-			var selectOptions = $('#txtAccount');
-			selectOptions.empty();
-			selectOptions.append($('<option>', {
+			$select.empty();
+			$select.append($('<option>', {
 				value: ''
 			}));
 			response.forEach(function (option) {
@@ -2728,18 +2746,21 @@ function get_transfer_accounts() {
 					return;
 				}
 
-				selectOptions.append($('<option>', {
+				$select.append($('<option>', {
 					value: option.account_id,
-					text: option.agent_name + ' (' + option.agent_code + ')'
+					text: option.agent_code + ' - ' + option.agent_name
 				}));
 			});
+
+			// Reset to blank so the field always opens empty instead of showing the last transfer's selection
+			$select.val('').trigger('change');
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching options:', error);
 		}
 	});
 
-	$('#txtAccount').select2({
+	$select.select2({
 		placeholder: 'Select an option',
 		dropdownParent: '#modal-transfer_account'
 	});
@@ -3048,18 +3069,6 @@ $(document).off('click', '#accountDetails .btn-ledger-receipt').on('click', '#ac
 	if (ledgerId) showGuestPortalLedgerReceipt(ledgerId);
 });
 
-// Make each payment record row clickable — opens the receipt slip.
-// Ignore clicks on the action buttons, the inline remarks editor, and responsive child rows.
-$(document).off('click', '#accountDetails tbody tr').on('click', '#accountDetails tbody tr', function (e) {
-	if ($(e.target).closest('.account-ledger-action-wrap, .remarks-editor-td, button, a, input, textarea, select, .dtr-control').length) return;
-	var $row = $(this);
-	if ($row.hasClass('child') || $row.hasClass('dtr-details')) return;
-	if (!accountDetailsDataTable) return;
-	var rowData = accountDetailsDataTable.row($row).data();
-	if (!rowData) return;
-	var ledgerId = rowData[accountDetailsHiddenIdColIndex()];
-	if (ledgerId) showGuestPortalLedgerReceipt(ledgerId);
-});
 
 $(document).off('click', '.js-copy-guest-portal-receipt-image').on('click', '.js-copy-guest-portal-receipt-image', function (e) {
 	e.preventDefault();

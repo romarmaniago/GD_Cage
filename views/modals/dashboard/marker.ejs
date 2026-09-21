@@ -44,8 +44,7 @@
                     <input type="text" class="form-control" name="txtGuarantor" id="txtGuarantor" required autocomplete="off" placeholder="<%= __('dashboard_marker.guarantor') %>" />
                 </div>
                 <div class="mb-2">
-                    <label class="form-label text-muted small d-block"><%= __('dashboard_marker.credit_action') %></label>
-                    <div class="d-flex flex-wrap align-items-center gap-3 gap-md-4 pt-1" id="marker-credit-action-wrap">
+                    <div class="d-flex flex-nowrap align-items-center pt-1" id="marker-credit-action-wrap">
                         <div class="form-check mb-0">
                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="credit-action-return-deposit-modal" name="optCreditAction" value="return_deposit" />
                             <label class="form-check-label" for="credit-action-return-deposit-modal"><%= __('dashboard_marker.credit_action_return_deposit') %></label>
@@ -195,6 +194,22 @@
         #modal-new-marker .marker-history-sidebar {
             flex: 0 0 280px;
             max-width: 280px;
+        }
+        #modal-new-marker #marker-credit-action-wrap {
+            gap: 0.3rem;
+        }
+        #modal-new-marker #marker-credit-action-wrap .form-check {
+            padding-left: 1.1em;
+            margin-right: 0;
+        }
+        #modal-new-marker #marker-credit-action-wrap .form-check-input {
+            margin-left: -1.1em;
+            transform: scale(0.85);
+        }
+        #modal-new-marker #marker-credit-action-wrap .form-check-label {
+            font-size: 0.82rem;
+            white-space: nowrap;
+            padding-left: 0.05rem;
         }
         #modal-new-marker .marker-history-main {
             flex: 1 1 auto;

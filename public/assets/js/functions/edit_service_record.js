@@ -511,7 +511,8 @@ $(function () {
 				await Swal.fire({
 					icon: 'success',
 					title: t.service_updated || 'Service updated',
-					timer: 1200,
+					timer: 1800,
+					timerProgressBar: true,
 					showConfirmButton: false
 				});
 

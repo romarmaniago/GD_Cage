@@ -485,6 +485,45 @@ async function insertCutoffTipRecords(db, { parentGameId, parentAccountId, encod
 	}
 }
 
+const CUTOFF_ORDINAL_WORDS = [
+	'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth',
+	'Eleventh', 'Twelfth', 'Thirteenth', 'Fourteenth', 'Fifteenth'
+];
+
+function cutoffOrdinalLabel(position) {
+	if (position >= 1 && position <= CUTOFF_ORDINAL_WORDS.length) {
+		return CUTOFF_ORDINAL_WORDS[position - 1];
+	}
+	return `${position}th`;
+}
+
+/** Walks CUTOFF_PARENT_GAME_ID upward to find how many cut-off links deep gameId is (root game = 1). */
+async function getCutoffChainPosition(db, gameId) {
+	let position = 1;
+	let currentId = parseInt(gameId, 10) || null;
+	const visited = new Set();
+	while (currentId && !visited.has(currentId)) {
+		visited.add(currentId);
+		let parentId = null;
+		try {
+			const [rows] = await db.execute(
+				`SELECT CUTOFF_PARENT_GAME_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[currentId]
+			);
+			if (rows.length > 0) {
+				parentId = parseInt(rows[0].CUTOFF_PARENT_GAME_ID, 10) || null;
+			}
+		} catch (e) {
+			// CUTOFF_PARENT_GAME_ID column may be missing
+			parentId = null;
+		}
+		if (!parentId) break;
+		position += 1;
+		currentId = parentId;
+	}
+	return position;
+}
+
 async function insertCutoffCashoutLeg(db, {
 	parentGameId,
 	parentAccountId,
@@ -492,7 +531,8 @@ async function insertCutoffCashoutLeg(db, {
 	encodedBy,
 	dateNow,
 	programDate = null,
-	agentQuery
+	agentQuery,
+	remarks = null
 }) {
 	const legTotal = leg.nn + leg.cc;
 	if (legTotal <= 0) {
@@ -517,15 +557,15 @@ async function insertCutoffCashoutLeg(db, {
 
 	if (leg.transType === 2) {
 		await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[parentAccountId, parentGameId, 1, 2, 'Chips Returned', legTotal, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, parentGameId, 1, 2, 'Chips Returned', legTotal, remarks, encodedBy, dateNow]
 		);
 	} else if (leg.transType === 4) {
 		const [ledgerResult] = await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[parentAccountId, parentGameId, 1, 4, 'Chips Returned', legTotal, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, parentGameId, 1, 4, 'Chips Returned', legTotal, remarks, encodedBy, dateNow]
 		);
 		await insertCreditRecord(db, {
 			accountId: parentAccountId,
@@ -535,15 +575,15 @@ async function insertCutoffCashoutLeg(db, {
 			ledgerId: ledgerResult.insertId,
 			gameId: parentGameId,
 			programDate: programDate || null,
-			remarks: 'Chips Returned',
+			remarks: remarks || 'Chips Returned',
 			encodedBy,
 			encodedDt: dateNow
 		});
 	} else {
 		await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[parentAccountId, parentGameId, 1, leg.transType, 'Chips Returned', legTotal, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, parentGameId, 1, leg.transType, 'Chips Returned', legTotal, remarks, encodedBy, dateNow]
 		);
 	}
 
@@ -579,7 +619,8 @@ async function insertCutoffBuyinLeg(db, {
 	encodedBy,
 	dateNow,
 	tradingDateNew,
-	agentQuery
+	agentQuery,
+	remarks = null
 }) {
 	const legTotal = leg.nn + leg.cc;
 	if (legTotal <= 0) {
@@ -617,15 +658,16 @@ async function insertCutoffBuyinLeg(db, {
 
 	if (buyinTransType === 2) {
 		await db.execute(
-			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[parentAccountId, newGameId, 2, buyinTransType, 'INITIAL BUY-IN', legTotal, encodedBy, dateNow]
+			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[parentAccountId, newGameId, 2, buyinTransType, 'INITIAL BUY-IN', legTotal, remarks, encodedBy, dateNow]
 		);
 	} else if (buyinTransType === 3) {
+		const creditRemarks = remarks || `Buy-in Game: ${newGameId}`;
 		const [ledgerResult] = await db.execute(
 			`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			[parentAccountId, newGameId, 10, buyinTransType, legTotal, `Buy-in Game: ${newGameId}`, encodedBy, dateNow]
+			[parentAccountId, newGameId, 10, buyinTransType, legTotal, creditRemarks, encodedBy, dateNow]
 		);
 		await insertCreditRecord(db, {
 			accountId: parentAccountId,
@@ -636,7 +678,7 @@ async function insertCutoffBuyinLeg(db, {
 			ledgerId: ledgerResult.insertId,
 			gameId: newGameId,
 			programDate: programDate || null,
-			remarks: `Buy-in Game: ${newGameId}`,
+			remarks: creditRemarks,
 			encodedBy,
 			encodedDt: dateNow
 		});
@@ -702,6 +744,7 @@ async function performGameCutoff(db, params) {
 
 	const parentAccountId = parseInt(parent.ACCOUNT_ID, 10);
 	const transType = await resolveParentTransType(db, parentGameId, parent.INITIAL_MOP);
+	const parentChainPosition = await getCutoffChainPosition(db, parentGameId);
 	const parentCashoutLegs = Array.isArray(cashoutLegs) && cashoutLegs.length ? cashoutLegs : [];
 	const newGameBuyInLegs = Array.isArray(buyInLegs) && buyInLegs.length ? buyInLegs : [];
 	const cutoffTips = tips || { rollerNn: 0, rollerCc: 0, dealerNn: 0, dealerCc: 0 };
@@ -784,7 +827,8 @@ async function performGameCutoff(db, params) {
 			encodedBy,
 			dateNow,
 			programDate,
-			agentQuery
+			agentQuery,
+			remarks: `Cut Off - In #${parentGameId} (${cutoffOrdinalLabel(parentChainPosition)})`
 		});
 	}
 
@@ -898,7 +942,8 @@ async function performGameCutoff(db, params) {
 			encodedBy,
 			dateNow,
 			tradingDateNew,
-			agentQuery
+			agentQuery,
+			remarks: `Cut Off - Out #${newGameId} (${cutoffOrdinalLabel(parentChainPosition + 1)})`
 		});
 	}
 
@@ -2932,7 +2977,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		}
 
 		if (depositTotal > 0) {
-			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, depositRemarks || null, encodedBy, encoded_dt]);
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, `Buy In - #${gameId}`, encodedBy, encoded_dt]);
 		}
 		if (creditTotal > 0) {
 			const [ledgerResult] = await connection.execute(ledgerCreditSQL, [
@@ -3155,10 +3200,11 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		await insertCashEntry(1);
 
 		if (transactionId === 2 && accountId) {
+			const ledgerRemarks = (remarks || '').toString().trim() || svc;
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[accountId, gameId, chargeTotal, encodedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?)`,
+				[accountId, gameId, chargeTotal, ledgerRemarks, encodedBy, now]
 			);
 
 			try {
@@ -3295,10 +3341,11 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			);
 			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 			if (accountId) {
+				const ledgerRemarks = (remarks || '').toString().trim() || svc;
 				await pool.execute(
-					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
-					[accountId, gameId, chargeTotal, updatedBy, now]
+					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?)`,
+					[accountId, gameId, chargeTotal, ledgerRemarks, updatedBy, now]
 				);
 			}
 		}
@@ -5304,8 +5351,9 @@ router.post('/add_settlement', async (req, res) => {
 		}
 
 		// Insert settlement details into account_ledger (GAME_ID for direct link)
-		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, req.session.user_id, date_now]);
+		const settlementRemarks = `Settlement - #${game_id_settle}`;
+		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now]);
 
 		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag)
 		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ?`;
@@ -6162,7 +6210,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		if (depositTotal > 0) {
 			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, depNn, depCc, 2, depositRemarks || null, req.session.user_id, date_now]);
 			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, depNn, depCc, 2, req.session.user_id, date_now]);
-			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, depositRemarks || null, req.session.user_id, date_now]);
+			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, `Buy In - #${game_id}`, req.session.user_id, date_now]);
 		}
 		if (creditTotal > 0) {
 			await connection.execute(GAME_RECORD_BUYIN_WITH_REMARKS_SQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, creditGameRecordRemarks, req.session.user_id, date_now]);
@@ -6669,7 +6717,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				2,
 				CashOutDESC,
 				depLeg,
-				depositRemarks || null,
+				`Deposit - Chips #${game_id}`,
 				userId,
 				date_now
 			]);

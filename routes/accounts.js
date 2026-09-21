@@ -2764,6 +2764,13 @@ router.post('/add_account_details', async (req, res) => {
 	let txtAmountNum = amountRaw;
 	const balanceBefore = await getCurrentBalance(txtAccountId);
 
+	// Default remarks when left blank: Deposit - Cash / Withdraw - Cash
+	let remarksValue = (txtRemarks || '').toString().trim();
+	if (!remarksValue) {
+		if (String(txtTrans) === '1') remarksValue = 'Deposit - Cash';
+		else if (String(txtTrans) === '2') remarksValue = 'Withdraw - Cash';
+	}
+
 	const [[accountRow]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [txtAccountId]);
 	const agentId = accountRow?.AGENT_ID ?? null;
 
@@ -2774,7 +2781,7 @@ router.post('/add_account_details', async (req, res) => {
 
 	try {
 		const transactionType = (txtTrans === '1' || txtTrans === '2') ? 2 : 3;
-		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, txtRemarks, req.session.user_id, date_now]);
+		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, remarksValue, req.session.user_id, date_now]);
 
 		if (String(txtTrans) === '3') {
 			const balanceAfterCredit = await getCreditBalance(txtAccountId).catch(() => null);
@@ -2788,7 +2795,7 @@ router.post('/add_account_details', async (req, res) => {
 				ledgerId: insertResult.insertId,
 				programDate: txtProgramDate || null,
 				guarantor: txtGuarantor || null,
-				remarks: txtRemarks || null,
+				remarks: remarksValue || null,
 				encodedBy: req.session.user_id,
 				encodedDt: date_now
 			});
@@ -2815,7 +2822,7 @@ router.post('/add_account_details', async (req, res) => {
 				amount: amountNumber,
 				balanceBefore,
 				balanceAfter,
-				remarks: txtRemarks || null,
+				remarks: remarksValue || null,
 				direction: mapDirection(txtTrans),
 				encodedBy: req.session.user_id,
 				encodedDate: date_now
@@ -2898,7 +2905,7 @@ router.post('/add_account_details', async (req, res) => {
 					amountNumber.toString(),
 					cashConfig.category,
 					cashConfig.type,
-					txtRemarks || null,
+					remarksValue || null,
 					req.session.user_id,
 					date_now
 				]);
@@ -2917,7 +2924,7 @@ router.post('/add_account_details', async (req, res) => {
 					displayWithdraw,
 					amountForTelegram,
 					txtTrans,
-					txtRemarks,
+					txtRemarks: remarksValue,
 					date_nowTG,
 					updated_time
 				});
@@ -3117,7 +3124,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 	const transferFromBalance = normalizeNumber(txtTransferFromBalance);
 	const transferToBalance = normalizeNumber(txtTransferToBalance);
 
-	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	let connection;
 
@@ -3129,45 +3136,6 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		// Fetch live balances to use in Telegram messages
 		const senderBalanceBefore = await getCurrentBalance(txtAccountId);
 		const receiverBalanceBefore = await getCurrentBalance(txtAccount);
-
-		// Insert transaction details for both accounts within the transaction
-		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
-		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
-
-		const transactionNameWithdraw = await getTransactionName(2);
-		const transactionNameDeposit = await getTransactionName(1);
-		const senderBalanceAfter = senderBalanceBefore - totalAmount;
-		const receiverBalanceAfter = receiverBalanceBefore + totalAmount;
-
-		await recordHistory({
-			ledgerId: withdrawResult.insertId,
-			accountId: parseInt(txtAccountId, 10),
-			transactionId: 2,
-			transactionName: transactionNameWithdraw,
-			amount: totalAmount,
-			balanceBefore: senderBalanceBefore,
-			balanceAfter: senderBalanceAfter,
-			remarks: `Transfer to account ${txtAccount}`,
-			transferAccountId: parseInt(txtAccount, 10),
-			direction: mapDirection('TRANSFER_OUT'),
-			encodedBy: req.session.user_id,
-			encodedDate: date_now
-		});
-
-		await recordHistory({
-			ledgerId: depositResult.insertId,
-			accountId: parseInt(txtAccount, 10),
-			transactionId: 1,
-			transactionName: transactionNameDeposit,
-			amount: totalAmount,
-			balanceBefore: receiverBalanceBefore,
-			balanceAfter: receiverBalanceAfter,
-			remarks: `Transfer from account ${txtAccountId}`,
-			transferAccountId: parseInt(txtAccountId, 10),
-			direction: mapDirection('TRANSFER_IN'),
-			encodedBy: req.session.user_id,
-			encodedDate: date_now
-		});
 
 		// Fetch Telegram IDs, AGENT_CODE, and NAME for the account from which the transfer is made
 		const telegramIdQueryFrom = `
@@ -3188,6 +3156,51 @@ router.post('/add_account_details/transfer', async (req, res) => {
             WHERE account.IDNo = ?
         `;
 		const [telegramIdResultsTo] = await connection.execute(telegramIdQueryTo, [txtAccount]);
+
+		// Auto-generated remarks reference the other side's agent code
+		const agentCodeFrom = telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : txtAccountId;
+		const agentCodeTo = telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : txtAccount;
+		const remarksOut = `Transfer - to ${agentCodeTo}`;
+		const remarksIn = `Transfer - from ${agentCodeFrom}`;
+
+		// Insert transaction details for both accounts within the transaction
+		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, remarksOut, 1, txtAccount, req.session.user_id, date_now]);
+		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, remarksIn, 1, txtAccountId, req.session.user_id, date_now]);
+
+		const transactionNameWithdraw = await getTransactionName(2);
+		const transactionNameDeposit = await getTransactionName(1);
+		const senderBalanceAfter = senderBalanceBefore - totalAmount;
+		const receiverBalanceAfter = receiverBalanceBefore + totalAmount;
+
+		await recordHistory({
+			ledgerId: withdrawResult.insertId,
+			accountId: parseInt(txtAccountId, 10),
+			transactionId: 2,
+			transactionName: transactionNameWithdraw,
+			amount: totalAmount,
+			balanceBefore: senderBalanceBefore,
+			balanceAfter: senderBalanceAfter,
+			remarks: remarksOut,
+			transferAccountId: parseInt(txtAccount, 10),
+			direction: mapDirection('TRANSFER_OUT'),
+			encodedBy: req.session.user_id,
+			encodedDate: date_now
+		});
+
+		await recordHistory({
+			ledgerId: depositResult.insertId,
+			accountId: parseInt(txtAccount, 10),
+			transactionId: 1,
+			transactionName: transactionNameDeposit,
+			amount: totalAmount,
+			balanceBefore: receiverBalanceBefore,
+			balanceAfter: receiverBalanceAfter,
+			remarks: remarksIn,
+			transferAccountId: parseInt(txtAccountId, 10),
+			direction: mapDirection('TRANSFER_IN'),
+			encodedBy: req.session.user_id,
+			encodedDate: date_now
+		});
 
 		// Collect Telegram errors
 		const telegramErrors = [];
@@ -3439,13 +3452,14 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  const { startDate, endDate } = req.query;
   
 	  let query = `
-		SELECT *, 
-		  account_ledger.IDNo AS account_details_id, 
-		  account_ledger.ENCODED_DT AS encoded_date 
-		FROM account_ledger 
+		SELECT *,
+		  account_ledger.IDNo AS account_details_id,
+		  account_ledger.ENCODED_DT AS encoded_date
+		FROM account_ledger
 		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-		WHERE account_ledger.ACTIVE = 1 
-		  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3) 
+		WHERE account_ledger.ACTIVE = 1
+		  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
+		  AND transaction_type.TRANSACTION NOT IN ('CREDIT', 'IOU CASH', 'CREDIT CASH')
 		  AND account_ledger.ACCOUNT_ID = ?
 	  `;
   

@@ -2928,7 +2928,6 @@
             var hasAmount = amountVal > 0;
             var canSelect = hasAccount && hasAmount;
             var $radios = $('input[name="' + optCreditActionName + '"]');
-            $radios.prop('disabled', !canSelect);
             if (!canSelect) {
                 $radios.prop('checked', false);
                 syncCreditActionHiddenFields();

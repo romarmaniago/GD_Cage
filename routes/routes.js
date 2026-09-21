@@ -5339,12 +5339,13 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 		const source = sourceOverride || returnSource;
 		const amount = amountOverride != null ? amountOverride : markerReturn;
 		const returnSourceDesc = getMarkerReturnSourceDesc(source);
+		const remarksValue = (remarks || '').toString().trim() || 'CREDIT RETURN';
 		const insertQuery = `
-            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
+            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-		await conn.query(insertQuery, [accountId, transType, 3, amount, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		await conn.query(insertQuery, [accountId, transType, 3, amount, req.session.user_id, date_now, remarksValue, returnSourceDesc]);
 	}
 
 	async function insertAutoSettlementRecords(conn, sourceBalances) {

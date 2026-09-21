@@ -35,7 +35,7 @@
                                         <div class="d-flex justify-content-center align-items-center">
                                             <div class="profile-img-edit position-relative d-flex justify-content-center align-items-center flex-wrap">
                                                 <!-- Primary account photo -->
-                                                <img id="account_photo" src="/assets/images/guest-default-profile.webp" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100" onerror="this.onerror=null;this.src='/assets/images/guest-default-profile.webp';"> 
+                                                <img id="account_photo" src="/assets/images/gd_user.jpg" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100" onerror="this.onerror=null;this.src='/assets/images/gd_user.jpg';"> 
                                                 <!-- Iba pang avatar options... -->
                                                 <button type="button" class="upload-icone bg-primary account-photo-upload-label p-0 d-inline-flex align-items-center justify-content-center" id="btn-open-change-photo" title="Change photo">
                                                     <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24" pointer-events="none">
@@ -183,10 +183,10 @@
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 122px;"><%= __('modal_account_details.date') %></th>
-                                            <th class="text-center" style="width: 230px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 220px;"><%= __('modal_account_details.remarks') %></th>
                                             <th class="text-center" style="width: 84px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 88px;"><%= __('modal_account_details.balance_after') %></th>
-                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
+                                            <th class="text-center" style="width: 230px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center account-ledger-actions-col" style="width: 110px;"><%= __('modal_account_details.action') %></th>
                                             <th class="d-none account-ledger-id-col" aria-hidden="true"></th>
                                         </tr>
@@ -379,7 +379,7 @@
 
 <!-- Passport Details Modal -->
 <div class="modal fade" id="modal-passport-details" tabindex="-1" aria-labelledby="modalPassportDetailsLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered passport-details-dialog">
         <div class="modal-content passport-details-modal-content border-0 shadow-lg overflow-hidden">
             <div class="modal-header passport-details-header py-3 px-4">
                 <h5 class="modal-title d-flex align-items-center gap-2 fw-semibold" id="modalPassportDetailsLabel">
@@ -400,8 +400,8 @@
                 </div>
                 <div id="passport-details-content" class="d-none">
                     <div class="row g-4 align-items-stretch">
-                        <!-- Column 1: Passport image -->
-                        <div class="col-12 col-lg-4 d-flex">
+                        <!-- Column 1: Passport image (hidden from view, kept in DOM for JS) -->
+                        <div class="col-12 col-lg-4 d-flex d-none">
                             <div class="passport-image-wrapper rounded-3 overflow-hidden position-relative w-100 d-flex align-items-center justify-content-center">
                                 <img id="passport-detail-image" src="" alt="Passport" class="passport-detail-img w-100">
                                 <div id="passport-detail-no-image" class="passport-detail-no-image d-none text-center">
@@ -412,8 +412,8 @@
                                 <img id="passport-zoomed-image" src="" alt="Passport zoomed" class="passport-zoomed">
                             </div>
                         </div>
-                        <!-- Column 2: Passport Details -->
-                        <div class="col-12 col-md-6 col-lg-4 d-flex">
+                        <!-- Column 2: Passport Details (hidden from view, kept in DOM for JS) -->
+                        <div class="col-12 col-md-6 col-lg-4 d-flex d-none">
                             <div class="passport-details-card rounded-3 overflow-hidden w-100">
                                 <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
@@ -431,7 +431,7 @@
                             </div>
                         </div>
                         <!-- Column 3: Details -->
-                        <div class="col-12 col-md-6 col-lg-4 d-flex">
+                        <div class="col-12 d-flex mx-auto">
                             <div class="passport-details-card rounded-3 overflow-hidden w-100 d-flex flex-column" id="gd-details-card">
                                 <div id="gd-details-capture" class="flex-grow-1 position-relative">
                                 <button type="button" class="btn" id="btn-copy-gd-details"
@@ -559,12 +559,12 @@ body.guest-portal-child-open .modal-backdrop.show {
 
 /* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
 #modal-account-details .modal-dialog {
-    width: min(98vw, 100rem);
-    max-width: 100rem;
+    width: min(98vw, 105rem);
+    max-width: 105rem;
 }
 @media (min-width: 1200px) {
     #modal-account-details .modal-dialog {
-        min-width: 82rem;
+        min-width: 85rem;
     }
 }
 #modal-account-details .account-photo-upload-label {
@@ -767,6 +767,7 @@ body > .flatpickr-calendar {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
+#modal-account-details #accountDetails tbody td:nth-child(2),
 #modal-account-details #accountDetails tbody td:nth-child(5) {
     text-align: left !important;
 }
@@ -778,26 +779,27 @@ body > .flatpickr-calendar {
 #modal-account-details #accountDetails tbody td:nth-child(4) {
     white-space: nowrap;
 }
-#modal-account-details #accountDetails tbody td:nth-child(5) {
+#modal-account-details #accountDetails tbody td:nth-child(2) {
     white-space: normal;
     word-break: break-word;
 }
 /* Transaction column: keep on one line */
-#modal-account-details #accountDetails thead th:nth-child(2),
-#modal-account-details #accountDetails tbody td:nth-child(2) {
+#modal-account-details #accountDetails thead th:nth-child(5),
+#modal-account-details #accountDetails tbody td:nth-child(5) {
     white-space: nowrap;
     width: 230px;
     min-width: 230px;
 }
 /* Remarks column: clamp to one line with "..."; full text shows in a tooltip above on hover */
-#modal-account-details #accountDetails tbody td:nth-child(5) {
-    max-width: 200px;
+#modal-account-details #accountDetails tbody td:nth-child(2) {
+    max-width: 260px;
 }
-#modal-account-details #accountDetails tbody td:nth-child(5) .remarks-editor-text {
+#modal-account-details #accountDetails tbody td:nth-child(2) .remarks-editor-text {
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-transform: uppercase;
 }
 /* Bigger remarks tooltip (rendered on <body>, so not scoped to the modal) */
 .remarks-portal-tooltip {
@@ -814,6 +816,7 @@ body > .flatpickr-calendar {
     text-align: left;
     white-space: pre-wrap;
     word-break: break-word;
+    text-transform: uppercase;
     background-color: #1f2430;
     border-radius: 7px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -1085,6 +1088,9 @@ body > .flatpickr-calendar {
 
 /* Passport Details modal – improved styling */
 .passport-details-modal-content { border-radius: 12px; }
+.passport-details-dialog {
+    max-width: 500px;
+}
 .passport-details-body {
     min-height: 320px;
     background: var(--dash-modal-body-bg, linear-gradient(180deg, #f6f3ec 0%, #efe9db 100%)) !important;

@@ -3126,11 +3126,12 @@ router.post('/add_marker_settlement', async (req, res) => {
 		const source = sourceOverride || returnSource;
 		const amount = amountOverride != null ? amountOverride : markerReturn;
 		const returnSourceDesc = getMarkerReturnSourceDesc(source);
+		const remarksValue = (remarks || '').toString().trim() || 'CREDIT RETURN';
 		const insertQuery = `
-            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
+            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-		const [ledgerResult] = await pool.execute(insertQuery, [accountId, optTransType, 3, amount, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		const [ledgerResult] = await pool.execute(insertQuery, [accountId, optTransType, 3, amount, req.session.user_id, date_now, remarksValue, returnSourceDesc]);
 		const ledgerId = ledgerResult && ledgerResult.insertId ? ledgerResult.insertId : null;
 
 		const balancesAfter = await getMarkerSourceBalances(pool, accountId);
@@ -3146,7 +3147,7 @@ router.post('/add_marker_settlement', async (req, res) => {
 			ledgerId,
 			programDate: txtProgramDate || null,
 			guarantor: txtGuarantor || null,
-			remarks: remarks || null,
+			remarks: remarksValue,
 			encodedBy: req.session.user_id,
 			encodedDt: date_now
 		});

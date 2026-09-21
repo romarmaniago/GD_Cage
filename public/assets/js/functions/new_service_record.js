@@ -525,7 +525,8 @@ $(function () {
 			await Swal.fire({
 				icon: 'success',
 				title: t.service_recorded || 'Service recorded',
-				timer: 1200,
+				timer: 1800,
+				timerProgressBar: true,
 				showConfirmButton: false
 			});
 

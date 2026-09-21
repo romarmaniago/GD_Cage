@@ -129,11 +129,12 @@ const PROFILES = {
 	},
 	guestPortal: {
 		amountCols: [3, 4],
+		signedCols: [3],
 		labelCols: 2,
 		leftAlignCols: [2, 5],
 		centerAlignCols: [1],
 		skipGrandTotal: true,
-		amountNumFmt: '#,##0;#,##0'
+		amountNumFmt: '#,##0;[Red](#,##0)'
 	},
 	dailyReportMatrix: {
 		labelCols: 1,

@@ -718,6 +718,7 @@ $(document).ready(function () {
 	const nextText = translations.next || 'Next';
 
 	const dataTable = $('#agent-tbl').DataTable({
+		pageLength: 25,
 		ajax: {
 			url: '/account_data',
 			dataSrc: function (json) {
