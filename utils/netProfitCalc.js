@@ -137,6 +137,7 @@ async function loadGamesInDateRange(startStr, endStr) {
 			gl.HOUSE_SHARE
 		FROM game_list gl
 		WHERE gl.ACTIVE != 0
+		  AND gl.SETTLED = 1
 		  AND CAST(gl.PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
 		  AND CAST(gl.PROGRAM_DATE AS DATE) <= CAST(? AS DATE)
 		ORDER BY gl.PROGRAM_DATE ASC, gl.IDNo ASC`,

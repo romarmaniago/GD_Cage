@@ -52,14 +52,13 @@
         </div>
       </div>
       <div class="gamebook-daily-report-side-card">
-        <div class="gdrs-head-row">
+        <div class="gdrs-head-block">
           <span class="gdrs-date-cell">
-            <input type="date" id="gamebook-daily-report-side-date" class="gdrs-date-input" autocomplete="off" aria-label="Daily Report side card date" />
+            <input type="text" id="gamebook-daily-report-side-date" class="gdrs-date-input" autocomplete="off" aria-label="Daily Report side card date" />
           </span>
           <span class="gdrs-title-cell">Daily Report</span>
-        </div>
-        <div class="gdrs-col-head">
-          <span></span><span>Today</span><span>Total</span>
+          <span class="gdrs-colhead-cell gdrs-colhead-today">Today</span>
+          <span class="gdrs-colhead-cell gdrs-colhead-total">Total</span>
         </div>
         <div class="gamebook-daily-report-side-body">
           <div class="gdrs-row">
@@ -90,7 +89,7 @@
         </div>
         <div class="gdrs-footer">
           <button type="button" class="btn btn-sm gdrs-copy-btn" id="btn-copy-gamebook-daily-report-side">
-            <i class="fa fa-camera opacity-90" aria-hidden="true"></i><span>Copy</span>
+            <span>Copy</span>
           </button>
         </div>
       </div>

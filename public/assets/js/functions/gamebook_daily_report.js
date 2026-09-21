@@ -23,6 +23,34 @@
   let sideDatePickerInitialized = false;
   let sideRequestGeneration = 0;
 
+  // flatpickr's popup is appended to document.body (to escape this card's own
+  // overflow:hidden, used for its rounded corners) — that puts it outside the
+  // modal's DOM subtree, so Bootstrap's focus trap yanks focus back into the
+  // modal on every click inside it before the day-cell click can register.
+  // Deactivating the trap and letting focus land in `.flatpickr-calendar`
+  // through unopposed is the same fix used for the Change Status cutoff date
+  // picker in game_list.js.
+  function allowSideDateCalendarFocus(e) {
+    if (!e.target || !e.target.closest) return;
+    if (e.target.closest('.flatpickr-calendar')) {
+      e.stopImmediatePropagation();
+    }
+  }
+
+  function releaseSideDateFocusTrap() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+    const instance = bootstrap.Modal.getInstance(modalEl) ||
+      bootstrap.Modal.getOrCreateInstance(modalEl, { focus: false });
+    if (instance) {
+      if (instance._config) instance._config.focus = false;
+      if (instance._focustrap && typeof instance._focustrap.deactivate === 'function') {
+        instance._focustrap.deactivate();
+      }
+    }
+    window.removeEventListener('focusin', allowSideDateCalendarFocus, true);
+    window.addEventListener('focusin', allowSideDateCalendarFocus, true);
+  }
+
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
   // Month-end cut-off period (start = last day of previous month, end = 2nd-to-last
@@ -214,16 +242,36 @@
     // Actual today — NOT defaultRange().to (that's the dashboard's cutoff-period end
     // date, e.g. 9/29, used to seed the table's month filter; the side card's "Today"
     // column means the real current date).
-    sideDateInput.value = currentSideDate || todayIso();
-    // A native <input type="date"> (not flatpickr) — flatpickr's calendar dropdown
-    // fights Bootstrap's modal focus-trap for focus on every click (day cells never
-    // register a selection), and escaping it via appendTo runs into this card's own
-    // overflow:hidden (for its rounded corners) clipping the dropdown. The browser's
-    // own native date UI sidesteps both problems entirely.
-    sideDateInput.addEventListener('change', () => {
-      const ymd = sideDateInput.value;
-      if (!isValidSideDate(ymd)) return;
-      loadSideSummary(ymd);
+    const initialYmd = currentSideDate || todayIso();
+    sideDateInput.value = initialYmd;
+
+    if (typeof flatpickr === 'undefined') {
+      sideDateInput.addEventListener('change', () => {
+        const ymd = sideDateInput.value;
+        if (!isValidSideDate(ymd)) return;
+        loadSideSummary(ymd);
+      });
+      return;
+    }
+
+    // altInputClass reuses the .gdrs-date-input styling (centering/font/color) on the
+    // visible text field flatpickr swaps in, while sideDateInput itself stays hidden
+    // and keeps holding the plain Y-m-d value everything else in this file reads.
+    flatpickr(sideDateInput, {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altInputClass: 'gdrs-date-input',
+      altFormat: 'm/d/Y',
+      allowInput: false,
+      disableMobile: true,
+      closeOnSelect: true,
+      defaultDate: initialYmd,
+      appendTo: document.body,
+      onOpen: releaseSideDateFocusTrap,
+      onChange: (_selectedDates, dateStr) => {
+        if (!isValidSideDate(dateStr)) return;
+        loadSideSummary(dateStr);
+      }
     });
   }
 

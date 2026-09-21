@@ -256,7 +256,7 @@
   --gdrs-today-bg: #f8e6b0;
   --gdrs-today-text: #5a3d12;
   --gdrs-total-bg: #d9b96a;
-  flex: 0 0 26rem;
+  flex: 0 0 29rem;
   min-width: 0;
   align-self: flex-start;
   max-height: calc(100vh - 0.5rem);
@@ -277,42 +277,52 @@
   }
 }
 
-.gamebook-daily-report-side-card .gdrs-head-row,
-.gamebook-daily-report-side-card .gdrs-col-head,
+.gamebook-daily-report-side-card .gdrs-head-block,
 .gamebook-daily-report-side-card .gdrs-row {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) 6.5rem 6.5rem;
+  grid-template-columns: minmax(10rem, 1fr) 8rem 8rem;
   align-items: stretch;
 }
 
+.gamebook-daily-report-side-card .gdrs-head-block {
+  grid-template-rows: auto auto;
+}
+
 .gamebook-daily-report-side-card .gdrs-date-cell {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 0.4rem 0.5rem;
+  padding: 0;
   background: var(--gdrs-label-bg);
-  border-right: 1px solid var(--gdr-gold-border);
   border-bottom: 2px solid var(--gdr-gold-solid);
 }
 
 .gamebook-daily-report-side-card .gdrs-date-input {
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   margin: 0;
   border: none;
   outline: none;
   box-shadow: none;
   background: transparent;
-  padding: 0;
-  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: normal;
   color: var(--gdr-gold-text);
   cursor: pointer;
+  text-align: center;
 }
 
 .gamebook-daily-report-side-card .gdrs-title-cell {
   grid-column: 2 / span 2;
+  grid-row: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -324,14 +334,12 @@
   border-bottom: 2px solid var(--gdr-gold-solid);
 }
 
-.gamebook-daily-report-side-card .gdrs-col-head {
+.gamebook-daily-report-side-card .gdrs-colhead-cell {
+  grid-row: 2;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-}
-
-.gamebook-daily-report-side-card .gdrs-col-head span {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -340,20 +348,18 @@
   border-right: 1px solid var(--gdr-gold-border);
 }
 
-.gamebook-daily-report-side-card .gdrs-col-head span:last-child {
+.gamebook-daily-report-side-card .gdrs-colhead-total {
+  grid-column: 3;
   border-right: none;
 }
 
-.gamebook-daily-report-side-card .gdrs-col-head span:first-child {
-  background: var(--gdrs-label-bg);
-}
-
-.gamebook-daily-report-side-card .gdrs-col-head span:nth-child(2) {
+.gamebook-daily-report-side-card .gdrs-colhead-today {
+  grid-column: 2;
   background: var(--gdrs-today-bg);
   color: var(--gdrs-today-text);
 }
 
-.gamebook-daily-report-side-card .gdrs-col-head span:nth-child(3) {
+.gamebook-daily-report-side-card .gdrs-colhead-total {
   background: var(--gdrs-total-bg);
   color: var(--gdr-head-text);
 }
@@ -413,14 +419,16 @@
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  padding: 0.5rem;
-  background: #fff;
-  border-top: 1px solid var(--gdr-gold-border);
+  padding: 0.6rem 0.5rem;
+  background: transparent;
 }
 
 .gdrs-footer .gdrs-copy-btn {
   color: #fff !important;
   background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
   border: none !important;
+  border-radius: 999px !important;
+  padding: 0.35rem 1.5rem;
   font-weight: 600;
+  box-shadow: 0 0.3rem 0.75rem rgba(0, 0, 0, 0.25);
 }
