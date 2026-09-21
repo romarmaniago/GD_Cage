@@ -992,6 +992,8 @@ module.exports = {
 	transactionDescForHistory,
 	insertCreditRecord,
 	ensureCreditTable,
+	creditBucketSumsSql,
+	creditWaterfallDisplaySql,
 	getCreditDataBreakdownSql,
 	getCreditGrandTotalSql,
 	getCreditStatusBreakdownSql,

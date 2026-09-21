@@ -139,11 +139,11 @@
 						<div class="cashout-credit-summary-grid">
 							<div class="cashout-credit-summary-col">
 								<div class="cashout-balance-head-cell" id="cashout-credit-current-label">Current Credit Balance Of Account</div>
-								<div class="cashout-balance-value-cell text-amount-negative" id="cashout-credit-current">—</div>
+								<div class="cashout-balance-value-cell" id="cashout-credit-current">—</div>
 							</div>
 							<div class="cashout-credit-summary-col">
 								<div class="cashout-balance-head-cell" id="cashout-credit-anticipated-label">Anticipated Credit Balance Of Account</div>
-								<div class="cashout-balance-value-cell text-amount-negative" id="cashout-credit-anticipated">—</div>
+								<div class="cashout-balance-value-cell" id="cashout-credit-anticipated">—</div>
 							</div>
 							<div class="cashout-credit-guest-cols" id="cashout-credit-guest-cols"></div>
 						</div>
@@ -429,7 +429,9 @@
 	pointer-events: auto;
 }
 #modal-add-cashout .cashout-tip-history-tbl th {
-	background: #cfe2ff;
+	background: #f5f5f5;
+	color: #555;
+	text-transform: uppercase;
 	font-size: 0.68rem;
 	padding: 0.25rem 0.25rem;
 }
@@ -535,7 +537,9 @@ body.cashout-side-resize-active {
 	min-width: 36rem;
 }
 #modal-add-cashout .cashout-credit-history-tbl th {
-	background: #cfe2ff;
+	background: #f5f5f5;
+	color: #555;
+	text-transform: uppercase;
 	font-size: 0.68rem;
 	padding: 0.25rem 0.25rem;
 	vertical-align: middle;
@@ -607,8 +611,9 @@ body.cashout-side-resize-active {
 	overflow: hidden;
 }
 #modal-add-cashout .cashout-side-panel-title {
-	background: #0d6efd;
-	color: #fff;
+	background: linear-gradient(180deg, #f7f4ec 0%, #efe6d2 100%);
+	color: #4a3208;
+	border-bottom: 2px solid #c8a24c;
 	font-size: 0.78rem;
 	font-weight: 700;
 	text-align: center;
@@ -624,8 +629,8 @@ body.cashout-side-resize-active {
 	grid-template-columns: 1fr 1fr;
 }
 #modal-add-cashout .cashout-balance-head-cell {
-	background: #cfe2ff;
-	color: #1a1a1a;
+	background: linear-gradient(180deg, #f7f4ec 0%, #efe6d2 100%);
+	color: #4a3208;
 	font-size: 0.72rem;
 	font-weight: 600;
 	text-align: center;
@@ -661,8 +666,8 @@ body.cashout-side-resize-active {
 	border-left: 1px solid #dee2e6;
 }
 #modal-add-cashout .cashout-processing-head {
-	background: #cfe2ff;
-	color: #1a1a1a;
+	background: linear-gradient(180deg, #f7f4ec 0%, #efe6d2 100%);
+	color: #4a3208;
 	font-size: 0.72rem;
 	font-weight: 600;
 	text-align: center;
@@ -684,6 +689,9 @@ body.cashout-side-resize-active {
 #modal-add-cashout .text-amount-negative {
 	color: #dc3545;
 }
+#modal-add-cashout .text-amount-positive {
+	color: #198754;
+}
 #modal-add-cashout .cashout-processing-body.is-positive {
 	color: #198754;
 }
@@ -703,7 +711,9 @@ body.cashout-side-resize-active {
 	margin-bottom: 0;
 }
 #modal-add-cashout .cashout-history-tbl th {
-	background: #f8f9fa;
+	background: #f5f5f5;
+	color: #555;
+	text-transform: uppercase;
 	font-weight: 600;
 	padding: 0.2rem 0.3rem;
 	white-space: nowrap;
@@ -980,10 +990,12 @@ document.addEventListener('DOMContentLoaded', function () {
 		);
 	};
 
+	const creditAmountClass = function (amount) {
+		return parseAmt(amount) > 0 ? 'text-amount-negative' : 'text-amount-positive';
+	};
+
 	const formatCreditOwed = function (amount) {
-		const owed = Math.max(0, parseAmt(amount));
-		if (!owed) return '0';
-		return formatNegativeAmt(owed);
+		return formatNegativeAmt(amount);
 	};
 
 	const computeCashProcessing = function () {
@@ -1292,26 +1304,9 @@ document.addEventListener('DOMContentLoaded', function () {
 		return transactionId === 3 || transactionId === 10;
 	};
 
-	const computeCreditHistoryBalances = function (rows) {
-		const chronological = rows.slice().reverse();
-		let running = 0;
-		const balanceById = {};
-		chronological.forEach(function (row) {
-			const amount = parseAmt(row.AMOUNT);
-			if (isCreditOutTxn(row)) {
-				running += amount;
-			} else {
-				running = Math.max(0, running - amount);
-			}
-			if (row.IDNo != null) balanceById[row.IDNo] = running;
-		});
-		return balanceById;
-	};
-
 	const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
 		if (!creditHistoryBody) return;
 		const rows = creditHistory.slice();
-		const balanceById = computeCreditHistoryBalances(rows);
 		let html = '';
 
 		rows.forEach(function (row) {
@@ -1319,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			const isOut = isCreditOutTxn(row);
 			const displayAmt = isOut ? formatNegativeAmt(amount) : formatAmt(amount);
 			const amtClass = 'text-end' + (isOut ? ' text-amount-negative' : '');
-			const balance = balanceById[row.IDNo] != null ? balanceById[row.IDNo] : 0;
+			const balance = parseAmt(row.BALANCE_AFTER);
 			const debtor = getCreditHistoryDebtorParts(row);
 			const parsed = parseCreditRemarks(row.REMARKS);
 			html += '<tr>' +
@@ -1327,16 +1322,16 @@ document.addEventListener('DOMContentLoaded', function () {
 				'<td>' + renderCreditTransactionLabel(row) + '</td>' +
 				'<td class="cashout-debtor-account">' + debtor.account + '</td>' +
 				'<td>' + debtor.guest + '</td>' +
-				'<td>' + (parsed.guarantor || '—') + '</td>' +
+				'<td>' + (row.GUARANTOR || parsed.guarantor || '—') + '</td>' +
 				'<td class="' + amtClass + '">' + displayAmt + '</td>' +
-				'<td class="text-end text-amount-negative">' + formatCreditOwed(balance) + '</td>' +
+				'<td class="text-end ' + creditAmountClass(balance) + '">' + formatCreditOwed(balance) + '</td>' +
 				'<td>' + (parsed.remarks || '—') + '</td>' +
 				'</tr>';
 		});
 
 		if (pendingAmount > 0) {
-			const currentOwed = Math.max(0, parseAmt(creditMeta.totalCredit));
-			const pendingBalance = Math.max(0, currentOwed - pendingAmount);
+			const currentOwed = parseAmt(creditMeta.totalCredit);
+			const pendingBalance = currentOwed - pendingAmount;
 			const code = getAgentCode();
 			const guest = getGuestName() || '—';
 			html += '<tr class="is-pending">' +
@@ -1346,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				'<td>' + guest + '</td>' +
 				'<td>' + (pendingGuarantor || '—') + '</td>' +
 				'<td class="text-end">' + formatAmt(pendingAmount) + '</td>' +
-				'<td class="text-end text-amount-negative">' + formatCreditOwed(pendingBalance) + '</td>' +
+				'<td class="text-end ' + creditAmountClass(pendingBalance) + '">' + formatCreditOwed(pendingBalance) + '</td>' +
 				'<td>' + (pendingRemarks || '—') + '</td>' +
 				'</tr>';
 		}
@@ -1370,14 +1365,22 @@ document.addEventListener('DOMContentLoaded', function () {
 		const base = parseAmt(creditMeta.totalCredit);
 		const processing = computeCreditProcessing();
 		const hasInput = shouldShowCreditPanel();
-		const anticipated = Math.max(0, base - processing);
+		const anticipated = base - processing;
 		const pendingRemarks = creditRemarksInput ? creditRemarksInput.value.trim() : '';
 		const pendingGuarantor = creditGuarantorInput ? creditGuarantorInput.value.trim() : '';
 
 		if (creditCurrentLabelEl) creditCurrentLabelEl.textContent = 'Current Credit Balance Of ' + code;
 		if (creditAnticipatedLabelEl) creditAnticipatedLabelEl.textContent = 'Anticipated Credit Balance Of ' + code;
-		if (creditCurrentEl) creditCurrentEl.textContent = formatCreditOwed(base);
-		if (creditAnticipatedEl) creditAnticipatedEl.textContent = hasInput ? formatCreditOwed(anticipated) : '—';
+		if (creditCurrentEl) {
+			creditCurrentEl.textContent = formatCreditOwed(base);
+			creditCurrentEl.classList.remove('text-amount-negative', 'text-amount-positive');
+			creditCurrentEl.classList.add(creditAmountClass(base));
+		}
+		if (creditAnticipatedEl) {
+			creditAnticipatedEl.textContent = hasInput ? formatCreditOwed(anticipated) : '—';
+			creditAnticipatedEl.classList.remove('text-amount-negative', 'text-amount-positive');
+			if (hasInput) creditAnticipatedEl.classList.add(creditAmountClass(anticipated));
+		}
 		renderGuestCreditBreakdown();
 		setProcessingDisplay(creditProcessingEl, creditProcessingWrap, hasInput ? processing : 0);
 		updateDebtorDisplay();
@@ -1769,6 +1772,22 @@ document.addEventListener('DOMContentLoaded', function () {
 			});
 
 			inputEl.addEventListener('input', function () {
+				if (type === 'credit') {
+					const totalOwed = parseAmt(creditMeta.totalCredit);
+					const processing = computeCreditProcessing();
+					if (processing > 0 && processing > totalOwed) {
+						Swal.fire({
+							icon: 'error',
+							title: 'Insufficient Balance',
+							text: 'Credit return exceeds the current credit balance of ' + formatAmt(totalOwed) + '.',
+							confirmButtonColor: '#3a57e8'
+						});
+						inputEl.value = '';
+						updateBalanceSummary();
+						inputEl.focus();
+						return;
+					}
+				}
 				updateBalanceSummary();
 			});
 

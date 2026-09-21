@@ -12,7 +12,7 @@ const { buildGameBookGroupedExportXlsx } = require('../utils/GameBookExportServi
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
-const { insertCreditRecord } = require('../utils/creditService');
+const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql } = require('../utils/creditService');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 
 // Helper function to get agent notification chat IDs from telegram_api table
@@ -2101,6 +2101,19 @@ async function getGameProgramDate(db, gameId) {
 	return rows.length ? normalizeSettlementDateYmd(rows[0].PROGRAM_DATE) : null;
 }
 
+/** GUEST_ID tied to a game_list row — lets credit_transaction inherit guest attribution
+ *  for credit events raised against an existing game (Add Buy-in / Cash-out), where the
+ *  request body itself carries no guest id. */
+async function getGameGuestId(db, gameId) {
+	const gid = parseInt(gameId, 10);
+	if (!Number.isInteger(gid) || gid <= 0) return null;
+	const [rows] = await db.execute(
+		`SELECT GUEST_ID FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
+		[gid]
+	);
+	return rows.length ? (rows[0].GUEST_ID || null) : null;
+}
+
 /** PROGRAM_DATE (YYYY-MM-DD) as local midnight for game_record.TRADING_DATE. */
 function parseProgramDateAsDateTime(ymd) {
 	const normalized = normalizeSettlementDateYmd(ymd);
@@ -2374,143 +2387,71 @@ router.get('/game_list_cashout_credit/:accountId', async (req, res) => {
 		return res.status(400).json({ error: 'Invalid account.' });
 	}
 
-	const markerQuery = `
-		SELECT account.IDNo AS ACCOUNT_ID,
-			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
-			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT,
-			agent.AGENT_CODE AS AGENT_CODE,
-			agent.NAME AS AGENT_NAME,
-			agency.AGENCY AS AGENCY_NAME
-		FROM agent
-		JOIN account ON agent.IDNo = account.AGENT_ID
-		JOIN agency ON agency.IDNo = agent.AGENCY
-		JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
-		WHERE account_ledger.TRANSACTION_TYPE IN (3, 4)
-			AND account_ledger.ACTIVE = 1 AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ?
-		GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME, agency.AGENCY`;
+	// Account-level totals: same waterfall netting utils/creditService.js uses for markerHistory
+	// and the Credit Status tab, read straight from credit_transaction — no separate
+	// account_ledger-based recomputation, so this always agrees with markerHistory.
+	const creditBreakdownQuery = `
+		SELECT
+			ROUND(net.CREDIT_DISPLAY, 0) AS BALANCE_CREDIT,
+			ROUND(net.BUYIN_DISPLAY, 0) AS BALANCE_BUYIN,
+			ROUND(net.NET_TOTAL, 0) AS TOTAL_AMOUNT
+		FROM (${creditWaterfallDisplaySql()}) net
+		WHERE net.ACCOUNT_ID = ?`;
 
-	const breakdownQuery = `
-		SELECT inner_sub.BALANCE_CREDIT,
-			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
-			inner_sub.TOTAL_AMOUNT
-		FROM (
-			SELECT sub.ACCOUNT_ID,
-				ROUND(
-					GREATEST(
-						0,
-						sub.CREDIT_ISSUED -
-						sub.RETURNS_TAGGED_CREDIT -
-						COALESCE(sub.RETURNS_UNTAGGED * sub.CREDIT_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
-					),
-					0
-				) AS BALANCE_CREDIT,
-				ROUND(
-					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
-					0
-				) AS TOTAL_AMOUNT
-			FROM (
-				SELECT account.IDNo AS ACCOUNT_ID,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
-					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
-					SUM(CASE
-						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
-							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
-							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
-							AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
-						THEN account_ledger.AMOUNT
-						ELSE 0
-					END) AS RETURNS_UNTAGGED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
-				FROM account
-				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
-				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4)
-					AND account_ledger.ACTIVE = 1
-					AND account.IDNo = ?
-				GROUP BY account.IDNo
-			) sub
-		) inner_sub`;
-
+	// Per-guest breakdown, straight from credit_transaction.GUEST_ID (populated at credit-write
+	// time — see getGameGuestId()). Nets each guest's issued vs. returned credit across every
+	// game before flooring, instead of flooring per game first (which hid netting across games).
 	const guestBalancesQuery = `
 		SELECT
 			guest.IDNo AS GUEST_ID,
 			COALESCE(NULLIF(TRIM(guest.NAME), ''), 'Unknown') AS GUEST_NAME,
-			ROUND(SUM(game_credit.BALANCE), 0) AS CREDIT_BALANCE
-		FROM (
-			SELECT
-				gl.GUEST_ID,
-				GREATEST(
-					0,
-					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (3, 10) THEN al.AMOUNT ELSE 0 END), 0) -
-					COALESCE(SUM(CASE WHEN al.TRANSACTION_ID IN (11, 12, 1) THEN al.AMOUNT ELSE 0 END), 0)
-				) AS BALANCE
-			FROM game_list gl
-			LEFT JOIN account_ledger al ON al.GAME_ID = gl.IDNo
-				AND al.ACCOUNT_ID = gl.ACCOUNT_ID
-				AND al.ACTIVE = 1
-				AND al.TRANSACTION_TYPE IN (3, 4)
-				AND (al.TRANSACTION_ID IN (3, 10, 11, 12, 1) OR al.TRANSACTION_TYPE = 4)
-			WHERE gl.ACCOUNT_ID = ?
-			GROUP BY gl.IDNo, gl.GUEST_ID
-		) game_credit
-		INNER JOIN guest ON guest.IDNo = game_credit.GUEST_ID
-		WHERE game_credit.BALANCE > 0
+			ROUND(GREATEST(0, SUM(CASE WHEN ct.DIRECTION = 'issue' THEN ct.AMOUNT ELSE -ct.AMOUNT END)), 0) AS CREDIT_BALANCE
+		FROM credit_transaction ct
+		JOIN guest ON guest.IDNo = ct.GUEST_ID
+		WHERE ct.ACCOUNT_ID = ? AND ct.ACTIVE = 1 AND ct.GUEST_ID IS NOT NULL
 		GROUP BY guest.IDNo, guest.NAME
+		HAVING SUM(CASE WHEN ct.DIRECTION = 'issue' THEN ct.AMOUNT ELSE -ct.AMOUNT END) > 0
 		ORDER BY guest.NAME ASC`;
 
 	const historyQuery = `
-		SELECT account_ledger.*,
-			agent.NAME AS AGENT_NAME,
-			agent.AGENT_CODE AS AGENT_CODE,
-			agency.AGENCY AS AGENCY_NAME,
-			COALESCE(NULLIF(TRIM(guest.NAME), ''), '') AS GUEST_NAME,
-			CONCAT(account_ledger.TRANSACTION_ID, '-', account_ledger.TRANSACTION_TYPE) AS TRANSACTION_INFO
-		FROM account_ledger
-		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
-		JOIN agent ON agent.IDNo = account.AGENT_ID
-		JOIN agency ON agency.IDNo = agent.AGENCY
-		LEFT JOIN game_list gl ON gl.IDNo = account_ledger.GAME_ID AND gl.ACCOUNT_ID = account_ledger.ACCOUNT_ID
-		LEFT JOIN guest ON guest.IDNo = gl.GUEST_ID
-		WHERE account_ledger.ACTIVE = 1
-			AND account_ledger.ACCOUNT_ID = ?
-			AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)
-		ORDER BY account_ledger.ENCODED_DT DESC, account_ledger.IDNo DESC
+		SELECT h.* FROM (${getCreditHistorySql()}) h
+		WHERE h.ACCOUNT_ID = ?
+		ORDER BY h.ENCODED_DT DESC, h.CREDIT_TXN_ID DESC
 		LIMIT 25`;
 
 	try {
-		const [[markerRow]] = await pool.execute(markerQuery, [accountId]);
-		const [[breakdownRow]] = await pool.execute(breakdownQuery, [accountId]);
-		const [guestBalanceRows] = await pool.execute(guestBalancesQuery, [accountId]);
+		const [[breakdownRow]] = await pool.execute(creditBreakdownQuery, [accountId]);
 		const [history] = await pool.execute(historyQuery, [accountId]);
 
-		let agentCode = markerRow ? markerRow.AGENT_CODE || '' : '';
-		let agentName = markerRow ? markerRow.AGENT_NAME || '' : '';
-		let agencyName = markerRow ? markerRow.AGENCY_NAME || '' : '';
+		const [[agentRow]] = await pool.execute(`
+			SELECT agent.AGENT_CODE, agent.NAME AS AGENT_NAME, agency.AGENCY AS AGENCY_NAME
+			FROM account
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			JOIN agency ON agency.IDNo = agent.AGENCY
+			WHERE account.IDNo = ? AND account.ACTIVE = 1
+			LIMIT 1
+		`, [accountId]);
 
-		if (!agentCode) {
-			const [[agentRow]] = await pool.execute(`
-				SELECT agent.AGENT_CODE, agent.NAME AS AGENT_NAME, agency.AGENCY AS AGENCY_NAME
-				FROM account
-				JOIN agent ON agent.IDNo = account.AGENT_ID
-				JOIN agency ON agency.IDNo = agent.AGENCY
-				WHERE account.IDNo = ? AND account.ACTIVE = 1
-				LIMIT 1
-			`, [accountId]);
-			if (agentRow) {
-				agentCode = agentRow.AGENT_CODE || '';
-				agentName = agentRow.AGENT_NAME || '';
-				agencyName = agentRow.AGENCY_NAME || '';
-			}
-		}
+		const agentCode = agentRow ? agentRow.AGENT_CODE || '' : '';
+		const agentName = agentRow ? agentRow.AGENT_NAME || '' : '';
+		const agencyName = agentRow ? agentRow.AGENCY_NAME || '' : '';
 
-		const totalCredit = markerRow ? parseFloat(markerRow.TOTAL_AMOUNT) || 0 : 0;
+		const totalCredit = breakdownRow ? parseFloat(breakdownRow.TOTAL_AMOUNT) || 0 : 0;
 		const balanceCredit = breakdownRow ? parseFloat(breakdownRow.BALANCE_CREDIT) || 0 : 0;
 		const balanceBuyin = breakdownRow ? parseFloat(breakdownRow.BALANCE_BUYIN) || 0 : 0;
-		const guestBalances = (guestBalanceRows || []).map((row) => ({
-			guestId: row.GUEST_ID,
-			guestName: row.GUEST_NAME || '',
-			creditBalance: parseFloat(row.CREDIT_BALANCE) || 0
-		}));
+
+		// A guest's own bucket can look non-zero even after the account is fully settled,
+		// when the payment that cleared it was tagged with a different (or no) GUEST_ID —
+		// see conversation: cash-out has no "which guest's debt" picker, so a return simply
+		// inherits the cashout game's own guest. Once the account nets to 0, none of that
+		// per-guest detail is meaningful anymore, so skip the query entirely.
+		const guestBalances = totalCredit > 0
+			? (await pool.execute(guestBalancesQuery, [accountId]))[0].map((row) => ({
+				guestId: row.GUEST_ID,
+				guestName: row.GUEST_NAME || '',
+				creditBalance: parseFloat(row.CREDIT_BALANCE) || 0
+			}))
+			: [];
 
 		return res.json({
 			totalCredit,
@@ -6237,8 +6178,10 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				date_now
 			]);
 			const programDate = await getGameProgramDate(connection, game_id);
+			const guestId = await getGameGuestId(connection, game_id);
 			await insertCreditRecord(connection, {
 				accountId: txtAccountCode,
+				guestId,
 				creditAction: 'Buy-in',
 				creditSource: 'BUYIN',
 				amount: creditTotal,
@@ -6596,7 +6539,6 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		return parts.length ? parts.join(' | ') : null;
 	};
 
-	const markerBalance = parseFloat((txtMarkerChipsReturn || '0').replace(/,/g, '')) || 0;
 	const sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
 
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
@@ -6642,8 +6584,19 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	if (splitGrandTotal <= 0 && tipGrandTotal <= 0) {
 		return res.status(400).json({ error: 'Enter a cash-out amount and/or a tip amount.' });
 	}
-	if (splitGrandTotal > 0 && creditLeg > 0 && (creditNn > markerBalance || creditCc > markerBalance || creditLeg > markerBalance)) {
-		return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });
+	if (splitGrandTotal > 0 && creditLeg > 0) {
+		// Re-check server-side against credit_transaction (same source the modal's own
+		// "Current Credit Balance" reads from — see /game_list_cashout_credit/:accountId)
+		// instead of trusting the client-supplied txtMarkerChipsReturn hidden field, which
+		// was populated from a separate, now-stale account_ledger-only query.
+		const [[creditRow]] = await pool.execute(
+			`SELECT net.NET_TOTAL FROM (${creditWaterfallDisplaySql()}) net WHERE net.ACCOUNT_ID = ?`,
+			[txtAccountCode]
+		);
+		const currentOwed = creditRow ? parseFloat(creditRow.NET_TOTAL) || 0 : 0;
+		if (creditNn > currentOwed || creditCc > currentOwed || creditLeg > currentOwed) {
+			return res.status(400).json({ error: 'Credit return exceeds Credit Balance.' });
+		}
 	}
 	const guarantorErr = creditGuarantorRequiredError(creditLeg, creditGuarantor);
 	if (guarantorErr) return res.status(400).json({ error: guarantorErr });
@@ -6667,6 +6620,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const programDate = await getGameProgramDate(connection, game_id);
+		const guestId = await getGameGuestId(connection, game_id);
 
 		if (cashLeg > 0) {
 			const [r1] = await connection.execute(query1, [
@@ -6750,6 +6704,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			]);
 			await insertCreditRecord(connection, {
 				accountId: txtAccountCode,
+				guestId,
 				creditAction: 'Cash-in',
 				creditSource: 'BUYIN',
 				amount: creditLeg,

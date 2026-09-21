@@ -5588,10 +5588,10 @@ $(document).ready(function () {
                                 }
                             });
 
-							var buyinBtnStyle = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRow ? 'color:#dc3545 !important;' : '');
+							var buyinBtnStyle = 'font-size:15px;text-decoration: underline;' + (isMarkerGameRow ? 'color:#dc3545 !important;' : '');
 							var formatBuyinPlain = function (amt) {
 								var s = parseFloat(amt).toLocaleString('en-US');
-								return isMarkerGameRow ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
+								return isMarkerGameRow ? '<span style="color:#dc3545;font-size:15px;">' + s + '</span>' : s;
 							};
 	
 							var total_initial = total_nn_init + total_cc_init;
@@ -10895,10 +10895,10 @@ $(document).ready(function () {
 
 			});
 
-							var buyinBtnStyleStats = 'font-size:11px;text-decoration: underline;' + (isMarkerGameRowStats ? 'color:#dc3545 !important;' : '');
+							var buyinBtnStyleStats = 'font-size:15px;text-decoration: underline;' + (isMarkerGameRowStats ? 'color:#dc3545 !important;' : '');
 							var formatBuyinPlainStats = function (amt) {
 								var s = parseFloat(amt).toLocaleString('en-US');
-								return isMarkerGameRowStats ? '<span style="color:#dc3545;font-size:11px;">' + s + '</span>' : s;
+								return isMarkerGameRowStats ? '<span style="color:#dc3545;font-size:15px;">' + s + '</span>' : s;
 							};
 
 							var total_initial = total_nn_init + total_cc_init;
