@@ -146,13 +146,17 @@ const PROFILES = {
 			return { amountCols };
 		}
 	},
-	gameInformation: {
+	groupGamesDetail: {
+		// Cols: 1 PROGRAM DATE, 2 GAME START, 3 TYPE, 4 GAME #, 5 ACCT NO, 6 GUEST, 7 BUY-IN,
+		// 8 CASH-OUT, 9 WIN/LOSS, 10 ROLLING, 11 GAME RATE, 12 COMMISSION, 13 ADD CHG,
+		// 14 TOTAL SETTLE, 15 GAME END — the Categorize Group "Group Games" modal table,
+		// unrelated to the main Game Information table's column order.
 		amountCols: [7, 8, 9, 10, 12, 13, 14],
 		outflowCols: [8, 12, 13, 14],
 		signedCols: [9, 10],
 		percentCols: [11],
 		labelCols: 6,
-		leftAlignCols: [1, 2, 3, 4, 5, 6, 15],
+		leftAlignCols: [1, 2, 15],
 		centerAlignCols: [3, 4, 5, 6]
 	},
 	accountGameHistory: {

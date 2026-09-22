@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const { buildGameInformationGroupedExportXlsx } = require('../utils/GameInformationExportService');
 const { fetchGamebookGameInformationRows } = require('../utils/gameInformationGamebook');
 
 const GAME_INFORMATION_SELECT = `
@@ -19,6 +20,7 @@ const GAME_INFORMATION_SELECT = `
 		COALESCE(NULLIF(TRIM(ag.AGENT_CODE), ''), '') AS AGENT_CODE,
 		COALESCE(NULLIF(TRIM(ag.NAME), ''), '') AS AGENT_NAME,
 		COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
+		g.MEMBERSHIP_NO AS membership_no,
 		gi.BUY_IN,
 		gi.CASH_OUT,
 		gi.WIN_LOSS,
@@ -618,20 +620,35 @@ router.get('/categorize_group_summary', checkSession, async (req, res) => {
 	}
 });
 
-router.post('/game_information/export_xlsx', checkSession, async (req, res) => {
+router.post('/game_information/export_xlsx_grouped', checkSession, async (req, res) => {
 	try {
-		const { headers, rows, filename } = req.body || {};
-		const result = await buildTableExportXlsx({
-			profileKey: 'gameInformation',
-			sheetName: 'Game Information',
-			headers,
+		const { rows, filename } = req.body || {};
+		const result = await buildGameInformationGroupedExportXlsx({
 			rows,
 			filename: filename || 'Game_Information-export.xlsx'
 		});
 		return sendTableExportResponse(res, result);
 	} catch (err) {
 		if (err.status === 400) return res.status(400).json({ error: err.message });
-		console.error('[game_information/export_xlsx]', err);
+		console.error('[game_information/export_xlsx_grouped]', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+router.post('/categorize_group/group_games_export_xlsx', checkSession, async (req, res) => {
+	try {
+		const { headers, rows, filename } = req.body || {};
+		const result = await buildTableExportXlsx({
+			profileKey: 'groupGamesDetail',
+			sheetName: 'Group Games',
+			headers,
+			rows,
+			filename: filename || 'Group_Games-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('[categorize_group/group_games_export_xlsx]', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });

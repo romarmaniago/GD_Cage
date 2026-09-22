@@ -18,30 +18,28 @@ const FILL_FINISH = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA9D
 const FILL_PLAIN_HEADER = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
 const FILL_GRAND_TOTAL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE699' } };
 
-// column1 -> { header, group, fill, amount }
+// Same visual template as the Game Book grouped export (Start / Game Information / Add
+// Charge / Total Settle / Finish), except Add Charge is a single figure here — Game
+// Information doesn't break charges down into F&B / Hotel / Incidental — and there's no
+// Rolling Chips or Memo group since that data isn't tracked on this page.
 const COLUMNS = [
 	{ key: 'program_date', header: 'Program', group: 'Start', fill: FILL_START },
 	{ key: 'game_start', header: 'Game', group: 'Start', fill: FILL_START },
-	{ key: 'acc_group', header: 'Acc & Group', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
-	{ key: 'guest_name', header: 'Name', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
+	{ key: 'acc', header: 'Acc', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
+	{ key: 'guest_name', header: 'Guest', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'membership_no', header: 'Membership', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'game_type', header: 'Type', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'game_rate', header: 'Game Rate', group: 'Game Information', fill: FILL_GAME_INFO },
-	{ key: 'game_id_label', header: 'Game #', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
+	{ key: 'game_no', header: 'Game #', group: 'Game Information', fill: FILL_GAME_INFO, leftAlign: true },
 	{ key: 'buyin', header: 'Buy In', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
 	{ key: 'cashout', header: 'Cash Out', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
 	{ key: 'winloss', header: 'W/L', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
 	{ key: 'rolling', header: 'Rolling', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
 	{ key: 'settlement', header: 'Settlement', group: 'Game Information', fill: FILL_GAME_INFO, amount: true },
-	{ key: 'fnb', header: 'F&B', group: 'Add Charge', fill: FILL_ADD_CHARGE, amount: true },
-	{ key: 'hotel', header: 'Hotel', group: 'Add Charge', fill: FILL_ADD_CHARGE, amount: true },
-	{ key: 'incidental', header: 'Incidental', group: 'Add Charge', fill: FILL_ADD_CHARGE, amount: true },
+	{ key: 'add_charge', header: 'Add Charge', fill: FILL_ADD_CHARGE, amount: true },
 	{ key: 'total_settle', header: 'Total Settle', fill: FILL_TOTAL_SETTLE, amount: true },
-	{ key: 'roller_chips', header: 'Rolling Chips', fill: FILL_PLAIN_HEADER, amount: true },
 	{ key: 'program_end', header: 'Program End', group: 'Finish', fill: FILL_FINISH },
-	{ key: 'game_end', header: 'Game End', group: 'Finish', fill: FILL_FINISH },
-	{ key: 'note', header: 'Note', group: 'Memo', fill: FILL_PLAIN_HEADER },
-	{ key: 'settled_label', header: '정산', group: 'Memo', fill: FILL_PLAIN_HEADER }
+	{ key: 'game_end', header: 'Game End', group: 'Finish', fill: FILL_FINISH }
 ];
 
 function displayWidth(value) {
@@ -60,20 +58,12 @@ function sanitizeFilename(filename, fallback) {
 	return outName;
 }
 
-const DEFAULT_GROUP_NAME = 'main';
-
-/** Main always first, then everything else alphabetically — matches the Manage Groups list order. */
-function sortGameBookExportRows(rows) {
+/** Chronological, oldest first — Game Information has no per-row group to sort by. */
+function sortGameInformationExportRows(rows) {
 	return rows.slice().sort((a, b) => {
-		const nameA = String((a && a.group_name) || 'Main').trim();
-		const nameB = String((b && b.group_name) || 'Main').trim();
-		const isMainA = nameA.toLowerCase() === DEFAULT_GROUP_NAME;
-		const isMainB = nameB.toLowerCase() === DEFAULT_GROUP_NAME;
-		if (isMainA !== isMainB) return isMainA ? -1 : 1;
-		const nameCmp = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-		if (nameCmp !== 0) return nameCmp;
-		// Same group — break ties by Game Start (both are 'YYYY-MM-DD HH:mm' strings, so
-		// a plain string compare sorts chronologically).
+		const dateA = String((a && a.program_date) || '');
+		const dateB = String((b && b.program_date) || '');
+		if (dateA !== dateB) return dateA.localeCompare(dateB);
 		const startA = String((a && a.game_start) || '');
 		const startB = String((b && b.game_start) || '');
 		return startA.localeCompare(startB);
@@ -82,8 +72,7 @@ function sortGameBookExportRows(rows) {
 
 /** Purely-numeric-looking strings ("300141802") get flagged by Excel's "number stored as
  *  text" warning (the green corner triangle) unless they're an actual Number. Values that
- *  aren't purely numeric (e.g. "90045 (90044)" or "-") are left as text, which Excel never
- *  flags. */
+ *  aren't purely numeric (e.g. "-") are left as text, which Excel never flags. */
 function numericOrText(value) {
 	if (value == null || value === '') return '';
 	const s = String(value).trim();
@@ -91,44 +80,37 @@ function numericOrText(value) {
 }
 
 function toRowValues(r) {
-	const code = r.agent_code || '';
-	const group = r.group_name || 'Main';
 	return {
 		program_date: r.program_date || '',
 		game_start: r.game_start || '',
-		acc_group: code ? code + ' (' + group + ')' : '',
+		acc: r.acc || '-',
 		guest_name: r.guest_name || '-',
 		membership_no: r.membership_no ? numericOrText(r.membership_no) : '-',
 		game_type: r.game_type || '',
-		game_rate: r.commission_percentage != null && r.commission_percentage !== '' ? Number(r.commission_percentage) / 100 : '',
-		game_id_label: numericOrText(r.game_id_label),
+		game_rate: r.game_rate != null && r.game_rate !== '' ? Number(r.game_rate) / 100 : '',
+		game_no: numericOrText(r.game_no),
 		buyin: Number(r.buyin) || 0,
 		cashout: Number(r.cashout) || 0,
 		winloss: Number(r.winloss) || 0,
 		rolling: Number(r.rolling) || 0,
 		settlement: Number(r.settlement) || 0,
-		fnb: Number(r.fnb) || 0,
-		hotel: Number(r.hotel) || 0,
-		incidental: Number(r.incidental) || 0,
+		add_charge: Number(r.add_charge) || 0,
 		total_settle: Number(r.total_settle) || 0,
-		roller_chips: Number(r.roller_chips) || 0,
 		program_end: r.program_end || '',
-		game_end: r.game_end || '',
-		note: r.note || '-',
-		settled_label: r.settled ? 'O' : 'X'
+		game_end: r.game_end || ''
 	};
 }
 
 /**
- * Builds the grouped-header Game Book export (Start / Game Information / Add Charge /
- * Total Settle / Rolling Chips / Finish / Memo), matching the reference template.
+ * Builds the grouped-header Game Information export (Start / Game Information / Add Charge /
+ * Total Settle / Finish), matching the Game Book export's visual template.
  * @param {object} opts
- * @param {Array<object>} opts.rows - plain row objects, see captureGameListExportRow (client)
+ * @param {Array<object>} opts.rows - plain row objects captured from the on-screen table
  * @param {string} [opts.filename]
  * @param {number} [opts.maxRows=10000]
  * @returns {Promise<{ buffer: Buffer, filename: string }>}
  */
-async function buildGameBookGroupedExportXlsx(opts) {
+async function buildGameInformationGroupedExportXlsx(opts) {
 	const { rows, filename, maxRows = 10000 } = opts || {};
 
 	if (!Array.isArray(rows)) {
@@ -138,10 +120,10 @@ async function buildGameBookGroupedExportXlsx(opts) {
 		throw Object.assign(new Error('Too many rows'), { status: 400 });
 	}
 
-	const sortedRows = sortGameBookExportRows(rows);
+	const sortedRows = sortGameInformationExportRows(rows);
 	const ncol = COLUMNS.length;
 	const workbook = new ExcelJS.Workbook();
-	const ws = workbook.addWorksheet('Game Book', {
+	const ws = workbook.addWorksheet('Game Information', {
 		views: [{ state: 'frozen', ySplit: 2 }]
 	});
 
@@ -253,10 +235,10 @@ async function buildGameBookGroupedExportXlsx(opts) {
 	});
 
 	const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-	const outName = sanitizeFilename(filename, 'Gamebook-export.xlsx');
+	const outName = sanitizeFilename(filename, 'Game_Information-export.xlsx');
 	return { buffer, filename: outName };
 }
 
 module.exports = {
-	buildGameBookGroupedExportXlsx
+	buildGameInformationGroupedExportXlsx
 };

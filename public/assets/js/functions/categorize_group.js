@@ -979,7 +979,7 @@
 		var outName = getCgGroupGamesExportFilename();
 		var $btn = $('#btn-cg-group-games-export');
 		$btn.prop('disabled', true);
-		fetch('/game_information/export_xlsx', {
+		fetch('/categorize_group/group_games_export_xlsx', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'same-origin',

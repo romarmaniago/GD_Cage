@@ -128,7 +128,7 @@
 	var giAccountGuestResetting = false;
 
 	function hasActionColumn() {
-		return $('#game_information-tbl thead th').length > 15;
+		return $('#game_information-tbl thead th').length > 16;
 	}
 
 	function emptyActionCell() {
@@ -280,18 +280,21 @@
 				? t('telebet', 'TELEBET')
 				: t('live', 'LIVE');
 
+		var membershipNo = row.membership_no != null ? String(row.membership_no).trim() : '';
+
 		var cells = [
 			ymd(row.PROGRAM_DATE) || '—',
 			formatGameStart(row.GAME_START),
-			gameType,
-			row.GAME_NO || '—',
-			row.ACCOUNT_TEXT || '—',
+			row.AGENT_CODE || '—',
 			row.GUEST_NAME || '—',
+			membershipNo || '-',
+			gameType,
+			commissionBadge(row),
+			row.GAME_NO || '—',
 			fmtAmt(row.BUY_IN),
 			fmtAmt(row.CASH_OUT, 'out'),
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
-			commissionBadge(row),
 			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(Math.abs(net)) : fmtAmt(net, 'out')),
 			fmtAmt(addChg),
 			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
@@ -312,6 +315,28 @@
 			commission: sharedGame ? displayCommission : net,
 			addChg: addChg,
 			settle: displaySettle
+		});
+
+		var settlementValue = sharedGame ? displayCommission : (rollingNegative ? Math.abs(net) : -Math.abs(net));
+		var totalSettleValue = sharedGame ? displaySettle : -Math.abs(settle);
+		$(rowNode).data('giExport', {
+			program_date: ymd(row.PROGRAM_DATE) || '',
+			game_start: formatGameStart(row.GAME_START),
+			acc: row.AGENT_CODE || '',
+			guest_name: row.GUEST_NAME && row.GUEST_NAME !== '-' ? row.GUEST_NAME : '',
+			membership_no: membershipNo,
+			game_type: gameType,
+			game_rate: parseFloat(row.COMMISSION_PERCENTAGE) || 0,
+			game_no: row.GAME_NO || '',
+			buyin: parseFloat(row.BUY_IN) || 0,
+			cashout: -Math.abs(parseFloat(row.CASH_OUT) || 0),
+			winloss: parseFloat(row.WIN_LOSS) || 0,
+			rolling: parseFloat(row.ROLLING) || 0,
+			settlement: settlementValue,
+			add_charge: addChg,
+			total_settle: totalSettleValue,
+			program_end: row.GAME_ENDED ? (ymd(row.GAME_ENDED) || '') : '',
+			game_end: formatManualGameEnd(row)
 		});
 	}
 
@@ -414,8 +439,8 @@
 			order: [[0, 'desc'], [1, 'desc']],
 			autoWidth: false,
 			columnDefs: [
-				{ targets: [4, 5], className: 'text-start' },
-				{ targets: [6, 7, 8, 9, 11, 12, 13], className: 'text-end' }
+				{ targets: [2, 3], className: 'text-start' },
+				{ targets: [8, 9, 10, 11, 12, 13, 14], className: 'text-end' }
 			],
 			language: {
 				search: 'Search:',
@@ -1003,12 +1028,13 @@
 				'',
 				'',
 				'',
+				'',
+				'',
 				$('#game_information-tbl tfoot th').eq(0).text().trim(),
 				$('#GI_GRAND_BUYIN').text().trim(),
 				$('#GI_GRAND_CASHOUT').text().trim(),
 				$('#GI_GRAND_WINLOSS').text().trim(),
 				$('#GI_GRAND_ROLLING').text().trim(),
-				'',
 				$('#GI_GRAND_COMMISSION').text().trim(),
 				$('#GI_GRAND_ADD_CHG').text().trim(),
 				$('#GI_GRAND_SETTLE').text().trim(),
@@ -1098,10 +1124,20 @@
 		return 'Game_Information-export.xlsx';
 	}
 
+	function getGiExportRows() {
+		if (!dataTable) return [];
+		var rows = [];
+		dataTable.rows({ search: 'applied' }).every(function () {
+			var exportRow = $(this.node()).data('giExport');
+			if (exportRow) rows.push(exportRow);
+		});
+		return rows;
+	}
+
 	function exportGiTable() {
 		if (!dataTable) return;
-		var payload = getGiTablePayload(false);
-		if (!payload.dataRowCount) {
+		var rows = getGiExportRows();
+		if (!rows.length) {
 			notifyGiNoData('export');
 			return;
 		}
@@ -1109,13 +1145,12 @@
 		var outName = getGiExportFilename();
 		var $btn = $('#btn-gi-export');
 		$btn.prop('disabled', true);
-		fetch('/game_information/export_xlsx', {
+		fetch('/game_information/export_xlsx_grouped', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'same-origin',
 			body: JSON.stringify({
-				headers: payload.headers,
-				rows: payload.rows,
+				rows: rows,
 				filename: outName
 			})
 		})

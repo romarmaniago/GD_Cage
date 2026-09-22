@@ -140,7 +140,9 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			gl.SETTLED,
 			NULLIF(TRIM(CONCAT_WS(' - ', NULLIF(TRIM(ag.AGENT_CODE), ''), NULLIF(TRIM(ag.NAME), ''))), '') AS ACCOUNT_TEXT,
 			ag.IDNo AS AGENT_ID,
+			COALESCE(NULLIF(TRIM(ag.AGENT_CODE), ''), '') AS AGENT_CODE,
 			COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
+			g.MEMBERSHIP_NO AS membership_no,
 			COALESCE((
 				SELECT SUM(gs.AMOUNT)
 				FROM game_services gs
@@ -196,7 +198,9 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			GUEST_ID: game.GUEST_ID,
 			ACCOUNT_TEXT: game.ACCOUNT_TEXT,
 			AGENT_ID: game.AGENT_ID,
+			AGENT_CODE: game.AGENT_CODE,
 			GUEST_NAME: game.GUEST_NAME,
+			membership_no: game.membership_no,
 			BUY_IN: totals.buyIn,
 			CASH_OUT: totals.cashOut,
 			WIN_LOSS: totals.winLoss,
