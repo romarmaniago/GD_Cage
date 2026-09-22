@@ -241,7 +241,9 @@ body {
   --dash-page-gutter: 1rem;
   padding-left: calc(var(--dash-page-gutter) * 0.875);
   padding-right: calc(var(--dash-page-gutter) * 0.875);
-  /* .py-3 sets padding-bottom: 1rem !important — override so the page ends at its actual content */
+  /* .py-3 sets padding-top/padding-bottom: 1rem !important — bottom tightened so the page ends at its actual content;
+     top kept roomy enough to clear the floating Copy/Daily Report buttons (top: -2rem on their column) */
+  padding-top: 1rem !important;
   padding-bottom: 0 !important;
 }
 
@@ -250,7 +252,7 @@ body {
 }
 
 .dash-panel-narrow > .card-header {
-  padding: 0.45rem 0.65rem;
+  padding: 0.38rem 0.65rem;
   font-size: 14px;
 }
 
@@ -262,7 +264,7 @@ body {
 }
 
 .dash-panel-narrow .dash-kv-group-title {
-  padding: 0.45rem 0.65rem;
+  padding: 0.3rem 0.65rem;
   font-size: 13px;
   font-weight: 800;
   line-height: 1.1;
@@ -279,7 +281,7 @@ body {
 
 .dash-panel-narrow .dash-kv {
   gap: 6px;
-  padding: 0.45rem 0.65rem;
+  padding: 0.3rem 0.65rem;
 }
 
 .dash-panel-narrow .dash-kv .dash-kv-label {
@@ -310,7 +312,7 @@ body {
 }
 
 #dash-cage-main-panel .card-header {
-  padding: 0.6rem 0.85rem;
+  padding: 0.42rem 0.85rem;
   font-size: 15px;
 }
 
@@ -323,11 +325,11 @@ body {
 }
 
 #dash-cage-main-panel > .card:first-of-type .dash-kv {
-  padding: 0.65rem 0.75rem;
+  padding: 0.42rem 0.75rem;
 }
 
 #dash-cage-main-panel > .card:first-of-type .dash-kv-group-title {
-  padding: 0.6rem 0.75rem;
+  padding: 0.38rem 0.75rem;
   font-size: 15px;
   line-height: 1.15;
 }
@@ -389,7 +391,7 @@ body {
 #dash-anticipated-panel .dash-on-game .dash-kv,
 #dash-anticipated-panel .dash-anticipated-profit .dash-kv {
   /* slightly tighter than 0.45rem so 13px text keeps original card footprint */
-  padding: 0.38rem 0.65rem;
+  padding: 0.26rem 0.65rem;
 }
 
 #dash-anticipated-panel .dash-current-time-wl .dash-kv .dash-kv-label,
@@ -422,11 +424,11 @@ body {
 #dash-anticipated-panel .dash-on-game .dash-kv-group-title {
   font-size: 15px;
   line-height: 1.15;
-  padding: 0.38rem 0.65rem;
+  padding: 0.26rem 0.65rem;
 }
 
 .dash-panel-narrow .dash-card-actions {
-  padding: 0.65rem 0.65rem 0.8rem;
+  padding: 0.4rem 0.65rem 0.5rem;
   flex-direction: row;
 }
 
@@ -1167,7 +1169,7 @@ body {
 .dash-card-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.2rem;
 }
 
 .dash-card-stack > .card {
@@ -1177,6 +1179,7 @@ body {
 /* Top row: equal column bottoms (Main / Anticipated / Rolling / W/L) */
 .dash-top-row {
   align-items: stretch;
+  margin-bottom: 0.35rem !important;
 }
 
 .dash-top-row > .dash-top-stack-col,
@@ -1452,6 +1455,10 @@ body {
   background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
 }
 
+.dash-card.gd-dash-panel.is-light-body.dash-anticipated-profit .dash-kv.is-total {
+  background: #d4bc82;
+}
+
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-total .dash-kv-label,
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-total .dash-kv-value {
   color: #3a2e12;
@@ -1474,6 +1481,11 @@ body {
 
 .dash-card.gd-dash-panel.is-light-body .dash-kv.is-grand {
   background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+  border-top: 1px solid rgba(58, 46, 18, 0.25);
+}
+
+.dash-card.gd-dash-panel.is-light-body.dash-anticipated-profit .dash-kv.is-grand {
+  background: #d4bc82;
   border-top: 1px solid rgba(58, 46, 18, 0.25);
 }
 
@@ -1882,9 +1894,9 @@ body {
 .dash-dual-matrix-col.is-rolling .dash-rolling-row.is-total .dash-rolling-body-cell.is-date.is-total-label {
   justify-content: center;
   text-align: center;
-  padding: 0.25rem 0.35rem;
+  padding: 0.2rem 0.35rem;
   min-height: 0;
-  line-height: 1.1;
+  line-height: 1.05;
   box-sizing: border-box;
 }
 
@@ -1898,9 +1910,9 @@ body {
 .dash-dual-matrix-col.is-rolling .dash-rolling-body-cell.is-col-gold {
   justify-content: flex-end;
   text-align: right;
-  padding: 0.25rem 0.35rem;
+  padding: 0.2rem 0.35rem;
   min-height: 0;
-  line-height: 1.1;
+  line-height: 1.05;
   box-sizing: border-box;
 }
 
@@ -1950,9 +1962,9 @@ body {
 .dash-dual-matrix-col.is-wl .dash-wl-row.is-total .dash-wl-body-cell.is-date.is-total-label {
   justify-content: center;
   text-align: center;
-  padding: 0.25rem 0.35rem;
+  padding: 0.2rem 0.35rem;
   min-height: 0;
-  line-height: 1.1;
+  line-height: 1.05;
   box-sizing: border-box;
 }
 
@@ -1971,9 +1983,9 @@ body {
 .dash-dual-matrix-col.is-wl .dash-wl-body-cell.is-col-diff {
   justify-content: flex-end;
   text-align: right;
-  padding: 0.25rem 0.35rem;
+  padding: 0.2rem 0.35rem;
   min-height: 0;
-  line-height: 1.1;
+  line-height: 1.05;
   box-sizing: border-box;
 }
 
@@ -2397,11 +2409,11 @@ body {
 .dash-wl-head-cell {
   display: flex;
   align-items: center;
-  padding: 0.45rem 0.45rem;
+  padding: 0.38rem 0.45rem;
   font-size: 12px;
   font-weight: 700;
   color: #0f172a;
-  min-height: 1.65rem;
+  min-height: 1.4rem;
   box-sizing: border-box;
   border-right: 1px solid var(--dash-col-line);
   border-bottom: none;
