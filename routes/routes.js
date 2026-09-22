@@ -6,6 +6,7 @@ const session = require('express-session');
 const ExcelJS = require('exceljs');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { applyCommaThousandsToNumericCells } = require('../utils/excelAmountFormat');
+const { buildCommissionGroupedExportXlsx } = require('../utils/CommissionExportService');
 
 const mysql2 = require('mysql2/promise');
 const pool = require('../config/db.js');
@@ -3142,6 +3143,22 @@ pageRouter.post('/commission/export_xlsx', checkSession, async function (req, re
 	} catch (err) {
 		if (err.status === 400) return res.status(400).json({ error: err.message });
 		console.error('commission/export_xlsx:', err);
+		return res.status(500).json({ error: 'Export failed' });
+	}
+});
+
+/** Commission table export, grouped-header workbook matching Game Information's export. */
+pageRouter.post('/commission/export_xlsx_grouped', checkSession, async function (req, res) {
+	try {
+		const { rows, filename } = req.body || {};
+		const result = await buildCommissionGroupedExportXlsx({
+			rows,
+			filename: filename || 'Commission-export.xlsx'
+		});
+		return sendTableExportResponse(res, result);
+	} catch (err) {
+		if (err.status === 400) return res.status(400).json({ error: err.message });
+		console.error('commission/export_xlsx_grouped:', err);
 		return res.status(500).json({ error: 'Export failed' });
 	}
 });

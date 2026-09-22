@@ -34,18 +34,19 @@
         </th>
         <th class="d-none d-sm-table-cell text-start col-program-date"><%= __('commission.program_date_col') %></th>
         <th class="d-none d-sm-table-cell text-start col-game-start"><%= __('commission.game_start') %></th>
-        <th class="d-none d-sm-table-cell text-center col-type"><%= __('commission.type') %></th>
-        <th class="d-none d-sm-table-cell text-center" style="width: 75px;"><%= __('commission.game_no') %></th>
         <th class="d-none d-sm-table-cell text-center col-acct-no"><%= __('commission.acct_no') %></th>
         <th class="d-none d-sm-table-cell text-center col-guest"><%= __('commission.guest') %></th>
+        <th class="d-none d-sm-table-cell text-center col-membership"><%= __('commission.membership') %></th>
+        <th class="d-none d-sm-table-cell text-center col-type"><%= __('commission.type') %></th>
+        <th class="d-none d-sm-table-cell text-center col-game-rate"><%= __('commission.rolling_rate') %></th>
+        <th class="d-none d-sm-table-cell text-center col-game-no" style="width: 75px;"><%= __('commission.game_no') %></th>
         <th class="d-none d-sm-table-cell text-center col-buyin"><%= __('commission.total_buyin') %></th>
         <th class="d-none d-sm-table-cell text-center col-cashout"><%= __('commission.chips_return') %></th>
         <th class="d-none d-sm-table-cell text-center col-winloss"><%= __('commission.win_loss') %></th>
         <th class="d-none d-sm-table-cell text-center col-total-rolling"><%= __('commission.total_rolling') %></th>
-        <th class="d-none d-sm-table-cell text-center col-game-rate"><%= __('commission.rolling_rate') %></th>
         <th class="d-none d-sm-table-cell text-center col-commission"><%= __('commission.settlement') %></th>
-        <th class="d-none d-sm-table-cell text-center"><%= __('commission.fb') %></th>
-        <th class="d-none d-sm-table-cell text-center"><%= __('commission.payment') %></th>
+        <th class="d-none d-sm-table-cell text-center col-fb"><%= __('commission.fb') %></th>
+        <th class="d-none d-sm-table-cell text-center col-payment"><%= __('commission.payment') %></th>
         <th class="d-none d-sm-table-cell text-center commission-date-sort-col col-game-end"><%= __('commission.date_time') %></th>
       </tr>
     </thead>
@@ -53,15 +54,14 @@
     <tfoot>
       <tr>
         <th></th>
-        <th colspan="6"><%= __('commission.grand_total') %></th>
+        <th colspan="8"><%= __('commission.grand_total') %></th>
         <th class="col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
         <th class="col-cashout" id="GRAND_CHIPS_RETURN">0.00</th>
         <th class="col-winloss" id="GRAND_WIN_LOSS">0.00</th>
         <th class="col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
-        <th class="col-game-rate"></th>
         <th class="col-commission" id="GRAND_ROLLING_SETTLEMENT">0.00</th>
-        <th id="GRAND_FNB">0</th>
-        <th id="GRAND_PAYMENT">0.00</th>
+        <th class="col-fb" id="GRAND_FNB">0</th>
+        <th class="col-payment" id="GRAND_PAYMENT">0.00</th>
         <th class="col-game-end"></th>
       </tr>
     </tfoot>

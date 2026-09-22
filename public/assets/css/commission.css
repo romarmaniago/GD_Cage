@@ -56,14 +56,14 @@
 #commission-tbl_wrapper .dataTables_scroll,
 #commission-tbl_wrapper .dataTables_scrollBody,
 #commission-tbl_wrapper .dataTables_scrollHead {
-  overflow-x: hidden !important;
+  overflow-x: auto !important;
 }
 
 #commission-tbl.commission-fit-table {
-  table-layout: fixed;
-  width: 100% !important;
-  max-width: 100% !important;
-  font-size: 12px;
+  table-layout: auto;
+  width: 100%;
+  min-width: 100%;
+  font-size: 0.875rem;
   border-collapse: collapse;
   border: none;
   margin-top: 0 !important;
@@ -75,56 +75,20 @@
 #commission-tbl.commission-fit-table tfoot th {
   vertical-align: middle;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
-/* Match Additional Commission row height (12px vertical); keep side padding tight for many cols */
+/* Row spacing matches Game Information's marker-total-table (12px 15px) */
 #commission-tbl.commission-fit-table tbody td,
 #commission-tbl.commission-fit-table tfoot th {
-  padding: 12px 4px !important;
-}
-
-#commission-tbl.commission-fit-table tbody td.col-buyin,
-#commission-tbl.commission-fit-table tbody td.col-cashout,
-#commission-tbl.commission-fit-table tbody td.col-winloss,
-#commission-tbl.commission-fit-table tbody td.col-total-rolling,
-#commission-tbl.commission-fit-table tbody td.col-game-rate,
-#commission-tbl.commission-fit-table tbody td.col-commission,
-#commission-tbl.commission-fit-table tfoot th {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#commission-tbl.commission-fit-table tbody td.col-program-date,
-#commission-tbl.commission-fit-table tbody td.col-game-start,
-#commission-tbl.commission-fit-table tbody td.col-game-end,
-#commission-tbl.commission-fit-table tbody td.col-guest,
-#commission-tbl.commission-fit-table tbody td.col-acct-no {
-  white-space: normal;
-  word-break: break-word;
-  overflow: visible;
-  text-overflow: clip;
-  max-width: none !important;
-  line-height: 1.25;
-  font-size: 12px;
-}
-
-#commission-tbl.commission-fit-table tbody td.col-type,
-#commission-tbl.commission-fit-table tbody td:nth-child(5) {
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
+  padding: 12px 10px !important;
+  color: #666;
 }
 
 #commission-tbl.commission-fit-table thead th {
-  padding: 12px 4px !important;
-  font-size: 13px;
+  padding: 12px 10px !important;
+  font-size: 0.875rem;
   font-weight: 600;
-  white-space: normal;
-  word-break: break-word;
-  overflow: visible;
-  text-overflow: clip;
-  hyphens: auto;
   line-height: 1.4;
   text-align: center;
   vertical-align: middle;
@@ -132,21 +96,7 @@
 
 #commission-tbl.commission-fit-table th.col-type,
 #commission-tbl.commission-fit-table td.col-type {
-  padding-left: 2px !important;
-  padding-right: 2px !important;
-}
-
-#commission-tbl.commission-fit-table tbody td:nth-child(2),
-#commission-tbl.commission-fit-table tbody td:nth-child(3),
-#commission-tbl.commission-fit-table tbody td:nth-child(5),
-#commission-tbl.commission-fit-table tbody td:nth-child(6),
-#commission-tbl.commission-fit-table tbody td:nth-child(7),
-#commission-tbl.commission-fit-table tbody td:nth-child(16) {
   padding-left: 4px !important;
-  padding-right: 4px !important;
-}
-
-#commission-tbl.commission-fit-table tbody td:nth-child(n+8):not(:nth-child(16)) {
   padding-right: 4px !important;
 }
 
@@ -158,7 +108,7 @@
 #commission-tbl.commission-fit-table tfoot th.col-commission,
 #commission-tbl.commission-fit-table tfoot th#GRAND_FNB,
 #commission-tbl.commission-fit-table tfoot th#GRAND_PAYMENT {
-  padding-right: 4px !important;
+  padding-right: 10px !important;
   text-align: right !important;
 }
 
@@ -178,15 +128,21 @@
     border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
 }
 
-/* Header styles — readable wrapped labels */
+/* Header styles — readable wrapped labels (same neutral theme on the page and the dashboard modal) */
+#commission-tbl thead tr,
+#commission-tbl tfoot tr {
+    background-color: #f5f5f5 !important;
+}
+
 #commission-tbl thead th {
-    color: #000;
+    background: #f5f5f5 !important;
+    color: #555;
     font-weight: 600;
-    font-size: 13px;
-    padding: 12px 4px;
+    font-size: 0.875rem;
+    padding: 12px 10px;
     text-align: center;
     border: none;
-    border-bottom: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+    border-bottom: 1px solid #e0e0e0;
     white-space: normal;
     word-break: break-word;
     line-height: 1.4;
@@ -194,34 +150,26 @@
     text-overflow: clip;
 }
 
-#commission-tbl.commission-fit-table thead th:nth-child(2),
-#commission-tbl.commission-fit-table thead th:nth-child(3),
-#commission-tbl.commission-fit-table thead th:nth-child(5),
-#commission-tbl.commission-fit-table thead th:nth-child(6),
-#commission-tbl.commission-fit-table thead th:nth-child(7),
-#commission-tbl.commission-fit-table thead th:nth-child(16) {
-  padding-left: 4px !important;
-  padding-right: 4px !important;
-}
-
-#commission-tbl.commission-fit-table thead th:nth-child(n+8):not(:nth-child(16)) {
-  padding-left: 4px !important;
-  padding-right: 4px !important;
+#commission-tbl tfoot th {
+    background: #f5f5f5 !important;
+    color: #555;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 #commission-tbl thead th.sorting:hover,
 #commission-tbl thead th.sorting_asc:hover,
 #commission-tbl thead th.sorting_desc:hover,
 #commission-tbl thead th.commission-date-sort-col:hover {
-    background: rgba(58, 46, 18, 0.08) !important;
+    background: #ececec !important;
 }
 
 #commission-tbl thead th.sorting_asc,
 #commission-tbl thead th.sorting_desc,
 #commission-tbl thead th.commission-date-sort-col.sorting_asc,
 #commission-tbl thead th.commission-date-sort-col.sorting_desc {
-    background: rgba(58, 46, 18, 0.1) !important;
-    color: var(--gd-marker-gold-text, #3a2e12);
+    background: #ececec !important;
+    color: #333;
 }
 
 #commission-compare-modal-tbl thead th {
@@ -295,9 +243,9 @@
 	width: 100%;
 	max-width: 100%;
 	box-sizing: border-box;
-	border: 1px solid var(--gd-marker-gold-border, rgba(58, 46, 18, 0.25));
+	border: 1px solid #e0e0e0;
 	border-radius: 10px 10px 0 0;
-	overflow: hidden;
+	overflow-x: auto;
 	background: #fff;
 }
 
@@ -309,8 +257,8 @@
 	gap: 12px;
 	padding: 10px 14px;
 	margin: 0;
-	background: #faf3dc;
-	border: none;
+	background: #fff;
+	border-bottom: 1px solid #e0e0e0;
 	border-radius: 0;
 	flex-wrap: wrap;
 	width: 100%;
@@ -478,7 +426,8 @@
 	margin-bottom: 0 !important;
 	border: none !important;
 	width: 100% !important;
-	max-width: 100% !important;
+	min-width: 100% !important;
+	max-width: none !important;
 	box-sizing: border-box !important;
 }
 
@@ -642,46 +591,46 @@
 	text-align: center;
 }
 
-#commission-tbl thead th:nth-child(2),
-#commission-tbl thead th:nth-child(3),
-#commission-tbl thead th:nth-child(5),
-#commission-tbl thead th:nth-child(6),
-#commission-tbl thead th:nth-child(7),
-#commission-tbl thead th:nth-child(16) {
+#commission-tbl thead th.col-program-date,
+#commission-tbl thead th.col-game-start,
+#commission-tbl thead th.col-acct-no,
+#commission-tbl thead th.col-guest,
+#commission-tbl thead th.col-membership,
+#commission-tbl thead th.col-game-no,
+#commission-tbl thead th.col-game-end {
     text-align: center;
 }
 
-#commission-tbl tbody td:nth-child(2),
-#commission-tbl tbody td:nth-child(3),
-#commission-tbl tbody td:nth-child(5),
-#commission-tbl tbody td:nth-child(6),
-#commission-tbl tbody td:nth-child(7),
-#commission-tbl tbody td:nth-child(16) {
+#commission-tbl tbody td.col-program-date,
+#commission-tbl tbody td.col-game-start,
+#commission-tbl tbody td.col-acct-no,
+#commission-tbl tbody td.col-guest,
+#commission-tbl tbody td.col-membership,
+#commission-tbl tbody td.col-game-no,
+#commission-tbl tbody td.col-game-end {
     text-align: left;
-    padding-left: 6px;
 }
 
-#commission-tbl thead th:nth-child(8),
-#commission-tbl thead th:nth-child(9),
-#commission-tbl thead th:nth-child(10),
-#commission-tbl thead th:nth-child(11),
-#commission-tbl thead th:nth-child(12),
-#commission-tbl thead th:nth-child(13),
-#commission-tbl thead th:nth-child(14),
-#commission-tbl thead th:nth-child(15) {
+#commission-tbl thead th.col-buyin,
+#commission-tbl thead th.col-cashout,
+#commission-tbl thead th.col-winloss,
+#commission-tbl thead th.col-total-rolling,
+#commission-tbl thead th.col-game-rate,
+#commission-tbl thead th.col-commission,
+#commission-tbl thead th.col-fb,
+#commission-tbl thead th.col-payment {
     text-align: center;
 }
 
-#commission-tbl tbody td:nth-child(8),
-#commission-tbl tbody td:nth-child(9),
-#commission-tbl tbody td:nth-child(10),
-#commission-tbl tbody td:nth-child(11),
-#commission-tbl tbody td:nth-child(12),
-#commission-tbl tbody td:nth-child(13),
-#commission-tbl tbody td:nth-child(14),
-#commission-tbl tbody td:nth-child(15) {
+#commission-tbl tbody td.col-buyin,
+#commission-tbl tbody td.col-cashout,
+#commission-tbl tbody td.col-winloss,
+#commission-tbl tbody td.col-total-rolling,
+#commission-tbl tbody td.col-game-rate,
+#commission-tbl tbody td.col-commission,
+#commission-tbl tbody td.col-fb,
+#commission-tbl tbody td.col-payment {
     text-align: right;
-    padding-right: 20px;
 }
 
 #commission-tbl tfoot th.col-buyin,
@@ -704,10 +653,41 @@
     padding-right: 6px !important;
 }
 
-/* Metric columns — gold theme (no blue/green/orange column fills) */
+/* Commission type badge (R / S / L) in Game Rate column — matches Game Information */
+#commission-tbl .commission-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-left: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 8px;
+    vertical-align: middle;
+    line-height: 1.2;
+}
+#commission-tbl .commission-badge-r {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+#commission-tbl .commission-badge-s {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc80;
+}
+#commission-tbl .commission-badge-l {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+/* Metric columns */
 #commission-tbl thead th.col-buyin,
 #commission-tbl thead th.col-total-rolling,
-#commission-tbl thead th.col-winloss,
+#commission-tbl thead th.col-winloss {
+    color: #555 !important;
+    font-weight: 600;
+}
+
 #commission-compare-modal-tbl thead th.col-buyin,
 #commission-compare-modal-tbl thead th.col-total-rolling,
 #commission-compare-modal-tbl thead th.col-winloss {
@@ -715,12 +695,6 @@
     font-weight: 600;
 }
 
-#commission-tbl tbody td.col-buyin,
-#commission-tbl tfoot th.col-buyin,
-#commission-tbl tbody td.col-total-rolling,
-#commission-tbl tfoot th.col-total-rolling,
-#commission-tbl tbody td.col-winloss,
-#commission-tbl tfoot th.col-winloss,
 #commission-compare-modal-tbl tbody td.col-buyin,
 #commission-compare-modal-tbl tfoot th.col-buyin,
 #commission-compare-modal-tbl tbody td.col-total-rolling,
@@ -795,45 +769,23 @@
 	box-shadow: 0 0 0 0.2rem rgba(200, 162, 76, 0.25);
 }
 
-#commission-tbl tbody td:nth-child(8),
-#commission-tbl tbody td:nth-child(9),
-#commission-tbl tbody td:nth-child(10),
-#commission-tbl tbody td:nth-child(11),
-#commission-tbl tbody td:nth-child(12),
-#commission-tbl tbody td:nth-child(13),
-#commission-tbl tbody td:nth-child(14),
-#commission-tbl tbody td:nth-child(15) {
-    text-align: right;
-    padding-right: 20px;
+#commission-tbl tbody tr:nth-child(even) td {
+  background-color: #f4f1ea !important;
 }
 
-#commission-tbl tfoot th.col-buyin,
-#commission-tbl tfoot th.col-cashout,
-#commission-tbl tfoot th.col-winloss,
-#commission-tbl tfoot th.col-total-rolling,
-#commission-tbl tfoot th.col-game-rate,
-#commission-tbl tfoot th.col-commission,
-#commission-tbl tfoot th#GRAND_FNB,
-#commission-tbl tfoot th#GRAND_PAYMENT,
-#commission-compare-modal-tbl tfoot th.col-buyin,
-#commission-compare-modal-tbl tfoot th.col-cashout,
-#commission-compare-modal-tbl tfoot th.col-winloss,
-#commission-compare-modal-tbl tfoot th.col-total-rolling,
-#commission-compare-modal-tbl tfoot th.col-game-rate,
-#commission-compare-modal-tbl tfoot th.col-commission,
-#commission-compare-modal-tbl tfoot th#commission-compare-total-fnb,
-#commission-compare-modal-tbl tfoot th#commission-compare-total-payment {
-    text-align: right !important;
-    padding-right: 6px !important;
+#commission-tbl tbody tr:nth-child(odd) td {
+  background-color: #fff !important;
 }
 
-#commission-tbl tbody tr:nth-child(even) td,
 #commission-compare-modal-tbl tbody tr:nth-child(even) td {
   background-color: #fbf5e4;
 }
 
 #commission-tbl tbody tr:hover,
-#commission-tbl tbody tr:hover td,
+#commission-tbl tbody tr:hover td {
+  background-color: #f6f3ec !important;
+}
+
 #commission-compare-modal-tbl tbody tr:hover,
 #commission-compare-modal-tbl tbody tr:hover td {
   background-color: var(--gd-marker-gold-hover, #faf3dc) !important;
@@ -1039,13 +991,15 @@
 }
 
 #modal-dash-commission .dash-commission-dialog {
-  max-width: min(98vw, 1680px) !important;
+  max-width: min(95vw, 1800px) !important;
   width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Breathing room so the panel isn't glued to the modal walls / footer */
 #modal-dash-commission .commission-modal-body {
-  max-height: min(78vh, 48rem);
+  max-height: 85vh;
   overflow: auto;
   padding: 0.25rem 1.5rem 1.25rem;
 }

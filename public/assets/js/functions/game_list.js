@@ -3898,7 +3898,7 @@ function captureGameListExportRow(row, vals) {
 		commission_percentage: row.COMMISSION_PERCENTAGE,
 		game_id_label: buildCutoffGameIdPlainLabel(row),
 		buyin: vals.buyin || 0,
-		cashout: -Math.abs(vals.cashout || 0),
+		cashout: vals.cashout || 0,
 		winloss: vals.winloss || 0,
 		rolling: rolling,
 		settlement: settlementDisplay,
@@ -5877,7 +5877,7 @@ $(document).ready(function () {
 
 								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips) + '</button>';
 								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								
 									// Format net value as an integer
@@ -5986,17 +5986,17 @@ $(document).ready(function () {
 								if (isSettled) {
 									buyin_td = formatBuyinPlain(total_amount);
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips) + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips) + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips) + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								}
 								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
@@ -6105,17 +6105,17 @@ $(document).ready(function () {
 								if (isSettled) {
 									buyin_td = formatBuyinPlain(total_amount);
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips) + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips) + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								} else {
 									buyin_td = formatBuyinPlain(total_amount);
 									total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + formatListAmount(total_cash_out_chips) + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString('en-US');
 								}
 	
@@ -11111,7 +11111,7 @@ $(document).ready(function () {
 
 								buyin_td = '<button class="btn btn-link" style="' + buyinBtnStyleStats + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_amount).toLocaleString('en-US') + '</button>';
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, true);
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips, 'out') + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + formatListAmount(total_cash_out_chips) + '</button>';
                                 var actionButtons = btn_remarks + btn_receipts + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
@@ -11121,7 +11121,7 @@ $(document).ready(function () {
 								
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-								cashout_td = formatListAmount(total_cash_out_chips, 'out');
+								cashout_td = formatListAmount(total_cash_out_chips);
                                 var actionButtons = btn_remarks + btn_receipts + btn_his;
                                 var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name);
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, total_rolling_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
@@ -11135,7 +11135,7 @@ $(document).ready(function () {
 
 								buyin_td = formatBuyinPlainStats(total_amount);
 								total_rolling_td = buildTotalRollingTd(row.game_list_id, row.agent_code, row.guest_name, total_rolling_chips, false);
-								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + formatListAmount(total_cash_out_chips, 'out') + '</span>';
+								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + formatListAmount(total_cash_out_chips) + '</span>';
 								
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
 								var settleClass = row.SETTLED === 1 ? (row.MULTI_SETTLED === 1 ? 'btn-warning-subtle' : 'btn-success-subtle') : 'btn-danger-subtle';

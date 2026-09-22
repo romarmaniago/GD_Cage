@@ -292,7 +292,7 @@
 			commissionBadge(row),
 			row.GAME_NO || '—',
 			fmtAmt(row.BUY_IN),
-			fmtAmt(row.CASH_OUT, 'out'),
+			fmtAmt(row.CASH_OUT),
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
 			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(Math.abs(net)) : fmtAmt(net, 'out')),
@@ -329,7 +329,7 @@
 			game_rate: parseFloat(row.COMMISSION_PERCENTAGE) || 0,
 			game_no: row.GAME_NO || '',
 			buyin: parseFloat(row.BUY_IN) || 0,
-			cashout: -Math.abs(parseFloat(row.CASH_OUT) || 0),
+			cashout: parseFloat(row.CASH_OUT) || 0,
 			winloss: parseFloat(row.WIN_LOSS) || 0,
 			rolling: parseFloat(row.ROLLING) || 0,
 			settlement: settlementValue,
@@ -360,7 +360,7 @@
 
 	function setGrandTotals(tots) {
 		$('#GI_GRAND_BUYIN').html(fmtAmt(tots.buyin));
-		$('#GI_GRAND_CASHOUT').html(fmtAmt(tots.cashout, 'out'));
+		$('#GI_GRAND_CASHOUT').html(fmtAmt(tots.cashout));
 		$('#GI_GRAND_WINLOSS').html(fmtAmt(tots.winloss, 'signed'));
 		$('#GI_GRAND_ROLLING').html(fmtAmt(tots.rolling, 'signed'));
 		$('#GI_GRAND_COMMISSION').html(fmtAmt(tots.commission, 'out'));
