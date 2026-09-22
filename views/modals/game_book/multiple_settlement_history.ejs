@@ -1,0 +1,457 @@
+<style>
+    #modal-multiple-settlement-history .modal-dialog {
+        max-width: 1140px;
+    }
+
+    #modal-multiple-settlement-history .modal-header {
+        background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+        border-bottom: 1px solid rgba(58, 46, 18, 0.25) !important;
+    }
+
+    #modal-multiple-settlement-history .modal-title {
+        color: #3a2e12 !important;
+        font-weight: 600;
+    }
+
+    #modal-multiple-settlement-history .modal-body {
+        padding: 1rem 1.25rem;
+    }
+
+    #modal-multiple-settlement-history .msh-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    #modal-multiple-settlement-history .msh-search {
+        max-width: 240px;
+        width: 100%;
+        height: 32px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 0 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    #modal-multiple-settlement-history .msh-search:focus {
+        outline: none;
+        border-color: #c8a24c;
+    }
+
+    /* Table styled to match #game_list-tbl on the Game Book page */
+    #modal-multiple-settlement-history table {
+        width: 100%;
+        font-size: 15px;
+        border-collapse: collapse;
+        border-spacing: 0;
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 0;
+    }
+
+    #modal-multiple-settlement-history thead th {
+        background-color: #f5f5f5;
+        color: #555;
+        font-weight: 600;
+        padding: 12px 15px;
+        text-align: center;
+        border: none;
+        border-bottom: 1px solid #e0e0e0;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history tbody tr {
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.2s ease;
+    }
+
+    #modal-multiple-settlement-history tbody tr:hover,
+    #modal-multiple-settlement-history tbody tr:hover td {
+        background-color: #f9f8f5;
+    }
+
+    #modal-multiple-settlement-history tbody tr.msh-row-expanded,
+    #modal-multiple-settlement-history tbody tr.msh-row-expanded td {
+        background-color: #f6efd9;
+    }
+
+    #modal-multiple-settlement-history tbody td {
+        padding: 10px 15px;
+        color: #666;
+        vertical-align: middle;
+    }
+
+    #modal-multiple-settlement-history td.col-account {
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+    }
+
+    #modal-multiple-settlement-history td.col-payment {
+        text-align: right;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history td.col-games {
+        text-align: left;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    #modal-multiple-settlement-history .msh-games-toggle {
+        color: #0d6efd;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    #modal-multiple-settlement-history .msh-games-toggle:hover {
+        text-decoration: underline;
+    }
+
+    #modal-multiple-settlement-history .msh-games-toggle i {
+        margin-left: 0.3rem;
+        font-size: 0.7rem;
+        transition: transform 0.15s ease;
+    }
+
+    #modal-multiple-settlement-history .msh-games-toggle.is-open i {
+        transform: rotate(180deg);
+    }
+
+    #modal-multiple-settlement-history .msh-games-detail-row td {
+        background-color: #fafafa;
+        padding: 0.6rem 0.9rem 0.75rem 2rem;
+    }
+
+    #modal-multiple-settlement-history .msh-games-detail-row:hover td {
+        background-color: #fafafa;
+    }
+
+    #modal-multiple-settlement-history .msh-games-table {
+        width: 100%;
+        font-size: 15px;
+        border-collapse: collapse;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+    }
+
+    #modal-multiple-settlement-history .msh-games-table th {
+        background-color: #f0f0f0;
+        color: #666;
+        font-weight: 600;
+        padding: 8px 12px;
+        text-align: center;
+        border-bottom: 1px solid #e0e0e0;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history .msh-games-table td {
+        padding: 8px 12px;
+        text-align: right;
+        color: #555;
+        border-bottom: 1px solid #eee;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history .msh-games-table td:nth-child(-n+2),
+    #modal-multiple-settlement-history .msh-games-table th:nth-child(-n+2) {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history .msh-games-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    #modal-multiple-settlement-history .msh-games-total-row td {
+        font-weight: 700;
+        color: #333;
+        background-color: #f5f2ec;
+        border-top: 2px solid #ddd;
+    }
+
+    #modal-multiple-settlement-history .msh-games-loading {
+        color: #8a92a6;
+        font-size: 15px;
+    }
+
+    #modal-multiple-settlement-history td.col-action {
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    #modal-multiple-settlement-history .msh-view-btn {
+        width: 26px;
+        height: 26px;
+        padding: 0 !important;
+        border-radius: 6px !important;
+    }
+
+    #modal-multiple-settlement-history .msh-empty {
+        text-align: center;
+        color: #8a92a6;
+        padding: 1.5rem 0;
+    }
+</style>
+
+<div class="modal fade" id="modal-multiple-settlement-history" tabindex="-1" aria-labelledby="modal-multiple-settlement-history-label" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modal-multiple-settlement-history-label">Multiple Settlement History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="msh-toolbar">
+                    <input type="text" class="msh-search" id="multiple-settlement-history-search" placeholder="Search">
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date &amp; Time</th>
+                                <th>Deposit Account</th>
+                                <th>Payment</th>
+                                <th>Linked Games</th>
+                                <th>View</th>
+                            </tr>
+                        </thead>
+                        <tbody id="multiple-settlement-history-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        var mshRows = [];
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function formatMshDateTime(value) {
+            if (!value) return '';
+            var m = (typeof moment === 'function') ? moment(value) : null;
+            if (m && m.isValid()) return m.format('YYYY-MM-DD HH:mm');
+            return String(value);
+        }
+
+        function formatMshAmount(value) {
+            var num = parseFloat(value);
+            if (isNaN(num)) num = 0;
+            return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+
+        function formatMshSigned(value) {
+            var num = parseFloat(value);
+            if (isNaN(num)) num = 0;
+            if (num < 0) {
+                var text = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+                return '<span style="color:#dc3545;">(' + text + ')</span>';
+            }
+            return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+
+        // Matches the Game Book table's "outflow" convention (Cash Out, Commission/Settlement):
+        // always shown in red, parenthesized — regardless of sign, since it's money leaving the cage.
+        function formatMshOut(value) {
+            var num = Math.abs(parseFloat(value) || 0);
+            var text = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            if (text === '0') return '0';
+            return '<span style="color:#dc3545 !important;">(' + text + ')</span>';
+        }
+
+        function renderMultipleSettlementHistory(rows) {
+            var $body = $('#multiple-settlement-history-body');
+            $body.empty();
+
+            if (!Array.isArray(rows) || !rows.length) {
+                $body.append('<tr><td colspan="5" class="msh-empty">No multiple settlements yet.</td></tr>');
+                return;
+            }
+
+            rows.forEach(function (row) {
+                var linkedGames = Array.isArray(row.linked_game_ids)
+                    ? row.linked_game_ids.join(', ')
+                    : '';
+                var tr = '<tr class="msh-main-row" data-id="' + escapeHtml(row.id) + '">' +
+                    '<td>' + escapeHtml(formatMshDateTime(row.encoded_dt)) + '</td>' +
+                    '<td class="col-account">' + escapeHtml(row.account_display) + '</td>' +
+                    '<td class="col-payment">' + escapeHtml(formatMshAmount(row.payment)) + '</td>' +
+                    '<td class="col-games">' +
+                        '<a href="#" class="msh-games-toggle js-msh-toggle-games" data-id="' + escapeHtml(row.id) + '">' +
+                            escapeHtml(linkedGames) + ' <i class="fa fa-chevron-down"></i>' +
+                        '</a>' +
+                    '</td>' +
+                    '<td class="col-action">' +
+                        '<button type="button" class="btn btn-sm btn-info-subtle msh-view-btn js-bs-tooltip-enabled js-msh-view-detail" data-id="' + escapeHtml(row.id) + '" data-bs-toggle="tooltip" aria-label="View" title="View total"><i class="fa fa-clipboard-check"></i></button>' +
+                    '</td>' +
+                    '</tr>' +
+                    '<tr class="msh-games-detail-row d-none" data-parent-id="' + escapeHtml(row.id) + '">' +
+                        '<td colspan="5"></td>' +
+                    '</tr>';
+                $body.append(tr);
+            });
+        }
+
+        function buildMshGamesTable(games) {
+            if (!Array.isArray(games) || !games.length) {
+                return '<span class="msh-games-loading">No game data found.</span>';
+            }
+            var rowsHtml = games.map(function (g) {
+                return '<tr>' +
+                    '<td>' + escapeHtml(g.account_display) + '</td>' +
+                    '<td>' + escapeHtml(g.guest_name) + '</td>' +
+                    '<td>' + escapeHtml(formatMshAmount(g.buy_in)) + '</td>' +
+                    '<td>' + formatMshOut(g.cash_out) + '</td>' +
+                    '<td>' + formatMshSigned(g.win_loss) + '</td>' +
+                    '<td>' + formatMshSigned(g.rolling) + '</td>' +
+                    '<td>' + formatMshOut(g.settlement) + '</td>' +
+                    '<td>' + escapeHtml(formatMshAmount(g.add_chg)) + '</td>' +
+                    '<td>' + formatMshOut(g.total_settlement) + '</td>' +
+                    '</tr>';
+            }).join('');
+
+            var totals = games.reduce(function (acc, g) {
+                acc.buy_in += parseFloat(g.buy_in) || 0;
+                acc.cash_out += parseFloat(g.cash_out) || 0;
+                acc.win_loss += parseFloat(g.win_loss) || 0;
+                acc.rolling += parseFloat(g.rolling) || 0;
+                acc.settlement += parseFloat(g.settlement) || 0;
+                acc.add_chg += parseFloat(g.add_chg) || 0;
+                acc.total_settlement += parseFloat(g.total_settlement) || 0;
+                return acc;
+            }, { buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0, settlement: 0, add_chg: 0, total_settlement: 0 });
+
+            var totalRowHtml = '<tr class="msh-games-total-row">' +
+                '<td colspan="2">Total</td>' +
+                '<td style="text-align:right;">' + escapeHtml(formatMshAmount(totals.buy_in)) + '</td>' +
+                '<td style="text-align:right;">' + formatMshOut(totals.cash_out) + '</td>' +
+                '<td style="text-align:right;">' + formatMshSigned(totals.win_loss) + '</td>' +
+                '<td style="text-align:right;">' + formatMshSigned(totals.rolling) + '</td>' +
+                '<td style="text-align:right;">' + formatMshOut(totals.settlement) + '</td>' +
+                '<td style="text-align:right;">' + escapeHtml(formatMshAmount(totals.add_chg)) + '</td>' +
+                '<td style="text-align:right;">' + formatMshOut(totals.total_settlement) + '</td>' +
+                '</tr>';
+
+            return '<table class="msh-games-table">' +
+                '<thead><tr>' +
+                    '<th>Account</th><th>Guest</th><th>Buy In</th><th>Cash Out</th><th>W/L</th><th>Rolling</th><th>Settlement</th><th>Add Chg</th><th>Total Settlement</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rowsHtml + '</tbody>' +
+                '<tfoot>' + totalRowHtml + '</tfoot>' +
+                '</table>';
+        }
+
+        $(document).on('click', '.js-msh-toggle-games', function (e) {
+            e.preventDefault();
+            var $link = $(this);
+            var id = $link.data('id');
+            var $mainRow = $('.msh-main-row[data-id="' + id + '"]');
+            var $detailRow = $('.msh-games-detail-row[data-parent-id="' + id + '"]');
+            var $cell = $detailRow.find('td');
+
+            if (!$detailRow.hasClass('d-none')) {
+                $detailRow.addClass('d-none');
+                $link.removeClass('is-open');
+                $mainRow.removeClass('msh-row-expanded');
+                return;
+            }
+
+            $link.addClass('is-open');
+            $detailRow.removeClass('d-none');
+            $mainRow.addClass('msh-row-expanded');
+
+            if ($cell.data('loaded')) {
+                return;
+            }
+
+            $cell.html('<span class="msh-games-loading"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading games...</span>');
+
+            $.getJSON('/multiple_settlement_history/' + id + '/games')
+                .done(function (games) {
+                    $cell.html(buildMshGamesTable(games)).data('loaded', true);
+                })
+                .fail(function () {
+                    $cell.html('<span class="msh-games-loading">Failed to load games.</span>');
+                });
+        });
+
+        function applyMshSearch() {
+            var term = $.trim($('#multiple-settlement-history-search').val() || '').toLowerCase();
+            if (!term) {
+                renderMultipleSettlementHistory(mshRows);
+                return;
+            }
+            var filtered = mshRows.filter(function (row) {
+                var haystack = String(row.account_display || '').toLowerCase() +
+                    ' ' + String(row.guest_names || '').toLowerCase() +
+                    ' ' + (Array.isArray(row.linked_game_ids) ? row.linked_game_ids.join(' ') : '');
+                return haystack.indexOf(term) !== -1;
+            });
+            renderMultipleSettlementHistory(filtered);
+        }
+
+        $(document).on('input', '#multiple-settlement-history-search', applyMshSearch);
+
+        $(document).on('click', '#btn-multiple-settlement-history', function (e) {
+            e.preventDefault();
+            var $modal = $('#modal-multiple-settlement-history');
+            var $body = $('#multiple-settlement-history-body');
+            $('#multiple-settlement-history-search').val('');
+            $body.html('<tr><td colspan="5" class="msh-empty"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...</td></tr>');
+            $modal.modal('show');
+
+            $.getJSON('/multiple_settlement_history')
+                .done(function (rows) {
+                    mshRows = Array.isArray(rows) ? rows : [];
+                    renderMultipleSettlementHistory(mshRows);
+                })
+                .fail(function () {
+                    mshRows = [];
+                    $body.html('<tr><td colspan="5" class="msh-empty">Failed to load history.</td></tr>');
+                });
+        });
+
+        $(document).on('click', '.js-msh-view-detail', function (e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            if (!id) return;
+            var $btn = $(this);
+            $btn.prop('disabled', true);
+
+            $.getJSON('/multiple_settlement_history/' + id + '/detail')
+                .done(function (detail) {
+                    $('#modal-multiple-settlement-history').one('hidden.bs.modal', function () {
+                        if (typeof window.openMergeSettlementHistoryView === 'function') {
+                            window.openMergeSettlementHistoryView(detail, { reopenHistory: true });
+                        }
+                    });
+                    $('#modal-multiple-settlement-history').modal('hide');
+                })
+                .fail(function () {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load settlement detail.' });
+                    }
+                })
+                .always(function () {
+                    $btn.prop('disabled', false);
+                });
+        });
+    });
+</script>

@@ -19,8 +19,11 @@
 									  </div>								 
 									</div>
 									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
-										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm d-none">
-											<i class="fa fa-compress me-1"></i>Merge Settle
+										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm">
+											<i class="fa fa-compress me-1"></i>Multiple Settle
+										</button>
+										<button type="button" id="btn-multiple-settlement-history" class="btn btn-primary btn-sm">
+											<i class="fa fa-history me-1"></i>Multiple Settlement History
 										</button>
 										<button type="button" id="btn-game-list-print" class="btn btn-sm btn-alt-success"><i class="fa fa-print me-1"></i>Print</button>
 										<a href="#" id="btn-game-list-export" class="btn btn-sm btn-success"><i class="fa fa-download me-1"></i><%= __('gamelist.export') || 'Export' %></a>
@@ -1747,6 +1750,7 @@ table.dataTable tbody tr.highlight-row {
 											<%- include ('../modals/game_book/show_rollings') %>
 												<%- include ('../modals/game_book/settlement') %>
 													<%- include ('../modals/game_book/merge_settlement') %>
+													<%- include ('../modals/game_book/multiple_settlement_history') %>
 													<%- include ('../modals/game_book/game_services') %>
 														<%- include ('../modals/accounts/account_details') %>
 														<%- include ('../modals/accounts/transfer_account') %>

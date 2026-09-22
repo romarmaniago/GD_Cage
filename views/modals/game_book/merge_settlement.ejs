@@ -1,97 +1,305 @@
 <style>
-    #modal-merge-settlement .form-group {
-        display: flex;
+    #modal-merge-settlement.show,
+    #modal-merge-settlement.showing {
+        display: flex !important;
         align-items: center;
-        margin-bottom: 0.5rem;
+        justify-content: center;
+        padding: 0.75rem;
     }
 
-    #modal-merge-settlement .form-label {
-        flex: 1;
-        font-size: 0.875rem;
+    #modal-merge-settlement .settlement-receipt-dialog {
+        --bs-modal-width: 420px;
+        max-width: calc(100vw - 1.5rem);
+        width: max-content;
+        margin: 0 auto;
+    }
+
+    #modal-merge-settlement .modal-header {
+        background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+        border-bottom: 1px solid rgba(58, 46, 18, 0.25) !important;
+        padding: 0.75rem 1rem;
+        min-height: 3.25rem;
+        display: flex;
+        align-items: center;
+    }
+
+    #modal-merge-settlement .modal-header .modal-title {
+        color: #3a2e12 !important;
+        font-size: 1.15rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    #modal-merge-settlement .modal-header .btn-close {
+        filter: none;
+        opacity: 0.65;
+    }
+
+    #modal-merge-settlement .modal-header .btn-close:hover {
+        opacity: 1;
+    }
+
+    #modal-merge-settlement .modal-content,
+    #modal-merge-settlement .modal-body,
+    #modal-merge-settlement .modal-footer {
+        background: #fff !important;
+    }
+
+    #modal-merge-settlement .modal-body {
         position: relative;
-        margin-right: 1rem;
     }
 
-    #modal-merge-settlement .form-label::after {
-        content: ":";
+    #modal-merge-settlement .settlement-receipt-body {
+        position: relative;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000;
+        font-size: 1.05rem;
+    }
+
+    #modal-merge-settlement .settlement-receipt-watermark {
         position: absolute;
-        right: -1rem;
+        left: 50%;
+        top: 50%;
+        width: 25rem;
+        height: 25rem;
+        transform: translate(-50%, -50%);
+        background: url("/assets/images/GD-logo.png") center center / contain no-repeat;
+        mix-blend-mode: multiply;
+        opacity: 0.12;
+        pointer-events: none;
+        z-index: 0;
+        user-select: none;
     }
 
-    #modal-merge-settlement .form-input {
-        width: 150px;
-        font-size: 0.875rem;
-        padding: 0.375rem 0.75rem;
-        border: none;
-        border-bottom: 1px solid #ced4da;
-        box-shadow: none;
-        text-align: right;
-    }
-
-    #modal-merge-settlement .block-content.header-with-logo {
+    #modal-merge-settlement #merge-settlement-receipt-copy-area {
+        position: relative;
+        overflow: hidden;
+        padding: 0.65rem 0.75rem 0.35rem;
+        border-radius: 0.2rem;
+        min-height: 16rem;
         display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1.5rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #modal-merge-settlement #merge-settlement-receipt-copy-area > *:not(.settlement-receipt-watermark) {
+        position: relative;
+        z-index: 1;
+    }
+
+    #modal-merge-settlement .settlement-receipt-stack {
+        --settlement-label-col: 6.75rem;
+        --settlement-value-col: minmax(0, 1fr);
+        --settlement-receipt-col-gap: 0.35rem;
         width: 100%;
-        min-height: 160px;
-        padding: 1.5rem 2rem;
-    }
-
-    #modal-merge-settlement .header-logo {
-        flex: 0 0 auto;
-        align-self: center;
-        display: block;
-        max-width: min(320px, 40vw);
-        width: auto;
-        height: auto;
-        max-height: 160px;
+        max-width: 100%;
         margin: 0;
-        object-fit: contain;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        box-sizing: border-box;
     }
 
-    #modal-merge-settlement .settlement-title {
-        flex: 0 1 auto;
-        align-self: center;
-        margin: 0 0 0 auto !important;
+    #modal-merge-settlement .settlement-receipt-grid {
+        width: 100%;
+        margin: 0;
+        display: grid;
+        grid-template-columns: var(--settlement-label-col) max-content var(--settlement-value-col);
+        column-gap: var(--settlement-receipt-col-gap);
+        row-gap: 0.24rem;
+        align-items: baseline;
+    }
+
+    #modal-merge-settlement .settlement-receipt-section {
+        display: contents;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row {
+        display: contents;
+    }
+
+    #modal-merge-settlement .settlement-receipt-label {
+        grid-column: 1;
         text-align: right;
-        letter-spacing: 0.06em;
+        font-weight: 700;
+        font-size: 1.05rem;
         white-space: nowrap;
     }
 
-    #modal-merge-settlement .block-content {
-        padding: 2rem;
+    #modal-merge-settlement .settlement-receipt-colon {
+        grid-column: 2;
+        font-weight: 700;
+        font-size: 1.05rem;
     }
 
-    #modal-merge-settlement .small-input-group {
-        margin-bottom: 0.5rem;
-        margin-left: 23rem;
+    #modal-merge-settlement .settlement-receipt-value-col {
+        grid-column: 3;
+        font-size: 1.05rem;
+        min-width: 0;
     }
 
-    #modal-merge-settlement .row {
-        margin-bottom: 0.5rem;
+    #modal-merge-settlement .settlement-receipt-grid--meta {
+        --settlement-value-col: minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
     }
 
-    #modal-merge-settlement .info-group {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+    #modal-merge-settlement .settlement-receipt-grid--amounts {
+        --settlement-label-col: 5.75rem;
+        --settlement-value-col: 9.5rem;
+        --settlement-receipt-col-gap: 0.45rem;
+        width: fit-content;
+        max-width: 100%;
+        margin: 0 auto;
     }
 
-    #modal-merge-settlement .info-label {
-        width: 120px;
-        min-width: 120px;
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
+        text-align: left;
+        justify-self: stretch;
+        white-space: nowrap;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col--wrap {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.4;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
+        text-align: right;
+        justify-self: stretch;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    #modal-merge-settlement .settlement-receipt-amount {
+        display: inline-block;
+    }
+
+    #modal-merge-settlement .settlement-receipt-divider {
+        align-self: stretch;
+        border-top: 1px solid #c8c8c8;
+        margin: 0.55rem 0 0.45rem;
+        height: 0;
+        width: 100%;
+    }
+
+    #modal-merge-settlement .settlement-receipt-value-col.is-bold {
+        font-weight: 700;
+    }
+
+    #modal-merge-settlement .settlement-receipt-amount.is-negative {
+        color: #dc3545;
+        font-weight: 700;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row--payment {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        column-gap: var(--settlement-receipt-col-gap);
+        background: rgba(253, 141, 124, 0.52);
+        border-radius: 0.15rem;
+        padding: 0.35rem 0;
+        margin-top: 0.35rem;
+        align-items: baseline;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-label {
+        padding-left: 0;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
+        padding-right: 0;
+    }
+
+    #modal-merge-settlement .settlement-receipt-input {
+        min-width: 0;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font-size: inherit;
+        font-family: inherit;
+        font-weight: inherit;
+        color: inherit;
+        box-shadow: none;
+        outline: none;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-input {
+        width: 100%;
+        text-align: right;
+        field-sizing: content;
+    }
+
+    #modal-merge-settlement .settlement-receipt-input:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
+    #modal-merge-settlement #winLossMerge,
+    #modal-merge-settlement #rollingMerge {
+        font-weight: 700;
+    }
+
+    #modal-merge-settlement .settlement-extra-opts {
+        width: 100%;
+        max-width: 26.25rem;
+        margin: 0.65rem auto 0;
+    }
+
+    #modal-merge-settlement .settlement-extra-opts .info-label {
         color: #8a92a6;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        display: block;
     }
 
-    #modal-merge-settlement .info-value {
-        flex: 1;
+    #modal-merge-settlement .settlement-copy-row {
+        display: flex;
+        justify-content: center;
+        gap: 0.35rem;
+        width: 100%;
     }
 
-    #modal-merge-settlement .text-primary {
-        color: #0665d0 !important;
+    #modal-merge-settlement .modal-footer .btn,
+    #modal-merge-settlement .settlement-copy-row .btn {
+        font-size: 0.78rem;
+        padding: 0.22rem 0.55rem;
+        line-height: 1.25;
+    }
+
+    #modal-merge-settlement .settlement-copy-row .btn {
+        color: #fff !important;
+        background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #modal-merge-settlement .modal-footer {
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: nowrap;
+        gap: 0.5rem !important;
+        padding: 0.5rem 1rem 0.75rem;
+    }
+
+    #modal-merge-settlement .modal-footer > * {
+        margin: 0;
+    }
+
+    #modal-merge-settlement .settlement-footer-actions {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 0.35rem;
+        width: auto;
+        flex: 0 0 auto;
     }
 
     #modal-merge-settlement .receipt-print-only { display: none; }
@@ -161,145 +369,554 @@
     #modal-merge-settlement .receipt-total span {
         font-size: 7mm;
     }
+
+    /* --- Edit mode: Guest/Agent split-calculator panels (ported from settlement.ejs) --- */
+
+    #modal-merge-settlement .settlement-modal-cluster {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.75rem;
+        margin: 0 auto;
+    }
+
+    #modal-merge-settlement .settlement-main-content {
+        width: 26.25rem;
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel {
+        width: 26.25rem;
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel-card {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.35rem;
+        box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+        overflow: hidden;
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel-body {
+        flex: 1 1 auto;
+        padding: 1rem 0.5rem 0.5rem;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel-card > .modal-footer {
+        flex-shrink: 0;
+        margin-top: auto;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel-card > .modal-footer .settlement-copy-row {
+        margin: 0;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel .settlement-receipt-input:not([readonly]) {
+        border-bottom: 1px dashed #adb5bd;
+        background: #fffef8;
+    }
+
+    #modal-merge-settlement .settlement-edit-panel .settlement-receipt-input:not([readonly]):focus {
+        border-bottom-color: #0665d0;
+        background: #f8fbff;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode {
+        max-width: calc(100vw - 1.5rem);
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        display: grid;
+        grid-template-columns: 26.25rem 26.25rem 26.25rem;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode > .settlement-main-content,
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode > .settlement-edit-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode > .settlement-edit-panel > .settlement-edit-panel-card {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-main-content > form {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-footer-actions {
+        display: none !important;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-extra-opts {
+        display: none !important;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .modal-footer {
+        margin-top: auto;
+        flex-shrink: 0;
+        padding: 0.35rem 0.65rem !important;
+        gap: 0 !important;
+        min-height: 2.35rem;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .modal-footer > * {
+        margin: 0;
+        width: auto;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-copy-row {
+        flex-wrap: nowrap;
+        gap: 0.35rem;
+        justify-content: center;
+        width: auto;
+        margin: 0 auto;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-main-content .settlement-copy-row #edit-merge-settlement-btn {
+        color: #fff !important;
+        background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-main-content .modal-body,
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-edit-panel-body {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode #merge-settlement-receipt-copy-area,
+    #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-edit-receipt-copy-area {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+
+    #modal-merge-settlement .settlement-edit-receipt-copy-area {
+        position: relative;
+        overflow: hidden;
+        padding: 0.65rem 0.75rem 0.35rem;
+        border-radius: 0.2rem;
+        min-height: 16rem;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #modal-merge-settlement .settlement-edit-receipt-copy-area > *:not(.settlement-receipt-watermark) {
+        position: relative;
+        z-index: 1;
+    }
+
+    #modal-merge-settlement .settlement-split-panel .modal-header {
+        gap: 0.5rem;
+    }
+
+    #modal-merge-settlement .settlement-split-panel .modal-title {
+        font-size: 1rem;
+        white-space: nowrap;
+    }
+
+    #modal-merge-settlement .settlement-split-body {
+        padding: 0.65rem 5rem 0.75rem 1rem;
+        font-size: 1rem;
+    }
+
+    #modal-merge-settlement .settlement-split-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 1rem;
+        align-items: center;
+        padding: 0.3rem 0;
+    }
+
+    #modal-merge-settlement .settlement-split-row--total {
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+
+    #modal-merge-settlement .settlement-split-label {
+        color: #3a2e12;
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    #modal-merge-settlement .settlement-split-value {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    #modal-merge-settlement .settlement-split-value.is-negative {
+        color: #dc3545;
+    }
+
+    #modal-merge-settlement .settlement-split-divider {
+        border-top: 1px dotted #b7bcc2;
+        margin: 0.55rem -5.3rem 0.55rem -1.3rem;
+    }
+
+    #modal-merge-settlement .settlement-split-input-wrap,
+    #modal-merge-settlement .settlement-split-rate-input-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-self: end;
+        gap: 0.2rem;
+    }
+
+    #modal-merge-settlement .settlement-split-input {
+        width: 4rem;
+        box-sizing: border-box;
+        border: 1px solid #adb5bd;
+        border-radius: 0.2rem;
+        padding: 0.15rem 0.3rem;
+        font-size: 0.88rem;
+        text-align: right;
+        background: #fff;
+    }
+
+    #modal-merge-settlement .settlement-split-rate-input-wrap {
+        background: #fffef8;
+        border-radius: 999px;
+        padding: 0.2rem 0.65rem 0.2rem 0.85rem;
+        box-shadow: inset 0 1px 2px rgba(58, 46, 18, 0.18);
+    }
+
+    #modal-merge-settlement .settlement-split-rate-input-wrap .settlement-split-input {
+        width: 3rem;
+        border: none;
+        background: transparent;
+        padding: 0;
+        color: #3a2e12;
+        font-weight: 600;
+    }
+
+    #modal-merge-settlement .settlement-split-rate-input-wrap .settlement-split-input:focus {
+        outline: none;
+    }
+
+    #modal-merge-settlement .settlement-split-input[readonly] {
+        background: #eceef1;
+        border-color: #cfd4da;
+        color: #6c757d;
+        cursor: default;
+    }
+
+    #modal-merge-settlement .settlement-split-pct-suffix {
+        color: #3a2e12;
+        font-weight: 600;
+    }
 </style>
 
-<div class="modal fade" id="modal-merge-settlement" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="block block-rounded block-themed block-transparent mb-0">
-                <div class="modal-header bg-primary">
-                    <h3 class="block-title text-white">Merge Settlement</h3>
-                </div>
+<div class="modal fade" id="modal-merge-settlement" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="modal-merge-settlement-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered settlement-receipt-dialog">
+        <div class="settlement-modal-cluster" id="merge-settlement-modal-cluster">
+        <div class="modal-content settlement-main-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modal-merge-settlement-label">Multiple Settlement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
-                <div class="block-content d-flex align-items-center header-with-logo">
-                    <img src="/assets/images/demoLogo.png" alt="Demo CAGE-X Logo" class="img-fluid header-logo">
-                    <h2 class="text-muted mb-0 settlement-title">MERGE SETTLEMENT</h2>
-                </div>
+            <form id="merge_settlement_preview_form">
+                <input type="hidden" name="merge_game_ids" id="mergeGameIds" value="">
+                <input type="hidden" name="txtAccountIDMergeSettle" id="txtAccountIDMergeSettle" value="">
 
-                <!-- Note: no settle function/submit in this modal -->
-                <form id="merge_settlement_preview_form">
-                    <div class="block-content">
-                        <input type="hidden" name="merge_game_ids" id="mergeGameIds" value="">
-                        <input type="hidden" name="txtAccountIDMergeSettle" id="txtAccountIDMergeSettle" value="">
+                <div class="modal-body">
+                    <div id="merge-settlement-receipt-copy-area" class="settlement-receipt-body">
+                        <div class="settlement-receipt-watermark" aria-hidden="true"></div>
 
-                        <div class="row mb-2">
-                            <div class="col-sm-6">
-                                <div class="info-group">
-                                    <label class="info-label" for="accNoMerge">Name :</label>
-                                    <span class="info-value" id="accNoMerge"></span>
+                        <div class="settlement-receipt-stack">
+                            <div class="settlement-receipt-grid settlement-receipt-grid--meta">
+                                <div class="settlement-receipt-section">
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Name</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col is-bold" id="accNoMerge"></span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Game No.</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--wrap is-bold" id="gameNoMerge"></span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Date &amp; Time</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col is-bold"><span id="dateMerge"></span> <span id="timeMerge"></span></span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-sm-6">
-                                <div class="info-group">
-                                    <label class="info-label" for="gameNoMerge">Game Number :</label>
-                                    <span class="info-value" id="gameNoMerge"></span>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="row mb-2">
-                            <div class="col-sm-6">
-                                <div class="info-group">
-                                    <label class="info-label" for="dateMerge"><%= __('modal_settlement.date') %> :</label>
-                                    <span class="info-value" id="dateMerge"></span>
-                                </div>
-                            </div>
-                            <div class="col-sm-6">
-                                <div class="info-group">
-                                    <label class="info-label" for="timeMerge"><%= __('modal_settlement.time') %> :</label>
-                                    <span class="info-value" id="timeMerge"></span>
-                                </div>
-                            </div>
-                        </div>
+                            <div class="settlement-receipt-divider" aria-hidden="true"></div>
 
-                        <hr>
-
-                        <div class="row mb-2">
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="buyInMerge"><%= __('modal_settlement.buyin') %></label>
-                                    <input class="form-input ms-2" type="text" id="buyInMerge" name="txtBuyInMerge" style="font-weight: bold;" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="chipsReturnMerge"><%= __('modal_settlement.chips_return') %></label>
-                                    <input class="form-input ms-2" type="text" id="chipsReturnMerge" name="txtChipsReturnMerge" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="winLossMerge"><%= __('modal_settlement.win_loss') %></label>
-                                    <input class="form-input ms-2 text-primary" type="text" id="winLossMerge" name="txtWinLossMerge" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="rollingMerge"><%= __('modal_settlement.rolling') %></label>
-                                    <input class="form-input ms-2" type="text" id="rollingMerge" name="txtRollingMerge" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="rollingRateMerge"><%= __('modal_settlement.rate') %></label>
-                                    <input class="form-input ms-2" type="text" id="rollingRateMerge" name="txtRollingRateMerge" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="rollingSettlementMerge"><%= __('modal_settlement.settlement_form') %></label>
-                                    <input class="form-input ms-2" type="text" id="rollingSettlementMerge" name="txtRollingSettlementMerge" style="font-weight: bold;" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="fbMerge"><%= __('modal_settlement.services') %></label>
-                                    <input class="form-input text-danger ms-2" type="text" id="fbMerge" name="txtFNBMerge" readonly>
-                                </div>
-                            </div>
-                            <div class="col-sm-12">
-                                <div class="form-group d-flex align-items-center small-input-group">
-                                    <label class="form-label" for="paymentMerge"><%= __('modal_settlement.payment') %></label>
-                                    <input class="form-input ms-2 bg-warning" type="text" id="paymentMerge" name="txtPaymentMerge" readonly>
+                            <div class="settlement-receipt-grid settlement-receipt-grid--amounts">
+                                <div class="settlement-receipt-section">
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Buy In</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="buyInMerge" name="txtBuyInMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Cash Out</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="chipsReturnMerge" name="txtChipsReturnMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Win / Loss</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="winLossMerge" name="txtWinLossMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Rolling</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingMerge" name="txtRollingMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Rate</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingRateMerge" name="txtRollingRateMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Settlement</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingSettlementMerge" name="txtRollingSettlementMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row">
+                                        <span class="settlement-receipt-label">Add Charge</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="fbMerge" name="txtFNBMerge" readonly></span>
+                                        </span>
+                                    </div>
+                                    <div class="settlement-receipt-row settlement-receipt-row--payment">
+                                        <span class="settlement-receipt-label">Payment</span>
+                                        <span class="settlement-receipt-colon">:</span>
+                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
+                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="paymentMerge" name="txtPaymentMerge" readonly></span>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="modal-footer">
-                        <button type="button" id="send-merge-settlement-telegram-btn" class="btn btn-sm btn-primary">Send Telegram</button>
+                    <div class="settlement-extra-opts">
+                        <label class="info-label" for="merge-settle-choose-account-select">Choose Account :</label>
+                        <select id="merge-settle-choose-account-select" class="form-select" data-placeholder="Choose Account">
+                            <option value="">Choose Account</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <div class="settlement-copy-row" aria-hidden="false">
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-image"><%= __('modal_settlement.copy_image') %></button>
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-text"><%= __('modal_settlement.copy_text') %></button>
+                    </div>
+                    <div class="settlement-footer-actions">
+                        <button type="button" id="submit-merge-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
+                        <button type="button" id="edit-merge-settlement-btn" class="btn btn-sm btn-alt-secondary">Edit</button>
                         <button type="button" id="print-merge-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
-                        <button type="button" id="close-merge-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
-                            <%= __('modal_settlement.close') %>
-                        </button>
                     </div>
-                </form>
-
-                <div class="receipt-print-only">
-                    <div class="receipt-print-content">
-                        <p class="receipt-brand">CAGEX DEMO</p>
-                        <p class="receipt-subtitle">Merge Settlement</p>
-                        <div class="receipt-line"></div>
-                        <p class="receipt-datetime" id="printMergeReceiptDateTime"></p>
-
-                        <div class="receipt-row"><span>Name :</span><span id="printMergeReceiptName">0</span></div>
-                        <div class="receipt-row"><span>Game Number :</span><span id="printMergeReceiptGameNo">0</span></div>
-                        <div class="receipt-line"></div>
-
-                        <div class="receipt-row"><span>Buy In :</span><span id="printMergeReceiptBuyIn">0</span></div>
-                        <div class="receipt-row"><span>Cash Out :</span><span id="printMergeReceiptCashOut">0</span></div>
-                        <div class="receipt-row"><span>W/L :</span><span id="printMergeReceiptWinLoss">0</span></div>
-                        <div class="receipt-row"><span>Rolling :</span><span id="printMergeReceiptRolling">0</span></div>
-                        <div class="receipt-row"><span>Rate :</span><span id="printMergeReceiptRate">0</span></div>
-                        <div class="receipt-row"><span>Settlement :</span><span id="printMergeReceiptSettlement">0</span></div>
-                        <div class="receipt-row"><span>Services :</span><span id="printMergeReceiptServices">0</span></div>
-                        <div class="receipt-line"></div>
-                        <div class="receipt-row receipt-total"><span>Total :</span><span id="printMergeReceiptTotal">0</span></div>
-                        <div class="receipt-line"></div>
+                </div>
+            </form>
+        </div>
+        <div class="settlement-edit-panel settlement-edit-panel--guest d-none" id="merge-settlement-edit-guest-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Edit Mode (Guest)</h5>
+                    <button type="button" class="btn-close js-merge-settlement-edit-panel-close" aria-label="Close"></button>
+                </div>
+                <div class="settlement-edit-panel-body" id="merge-settlement-edit-guest-body"></div>
+                <div class="modal-footer flex-column align-items-center gap-2">
+                    <div class="settlement-copy-row" aria-hidden="false">
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-image"><%= __('modal_settlement.copy_image') %></button>
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-text"><%= __('modal_settlement.copy_text') %></button>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="settlement-edit-panel settlement-edit-panel--agent d-none" id="merge-settlement-edit-agent-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Edit Mode (Agent)</h5>
+                    <button type="button" class="btn-close js-merge-settlement-edit-panel-close" aria-label="Close"></button>
+                </div>
+                <div class="settlement-edit-panel-body" id="merge-settlement-edit-agent-body"></div>
+                <div class="modal-footer flex-column align-items-center gap-2">
+                    <div class="settlement-copy-row" aria-hidden="false">
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-image"><%= __('modal_settlement.copy_image') %></button>
+                        <button type="button" class="btn btn-sm js-copy-merge-settlement-slip-text"><%= __('modal_settlement.copy_text') %></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settlement-edit-panel settlement-split-panel d-none" id="merge-settlement-calc-company-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Company Rate :</h5>
+                    <span class="settlement-split-rate-input-wrap">
+                        <input type="text" class="settlement-split-input" id="merge-calc-company-rate" value="0" inputmode="decimal" aria-label="Company rate">
+                        <span class="settlement-split-pct-suffix">%</span>
+                    </span>
+                </div>
+                <div class="settlement-edit-panel-body settlement-split-body">
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-company-rate-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rate :</span>
+                        <span class="settlement-split-value" id="merge-calc-company-rate-rate-display">0%</span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-company-rate-settlement">0</span>
+                    </div>
+                    <div class="settlement-split-divider"></div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-company-pct-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Percentage :</span>
+                        <span class="settlement-split-value">100%</span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-company-pct-settlement">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settlement-edit-panel settlement-split-panel d-none" id="merge-settlement-calc-guest-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Edit Mode (Guest)</h5>
+                </div>
+                <div class="settlement-edit-panel-body settlement-split-body">
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-guest-rate-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rate :</span>
+                        <span class="settlement-split-input-wrap">
+                            <input type="text" class="settlement-split-input" id="merge-calc-guest-rate-input" value="0" inputmode="decimal" aria-label="Guest rate split">
+                            <span class="settlement-split-pct-suffix">%</span>
+                        </span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-guest-rate-settlement">0</span>
+                    </div>
+                    <div class="settlement-split-divider"></div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-guest-pct-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Percentage :</span>
+                        <span class="settlement-split-input-wrap">
+                            <input type="text" class="settlement-split-input" id="merge-calc-guest-pct-input" value="0" inputmode="decimal" aria-label="Guest percentage split">
+                            <span class="settlement-split-pct-suffix">%</span>
+                        </span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-guest-pct-settlement">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settlement-edit-panel settlement-split-panel d-none" id="merge-settlement-calc-agent-panel" aria-hidden="true">
+            <div class="settlement-edit-panel-card">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white">Edit Mode (Agent)</h5>
+                </div>
+                <div class="settlement-edit-panel-body settlement-split-body">
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-rate-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rate :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-rate-display">0%</span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-rate-settlement">0</span>
+                    </div>
+                    <div class="settlement-split-divider"></div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Rolling :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-pct-rolling">0</span>
+                    </div>
+                    <div class="settlement-split-row">
+                        <span class="settlement-split-label">Percentage :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-pct-display">0%</span>
+                    </div>
+                    <div class="settlement-split-row settlement-split-row--total">
+                        <span class="settlement-split-label">Settlement :</span>
+                        <span class="settlement-split-value" id="merge-calc-agent-pct-settlement">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+            <div class="receipt-print-only">
+                <div class="receipt-print-content">
+                    <p class="receipt-brand">CAGEX DEMO</p>
+                    <p class="receipt-subtitle">Multiple Settlement</p>
+                    <div class="receipt-line"></div>
+                    <p class="receipt-datetime" id="printMergeReceiptDateTime"></p>
+
+                    <div class="receipt-row"><span>Name :</span><span id="printMergeReceiptName">0</span></div>
+                    <div class="receipt-row"><span>Game Number :</span><span id="printMergeReceiptGameNo">0</span></div>
+                    <div class="receipt-line"></div>
+
+                    <div class="receipt-row"><span>Buy In :</span><span id="printMergeReceiptBuyIn">0</span></div>
+                    <div class="receipt-row"><span>Cash Out :</span><span id="printMergeReceiptCashOut">0</span></div>
+                    <div class="receipt-row"><span>W/L :</span><span id="printMergeReceiptWinLoss">0</span></div>
+                    <div class="receipt-row"><span>Rolling :</span><span id="printMergeReceiptRolling">0</span></div>
+                    <div class="receipt-row"><span>Rate :</span><span id="printMergeReceiptRate">0</span></div>
+                    <div class="receipt-row"><span>Settlement :</span><span id="printMergeReceiptSettlement">0</span></div>
+                    <div class="receipt-row"><span>Services :</span><span id="printMergeReceiptServices">0</span></div>
+                    <div class="receipt-line"></div>
+                    <div class="receipt-row receipt-total"><span>Total :</span><span id="printMergeReceiptTotal">0</span></div>
+                    <div class="receipt-line"></div>
+                </div>
+            </div>
     </div>
 </div>
 
@@ -320,7 +937,9 @@
             var timeText = cleanValue($modal.find('#timeMerge').text());
             $modal.find('#printMergeReceiptDateTime').text(dateText + ' ' + timeText);
             $modal.find('#printMergeReceiptName').text(cleanValue($modal.find('#accNoMerge').text()));
-            $modal.find('#printMergeReceiptGameNo').text(cleanValue($modal.find('#gameNoMerge').text()));
+            var gameNoEl = $modal.find('#gameNoMerge').get(0);
+            var gameNoText = gameNoEl ? String(gameNoEl.innerText != null ? gameNoEl.innerText : gameNoEl.textContent) : '';
+            $modal.find('#printMergeReceiptGameNo').text(cleanValue(gameNoText.replace(/\s+/g, ' ').trim()));
             $modal.find('#printMergeReceiptBuyIn').text(cleanValue($modal.find('#buyInMerge').val()));
             $modal.find('#printMergeReceiptCashOut').text(cleanValue($modal.find('#chipsReturnMerge').val()));
             $modal.find('#printMergeReceiptWinLoss').text(cleanValue($modal.find('#winLossMerge').val()));
@@ -345,7 +964,7 @@
 
             var iframeDoc = iframe.contentWindow.document;
             iframeDoc.open();
-            iframeDoc.write('<!doctype html><html><head><title>Merge Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
+            iframeDoc.write('<!doctype html><html><head><title>Multiple Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
             iframeDoc.close();
 
             setTimeout(function () {
@@ -361,6 +980,670 @@
             var $modal = $('#modal-merge-settlement');
             updateMergeReceiptPrintData($modal);
             openMergeReceiptPrintWindow($modal);
+        });
+
+        function buildMergeReceiptSlipText(slipBodyEl) {
+            if (!slipBodyEl) return '';
+            var lines = [];
+            slipBodyEl.querySelectorAll('.settlement-receipt-row').forEach(function (row) {
+                var labelEl = row.querySelector('.settlement-receipt-label');
+                var labelText = labelEl ? labelEl.textContent.replace(/\s+/g, ' ').trim() : '';
+                if (!labelText) return;
+
+                var value = '';
+                var input = row.querySelector('.settlement-receipt-input');
+                if (input) {
+                    value = String(input.value || '').trim();
+                } else {
+                    var amountEl = row.querySelector('.settlement-receipt-amount');
+                    if (amountEl) {
+                        value = String(amountEl.textContent || '').replace(/\s+/g, ' ').trim();
+                    } else {
+                        var valueCol = row.querySelector('.settlement-receipt-value-col');
+                        if (valueCol) value = String((valueCol.innerText != null ? valueCol.innerText : valueCol.textContent) || '').replace(/\s+/g, ' ').trim();
+                    }
+                }
+
+                lines.push(labelText + ' : ' + value);
+            });
+            return lines.join('\n');
+        }
+
+        function copyMergeReceiptSlipTextButton(slipBodyEl, $btn) {
+            if (!slipBodyEl || !$btn || !$btn.length) return;
+
+            var originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+            var text = buildMergeReceiptSlipText(slipBodyEl);
+            if (!text) {
+                $btn.prop('disabled', false).html(originalHtml);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Receipt has no text to copy.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
+
+            if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                $btn.prop('disabled', false).html(originalHtml);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Clipboard is not supported in this browser.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
+
+            navigator.clipboard.writeText(text)
+                .then(function () {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Copied!',
+                            text: 'Receipt text copied. You can paste it anywhere.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                })
+                .catch(function (err) {
+                    var msg = (err && err.message) ? err.message : 'Unable to copy receipt text.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+                    }
+                })
+                .finally(function () {
+                    $btn.prop('disabled', false).html(originalHtml);
+                });
+        }
+
+        $('#modal-merge-settlement').on('click', '.settlement-main-content .js-copy-merge-settlement-slip-image', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = document.getElementById('merge-settlement-receipt-copy-area');
+            if (typeof window.copyGameReceiptSlipImage === 'function') {
+                window.copyGameReceiptSlipImage(slipBody, $btn);
+                return;
+            }
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Image copy is not available.', confirmButtonText: 'OK' });
+            }
+        });
+
+        $('#modal-merge-settlement').on('click', '.settlement-main-content .js-copy-merge-settlement-slip-text', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = document.getElementById('merge-settlement-receipt-copy-area');
+            copyMergeReceiptSlipTextButton(slipBody, $btn);
+        });
+
+        /* --- Edit mode: Guest/Agent commission-split preview (ported from settlement.ejs) --- */
+
+        function parseAmount(value) {
+            var num = parseFloat(String(value || '').replace(/,/g, '').trim());
+            return isNaN(num) ? 0 : num;
+        }
+
+        function formatAmount(value) {
+            return parseAmount(value).toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function formatSettlementDueDisplay(value) {
+            var num = parseAmount(value);
+            if (!num) {
+                return { text: '0', negative: false };
+            }
+            return {
+                text: '(' + formatAmount(Math.abs(num)) + ')',
+                negative: true
+            };
+        }
+
+        function formatSettlementRateDisplay(value) {
+            var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+            if (!raw) return '';
+            return raw.indexOf('%') !== -1 ? raw : raw + '%';
+        }
+
+        function formatInputWithCommas($input) {
+            var raw = String($input.val() || '').replace(/,/g, '').trim();
+            if (!raw) {
+                $input.val('');
+                return;
+            }
+
+            var allowNegative = $input.attr('data-allow-negative') === '1';
+            var isNegative = allowNegative && raw.startsWith('-');
+            var normalized = raw.replace(/[^\d.]/g, '');
+            var firstDot = normalized.indexOf('.');
+            if (firstDot !== -1) {
+                normalized = normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '');
+            }
+            if (isNegative && normalized) {
+                normalized = '-' + normalized;
+            }
+
+            var num = parseFloat(normalized);
+            if (isNaN(num)) return;
+
+            $input.val(num.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }));
+        }
+
+        function formatInputWithCommasLive($input) {
+            var el = $input && $input[0];
+            if (!el) return;
+
+            var raw = String(el.value || '');
+            var caret = typeof el.selectionStart === 'number' ? el.selectionStart : raw.length;
+            var digitsBeforeCaret = raw.slice(0, caret).replace(/[^\d]/g, '').length;
+
+            formatInputWithCommas($input);
+
+            var formatted = String(el.value || '');
+            if (!formatted) return;
+
+            var pos = 0;
+            var seen = 0;
+            while (pos < formatted.length && seen < digitsBeforeCaret) {
+                if (/\d/.test(formatted.charAt(pos))) seen++;
+                pos++;
+            }
+            try { el.setSelectionRange(pos, pos); } catch (e) { /* ignore */ }
+        }
+
+        function formatRollingRateInput($input) {
+            var raw = String($input.val() || '').replace(/,/g, '').trim();
+            if (!raw) {
+                $input.val('');
+                return;
+            }
+            var normalized = raw.replace(/[^\d.]/g, '');
+            var dot = normalized.indexOf('.');
+            if (dot !== -1) {
+                normalized = normalized.slice(0, dot + 1) + normalized.slice(dot + 1).replace(/\./g, '');
+            }
+            var intPart = dot === -1 ? normalized : normalized.slice(0, dot);
+            var fracPart = dot === -1 ? null : normalized.slice(dot + 1);
+            if (intPart === '' && dot === -1 && (fracPart === null || fracPart === '')) {
+                $input.val('');
+                return;
+            }
+            var intNum = parseInt(intPart === '' ? '0' : intPart, 10);
+            if (isNaN(intNum)) intNum = 0;
+            var intStr = intNum.toLocaleString('en-US');
+            if (dot !== -1) {
+                $input.val(intStr + '.' + (fracPart === null ? '' : fracPart));
+                return;
+            }
+            var num = parseFloat(normalized);
+            if (isNaN(num)) return;
+            $input.val(num.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 4
+            }));
+        }
+
+        // The merge receipt's Settlement/Add Charge/Payment are plain readonly inputs
+        // (no separate "display span" the way settlement.ejs has) — so the cloned guest/
+        // agent panels just write straight into those inputs' .val() on every recalc.
+        function recalcMergeEditPanelTotals($panel) {
+            if (!$panel || !$panel.length) return;
+
+            var rolling = parseAmount($panel.find('[data-field="rolling"]').val());
+            var rate = parseAmount($panel.find('[data-field="rollingRate"]').val());
+            var addCharge = parseAmount($panel.data('add-charge'));
+            var settlement = Math.round((rolling * rate) / 100);
+            var payment = settlement - addCharge;
+
+            $panel.data('rolling-settlement', settlement);
+            $panel.data('payment', payment);
+
+            $panel.find('[data-field="rollingSettlementDisplay"]').val(formatAmount(settlement));
+            $panel.find('[data-field="addChargeDisplay"]').val(formatAmount(addCharge));
+            $panel.find('[data-field="paymentDisplay"]').val(formatAmount(payment));
+
+            var $rate = $panel.find('[data-field="rollingRate"]');
+            if (!$rate.prop('readonly')) {
+                $rate.val(formatSettlementRateDisplay($rate.val()));
+            }
+        }
+
+        // Note: the merged Rate field can hold the literal text "Mixed" when the selected
+        // games don't share one rate. parseAmount() falls back to 0 for that — the user
+        // types the real split rate manually in that case, same as an unset rate.
+        function buildMergeEditPanelReceipt($mainModal, panelKey) {
+            var $source = $mainModal.find('#merge-settlement-receipt-copy-area').clone(false);
+            $source.removeAttr('id').addClass('settlement-edit-receipt-copy-area');
+
+            $source.find('[id]').each(function () {
+                var oldId = this.id;
+                this.id = 'merge-settlement-' + panelKey + '-' + oldId;
+            });
+
+            $source.find('.settlement-receipt-input').each(function () {
+                var field = this.id.replace('merge-settlement-' + panelKey + '-', '');
+                $(this).attr('data-field', field);
+                this.removeAttribute('name');
+            });
+
+            var $panelBody = $('#merge-settlement-edit-' + panelKey + '-body');
+            $panelBody.empty().append($source);
+
+            var $panel = $panelBody.closest('.settlement-edit-panel');
+            // Add Charge applies to Guest only — Agent always 0 (mirrors settlement.ejs).
+            $panel.data('add-charge', panelKey === 'agent' ? 0 : parseAmount($mainModal.find('#fbMerge').val()));
+            $panel.data('rolling-settlement', parseAmount($mainModal.find('#rollingSettlementMerge').val()));
+            $panel.data('payment', parseAmount($mainModal.find('#paymentMerge').val()));
+
+            $panel.find('[data-field="buyInMerge"]').val($mainModal.find('#buyInMerge').val()).prop('readonly', true);
+            $panel.find('[data-field="chipsReturnMerge"]').val($mainModal.find('#chipsReturnMerge').val()).prop('readonly', true);
+
+            var houseWinLoss = parseAmount($mainModal.find('#winLossMerge').val());
+            var $winLoss = $panel.find('[data-field="winLossMerge"]');
+            $winLoss.val(formatAmount(houseWinLoss)).prop('readonly', true).attr('data-allow-negative', '1');
+
+            $panel.find('[data-field="rollingMerge"]').val($mainModal.find('#rollingMerge').val()).prop('readonly', false).attr('data-field', 'rolling');
+            var rateRaw = String($mainModal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
+            $panel.find('[data-field="rollingRateMerge"]').val(rateRaw).prop('readonly', false).attr('data-field', 'rollingRate');
+            $panel.find('[data-field="rollingSettlementMerge"]').attr('data-field', 'rollingSettlementDisplay');
+            $panel.find('[data-field="fbMerge"]').attr('data-field', 'addChargeDisplay');
+            $panel.find('[data-field="paymentMerge"]').attr('data-field', 'paymentDisplay');
+
+            recalcMergeEditPanelTotals($panel);
+            return $panel;
+        }
+
+        // Guest + Agent rolling always equals the merged total rolling.
+        function syncMergeCounterpartRolling($sourcePanel, clampEdited) {
+            var $modal = $('#modal-merge-settlement');
+            var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
+            var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
+            if (!$sourcePanel || !$sourcePanel.length || !$guestPanel.length || !$agentPanel.length) return;
+
+            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+            var isGuest = $sourcePanel.is('#merge-settlement-edit-guest-panel');
+            var $otherPanel = isGuest ? $agentPanel : $guestPanel;
+            var $sourceInput = $sourcePanel.find('[data-field="rolling"]');
+            var edited = parseAmount($sourceInput.val());
+
+            if (clampEdited) {
+                edited = Math.max(0, Math.min(totalRolling, edited));
+                $sourceInput.val(formatAmount(edited));
+            } else if (edited < 0) {
+                edited = 0;
+            }
+
+            var otherRolling = Math.max(0, totalRolling - Math.min(edited, totalRolling));
+            $otherPanel.find('[data-field="rolling"]').val(formatAmount(otherRolling));
+
+            recalcMergeEditPanelTotals($sourcePanel);
+            recalcMergeEditPanelTotals($otherPanel);
+        }
+
+        function clampMergeSplitRate(value, max) {
+            var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim());
+            if (isNaN(num)) num = 0;
+            var cap = Math.max(0, parseFloat(max) || 0);
+            num = Math.min(cap, Math.max(0, num));
+            return Math.round(num * 10000) / 10000;
+        }
+
+        function clampMergeSplitPct(value) {
+            var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim());
+            if (isNaN(num)) num = 0;
+            return Math.min(100, Math.max(0, Math.round(num * 100) / 100));
+        }
+
+        function formatMergeSplitPctValue(num) {
+            var text = String(Math.round(Number(num || 0) * 10000) / 10000);
+            return text.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+        }
+
+        function sanitizeMergeSplitRaw(value) {
+            var str = String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '');
+            if (!/^\d*\.?\d*$/.test(str)) {
+                var cleaned = str.replace(/[^\d.]/g, '');
+                var dot = cleaned.indexOf('.');
+                if (dot !== -1) {
+                    cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+                }
+                str = cleaned;
+            }
+            return str;
+        }
+
+        function liveClampMergeSplitInput(value, max) {
+            var raw = sanitizeMergeSplitRaw(value);
+            var num = parseFloat(raw);
+            if (!isNaN(num) && num > max) {
+                return formatMergeSplitPctValue(max);
+            }
+            return raw;
+        }
+
+        function roundMergeToThousand(value) {
+            return Math.round(Number(value || 0) / 1000) * 1000;
+        }
+
+        function renderMergeSplitAmountCell($cell, value) {
+            var display = formatSettlementDueDisplay(value);
+            $cell.text(display.text).toggleClass('is-negative', display.negative);
+        }
+
+        function refreshMergeSplitCalculators($modal) {
+            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            if (Number($modal.data('merge-settlement-edit-mode')) !== 1) return;
+
+            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+            var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
+
+            $modal.find('#merge-calc-company-rate-rolling').text(formatAmount(totalRolling));
+            $modal.find('#merge-calc-company-rate-rate-display').text(formatMergeSplitPctValue(companyRate) + '%');
+            var totalSettlement = Math.round((totalRolling * companyRate) / 100);
+            renderMergeSplitAmountCell($modal.find('#merge-calc-company-rate-settlement'), totalSettlement);
+            $modal.find('#merge-calc-company-pct-rolling').text(formatAmount(totalRolling));
+            renderMergeSplitAmountCell($modal.find('#merge-calc-company-pct-settlement'), totalSettlement);
+
+            var guestRate = clampMergeSplitRate($modal.find('#merge-calc-guest-rate-input').val(), companyRate);
+            var agentRate = Math.max(0, Math.round((companyRate - guestRate) * 10000) / 10000);
+            var guestRateRolling = companyRate > 0 ? roundMergeToThousand((totalRolling * guestRate) / companyRate) : 0;
+            var agentRateRolling = Math.max(0, totalRolling - guestRateRolling);
+            var guestRateSettlement = Math.round((guestRateRolling * companyRate) / 100);
+            var agentRateSettlement = Math.round((agentRateRolling * companyRate) / 100);
+
+            $modal.find('#merge-calc-guest-rate-rolling').text(formatAmount(guestRateRolling));
+            renderMergeSplitAmountCell($modal.find('#merge-calc-guest-rate-settlement'), guestRateSettlement);
+            $modal.find('#merge-calc-agent-rate-rolling').text(formatAmount(agentRateRolling));
+            $modal.find('#merge-calc-agent-rate-display').text(formatMergeSplitPctValue(agentRate) + '%');
+            renderMergeSplitAmountCell($modal.find('#merge-calc-agent-rate-settlement'), agentRateSettlement);
+
+            var guestPct = clampMergeSplitPct($modal.find('#merge-calc-guest-pct-input').val());
+            var agentPct = Math.round((100 - guestPct) * 100) / 100;
+            var guestPctRolling = roundMergeToThousand((totalRolling * guestPct) / 100);
+            var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
+            var guestPctSettlement = Math.round((guestPctRolling * companyRate) / 100);
+            var agentPctSettlement = Math.round((agentPctRolling * companyRate) / 100);
+
+            $modal.find('#merge-calc-guest-pct-rolling').text(formatAmount(guestPctRolling));
+            renderMergeSplitAmountCell($modal.find('#merge-calc-guest-pct-settlement'), guestPctSettlement);
+            $modal.find('#merge-calc-agent-pct-rolling').text(formatAmount(agentPctRolling));
+            $modal.find('#merge-calc-agent-pct-display').text(formatMergeSplitPctValue(agentPct) + '%');
+            renderMergeSplitAmountCell($modal.find('#merge-calc-agent-pct-settlement'), agentPctSettlement);
+        }
+
+        function restoreMergeOriginalSplitToEditPanels($modal) {
+            var rollingVal = $modal.find('#rollingMerge').val();
+            var rateRaw = String($modal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
+            [$modal.find('#merge-settlement-edit-guest-panel'), $modal.find('#merge-settlement-edit-agent-panel')].forEach(function ($panel) {
+                if (!$panel.length) return;
+                $panel.find('[data-field="rolling"]').val(rollingVal);
+                $panel.find('[data-field="rollingRate"]').val(rateRaw);
+                recalcMergeEditPanelTotals($panel);
+            });
+        }
+
+        function applyMergeSplitToEditPanels($modal) {
+            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
+            var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
+            if (!$guestPanel.length || !$agentPanel.length) return;
+
+            var mode = $modal.data('merge-split-active-mode');
+            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+
+            if (mode === 'rate') {
+                var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
+                var guestRate = clampMergeSplitRate($modal.find('#merge-calc-guest-rate-input').val(), companyRate);
+                var guestRolling = companyRate > 0 ? roundMergeToThousand((totalRolling * guestRate) / companyRate) : 0;
+                var agentRolling = Math.max(0, totalRolling - guestRolling);
+
+                $guestPanel.find('[data-field="rolling"]').val(formatAmount(guestRolling));
+                $agentPanel.find('[data-field="rolling"]').val(formatAmount(agentRolling));
+                recalcMergeEditPanelTotals($guestPanel);
+                recalcMergeEditPanelTotals($agentPanel);
+            } else if (mode === 'pct') {
+                var guestPct = clampMergeSplitPct($modal.find('#merge-calc-guest-pct-input').val());
+                var guestPctRolling = roundMergeToThousand((totalRolling * guestPct) / 100);
+                var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
+
+                $guestPanel.find('[data-field="rolling"]').val(formatAmount(guestPctRolling));
+                $agentPanel.find('[data-field="rolling"]').val(formatAmount(agentPctRolling));
+                recalcMergeEditPanelTotals($guestPanel);
+                recalcMergeEditPanelTotals($agentPanel);
+            } else {
+                restoreMergeOriginalSplitToEditPanels($modal);
+            }
+        }
+
+        function resetMergeSplitCalculators($modal) {
+            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal.removeData('merge-split-active-mode');
+            var rateRaw = String($modal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
+            $modal.find('#merge-calc-company-rate').val(rateRaw || '0');
+            $modal.find('#merge-calc-guest-rate-input, #merge-calc-guest-pct-input').val('0');
+            $modal.find('#merge-calc-agent-rate-display, #merge-calc-agent-pct-display').text('0%');
+        }
+
+        function syncMergeEditPanelBeforeCopy($panel) {
+            if (!$panel || !$panel.length) return;
+            formatInputWithCommas($panel.find('[data-field="rolling"]'));
+            formatRollingRateInput($panel.find('[data-field="rollingRate"]'));
+            recalcMergeEditPanelTotals($panel);
+        }
+
+        function getMergeEditPanelSlipBody($panel) {
+            if (!$panel || !$panel.length) return null;
+            return $panel.find('.settlement-edit-receipt-copy-area')[0] || null;
+        }
+
+        function wireMergeEditPanelCopyButtons($panel) {
+            if (!$panel || !$panel.length) return;
+
+            $panel.find('.js-copy-merge-settlement-slip-image').off('click.mergeSettlementEditCopy').on('click.mergeSettlementEditCopy', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var $btn = $(this);
+                syncMergeEditPanelBeforeCopy($panel);
+                var slipBody = getMergeEditPanelSlipBody($panel);
+                if (!slipBody) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Receipt is not ready.', confirmButtonText: 'OK' });
+                    }
+                    return;
+                }
+                if (typeof window.copyGameReceiptSlipImage === 'function') {
+                    window.copyGameReceiptSlipImage(slipBody, $btn);
+                    return;
+                }
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Image copy is not available.', confirmButtonText: 'OK' });
+                }
+            });
+
+            $panel.find('.js-copy-merge-settlement-slip-text').off('click.mergeSettlementEditCopy').on('click.mergeSettlementEditCopy', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var $btn = $(this);
+                syncMergeEditPanelBeforeCopy($panel);
+                copyMergeReceiptSlipTextButton(getMergeEditPanelSlipBody($panel), $btn);
+            });
+        }
+
+        function placeMergeEditButton($modal, inCopyRow) {
+            var $editBtn = $modal.find('#edit-merge-settlement-btn');
+            if (inCopyRow) {
+                $editBtn.detach().appendTo($modal.find('.settlement-main-content .settlement-copy-row'));
+                return;
+            }
+            $editBtn.detach().insertAfter($modal.find('#submit-merge-settlement-btn'));
+        }
+
+        function setMergeEditMode($modal, enabled) {
+            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            var $editBtn = $modal.find('#edit-merge-settlement-btn');
+            var $settleBtn = $modal.find('#submit-merge-settlement-btn');
+            var $cluster = $modal.find('#merge-settlement-modal-cluster');
+            var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
+            var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
+            var $splitPanels = $modal.find('#merge-settlement-calc-company-panel, #merge-settlement-calc-guest-panel, #merge-settlement-calc-agent-panel');
+
+            $modal.data('merge-settlement-edit-mode', enabled ? 1 : 0);
+            $cluster.toggleClass('is-edit-mode', enabled);
+
+            if (enabled) {
+                buildMergeEditPanelReceipt($modal, 'guest');
+                buildMergeEditPanelReceipt($modal, 'agent');
+                wireMergeEditPanelCopyButtons($guestPanel);
+                wireMergeEditPanelCopyButtons($agentPanel);
+                $guestPanel.removeClass('d-none').attr('aria-hidden', 'false');
+                $agentPanel.removeClass('d-none').attr('aria-hidden', 'false');
+                $splitPanels.removeClass('d-none').attr('aria-hidden', 'false');
+                resetMergeSplitCalculators($modal);
+                refreshMergeSplitCalculators($modal);
+                $editBtn.text('Done');
+                $settleBtn.hide();
+                $modal.find('#print-merge-settlement-btn').hide();
+                placeMergeEditButton($modal, true);
+            } else {
+                $guestPanel.addClass('d-none').attr('aria-hidden', 'true');
+                $agentPanel.addClass('d-none').attr('aria-hidden', 'true');
+                $splitPanels.addClass('d-none').attr('aria-hidden', 'true');
+                $modal.find('#merge-settlement-edit-guest-body, #merge-settlement-edit-agent-body').empty();
+                resetMergeSplitCalculators($modal);
+                $editBtn.text('Edit');
+                placeMergeEditButton($modal, false);
+                $modal.find('#print-merge-settlement-btn').show();
+                $settleBtn.show();
+            }
+        }
+
+        function resetMergeSettlementModalView($modal) {
+            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            if (Number($modal.data('merge-settlement-edit-mode')) === 1) {
+                setMergeEditMode($modal, false);
+            }
+            placeMergeEditButton($modal, false);
+            $modal.find('#edit-merge-settlement-btn').text('Edit').prop('disabled', false);
+        }
+
+        $('#modal-merge-settlement').on('shown.bs.modal', function () {
+            resetMergeSettlementModalView($(this));
+        });
+
+        $('#modal-merge-settlement').on('hidden.bs.modal', function () {
+            var $modal = $(this);
+            resetMergeSettlementModalView($modal);
+            // If this view was opened from the History list (which hides itself first
+            // to make room), bring the list back once the viewer is closed.
+            if ($modal.data('mshReopenHistory')) {
+                $modal.removeData('mshReopenHistory');
+                var $history = $('#modal-multiple-settlement-history');
+                if ($history.length) {
+                    $history.modal('show');
+                }
+            }
+        });
+
+        $('#edit-merge-settlement-btn').on('click', function () {
+            var $modal = $('#modal-merge-settlement');
+            var inEditMode = Number($modal.data('merge-settlement-edit-mode')) === 1;
+            setMergeEditMode($modal, !inEditMode);
+        });
+
+        $('#modal-merge-settlement').on('click', '.js-merge-settlement-edit-panel-close', function () {
+            setMergeEditMode($('#modal-merge-settlement'), false);
+        });
+
+        $('#modal-merge-settlement').on('input', '.settlement-edit-panel [data-field="rolling"], .settlement-edit-panel [data-field="rollingRate"]', function () {
+            var $input = $(this);
+            var $panel = $input.closest('.settlement-edit-panel');
+            if ($input.attr('data-field') === 'rolling') {
+                formatInputWithCommasLive($input);
+                syncMergeCounterpartRolling($panel, false);
+                return;
+            }
+            recalcMergeEditPanelTotals($panel);
+        });
+
+        $('#modal-merge-settlement').on('blur', '.settlement-edit-panel [data-field="rolling"]', function () {
+            var $input = $(this);
+            var $panel = $input.closest('.settlement-edit-panel');
+            formatInputWithCommas($input);
+            syncMergeCounterpartRolling($panel, true);
+        });
+
+        $('#modal-merge-settlement').on('blur', '.settlement-edit-panel [data-field="rollingRate"]', function () {
+            formatRollingRateInput($(this));
+            recalcMergeEditPanelTotals($(this).closest('.settlement-edit-panel'));
+        });
+
+        function handleMergeCompanyRateChange($modal, finalize) {
+            var $input = $modal.find('#merge-calc-company-rate');
+            var raw = finalize ? formatMergeSplitPctValue(clampMergeSplitRate($input.val(), 100)) : liveClampMergeSplitInput($input.val(), 100);
+            $input.val(raw);
+            refreshMergeSplitCalculators($modal);
+            if ($modal.data('merge-split-active-mode') === 'rate') {
+                applyMergeSplitToEditPanels($modal);
+            }
+        }
+
+        $('#modal-merge-settlement').on('input', '#merge-calc-company-rate', function () {
+            handleMergeCompanyRateChange($('#modal-merge-settlement'), false);
+        });
+
+        $('#modal-merge-settlement').on('blur', '#merge-calc-company-rate', function () {
+            handleMergeCompanyRateChange($('#modal-merge-settlement'), true);
+        });
+
+        function handleMergeRateSplitChange($modal, $input, finalize) {
+            var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
+            var raw = finalize ? formatMergeSplitPctValue(clampMergeSplitRate($input.val(), companyRate)) : liveClampMergeSplitInput($input.val(), companyRate);
+            $input.val(raw);
+            var guestRate = clampMergeSplitRate(raw, companyRate);
+
+            if (guestRate > 0) {
+                $modal.data('merge-split-active-mode', 'rate');
+            } else if ($modal.data('merge-split-active-mode') === 'rate') {
+                $modal.removeData('merge-split-active-mode');
+            }
+
+            refreshMergeSplitCalculators($modal);
+            applyMergeSplitToEditPanels($modal);
+        }
+
+        $('#modal-merge-settlement').on('input', '#merge-calc-guest-rate-input', function () {
+            handleMergeRateSplitChange($('#modal-merge-settlement'), $(this), false);
+        });
+
+        $('#modal-merge-settlement').on('blur', '#merge-calc-guest-rate-input', function () {
+            handleMergeRateSplitChange($('#modal-merge-settlement'), $(this), true);
+        });
+
+        function handleMergePctSplitChange($modal, $input, finalize) {
+            var raw = finalize ? formatMergeSplitPctValue(clampMergeSplitPct($input.val())) : liveClampMergeSplitInput($input.val(), 100);
+            $input.val(raw);
+            var guestPct = clampMergeSplitPct(raw);
+
+            if (guestPct > 0) {
+                $modal.data('merge-split-active-mode', 'pct');
+            } else if ($modal.data('merge-split-active-mode') === 'pct') {
+                $modal.removeData('merge-split-active-mode');
+            }
+
+            refreshMergeSplitCalculators($modal);
+            applyMergeSplitToEditPanels($modal);
+        }
+
+        $('#modal-merge-settlement').on('input', '#merge-calc-guest-pct-input', function () {
+            handleMergePctSplitChange($('#modal-merge-settlement'), $(this), false);
+        });
+
+        $('#modal-merge-settlement').on('blur', '#merge-calc-guest-pct-input', function () {
+            handleMergePctSplitChange($('#modal-merge-settlement'), $(this), true);
         });
     });
 </script>

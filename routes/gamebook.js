@@ -1993,6 +1993,50 @@ async function fetchCombinedSettlementTotals(gameIds) {
 	return combined;
 }
 
+/** Full breakdown for one Multiple Settlement account_ledger row (see /multiple_settlement_history
+ *  and /game_list/:game_id/multiple_settlement_detail, which both look up the ledger row their own
+ *  way and share this builder). Recomputes Buy-In/Cash-Out/Win-Loss/Rolling from the linked games'
+ *  own records since only the final Payment is persisted on the ledger row itself. */
+async function buildMultipleSettlementDetail(ledger) {
+	const gameIds = String(ledger.LINKED_GAME_IDS || '')
+		.split(',')
+		.map((id) => parseInt(id.trim(), 10))
+		.filter((id) => !isNaN(id));
+	if (!gameIds.length) {
+		return null;
+	}
+
+	const totals = await fetchCombinedSettlementTotals(gameIds);
+
+	const placeholders = gameIds.map(() => '?').join(',');
+	const [gameRows] = await pool.execute(
+		`SELECT IDNo, FNB, COMMISSION_PERCENTAGE FROM game_list WHERE IDNo IN (${placeholders})`,
+		gameIds
+	);
+	const primaryRow = gameRows.find((r) => r.IDNo === ledger.GAME_ID) || {};
+	const addCharge = parseFloat(primaryRow.FNB) || 0;
+	const payment = parseFloat(ledger.AMOUNT) || 0;
+	const settlement = payment + addCharge;
+
+	const rateSet = Array.from(new Set(gameRows.map((r) => String(parseFloat(r.COMMISSION_PERCENTAGE) || 0))));
+	const rateDisplay = rateSet.length === 1 ? rateSet[0] : 'Mixed';
+
+	return {
+		id: ledger.IDNo,
+		encoded_dt: ledger.ENCODED_DT,
+		account_display: ledger.AGENT_CODE ? (ledger.AGENT_CODE + (ledger.AGENT_NAME ? ' - ' + ledger.AGENT_NAME : '')) : 'N/A',
+		game_ids: gameIds,
+		buy_in: totals.total_buy_in,
+		cash_out: totals.total_cash_out,
+		win_loss: totals.winloss,
+		rolling: totals.total_rolling,
+		rate: rateDisplay,
+		settlement: settlement,
+		add_charge: addCharge,
+		payment: payment
+	};
+}
+
 /** Cut-off settlement: both game IDs + Cut Off label for Telegram. */
 function buildSettlementTelegramCutoffContext(primaryGameId, txtCutoffLinkedGameIds) {
 	const primary = parseInt(primaryGameId, 10);
@@ -5350,28 +5394,34 @@ router.post('/add_settlement', async (req, res) => {
 			fakeSettleBefore = 0;
 		}
 
-		// Insert settlement details into account_ledger (GAME_ID for direct link)
-		const settlementRemarks = `Settlement - #${game_id_settle}`;
-		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now]);
-
-		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag)
-		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ?`;
-		await pool.execute(updateQuery, [fnbValue, paymentValue, game_id_settle]);
-
-		// Cut-off pair: mark linked games settled (commission recorded on primary game only)
+		// Cut-off pair / multiple settlement: games settled together alongside the primary
 		const primaryGameId = parseInt(game_id_settle, 10);
-		if (txtCutoffLinkedGameIds && primaryGameId) {
-			const linkedIds = String(txtCutoffLinkedGameIds)
+		const linkedIds = txtCutoffLinkedGameIds
+			? String(txtCutoffLinkedGameIds)
 				.split(',')
 				.map((id) => parseInt(id.trim(), 10))
-				.filter((id) => !isNaN(id) && id > 0 && id !== primaryGameId);
-			for (const linkedId of linkedIds) {
-				await pool.execute(
-					`UPDATE game_list SET SETTLED = 1, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0 WHERE IDNo = ? AND ACTIVE != 0`,
-					[linkedId]
-				);
-			}
+				.filter((id) => !isNaN(id) && id > 0 && id !== primaryGameId)
+			: [];
+		const linkedGameIdsCsv = linkedIds.length ? [primaryGameId, ...linkedIds].join(',') : null;
+
+		// Insert settlement details into account_ledger (GAME_ID for direct link;
+		// LINKED_GAME_IDS records the full group when multiple games were settled together)
+		const settlementRemarks = `Settlement - #${game_id_settle}`;
+		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+
+		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag).
+		// MULTI_SETTLED flags the primary game too when it was settled together with others,
+		// so the Game Book list can color it the same as its linked games.
+		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0, MULTI_SETTLED = ? WHERE IDNo = ?`;
+		await pool.execute(updateQuery, [fnbValue, paymentValue, linkedIds.length ? 1 : 0, game_id_settle]);
+
+		// Cut-off pair: mark linked games settled (commission recorded on primary game only)
+		for (const linkedId of linkedIds) {
+			await pool.execute(
+				`UPDATE game_list SET SETTLED = 1, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, MULTI_SETTLED = 1 WHERE IDNo = ? AND ACTIVE != 0`,
+				[linkedId]
+			);
 		}
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
@@ -5524,6 +5574,212 @@ router.post('/add_settlement', async (req, res) => {
 	} catch (err) {
 		console.error('Error processing settlement:', err);
 		res.status(500).json({ success: false, message: 'Error processing settlement' });
+	}
+});
+
+// History of Multiple/Merge Settlements: one row per account_ledger settlement
+// that had more than one game linked to it (LINKED_GAME_IDS set by /add_settlement above).
+router.get('/multiple_settlement_history', checkSession, async (req, res) => {
+	try {
+		const query = `
+			SELECT
+				al.IDNo AS id,
+				al.ENCODED_DT AS encoded_dt,
+				agent.AGENT_CODE AS agent_code,
+				agent.NAME AS agent_name,
+				al.AMOUNT AS payment,
+				al.LINKED_GAME_IDS AS linked_game_ids,
+				(
+					SELECT GROUP_CONCAT(DISTINCT NULLIF(TRIM(g2.NAME), '') SEPARATOR ', ')
+					FROM game_list gl2
+					LEFT JOIN guest g2 ON g2.IDNo = gl2.GUEST_ID
+					WHERE FIND_IN_SET(gl2.IDNo, al.LINKED_GAME_IDS)
+				) AS guest_names
+			FROM account_ledger al
+			LEFT JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			LEFT JOIN agent ON agent.IDNo = acc.AGENT_ID
+			WHERE al.TRANSACTION_TYPE = 5
+				AND al.TRANSACTION_DESC = 'COMMISSION'
+				AND al.LINKED_GAME_IDS IS NOT NULL
+				AND al.ACTIVE = 1
+			ORDER BY al.ENCODED_DT DESC
+			LIMIT 500
+		`;
+		const [rows] = await pool.execute(query);
+		const result = rows.map((row) => ({
+			id: row.id,
+			encoded_dt: row.encoded_dt,
+			account_display: row.agent_code ? (row.agent_code + (row.agent_name ? ' - ' + row.agent_name : '')) : 'N/A',
+			guest_names: row.guest_names || '',
+			payment: row.payment,
+			linked_game_ids: String(row.linked_game_ids || '')
+				.split(',')
+				.map((id) => parseInt(id.trim(), 10))
+				.filter((id) => !isNaN(id))
+		}));
+		res.json(result);
+	} catch (err) {
+		console.error('Error fetching multiple settlement history:', err);
+		res.status(500).json({ success: false, message: 'Error fetching multiple settlement history' });
+	}
+});
+
+// Per-game breakdown for one Multiple Settlement's linked games (lazy-loaded when a
+// history row is expanded) — each game's own Account/Guest/Buy-In/Cash-Out/Win-Loss/
+// Rolling/Settlement/Add Chg/Total Settlement, before they were combined into the one
+// ledger Payment.
+router.get('/multiple_settlement_history/:id/games', checkSession, async (req, res) => {
+	try {
+		const ledgerId = parseInt(req.params.id, 10);
+		if (!ledgerId) {
+			return res.status(400).json({ success: false, message: 'Invalid id' });
+		}
+
+		const [ledgerRows] = await pool.execute(
+			`SELECT IDNo, LINKED_GAME_IDS FROM account_ledger WHERE IDNo = ? AND LINKED_GAME_IDS IS NOT NULL AND ACTIVE = 1 LIMIT 1`,
+			[ledgerId]
+		);
+		if (!ledgerRows.length) {
+			return res.status(404).json({ success: false, message: 'Settlement not found' });
+		}
+
+		const gameIds = String(ledgerRows[0].LINKED_GAME_IDS || '')
+			.split(',')
+			.map((id) => parseInt(id.trim(), 10))
+			.filter((id) => !isNaN(id));
+		if (!gameIds.length) {
+			return res.json([]);
+		}
+
+		const placeholders = gameIds.map(() => '?').join(',');
+		const [gameRows] = await pool.execute(
+			`SELECT
+				game_list.IDNo,
+				game_list.COMMISSION_TYPE,
+				game_list.COMMISSION_PERCENTAGE,
+				agent.AGENT_CODE,
+				agent.NAME AS AGENT_NAME,
+				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
+				COALESCE((
+					SELECT SUM(gs.AMOUNT)
+					FROM game_services gs
+					WHERE gs.GAME_ID = game_list.IDNo AND gs.ACTIVE = 1 AND gs.TRANSACTION_ID = 3
+				), 0) AS ADD_CHG
+			 FROM game_list
+			 JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+			 JOIN agent ON agent.IDNo = account.AGENT_ID
+			 LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
+			 WHERE game_list.IDNo IN (${placeholders})`,
+			gameIds
+		);
+		const gameInfoById = {};
+		gameRows.forEach((r) => { gameInfoById[r.IDNo] = r; });
+
+		const results = [];
+		for (const gid of gameIds) {
+			const totals = await fetchSettlementTotalsForGameId(gid);
+			const info = gameInfoById[gid] || {};
+			const rate = parseFloat(info.COMMISSION_PERCENTAGE) || 0;
+			// Mirrors the Game Book table's own per-row formula (game_list.js): Rolling/Losing
+			// types (1, 3) always charge a positive commission off the rolling volume, so the
+			// rolling figure is abs()'d before applying the rate — only Shared (2) keeps the
+			// sign, since its commission is meant to track the actual win/loss.
+			const settlement = Number(info.COMMISSION_TYPE) === 2
+				? Math.round((totals.winloss * rate) / 100)
+				: Math.round((Math.abs(totals.total_rolling) * rate) / 100);
+			const addChg = parseFloat(info.ADD_CHG) || 0;
+
+			results.push({
+				game_id: gid,
+				account_display: info.AGENT_CODE || 'N/A',
+				guest_name: info.GUEST_NAME || '-',
+				buy_in: totals.total_buy_in,
+				cash_out: totals.total_cash_out,
+				win_loss: totals.winloss,
+				rolling: totals.total_rolling,
+				settlement: settlement,
+				add_chg: addChg,
+				total_settlement: settlement - addChg
+			});
+		}
+
+		res.json(results);
+	} catch (err) {
+		console.error('Error fetching multiple settlement games:', err);
+		res.status(500).json({ success: false, message: 'Error fetching linked games' });
+	}
+});
+
+// Full breakdown (Buy-In/Cash-Out/Win-Loss/Rolling/Rate/Settlement/Add Charge/Payment) for one
+// historical Multiple Settlement — recomputed from the linked games' own records, since only the
+// final Payment is persisted on the account_ledger row itself.
+router.get('/multiple_settlement_history/:id/detail', checkSession, async (req, res) => {
+	try {
+		const ledgerId = parseInt(req.params.id, 10);
+		if (!ledgerId) {
+			return res.status(400).json({ success: false, message: 'Invalid id' });
+		}
+
+		const [ledgerRows] = await pool.execute(
+			`SELECT al.IDNo, al.GAME_ID, al.AMOUNT, al.ENCODED_DT, al.LINKED_GAME_IDS,
+			        agent.AGENT_CODE, agent.NAME AS AGENT_NAME
+			 FROM account_ledger al
+			 LEFT JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			 LEFT JOIN agent ON agent.IDNo = acc.AGENT_ID
+			 WHERE al.IDNo = ? AND al.LINKED_GAME_IDS IS NOT NULL AND al.ACTIVE = 1
+			 LIMIT 1`,
+			[ledgerId]
+		);
+		if (!ledgerRows.length) {
+			return res.status(404).json({ success: false, message: 'Settlement not found' });
+		}
+		const detail = await buildMultipleSettlementDetail(ledgerRows[0]);
+		if (!detail) {
+			return res.status(404).json({ success: false, message: 'No linked games found for this settlement' });
+		}
+		res.json(detail);
+	} catch (err) {
+		console.error('Error fetching multiple settlement detail:', err);
+		res.status(500).json({ success: false, message: 'Error fetching settlement detail' });
+	}
+});
+
+// Given a single game id, find the Multiple Settlement batch it was settled as part of
+// (if any) and return the same combined breakdown as the route above. Used by the Game
+// Book "Settlement" icon: a multi-settled game's own row has PAYMENT/FNB zeroed out
+// (only the batch's primary game carries them), so this resolves the real numbers.
+router.get('/game_list/:game_id/multiple_settlement_detail', checkSession, async (req, res) => {
+	try {
+		const gameId = parseInt(req.params.game_id, 10);
+		if (!gameId) {
+			return res.status(400).json({ success: false, message: 'Invalid game id' });
+		}
+
+		const [ledgerRows] = await pool.execute(
+			`SELECT al.IDNo, al.GAME_ID, al.AMOUNT, al.ENCODED_DT, al.LINKED_GAME_IDS,
+			        agent.AGENT_CODE, agent.NAME AS AGENT_NAME
+			 FROM account_ledger al
+			 LEFT JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			 LEFT JOIN agent ON agent.IDNo = acc.AGENT_ID
+			 WHERE al.LINKED_GAME_IDS IS NOT NULL
+			   AND al.ACTIVE = 1
+			   AND FIND_IN_SET(?, al.LINKED_GAME_IDS)
+			 ORDER BY al.ENCODED_DT DESC
+			 LIMIT 1`,
+			[gameId]
+		);
+		if (!ledgerRows.length) {
+			return res.status(404).json({ success: false, message: 'This game was not part of a Multiple Settlement' });
+		}
+
+		const detail = await buildMultipleSettlementDetail(ledgerRows[0]);
+		if (!detail) {
+			return res.status(404).json({ success: false, message: 'No linked games found for this settlement' });
+		}
+		res.json(detail);
+	} catch (err) {
+		console.error('Error fetching multiple settlement detail by game id:', err);
+		res.status(500).json({ success: false, message: 'Error fetching settlement detail' });
 	}
 });
 
