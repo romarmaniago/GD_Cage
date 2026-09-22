@@ -127,7 +127,8 @@ function computeGameMetrics(records, gl) {
 	};
 }
 
-async function loadGamesInDateRange(startStr, endStr) {
+async function loadGamesInDateRange(startStr, endStr, includeUnsettled = false) {
+	const settledCondition = includeUnsettled ? '' : 'AND gl.SETTLED = 1';
 	const [gameRows] = await pool.execute(
 		`SELECT
 			CAST(gl.PROGRAM_DATE AS CHAR) AS program_day,
@@ -137,7 +138,7 @@ async function loadGamesInDateRange(startStr, endStr) {
 			gl.HOUSE_SHARE
 		FROM game_list gl
 		WHERE gl.ACTIVE != 0
-		  AND gl.SETTLED = 1
+		  ${settledCondition}
 		  AND CAST(gl.PROGRAM_DATE AS DATE) >= CAST(? AS DATE)
 		  AND CAST(gl.PROGRAM_DATE AS DATE) <= CAST(? AS DATE)
 		ORDER BY gl.PROGRAM_DATE ASC, gl.IDNo ASC`,
@@ -444,10 +445,12 @@ async function computeNetProfitTotals(startStr, endStr) {
  * fallback for the dashboard's "Current Time W/L" panel when no manual entry exists
  * for a date. Reuses the same per-game aggregation (computeGameMetrics) as on-game
  * details and Net Profit, so figures line up with what game history already reports.
+ * Includes unsettled games too (unlike Net Profit, which is settled-only) so a game
+ * still on the Gamebook shows up here right away instead of waiting for settlement.
  * Returns Map<date, { buyIn, cashOut, rolling, wl }>.
  */
 async function computeGamebookAutoTotalsByDate(startStr, endStr) {
-	const gameRows = await loadGamesInDateRange(startStr, endStr);
+	const gameRows = await loadGamesInDateRange(startStr, endStr, true);
 	const recordsByGame = await fetchRecordsForGames(gameRows.map((r) => r.game_id));
 
 	const byDate = new Map();

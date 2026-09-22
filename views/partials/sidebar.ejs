@@ -766,6 +766,8 @@ aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .item-name {
                               <span class="item-name">Net profit</span>
                           </a>
                       </li>
+                      <% /* Hidden muna: Monthly Settle at Monthly Settle History */ %>
+                      <% if (false) { %>
                       <li class="nav-item <%= currentPage === 'dashboard_history' ? 'monthly-settle-parent' : '' %>">
                           <a class="nav-link" href="#" id="sidebarMonthlySettle">
                               <i class="icon">
@@ -786,6 +788,7 @@ aside.sidebar.gd-sidebar.sidebar-mini .sub-nav .nav-link .item-name {
                               <span class="item-name"><%= __('sidebar.reset_history') %></span>
                           </a>
                       </li>
+                      <% } %>
                   </ul>
               </li>
               <% } %>
