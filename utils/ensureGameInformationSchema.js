@@ -48,8 +48,10 @@ async function ensureGameInformationSchema(pool) {
 				CASH_OUT DECIMAL(18, 2) NOT NULL DEFAULT 0,
 				WIN_LOSS DECIMAL(18, 2) NOT NULL DEFAULT 0,
 				ROLLING DECIMAL(18, 2) NOT NULL DEFAULT 0,
-				COMMISSION_TYPE TINYINT NOT NULL DEFAULT 1 COMMENT '1=R rolling, 2=S share, 3=L loss',
+				COMMISSION_TYPE TINYINT NOT NULL DEFAULT 1 COMMENT '1=Rolling, 2=Shared, 3=Share + Rolling',
 				COMMISSION_PERCENTAGE DECIMAL(8, 2) NOT NULL DEFAULT 0,
+				SHARE_PERCENTAGE DECIMAL(5, 2) NOT NULL DEFAULT 0 COMMENT '% of Win/Loss',
+				ROLLING_PERCENTAGE DECIMAL(5, 2) NOT NULL DEFAULT 100 COMMENT '% of the rolling rate applied',
 				COMMISSION DECIMAL(18, 2) NOT NULL DEFAULT 0,
 				ADD_CHARGE DECIMAL(18, 2) NOT NULL DEFAULT 0,
 				TOTAL_SETTLEMENT DECIMAL(18, 2) NOT NULL DEFAULT 0,
@@ -71,7 +73,7 @@ async function ensureGameInformationSchema(pool) {
 		return true;
 	}
 
-	const idColumns = [
+	const addedColumns = [
 		{
 			name: 'ACCOUNT_ID',
 			ddl: `ADD COLUMN ACCOUNT_ID INT NULL DEFAULT NULL COMMENT 'account.IDNo' AFTER GAME_NO`
@@ -79,10 +81,18 @@ async function ensureGameInformationSchema(pool) {
 		{
 			name: 'GUEST_ID',
 			ddl: `ADD COLUMN GUEST_ID INT NULL DEFAULT NULL COMMENT 'guest.IDNo' AFTER ACCOUNT_ID`
+		},
+		{
+			name: 'SHARE_PERCENTAGE',
+			ddl: `ADD COLUMN SHARE_PERCENTAGE DECIMAL(5, 2) NOT NULL DEFAULT 0 COMMENT '% of Win/Loss' AFTER COMMISSION_PERCENTAGE`
+		},
+		{
+			name: 'ROLLING_PERCENTAGE',
+			ddl: `ADD COLUMN ROLLING_PERCENTAGE DECIMAL(5, 2) NOT NULL DEFAULT 100 COMMENT '% of the rolling rate applied' AFTER SHARE_PERCENTAGE`
 		}
 	];
 
-	for (const col of idColumns) {
+	for (const col of addedColumns) {
 		if (!(await columnExists(pool, 'game_information', col.name))) {
 			await pool.execute(`ALTER TABLE game_information ${col.ddl}`);
 			console.log(`[game_information] Added column ${col.name}`);

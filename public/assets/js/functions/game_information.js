@@ -53,15 +53,10 @@
 			label = 'S';
 			cls = 'commission-badge-s';
 			title = 'Shared';
-		} else if (type === 3 && row.SOURCE === 'gamebook') {
-			// Game Book type 3 = Share + Rolling
+		} else if (type === 3) {
 			label = 'S+R';
 			cls = 'commission-badge-l';
 			title = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
-		} else if (type === 3) {
-			label = 'L';
-			cls = 'commission-badge-l';
-			title = 'Lossing';
 		}
 		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
 	}
@@ -205,19 +200,42 @@
 		updateManualCommission();
 	}
 
-	function calcManualCommission(commissionType, rolling, winLoss, percentage) {
-		var type = parseInt(commissionType, 10) || 1;
-		var pct = parseAmountInput(percentage);
-		var base = type === 1 ? Math.abs(parseAmountInput(rolling)) : parseAmountInput(winLoss);
-		return Math.round((base * pct) / 100);
+	/** Share 0 / Rolling 100 = Rolling, Share only = Shared, anything else = Share + Rolling. */
+	function deriveManualCommissionType(sharePct, rollingPct) {
+		if (sharePct === 0 && rollingPct === 100) return 1;
+		if (sharePct > 0 && rollingPct === 0) return 2;
+		return 3;
+	}
+
+	function getManualCommissionRow() {
+		var sharePct = parseAmountInput($('#gi-manual-share-pct').val());
+		var rollingPct = parseAmountInput($('#gi-manual-rolling-pct').val());
+		var type = deriveManualCommissionType(sharePct, rollingPct);
+		return {
+			COMMISSION_TYPE: type,
+			// Shared keeps Game Book semantics: rate = Share %.
+			COMMISSION_PERCENTAGE: type === 2 ? sharePct : parseAmountInput($('#gi-manual-commission-pct').val()),
+			SHARE_PERCENTAGE: sharePct,
+			ROLLING_PERCENTAGE: rollingPct
+		};
+	}
+
+	function getManualCommissionType() {
+		return getManualCommissionRow().COMMISSION_TYPE;
+	}
+
+	function calcManualCommission(rolling, winLoss) {
+		return window.computeGameCommission(
+			getManualCommissionRow(),
+			parseAmountInput(winLoss),
+			parseAmountInput(rolling)
+		);
 	}
 
 	function updateManualCommission() {
 		var commission = calcManualCommission(
-			$('#gi-manual-commission-type').val(),
 			$('#gi-manual-rolling').val(),
-			$('#gi-manual-win-loss').val(),
-			$('#gi-manual-commission-pct').val()
+			calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val())
 		);
 		$('#gi-manual-commission').val(displayAmountInput(commission));
 		updateManualSettlement();
@@ -233,7 +251,7 @@
 	}
 
 	function updateManualSettlement() {
-		var commissionType = $('#gi-manual-commission-type').val();
+		var commissionType = getManualCommissionType();
 		var winLoss = calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val());
 		var settlement;
 		if (parseInt(commissionType, 10) === 2) {
@@ -587,18 +605,7 @@
 		flatpickr(el, options || {});
 	}
 
-	function getDefaultGameRatePct(commissionType) {
-		var type = parseInt(commissionType, 10);
-		if (type === 1) return 1.5;
-		if (type === 2 || type === 3) return 50;
-		return 1.5;
-	}
-
-	function setDefaultGameRatePct() {
-		var pct = getDefaultGameRatePct($('#gi-manual-commission-type').val());
-		$('#gi-manual-commission-pct').val(formatAmountInput(pct));
-		updateManualCommission();
-	}
+	var DEFAULT_MANUAL_RATE_PCT = 1.5;
 
 	function initManualDateTimePicker(el, defaultDate) {
 		initManualDatePicker(el, {
@@ -658,8 +665,7 @@
 			(rows || []).forEach(function (a) {
 				var id = a.account_id;
 				if (id == null) return;
-				var parts = [a.agent_code, a.agent_name].filter(Boolean);
-				var label = parts.length ? parts.join(' - ') : 'Account #' + id;
+				var label = a.agent_code || 'Account #' + id;
 				$sel.append(
 					$('<option/>', {
 						value: String(id),
@@ -760,9 +766,10 @@
 		$('#gi-manual-game-no').val('');
 		resetGiAccountGuestFields();
 		$('#gi-manual-game-type').val('LIVE');
-		$('#gi-manual-commission-type').val('1');
 		$('.gi-manual-amount').val('');
-		setDefaultGameRatePct();
+		$('#gi-manual-share-pct').val('0');
+		$('#gi-manual-rolling-pct').val('100');
+		$('#gi-manual-commission-pct').val(formatAmountInput(DEFAULT_MANUAL_RATE_PCT));
 		updateManualWinLoss();
 
 		var today = ymd(new Date());
@@ -782,13 +789,18 @@
 		$('#modal-gi-manual-game-label').text(t('editGame', 'Edit Game'));
 		$('#gi-manual-game-no').val(row.GAME_NO || '');
 		$('#gi-manual-game-type').val(String(row.GAME_TYPE || 'LIVE').toUpperCase() === 'TELEBET' ? 'TELEBET' : 'LIVE');
-		$('#gi-manual-commission-type').val(String(row.COMMISSION_TYPE || '1'));
+		var split = window.getShareRollingSplit(row);
+		$('#gi-manual-share-pct').val(String(Number(split.sharePct)));
+		$('#gi-manual-rolling-pct').val(String(Number(split.rollingPct)));
 		$('#gi-manual-buy-in').val(displayAmountInput(row.BUY_IN));
 		$('#gi-manual-cash-out').val(displayAmountInput(row.CASH_OUT));
 		updateManualWinLoss();
 		$('#gi-manual-rolling').val(displayAmountInput(row.ROLLING));
 		$('#gi-manual-add-charge').val(displayAmountInput(row.ADD_CHARGE));
-		$('#gi-manual-commission-pct').val(formatAmountInput(row.COMMISSION_PERCENTAGE));
+		// Shared rows store Share % as COMMISSION_PERCENTAGE; the Rate box is unused for them.
+		$('#gi-manual-commission-pct').val(formatAmountInput(
+			parseInt(row.COMMISSION_TYPE, 10) === 2 ? DEFAULT_MANUAL_RATE_PCT : row.COMMISSION_PERCENTAGE
+		));
 		updateManualCommission();
 
 		initManualDatePicker(document.getElementById('gi-manual-program-date'), {
@@ -828,14 +840,10 @@
 
 	function collectManualPayload() {
 		var winLoss = calcManualWinLoss($('#gi-manual-buy-in').val(), $('#gi-manual-cash-out').val());
-		var commission = calcManualCommission(
-			$('#gi-manual-commission-type').val(),
-			$('#gi-manual-rolling').val(),
-			winLoss,
-			$('#gi-manual-commission-pct').val()
-		);
+		var commissionRow = getManualCommissionRow();
+		var commission = calcManualCommission($('#gi-manual-rolling').val(), winLoss);
 		var addCharge = parseAmountInput($('#gi-manual-add-charge').val());
-		var signedCommission = parseInt($('#gi-manual-commission-type').val(), 10) === 2
+		var signedCommission = commissionRow.COMMISSION_TYPE === 2
 			? giSharedSignedCommission(commission, winLoss)
 			: commission;
 		return {
@@ -849,8 +857,9 @@
 			cashOut: parseAmountInput($('#gi-manual-cash-out').val()),
 			winLoss: winLoss,
 			rolling: parseAmountInput($('#gi-manual-rolling').val()),
-			commissionType: $('#gi-manual-commission-type').val(),
 			commissionPercentage: parseAmountInput($('#gi-manual-commission-pct').val()),
+			sharePercentage: commissionRow.SHARE_PERCENTAGE,
+			rollingPercentage: commissionRow.ROLLING_PERCENTAGE,
 			commission: signedCommission,
 			addCharge: addCharge,
 			totalSettlement: signedCommission - addCharge,
@@ -959,16 +968,16 @@
 			deleteManualGame(manualId);
 		});
 
-		$(document).on('change', '#gi-manual-commission-type', setDefaultGameRatePct);
-		$(document).on('input', '.gi-manual-amount, #gi-manual-commission-pct', function () {
+		$(document).on('input', '.gi-manual-amount, #gi-manual-commission-pct, .gi-manual-split-pct', function () {
 			if (this.id === 'gi-manual-win-loss' || this.id === 'gi-manual-settlement' || this.id === 'gi-manual-commission') return;
-			var formatted = this.id === 'gi-manual-commission-pct'
+			var isPct = this.id === 'gi-manual-commission-pct' || $(this).hasClass('gi-manual-split-pct');
+			var formatted = isPct
 				? formatAmountInput($(this).val())
 				: formatWholeAmountInput($(this).val());
 			$(this).val(formatted);
 			if (this.id === 'gi-manual-buy-in' || this.id === 'gi-manual-cash-out') {
 				updateManualWinLoss();
-			} else if (this.id === 'gi-manual-rolling' || this.id === 'gi-manual-commission-pct') {
+			} else if (this.id === 'gi-manual-rolling' || isPct) {
 				updateManualCommission();
 			} else if (this.id === 'gi-manual-add-charge') {
 				updateManualSettlement();

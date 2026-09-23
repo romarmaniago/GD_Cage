@@ -5,6 +5,7 @@ const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { buildGameInformationGroupedExportXlsx } = require('../utils/GameInformationExportService');
 const { fetchGamebookGameInformationRows } = require('../utils/gameInformationGamebook');
+const { parseShareRollingInput } = require('../utils/commissionCalc');
 
 const GAME_INFORMATION_SELECT = `
 	SELECT
@@ -27,6 +28,8 @@ const GAME_INFORMATION_SELECT = `
 		gi.ROLLING,
 		gi.COMMISSION_TYPE,
 		gi.COMMISSION_PERCENTAGE,
+		gi.SHARE_PERCENTAGE,
+		gi.ROLLING_PERCENTAGE,
 		gi.COMMISSION,
 		gi.ADD_CHARGE,
 		gi.TOTAL_SETTLEMENT,
@@ -72,9 +75,11 @@ function parseAmount(value) {
 	return Number(clean);
 }
 
-function parseCommissionType(value) {
-	const n = parseInt(value, 10);
-	return n === 1 || n === 2 || n === 3 ? n : null;
+/** Share 0 / Rolling 100 = Rolling, Share only = Shared, anything else = Share + Rolling. */
+function deriveCommissionType(sharePct, rollingPct) {
+	if (sharePct === 0 && rollingPct === 100) return 1;
+	if (sharePct > 0 && rollingPct === 0) return 2;
+	return 3;
 }
 
 function parseGameType(value) {
@@ -104,15 +109,19 @@ function normalizePayload(body) {
 	const gameEnded = parseOptionalDateTime(body.gameEnded);
 	const gameEndKind = gameEnded ? 'datetime' : 'end_game';
 
-	const commissionType = parseCommissionType(body.commissionType);
-	if (!commissionType) {
-		return { error: 'Game Rate type is required (R, S, or L).' };
-	}
+	const shareRolling = parseShareRollingInput({
+		share_percentage: body.sharePercentage,
+		rolling_percentage: body.rollingPercentage
+	});
+	if (shareRolling.error) return { error: shareRolling.error };
+	const commissionType = deriveCommissionType(shareRolling.sharePct, shareRolling.rollingPct);
 
-	const commissionPct = parseAmount(body.commissionPercentage);
-	if (commissionPct === null || commissionPct < 0) {
-		return { error: 'Game Rate percentage is required.' };
+	const ratePct = parseAmount(body.commissionPercentage);
+	if (commissionType !== 2 && (ratePct === null || ratePct < 0)) {
+		return { error: 'Rate percentage is required.' };
 	}
+	// Shared keeps Game Book semantics: COMMISSION_PERCENTAGE = Share %.
+	const commissionPct = commissionType === 2 ? shareRolling.sharePct : ratePct;
 
 	const amounts = {
 		buyIn: parseAmount(body.buyIn),
@@ -150,6 +159,8 @@ function normalizePayload(body) {
 		...amounts,
 		commissionType,
 		commissionPercentage: commissionPct,
+		sharePercentage: shareRolling.sharePct,
+		rollingPercentage: shareRolling.rollingPct,
 		gameEndKind,
 		gameEnded
 	};
@@ -213,9 +224,10 @@ router.post('/game_information_data', checkSession, async (req, res) => {
 			`INSERT INTO game_information (
 				PROGRAM_DATE, GAME_START, GAME_TYPE, GAME_NO, ACCOUNT_ID, GUEST_ID,
 				BUY_IN, CASH_OUT, WIN_LOSS, ROLLING,
-				COMMISSION_TYPE, COMMISSION_PERCENTAGE, COMMISSION, ADD_CHARGE, TOTAL_SETTLEMENT,
+				COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE,
+				COMMISSION, ADD_CHARGE, TOTAL_SETTLEMENT,
 				GAME_END_KIND, GAME_ENDED, ENCODED_BY, ENCODED_DT
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				payload.programDate,
 				payload.gameStart,
@@ -229,6 +241,8 @@ router.post('/game_information_data', checkSession, async (req, res) => {
 				payload.rolling,
 				payload.commissionType,
 				payload.commissionPercentage,
+				payload.sharePercentage,
+				payload.rollingPercentage,
 				payload.commission,
 				payload.addCharge,
 				payload.totalSettlement,
@@ -259,7 +273,8 @@ router.put('/game_information_data/:id', checkSession, async (req, res) => {
 			`UPDATE game_information SET
 				PROGRAM_DATE = ?, GAME_START = ?, GAME_TYPE = ?, GAME_NO = ?, ACCOUNT_ID = ?, GUEST_ID = ?,
 				BUY_IN = ?, CASH_OUT = ?, WIN_LOSS = ?, ROLLING = ?,
-				COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ?, COMMISSION = ?, ADD_CHARGE = ?, TOTAL_SETTLEMENT = ?,
+				COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ?, SHARE_PERCENTAGE = ?, ROLLING_PERCENTAGE = ?,
+				COMMISSION = ?, ADD_CHARGE = ?, TOTAL_SETTLEMENT = ?,
 				GAME_END_KIND = ?, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ?
 			WHERE IDNo = ? AND ACTIVE = 1`,
 			[
@@ -275,6 +290,8 @@ router.put('/game_information_data/:id', checkSession, async (req, res) => {
 				payload.rolling,
 				payload.commissionType,
 				payload.commissionPercentage,
+				payload.sharePercentage,
+				payload.rollingPercentage,
 				payload.commission,
 				payload.addCharge,
 				payload.totalSettlement,
