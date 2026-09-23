@@ -1687,7 +1687,8 @@ async function isArchivedPendingGuestResolveBuyin(db, gameId, recordId) {
 }
 
 /**
- * Record roller chips "missing" in junket_loss once per game when fault is resolved via junket new game.
+ * Record roller chips "missing" in junket_loss once per game when a pending game is resolved.
+ * The loss is offset by a LOSS buy-in (not cash), so the row is flagged NON_CASH = 1 and kept out of cash balance.
  */
 async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, resolveLabel, remarks, personInvolved, accountOverride) {
 	const missingAmount = parseFloat(amount) || 0;
@@ -1719,7 +1720,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		const linkedLossId = parseInt(gameRows[0].JUNKET_LOSS_ID, 10) || null;
 		if (linkedLossId) {
 			await db.execute(
-				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, GAME_ID = ?,
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, GAME_ID = ?, NON_CASH = 1,
 				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, gameId, encodedBy, dateNow, encodedBy, dateNow, linkedLossId]
 			);
@@ -1734,7 +1735,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		if (existingByGame.length) {
 			const lossId = existingByGame[0].IDNo;
 			await db.execute(
-				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?,
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, NON_CASH = 1,
 				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, encodedBy, dateNow, encodedBy, dateNow, lossId]
 			);
@@ -1743,8 +1744,8 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		}
 
 		const [insertResult] = await db.execute(
-			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, PAYMENT_TYPE, ACCOUNT_ID, GUEST_ID, GAME_ID, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, PAYMENT_TYPE, ACCOUNT_ID, GUEST_ID, GAME_ID, NON_CASH, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
 			[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, gameId, encodedBy, dateNow]
 		);
 		const newLossId = insertResult.insertId;
@@ -1754,26 +1755,6 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		console.error('ensureJunketLossForRollerMissing (run database/add_game_junket_loss_link.sql?):', err);
 		return null;
 	}
-}
-
-async function assertPendingGame(db, gameId) {
-	const [rows] = await db.execute(
-		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE,
-		 PENDING_ROLLER_RESOLVE, PENDING_ROLLER_LINK_GAME_ID
-		 FROM game_list WHERE IDNo = ? AND ACTIVE = 3 LIMIT 1`,
-		[gameId]
-	);
-	if (!rows.length) {
-		const err = new Error('Game is not in PENDING status.');
-		err.statusCode = 400;
-		throw err;
-	}
-	if (rows[0].SETTLED === 1) {
-		const err = new Error('Cannot resolve a settled game.');
-		err.statusCode = 403;
-		throw err;
-	}
-	return rows[0];
 }
 
 function buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, fallback) {
@@ -1798,6 +1779,10 @@ function creditGuarantorRequiredError(creditTotal, creditGuarantor) {
 	}
 	return null;
 }
+
+// game_record.TRANSACTION for a pending-resolve Loss Amount buy-in: counts toward the guest's buy-in
+// (W/L) but is not cash, deposit or credit — no ledger row, excluded from every cash total.
+const GAME_RECORD_TRANS_LOSS = 7;
 
 const GAME_RECORD_BUYIN_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 const GAME_RECORD_BUYIN_WITH_REMARKS_SQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -5031,285 +5016,178 @@ router.get('/game_list/:id/guest_history', async (req, res) => {
 	}
 });
 
-// PENDING resolve — guest fault: additional buy-in, then end game (ACTIVE = 1)
-router.post('/game_list/pending_resolve/guest_buyin', async (req, res) => {
-	try {
-		const encodedBy = req.session.user_id;
-		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+// PENDING resolve — Loss Amount + Deposit (selected account) + Cash Paid must equal the outstanding
+// roller balance. All three are recorded as buy-ins on the pending game (Additional Buy-in) or on a
+// new game for the same guest (New Game). The Loss portion is a non-cash LOSS buy-in plus a
+// NON_CASH junket_loss row, so it never touches cash balance. Roller
+// chips are then returned in full and the pending game is ended (ACTIVE = 1).
+function pendingResolveError(statusCode, message) {
+	const err = new Error(message);
+	err.statusCode = statusCode;
+	return err;
+}
 
-		const gameId = parseInt(req.body.pending_game_id || req.body.game_id, 10);
-		const accountId = parseInt(req.body.txtAccountCode, 10);
-		const transType = parseInt(req.body.txtTransType, 10) || null;
-		const lossAccountId = parseInt(req.body.txtLossAccountCode, 10) || null;
-		const nnAmount = parseFloat(String(req.body.txtNN || '0').replace(/,/g, '')) || 0;
-		const lossAmount = parseFloat(String(req.body.txtLossAmount || '0').replace(/,/g, '')) || 0;
-		const requiredBalance = parseFloat(String(req.body.required_balance || '0').replace(/,/g, '')) || 0;
-		const enteredTotal = nnAmount + lossAmount;
+async function getAccountDepositBalanceDb(db, accountId) {
+	const [rows] = await db.execute(
+		`SELECT transaction_type.TRANSACTION AS TRANSACTION, account_ledger.AMOUNT AS AMOUNT
+		 FROM account_ledger
+		 JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+		 WHERE account_ledger.ACTIVE = 1
+		   AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
+		   AND account_ledger.ACCOUNT_ID = ?`,
+		[accountId]
+	);
+	let deposit = 0, withdraw = 0, markerRedeem = 0, markerReturn = 0;
+	(rows || []).forEach((row) => {
+		const amt = parseFloat(row.AMOUNT) || 0;
+		switch (String(row.TRANSACTION || '').trim()) {
+			case 'DEPOSIT': deposit += amt; break;
+			case 'WITHDRAW': withdraw += amt; break;
+			case 'MARKER REDEEM': markerRedeem += amt; break;
+			case 'IOU RETURN DEPOSIT': markerReturn += amt; break;
+		}
+	});
+	return deposit + markerRedeem - withdraw - markerReturn;
+}
 
-		if (!gameId || !accountId) {
-			return res.status(400).json({ error: 'Missing required fields.' });
-		}
-		if (enteredTotal <= 0) {
-			return res.status(400).json({ error: 'Buy-in + Loss Amount must be greater than zero.' });
-		}
-		if (nnAmount > 0 && !transType) {
-			return res.status(400).json({ error: 'Please select Cash or Deposit for the Buy-in portion.' });
-		}
-		if (lossAmount > 0 && !lossAccountId) {
-			return res.status(400).json({ error: 'Please select an account for the Loss Amount game.' });
-		}
-		if (nnAmount > 0 && nnAmount % 1000 !== 0) {
-			return res.status(400).json({ error: 'Buy-in must be in thousands (e.g. 1,000 / 2,000).' });
-		}
-		if (lossAmount > 0 && lossAmount % 1000 !== 0) {
-			return res.status(400).json({ error: 'Loss Amount must be in thousands (e.g. 1,000 / 2,000).' });
-		}
+router.post('/game_list/pending_resolve', async (req, res) => {
+	const encodedBy = req.session.user_id;
+	if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
 
-		const pendingGame = await assertPendingGame(pool, gameId);
-		if (parseInt(pendingGame.ACCOUNT_ID, 10) !== accountId) {
-			return res.status(400).json({ error: 'Account does not match this game.' });
-		}
+	const pendingGameId = parseInt(req.body.pending_game_id, 10);
+	const resolveMode = String(req.body.resolve_mode || '');
+	const lossAmount = parseChipAmount(req.body.txtLossAmount);
+	const depositAccountId = parseInt(req.body.txtDepositAccountId, 10) || null;
+	const depositAmount = parseChipAmount(req.body.txtDepositAmount);
+	const cashAmount = parseChipAmount(req.body.txtCashPaid);
+	const requiredBalance = parseChipAmount(req.body.required_balance);
+	const enteredTotal = lossAmount + depositAmount + cashAmount;
 
-		if (lossAccountId) {
-			const [lossAccountRows] = await pool.execute(
-				`SELECT acc.IDNo FROM account acc WHERE acc.IDNo = ? LIMIT 1`,
-				[lossAccountId]
-			);
-			if (!lossAccountRows.length) {
-				return res.status(400).json({ error: 'Selected account was not found.' });
-			}
-		}
-
-		const rollerTotals = await getRollerTotalsForGame(pool, gameId);
-		const balance = rollerTotals.requiredReturnTotal;
-		if (balance <= 0) {
-			return res.status(400).json({ error: 'No outstanding roller chips balance on this game.' });
-		}
-		if (Math.abs(enteredTotal - balance) > 0.001) {
-			return res.status(400).json({
-				error: `Buy-in + Loss Amount (${enteredTotal}) must equal outstanding balance (${balance}).`
-			});
-		}
-		if (requiredBalance > 0 && Math.abs(requiredBalance - balance) > 0.001) {
-			return res.status(400).json({ error: 'Outstanding balance has changed. Please reopen the modal.' });
-		}
-
-		if (transType === 2 && nnAmount > 0) {
-			const guestBal = parseFloat(String(req.body.totalBalanceGuest2 || '0').replace(/,/g, '')) || 0;
-			if (nnAmount > guestBal) {
-				return res.status(400).json({ error: 'Deposit amount exceeds guest available balance.' });
-			}
-		}
-
-		const dateNow = new Date();
-		const programDate = formatLocalDateYmd(dateNow);
-		const initialMOP = 'CASH';
-
-		// Buy-in adds directly to this same guest's pending game (as before).
-		let buyinResult = { buyinRecordIds: null };
-		if (nnAmount > 0) {
-			buyinResult = await insertAdditionalBuyinForGame(pool, {
-				gameId,
-				accountId,
-				transType,
-				nnAmount,
-				ccAmount: 0,
-				encodedBy,
-				dateNow
-			});
-		}
-
-		// Loss Amount opens a SEPARATE new game under the selected account, at game rate 0 — a pure
-		// write-off, same concept as the New Game flow's loss game.
-		let lossGameId = null;
-		if (lossAmount > 0) {
-			const [lossGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
-				[lossAccountId, null, 'LIVE', initialMOP, 1, 0, encodedBy, dateNow, programDate]
-			);
-			lossGameId = lossGameResult.insertId;
-			const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-			await pool.execute(gameRecordSQL, [lossGameId, dateNow, 1, 0, lossAmount, 0, 1, encodedBy, dateNow]);
-			await pool.execute(gameRecordSQL, [lossGameId, dateNow, 3, 0, lossAmount, 0, 1, encodedBy, dateNow]);
-		}
-
-		// Return the full outstanding roller float regardless of the guest/junket split —
-		// the guest's buy-in and the loss game together close it out.
-		const rollerReturn = await insertAutoRollerReturnForPendingGame(pool, gameId, encodedBy, dateNow, rollerTotals);
-		const remarks = req.body.txtRemarks;
-		await setPendingRollerResolve(
-			pool,
-			gameId,
-			1,
-			lossGameId,
-			encodedBy,
-			remarks,
-			rollerReturn.inserted ? rollerReturn.recordId : null,
-			buyinResult.buyinRecordIds
-		);
-
-		let junketLossId = null;
-		if (lossAmount > 0) {
-			const personInvolved = req.body.txtPersonInvolved;
-			junketLossId = await ensureJunketLossForRollerMissing(
-				pool, gameId, lossAmount, encodedBy, 'Additional Buy-in (Split)', remarks, personInvolved,
-				{ accountId: lossAccountId, guestId: null }
-			);
-		}
-
-		res.json({
-			success: true,
-			message: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
-			pending_roller_resolve: 1,
-			roller_return: rollerReturn,
-			loss_game_id: lossGameId,
-			junket_loss_id: junketLossId
-		});
-	} catch (error) {
-		console.error('pending_resolve guest_buyin:', error);
-		res.status(error.statusCode || 500).json({ error: error.message || 'Error processing request' });
+	if (!pendingGameId || !['buyin', 'new_game'].includes(resolveMode)) {
+		return res.status(400).json({ error: 'Missing required fields.' });
 	}
-});
+	if (lossAmount < 0 || depositAmount < 0 || cashAmount < 0) {
+		return res.status(400).json({ error: 'Amounts cannot be negative.' });
+	}
+	if (enteredTotal <= 0) {
+		return res.status(400).json({ error: 'Total Loss Amount must be greater than zero.' });
+	}
+	if (depositAmount > 0 && !depositAccountId) {
+		return res.status(400).json({ error: 'Please select an account for the deposit amount.' });
+	}
 
-// PENDING resolve — junket fault: new game buy-in, then end pending game (ACTIVE = 1)
-router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
+	const connection = await pool.getConnection();
 	try {
-		const encodedBy = req.session.user_id;
-		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+		await connection.beginTransaction();
 
-		const pendingGameId = parseInt(req.body.pending_game_id, 10);
-		const lossAccountId = parseInt(req.body.txtAccountCode, 10) || null;
-		const transType = parseInt(req.body.txtTransType, 10) || null;
-		const nnAmount = parseFloat(String(req.body.txtNN || '0').replace(/,/g, '')) || 0;
-		const lossAmount = parseFloat(String(req.body.txtLossAmount || '0').replace(/,/g, '')) || 0;
-		const requiredBalance = parseFloat(String(req.body.required_balance || '0').replace(/,/g, '')) || 0;
-		const enteredTotal = nnAmount + lossAmount;
+		// Lock the pending row so a double submit cannot resolve (and buy-in) twice.
+		const [gameRows] = await connection.execute(
+			`SELECT IDNo, SETTLED, ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE
+			 FROM game_list WHERE IDNo = ? AND ACTIVE = 3 LIMIT 1 FOR UPDATE`,
+			[pendingGameId]
+		);
+		if (!gameRows.length) throw pendingResolveError(400, 'Game is not in PENDING status.');
+		const pendingGame = gameRows[0];
+		if (pendingGame.SETTLED === 1) throw pendingResolveError(403, 'Cannot resolve a settled game.');
 
-		if (!pendingGameId) {
-			return res.status(400).json({ error: 'Missing required fields.' });
-		}
-		if (enteredTotal <= 0) {
-			return res.status(400).json({ error: 'Buy-in + Loss Amount must be greater than zero.' });
-		}
-		if (nnAmount > 0 && !transType) {
-			return res.status(400).json({ error: 'Please select Cash or Deposit for the Buy-in portion.' });
-		}
-		if (nnAmount > 0 && nnAmount % 1000 !== 0) {
-			return res.status(400).json({ error: 'Buy-in must be in thousands (e.g. 1,000 / 2,000).' });
-		}
-		if (lossAmount > 0 && lossAmount % 1000 !== 0) {
-			return res.status(400).json({ error: 'Loss Amount must be in thousands (e.g. 1,000 / 2,000).' });
-		}
-		if (lossAmount > 0 && !lossAccountId) {
-			return res.status(400).json({ error: 'Please select an account for the Loss Amount game.' });
-		}
-
-		const pendingGame = await assertPendingGame(pool, pendingGameId);
-
-		if (lossAccountId) {
-			const [selectedAccountRows] = await pool.execute(
-				`SELECT acc.IDNo FROM account acc WHERE acc.IDNo = ? LIMIT 1`,
-				[lossAccountId]
-			);
-			if (!selectedAccountRows.length) {
-				return res.status(400).json({ error: 'Selected account was not found.' });
-			}
-		}
-
-		const rollerTotals = await getRollerTotalsForGame(pool, pendingGameId);
-		const balance = rollerTotals.requiredReturnTotal;
-		if (balance <= 0) {
-			return res.status(400).json({ error: 'No outstanding roller chips balance on this game.' });
-		}
+		const rollerTotals = await getRollerTotalsForGame(connection, pendingGameId);
+		const balance = parseFloat(rollerTotals.requiredReturnTotal) || 0;
+		if (balance <= 0) throw pendingResolveError(400, 'No outstanding roller chips balance on this game.');
 		if (Math.abs(enteredTotal - balance) > 0.001) {
-			return res.status(400).json({
-				error: `Buy-in + Loss Amount (${enteredTotal}) must equal outstanding balance (${balance}).`
-			});
+			throw pendingResolveError(400, `Total Loss Amount (${enteredTotal}) must equal outstanding balance (${balance}).`);
 		}
 		if (requiredBalance > 0 && Math.abs(requiredBalance - balance) > 0.001) {
-			return res.status(400).json({ error: 'Outstanding balance has changed. Please reopen the modal.' });
+			throw pendingResolveError(400, 'Outstanding balance has changed. Please reopen the modal.');
 		}
 
-		if (transType === 2 && nnAmount > 0) {
-			const guestBal = parseFloat(String(req.body.totalBalanceGuest1 || '0').replace(/,/g, '')) || 0;
-			if (nnAmount > guestBal) {
-				return res.status(400).json({ error: 'Deposit amount exceeds guest available balance.' });
+		if (depositAmount > 0) {
+			const [accountRows] = await connection.execute(
+				`SELECT IDNo FROM account WHERE IDNo = ? LIMIT 1`,
+				[depositAccountId]
+			);
+			if (!accountRows.length) throw pendingResolveError(400, 'Selected account was not found.');
+			const available = await getAccountDepositBalanceDb(connection, depositAccountId);
+			if (depositAmount > available) {
+				throw pendingResolveError(400, `Deposit amount exceeds the account's available balance (${available.toLocaleString('en-US')}).`);
 			}
 		}
 
 		const dateNow = new Date();
-		const programDate = formatLocalDateYmd(dateNow);
-		const initialMOP = 'CASH';
-
-		// Buy-in opens a new game continuing for the SAME guest/account as the pending game, at the
-		// same game rate (commission) it was already playing at.
-		let buyinGameId = null;
-		if (nnAmount > 0) {
-			const [buyinGameResult] = await pool.execute(
+		let targetGameId = pendingGameId;
+		let newGameId = null;
+		if (resolveMode === 'new_game') {
+			// New game continues for the SAME guest/account at the same game rate as the pending game.
+			const [newGameResult] = await connection.execute(
 				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GROUP_ID, pendingGame.GAME_TYPE || 'LIVE', initialMOP, pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, pendingGame.SHARE_PERCENTAGE ?? 0, pendingGame.ROLLING_PERCENTAGE ?? 100, encodedBy, dateNow, programDate]
+				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GROUP_ID, pendingGame.GAME_TYPE || 'LIVE', 'CASH', pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, pendingGame.SHARE_PERCENTAGE ?? 0, pendingGame.ROLLING_PERCENTAGE ?? 100, encodedBy, dateNow, formatLocalDateYmd(dateNow)]
 			);
-			buyinGameId = buyinGameResult.insertId;
-			await insertAdditionalBuyinForGame(pool, {
-				gameId: buyinGameId,
-				accountId: pendingGame.ACCOUNT_ID,
-				transType,
-				nnAmount,
+			newGameId = newGameResult.insertId;
+			targetGameId = newGameId;
+		}
+
+		const buyinRecordIds = [];
+		const buyinLegs = [
+			{ amount: lossAmount, transType: GAME_RECORD_TRANS_LOSS, accountId: pendingGame.ACCOUNT_ID },
+			{ amount: depositAmount, transType: 2, accountId: depositAccountId },
+			{ amount: cashAmount, transType: 1, accountId: pendingGame.ACCOUNT_ID, cashRemarks: 'CASH PAID' }
+		];
+		for (const leg of buyinLegs) {
+			if (leg.amount <= 0) continue;
+			const result = await insertAdditionalBuyinForGame(connection, {
+				gameId: targetGameId,
+				accountId: leg.accountId,
+				transType: leg.transType,
+				nnAmount: leg.amount,
 				ccAmount: 0,
 				encodedBy,
-				dateNow
+				dateNow,
+				cashRemarks: leg.cashRemarks
 			});
+			buyinRecordIds.push(result.buyinRecordIds);
 		}
 
-		// Loss Amount opens a SEPARATE new game under the selected account, at game rate 0 — it's a
-		// pure write-off, not a rolling game for that account (always Cash, no ledger impact).
-		let lossGameId = null;
-		if (lossAmount > 0) {
-			const [lossGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
-				[lossAccountId, null, 'LIVE', initialMOP, 1, 0, encodedBy, dateNow, programDate]
-			);
-			lossGameId = lossGameResult.insertId;
-			const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-			await pool.execute(gameRecordSQL, [lossGameId, dateNow, 1, 0, lossAmount, 0, 1, encodedBy, dateNow]);
-			await pool.execute(gameRecordSQL, [lossGameId, dateNow, 3, 0, lossAmount, 0, 1, encodedBy, dateNow]);
-		}
-
-		// Return the full outstanding roller float on the pending game regardless of the split —
-		// the buy-in game and the loss game together close it out.
-		const rollerReturn = await insertAutoRollerReturnForPendingGame(pool, pendingGameId, encodedBy, dateNow, rollerTotals);
-		const remarks = req.body.txtRemarks;
+		const rollerReturn = await insertAutoRollerReturnForPendingGame(connection, pendingGameId, encodedBy, dateNow, rollerTotals);
 		await setPendingRollerResolve(
-			pool,
+			connection,
 			pendingGameId,
-			2,
-			buyinGameId || lossGameId,
+			resolveMode === 'new_game' ? 2 : 1,
+			newGameId,
 			encodedBy,
-			remarks,
-			rollerReturn.inserted ? rollerReturn.recordId : null
+			null,
+			rollerReturn.inserted ? rollerReturn.recordId : null,
+			buyinRecordIds.join(',')
 		);
 
 		let junketLossId = null;
 		if (lossAmount > 0) {
-			const personInvolved = req.body.txtPersonInvolved;
 			junketLossId = await ensureJunketLossForRollerMissing(
-				pool, pendingGameId, lossAmount, encodedBy, 'New Game (Split)', remarks, personInvolved,
-				{ accountId: lossAccountId, guestId: null }
+				connection, pendingGameId, lossAmount, encodedBy,
+				resolveMode === 'new_game' ? 'New Game' : 'Additional Buy-in'
 			);
+			if (!junketLossId) throw pendingResolveError(500, 'Failed to record the loss amount.');
 		}
 
+		await connection.commit();
 		res.json({
 			success: true,
-			message: 'New game(s) created. Pending game ended. Roller chips returned automatically.',
-			buyin_game_id: buyinGameId,
-			loss_game_id: lossGameId,
+			message: resolveMode === 'new_game'
+				? 'New game created. Pending game ended. Roller chips returned automatically.'
+				: 'Additional buy-in saved. Game ended. Roller chips returned automatically.',
+			pending_roller_resolve: resolveMode === 'new_game' ? 2 : 1,
+			new_game_id: newGameId,
 			junket_loss_id: junketLossId,
-			pending_roller_resolve: 2,
 			roller_return: rollerReturn
 		});
 	} catch (error) {
-		console.error('pending_resolve junket_new_game:', error);
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('pending_resolve rollback:', rbErr);
+		}
+		console.error('pending_resolve:', error);
 		res.status(error.statusCode || 500).json({ error: error.message || 'Error processing request' });
+	} finally {
+		connection.release();
 	}
 });
 

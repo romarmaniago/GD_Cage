@@ -39,6 +39,7 @@ async function ensureJunketLossSchema(pool) {
 				GUEST_ID INT NULL DEFAULT NULL COMMENT 'guest.IDNo',
 				PAYMENT_TYPE TINYINT NULL DEFAULT NULL COMMENT '1=Chip, 2=Cash',
 				GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo',
+				NON_CASH TINYINT NOT NULL DEFAULT 0 COMMENT '1 = offset by a LOSS buy-in, not taken from cash balance',
 				ENCODED_BY INT NULL DEFAULT NULL,
 				ENCODED_DT DATETIME NULL DEFAULT NULL,
 				EDITED_BY INT NULL DEFAULT NULL,
@@ -72,6 +73,10 @@ async function ensureJunketLossSchema(pool) {
 		{
 			name: 'PAYMENT_TYPE',
 			ddl: `ADD COLUMN PAYMENT_TYPE TINYINT NULL DEFAULT NULL COMMENT '1=Chip, 2=Cash' AFTER GUEST_ID`
+		},
+		{
+			name: 'NON_CASH',
+			ddl: `ADD COLUMN NON_CASH TINYINT NOT NULL DEFAULT 0 COMMENT '1 = offset by a LOSS buy-in, not taken from cash balance'`
 		}
 	];
 

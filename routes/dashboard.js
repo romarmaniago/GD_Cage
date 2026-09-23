@@ -338,7 +338,8 @@ ON
 	let sqlJunketCredit = getCreditGrandTotalSql();
 	let sqlJunketExpense = sqlJunketExpenseTotal();
 	let sqlJunketReturnMoney = sqlJunketReturnMoneyTotal();
-	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1';
+	// JUNKET_LOSS = all losses (company expense); JUNKET_LOSS_CASH = only losses that come out of cash balance.
+	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS, SUM(CASE WHEN NON_CASH = 1 THEN 0 ELSE AMOUNT END) AS JUNKET_LOSS_CASH FROM junket_loss WHERE ACTIVE =1';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
 

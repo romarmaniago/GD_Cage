@@ -276,17 +276,36 @@
 				</div>
 
 				<div id="pending-resolution-section" style="display: none;" class="mt-3 pt-3 border-top">
-					<small class="text-muted d-block mb-2">Resolve outstanding balance:</small>
-					<div class="row g-2">
-						<div class="col-sm-6">
-							<button type="button" class="btn btn-sm btn-primary w-100" id="btn-pending-guest-buyin">
-								Additional Buy-in
-							</button>
+					<div class="pending-resolve-grid">
+						<label class="form-label mb-0" for="txtPendingLossAmount">Loss Amount</label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center pending-resolve-amount pending-resolve-span-2" name="txtLossAmount" id="txtPendingLossAmount"
+							placeholder="0" autocomplete="off" />
+
+						<label class="form-label mb-0" for="txtPendingDepositAccount">Choose Account</label>
+						<select class="form-select" name="txtDepositAccountId" id="txtPendingDepositAccount"></select>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center pending-resolve-amount" name="txtDepositAmount" id="txtPendingDepositAmount"
+							placeholder="0" autocomplete="off" />
+						<small class="text-muted pending-resolve-span-2" id="pending-deposit-balance-hint" style="display: none;"></small>
+
+						<label class="form-label mb-0" for="txtPendingCashPaid">Cash Paid</label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center pending-resolve-amount pending-resolve-span-2" name="txtCashPaid" id="txtPendingCashPaid"
+							placeholder="0" autocomplete="off" />
+
+						<label class="form-label mb-0 fw-bold">Total Loss Amount</label>
+						<div class="form-control text-center fw-bold pending-resolve-span-2 pending-resolve-total" id="pending-resolve-total">0</div>
+					</div>
+
+					<div class="d-flex justify-content-center gap-4 mt-3">
+						<div class="form-check mb-0">
+							<input class="form-check-input" type="radio" name="resolve_mode" id="pending-resolve-mode-buyin" value="buyin" checked />
+							<label class="form-check-label" for="pending-resolve-mode-buyin">Additional Buy-in</label>
 						</div>
-						<div class="col-sm-6">
-							<button type="button" class="btn btn-sm btn-warning w-100" id="btn-pending-junket-new-game">
-								New Game
-							</button>
+						<div class="form-check mb-0">
+							<input class="form-check-input" type="radio" name="resolve_mode" id="pending-resolve-mode-new-game" value="new_game" />
+							<label class="form-check-label" for="pending-resolve-mode-new-game">New Game</label>
 						</div>
 					</div>
 				</div>
@@ -863,5 +882,37 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 
 #modal-change_status .text-amount-negative {
 	color: #dc3545;
+}
+
+#modal-change_status .pending-resolve-grid {
+	display: grid;
+	grid-template-columns: 8.75rem minmax(0, 1fr) minmax(0, 1fr);
+	column-gap: 0.5rem;
+	row-gap: 0.5rem;
+	align-items: center;
+}
+
+#modal-change_status .pending-resolve-grid label {
+	white-space: nowrap;
+	font-weight: 500;
+	font-size: 0.8125rem;
+	grid-column: 1;
+}
+
+#modal-change_status .pending-resolve-span-2 {
+	grid-column: 2 / -1;
+}
+
+#modal-change_status .pending-resolve-total {
+	background-color: #e9ecef;
+	pointer-events: none;
+}
+
+#modal-change_status .pending-resolve-total.is-mismatch {
+	color: #dc3545;
+}
+
+#modal-change_status .pending-resolve-total.is-match {
+	color: #198754;
 }
 </style>

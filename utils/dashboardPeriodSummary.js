@@ -559,7 +559,7 @@ async function computeCashForPeriod(pool, dateFrom, dateTo) {
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=1 AND SOURCE_TYPE='JUNKET' AND ${svcDate}`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='JUNKET' AND ${svcDate}`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=1 AND al.TRANSFER=1 AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND PROGRAM_DATE BETWEEN ? AND ?`, p),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND NON_CASH = 0 AND PROGRAM_DATE BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip_settlement WHERE ACTIVE=1 AND COALESCE(PROGRAM_DATE, DATE(SETTLEMENT_DATETIME)) BETWEEN ? AND ?`, p),
 		sumScalar(pool, `
 			SELECT COALESCE(SUM(

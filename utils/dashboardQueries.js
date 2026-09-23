@@ -299,7 +299,7 @@ async function computeCashBalance() {
     pool.execute("SELECT COALESCE(SUM(AMOUNT),0) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='JUNKET'"),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_TRANSFER FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=1 AND account_ledger.TRANSFER=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute('SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing'),
-    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1'),
+    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1 AND NON_CASH = 0'),
     pool.execute(SQL_MX_CASH_NET),
     pool.execute('SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_SETTLEMENT FROM tip_settlement WHERE ACTIVE = 1'),
     pool.execute(`SELECT COALESCE(SUM(AMOUNT), 0) AS TIP_IN_CASHIN FROM tip WHERE ACTIVE = 1 ${SQL_ROLLER_TIP_IN_CASHIN_ONLY}`)
