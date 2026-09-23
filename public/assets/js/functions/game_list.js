@@ -219,6 +219,17 @@ function formatMergeNumeric(value) {
 	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+// Parenthesized only when negative, e.g. Win/Loss: "(2,054,525)" if losing, "20,921,525" otherwise.
+function formatMergeSignedParen(value) {
+	var num = Number(value) || 0;
+	return num < 0 ? '(' + formatMergeNumeric(Math.abs(num)) + ')' : formatMergeNumeric(num);
+}
+
+// Always parenthesized, e.g. Settlement — shown as a due/outflow amount regardless of sign.
+function formatMergeAlwaysParen(value) {
+	return '(' + formatMergeNumeric(Math.abs(Number(value) || 0)) + ')';
+}
+
 function formatListAmount(value, mode) {
 	if (mode === 'out' && window.fmtOut) return window.fmtOut(value);
 	if (mode === 'signed' && window.fmtSigned) return window.fmtSigned(value);
@@ -2982,13 +2993,12 @@ function formatProgramDateDisplay(row) {
 	return formatProgramDateLabel(ymd);
 }
 
-function buildMergeSettleCheckbox(gameListId, accountId, eligible) {
-	var disabledAttr = eligible ? '' : ' disabled';
-	var title = eligible ? ('Select game ' + gameListId) : 'Not eligible for settlement yet';
-	return '<label class="merge-settle-checkbox-wrap" title="' + escapeHtmlText(title) + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '"' + disabledAttr + ' /></label>';
+function buildMergeSettleCheckbox(gameListId, accountId) {
+	var title = 'Select game ' + gameListId;
+	return '<label class="merge-settle-checkbox-wrap" title="' + escapeHtmlText(title) + '"><input type="checkbox" class="merge-settle-checkbox" value="' + gameListId + '" data-account-id="' + (accountId || '') + '" /></label>';
 }
 
-function buildProgramDateCell(row, userPermissions, isSettled, eligible) {
+function buildProgramDateCell(row, userPermissions, isSettled) {
 	var display = formatProgramDateDisplay(row);
 	var ymd = getProgramDateYmd(row);
 	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
@@ -3011,7 +3021,7 @@ function buildProgramDateCell(row, userPermissions, isSettled, eligible) {
 
 	return (
 		'<div class="d-inline-flex align-items-center gap-1 program-date-cell-inner">' +
-		buildMergeSettleCheckbox(row.game_list_id, row.ACCOUNT_ID, !!eligible) +
+		buildMergeSettleCheckbox(row.game_list_id, row.ACCOUNT_ID) +
 		'<span class="program-date-cell-label">' + dateContent + '</span></div>'
 	);
 }
@@ -4501,7 +4511,7 @@ $(document).ready(function () {
 		if (!$master.length) return;
 		var $cbs = $();
 		if ($('body').hasClass('merge-settle-mode')) {
-			$cbs = $('#game_list-tbl tbody .merge-settle-checkbox:not(:disabled)');
+			$cbs = $('#game_list-tbl tbody .merge-settle-checkbox');
 		}
 		if (!$cbs.length) {
 			$master.prop('checked', false).prop('indeterminate', false);
@@ -4536,16 +4546,6 @@ $(document).ready(function () {
 		return ids;
 	}
 
-	function getSelectedMergeAccountIds() {
-		var accountIds = [];
-		$('.merge-settle-checkbox:checked').each(function () {
-			var raw = $(this).data('account-id');
-			var id = parseInt(raw, 10);
-			if (!isNaN(id) && accountIds.indexOf(id) === -1) accountIds.push(id);
-		});
-		return accountIds;
-	}
-
 	function parseMergeNumeric(text, options) {
 		return parseListAmount(text, options);
 	}
@@ -4554,15 +4554,6 @@ $(document).ready(function () {
 		return String(text || '')
 			.toLowerCase()
 			.replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
-	}
-
-	// Wraps the merged game-number list onto multiple lines, at most 4 numbers per line.
-	function buildMergeGameNumbersHtml(ids) {
-		var chunks = [];
-		for (var i = 0; i < ids.length; i += 4) {
-			chunks.push(ids.slice(i, i + 4).join(', '));
-		}
-		return chunks.join(',<br>');
 	}
 
 	function fetchMergeServicesTotal(selectedIds) {
@@ -4586,6 +4577,192 @@ $(document).ready(function () {
 		});
 	}
 
+	function fetchMergeCommissionDetail(selectedIds) {
+		if (!Array.isArray(selectedIds) || selectedIds.length === 0) return Promise.resolve([]);
+		return $.ajax({
+			url: '/game_list/commission_settlement_detail',
+			method: 'GET',
+			data: { ids: selectedIds.join(',') }
+		}).then(function (rows) {
+			return Array.isArray(rows) ? rows : [];
+		}).catch(function () {
+			return [];
+		});
+	}
+
+	// Settlement/Actual Settlement: parenthesized red when non-zero, plain "0" otherwise.
+	function formatMergeDueCellText(value) {
+		var num = Number(value) || 0;
+		return num === 0 ? '0' : formatMergeAlwaysParen(num);
+	}
+
+	function renderMergeCommissionDetailTable($modal, rows) {
+		var $body = $modal.find('#merge-commission-detail-body');
+		$body.empty();
+
+		var totals = { buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0, settlement: 0, fnb: 0, hotel: 0, incidental: 0, actual_settlement: 0 };
+
+		rows.forEach(function (row) {
+			totals.buy_in += Number(row.buy_in) || 0;
+			totals.cash_out += Number(row.cash_out) || 0;
+			totals.win_loss += Number(row.win_loss) || 0;
+			totals.rolling += Number(row.rolling) || 0;
+			totals.settlement += Number(row.settlement) || 0;
+			totals.fnb += Number(row.fnb) || 0;
+			totals.hotel += Number(row.hotel) || 0;
+			totals.incidental += Number(row.incidental) || 0;
+			totals.actual_settlement += Number(row.actual_settlement) || 0;
+
+			var $tr = $('<tr></tr>');
+			$tr.append($('<td></td>').text(row.account || 'N/A'));
+			$tr.append($('<td></td>').text(row.name || '-'));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.buy_in)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.cash_out)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.win_loss) < 0).text(formatMergeSignedParen(row.win_loss)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.rolling)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.settlement) !== 0).text(formatMergeDueCellText(row.settlement)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.fnb)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.hotel)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.incidental)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.actual_settlement) !== 0).text(formatMergeDueCellText(row.actual_settlement)));
+			$body.append($tr);
+		});
+
+		$modal.find('#cdTotalBuyIn').text(formatMergeNumeric(totals.buy_in));
+		$modal.find('#cdTotalCashOut').text(formatMergeNumeric(totals.cash_out));
+		$modal.find('#cdTotalWinLoss').toggleClass('cd-cell-red', totals.win_loss < 0).text(formatMergeSignedParen(totals.win_loss));
+		$modal.find('#cdTotalRolling').text(formatMergeNumeric(totals.rolling));
+		$modal.find('#cdTotalSettlement').toggleClass('cd-cell-red', totals.settlement !== 0).text(formatMergeDueCellText(totals.settlement));
+		$modal.find('#cdTotalFnb').text(formatMergeNumeric(totals.fnb));
+		$modal.find('#cdTotalHotel').text(formatMergeNumeric(totals.hotel));
+		$modal.find('#cdTotalIncidental').text(formatMergeNumeric(totals.incidental));
+		$modal.find('#cdTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement !== 0).text(formatMergeDueCellText(totals.actual_settlement));
+	}
+
+	// Editable twin of the read-only detail table: Settlement is a free-typed input per
+	// row; everything else (Buy In/Cash Out/W-L/Rolling/F&B/Hotel/Incidental) is fixed,
+	// only Actual Settlement (= Settlement - F&B - Hotel - Incidental) and the totals
+	// row recompute as the user edits.
+	function recalcMergeCommissionEditTotals($modal) {
+		var totals = { buy_in: 0, cash_out: 0, win_loss: 0, rolling: 0, settlement: 0, fnb: 0, hotel: 0, incidental: 0, actual_settlement: 0 };
+
+		$modal.find('#merge-commission-detail-edit-body tr').each(function () {
+			var $tr = $(this);
+			var fnb = parseFloat($tr.attr('data-fnb')) || 0;
+			var hotel = parseFloat($tr.attr('data-hotel')) || 0;
+			var incidental = parseFloat($tr.attr('data-incidental')) || 0;
+			var settlement = parseMergeNumeric($tr.find('.cd-settlement-edit-input').val());
+			var actualSettlement = settlement - fnb - hotel - incidental;
+
+			$tr.find('.cd-edit-actual-cell').toggleClass('cd-cell-red', actualSettlement !== 0).text(formatMergeDueCellText(actualSettlement));
+
+			totals.buy_in += parseFloat($tr.attr('data-buy-in')) || 0;
+			totals.cash_out += parseFloat($tr.attr('data-cash-out')) || 0;
+			totals.win_loss += parseFloat($tr.attr('data-win-loss')) || 0;
+			totals.rolling += parseFloat($tr.attr('data-rolling')) || 0;
+			totals.settlement += settlement;
+			totals.fnb += fnb;
+			totals.hotel += hotel;
+			totals.incidental += incidental;
+			totals.actual_settlement += actualSettlement;
+		});
+
+		$modal.find('#cdEditTotalBuyIn').text(formatMergeNumeric(totals.buy_in));
+		$modal.find('#cdEditTotalCashOut').text(formatMergeNumeric(totals.cash_out));
+		$modal.find('#cdEditTotalWinLoss').toggleClass('cd-cell-red', totals.win_loss < 0).text(formatMergeSignedParen(totals.win_loss));
+		$modal.find('#cdEditTotalRolling').text(formatMergeNumeric(totals.rolling));
+		$modal.find('#cdEditTotalSettlement').toggleClass('cd-cell-red', totals.settlement !== 0).text(formatMergeDueCellText(totals.settlement));
+		$modal.find('#cdEditTotalFnb').text(formatMergeNumeric(totals.fnb));
+		$modal.find('#cdEditTotalHotel').text(formatMergeNumeric(totals.hotel));
+		$modal.find('#cdEditTotalIncidental').text(formatMergeNumeric(totals.incidental));
+		$modal.find('#cdEditTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement !== 0).text(formatMergeDueCellText(totals.actual_settlement));
+	}
+
+	function renderMergeCommissionDetailEditTable($modal, rows) {
+		var $body = $modal.find('#merge-commission-detail-edit-body');
+		$body.empty();
+
+		rows.forEach(function (row) {
+			var fnb = Number(row.fnb) || 0;
+			var hotel = Number(row.hotel) || 0;
+			var incidental = Number(row.incidental) || 0;
+			var settlement = Number(row.settlement) || 0;
+			var actualSettlement = settlement - fnb - hotel - incidental;
+
+			var $tr = $('<tr></tr>')
+				.attr('data-buy-in', Number(row.buy_in) || 0)
+				.attr('data-cash-out', Number(row.cash_out) || 0)
+				.attr('data-win-loss', Number(row.win_loss) || 0)
+				.attr('data-rolling', Number(row.rolling) || 0)
+				.attr('data-fnb', fnb)
+				.attr('data-hotel', hotel)
+				.attr('data-incidental', incidental);
+
+			$tr.append($('<td></td>').text(row.account || 'N/A'));
+			$tr.append($('<td></td>').text(row.name || '-'));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.buy_in)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.cash_out)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.win_loss) < 0).text(formatMergeSignedParen(row.win_loss)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(row.rolling)));
+
+			var $settlementInput = $('<input type="text" class="cd-settlement-edit-input" inputmode="decimal">')
+				.val(formatMergeDueCellText(settlement))
+				.toggleClass('cd-cell-red', settlement !== 0);
+			$tr.append($('<td></td>').append($settlementInput));
+
+			$tr.append($('<td></td>').text(formatMergeNumeric(fnb)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(hotel)));
+			$tr.append($('<td></td>').text(formatMergeNumeric(incidental)));
+			$tr.append($('<td class="cd-edit-actual-cell"></td>').toggleClass('cd-cell-red', actualSettlement !== 0).text(formatMergeDueCellText(actualSettlement)));
+
+			$body.append($tr);
+		});
+
+		recalcMergeCommissionEditTotals($modal);
+	}
+
+	// Live comma-format while typing (plain digits + optional leading "-"), preserving caret position.
+	function formatMergeSettlementInputLive($input) {
+		var el = $input[0];
+		if (!el) return;
+		var raw = String(el.value || '');
+		var caret = typeof el.selectionStart === 'number' ? el.selectionStart : raw.length;
+		var digitsBeforeCaret = raw.slice(0, caret).replace(/[^\d]/g, '').length;
+
+		var isNegative = raw.trim().charAt(0) === '-';
+		var digits = raw.replace(/[^\d]/g, '');
+		var formatted = digits ? Number(digits).toLocaleString('en-US') : '';
+		var newVal = (isNegative && formatted ? '-' : '') + formatted;
+		el.value = newVal;
+
+		var pos = 0, seen = 0;
+		while (pos < newVal.length && seen < digitsBeforeCaret) {
+			if (/\d/.test(newVal.charAt(pos))) seen++;
+			pos++;
+		}
+		try { el.setSelectionRange(pos, pos); } catch (e) { /* ignore */ }
+	}
+
+	$(document).on('input', '#modal-merge-settlement .cd-settlement-edit-input', function () {
+		formatMergeSettlementInputLive($(this));
+		$(this).toggleClass('cd-cell-red', parseMergeNumeric($(this).val()) !== 0);
+		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
+	});
+
+	// While focused, show plain editable digits (no parens) so typing is straightforward;
+	// on blur, redisplay using the same parenthesized/red "due amount" convention as the
+	// rest of the modal.
+	$(document).on('focus', '#modal-merge-settlement .cd-settlement-edit-input', function () {
+		var val = parseMergeNumeric($(this).val());
+		$(this).val(val === 0 ? '' : (val < 0 ? '-' : '') + formatMergeNumeric(Math.abs(val)));
+	});
+
+	$(document).on('blur', '#modal-merge-settlement .cd-settlement-edit-input', function () {
+		var val = parseMergeNumeric($(this).val());
+		$(this).val(formatMergeDueCellText(val)).toggleClass('cd-cell-red', val !== 0);
+		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
+	});
+
 	function openMergeSettlementModal(selectedIds) {
 		var $modal = $('#modal-merge-settlement');
 		if (!$modal.length) {
@@ -4602,8 +4779,11 @@ $(document).ready(function () {
 		var totalSettlement = 0;
 		var totalWinLoss = 0;
 		var selectedRates = [];
+		var selectedAccounts = [];
+		var selectedAccountIds = [];
 		$('.merge-settle-checkbox:checked').each(function () {
 			var $row = $(this).closest('tr');
+			var accountId = $(this).attr('data-account-id') || '';
 
 			totalBuyIn += parseMergeNumeric($row.find('td').eq(8).text());
 			totalChipsReturn += parseMergeNumeric($row.find('td').eq(9).text());
@@ -4622,150 +4802,53 @@ $(document).ready(function () {
 			if (rateText && selectedRates.indexOf(rateText) === -1) {
 				selectedRates.push(rateText);
 			}
+
+			// Read the account code straight from the acct link (excludes the group badge
+			// that sits next to it in the same cell) and pair it with its data-agent-name.
+			var $acctLink = $row.find('td').eq(2).find('.game-list-acct-link').first();
+			var codePart = $.trim($acctLink.length ? $acctLink.text() : $row.find('td').eq(2).text());
+			var agentName = $acctLink.length ? ($acctLink.attr('data-agent-name') || '') : '';
+			var accountDisplay = agentName ? (codePart + ' - ' + toTitleCase($.trim(agentName))) : codePart;
+			if (accountId && selectedAccountIds.indexOf(accountId) === -1) {
+				selectedAccountIds.push(accountId);
+				selectedAccounts.push({ id: accountId, display: accountDisplay || accountId });
+			}
 		});
 
 		var rateTextValue = selectedRates.length === 1 ? selectedRates[0] : (selectedRates.length > 1 ? 'Mixed' : '0');
-		var selectedAccountIds = getSelectedMergeAccountIds();
-		fetchMergeServicesTotal(selectedIds).then(function (servicesTotal) {
+		renderMergeCommissionDetailTable($modal, []);
+		renderMergeCommissionDetailEditTable($modal, []);
+		Promise.all([fetchMergeServicesTotal(selectedIds), fetchMergeCommissionDetail(selectedIds)]).then(function (results) {
+			var servicesTotal = results[0];
+			var detailRows = results[1];
 			var serviceAmount = servicesTotal;
 			var paymentAmount = totalSettlement - serviceAmount;
 
-			$modal.data('mergeSettleComputed', {
-				gameIds: selectedIds,
-				accountIds: selectedAccountIds,
-				buyIn: totalBuyIn,
-				chipsReturn: totalChipsReturn,
-				winLoss: totalWinLoss,
-				rolling: totalRolling,
-				rate: rateTextValue,
-				settlement: totalSettlement,
-				services: serviceAmount,
-				payment: paymentAmount
+			$modal.find('#mergeGameIds').val(selectedIds.join(','));
+
+			var $accSelect = $modal.find('#accNoMerge').empty();
+			selectedAccounts.forEach(function (acct) {
+				$accSelect.append($('<option></option>').val(acct.id).text(acct.display));
 			});
 
-			$modal.find('#mergeGameIds').val(selectedIds.join(','));
-			$modal.find('#accNoMerge').text('');
-			$modal.find('#gameNoMerge').html(buildMergeGameNumbersHtml(selectedIds));
 			$modal.find('#dateMerge').text(now.format('YYYY-MM-DD'));
 			$modal.find('#timeMerge').text(now.format('HH:mm'));
 
 			$modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
 			$modal.find('#chipsReturnMerge').val(formatMergeNumeric(totalChipsReturn));
-			$modal.find('#winLossMerge').val(formatMergeNumeric(totalWinLoss));
+			$modal.find('#winLossMerge').val(formatMergeSignedParen(totalWinLoss)).toggleClass('is-negative', totalWinLoss < 0);
 			$modal.find('#rollingMerge').val(formatMergeNumeric(totalRolling));
 			$modal.find('#rollingRateMerge').val(rateTextValue);
-			$modal.find('#rollingSettlementMerge').val(formatMergeNumeric(totalSettlement));
+			$modal.find('#rollingSettlementMerge').val(formatMergeAlwaysParen(totalSettlement)).addClass('is-negative');
 			$modal.find('#fbMerge').val(formatMergeNumeric(serviceAmount));
-			$modal.find('#paymentMerge').val(formatMergeNumeric(paymentAmount));
+			$modal.find('#paymentMerge').val(formatMergeAlwaysParen(paymentAmount)).addClass('is-negative');
 
-			$modal.find('#txtAccountIDMergeSettle').val('');
-			$modal.find('.settlement-extra-opts').show();
-			$('#submit-merge-settlement-btn').prop('disabled', false).text('Settle');
-			loadMergeSettleChooseAccounts(selectedAccountIds.length === 1 ? selectedAccountIds[0] : null);
+			renderMergeCommissionDetailTable($modal, detailRows);
+			renderMergeCommissionDetailEditTable($modal, detailRows);
 
 			$modal.modal('show');
 		});
 	}
-
-	// Read-only view of a past Multiple Settlement, opened from the History list.
-	// Populates the same modal used for settling, but with a disabled "Settled"
-	// button and no account picker — it never re-submits to /add_settlement.
-	function openMergeSettlementHistoryView(detail, options) {
-		var $modal = $('#modal-merge-settlement');
-		if (!$modal.length || !detail) return;
-
-		$modal.data('mshReopenHistory', !!(options && options.reopenHistory));
-
-		var buyIn = parseFloat(detail.buy_in) || 0;
-		var cashOut = parseFloat(detail.cash_out) || 0;
-		var winLoss = parseFloat(detail.win_loss) || 0;
-		var rolling = parseFloat(detail.rolling) || 0;
-		var settlement = parseFloat(detail.settlement) || 0;
-		var addCharge = parseFloat(detail.add_charge) || 0;
-		var payment = parseFloat(detail.payment) || 0;
-		var gameIds = Array.isArray(detail.game_ids) ? detail.game_ids : [];
-
-		$modal.data('mergeSettleComputed', {
-			gameIds: gameIds,
-			accountIds: [],
-			buyIn: buyIn,
-			chipsReturn: cashOut,
-			winLoss: winLoss,
-			rolling: rolling,
-			rate: detail.rate,
-			settlement: settlement,
-			services: addCharge,
-			payment: payment
-		});
-
-		var dt = detail.encoded_dt && typeof moment === 'function' ? moment(detail.encoded_dt) : null;
-
-		$modal.find('#mergeGameIds').val(gameIds.join(','));
-		$modal.find('#accNoMerge').text(detail.account_display || '');
-		$modal.find('#gameNoMerge').html(buildMergeGameNumbersHtml(gameIds));
-		$modal.find('#dateMerge').text(dt && dt.isValid() ? dt.format('YYYY-MM-DD') : '');
-		$modal.find('#timeMerge').text(dt && dt.isValid() ? dt.format('HH:mm') : '');
-
-		$modal.find('#buyInMerge').val(formatMergeNumeric(buyIn));
-		$modal.find('#chipsReturnMerge').val(formatMergeNumeric(cashOut));
-		$modal.find('#winLossMerge').val(formatMergeNumeric(winLoss));
-		$modal.find('#rollingMerge').val(formatMergeNumeric(rolling));
-		$modal.find('#rollingRateMerge').val(detail.rate);
-		$modal.find('#rollingSettlementMerge').val(formatMergeNumeric(settlement));
-		$modal.find('#fbMerge').val(formatMergeNumeric(addCharge));
-		$modal.find('#paymentMerge').val(formatMergeNumeric(payment));
-
-		$modal.find('#txtAccountIDMergeSettle').val('');
-		$modal.find('.settlement-extra-opts').hide();
-		$('#submit-merge-settlement-btn').prop('disabled', true).text('Settled');
-
-		$modal.modal('show');
-	}
-	window.openMergeSettlementHistoryView = openMergeSettlementHistoryView;
-
-	function initMergeSettleChooseAccountSelect() {
-		var $sel = $('#merge-settle-choose-account-select');
-		if (!$sel.length || typeof $sel.select2 !== 'function') return;
-		if ($sel.data('select2')) {
-			try { $sel.select2('destroy'); } catch (e) {}
-		}
-		$sel.select2({
-			placeholder: $sel.data('placeholder') || 'Select an account',
-			allowClear: false,
-			dropdownParent: $('#modal-merge-settlement'),
-			width: '100%'
-		});
-	}
-
-	function loadMergeSettleChooseAccounts(selectedId) {
-		var $sel = $('#merge-settle-choose-account-select');
-		if (!$sel.length) return;
-		var placeholder = $sel.data('placeholder') || 'Select an account';
-		$.getJSON('/account_data').then(function (rows) {
-			if ($sel.data('select2')) {
-				try { $sel.select2('destroy'); } catch (e) {}
-			}
-			$sel.empty().append($('<option/>', { value: '', text: placeholder }));
-			(rows || []).forEach(function (a) {
-				var id = a.account_id;
-				if (id == null) return;
-				var parts = [a.agent_code, a.agent_name].filter(Boolean);
-				var label = parts.length ? parts.join(' - ') : ('Account #' + id);
-				$sel.append($('<option/>', { value: String(id), text: label }));
-			});
-			initMergeSettleChooseAccountSelect();
-			if (selectedId != null && selectedId !== '') {
-				$sel.val(String(selectedId)).trigger('change');
-			}
-		});
-	}
-
-	$(document).on('change', '#merge-settle-choose-account-select', function () {
-		var accountId = $(this).val() || '';
-		$('#txtAccountIDMergeSettle').val(accountId);
-		var chosenLabel = accountId ? ($(this).find('option:selected').text() || '') : '';
-		$('#accNoMerge').text(chosenLabel);
-	});
 
 	$(document).on('click', '#btn-merge-settle-game-list', function (e) {
 		e.preventDefault();
@@ -4781,7 +4864,7 @@ $(document).ready(function () {
 	$(document).on('change', '#game-list-select-all', function () {
 		var checked = $(this).prop('checked');
 		if ($('body').hasClass('merge-settle-mode')) {
-			$('#game_list-tbl tbody .merge-settle-checkbox:not(:disabled)').prop('checked', checked);
+			$('#game_list-tbl tbody .merge-settle-checkbox').prop('checked', checked);
 		}
 		syncGameListSelectAllCheckboxState();
 	});
@@ -4793,125 +4876,6 @@ $(document).ready(function () {
 			syncGameListSelectAllCheckboxState();
 		}
 	);
-
-	function getMergeSettleRowByGameId(gameId) {
-		return $('.merge-settle-checkbox[value="' + gameId + '"]').closest('tr');
-	}
-
-	$(document).on('click', '#submit-merge-settlement-btn', function (e) {
-		e.preventDefault();
-		var $modal = $('#modal-merge-settlement');
-		var computed = $modal.data('mergeSettleComputed');
-		if (!computed || !Array.isArray(computed.gameIds) || !computed.gameIds.length) {
-			Swal.fire({ icon: 'warning', title: 'No selected games', text: 'Please select games to settle first.' });
-			return;
-		}
-
-		var chosenAccountId = String($('#txtAccountIDMergeSettle').val() || '').trim();
-		if (!chosenAccountId) {
-			Swal.fire({ icon: 'warning', title: 'Required', text: 'Please choose an account to deposit the combined payment.' });
-			return;
-		}
-
-		// Defense in depth: re-check each selected game is still ended and unsettled
-		// (the backend does not re-validate this itself).
-		var staleIds = [];
-		computed.gameIds.forEach(function (gameId) {
-			var $row = getMergeSettleRowByGameId(gameId);
-			if (!$row.length) {
-				staleIds.push(gameId);
-				return;
-			}
-			var status = $row.attr('data-game-status');
-			var settled = $row.attr('data-settled');
-			if (status !== 'finished' || settled === '1') {
-				staleIds.push(gameId);
-			}
-		});
-		if (staleIds.length) {
-			Swal.fire({
-				icon: 'warning',
-				title: 'Selection changed',
-				text: 'Game #' + staleIds.join(', #') + ' is no longer eligible for settlement. Please close this modal and re-select.'
-			});
-			return;
-		}
-
-		var primaryId = null;
-		computed.gameIds.forEach(function (gameId) {
-			if (primaryId) return;
-			var acctId = parseInt(getMergeSettleRowByGameId(gameId).find('.merge-settle-checkbox').data('account-id'), 10);
-			if (acctId === parseInt(chosenAccountId, 10)) primaryId = gameId;
-		});
-		if (!primaryId) primaryId = computed.gameIds[0];
-		var linkedIds = computed.gameIds.filter(function (id) { return id !== primaryId; });
-
-		var $btn = $(this);
-		var chosenAccountLabel = $('#merge-settle-choose-account-select option:selected').text() || chosenAccountId;
-
-		fetchAccountBalanceTotal(chosenAccountId).then(function (balanceTotal) {
-			var confirmRows = [
-				['Games', computed.gameIds.join(', ')],
-				['Deposit To', chosenAccountLabel],
-				['Buy-In', formatMergeNumeric(computed.buyIn)],
-				['Cash Out', formatMergeNumeric(computed.chipsReturn)],
-				['Win/Loss', formatMergeNumeric(computed.winLoss)],
-				['Rolling', formatMergeNumeric(computed.rolling)],
-				['Rate', computed.rate],
-				['Settlement', formatMergeNumeric(computed.settlement)],
-				['Services', formatMergeNumeric(computed.services)],
-				['Payment', formatMergeNumeric(computed.payment)]
-			];
-
-			SwalConfirm.fire({
-				title: 'Confirm Multiple Settlement',
-				subtitle: 'Confirm Multiple Settlement:',
-				rows: confirmRows,
-				message: 'Are you sure you want to proceed?',
-				modalStack: true,
-				confirmButtonText: 'Yes, Confirm',
-				cancelButtonText: 'Cancel',
-				allowOutsideClick: false,
-				allowEscapeKey: false
-			}).then(function (result) {
-				if (!result.isConfirmed) return;
-
-				$btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
-
-				var payload = {
-					game_id_settle: String(primaryId),
-					txtAccountIDSettle: chosenAccountId,
-					txtTransType: '1',
-					txtPayment: String(computed.payment),
-					txtFNB: String(computed.services),
-					txtCutoffLinkedGameIds: linkedIds.join(','),
-					txtSettlementBalance: String(balanceTotal)
-				};
-
-				$.ajax({
-					type: 'POST',
-					url: '/add_settlement',
-					data: payload,
-					success: function () {
-						Swal.fire({
-							icon: 'success',
-							title: 'The multiple settlement has been successfully settled.',
-							confirmButtonText: 'OK',
-							allowOutsideClick: false,
-							allowEscapeKey: false
-						}).then(function () {
-							window.location.reload();
-						});
-					},
-					error: function (xhr) {
-						var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed to save settlement.';
-						Swal.fire({ icon: 'error', title: 'Error', text: msg });
-						$btn.prop('disabled', false).text('Settle');
-					}
-				});
-			});
-		});
-	});
 
 	// Custom sort for ACC & GROUP column: sort by the assigned group name, not the account code
 	$.fn.dataTable.ext.type.order['game-list-acct-group-pre'] = function (d) {
@@ -5911,7 +5875,7 @@ $(document).ready(function () {
                                 (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
                                 captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
                                 let rowNode = dataTable.row.add([
-                                    buildProgramDateCell(row, userPermissions, isSettled, false),
+                                    buildProgramDateCell(row, userPermissions, isSettled),
                                     gameStartCellOg,
                                     acct_no_link,
 									buildGameGuestCell(row),
@@ -6001,10 +5965,10 @@ $(document).ready(function () {
 								}
 								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
-								var settleClass = row.SETTLED === 1 ? (row.MULTI_SETTLED === 1 ? 'btn-warning-subtle' : 'btn-success-subtle') : 'btn-danger-subtle';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
 								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.MULTI_SETTLED === 1 ? 1 : 0})" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:24px !important;">
 										 <i class="fa fa-clipboard-check"></i>
@@ -6034,7 +5998,7 @@ $(document).ready(function () {
 								(window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 								captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
 								let rowNode = dataTable.row.add([
-									buildProgramDateCell(row, userPermissions, isSettled, false),
+									buildProgramDateCell(row, userPermissions, isSettled),
 									gameStartCell,
 									acct_no_link,
 									buildGameGuestCell(row),
@@ -6120,10 +6084,10 @@ $(document).ready(function () {
 								}
 	
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
-								var settleClass = row.SETTLED === 1 ? (row.MULTI_SETTLED === 1 ? 'btn-warning-subtle' : 'btn-success-subtle') : 'btn-danger-subtle';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
 								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.MULTI_SETTLED === 1 ? 1 : 0})" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:24px !important;">
 										 <i class="fa fa-clipboard-check"></i>
@@ -6150,8 +6114,7 @@ $(document).ready(function () {
 						   (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = isPendingRollerOrangeRow(row) ? 'pending' : 'finished';
 						   (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;
 						   captureGameListExportRow(row, { buyin: total_amount, cashout: total_cash_out_chips, winloss: WinLoss, rolling: total_rolling_chips, settlement: net, totalSettle: totalSettleValue, rollerChips: total_roller_chips });
-						   var isMergeSettleEligible = !isSettled && !isPendingRollerOrangeRow(row);
-						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled, isMergeSettleEligible), gameStartCellEnd, acct_no_link, buildGameGuestCell(row), buildGameMembershipCell(row), buildGameTypeCell(row, userPermissions), buildGameRateCell(row, userPermissions, isSettled), buildCutoffGameIdCell(row), buyin_td, cashout_td, winloss, total_rolling_td, formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([buildProgramDateCell(row, userPermissions, isSettled), gameStartCellEnd, acct_no_link, buildGameGuestCell(row), buildGameMembershipCell(row), buildGameTypeCell(row, userPermissions), buildGameRateCell(row, userPermissions, isSettled), buildCutoffGameIdCell(row), buyin_td, cashout_td, winloss, total_rolling_td, formattedNet, add_chg_td, formattedTotalSettle, status, roller_chips_td, actionButtons]).draw().node();
 						   if (rowNode) { rowNode.setAttribute('data-game-status', isPendingRollerOrangeRow(row) ? 'pending' : 'finished'); rowNode.setAttribute('data-settled', isSettled ? '1' : '0'); }
 
 							}
@@ -11138,7 +11101,7 @@ $(document).ready(function () {
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + formatListAmount(total_cash_out_chips) + '</span>';
 								
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
-								var settleClass = row.SETTLED === 1 ? (row.MULTI_SETTLED === 1 ? 'btn-warning-subtle' : 'btn-success-subtle') : 'btn-danger-subtle';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
 								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
 								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
@@ -11146,7 +11109,7 @@ $(document).ready(function () {
 										style="font-size:8px !important; margin-right: 5px;">
 										<i class="fa fa-history"></i>
 								</button>
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.MULTI_SETTLED === 1 ? 1 : 0})" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:10px !important;">
 										<i class="fa fa-clipboard-check"></i>
@@ -11545,25 +11508,7 @@ function openSettlementChooseAccountModal() {
 	});
 }
 
-function settlement_history(record_id, acc_id, isMultiSettled) {
-    // Games settled as part of a Multiple Settlement carry a zeroed-out FNB/PAYMENT on
-    // themselves (only the batch's primary game does) — showing that alone would look
-    // like a $0 settlement. Show the combined multi-settle total instead.
-    if (isMultiSettled) {
-        $.getJSON('/game_list/' + record_id + '/multiple_settlement_detail')
-            .done(function (detail) {
-                if (typeof window.openMergeSettlementHistoryView === 'function') {
-                    window.openMergeSettlementHistoryView(detail);
-                }
-            })
-            .fail(function () {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load settlement detail.' });
-                }
-            });
-        return;
-    }
-
+function settlement_history(record_id, acc_id) {
     var $settlementModal = $('#modal-settlement');
     $settlementModal.data('is-settled', 0);
     $settlementModal.data('settlementPrimaryGameId', record_id);
@@ -11648,14 +11593,6 @@ function settlement_history(record_id, acc_id, isMultiSettled) {
         }
         applySettlementMetricsToForm(currentGameMetrics, formatSettlementGameNoDisplay([parseInt(record_id, 10)]));
         currentCommissionType = currentGameMetrics.CommissionType;
-        if (currentGameMetrics.meta && currentGameMetrics.meta.GAME_ENDED) {
-            var ended = moment(currentGameMetrics.meta.GAME_ENDED);
-            $('#date').text(ended.format('YYYY-MM-DD'));
-            $('#time').text(ended.format('HH:mm'));
-            if (typeof window.syncSettlementDateTimeDisplay === 'function') {
-                window.syncSettlementDateTimeDisplay($settlementModal);
-            }
-        }
         isSettled = !!currentGameMetrics.SETTLED;
         $settlementModal.data('is-settled', isSettled ? 1 : 0);
         updatePayment();

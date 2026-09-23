@@ -649,7 +649,7 @@
                     <span class="settlement-receipt-value-col is-bold" id="gameNo"></span>
                 </div>
                 <div class="settlement-receipt-row">
-                    <span class="settlement-receipt-label">Date &amp; Time</span>
+                    <span class="settlement-receipt-label">Date</span>
                     <span class="settlement-receipt-colon">:</span>
                     <span class="settlement-receipt-value-col is-bold" id="dateTime"></span>
                 </div>
@@ -1746,6 +1746,15 @@ $(document).ready(function() {
         refreshSettlementReceiptDisplay($modal);
         updateSettlementCopyButtons($modal);
     }
+
+    // Receipt date is always the moment the modal is opened.
+    $('#modal-settlement').on('show.bs.modal', function() {
+        var $modal = $(this);
+        var now = moment();
+        $modal.find('#date').text(now.format('YYYY-MM-DD'));
+        $modal.find('#time').text(now.format('HH:mm'));
+        syncSettlementDateTimeDisplay($modal);
+    });
 
     $('#modal-settlement').on('shown.bs.modal', function() {
         resetSettlementModalView($(this));

@@ -34,7 +34,7 @@ const { ensureGiAgentGroupSchema } = require('../utils/ensureGiAgentGroupSchema'
 const { ensureAgencyNameColorSchema } = require('../utils/ensureAgencyNameColorSchema');
 const { ensureAccountLedgerServiceIdSchema } = require('../utils/ensureAccountLedgerServiceIdSchema');
 const { ensureAccountLedgerLinkedGameIdsSchema } = require('../utils/ensureAccountLedgerLinkedGameIdsSchema');
-const { ensureGameListMultiSettledSchema } = require('../utils/ensureGameListMultiSettledSchema');
+const { dropGameListMultiSettledSchema } = require('../utils/dropGameListMultiSettledSchema');
 const { ensureGameGroupSchema } = require('../utils/ensureGameGroupSchema');
 
 const pool = mysql.createPool({
@@ -87,10 +87,10 @@ const pool = mysql.createPool({
 		await ensureAgencyNameColorSchema(pool);
 		await ensureAccountLedgerServiceIdSchema(pool);
 		await ensureAccountLedgerLinkedGameIdsSchema(pool);
-		await ensureGameListMultiSettledSchema(pool);
 		await ensureGameGroupSchema(pool);
 		await backfillCreditFromLedger(pool);
 		await dropGameDailySettlementSchema(pool);
+		await dropGameListMultiSettledSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}
