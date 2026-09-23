@@ -7183,7 +7183,7 @@ router.post('/game_list/add/roller_chips', async (req, res) => {
 	const { game_id, txtRollerNN, txtRollerCC, txtTransType } = req.body;
 
 	// Block add when game is settled
-	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	const [settledRows] = await pool.execute('SELECT SETTLED, ACTIVE FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
 	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
 		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
 	}
@@ -7216,10 +7216,26 @@ router.post('/game_list/add/roller_chips', async (req, res) => {
 			txtNNamount, // ROLLER_NN_CHIPS
 			txtCCamount, // ROLLER_CC_CHIPS
 			txtTransType, // ROLLER_TRANSACTION: 1 = ADD, 2 = RETURN
-			req.session.user_id, 
+			req.session.user_id,
 			date_now
 		]);
-		res.redirect('/game_list');
+
+		// PENDING game (ACTIVE = 3) whose roller chips are now fully returned → END GAME,
+		// same update Change Status does for status 1.
+		let gameEnded = false;
+		const wasPending = settledRows.length > 0 && parseInt(settledRows[0].ACTIVE, 10) === 3;
+		if (wasPending && txtTransType === '2') {
+			const rollerTotals = await getRollerTotalsForGame(pool, game_id);
+			if ((parseFloat(rollerTotals.requiredReturnTotal) || 0) <= 0) {
+				await pool.execute(
+					`UPDATE game_list SET ACTIVE = 1, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 3`,
+					[date_now, req.session.user_id, date_now, game_id]
+				);
+				gameEnded = true;
+			}
+		}
+
+		res.json({ success: true, game_ended: gameEnded });
 	} catch (err) {
 		console.error('Error inserting roller chips details', err);
 		res.status(500).json({ error: 'Error inserting roller chips details' });

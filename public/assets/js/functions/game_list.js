@@ -7434,7 +7434,9 @@ $('#add_buyin').submit(function (event) {
 						Swal.fire({
 							icon: 'success',
 							title: 'Success!',
-							text: 'Roller chips transaction successfully added.',
+							text: (response && response.game_ended)
+								? 'Roller chips fully returned. Pending game is now END GAME.'
+								: 'Roller chips transaction successfully added.',
 							confirmButtonText: 'OK',
 							allowOutsideClick: false,
 							allowEscapeKey: false
