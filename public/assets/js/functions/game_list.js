@@ -4865,7 +4865,9 @@ $(document).ready(function () {
 			}
 		});
 
-		var rateTextValue = selectedRates.length === 1 ? selectedRates[0] : (selectedRates.length > 1 ? 'Mixed' : '0');
+		// When the selected games don't share one rate, default the combined preview to the
+		// standard 1.5% company rate instead of showing the literal word "Mixed".
+		var rateTextValue = selectedRates.length === 1 ? selectedRates[0] : (selectedRates.length > 1 ? '1.5' : '0');
 		renderMergeCommissionDetailTable($modal, []);
 		renderMergeCommissionDetailEditTable($modal, []);
 		Promise.all([fetchMergeServicesTotal(selectedIds), fetchMergeCommissionDetail(selectedIds)]).then(function (results) {

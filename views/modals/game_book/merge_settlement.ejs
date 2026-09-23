@@ -1423,6 +1423,20 @@
         // The merge receipt's Settlement/Add Charge/Payment are plain readonly inputs
         // (no separate "display span" the way settlement.ejs has) — so the cloned guest/
         // agent panels just write straight into those inputs' .val() on every recalc.
+        // Mixed commission types across the selected games have no single formula that
+        // reproduces each game's own type-specific commission from just rolling/rate, so when
+        // commissionRow is null (not every game is the same Share+Rolling split), split the
+        // already-computed combined total proportionally by rolling share instead — this
+        // guarantees Guest + Agent always add up to the original Multiple Settlement total,
+        // no matter how the rolling is divided between them.
+        function mergeSplitSettlement($modal, commissionRow, winLoss, rollingValue, ratePercent, totalRolling) {
+            if (commissionRow) {
+                return window.computeReceiptPanelSettlement(commissionRow, winLoss, rollingValue, ratePercent, totalRolling);
+            }
+            var originalTotal = parseAmount($modal.find('#rollingSettlementMerge').val());
+            return totalRolling ? Math.round(originalTotal * (rollingValue / totalRolling)) : 0;
+        }
+
         function recalcMergeEditPanelTotals($panel) {
             if (!$panel || !$panel.length) return;
 
@@ -1432,7 +1446,7 @@
             var winLoss = parseAmount($panel.find('[data-field="winLossMerge"]').val());
             var $mergeModal = $('#modal-merge-settlement');
             var totalRolling = parseAmount($mergeModal.find('#rollingMerge').val());
-            var settlement = window.computeReceiptPanelSettlement($mergeModal.data('commissionRow'), winLoss, rolling, rate, totalRolling);
+            var settlement = mergeSplitSettlement($mergeModal, $mergeModal.data('commissionRow'), winLoss, rolling, rate, totalRolling);
             var payment = settlement - addCharge;
 
             $panel.data('rolling-settlement', settlement);
@@ -1581,10 +1595,11 @@
             var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
 
             // Share + Rolling: share part follows each side's rolling (see computeReceiptPanelSettlement).
+            // Otherwise (mixed types), split the original combined total proportionally.
             var splitRow = $modal.data('commissionRow');
             var splitWinLoss = parseAmount($modal.find('#winLossMerge').val());
             var splitSettlement = function (rollingValue) {
-                return window.computeReceiptPanelSettlement(splitRow, splitWinLoss, rollingValue, companyRate, totalRolling);
+                return mergeSplitSettlement($modal, splitRow, splitWinLoss, rollingValue, companyRate, totalRolling);
             };
 
             $modal.find('#merge-calc-company-rate-rolling').text(formatAmount(totalRolling));
