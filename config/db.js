@@ -19,6 +19,7 @@ const { ensureGameServicesProgramDateSchema } = require('../utils/ensureGameServ
 const { ensureServicesCategorySchema } = require('../utils/ensureServicesCategorySchema');
 const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
 const { ensureGameListProgramDateSchema } = require('../utils/ensureGameListProgramDateSchema');
+const { ensureGameListShareRollingSchema } = require('../utils/ensureGameListShareRollingSchema');
 const { ensureNetProfitShareProgramDateSchema } = require('../utils/ensureNetProfitShareProgramDateSchema');
 const { ensureDashboardWlShareSchema } = require('../utils/ensureDashboardWlShareSchema');
 const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettlementCleanup');
@@ -73,6 +74,7 @@ const pool = mysql.createPool({
 		await ensureServicesCategorySchema(pool);
 		await ensureGuestMembershipSchema(pool);
 		await ensureGameListProgramDateSchema(pool);
+		await ensureGameListShareRollingSchema(pool);
 		await ensureNetProfitShareProgramDateSchema(pool);
 		await ensureDashboardWlShareSchema(pool);
 		await ensureAdditionalCommissionSchema(pool);

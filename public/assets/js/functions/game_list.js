@@ -843,13 +843,12 @@ function computeInGameProjectedCommissionGross() {
 	var projectedRolling = baseRolling - additionalCashoutNn + lastRolling;
 	var projectedWinLoss = baseWinLoss - additionalCashoutNn - additionalCashoutCc;
 
-	if (commissionType === 1 || commissionType === 3) {
-		return Math.round((Math.abs(projectedRolling) * rate) / 100);
-	}
-	if (commissionType === 2) {
-		return Math.round((projectedWinLoss * rate) / 100);
-	}
-	return 0;
+	return window.computeGameCommission({
+		COMMISSION_TYPE: commissionType,
+		COMMISSION_PERCENTAGE: rate,
+		SHARE_PERCENTAGE: $modal.data('ingameSharePct'),
+		ROLLING_PERCENTAGE: $modal.data('ingameRollingPct')
+	}, projectedWinLoss, projectedRolling);
 }
 
 function computeInGameChipsWithdrawalTotal() {
@@ -1929,6 +1928,9 @@ function applyChangeStatusFromGameRow(game, currentStatus, agentCode, guestName)
 	$modal.data('addChgValue', parseFloat(game.ADD_CHG || game.add_chg || 0) || 0);
 	$modal.data('ingameCommissionType', parseInt(game.COMMISSION_TYPE, 10) || 1);
 	$modal.data('ingameCommissionRate', parseFloat(game.COMMISSION_PERCENTAGE) || 0);
+	var ingameSplit = window.getShareRollingSplit(game);
+	$modal.data('ingameSharePct', ingameSplit.sharePct);
+	$modal.data('ingameRollingPct', ingameSplit.rollingPct);
 	var code = agentCode || game.agent_code || '';
 	var name = normalizeGameGuestName(guestName || game.guest_name || '');
 	$modal.data('changeStatusAgentCode', code);
@@ -2307,7 +2309,7 @@ function togglePendingJunketTransTypeRow() {
 function commissionTypeLabel(type) {
 	var t = parseInt(type, 10);
 	if (t === 2) return 'Shared Game';
-	if (t === 3) return 'Loosing Game';
+	if (t === 3) return 'Share + Rolling';
 	return 'Rolling Game';
 }
 
@@ -3803,9 +3805,12 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 		badgeTitle = 'Shared Game';
 		badgeText = 'S';
 	} else if (row.COMMISSION_TYPE == 3) {
+		var split = window.getShareRollingSplit(row);
 		badgeClass = 'commission-badge-l';
-		badgeTitle = 'Loosing Game';
-		badgeText = 'L';
+		badgeTitle = window.commissionTypeText(row);
+		badgeText = 'S+R';
+		window._gameListCommissionSplit = window._gameListCommissionSplit || {};
+		window._gameListCommissionSplit[row.game_list_id] = split;
 	}
 	var badgePart;
 	if (canEditType) {
@@ -4258,27 +4263,56 @@ function editGameCommissionType(gameId, currentType, currentPct, settledFlag, ag
 	setGameListModalAccountLabel('#edit-commission-agent-code', agentCode, guestName);
 	var $modal = $('#modal-edit-commission-type');
 	var currentTypeNum = parseInt(currentType, 10);
-	var targetType = currentTypeNum === 1 ? 2 : 1; // Toggle only: Rolling <-> Shared
-	var targetTypeLabel = targetType === 2 ? 'Shared Game' : 'Rolling Game';
+	// Default target keeps the old Rolling <-> Shared toggle; Share + Rolling opens on itself to edit its split.
+	var targetType = currentTypeNum === 3 ? 3 : (currentTypeNum === 1 ? 2 : 1);
+	var split = (window._gameListCommissionSplit || {})[gameId] || { sharePct: 0, rollingPct: 100 };
+	$modal.data('editCommissionOriginal', { type: currentTypeNum, rate: Number(currentPct) || 0, split: split });
 	$('#edit-commission-game-id').val(gameId);
 	$('#edit-commission-type').val(String(targetType));
-	$('#edit-commission-type-display').val(targetTypeLabel);
-	var defaultRate = targetType === 1 ? 1.50 : (Number(currentPct) || 0);
-	$('#edit-commission-rate').val(defaultRate.toString());
 	$('#edit-commission-save-btn').prop('disabled', false).text('Update');
-	$('#edit-commission-rate').removeClass('is-invalid');
-
-	var rules = getCommissionRateRules(targetType);
-	var $rate = $('#edit-commission-rate');
-	$rate.attr('min', String(rules.min));
-	$rate.attr('max', String(rules.max));
-	$rate.attr('step', String(rules.step));
-	var cur = parseFloat($rate.val());
-	if (isNaN(cur) || cur < rules.min) $rate.val(String(rules.min));
-	if (cur > rules.max) $rate.val(String(rules.max));
+	applyEditCommissionTypeDefaults(targetType);
 	$modal.modal('show');
 }
 window.editGameCommissionType = editGameCommissionType;
+
+/** Fills rate + Share/Rolling fields for the selected type in the Edit Commission Type modal. */
+function applyEditCommissionTypeDefaults(typeVal) {
+	var t = parseInt(typeVal, 10);
+	var orig = $('#modal-edit-commission-type').data('editCommissionOriginal') || { type: 1, rate: 0, split: { sharePct: 0, rollingPct: 100 } };
+	var sameAsOriginal = t === orig.type;
+	var defaultRate = sameAsOriginal ? orig.rate : (t === 2 ? 50 : 1.50);
+	var $rate = $('#edit-commission-rate');
+	var rules = getCommissionRateRules(t);
+	$rate.attr('min', String(rules.min)).attr('max', String(rules.max)).attr('step', String(rules.step));
+	$rate.val(String(defaultRate)).removeClass('is-invalid');
+	var cur = parseFloat($rate.val());
+	if (isNaN(cur) || cur < rules.min) $rate.val(String(rules.min));
+	if (cur > rules.max) $rate.val(String(rules.max));
+
+	var isShareRolling = t === 3;
+	$('#edit-commission-share-rolling-wrap').toggleClass('d-none', !isShareRolling);
+	var split = sameAsOriginal ? orig.split : { sharePct: 0, rollingPct: 100 };
+	$('#edit-commission-share-pct').val(String(split.sharePct)).removeClass('is-invalid');
+	$('#edit-commission-rolling-pct').val(String(split.rollingPct)).removeClass('is-invalid');
+}
+
+$(document).on('change', '#edit-commission-type', function () {
+	applyEditCommissionTypeDefaults($(this).val());
+});
+
+// Share % / Rolling % inputs: never allow typing past 100 or below 0.
+$(document).on('keydown', '.js-pct-0-100', function (e) {
+	if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') e.preventDefault();
+});
+$(document).on('input', '.js-pct-0-100', function () {
+	var raw = this.value;
+	if (raw === '') return;
+	var n = parseFloat(raw);
+	if (isNaN(n)) return;
+	if (n > 100) this.value = '100';
+	else if (n < 0) this.value = '0';
+	$(this).removeClass('is-invalid');
+});
 
 $(document).on('click', '.js-game-remarks-btn', function () {
 	var $btn = $(this);
@@ -4355,7 +4389,7 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 	var gameId = parseInt($('#edit-commission-game-id').val(), 10);
 	var typeVal = parseInt($('#edit-commission-type').val(), 10);
 	var rateVal = parseFloat($('#edit-commission-rate').val());
-	if (!gameId || ![1, 2].includes(typeVal)) {
+	if (!gameId || ![1, 2, 3].includes(typeVal)) {
 		Swal.fire({ icon: 'error', title: 'Error', text: 'Invalid commission data.' });
 		return;
 	}
@@ -4366,13 +4400,29 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 		return;
 	}
 	$('#edit-commission-rate').removeClass('is-invalid');
-	var typeLabel = typeVal === 2 ? 'Shared Game' : 'Rolling Game';
+	var payload = { commission_type: typeVal, commission_percentage: rateVal };
+	var confirmRows = [
+		['Type', commissionTypeLabel(typeVal)],
+		['Rate', rateVal + '%']
+	];
+	if (typeVal === 3) {
+		var sharePct = parseFloat($('#edit-commission-share-pct').val());
+		var rollingPct = parseFloat($('#edit-commission-rolling-pct').val());
+		var badShare = isNaN(sharePct) || sharePct < 0 || sharePct > 100;
+		var badRolling = isNaN(rollingPct) || rollingPct < 0 || rollingPct > 100;
+		$('#edit-commission-share-pct').toggleClass('is-invalid', badShare);
+		$('#edit-commission-rolling-pct').toggleClass('is-invalid', badRolling);
+		if (badShare || badRolling) {
+			Swal.fire({ icon: 'warning', title: 'Invalid value', text: 'Share % and Rolling % must be between 0 and 100.' });
+			return;
+		}
+		payload.share_percentage = sharePct;
+		payload.rolling_percentage = rollingPct;
+		confirmRows.push(['Share %', sharePct + '%'], ['Rolling %', rollingPct + '%']);
+	}
 	SwalConfirm.fire({
 		title: 'Confirm update',
-		rows: [
-			['Type', typeLabel],
-			['Rate', rateVal + '%']
-		],
+		rows: confirmRows,
 		confirmButtonText: 'Yes, update',
 		cancelButtonText: 'Cancel'
 	}).then(function (result) {
@@ -4383,7 +4433,7 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 			url: '/game_list/' + gameId + '/commission_type',
 			method: 'PUT',
 			contentType: 'application/json',
-			data: JSON.stringify({ commission_type: typeVal, commission_percentage: rateVal }),
+			data: JSON.stringify(payload),
 			success: function () {
 				$('#modal-edit-commission-type').modal('hide');
 				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
@@ -4795,7 +4845,7 @@ $(document).ready(function () {
 			totalWinLoss += parseMergeNumeric($row.find('td').eq(10).text(), { signed: true });
 
 			var rateText = $.trim($row.find('td').eq(6).text())
-				.replace(/\bR\b/g, '')
+				.replace(/S\+R|\b[RSL]\b/g, '')
 				.replace(/%/g, '')
 				.replace(/\s+/g, ' ')
 				.trim();
@@ -4825,6 +4875,10 @@ $(document).ready(function () {
 			var paymentAmount = totalSettlement - serviceAmount;
 
 			$modal.find('#mergeGameIds').val(selectedIds.join(','));
+			$modal.data('commissionRow', window.mergeShareRollingRow(selectedIds.map(function (id) {
+				var split = (window._gameListCommissionSplit || {})[id];
+				return split ? { COMMISSION_TYPE: 3, SHARE_PERCENTAGE: split.sharePct, ROLLING_PERCENTAGE: split.rollingPct } : null;
+			})));
 
 			var $accSelect = $modal.find('#accNoMerge').empty();
 			selectedAccounts.forEach(function (acct) {
@@ -5759,13 +5813,8 @@ $(document).ready(function () {
 							
 							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.50% -> 62597 not 62596)
 							 var net = 0;
-							 if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
-								 // If COMMISSION_TYPE is 1 or 3, compute net using total rolling chips (commission is always a positive charge)
-								 net = Math.round((Math.abs(total_rolling_chips) * row.COMMISSION_PERCENTAGE) / 100);
-							 } else if (row.COMMISSION_TYPE == 2) {
-								 // If COMMISSION_TYPE is 2, compute net using winloss
-								 net = Math.round((WinLoss * row.COMMISSION_PERCENTAGE) / 100);
-							 }
+							 // Rolling (1): |rolling| x rate; Shared (2): W/L x rate; Share + Rolling (3): both (see commission_calc.js)
+							 net = window.computeGameCommission(row, WinLoss, total_rolling_chips);
 							var addChgValue = parseFloat(row.ADD_CHG || row.add_chg || 0);
 							var totalSettleValue = net - addChgValue;
 	
@@ -6601,6 +6650,10 @@ $('#add_game_list').submit(function (event) {
         confirmRows.push(['Total Amount', splitTotal.toLocaleString('en-US')]);
         confirmRows.push(['Commission Type', commissionTypeText || '-']);
         if (parseFloat(commissionRate) > 0) confirmRows.push(['Commission Rate', parseFloat(commissionRate).toFixed(2) + '%']);
+        if ($('#commissionType').val() === '3') {
+            confirmRows.push(['Share %', (parseFloat($('#sharePercentage').val()) || 0) + '%']);
+            confirmRows.push(['Rolling %', (parseFloat($('#rollingPercentage').val()) || 0) + '%']);
+        }
 
         SwalConfirm.fire({
             title: 'Confirm New Game',
@@ -6620,6 +6673,8 @@ $('#add_game_list').submit(function (event) {
                 txtRollerCC: $('#txtRollerCC').val(),
                 txtCommisionType: $('#commissionType').val(),
                 txtCommisionRate: $('#commissionRate').val(),
+                txtSharePercentage: $('#sharePercentage').val(),
+                txtRollingPercentage: $('#rollingPercentage').val(),
                 totalBalanceGuest1: $('#total_balanceGuest1').val(),
                 txtProgramDate: programDateVal,
                 split_cash_nn: splitCashNN,
@@ -11053,7 +11108,7 @@ $(document).ready(function () {
 
 							var total_amount = total_buy_in_chips + total_initial;
 
-							var net = (Math.abs(total_rolling_chips) * (row.COMMISSION_PERCENTAGE / 100)).toLocaleString('en-US');
+							var net = window.computeGameCommission(row, total_amount - total_cash_out_chips, total_rolling_chips).toLocaleString('en-US');
 
 							var WinLoss = total_amount - total_cash_out_chips;
 							var winloss = formatListAmount(WinLoss, 'signed');
@@ -11386,11 +11441,7 @@ function computeGameSettlementMetricsFromRows(dataRows) {
 	var CommissionType = dataRows[0].COMMISSION_TYPE;
 	var net = 0;
 
-	if (CommissionType == 1 || CommissionType == 3) {
-		net = Math.round((Math.abs(total_rolling_chips) * RollingRate) / 100);
-	} else if (CommissionType == 2) {
-		net = Math.round((WinLoss * RollingRate) / 100);
-	}
+	net = window.computeGameCommission(dataRows[0], WinLoss, total_rolling_chips);
 
 	return {
 		gameId: parseInt(dataRows[0].GAME_ID, 10),
@@ -11537,7 +11588,7 @@ function settlement_history(record_id, acc_id) {
 
     // Initialize flag for settlement processing
     var isSettled = false;
-    var currentCommissionType = null; // 1=Rolling, 2=Shared, 3=Loosing - used for validation
+    var currentCommissionType = null; // 1=Rolling, 2=Shared, 3=Share + Rolling - used for validation
     var currentGameMetrics = null;
 
     // Fetch services totals and populate F&B / Hotel breakdown
@@ -11592,6 +11643,7 @@ function settlement_history(record_id, acc_id) {
             return;
         }
         applySettlementMetricsToForm(currentGameMetrics, formatSettlementGameNoDisplay([parseInt(record_id, 10)]));
+        $settlementModal.data('commissionRow', currentGameMetrics.meta || null);
         currentCommissionType = currentGameMetrics.CommissionType;
         isSettled = !!currentGameMetrics.SETTLED;
         $settlementModal.data('is-settled', isSettled ? 1 : 0);
@@ -11602,7 +11654,10 @@ function settlement_history(record_id, acc_id) {
     function updateRollingSettlement() {
         var updatedRollingRate = parseFloat(String($('#rollingRate').val() || '').replace(/,/g, '')) || 0;
         var currentRolling = parseFloat(String($('#rolling').val() || '').replace(/,/g, '')) || 0;
-        var updatedRollingSettlement = Math.round((Math.abs(currentRolling) * updatedRollingRate) / 100);
+        var currentWinLoss = parseFloat(String($('#winLoss').val() || '').replace(/,/g, '')) || 0;
+        var updatedRollingSettlement = Number(currentCommissionType) === 3 && currentGameMetrics
+            ? window.computeGameCommission($.extend({}, currentGameMetrics.meta, { COMMISSION_PERCENTAGE: updatedRollingRate }), currentWinLoss, currentRolling)
+            : Math.round((Math.abs(currentRolling) * updatedRollingRate) / 100);
         $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString('en-US', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
@@ -11734,7 +11789,7 @@ function settlement_history(record_id, acc_id) {
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
         // Shared Game (COMMISSION_TYPE 2): commission based on WIN/LOSS - can be negative, always allow.
-        // Rolling/Loosing (1, 3): block only when services exceed settlement.
+        // Rolling / Share + Rolling (1, 3): block only when services exceed settlement.
         if (currentCommissionType != 2 && servicesValue > settlementValue) {
             Swal.fire({
                 icon: 'error',

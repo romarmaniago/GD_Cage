@@ -51,12 +51,17 @@ $(document).ready(function () {
 		return formatAmount(n);
 	}
 
-	function getShareRollingPct(commissionType, commissionPercentage) {
+	function getShareRollingPct(commissionType, commissionPercentage, row) {
 		var rate = parseNumCell(commissionPercentage);
 		var type = parseInt(commissionType, 10);
 		var shareDecimal = rate / 100;
 		if (type === 2) return { sharePct: shareDecimal, rollingPct: 0 };
-		if (type === 1 || type === 3) return { sharePct: 0, rollingPct: 1 };
+		if (type === 1) return { sharePct: 0, rollingPct: 1 };
+		if (type === 3) {
+			// Share + Rolling: Share % of W/L + Rolling % of the rolling rate
+			var split = window.getShareRollingSplit ? window.getShareRollingSplit(row) : { sharePct: 0, rollingPct: 100 };
+			return { sharePct: split.sharePct / 100, rollingPct: split.rollingPct / 100 };
+		}
 		return { sharePct: 0, rollingPct: 0 };
 	}
 
@@ -894,7 +899,7 @@ $(document).ready(function () {
 							if (!Array.isArray(response)) return;
 
 							var metrics = computeRollingFromRecords(response);
-							var pct = getShareRollingPct(row.COMMISSION_TYPE, row.COMMISSION_PERCENTAGE);
+							var pct = getShareRollingPct(row.COMMISSION_TYPE, row.COMMISSION_PERCENTAGE, row);
 							var amounts = computeSettlementAmounts(
 								metrics.winLoss,
 								metrics.totalRolling,

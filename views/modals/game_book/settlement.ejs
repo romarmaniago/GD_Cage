@@ -1355,7 +1355,10 @@ $(document).ready(function() {
         var rolling = parseAmount($panel.find('[data-field="rolling"]').val());
         var rate = parseAmount($panel.find('[data-field="rollingRate"]').val());
         var addCharge = parseAmount($panel.data('add-charge'));
-        var settlement = Math.round((rolling * rate) / 100);
+        var winLoss = parseAmount($panel.find('[data-field="winLoss"]').val());
+        var $settleModal = $('#modal-settlement');
+        var totalRolling = parseAmount($settleModal.find('#rolling').val());
+        var settlement = window.computeReceiptPanelSettlement($settleModal.data('commissionRow'), winLoss, rolling, rate, totalRolling);
         var payment = settlement - addCharge;
 
         $panel.data('rolling-settlement', settlement);
@@ -1513,9 +1516,16 @@ $(document).ready(function() {
         var totalRolling = parseAmount($modal.find('#rolling').val());
         var companyRate = clampSplitRate($modal.find('#calc-company-rate').val(), 100);
 
+        // Share + Rolling: share part follows each side's rolling (see computeReceiptPanelSettlement).
+        var splitRow = $modal.data('commissionRow');
+        var splitWinLoss = parseAmount($modal.find('#winLoss').val());
+        var splitSettlement = function (rollingValue) {
+            return window.computeReceiptPanelSettlement(splitRow, splitWinLoss, rollingValue, companyRate, totalRolling);
+        };
+
         $modal.find('#calc-company-rate-rolling').text(formatAmount(totalRolling));
         $modal.find('#calc-company-rate-rate-display').text(formatSplitPctValue(companyRate) + '%');
-        var totalSettlement = Math.round((totalRolling * companyRate) / 100);
+        var totalSettlement = splitSettlement(totalRolling);
         renderSplitAmountCell($modal.find('#calc-company-rate-settlement'), totalSettlement);
         $modal.find('#calc-company-pct-rolling').text(formatAmount(totalRolling));
         renderSplitAmountCell($modal.find('#calc-company-pct-settlement'), totalSettlement);
@@ -1527,8 +1537,8 @@ $(document).ready(function() {
         // Settlement is derived from the rounded Rolling (same figure that gets
         // applied to the real fields) so the preview here always matches what
         // shows up in the actual Guest/Agent panels above.
-        var guestRateSettlement = Math.round((guestRateRolling * companyRate) / 100);
-        var agentRateSettlement = Math.round((agentRateRolling * companyRate) / 100);
+        var guestRateSettlement = splitSettlement(guestRateRolling);
+        var agentRateSettlement = splitSettlement(agentRateRolling);
 
         $modal.find('#calc-guest-rate-rolling').text(formatAmount(guestRateRolling));
         renderSplitAmountCell($modal.find('#calc-guest-rate-settlement'), guestRateSettlement);
@@ -1542,8 +1552,8 @@ $(document).ready(function() {
         var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
         // Same as above — Settlement follows the rounded Rolling so it matches
         // what actually lands in the real Guest/Agent panels.
-        var guestPctSettlement = Math.round((guestPctRolling * companyRate) / 100);
-        var agentPctSettlement = Math.round((agentPctRolling * companyRate) / 100);
+        var guestPctSettlement = splitSettlement(guestPctRolling);
+        var agentPctSettlement = splitSettlement(agentPctRolling);
 
         $modal.find('#calc-guest-pct-rolling').text(formatAmount(guestPctRolling));
         renderSplitAmountCell($modal.find('#calc-guest-pct-settlement'), guestPctSettlement);

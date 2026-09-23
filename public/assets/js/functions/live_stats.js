@@ -115,13 +115,7 @@ $(document).ready(function () {
 
 							 // Calculate net and format as an integer
 							 var net = 0;
-							 if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
-								 // If COMMISSION_TYPE is 1 or 3, compute net using total rolling chips
-								 net = Math.round(total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100));
-							 } else if (row.COMMISSION_TYPE == 2) {
-								 // If COMMISSION_TYPE is 2, compute net using winloss
-								 net = Math.round(WinLoss * (row.COMMISSION_PERCENTAGE / 100));
-							 }
+							 net = window.computeGameCommission(row, WinLoss, total_rolling_chips, { absRolling: false });
 	
 							// Add to grand totals
 							totalInitialBuyIn += total_initial;

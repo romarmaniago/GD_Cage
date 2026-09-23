@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { computeGameCommission } = require('../utils/commissionCalc');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
@@ -613,6 +614,8 @@ router.get('/agency_line_stats', async (req, res) => {
 					gl.IDNo AS game_id,
 					COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
 					COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+					COALESCE(gl.SHARE_PERCENTAGE, 0) AS share_percentage,
+					COALESCE(gl.ROLLING_PERCENTAGE, 100) AS rolling_percentage,
 					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
 					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
 					COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
@@ -631,7 +634,7 @@ router.get('/agency_line_stats', async (req, res) => {
 			   AND ag.ACTIVE = 1
 			 ${agencyFilter}
 			 ${agentFilter}
-			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+			 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE`,
 			combinedParams
 		);
 		const [balanceRows] = await pool.execute(
@@ -699,11 +702,7 @@ router.get('/agency_line_stats', async (req, res) => {
 			const commissionType = Number(row.commission_type) || 0;
 			let net = 0;
 
-			if (commissionType === 1 || commissionType === 3) {
-				net = Math.round((totalRollingChips * commissionRate) / 100);
-			} else if (commissionType === 2) {
-				net = Math.round((winLoss * commissionRate) / 100);
-			}
+			net = computeGameCommission(row, winLoss, totalRollingChips, { absRolling: false });
 
 			totalRolling += totalRollingChips;
 			totalWinLoss += winLoss;
@@ -1096,11 +1095,7 @@ function aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap) {
 		const commissionType = Number(row.commission_type) || 0;
 		let net = 0;
 
-		if (commissionType === 1 || commissionType === 3) {
-			net = Math.round((totalRollingChips * commissionRate) / 100);
-		} else if (commissionType === 2) {
-			net = Math.round((winLoss * commissionRate) / 100);
-		}
+		net = computeGameCommission(row, winLoss, totalRollingChips, { absRolling: false });
 
 		bucket.total_games += 1;
 		bucket.total_rolling += totalRollingChips;
@@ -1146,11 +1141,7 @@ function sumGameRowMetrics(gameRows) {
 		const commissionType = Number(row.commission_type) || 0;
 		let net = 0;
 
-		if (commissionType === 1 || commissionType === 3) {
-			net = Math.round((totalRollingChips * commissionRate) / 100);
-		} else if (commissionType === 2) {
-			net = Math.round((winLoss * commissionRate) / 100);
-		}
+		net = computeGameCommission(row, winLoss, totalRollingChips, { absRolling: false });
 
 		totals.total_rolling += totalRollingChips;
 		totals.total_winloss += winLoss;
@@ -1169,6 +1160,8 @@ async function fetchAllLinesOverviewStats() {
 				gl.IDNo AS game_id,
 				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
 				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(gl.SHARE_PERCENTAGE, 0) AS share_percentage,
+				COALESCE(gl.ROLLING_PERCENTAGE, 100) AS rolling_percentage,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
@@ -1185,7 +1178,7 @@ async function fetchAllLinesOverviewStats() {
 		 WHERE gl.ACTIVE IN (1, 2)
 		   AND acc.ACTIVE = 1
 		   AND ag.ACTIVE = 1
-		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE`
 	);
 
 	const [[balanceRow]] = await pool.execute(
@@ -1587,6 +1580,8 @@ async function fetchAgencyLineFinancialStats(agencyId) {
 				gl.IDNo AS game_id,
 				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
 				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(gl.SHARE_PERCENTAGE, 0) AS share_percentage,
+				COALESCE(gl.ROLLING_PERCENTAGE, 100) AS rolling_percentage,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
@@ -1604,7 +1599,7 @@ async function fetchAgencyLineFinancialStats(agencyId) {
 		   AND acc.ACTIVE = 1
 		   AND ag.ACTIVE = 1
 		   AND ag.AGENCY = ?
-		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE`,
 		[agencyId]
 	);
 	const [[balanceRow]] = await pool.execute(
@@ -1667,6 +1662,8 @@ async function fetchAgentFinancialStats(agentId) {
 				gl.IDNo AS game_id,
 				COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
 				COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+				COALESCE(gl.SHARE_PERCENTAGE, 0) AS share_percentage,
+				COALESCE(gl.ROLLING_PERCENTAGE, 100) AS rolling_percentage,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
 				COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
@@ -1684,7 +1681,7 @@ async function fetchAgentFinancialStats(agentId) {
 		   AND acc.ACTIVE = 1
 		   AND ag.ACTIVE = 1
 		   AND ag.IDNo = ?
-		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE`,
+		 GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE`,
 		[agentId]
 	);
 	const [[balanceRow]] = await pool.execute(
@@ -1841,6 +1838,8 @@ const GUEST_DATA_GAME_QUERY = `
 		gl.IDNo AS game_id,
 		COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
 		COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
+		COALESCE(gl.SHARE_PERCENTAGE, 0) AS share_percentage,
+		COALESCE(gl.ROLLING_PERCENTAGE, 100) AS rolling_percentage,
 		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
 		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
 		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
@@ -1862,7 +1861,7 @@ const GUEST_DATA_GAME_QUERY = `
 		gl.GUEST_ID,
 		gl.IDNo,
 		gl.COMMISSION_TYPE,
-		gl.COMMISSION_PERCENTAGE
+		gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE
 `;
 
 // GET GUEST DATA (by agent, agency, or all)
@@ -3689,11 +3688,7 @@ router.get('/account_game_history/:id', async (req, res) => {
 			
 			// Calculate commission (net) - same logic as game_list.js
 			let net = 0;
-			if (game.COMMISSION_TYPE == 1 || game.COMMISSION_TYPE == 3) {
-				net = Math.round((total_rolling_chips * game.COMMISSION_PERCENTAGE) / 100);
-			} else if (game.COMMISSION_TYPE == 2) {
-				net = Math.round((winloss * game.COMMISSION_PERCENTAGE) / 100);
-			}
+			net = computeGameCommission(game, winloss, total_rolling_chips, { absRolling: false });
 			
 			// Return game with calculated values
 			return {

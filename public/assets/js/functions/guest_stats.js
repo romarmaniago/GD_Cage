@@ -143,11 +143,7 @@ $(document).ready(function () {
 						var WinLoss = total_amount - total_cash_out_chips;
 						var net = 0;
 	
-						if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
-							net = Math.round(total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100));
-						} else if (row.COMMISSION_TYPE == 2) {
-							net = Math.round(WinLoss * (row.COMMISSION_PERCENTAGE / 100));
-						}
+						net = window.computeGameCommission(row, WinLoss, total_rolling_chips, { absRolling: false });
 
 						var houseshare = row.HOUSE_SHARE != null ? row.HOUSE_SHARE.toLocaleString('en-US') : '';
 

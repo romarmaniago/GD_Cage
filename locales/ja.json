@@ -1296,7 +1296,10 @@
 		"select_game": "ゲームを選択",
 		"rolling_game": "ローリングゲーム",
 		"shared_game": "シェアドゲーム",
-		"loosing_game": "ロースティングゲーム",
+		"loosing_game": "シェア + ローリング",
+		"share_rolling_game": "シェア + ローリング",
+		"share_pct": "Share %",
+		"rolling_pct": "Rolling %",
 		"save": "保存",
 		"close": "閉じる"
 	},

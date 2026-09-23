@@ -8,6 +8,8 @@
  * non-editable records.
  */
 
+const { computeGameCommission } = require('./commissionCalc');
+
 function isValidYmd(d) {
 	return /^\d{4}-\d{2}-\d{2}$/.test(String(d || '').slice(0, 10));
 }
@@ -105,17 +107,15 @@ function reduceGameRecords(records) {
 }
 
 /** Net commission, same rule as the Game Book: type 1/3 on |rolling|, type 2 on win/loss. */
-function computeCommission(commissionType, commissionPercentage, rolling, winLoss) {
-	const type = Number(commissionType);
+function computeCommission(commissionType, commissionPercentage, rolling, winLoss, split = {}) {
 	const rate = Number(commissionPercentage) || 0;
 	if (!rate) return 0;
-	if (type === 1 || type === 3) {
-		return Math.round((Math.abs(rolling) * rate) / 100);
-	}
-	if (type === 2) {
-		return Math.round((winLoss * rate) / 100);
-	}
-	return 0;
+	return computeGameCommission({
+		COMMISSION_TYPE: commissionType,
+		COMMISSION_PERCENTAGE: rate,
+		SHARE_PERCENTAGE: split.SHARE_PERCENTAGE,
+		ROLLING_PERCENTAGE: split.ROLLING_PERCENTAGE
+	}, winLoss, rolling);
 }
 
 /**
@@ -135,7 +135,7 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			gl.ACCOUNT_ID,
 			gl.GUEST_ID,
 			gl.COMMISSION_TYPE,
-			gl.COMMISSION_PERCENTAGE,
+			gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE,
 			gl.GAME_ENDED,
 			gl.SETTLED,
 			NULLIF(TRIM(CONCAT_WS(' - ', NULLIF(TRIM(ag.AGENT_CODE), ''), NULLIF(TRIM(ag.NAME), ''))), '') AS ACCOUNT_TEXT,
@@ -182,7 +182,8 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			game.COMMISSION_TYPE,
 			game.COMMISSION_PERCENTAGE,
 			totals.rolling,
-			totals.winLoss
+			totals.winLoss,
+			game
 		);
 		const addCharge = Number(game.ADD_CHARGE) || 0;
 
@@ -207,6 +208,8 @@ async function fetchGamebookGameInformationRows(pool, query) {
 			ROLLING: totals.rolling,
 			COMMISSION_TYPE: game.COMMISSION_TYPE,
 			COMMISSION_PERCENTAGE: game.COMMISSION_PERCENTAGE,
+			SHARE_PERCENTAGE: game.SHARE_PERCENTAGE,
+			ROLLING_PERCENTAGE: game.ROLLING_PERCENTAGE,
 			COMMISSION: commission,
 			ADD_CHARGE: addCharge,
 			TOTAL_SETTLEMENT: commission - addCharge,

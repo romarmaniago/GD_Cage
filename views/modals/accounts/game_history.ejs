@@ -1515,7 +1515,8 @@
 
                             } else if (row.COMMISSION_TYPE == 3) {
 
-                                badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+                                const srTitle = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
+                                badge = `<span class="badge commission-badge commission-badge-l" title="${srTitle}">S+R</span>`;
 
                             }
 

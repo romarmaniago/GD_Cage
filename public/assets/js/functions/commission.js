@@ -197,9 +197,9 @@ $(document).ready(function() {
             cls = 'commission-badge-s';
             title = 'Shared';
         } else if (type === 3) {
-            label = 'L';
+            label = 'S+R';
             cls = 'commission-badge-l';
-            title = 'Lossing';
+            title = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
         }
         return escapeHtml(pctText) + ' <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
     }
@@ -228,12 +228,13 @@ $(document).ready(function() {
 
     function computeCompareRowAmounts(row, ratePercent) {
         var rate = parseFloat(ratePercent) || 0;
-        var net;
-        if (Number(row.commissionType) === 2) {
-            net = Math.round((row.winLossNum * rate) / 100);
-        } else {
-            net = Math.round((row.totalRollingNum * rate) / 100);
-        }
+        var type = Number(row.commissionType) === 2 || Number(row.commissionType) === 3 ? Number(row.commissionType) : 1;
+        var net = window.computeGameCommission({
+            COMMISSION_TYPE: type,
+            COMMISSION_PERCENTAGE: rate,
+            SHARE_PERCENTAGE: row.sharePct,
+            ROLLING_PERCENTAGE: row.rollingPct
+        }, row.winLossNum, row.totalRollingNum, { absRolling: false });
         return {
             settlement: net,
             payment: Math.round(net - row.fnbNum)
@@ -259,6 +260,8 @@ $(document).ready(function() {
             fnb: snapshot.fnb,
             dateTime: snapshot.dateTime,
             commissionType: Number(snapshot.commissionType) || 1,
+            sharePct: snapshot.sharePct,
+            rollingPct: snapshot.rollingPct,
             totalRollingNum: parseNumCell(snapshot.totalRolling),
             winLossNum: parseNumCell(snapshot.winLoss, { signed: true }),
             fnbNum: parseNumCell(snapshot.fnb),
@@ -539,6 +542,8 @@ $(document).ready(function() {
         if (!snapshot) return;
         var meta = commissionGameMeta.get(snapshot.gameNo);
         snapshot.commissionType = meta ? meta.commissionType : 1;
+        snapshot.sharePct = meta ? meta.sharePct : undefined;
+        snapshot.rollingPct = meta ? meta.rollingPct : undefined;
         compareSelection.set(snapshot.gameNo, snapshot);
     }
 
@@ -1123,6 +1128,8 @@ $(document).ready(function() {
                     if (row.SETTLED === 1) {
                         commissionGameMeta.set(String(row.game_list_id), {
                             commissionType: Number(row.COMMISSION_TYPE) || 1,
+                            sharePct: row.SHARE_PERCENTAGE,
+                            rollingPct: row.ROLLING_PERCENTAGE,
                             accountId: row.ACCOUNT_ID
                         });
                         var RollingRate = row.COMMISSION_PERCENTAGE; // Ensure the RollingRate is correct
@@ -1217,13 +1224,7 @@ $(document).ready(function() {
 							
 							        var net;
 							
-								if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
-									// Kung ang COMMISSION_TYPE ay 1, ang net ay computed gamit ang total rolling chips
-									net = Math.round((total_rolling_chips * RollingRate) / 100);
-								} else if (row.COMMISSION_TYPE == 2) {
-									// Kung ang COMMISSION_TYPE ay 2, ang net ay computed gamit ang winloss
-									net = Math.round((winlossValue * RollingRate) / 100);
-								}
+								net = window.computeGameCommission(row, winlossValue, total_rolling_chips, { absRolling: false });
 
                                     // Payment calculation based on RollingSettlement and fb
                                     var RollingSettlement = (total_rolling_chips * RollingRate) / 100;
@@ -1671,6 +1672,10 @@ $(document).ready(function() {
             var paymentAmount = totalSettlement - servicesTotal;
 
             $modal.find('#mergeGameIds').val(selectedIds.join(','));
+            $modal.data('commissionRow', window.mergeShareRollingRow(selectedIds.map(function (id) {
+                var m = commissionGameMeta.get(String(id));
+                return m ? { COMMISSION_TYPE: m.commissionType, SHARE_PERCENTAGE: m.sharePct, ROLLING_PERCENTAGE: m.rollingPct } : null;
+            })));
             $modal.find('#txtAccountIDMergeSettle').val(accountIds.join(','));
             $modal.find('#accNoMerge').text(nameText);
             $modal.find('#gameNoMerge').text(selectedIds.join(', '));
@@ -1775,6 +1780,8 @@ $(document).ready(function() {
             }
             var meta = commissionGameMeta.get(gameId);
             snapshot.commissionType = meta ? meta.commissionType : 1;
+            snapshot.sharePct = meta ? meta.sharePct : undefined;
+            snapshot.rollingPct = meta ? meta.rollingPct : undefined;
             compareSelection.set(gameId, snapshot);
         } else {
             compareSelection.delete(gameId);

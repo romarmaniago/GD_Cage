@@ -500,7 +500,7 @@ router.get('/commission_data', async (req, res) => {
             game_list.PROGRAM_DATE,
             game_list.GAME_TYPE,
             game_list.SETTLED,
-            game_list.COMMISSION_PERCENTAGE,
+            game_list.COMMISSION_PERCENTAGE, game_list.SHARE_PERCENTAGE, game_list.ROLLING_PERCENTAGE,
             game_list.COMMISSION_TYPE,
             account.IDNo AS account_no,
             agent.IDNo AS agent_id,

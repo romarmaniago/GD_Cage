@@ -146,12 +146,23 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
                           <option value="" disabled><%= __('modal_new_game_list.select_game') %></option>
                           <option value="1" selected><%= __('modal_new_game_list.rolling_game') %></option>
                           <option value="2"><%= __('modal_new_game_list.shared_game') %></option>
-                          <option value="3"><%= __('modal_new_game_list.loosing_game') %></option>
+                          <option value="3"><%= __('modal_new_game_list.share_rolling_game') %></option>
                       </select>
                   </div>
 
                   <div class="col-sm-2" id="commissionRateWrap">
                       <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
+                  </div>
+              </div>
+              <!-- Share + Rolling (type 3): Share % of Win/Loss + Rolling % of the rolling rate above -->
+              <div class="row mb-2 align-items-center g-2 d-none" id="shareRollingWrap">
+                  <div class="col-sm-3">
+                      <label class="form-label small mb-1" for="sharePercentage"><%= __('modal_new_game_list.share_pct') %></label>
+                      <input type="number" class="form-control js-pct-0-100" step="0.5" min="0" max="100" name="txtSharePercentage" id="sharePercentage" value="0" />
+                  </div>
+                  <div class="col-sm-3">
+                      <label class="form-label small mb-1" for="rollingPercentage"><%= __('modal_new_game_list.rolling_pct') %></label>
+                      <input type="number" class="form-control js-pct-0-100" step="0.5" min="0" max="100" name="txtRollingPercentage" id="rollingPercentage" value="100" />
                   </div>
               </div>
         </div>
@@ -1010,9 +1021,23 @@ function newGameListRefreshCommissionRate() {
     const defaultSharedGameRate = 50;
     const defaultMarkerRollingRate = 1.50;
 
+    const shareRollingWrap = document.getElementById('shareRollingWrap');
+    const sharePercentage = document.getElementById('sharePercentage');
+    const rollingPercentage = document.getElementById('rollingPercentage');
+    const isShareRolling = commissionType.value === '3';
+    if (shareRollingWrap) shareRollingWrap.classList.toggle('d-none', !isShareRolling);
+    if (sharePercentage) {
+        sharePercentage.value = 0;
+        sharePercentage.required = isShareRolling;
+    }
+    if (rollingPercentage) {
+        rollingPercentage.value = 100;
+        rollingPercentage.required = isShareRolling;
+    }
+
     commissionRate.setAttribute('required', 'required');
     commissionRate.classList.remove('is-invalid');
-    if (commissionType.value === '1') {
+    if (commissionType.value === '1' || isShareRolling) {
         commissionRate.setAttribute('step', '0.05');
         commissionRate.setAttribute('min', '0');
         commissionRate.value = newGameListSplitHasCreditLeg()
@@ -1043,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Event listener for keydown (Arrow Up & Arrow Down)
     if (commissionRate && commissionType) {
         commissionRate.addEventListener('keydown', function (event) {
-            if (commissionType.value === "1") { // Rolling Game: increment/decrement by 0.05
+            if (commissionType.value === "1" || commissionType.value === "3") { // Rolling / Share + Rolling: increment/decrement by 0.05
                 if (event.key === "ArrowUp") {
                     event.preventDefault();
                     incrementRollingGameRate();

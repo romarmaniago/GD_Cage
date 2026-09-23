@@ -14,6 +14,7 @@ const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
 const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql } = require('../utils/creditService');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
+const { computeGameCommission, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
 
 // Helper function to get agent notification chat IDs from telegram_api table
 // Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
@@ -378,7 +379,7 @@ function parseInGameTips(body) {
 	};
 }
 
-function projectInGameSettlementMetrics({ rolling, winLoss, commissionType, commissionRate, servicesTotal }, body) {
+function projectInGameSettlementMetrics({ rolling, winLoss, commissionType, commissionRate, sharePct, rollingPct, servicesTotal }, body) {
 	const tips = parseInGameTips(body || {});
 	const remainingNn = parseChipAmount(body?.txtInGameRemainingNN || body?.txtInGameBuyInNN);
 	const remainingCc = parseChipAmount(body?.txtInGameRemainingCC || body?.txtInGameBuyInCC);
@@ -389,7 +390,7 @@ function projectInGameSettlementMetrics({ rolling, winLoss, commissionType, comm
 	const projectedRolling = rolling - additionalCashoutNn + lastRolling;
 	const projectedWinLoss = winLoss - additionalCashoutNn - additionalCashoutCc;
 	const commissionGross = computeReceiptCommission(
-		{ COMMISSION_TYPE: commissionType, COMMISSION_PERCENTAGE: commissionRate },
+		{ COMMISSION_TYPE: commissionType, COMMISSION_PERCENTAGE: commissionRate, SHARE_PERCENTAGE: sharePct, ROLLING_PERCENTAGE: rollingPct },
 		projectedWinLoss,
 		projectedRolling
 	);
@@ -725,7 +726,7 @@ async function performGameCutoff(db, params) {
 	} = params;
 
 	const [parentRows] = await db.execute(
-		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE
+		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ACTIVE
 		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
 		[parentGameId]
 	);
@@ -885,8 +886,8 @@ async function performGameCutoff(db, params) {
 	let newGameId;
 	try {
 		const [newGameResult] = await db.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
-			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CUTOFF_PARENT_GAME_ID, ACTIVE)
+			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
 			[
 				parentAccountId,
 				parent.GUEST_ID,
@@ -895,6 +896,8 @@ async function performGameCutoff(db, params) {
 				initialMOP,
 				parent.COMMISSION_TYPE,
 				parent.COMMISSION_PERCENTAGE,
+				parent.SHARE_PERCENTAGE ?? 0,
+				parent.ROLLING_PERCENTAGE ?? 100,
 				encodedBy,
 				dateNow,
 				programDate,
@@ -904,8 +907,8 @@ async function performGameCutoff(db, params) {
 		newGameId = newGameResult.insertId;
 	} catch (insertErr) {
 		const [newGameResult] = await db.execute(
-			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
-			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, 2)`,
+			`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+			 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
 			[
 				parentAccountId,
 				parent.GUEST_ID,
@@ -914,6 +917,8 @@ async function performGameCutoff(db, params) {
 				initialMOP,
 				parent.COMMISSION_TYPE,
 				parent.COMMISSION_PERCENTAGE,
+				parent.SHARE_PERCENTAGE ?? 0,
+				parent.ROLLING_PERCENTAGE ?? 100,
 				encodedBy,
 				dateNow,
 				programDate
@@ -1024,7 +1029,7 @@ async function performInGameSettlement(db, params) {
 	} = params;
 
 	const [parentRows] = await db.execute(
-		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ACTIVE, SETTLED
+		`SELECT ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ACTIVE, SETTLED
 		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
 		[parentGameId]
 	);
@@ -1224,8 +1229,8 @@ async function performInGameSettlement(db, params) {
 
 	let newGameId;
 	const [newGameResult] = await db.execute(
-		`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
-		 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, 2)`,
+		`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, ACTIVE)
+		 VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, ?, 2)`,
 		[
 			parentAccountId,
 			parent.GUEST_ID,
@@ -1234,6 +1239,8 @@ async function performInGameSettlement(db, params) {
 			initialMOP,
 			parent.COMMISSION_TYPE,
 			parent.COMMISSION_PERCENTAGE,
+			parent.SHARE_PERCENTAGE ?? 0,
+			parent.ROLLING_PERCENTAGE ?? 100,
 			encodedBy,
 			dateNow,
 			programDate
@@ -1751,7 +1758,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 
 async function assertPendingGame(db, gameId) {
 	const [rows] = await db.execute(
-		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE,
+		`SELECT IDNo, ACTIVE, SETTLED, ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE,
 		 PENDING_ROLLER_RESOLVE, PENDING_ROLLER_LINK_GAME_ID
 		 FROM game_list WHERE IDNo = ? AND ACTIVE = 3 LIMIT 1`,
 		[gameId]
@@ -2611,6 +2618,8 @@ router.post('/add_game_list', async (req, res) => {
 	const guestId = parseInt(txtGuestId, 10) || null;
 	const commType = txtCommisionType || null;
 	const commRate = parseFloat((txtCommisionRate || '0').replace(/,/g, '')) || 0;
+	const shareRolling = parseShareRollingInput(req.body);
+	if (shareRolling.error) return res.status(400).send(shareRolling.error);
 	const nnAmount = parseFloat((txtNN || '0').replace(/,/g, '')) || 0;
 	const ccAmount = parseFloat((txtCC || '0').replace(/,/g, '')) || 0;
 	const rollerNNAmount = parseFloat((txtRollerNN || '0').replace(/,/g, '')) || 0;
@@ -2634,9 +2643,9 @@ router.post('/add_game_list', async (req, res) => {
 	try {
 		// 1. Insert into game_list
 		const [result] = await pool.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, initialMOP, commType, commRate, encodedBy, encoded_dt, program_date]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, initialMOP, commType, commRate, shareRolling.sharePct, shareRolling.rollingPct, encodedBy, encoded_dt, program_date]
 		);
 
 		const gameId = result.insertId;
@@ -2744,16 +2753,12 @@ router.post('/add_game_list', async (req, res) => {
 		date: 'Date',
 		time: 'Time'
 	};
-	// Commission type labels for Telegram (1 = none, 2 = Share, 3 = Losing)
+	// Commission type labels for Telegram (1 = none, 2 = Share, 3 = Share + Rolling)
 	const commissionType = parseInt(txtCommisionType, 10) || null;
-	const commissionTextLabel =
-		commissionType === 2 ? 'Game type: Share' :
-		commissionType === 3 ? 'Game type: Losing' :
-		'';
-	const commissionMgmtLabel =
-		commissionType === 2 ? 'Game type: Share' :
-		commissionType === 3 ? 'Game type: Losing' :
-		'';
+	const commissionTextLabel = commissionType === 2 || commissionType === 3
+		? `Game type: ${commissionTypeLabel({ COMMISSION_TYPE: commissionType, SHARE_PERCENTAGE: shareRolling.sharePct, ROLLING_PERCENTAGE: shareRolling.rollingPct })}`
+		: '';
+	const commissionMgmtLabel = commissionTextLabel;
 	const commissionTextLine = commissionTextLabel ? `\n${commissionTextLabel}` : '';
 	const commissionMgmtLine = commissionMgmtLabel ? `\n${commissionMgmtLabel}` : '';
 
@@ -2889,6 +2894,8 @@ router.post('/add_game_list_split', async (req, res) => {
 	const gameType = txtGameType || 'N/A';
 	const commType = txtCommisionType || null;
 	const commRate = parseFloat((txtCommisionRate || '0').toString().replace(/,/g, '')) || 0;
+	const shareRolling = parseShareRollingInput(req.body);
+	if (shareRolling.error) return res.status(400).json({ error: shareRolling.error });
 	const rollerNNAmount = parseAmt(txtRollerNN);
 	const rollerCCAmount = parseAmt(txtRollerCC);
 
@@ -2946,9 +2953,9 @@ router.post('/add_game_list_split', async (req, res) => {
 		await connection.beginTransaction();
 
 		const [gameResult] = await connection.execute(`
-			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
-			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?)`,
-			[accountId, guestId, gameType, 'SPLIT', commType, commRate, encodedBy, encoded_dt, program_date]
+			INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			VALUES (?, ?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, guestId, gameType, 'SPLIT', commType, commRate, shareRolling.sharePct, shareRolling.rollingPct, encodedBy, encoded_dt, program_date]
 		);
 		const gameId = gameResult.insertId;
 
@@ -3050,8 +3057,13 @@ router.post('/add_game_list_split', async (req, res) => {
 				if (creditTotal > 0) splitLinesMgmt.push(`Credit: ${creditTotal.toLocaleString('en-US')}`);
 				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const splitGt = telegramGameTypeLabels(gameType);
-				const text = `GD Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.agentText}\n${splitTextBlockGuest}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}${depositTotal > 0 ? `\nBalance: ${balanceAfterDeposit.toLocaleString('en-US')}` : ''}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
-				const managementText = `GD Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.managementText}\n${splitTextBlockMgmt}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				// Shared / Share + Rolling: same "Game type" line as the legacy /add_game_list Telegram.
+				const splitCommType = parseInt(commType, 10);
+				const splitCommissionLine = splitCommType === 2 || splitCommType === 3
+					? `\nGame type: ${commissionTypeLabel({ COMMISSION_TYPE: splitCommType, SHARE_PERCENTAGE: shareRolling.sharePct, ROLLING_PERCENTAGE: shareRolling.rollingPct })}`
+					: '';
+				const text = `GD Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.agentText}${splitCommissionLine}\n${splitTextBlockGuest}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}${depositTotal > 0 ? `\nBalance: ${balanceAfterDeposit.toLocaleString('en-US')}` : ''}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const managementText = `GD Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${splitGt.managementText}${splitCommissionLine}\n${splitTextBlockMgmt}\nTotal Buy-in: ${grandTotal.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 				if (telegramId) {
@@ -4047,20 +4059,12 @@ function computeReceiptWinLossRolling(records) {
 }
 
 function computeReceiptCommission(game, winLoss, rolling) {
-	const commissionType = parseInt(game.COMMISSION_TYPE, 10);
-	const rate = parseFloat(game.COMMISSION_PERCENTAGE) || 0;
-	if (commissionType === 1 || commissionType === 3) {
-		return Math.round((Math.abs(rolling) * rate) / 100);
-	}
-	if (commissionType === 2) {
-		return Math.round((winLoss * rate) / 100);
-	}
-	return 0;
+	return computeGameCommission(game, winLoss, rolling);
 }
 
 async function computeInGameSettlementFigures(db, gameId, body) {
 	const [gameRows] = await db.execute(
-		`SELECT COMMISSION_TYPE, COMMISSION_PERCENTAGE, SETTLED
+		`SELECT COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, SETTLED
 		 FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
 		[gameId]
 	);
@@ -4095,10 +4099,12 @@ async function computeInGameSettlementFigures(db, gameId, body) {
 		winLoss,
 		commissionType,
 		commissionRate,
+		sharePct: gameRows[0].SHARE_PERCENTAGE,
+		rollingPct: gameRows[0].ROLLING_PERCENTAGE,
 		servicesTotal
 	}, body);
 
-	if ((commissionType === 1 || commissionType === 3) && servicesTotal > projected.commissionGross + 0.001) {
+	if (isRollingBasedType(commissionType) && servicesTotal > projected.commissionGross + 0.001) {
 		const err = new Error('Services cannot exceed the computed settlement/commission amount.');
 		err.statusCode = 400;
 		throw err;
@@ -4156,6 +4162,8 @@ async function buildGameReceipts(gameId) {
 			game_list.PAYMENT,
 			game_list.COMMISSION_TYPE,
 			game_list.COMMISSION_PERCENTAGE,
+			game_list.SHARE_PERCENTAGE,
+			game_list.ROLLING_PERCENTAGE,
 			game_list.GAME_TYPE,
 			agent.AGENT_CODE AS agent_code,
 			agent.NAME AS agent_name,
@@ -5238,8 +5246,8 @@ router.post('/game_list/pending_resolve/junket_new_game', async (req, res) => {
 		let buyinGameId = null;
 		if (nnAmount > 0) {
 			const [buyinGameResult] = await pool.execute(
-				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?)`,
-				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GROUP_ID, pendingGame.GAME_TYPE || 'LIVE', initialMOP, pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, encodedBy, dateNow, programDate]
+				`INSERT INTO game_list (ACCOUNT_ID, GUEST_ID, GROUP_ID, GAME_TYPE, INITIAL_MOP, COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE) VALUES (?, ?, COALESCE(?, (SELECT IDNo FROM game_group WHERE NAME = 'Main' LIMIT 1)), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[pendingGame.ACCOUNT_ID, pendingGame.GUEST_ID, pendingGame.GROUP_ID, pendingGame.GAME_TYPE || 'LIVE', initialMOP, pendingGame.COMMISSION_TYPE, pendingGame.COMMISSION_PERCENTAGE, pendingGame.SHARE_PERCENTAGE ?? 0, pendingGame.ROLLING_PERCENTAGE ?? 100, encodedBy, dateNow, programDate]
 			);
 			buyinGameId = buyinGameResult.insertId;
 			await insertAdditionalBuyinForGame(pool, {
@@ -5325,6 +5333,8 @@ router.get('/game_list/commission_settlement_detail', checkSession, async (req, 
 				game_list.IDNo,
 				game_list.COMMISSION_TYPE,
 				game_list.COMMISSION_PERCENTAGE,
+				game_list.SHARE_PERCENTAGE,
+				game_list.ROLLING_PERCENTAGE,
 				agent.AGENT_CODE,
 				agent.NAME AS AGENT_NAME,
 				COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS GUEST_NAME,
@@ -5358,13 +5368,8 @@ router.get('/game_list/commission_settlement_detail', checkSession, async (req, 
 			const info = gameInfoById[gid];
 			if (!info) continue;
 			const totals = await fetchSettlementTotalsForGameId(gid);
-			const rate = parseFloat(info.COMMISSION_PERCENTAGE) || 0;
-			// Same formula as the Game Book table (game_list.js): Rolling/Losing types (1, 3)
-			// always charge a positive commission off the rolling volume; Shared (2) tracks
-			// the actual signed win/loss.
-			const settlement = Number(info.COMMISSION_TYPE) === 2
-				? Math.round((totals.winloss * rate) / 100)
-				: Math.round((Math.abs(totals.total_rolling) * rate) / 100);
+			// Same formula as the Game Book table (utils/commissionCalc.js).
+			const settlement = computeGameCommission(info, totals.winloss, totals.total_rolling);
 			const fnb = parseFloat(info.FNB) || 0;
 			const hotel = parseFloat(info.HOTEL) || 0;
 			const incidental = parseFloat(info.INCIDENTAL) || 0;
@@ -5498,18 +5503,15 @@ router.post('/add_settlement', async (req, res) => {
 			let gameTypeMgmtLine = '';
 			try {
 				const [gameInfoRows] = await pool.execute(
-					'SELECT COMMISSION_TYPE, GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+					'SELECT COMMISSION_TYPE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
 					[game_id_settle]
 				);
 				if (Array.isArray(gameInfoRows) && gameInfoRows.length > 0) {
 					const row = gameInfoRows[0];
 					const commissionType = parseInt(row.COMMISSION_TYPE, 10) || null;
-					if (commissionType === 2) {
-						commissionTextLine = '\nGame type: Share';
-						commissionMgmtLine = '\nGame type: Share';
-					} else if (commissionType === 3) {
-						commissionTextLine = '\nGame type: Losing';
-						commissionMgmtLine = '\nGame type: Losing';
+					if (commissionType === 2 || commissionType === 3) {
+						commissionTextLine = `\nGame type: ${commissionTypeLabel(row)}`;
+						commissionMgmtLine = commissionTextLine;
 					}
 					if (row.GAME_TYPE != null && String(row.GAME_TYPE).trim() !== '') {
 						const gt = telegramSettlementGameTypeLines(row.GAME_TYPE);
@@ -5651,7 +5653,7 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 
 	try {
 		const [gameRows] = await pool.execute(
-			'SELECT COMMISSION_TYPE, GAME_TYPE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1',
+			'SELECT COMMISSION_TYPE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, GAME_TYPE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1',
 			[game_id_settle]
 		);
 		if (gameRows.length === 0) {
@@ -5683,12 +5685,9 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		let gameTypeLine = '';
 		let gameTypeMgmtLine = '';
 		const commissionType = parseInt(gameRows[0].COMMISSION_TYPE, 10) || null;
-		if (commissionType === 2) {
-			commissionTextLine = '\nGame type: Share';
-			commissionMgmtLine = '\nGame type: Share';
-		} else if (commissionType === 3) {
-			commissionTextLine = '\nGame type: Losing';
-			commissionMgmtLine = '\nGame type: Losing';
+		if (commissionType === 2 || commissionType === 3) {
+			commissionTextLine = `\nGame type: ${commissionTypeLabel(gameRows[0])}`;
+			commissionMgmtLine = commissionTextLine;
 		}
 		if (gameRows[0].GAME_TYPE != null && String(gameRows[0].GAME_TYPE).trim() !== '') {
 			const gt = telegramSettlementGameTypeLines(gameRows[0].GAME_TYPE);
@@ -5790,7 +5789,7 @@ router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req
 	}
 });
 
-// Update commission / game rate (Rolling, Shared, Loosing) for ACTIVE 1/2/3
+// Update commission / game rate (Rolling, Shared, Share + Rolling) for ACTIVE 1/2/3
 router.put('/game_list/:id/commission_percentage', async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const raw = req.body && (req.body.commission_percentage != null ? req.body.commission_percentage : req.body.txtCommisionRate);
@@ -5971,7 +5970,7 @@ router.put('/game_list/:id/game_type', async (req, res) => {
 	}
 });
 
-// Update commission type (Rolling/Shared) for ACTIVE 1/2/3
+// Update commission type (Rolling / Shared / Share + Rolling) for ACTIVE 1/2/3
 router.put('/game_list/:id/commission_type', async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const newType = parseInt(req.body?.commission_type, 10);
@@ -5985,7 +5984,7 @@ router.put('/game_list/:id/commission_type', async (req, res) => {
 	if (!id || isNaN(id)) {
 		return res.status(400).json({ error: 'Invalid game ID' });
 	}
-	if (![1, 2].includes(newType)) {
+	if (![1, 2, 3].includes(newType)) {
 		return res.status(400).json({ error: 'Invalid commission type.' });
 	}
 	if (hasRate && (isNaN(reqRate) || reqRate < 0 || reqRate > 100)) {
@@ -5993,7 +5992,7 @@ router.put('/game_list/:id/commission_type', async (req, res) => {
 	}
 	try {
 		const [rows] = await pool.execute(
-			'SELECT COMMISSION_PERCENTAGE, ACTIVE FROM game_list WHERE IDNo = ?',
+			'SELECT COMMISSION_TYPE, COMMISSION_PERCENTAGE, SHARE_PERCENTAGE, ROLLING_PERCENTAGE, ACTIVE FROM game_list WHERE IDNo = ?',
 			[id]
 		);
 		const active = Number(rows?.[0]?.ACTIVE);
@@ -6001,16 +6000,31 @@ router.put('/game_list/:id/commission_type', async (req, res) => {
 			return res.status(404).json({ error: 'Game not found' });
 		}
 		let rate = hasRate ? reqRate : (Number(rows[0].COMMISSION_PERCENTAGE) || 0);
+		// Share + Rolling: Share % / Rolling % (0–100). Other types reset to the neutral 0 / 100.
+		let split = { sharePct: 0, rollingPct: 100 };
+		if (newType === 3) {
+			const prevIsShareRolling = parseInt(rows[0].COMMISSION_TYPE, 10) === 3;
+			split = parseShareRollingInput(req.body, prevIsShareRolling
+				? { sharePct: rows[0].SHARE_PERCENTAGE, rollingPct: rows[0].ROLLING_PERCENTAGE }
+				: {});
+			if (split.error) return res.status(400).json({ error: split.error });
+		}
 		// Shared game requires minimum 50%.
 		if (newType === 2 && rate < 50) {
 			if (hasRate) return res.status(400).json({ error: 'Shared game rate must be between 50% and 100%.' });
 			rate = 50;
 		}
 		await pool.execute(
-			'UPDATE game_list SET COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ? WHERE IDNo = ?',
-			[newType, rate, id]
+			'UPDATE game_list SET COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ?, SHARE_PERCENTAGE = ?, ROLLING_PERCENTAGE = ? WHERE IDNo = ?',
+			[newType, rate, split.sharePct, split.rollingPct, id]
 		);
-		res.json({ success: true, commission_type: newType, commission_percentage: rate });
+		res.json({
+			success: true,
+			commission_type: newType,
+			commission_percentage: rate,
+			share_percentage: split.sharePct,
+			rolling_percentage: split.rollingPct
+		});
 	} catch (err) {
 		console.error('Error updating commission type:', err);
 		res.status(500).json({ error: 'Failed to update commission type' });

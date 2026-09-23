@@ -37,6 +37,8 @@ async function computeGamebookCommissionTotal(startStr, endStr) {
 			game_id: row.game_id,
 			COMMISSION_TYPE: row.COMMISSION_TYPE,
 			COMMISSION_PERCENTAGE: row.COMMISSION_PERCENTAGE,
+			SHARE_PERCENTAGE: row.SHARE_PERCENTAGE,
+			ROLLING_PERCENTAGE: row.ROLLING_PERCENTAGE,
 			HOUSE_SHARE: row.HOUSE_SHARE,
 		};
 		const m = computeGameMetrics(recordsByGame.get(row.game_id) || [], gl);

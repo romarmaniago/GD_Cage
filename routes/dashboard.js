@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const pool = require('../config/db');
+const { computeGameCommission } = require('../utils/commissionCalc');
 const dashboardQueries = require('../utils/dashboardQueries');
 const { computeGamebookAutoTotalsByDate } = require('../utils/netProfitCalc');
 const { SQL_EXCLUDE_DEALER_TIP_CASHOUT, SQL_DASHBOARD_GAME_CASHOUT_FILTER, SQL_ROLLER_TIP_CASHOUT_ONLY, SQL_DEALER_TIP_CASHOUT_ONLY, SQL_ROLLER_TIP_IN_CASHIN_ONLY } = require('../utils/saveCashoutTips');
@@ -888,7 +889,7 @@ let sqlServiceSettle = `
 			const commissionQuery = `
 				SELECT *, 
 					game_list.IDNo AS game_list_id, 
-					game_list.COMMISSION_PERCENTAGE,
+					game_list.COMMISSION_PERCENTAGE, game_list.SHARE_PERCENTAGE, game_list.ROLLING_PERCENTAGE,
 					game_list.COMMISSION_TYPE,
 					game_list.FNB AS fnb
 				FROM game_list 
@@ -979,11 +980,7 @@ let sqlServiceSettle = `
 					const winlossValue = total_amount - total_cash_out_chips;
 
 					let net = 0;
-					if (commissionType === 1 || commissionType === 3) {
-						net = Math.round((total_rolling_chips * RollingRate) / 100);
-					} else if (commissionType === 2) {
-						net = Math.round((winlossValue * RollingRate) / 100);
-					}
+					net = computeGameCommission({ COMMISSION_TYPE: commissionType, COMMISSION_PERCENTAGE: RollingRate, SHARE_PERCENTAGE: row.SHARE_PERCENTAGE, ROLLING_PERCENTAGE: row.ROLLING_PERCENTAGE }, winlossValue, total_rolling_chips, { absRolling: false });
 
 					// Settlement: net commission bago bawas F&B
 					const settlementValue = net;

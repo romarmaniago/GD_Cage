@@ -1296,7 +1296,10 @@
 		"select_game": "选择游戏",
 		"rolling_game": "滚动游戏",
 		"shared_game": "共享游戏",
-		"loosing_game": "输游戏",
+		"loosing_game": "分成 + 滚动",
+		"share_rolling_game": "分成 + 滚动",
+		"share_pct": "Share %",
+		"rolling_pct": "Rolling %",
 		"save": "保存",
 		"close": "关闭"
 	},

@@ -7,6 +7,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const pool = require('../config/db');
+const { computeGameCommission } = require('../utils/commissionCalc');
 const { computeCashBalance } = require('../utils/dashboardQueries');
 const argon2 = require('argon2');
 const { formatDateTimeDisplay } = require('../utils/formatDateTime');
@@ -95,6 +96,8 @@ function computeRollingAndWinlossByAgent(recs) {
       total_roller_return_cc: 0,
       COMMISSION_TYPE: r.COMMISSION_TYPE != null ? Number(r.COMMISSION_TYPE) : null,
       COMMISSION_PERCENTAGE: r.COMMISSION_PERCENTAGE != null ? Number(r.COMMISSION_PERCENTAGE) : null,
+      SHARE_PERCENTAGE: r.SHARE_PERCENTAGE,
+      ROLLING_PERCENTAGE: r.ROLLING_PERCENTAGE,
     };
     const ct = Number(r.CAGE_TYPE);
     const amt = Number(r.AMOUNT) || 0;
@@ -132,11 +135,7 @@ function computeRollingAndWinlossByAgent(recs) {
     const commType = g.COMMISSION_TYPE;
     const commPct = g.COMMISSION_PERCENTAGE;
     if (commType != null && commPct != null && commPct > 0) {
-      if (commType === 1 || commType === 3) {
-        gameCommission = Math.round((g.rolling * commPct) / 100);
-      } else if (commType === 2) {
-        gameCommission = Math.round((g.winloss * commPct) / 100);
-      }
+      gameCommission = computeGameCommission(g, g.winloss, g.rolling, { absRolling: false });
     }
 
     const aid = g.agent_id;
@@ -497,7 +496,7 @@ router.get('/dashboard-statement', async (req, res) => {
  */
 async function computeSettledDayTotals(dateStr) {
   const [games] = await pool.execute(
-    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE,
+    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE,
             ag.AGENT_CODE, ag.NAME AS agent_name
      FROM game_list gl
      JOIN account a ON gl.ACCOUNT_ID = a.IDNo
@@ -569,7 +568,7 @@ async function computeSettledDayTotals(dateStr) {
 router.get('/monthly-games', async (req, res) => {
   try {
     const [onGameList] = await pool.execute(
-      `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE,
+      `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE,
               ag.AGENT_CODE, ag.NAME AS agent_name,
               SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0) ELSE 0 END) AS buyin,
               SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0) ELSE 0 END) AS cashout
@@ -578,7 +577,7 @@ router.get('/monthly-games', async (req, res) => {
        JOIN agent ag ON a.AGENT_ID = ag.IDNo
        LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE != 0
        WHERE gl.ACTIVE NOT IN (0, 1)
-       GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, ag.AGENT_CODE, ag.NAME
+       GROUP BY gl.IDNo, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE, ag.AGENT_CODE, ag.NAME
        ORDER BY gl.IDNo ASC`
     );
 
@@ -1157,7 +1156,7 @@ router.get('/daily-settlement', async (req, res) => {
           const totalRolling = totalRollingSum;
 
           const [commRows] = await pool.execute(
-            `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE
+            `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE, gl.COMMISSION_TYPE
              FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.ACTIVE != 0 AND gl.SETTLED = 1`,
             gameIds
           );
@@ -1170,8 +1169,8 @@ router.get('/daily-settlement', async (req, res) => {
             );
             const rolling = Number(cr[0]?.r) || 0;
             const cashout = Number(cr[0]?.c) || 0;
-            if (row.COMMISSION_TYPE === 1) dayCommission += (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
-            else if (row.COMMISSION_TYPE === 2) dayCommission += (byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0) * (row.COMMISSION_PERCENTAGE / 100);
+            const dayWinLoss = byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0;
+            dayCommission += computeGameCommission(row, dayWinLoss, rolling - cashout, { round: (x) => x, absRolling: false });
           }
 
           const [expRow] = await pool.execute(
@@ -1227,7 +1226,7 @@ router.get('/daily-settlement', async (req, res) => {
       game_rolling = totalRollingSum;
 
       const [commRows] = await pool.execute(
-        `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.ACTIVE != 0 AND gl.SETTLED = 1`,
+        `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE, gl.COMMISSION_TYPE FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.ACTIVE != 0 AND gl.SETTLED = 1`,
         gameIds
       );
       for (const row of commRows) {
@@ -1238,8 +1237,8 @@ router.get('/daily-settlement', async (req, res) => {
         );
         const rolling = Number(cr[0]?.r) || 0;
         const cashout = Number(cr[0]?.c) || 0;
-        if (row.COMMISSION_TYPE === 1) commission += (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
-        else if (row.COMMISSION_TYPE === 2) commission += (byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0) * (row.COMMISSION_PERCENTAGE / 100);
+        const gameWinLoss = byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0;
+        commission += computeGameCommission(row, gameWinLoss, rolling - cashout, { round: (x) => x, absRolling: false });
       }
       commission = Math.round(commission);
     }
@@ -1299,7 +1298,7 @@ router.get('/monthly-accumulated', async (req, res) => {
     // Commission: per month only. Include games that were settled/encoded in this month (DATE(gl.ENCODED_DT) in [startStr, endStr]).
     // Same formula as dashboard: per-game total_rolling_chips + winloss (SETTLED=1), type 1/3 => rolling*rate, type 2 => winloss*rate.
     const [gamesInMonth] = await pool.execute(
-      `SELECT gl.IDNo, gl.ACCOUNT_ID, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE,
+      `SELECT gl.IDNo, gl.ACCOUNT_ID, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE, gl.COMMISSION_TYPE,
               ag.IDNo AS agent_id, ag.AGENT_CODE, ag.NAME AS agent_name
        FROM game_list gl
        JOIN account a ON gl.ACCOUNT_ID = a.IDNo
@@ -1327,9 +1326,8 @@ router.get('/monthly-accumulated', async (req, res) => {
         const commType = Number(row.COMMISSION_TYPE);
         const commPct = Number(row.COMMISSION_PERCENTAGE) || 0;
         let amt = 0;
-        if (commPct > 0) {
-          if (commType === 1 || commType === 3) amt = Math.round((rolling * commPct) / 100);
-          else if (commType === 2) amt = Math.round((winloss * commPct) / 100);
+        if (commPct > 0 && [1, 2, 3].includes(commType)) {
+          amt = computeGameCommission(row, winloss, rolling, { absRolling: false });
         }
         commissionByGame.push({
           game_id: row.IDNo,
@@ -1488,7 +1486,7 @@ router.get('/ranking', async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT gr.GAME_ID, gr.CAGE_TYPE, gr.AMOUNT, gr.NN_CHIPS, gr.CC_CHIPS, gr.ROLLER_CC_CHIPS, gr.ROLLER_TRANSACTION,
               ag.IDNo AS agent_id, ag.AGENT_CODE, ag.NAME AS agent_name,
-              gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE
+              gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE
        FROM game_record gr
        JOIN game_list gl ON gr.GAME_ID = gl.IDNo AND gl.ACTIVE != 0
        JOIN account a ON gl.ACCOUNT_ID = a.IDNo

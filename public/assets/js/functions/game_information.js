@@ -53,6 +53,11 @@
 			label = 'S';
 			cls = 'commission-badge-s';
 			title = 'Shared';
+		} else if (type === 3 && row.SOURCE === 'gamebook') {
+			// Game Book type 3 = Share + Rolling
+			label = 'S+R';
+			cls = 'commission-badge-l';
+			title = window.commissionTypeText ? window.commissionTypeText(row) : 'Share + Rolling';
 		} else if (type === 3) {
 			label = 'L';
 			cls = 'commission-badge-l';

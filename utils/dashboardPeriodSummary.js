@@ -2,6 +2,7 @@ const { SQL_HOUSE_EXPENSE_APPROVED_ONLY } = require('./houseExpenseQueries');
 const { buildDashboardServiceExpensePayload } = require('./dashboardServiceBalance');
 const { fetchActiveServiceCategories } = require('./serviceCategoryHelpers');
 const { getMonthEndCutoffRange } = require('./monthEndCutoffRange');
+const { computeGameCommission } = require('./commissionCalc');
 const {
 	SQL_DASHBOARD_GAME_CASHOUT_FILTER,
 	SQL_EXCLUDE_DEALER_TIP_CASHOUT,
@@ -159,7 +160,7 @@ async function computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo) {
 
 // Per-game commission net — shared by the period and all-time settlement totals.
 // Mirrors the per-game math in routes/dashboard.js (totalCommissionSettlement).
-function commissionNetFromGameRecords(records, rollingRate, commissionType) {
+function commissionNetFromGameRecords(records, rollingRate, commissionType, game) {
 	let totalNnInit = 0;
 	let totalCcInit = 0;
 	let totalNn = 0;
@@ -218,13 +219,12 @@ function commissionNetFromGameRecords(records, rollingRate, commissionType) {
 	const totalAmount = totalBuyInChips + totalInitial;
 	const winlossValue = totalAmount - totalCashOutChips;
 
-	if (commissionType === 1 || commissionType === 3) {
-		return Math.round((totalRollingChips * rollingRate) / 100);
-	}
-	if (commissionType === 2) {
-		return Math.round((winlossValue * rollingRate) / 100);
-	}
-	return 0;
+	return computeGameCommission({
+		COMMISSION_TYPE: commissionType,
+		COMMISSION_PERCENTAGE: rollingRate,
+		SHARE_PERCENTAGE: game?.SHARE_PERCENTAGE,
+		ROLLING_PERCENTAGE: game?.ROLLING_PERCENTAGE
+	}, winlossValue, totalRollingChips, { absRolling: false });
 }
 
 async function accumulateCommissionSettlement(pool, games, { resetOnly = false } = {}) {
@@ -244,7 +244,7 @@ async function accumulateCommissionSettlement(pool, games, { resetOnly = false }
 			[gameId]
 		);
 		if (!records || !records.length) continue;
-		total += commissionNetFromGameRecords(records, rollingRate, commissionType);
+		total += commissionNetFromGameRecords(records, rollingRate, commissionType, row);
 	}
 	return Math.round(total);
 }
@@ -253,7 +253,7 @@ async function computeCommissionSettlementForPeriod(pool, dateFrom, dateTo) {
 	const [games] = await pool.execute(
 		`SELECT
 			gl.IDNo AS game_list_id,
-			gl.COMMISSION_PERCENTAGE,
+			gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE,
 			gl.COMMISSION_TYPE
 		 FROM game_list gl
 		 WHERE gl.ACTIVE != 0
@@ -272,7 +272,7 @@ async function computeCommissionSettlementAllTime(pool) {
 	const [games] = await pool.execute(
 		`SELECT
 			game_list.IDNo AS game_list_id,
-			game_list.COMMISSION_PERCENTAGE,
+			game_list.COMMISSION_PERCENTAGE, game_list.SHARE_PERCENTAGE, game_list.ROLLING_PERCENTAGE,
 			game_list.COMMISSION_TYPE
 		 FROM game_list
 		 WHERE game_list.ACTIVE IN (1, 2)

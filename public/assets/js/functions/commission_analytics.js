@@ -100,14 +100,13 @@ $(document).ready(function () {
         };
     }
 
-    function createSettlement(commissionType, rollingRate, totals) {
-        if (commissionType == 1 || commissionType == 3) {
-            return Math.round((Number(totals.totalRolling) || 0) * (rollingRate / 100));
-        }
-        if (commissionType == 2) {
-            return Math.round((Number(totals.winLoss) || 0) * (rollingRate / 100));
-        }
-        return 0;
+    function createSettlement(commissionType, rollingRate, totals, game) {
+        return window.computeGameCommission({
+            COMMISSION_TYPE: commissionType,
+            COMMISSION_PERCENTAGE: rollingRate,
+            SHARE_PERCENTAGE: game ? game.SHARE_PERCENTAGE : undefined,
+            ROLLING_PERCENTAGE: game ? game.ROLLING_PERCENTAGE : undefined
+        }, Number(totals.winLoss) || 0, Number(totals.totalRolling) || 0, { absRolling: false });
     }
 
     function layoutCommissionAnalyticsControls() {
@@ -953,7 +952,7 @@ $(document).ready(function () {
                 }).then(function (records) {
                     var totals = computeGameTotals(records);
                     var rollingRate = Number(game.COMMISSION_PERCENTAGE) || 0;
-                    var settlement = createSettlement(Number(game.COMMISSION_TYPE), rollingRate, totals);
+                    var settlement = createSettlement(Number(game.COMMISSION_TYPE), rollingRate, totals, game);
                     var fnb = Number(game.fnb) || 0;
                     var payment = Math.round(settlement - fnb);
                     var agentCode = game.agent_code || '-';

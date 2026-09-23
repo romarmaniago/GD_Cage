@@ -1296,7 +1296,10 @@
 		"select_game": "게임 선택",
 		"rolling_game": "롤링 게임",
 		"shared_game": "공유 게임",
-		"loosing_game": "로스 게임",
+		"loosing_game": "셰어 + 롤링",
+		"share_rolling_game": "셰어 + 롤링",
+		"share_pct": "Share %",
+		"rolling_pct": "Rolling %",
 		"save": "저장",
 		"close": "닫기"
 	},

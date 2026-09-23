@@ -9,6 +9,7 @@
  */
 
 const pool = require('../config/db');
+const { computeGameCommission } = require('./commissionCalc');
 
 /** Default % for net profit share rows when no program-date override exists. */
 const DEFAULT_NET_PROFIT_SHARE_PCT = 65;
@@ -110,12 +111,8 @@ function computeGameMetrics(records, gl) {
 	const commissionType = Number(gl.COMMISSION_TYPE);
 	const commissionPct = Number(gl.COMMISSION_PERCENTAGE) || 0;
 	let commission = 0;
-	if (commissionPct > 0) {
-		if (commissionType === 1 || commissionType === 3) {
-			commission = Math.ceil((total_rolling_chips * commissionPct) / 100);
-		} else if (commissionType === 2) {
-			commission = Math.ceil((winLoss * commissionPct) / 100);
-		}
+	if (commissionPct > 0 && [1, 2, 3].includes(commissionType)) {
+		commission = computeGameCommission(gl, winLoss, total_rolling_chips, { round: Math.ceil, absRolling: false });
 	}
 
 	return {
@@ -134,7 +131,7 @@ async function loadGamesInDateRange(startStr, endStr, includeUnsettled = false) 
 			CAST(gl.PROGRAM_DATE AS CHAR) AS program_day,
 			gl.IDNo AS game_id,
 			gl.COMMISSION_TYPE,
-			gl.COMMISSION_PERCENTAGE,
+			gl.COMMISSION_PERCENTAGE, gl.SHARE_PERCENTAGE, gl.ROLLING_PERCENTAGE,
 			gl.HOUSE_SHARE
 		FROM game_list gl
 		WHERE gl.ACTIVE != 0
@@ -340,6 +337,8 @@ async function computeNetProfitRows(startStr, endStr) {
 			game_id: row.game_id,
 			COMMISSION_TYPE: row.COMMISSION_TYPE,
 			COMMISSION_PERCENTAGE: row.COMMISSION_PERCENTAGE,
+			SHARE_PERCENTAGE: row.SHARE_PERCENTAGE,
+			ROLLING_PERCENTAGE: row.ROLLING_PERCENTAGE,
 			HOUSE_SHARE: row.HOUSE_SHARE,
 		};
 		if (!byDayGames.has(d)) byDayGames.set(d, []);
@@ -365,6 +364,8 @@ async function computeNetProfitRows(startStr, endStr) {
 					game_id: ug.game_id,
 					COMMISSION_TYPE: ug.COMMISSION_TYPE,
 					COMMISSION_PERCENTAGE: ug.COMMISSION_PERCENTAGE,
+					SHARE_PERCENTAGE: ug.SHARE_PERCENTAGE,
+					ROLLING_PERCENTAGE: ug.ROLLING_PERCENTAGE,
 					HOUSE_SHARE: ug.HOUSE_SHARE,
 				});
 			}
@@ -461,6 +462,8 @@ async function computeGamebookAutoTotalsByDate(startStr, endStr) {
 			game_id: row.game_id,
 			COMMISSION_TYPE: row.COMMISSION_TYPE,
 			COMMISSION_PERCENTAGE: row.COMMISSION_PERCENTAGE,
+			SHARE_PERCENTAGE: row.SHARE_PERCENTAGE,
+			ROLLING_PERCENTAGE: row.ROLLING_PERCENTAGE,
 			HOUSE_SHARE: row.HOUSE_SHARE,
 		};
 		const m = computeGameMetrics(recordsByGame.get(row.game_id) || [], gl);

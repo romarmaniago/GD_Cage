@@ -1,19 +1,26 @@
+const { getShareRollingSplit } = require('./commissionCalc');
+
 function parseRatePercent(value) {
 	const n = parseFloat(String(value == null ? '' : value).replace(/%/g, '').replace(/,/g, ''));
 	return Number.isFinite(n) ? n : 0;
 }
 
 /** Map game_list commission type to Excel Share % / Rolling % decimals (0.5 = 50%). */
-function getShareRollingPct(commissionType, commissionPercentage) {
+function getShareRollingPct(commissionType, commissionPercentage, row) {
 	const rate = parseRatePercent(commissionPercentage);
 	const type = parseInt(commissionType, 10);
 	const shareDecimal = rate / 100;
 	if (type === 2) {
 		return { sharePct: shareDecimal, rollingPct: 0 };
 	}
-	if (type === 1 || type === 3) {
+	if (type === 1) {
 		// Excel: rolling settlement uses column H as multiplier on G25 rolling rate.
 		return { sharePct: 0, rollingPct: 1 };
+	}
+	if (type === 3) {
+		// Share + Rolling: Share % of W/L + Rolling % of the rolling rate.
+		const { sharePct, rollingPct } = getShareRollingSplit(row);
+		return { sharePct: sharePct / 100, rollingPct: rollingPct / 100 };
 	}
 	return { sharePct: 0, rollingPct: 0 };
 }

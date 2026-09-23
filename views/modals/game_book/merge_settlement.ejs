@@ -1429,7 +1429,10 @@
             var rolling = parseAmount($panel.find('[data-field="rolling"]').val());
             var rate = parseAmount($panel.find('[data-field="rollingRate"]').val());
             var addCharge = parseAmount($panel.data('add-charge'));
-            var settlement = Math.round((rolling * rate) / 100);
+            var winLoss = parseAmount($panel.find('[data-field="winLossMerge"]').val());
+            var $mergeModal = $('#modal-merge-settlement');
+            var totalRolling = parseAmount($mergeModal.find('#rollingMerge').val());
+            var settlement = window.computeReceiptPanelSettlement($mergeModal.data('commissionRow'), winLoss, rolling, rate, totalRolling);
             var payment = settlement - addCharge;
 
             $panel.data('rolling-settlement', settlement);
@@ -1577,9 +1580,16 @@
             var totalRolling = parseAmount($modal.find('#rollingMerge').val());
             var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
 
+            // Share + Rolling: share part follows each side's rolling (see computeReceiptPanelSettlement).
+            var splitRow = $modal.data('commissionRow');
+            var splitWinLoss = parseAmount($modal.find('#winLossMerge').val());
+            var splitSettlement = function (rollingValue) {
+                return window.computeReceiptPanelSettlement(splitRow, splitWinLoss, rollingValue, companyRate, totalRolling);
+            };
+
             $modal.find('#merge-calc-company-rate-rolling').text(formatAmount(totalRolling));
             $modal.find('#merge-calc-company-rate-rate-display').text(formatMergeSplitPctValue(companyRate) + '%');
-            var totalSettlement = Math.round((totalRolling * companyRate) / 100);
+            var totalSettlement = splitSettlement(totalRolling);
             renderMergeSplitAmountCell($modal.find('#merge-calc-company-rate-settlement'), totalSettlement);
             $modal.find('#merge-calc-company-pct-rolling').text(formatAmount(totalRolling));
             renderMergeSplitAmountCell($modal.find('#merge-calc-company-pct-settlement'), totalSettlement);
@@ -1588,8 +1598,8 @@
             var agentRate = Math.max(0, Math.round((companyRate - guestRate) * 10000) / 10000);
             var guestRateRolling = companyRate > 0 ? roundMergeToThousand((totalRolling * guestRate) / companyRate) : 0;
             var agentRateRolling = Math.max(0, totalRolling - guestRateRolling);
-            var guestRateSettlement = Math.round((guestRateRolling * companyRate) / 100);
-            var agentRateSettlement = Math.round((agentRateRolling * companyRate) / 100);
+            var guestRateSettlement = splitSettlement(guestRateRolling);
+            var agentRateSettlement = splitSettlement(agentRateRolling);
 
             $modal.find('#merge-calc-guest-rate-rolling').text(formatAmount(guestRateRolling));
             renderMergeSplitAmountCell($modal.find('#merge-calc-guest-rate-settlement'), guestRateSettlement);
@@ -1601,8 +1611,8 @@
             var agentPct = Math.round((100 - guestPct) * 100) / 100;
             var guestPctRolling = roundMergeToThousand((totalRolling * guestPct) / 100);
             var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
-            var guestPctSettlement = Math.round((guestPctRolling * companyRate) / 100);
-            var agentPctSettlement = Math.round((agentPctRolling * companyRate) / 100);
+            var guestPctSettlement = splitSettlement(guestPctRolling);
+            var agentPctSettlement = splitSettlement(agentPctRolling);
 
             $modal.find('#merge-calc-guest-pct-rolling').text(formatAmount(guestPctRolling));
             renderMergeSplitAmountCell($modal.find('#merge-calc-guest-pct-settlement'), guestPctSettlement);

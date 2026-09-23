@@ -1236,7 +1236,10 @@
 		"select_game": "Choose game",
 		"rolling_game": "Rolling Game",
 		"shared_game": "Shared Game",
-		"loosing_game": "Loosing Game",
+		"loosing_game": "Share + Rolling",
+		"share_rolling_game": "Share + Rolling",
+		"share_pct": "Share %",
+		"rolling_pct": "Rolling %",
 		"save": "Save",
 		"close": "Close"
 	},
