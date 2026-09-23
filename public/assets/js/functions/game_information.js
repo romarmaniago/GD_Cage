@@ -458,16 +458,6 @@
 		});
 	}
 
-	function giApiEndDate(endYmd) {
-		if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
-		var parts = String(endYmd).slice(0, 10).split('-').map(Number);
-		var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
-		if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
-			return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
-		}
-		return endYmd;
-	}
-
 	function getDefaultCutoffRange() {
 		if (window.MonthEndCutoffRange && typeof window.MonthEndCutoffRange.getMonthEndCutoffRange === 'function') {
 			return window.MonthEndCutoffRange.getMonthEndCutoffRange();
@@ -500,7 +490,7 @@
 			onRangeApplied: function (range) {
 				if (!range || !range.start || !range.end) return;
 				var fromDate = range.start;
-				var toDate = giApiEndDate(range.end);
+				var toDate = range.end;
 				giSplitOverrideRange = { start: fromDate, end: toDate };
 				applyGiProgramRange(fromDate, toDate);
 			}
@@ -517,7 +507,7 @@
 		var $input = $('#gi-program-date-range-picker');
 		var defaultRange = getDefaultCutoffRange();
 		programFrom = defaultRange.startDate;
-		programTo = giApiEndDate(defaultRange.endDateApi || defaultRange.endDate);
+		programTo = defaultRange.endDate;
 		selectedProgramDate = programFrom;
 
 		if (typeof flatpickr === 'undefined') {
@@ -549,7 +539,7 @@
 				if (!selectedDates || selectedDates.length !== 2) return;
 				giSplitOverrideRange = null;
 				var d0 = ymd(selectedDates[0]);
-				var d1 = giApiEndDate(ymd(selectedDates[1]));
+				var d1 = ymd(selectedDates[1]);
 				applyGiProgramRange(d0, d1);
 			}
 		});
