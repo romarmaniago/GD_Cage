@@ -19,8 +19,10 @@ function registerJunketLossTypeFilter() {
         const row = api.row(dataIndex).data();
         if (!row) return true;
         const paymentType = Number(row.PAYMENT_TYPE);
-        if (junketLossTypeFilter === 'chip') return paymentType === 1;
-        if (junketLossTypeFilter === 'cash') return paymentType === 2;
+        const isRecovery = isJunketLossRecovery(row);
+        if (junketLossTypeFilter === 'recovery') return isRecovery;
+        if (junketLossTypeFilter === 'chip') return !isRecovery && paymentType === 1;
+        if (junketLossTypeFilter === 'cash') return !isRecovery && paymentType === 2;
         return true;
     });
 }
@@ -353,6 +355,11 @@ function resetJunketLossFormFields() {
     junketLossAccountGuestResetting = false;
 }
 
+/** junket_loss.TRANSACTION: 1 = Loss (positive AMOUNT), 2 = Recovery (negative AMOUNT). */
+function isJunketLossRecovery(row) {
+    return !!row && (Number(row.TRANSACTION) === 2 || Number(row.AMOUNT) < 0);
+}
+
 function paymentTypeLabel(value) {
     const n = Number(value);
     if (n === 1) return 'Chip';
@@ -361,11 +368,16 @@ function paymentTypeLabel(value) {
 }
 
 function formatJunketLossAmountDisplay(value) {
-    const amount = Math.abs(Number(value) || 0);
+    const raw = Number(value) || 0;
+    const amount = Math.abs(raw);
     const formatted = amount.toLocaleString('en-US', {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
     });
+    // Negative rows are recoveries (e.g. settlement commission applied to the loss): plain text.
+    if (raw < 0) {
+        return formatted;
+    }
     return '<span class="text-dash-neg">(' + formatted + ')</span>';
 }
 
@@ -385,7 +397,8 @@ function openJunketLossModal(data) {
     resetJunketLossFormFields();
     $('#junket-loss-id').val(id);
     $('#junket-loss-description').val(data ? (data.DESCRIPTION || '') : '');
-    $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT || '') : '');
+    // Recovery rows are stored negative; the form edits the plain amount and the server keeps the sign.
+    $('#junket-loss-amount').val(data ? formatAmountInput(data.AMOUNT ? Math.abs(Number(data.AMOUNT)) : '') : '');
     $('#junket-loss-incharge').val(data ? (data.IN_CHARGE || '') : '');
     $('#junket-loss-modal-title').text(id ? 'Edit Loss Amount' : 'Add Loss Amount');
 

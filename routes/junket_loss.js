@@ -49,6 +49,15 @@ function parsePaymentType(value) {
 	return n === 1 || n === 2 ? n : null;
 }
 
+const JUNKET_LOSS_TRANS_LOSS = 1;
+const JUNKET_LOSS_TRANS_RECOVERY = 2;
+
+/** Loss rows are stored positive, Recovery rows negative, so SUM(AMOUNT) is always the net loss. */
+function signedJunketLossAmount(amount, transaction) {
+	const abs = Math.abs(Number(amount) || 0);
+	return transaction === JUNKET_LOSS_TRANS_RECOVERY ? -abs : abs;
+}
+
 function parseProgramDate(value) {
 	const raw = String(value || '').trim().slice(0, 10);
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
@@ -104,6 +113,7 @@ router.get('/loss_amount_data', async (req, res) => {
 				jl.ACCOUNT_ID,
 				jl.GUEST_ID,
 				jl.PAYMENT_TYPE,
+				jl.TRANSACTION,
 				jl.ENCODED_BY,
 				jl.ENCODED_DT,
 				CONCAT_WS(' ', ui.FIRSTNAME, ui.LASTNAME) AS ENCODED_BY_NAME,
@@ -159,23 +169,25 @@ router.post('/add_loss_amount', async (req, res) => {
 		}
 
 		const encodedDt = buildEncodedDtFromProgramDate(programDate);
+		const transaction = Number(cleanAmount) < 0 ? JUNKET_LOSS_TRANS_RECOVERY : JUNKET_LOSS_TRANS_LOSS;
 
 		const query = `
 			INSERT INTO junket_loss (
-				DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE,
+				DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE, TRANSACTION,
 				ENCODED_BY, ENCODED_DT
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
 
 		await pool.execute(query, [
 			txtDescription.trim(),
-			Number(cleanAmount),
+			signedJunketLossAmount(cleanAmount, transaction),
 			txtInCharge.trim(),
 			programDate,
 			accountId,
 			guestId,
 			paymentType,
+			transaction,
 			req.session.user_id,
 			encodedDt
 		]);
@@ -222,6 +234,16 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ message: 'Invalid payload' });
 		}
 
+		// Keep the row's Loss / Recovery type: the edit form only sends the amount, never its sign.
+		const [existingRows] = await pool.execute(
+			'SELECT TRANSACTION FROM junket_loss WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		if (!existingRows.length) {
+			return res.status(404).json({ message: 'Loss amount not found' });
+		}
+		const transaction = parseInt(existingRows[0].TRANSACTION, 10) || JUNKET_LOSS_TRANS_LOSS;
+
 		const query = `
 			UPDATE junket_loss
 			SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?,
@@ -232,7 +254,7 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 
 		await pool.execute(query, [
 			txtDescription.trim(),
-			Number(cleanAmount),
+			signedJunketLossAmount(cleanAmount, transaction),
 			txtInCharge.trim(),
 			programDate,
 			accountId,

@@ -1720,7 +1720,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		const linkedLossId = parseInt(gameRows[0].JUNKET_LOSS_ID, 10) || null;
 		if (linkedLossId) {
 			await db.execute(
-				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, GAME_ID = ?, NON_CASH = 1,
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, GAME_ID = ?, NON_CASH = 1, TRANSACTION = 1,
 				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, gameId, encodedBy, dateNow, encodedBy, dateNow, linkedLossId]
 			);
@@ -1735,7 +1735,7 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		if (existingByGame.length) {
 			const lossId = existingByGame[0].IDNo;
 			await db.execute(
-				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, NON_CASH = 1,
+				`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, PAYMENT_TYPE = ?, ACCOUNT_ID = ?, GUEST_ID = ?, NON_CASH = 1, TRANSACTION = 1,
 				 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, encodedBy, dateNow, encodedBy, dateNow, lossId]
 			);
@@ -1744,8 +1744,8 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		}
 
 		const [insertResult] = await db.execute(
-			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, PAYMENT_TYPE, ACCOUNT_ID, GUEST_ID, GAME_ID, NON_CASH, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, PAYMENT_TYPE, ACCOUNT_ID, GUEST_ID, GAME_ID, NON_CASH, TRANSACTION, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
 			[description, missingAmount, inCharge, programDate, paymentType, accountId, guestId, gameId, encodedBy, dateNow]
 		);
 		const newLossId = insertResult.insertId;
@@ -1755,6 +1755,54 @@ async function ensureJunketLossForRollerMissing(db, gameId, amount, encodedBy, r
 		console.error('ensureJunketLossForRollerMissing (run database/add_game_junket_loss_link.sql?):', err);
 		return null;
 	}
+}
+
+/** Pending game (and its loss) that a New Game was created from, or null for any other game. */
+async function getPendingOriginForNewGame(db, gameId) {
+	const [rows] = await db.execute(
+		`SELECT pp.IDNo AS pending_game_id, COALESCE(jl.AMOUNT, 0) AS loss_amount
+		 FROM game_list pp
+		 LEFT JOIN junket_loss jl ON jl.GAME_ID = pp.IDNo AND jl.ACTIVE = 1
+		 WHERE pp.PENDING_ROLLER_LINK_GAME_ID = ? AND pp.PENDING_ROLLER_RESOLVE = 2 AND pp.ACTIVE != 0
+		 LIMIT 1`,
+		[gameId]
+	);
+	if (!rows.length) return null;
+	return { pendingGameId: rows[0].pending_game_id, lossAmount: parseFloat(rows[0].loss_amount) || 0 };
+}
+
+/**
+ * Settlement "Loss Amount" option: the commission is not paid out but recovers the pending loss.
+ * Stored as a junket_loss Recovery row (TRANSACTION = 2, negative AMOUNT so SUM(AMOUNT) nets it out)
+ * on the new game; NON_CASH, so cash balance is untouched.
+ */
+async function upsertCommissionLossRecovery(db, { gameId, pendingGameId, amount, encodedBy, dateNow }) {
+	const [gameRows] = await db.execute(
+		`SELECT ACCOUNT_ID, GUEST_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+		[gameId]
+	);
+	const accountId = gameRows.length ? (parseInt(gameRows[0].ACCOUNT_ID, 10) || null) : null;
+	const guestId = gameRows.length ? (parseInt(gameRows[0].GUEST_ID, 10) || null) : null;
+	const description = `Commission to Loss - Game #${gameId} (Pending #${pendingGameId})`;
+	const programDate = (await getGameProgramDate(db, gameId)) || formatLocalDateYmd(dateNow);
+	const recoveryAmount = -Math.abs(amount);
+
+	// One junket_loss row per GAME_ID — reuse it if the game was settled before and reverted.
+	const [existing] = await db.execute(`SELECT IDNo FROM junket_loss WHERE GAME_ID = ? LIMIT 1`, [gameId]);
+	if (existing.length) {
+		await db.execute(
+			`UPDATE junket_loss SET ACTIVE = 1, DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = '-', PROGRAM_DATE = ?, PAYMENT_TYPE = 1, ACCOUNT_ID = ?, GUEST_ID = ?, NON_CASH = 1, TRANSACTION = 2,
+			 ENCODED_BY = ?, ENCODED_DT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[description, recoveryAmount, programDate, accountId, guestId, encodedBy, dateNow, encodedBy, dateNow, existing[0].IDNo]
+		);
+		return existing[0].IDNo;
+	}
+	const [insertResult] = await db.execute(
+		`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, PAYMENT_TYPE, ACCOUNT_ID, GUEST_ID, GAME_ID, NON_CASH, TRANSACTION, ENCODED_BY, ENCODED_DT)
+		 VALUES (?, ?, '-', ?, 1, ?, ?, ?, 1, 2, ?, ?)`,
+		[description, recoveryAmount, programDate, accountId, guestId, gameId, encodedBy, dateNow]
+	);
+	return insertResult.insertId;
 }
 
 function buildBuyinLedgerCreditRemarks(creditRemarks, creditGuarantor, fallback) {
@@ -4813,6 +4861,13 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				[editedBy, date_now, id]
 			);
 
+			// Settlement "Loss Amount" option: undo the commission recovery row (junket_loss TRANSACTION = 2)
+			await pool.execute(
+				`UPDATE junket_loss SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION = 2`,
+				[editedBy, date_now, id]
+			);
+
 			await pool.execute(
 				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[txtStatus, editedBy, date_now, id]
@@ -5329,11 +5384,33 @@ router.post('/add_settlement', async (req, res) => {
 			: [];
 		const linkedGameIdsCsv = linkedIds.length ? [primaryGameId, ...linkedIds].join(',') : null;
 
-		// Insert settlement details into account_ledger (GAME_ID for direct link;
-		// LINKED_GAME_IDS records the full group when multiple games were settled together)
-		const settlementRemarks = `Settlement - #${game_id_settle}`;
-		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+		// "Loss Amount" option (new game from a pending game only): the commission recovers the
+		// pending loss instead of being paid out — no account ledger, no cash entries.
+		const isCommissionToLoss = txtTransType === 'loss';
+		if (isCommissionToLoss) {
+			const pendingOrigin = await getPendingOriginForNewGame(pool, primaryGameId);
+			if (!pendingOrigin || pendingOrigin.lossAmount <= 0) {
+				return res.status(400).json({ success: false, message: 'Loss Amount option is only for a new game created from a pending game with a loss.' });
+			}
+			if ((parseFloat(paymentValue) || 0) < 0) {
+				return res.status(400).json({ success: false, message: 'A negative payment cannot go to the Loss Amount. Please use Deposit or Choose Account.' });
+			}
+			if ((parseFloat(paymentValue) || 0) > 0) {
+				await upsertCommissionLossRecovery(pool, {
+					gameId: primaryGameId,
+					pendingGameId: pendingOrigin.pendingGameId,
+					amount: parseFloat(paymentValue),
+					encodedBy: req.session.user_id,
+					dateNow: date_now
+				});
+			}
+		} else {
+			// Insert settlement details into account_ledger (GAME_ID for direct link;
+			// LINKED_GAME_IDS records the full group when multiple games were settled together)
+			const settlementRemarks = `Settlement - #${game_id_settle}`;
+			const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT, LINKED_GAME_IDS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+			await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, settlementRemarks, req.session.user_id, date_now, linkedGameIdsCsv]);
+		}
 
 		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag)
 		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ?`;
@@ -5475,8 +5552,8 @@ router.post('/add_settlement', async (req, res) => {
 				]);
 			};
 
-			// Skip cash_transaction insert when payment amount is 0
-			if (parseFloat(paymentValue) !== 0) {
+			// Skip cash_transaction insert when payment amount is 0 or it went to the Loss Amount
+			if (parseFloat(paymentValue) !== 0 && !isCommissionToLoss) {
 				if (txtTransType == 5) {
 					await insertCashEntry('Commission Cash-out', 2, `Game - ${gameRemark}`);
 				} else if (txtTransType == 1) {
@@ -7180,6 +7257,22 @@ router.get("/game_record/:id", checkSession, async (req, res) => {
   });
 
 // GET GAME RECORD
+// Settlement modal: is this a new game created from a pending game (enables the "Loss Amount" option)?
+router.get('/game_list/:id/pending_origin', checkSession, async (req, res) => {
+	const gameId = parseInt(req.params.id, 10);
+	if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+	try {
+		const origin = await getPendingOriginForNewGame(pool, gameId);
+		res.json({
+			pending_game_id: origin ? origin.pendingGameId : null,
+			loss_amount: origin ? origin.lossAmount : 0
+		});
+	} catch (error) {
+		console.error('GET /game_list/:id/pending_origin:', error);
+		res.status(500).json({ error: 'Error loading pending origin.' });
+	}
+});
+
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
 	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE

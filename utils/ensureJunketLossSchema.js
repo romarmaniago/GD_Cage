@@ -40,6 +40,7 @@ async function ensureJunketLossSchema(pool) {
 				PAYMENT_TYPE TINYINT NULL DEFAULT NULL COMMENT '1=Chip, 2=Cash',
 				GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo',
 				NON_CASH TINYINT NOT NULL DEFAULT 0 COMMENT '1 = offset by a LOSS buy-in, not taken from cash balance',
+				TRANSACTION TINYINT NOT NULL DEFAULT 1 COMMENT '1=Loss (AMOUNT > 0), 2=Recovery (AMOUNT < 0)',
 				ENCODED_BY INT NULL DEFAULT NULL,
 				ENCODED_DT DATETIME NULL DEFAULT NULL,
 				EDITED_BY INT NULL DEFAULT NULL,
@@ -77,6 +78,10 @@ async function ensureJunketLossSchema(pool) {
 		{
 			name: 'NON_CASH',
 			ddl: `ADD COLUMN NON_CASH TINYINT NOT NULL DEFAULT 0 COMMENT '1 = offset by a LOSS buy-in, not taken from cash balance'`
+		},
+		{
+			name: 'TRANSACTION',
+			ddl: `ADD COLUMN TRANSACTION TINYINT NOT NULL DEFAULT 1 COMMENT '1=Loss (AMOUNT > 0), 2=Recovery (AMOUNT < 0)'`
 		}
 	];
 
@@ -86,6 +91,9 @@ async function ensureJunketLossSchema(pool) {
 			console.log(`[junket_loss] Added column ${col.name}`);
 		}
 	}
+
+	// Recoveries are stored as negative amounts; label any that predate the TRANSACTION column.
+	await pool.execute(`UPDATE junket_loss SET TRANSACTION = 2 WHERE AMOUNT < 0 AND TRANSACTION <> 2`);
 
 	return true;
 }

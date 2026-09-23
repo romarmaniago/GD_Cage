@@ -11462,6 +11462,7 @@ function settlement_history(record_id, acc_id) {
                 $settlementModal.data('settlementGameAccountId', account_id);
                 clearSettlementChooseAccount($settlementModal);
                 $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
+                loadSettlementPendingOrigin(record_id);
 
                 renderSettlementView();
                 loadServicesTotal();
@@ -11482,7 +11483,7 @@ function settlement_history(record_id, acc_id) {
             openSettlementChooseAccountModal();
             return;
         }
-        if (val === '1') {
+        if (val === '1' || val === 'loss') {
             clearSettlementChooseAccount($settlementModal);
             restoreSettlementGameAccountId($settlementModal);
             fetchSettlementBalanceForAccount($settlementModal.data('settlementGameAccountId') || acc_id);
@@ -11519,11 +11520,25 @@ function settlement_history(record_id, acc_id) {
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $settlementModal.find('input[name="txtTransType"]:checked').val();
         var chooseAccountId = String($settlementModal.find('#txtChooseAccountID').val() || '').trim();
-        if (!transType || (transType !== '1' && transType !== 'choose')) {
+        if (!transType || (transType !== '1' && transType !== 'choose' && transType !== 'loss')) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Required',
                 text: 'Please select Deposit or Choose Account before confirming settlement.',
+                confirmButtonText: 'OK',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: {
+                    confirmButton: 'custom-ok-btn'
+                }
+            });
+            return;
+        }
+        if (transType === 'loss' && (parseFloat(String($('#payment').val() || '').replace(/,/g, '')) || 0) < 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Not allowed',
+                text: 'A negative payment cannot go to the Loss Amount. Please use Deposit or Choose Account.',
                 confirmButtonText: 'OK',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
@@ -11585,6 +11600,9 @@ function settlement_history(record_id, acc_id) {
             }
         });
         settlementRows.push(['Payment', parseFloat(payment).toLocaleString('en-US')]);
+        if (transType === 'loss') {
+            settlementRows.push(['Payment to', 'Loss Amount (Pending #' + ($settlementModal.data('settlementPendingGameId') || '?') + ')']);
+        }
 
         var $btn = $('#submit-settlement-btn');
         var defaultSettleLabel = 'Settle';
@@ -11615,6 +11633,12 @@ function settlement_history(record_id, acc_id) {
                 if (transType === 'choose') {
                     payload.txtTransType = '1';
                     payload.txtAccountIDSettle = chooseAccountId;
+                } else if (transType === 'loss') {
+                    var lossGameAccountId = $settlementModal.data('settlementGameAccountId');
+                    if (lossGameAccountId != null && lossGameAccountId !== '') {
+                        payload.txtAccountIDSettle = String(lossGameAccountId);
+                    }
+                    payload.txtTransType = 'loss';
                 } else {
                     var gameAccountId = $settlementModal.data('settlementGameAccountId');
                     if (gameAccountId != null && gameAccountId !== '') {
@@ -11680,6 +11704,30 @@ function settlement_history(record_id, acc_id) {
     });
 
     reloadDataRecord(); // Call data loading function
+}
+
+/** Show the settlement "Loss Amount" option only for a new game created from a pending game. */
+function loadSettlementPendingOrigin(gameId) {
+	var $settlementModal = $('#modal-settlement');
+	var $row = $settlementModal.find('#settlement-loss-option-row');
+	$settlementModal.removeData('settlementPendingGameId');
+	$row.addClass('d-none');
+	$settlementModal.find('#settlement-loss-option-label').text('');
+	if (!gameId) return;
+	$.getJSON('/game_list/' + gameId + '/pending_origin', function (res) {
+		if (String($('input[name="game_id_settle"]').val()) !== String(gameId)) return;
+		// Only when the pending resolve actually booked a loss for the commission to recover.
+		if (!res || !res.pending_game_id || !(parseFloat(res.loss_amount) > 0)) return;
+		$settlementModal.data('settlementPendingGameId', res.pending_game_id);
+		$settlementModal.find('#settlement-loss-option-label').text(
+			'Pending #' + res.pending_game_id + ' — Loss ' + (parseFloat(res.loss_amount) || 0).toLocaleString('en-US')
+		);
+		$row.removeClass('d-none');
+		// Commission of a game from pending goes to the Loss Amount by default.
+		if (!$settlementModal.find('input[name="txtTransType"]:checked').length) {
+			$settlementModal.find('#settlementToLoss').prop('checked', true);
+		}
+	});
 }
 
 $(document).off('click.settlementChooseConfirm', '#settlement-choose-account-confirm')
