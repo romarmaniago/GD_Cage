@@ -17,11 +17,14 @@
               <div class="d-flex align-items-center flex-wrap gap-2">
                 <select id="gamebook-daily-report-month-filter" class="form-select form-select-sm gamebook-daily-report-month-select" aria-label="Filter Daily Report by month"></select>
               </div>
-              <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="btn-print-gamebook-daily-report">
+              <div class="d-flex align-items-center gap-1 gdr-toolbar-actions">
+                <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1 gdr-tool-btn" id="btn-copy-gamebook-daily-report">
+                  <i class="fa fa-camera opacity-90" aria-hidden="true"></i><span>Copy</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1 gdr-tool-btn" id="btn-print-gamebook-daily-report">
                   <i class="fa fa-print opacity-90" aria-hidden="true"></i><span>Print</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="btn-export-gamebook-daily-report">
+                <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 gdr-tool-btn" id="btn-export-gamebook-daily-report">
                   <i class="fa fa-file-excel opacity-90" aria-hidden="true"></i><span>Export</span>
                 </button>
               </div>
@@ -51,6 +54,7 @@
           </div>
         </div>
       </div>
+      <div class="gamebook-daily-report-side-col">
       <div class="gamebook-daily-report-side-card">
         <div class="gdrs-head-block">
           <span class="gdrs-date-cell">
@@ -87,11 +91,13 @@
             <span class="gdrs-value gdrs-total-cell" id="gdrs-additional-total">0</span>
           </div>
         </div>
-        <div class="gdrs-footer">
-          <button type="button" class="btn btn-sm gdrs-copy-btn" id="btn-copy-gamebook-daily-report-side">
-            <span>Copy</span>
-          </button>
-        </div>
+      </div>
+      <!-- Outside the card so it floats on the backdrop (no white strip) and is never part of the captured image. -->
+      <div class="gdrs-footer">
+        <button type="button" class="btn btn-sm gdrs-copy-btn d-inline-flex align-items-center gap-1" id="btn-copy-gamebook-daily-report-side">
+          <i class="fa fa-camera opacity-90" aria-hidden="true"></i><span>Copy</span>
+        </button>
+      </div>
       </div>
     </div>
   </div>

@@ -8,6 +8,7 @@
   const btnExport = document.getElementById('btn-export-gamebook-daily-report');
   const sideDateInput = document.getElementById('gamebook-daily-report-side-date');
   const btnCopySide = document.getElementById('btn-copy-gamebook-daily-report-side');
+  const btnCopyMain = document.getElementById('btn-copy-gamebook-daily-report');
 
   if (!modalEl || !tbody || !tfoot) return;
 
@@ -438,36 +439,52 @@
         backgroundColor: '#fff',
         scale: 2,
         useCORS: true,
-        logging: false,
-        onclone: (doc) => {
-          const footer = doc.querySelector('.gdrs-footer');
-          if (footer) footer.style.display = 'none';
-        }
+        logging: false
       }))
       .then(canvasToBlob);
   }
 
-  if (btnCopySide) {
-    btnCopySide.addEventListener('click', () => {
-      if (btnCopySide.disabled) return;
-      const originalHtml = btnCopySide.innerHTML;
-      btnCopySide.disabled = true;
-      btnCopySide.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i><span>Copying...</span>';
-      const restore = () => { btnCopySide.disabled = false; btnCopySide.innerHTML = originalHtml; };
+  // Main table "Copy Image" — captures the whole Daily Report box (header, month and
+  // table) minus the close button and toolbar buttons.
+  function renderMainReportBlob() {
+    const main = modalEl.querySelector('.gamebook-daily-report-main');
+    if (!main) return Promise.reject(new Error('Daily Report table not found.'));
+    return loadHtml2Canvas()
+      .then(() => html2canvas(main, {
+        backgroundColor: '#fff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        // Skip the close button + toolbar buttons entirely (evaluated on the live
+        // elements, so it can't miss them the way a selector on the cloned doc can).
+        ignoreElements: (el) => !!(el.classList &&
+          (el.classList.contains('btn-close') || el.classList.contains('gdr-toolbar-actions')))
+      }))
+      .then(canvasToBlob);
+  }
+
+  function bindCopyImage(btn, renderBlob, downloadName) {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i><span>Copying...</span>';
+      const restore = () => { btn.disabled = false; btn.innerHTML = originalHtml; };
       const notifyOk = (text) => { if (window.Swal) Swal.fire({ icon: 'success', title: 'Copied', text, timer: 1800, showConfirmButton: false }); };
       const notifyErr = (text) => { if (window.Swal) Swal.fire({ icon: 'error', title: 'Copy failed', text }); else window.alert(text); };
 
       if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
-        navigator.clipboard.write([new ClipboardItem({ 'image/png': renderSideCardBlob() })])
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': renderBlob() })])
           .then(() => notifyOk('Daily Report image copied. Paste it anywhere.'))
           .catch((err) => notifyErr((err && err.message) || 'Unable to copy the image.'))
           .finally(restore);
       } else {
-        renderSideCardBlob()
+        renderBlob()
           .then((blob) => {
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'daily-report-summary.png';
+            link.download = downloadName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -479,4 +496,7 @@
       }
     });
   }
+
+  bindCopyImage(btnCopySide, renderSideCardBlob, 'daily-report-summary.png');
+  bindCopyImage(btnCopyMain, renderMainReportBlob, 'daily-report.png');
 })();

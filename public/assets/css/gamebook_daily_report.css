@@ -102,9 +102,9 @@
   width: auto !important;
   flex: 0 0 auto;
   min-width: 9.5rem;
-  font-size: 0.8rem !important;
-  height: 1.9rem !important;
-  padding: 0.2rem 1.75rem 0.2rem 0.7rem !important;
+  font-size: 0.75rem !important;
+  height: 1.6rem !important;
+  padding: 0.1rem 1.6rem 0.1rem 0.65rem !important;
   background-color: #fff !important;
   border: 1px solid var(--gdr-gold-border) !important;
   border-radius: 999px !important;
@@ -247,19 +247,35 @@
    by a gap instead of living inside its frame — same "cluster" look as the Settlement +
    Edit Mode panels in views/modals/game_book/settlement.ejs. Still the same modal
    underneath, so it always opens/closes in lockstep with the main content beside it. */
-.gamebook-daily-report-side-card {
+/* Column holding the card + the Copy button below it (button sits outside the card). */
+.gamebook-daily-report-side-col {
   /* Bootstrap sets .modal-dialog { pointer-events: none; } and only re-enables it on
-     .modal-content — this card isn't .modal-content, so without this it silently
+     .modal-content — this column isn't .modal-content, so without this it silently
      inherits pointer-events:none from the dialog and nothing inside it is clickable. */
   pointer-events: auto;
-  --gdrs-label-bg: #faf3dc;
-  --gdrs-today-bg: #f8e6b0;
-  --gdrs-today-text: #5a3d12;
-  --gdrs-total-bg: #d9b96a;
   flex: 0 0 29rem;
   min-width: 0;
   align-self: flex-start;
   max-height: calc(100vh - 0.5rem);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 767.98px) {
+  .gamebook-daily-report-side-col {
+    flex: 0 0 auto;
+    align-self: stretch;
+    max-height: none;
+  }
+}
+
+.gamebook-daily-report-side-card {
+  --gdrs-label-bg: #faf3dc;
+  --gdrs-today-bg: #f8e6b0;
+  --gdrs-today-text: #5a3d12;
+  --gdrs-total-bg: #d9b96a;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -267,14 +283,6 @@
   border-radius: 0.5rem;
   box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
   overflow: hidden;
-}
-
-@media (max-width: 767.98px) {
-  .gamebook-daily-report-side-card {
-    flex: 0 0 auto;
-    align-self: stretch;
-    max-height: none;
-  }
 }
 
 .gamebook-daily-report-side-card .gdrs-head-block,
@@ -419,8 +427,12 @@
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  padding: 0.6rem 0.5rem;
+  padding: 0.5rem 0 0;
   background: transparent;
+}
+
+.gdrs-footer .gdrs-copy-btn i {
+  font-size: 0.7rem;
 }
 
 .gdrs-footer .gdrs-copy-btn {
@@ -428,7 +440,21 @@
   background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
   border: none !important;
   border-radius: 999px !important;
-  padding: 0.35rem 1.5rem;
+  padding: 0.15rem 1rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
   font-weight: 600;
-  box-shadow: 0 0.3rem 0.75rem rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.2);
+}
+
+/* Compact toolbar buttons (Copy Image / Print / Export) */
+#modal-dash-gamebook-report .gdr-tool-btn {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  border-radius: 0.3rem;
+}
+
+#modal-dash-gamebook-report .gdr-tool-btn i {
+  font-size: 0.7rem;
 }
