@@ -2763,12 +2763,13 @@ router.post('/add_account_details', async (req, res) => {
 	let txtAmountNum = amountRaw;
 	const balanceBefore = await getCurrentBalance(txtAccountId);
 
-	// Default remarks when left blank: Deposit - Cash / Withdraw - Cash
-	let remarksValue = (txtRemarks || '').toString().trim();
-	if (!remarksValue) {
-		if (String(txtTrans) === '1') remarksValue = 'Deposit - Cash';
-		else if (String(txtTrans) === '2') remarksValue = 'Withdraw - Cash';
-	}
+	// account_ledger: REMARKS = user input only, AUTO_REMARKS = Deposit - Cash / Withdraw - Cash.
+	// remarksValue (user input, else the auto text) still feeds history / cash_transaction / Telegram.
+	const userRemarks = (txtRemarks || '').toString().trim() || null;
+	let autoRemarks = null;
+	if (String(txtTrans) === '1') autoRemarks = 'Deposit - Cash';
+	else if (String(txtTrans) === '2') autoRemarks = 'Withdraw - Cash';
+	const remarksValue = userRemarks || autoRemarks || '';
 
 	const [[accountRow]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [txtAccountId]);
 	const agentId = accountRow?.AGENT_ID ?? null;
@@ -2776,11 +2777,11 @@ router.post('/add_account_details', async (req, res) => {
 	// Set transaction description
 	let transacDesc = 'ACCOUNT DETAILS';
 
-	const insertQuery = `INSERT INTO  account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const insertQuery = `INSERT INTO  account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	try {
 		const transactionType = (txtTrans === '1' || txtTrans === '2') ? 2 : 3;
-		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, remarksValue, req.session.user_id, date_now]);
+		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, userRemarks, autoRemarks, req.session.user_id, date_now]);
 
 		if (String(txtTrans) === '3') {
 			const balanceAfterCredit = await getCreditBalance(txtAccountId).catch(() => null);
@@ -3123,7 +3124,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 	const transferFromBalance = normalizeNumber(txtTransferFromBalance);
 	const transferToBalance = normalizeNumber(txtTransferToBalance);
 
-	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, AUTO_REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	let connection;
 
@@ -3156,7 +3157,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
         `;
 		const [telegramIdResultsTo] = await connection.execute(telegramIdQueryTo, [txtAccount]);
 
-		// Auto-generated remarks reference the other side's agent code
+		// Auto-generated description (AUTO_REMARKS) references the other side's agent code
 		const agentCodeFrom = telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : txtAccountId;
 		const agentCodeTo = telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : txtAccount;
 		const remarksOut = `Transfer - to ${agentCodeTo}`;

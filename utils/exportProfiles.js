@@ -128,10 +128,10 @@ const PROFILES = {
 		amountNumFmt: '#,##0;#,##0'
 	},
 	guestPortal: {
-		amountCols: [3, 4],
-		signedCols: [3],
-		labelCols: 2,
-		leftAlignCols: [2, 5],
+		amountCols: [2, 3],
+		signedCols: [2],
+		labelCols: 1,
+		leftAlignCols: [4, 5],
 		centerAlignCols: [1],
 		skipGrandTotal: true,
 		amountNumFmt: '#,##0;[Red](#,##0)'

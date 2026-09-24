@@ -767,7 +767,7 @@ function applyAccountDetailsTransactionFilter(regex) {
 	if (!table) return;
 	table.search('');
 	table.columns().search('');
-	table.column(4).search(regex, true, false).draw();
+	table.column(3).search(regex, true, false).draw();
 }
 
 function guestPortalDateToYmd(d) {
@@ -1712,7 +1712,12 @@ function computeGuestPortalBalanceAfterMap(rows) {
 
 function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, balanceAfterCell, remarks, sourceRow) {
 	var ledgerId = accountLedgerRowId(sourceRow);
-	var row = [encodedDate, remarks || '', amountCell, balanceAfterCell, transactionCell];
+	// Transaction column shows only the system-generated AUTO_REMARKS (Buy In / Settlement / Transfer / ...);
+	// a dash when there is none. The Remarks column stays user input only.
+	var transactionLabel = transactionCell;
+	var autoRemarks = String(sourceRow.AUTO_REMARKS || '').trim();
+	transactionCell = autoRemarks ? escapeHtmlAttr(autoRemarks.toUpperCase()) : '—';
+	var row = [encodedDate, amountCell, balanceAfterCell, transactionCell, remarks || ''];
 	row.push(
 		renderAccountLedgerActionCell(
 			ledgerId,
@@ -1722,7 +1727,14 @@ function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, 
 		)
 	);
 	row.push(ledgerId);
+	// Not a column: the original transaction label (DEPOSIT / WITHDRAW / Received from ...) so the
+	// Deposit / Withdraw / Transfer filter buttons and the search box still match rows showing AUTO_REMARKS.
+	row.push(transactionLabel);
 	return row;
+}
+
+function accountDetailsTransactionLabelIndex() {
+	return accountDetailsHiddenIdColIndex() + 1;
 }
 
 function accountDetailsDateRender(data, type) {
@@ -1933,8 +1945,15 @@ function getOrInitAccountDetailsDataTable() {
 				createdCell: function (cell) {
 					$(cell).addClass('text-center');
 				}
+			},
+			{
+				targets: 3,
+				render: function (data, type, row) {
+					if (type !== 'filter') return data;
+					return String(row[accountDetailsTransactionLabelIndex()] || '') + ' ' + String(data || '');
+				}
 			}
-		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs({ remarksColIndex: 1 })),
+		].concat(accountDetailsActionColumnDefs()).concat(accountDetailsRemarksColumnDefs({ remarksColIndex: 4 })),
 		initComplete: function () {
 			placeGuestPortalTableControls();
 		},
@@ -2511,7 +2530,7 @@ function getGuestPortalTablePayload() {
 		return { headers: [], rows: [] };
 	}
 	var table = $tbl.DataTable();
-	var exportColCount = 5; // DATE, TRANSACTION, AMOUNT, BALANCE AFTER, REMARKS
+	var exportColCount = 5; // DATE, AMOUNT, BALANCE AFTER, TRANSACTION, REMARKS
 	var headers = [];
 	$tbl.find('thead th').each(function (index) {
 		if (index >= exportColCount) return;
@@ -2547,8 +2566,8 @@ function getGuestPortalPrintStyles() {
 		'table{width:100%;border-collapse:collapse;font-size:10px;}',
 		'th,td{border:1px solid #777;padding:5px 6px;vertical-align:middle;text-align:center;}',
 		'th{background:#d9e1f2;font-weight:700;}',
-		'td:nth-child(2),td:nth-child(5){text-align:left;}',
-		'td:nth-child(3),td:nth-child(4){text-align:right;}'
+		'td:nth-child(4),td:nth-child(5){text-align:left;}',
+		'td:nth-child(2),td:nth-child(3){text-align:right;}'
 	].join('');
 }
 

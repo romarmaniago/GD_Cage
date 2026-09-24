@@ -183,10 +183,10 @@
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 122px;"><%= __('modal_account_details.date') %></th>
-                                            <th class="text-center" style="width: 220px;"><%= __('modal_account_details.remarks') %></th>
                                             <th class="text-center" style="width: 84px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 88px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 230px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 220px;"><%= __('modal_account_details.remarks') %></th>
                                             <th class="text-center account-ledger-actions-col" style="width: 110px;"><%= __('modal_account_details.action') %></th>
                                             <th class="d-none account-ledger-id-col" aria-hidden="true"></th>
                                         </tr>
@@ -761,40 +761,40 @@ body > .flatpickr-calendar {
 #modal-account-details #accountDetails tbody tr:hover td {
     background-color: rgba(200, 162, 76, 0.14) !important;
 }
+#modal-account-details #accountDetails tbody td:nth-child(2),
 #modal-account-details #accountDetails tbody td:nth-child(3),
-#modal-account-details #accountDetails tbody td:nth-child(4),
 #modal-credit-details #credit-details-table tbody td:nth-child(2) {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
-#modal-account-details #accountDetails tbody td:nth-child(2),
+#modal-account-details #accountDetails tbody td:nth-child(4),
 #modal-account-details #accountDetails tbody td:nth-child(5) {
     text-align: left !important;
 }
 #modal-account-details #accountDetails thead th:nth-child(1),
 #modal-account-details #accountDetails tbody td:nth-child(1),
+#modal-account-details #accountDetails thead th:nth-child(2),
+#modal-account-details #accountDetails tbody td:nth-child(2),
 #modal-account-details #accountDetails thead th:nth-child(3),
-#modal-account-details #accountDetails tbody td:nth-child(3),
-#modal-account-details #accountDetails thead th:nth-child(4),
-#modal-account-details #accountDetails tbody td:nth-child(4) {
+#modal-account-details #accountDetails tbody td:nth-child(3) {
     white-space: nowrap;
 }
-#modal-account-details #accountDetails tbody td:nth-child(2) {
+#modal-account-details #accountDetails tbody td:nth-child(5) {
     white-space: normal;
     word-break: break-word;
 }
 /* Transaction column: keep on one line */
-#modal-account-details #accountDetails thead th:nth-child(5),
-#modal-account-details #accountDetails tbody td:nth-child(5) {
+#modal-account-details #accountDetails thead th:nth-child(4),
+#modal-account-details #accountDetails tbody td:nth-child(4) {
     white-space: nowrap;
     width: 230px;
     min-width: 230px;
 }
 /* Remarks column: clamp to one line with "..."; full text shows in a tooltip above on hover */
-#modal-account-details #accountDetails tbody td:nth-child(2) {
+#modal-account-details #accountDetails tbody td:nth-child(5) {
     max-width: 260px;
 }
-#modal-account-details #accountDetails tbody td:nth-child(2) .remarks-editor-text {
+#modal-account-details #accountDetails tbody td:nth-child(5) .remarks-editor-text {
     display: block;
     white-space: nowrap;
     overflow: hidden;

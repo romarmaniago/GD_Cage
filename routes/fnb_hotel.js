@@ -293,11 +293,11 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		}
 
 		if (parsedTransactionId === 2 && parsedAccountId) {
-			const ledgerRemarks = (remarks || '').toString().trim() || resolvedCategory;
+			const ledgerRemarks = (remarks || '').toString().trim() || null;
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?)`,
-				[parsedAccountId, resolvedGameId, absAmt, ledgerRemarks, insertResult.insertId, encodedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
+				[parsedAccountId, resolvedGameId, absAmt, ledgerRemarks, resolvedCategory, insertResult.insertId, encodedBy, now]
 			);
 
 			if (sourceType === 'GUEST') {
@@ -504,11 +504,11 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 
 		// Create new account_ledger entry if deposit (fnb_hotel update: no game_id - services without game)
 		if (parsedTransactionId === 2 && parsedAccountId) {
-			const ledgerRemarks = (remarks || '').toString().trim() || resolvedCategory;
+			const ledgerRemarks = (remarks || '').toString().trim() || null;
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?)`,
-				[parsedAccountId, null, absAmt, ledgerRemarks, serviceId, updatedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?, ?, ?, ?)`,
+				[parsedAccountId, null, absAmt, ledgerRemarks, resolvedCategory, serviceId, updatedBy, now]
 			);
 		}
 
