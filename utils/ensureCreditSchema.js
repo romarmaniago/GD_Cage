@@ -99,6 +99,18 @@ async function ensureCreditSchema(pool) {
 		console.log('[credit] Added column PROGRAM_DATE');
 	}
 
+	// Rows saved without a program date: game's PROGRAM_DATE, else date part of ENCODED_DT.
+	const [programDateBackfill] = await pool.execute(`
+		UPDATE credit_transaction ct
+		LEFT JOIN game_list gl ON gl.IDNo = ct.GAME_ID
+		SET ct.PROGRAM_DATE = COALESCE(DATE(gl.PROGRAM_DATE), DATE(ct.ENCODED_DT))
+		WHERE ct.PROGRAM_DATE IS NULL
+		  AND ct.ENCODED_DT IS NOT NULL
+	`);
+	if (programDateBackfill && programDateBackfill.affectedRows) {
+		console.log(`[credit] Backfilled PROGRAM_DATE for ${programDateBackfill.affectedRows} row(s)`);
+	}
+
 	if (!(await columnExists(pool, 'credit_transaction', 'GUARANTOR'))) {
 		await pool.execute(`
 			ALTER TABLE credit_transaction
@@ -208,7 +220,7 @@ async function backfillCreditFromLedger(pool) {
 
 	const [backfillResult] = await pool.execute(`
 		INSERT INTO credit_transaction
-			(ACCOUNT_ID, GUEST_ID, CREDIT_ACTION, CREDIT_SOURCE, DIRECTION, AMOUNT, BALANCE_AFTER, LEDGER_ID, GAME_ID, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, EDITED_BY, EDITED_DT)
+			(ACCOUNT_ID, GUEST_ID, CREDIT_ACTION, CREDIT_SOURCE, DIRECTION, AMOUNT, BALANCE_AFTER, LEDGER_ID, GAME_ID, PROGRAM_DATE, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, EDITED_BY, EDITED_DT)
 		SELECT
 			al.ACCOUNT_ID,
 			NULL,
@@ -235,6 +247,7 @@ async function backfillCreditFromLedger(pool) {
 			NULL,
 			al.IDNo,
 			al.GAME_ID,
+			COALESCE(DATE(gl.PROGRAM_DATE), DATE(al.ENCODED_DT)),
 			al.REMARKS,
 			al.ACTIVE,
 			al.ENCODED_BY,
@@ -242,6 +255,7 @@ async function backfillCreditFromLedger(pool) {
 			al.EDITED_BY,
 			al.EDITED_DT
 		FROM account_ledger al
+		LEFT JOIN game_list gl ON gl.IDNo = al.GAME_ID
 		WHERE al.ACTIVE = 1
 		  AND (
 			(al.TRANSACTION_ID IN (3, 10) AND al.TRANSACTION_TYPE = 3)

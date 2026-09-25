@@ -994,13 +994,11 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	}
 
 	$('#credit-details-loading').removeClass('d-none');
-	$('#credit-junket-balance').text('0');
-	$('#credit-game-balance').text('0');
+	$('#credit-total-balance').text('0');
 	resetCreditTableRows();
 
 	prepareGuestPortalChildModal($('#modal-credit-details'));
 	$('#modal-credit-details').modal('show');
-	$('#btn-credit-return').data('account-id', accountId);
 
 	function formatMarkerAmount(value) {
 		var n = value != null ? Number(value) : 0;
@@ -1013,20 +1011,6 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	}
 
 	$.ajax({
-		url: '/marker_data_breakdown',
-		method: 'GET',
-		success: function (rows) {
-			if (requestSeq !== creditDetailsRequestSeq) return;
-			var list = Array.isArray(rows) ? rows : [];
-			var sourceRow = list.filter(function (r) { return String(r.ACCOUNT_ID) === String(accountId); })[0];
-			var junketBalance = sourceRow && sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0;
-			var gameBalance = sourceRow && sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0;
-			$('#credit-junket-balance').text(formatMarkerAmount(junketBalance));
-			$('#credit-game-balance').text(formatMarkerAmount(gameBalance));
-		}
-	});
-
-	$.ajax({
 		url: '/marker_history',
 		method: 'GET',
 		success: function (rows) {
@@ -1035,14 +1019,27 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			var creditRows = list.filter(function (row) {
 				return String(row.ACCOUNT_ID) === String(accountId);
 			});
+			// Oldest first, to build the running credit balance after each transaction.
 			creditRows.sort(function (a, b) {
 				var aTime = new Date(a.ENCODED_DT || 0).getTime();
 				var bTime = new Date(b.ENCODED_DT || 0).getTime();
 				if (isNaN(aTime)) aTime = 0;
 				if (isNaN(bTime)) bTime = 0;
-				if (bTime !== aTime) return bTime - aTime;
-				return (parseInt(b.IDNo, 10) || 0) - (parseInt(a.IDNo, 10) || 0);
+				if (aTime !== bTime) return aTime - bTime;
+				return (parseInt(a.CREDIT_TXN_ID || a.IDNo, 10) || 0) - (parseInt(b.CREDIT_TXN_ID || b.IDNo, 10) || 0);
 			});
+			var runningBalance = 0;
+			creditRows.forEach(function (row, index) {
+				var amt = Math.abs(parseFloat(row.AMOUNT) || 0);
+				runningBalance += isCreditOutTransaction(row) ? amt : -amt;
+				row._creditBalance = runningBalance;
+				row._creditSeq = index; // chronological position, used as the Date column's sort key
+			});
+			// Total Credit = outstanding balance after the latest transaction.
+			var totalCredit = Math.max(0, runningBalance);
+			$('#credit-total-balance').html(totalCredit > 0
+				? '<span style="color:#dc3545 !important;">(' + formatMarkerAmount(totalCredit) + ')</span>'
+				: '0');
 
 			$('#credit-details-loading').addClass('d-none');
 
@@ -1061,28 +1058,6 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 					.replace(/"/g, '&quot;');
 			}
 
-			function getReturnSourceLabel(desc) {
-				var normalized = String(desc || '').trim().toUpperCase();
-				if (normalized === 'RETURN_SOURCE:CREDIT') return 'Junket Credit';
-				if (normalized === 'RETURN_SOURCE:BUYIN') return 'Game Credit';
-				return '';
-			}
-
-			function renderTransactionType(data, row) {
-				if (!data) return '';
-				var parts = String(data).split('-');
-				var transactionId = parseInt(parts[0], 10);
-				var transactionType = parseInt(parts[1], 10);
-				var sourceLabel = getReturnSourceLabel(row && row.TRANSACTION_DESC);
-				switch (transactionId) {
-					case 3: return 'Junket Credit';
-					case 11: return sourceLabel ? (sourceLabel + ' Returned thru Cash') : 'Credit Returned thru Cash';
-					case 12: return sourceLabel ? (sourceLabel + ' Returned thru Deposit') : 'Credit Returned thru Deposit';
-					case 10: return 'Buy-in thru Credit';
-					default:
-						return transactionType === 4 ? 'Chips Return thru Credit' : 'Unknown Transaction';
-				}
-			}
 
 			function isCreditOutTransaction(row) {
 				if (!row || row.TRANSACTION_INFO == null) return false;
@@ -1100,6 +1075,13 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				return window.fmtAmt ? window.fmtAmt(amountNum) : amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 			}
 
+			// Outstanding credit is owed by the account → red in parentheses, like credit-out amounts.
+			function formatCreditBalanceCell(balanceNum) {
+				var formatted = window.fmtAmt ? window.fmtAmt(Math.abs(balanceNum)) : Math.abs(balanceNum).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+				if (balanceNum <= 0 || formatted === '0') return formatted;
+				return '<span style="color:#dc3545 !important;">(' + formatted + ')</span>';
+			}
+
 			var html = creditRows.map(function (row) {
 				var amountNum = parseFloat(row.AMOUNT) || 0;
 				var encoded = row.ENCODED_DT || '';
@@ -1112,13 +1094,13 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 				var remarksCell = window.RemarksEditor && row.IDNo
 					? window.RemarksEditor.renderCell(remarks, { source: 'account_ledger', recordId: row.IDNo })
 					: escapeHtml(remarks || '—');
-				var accountDisplay = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
+				var balanceNum = row._creditBalance || 0;
 				return '' +
 					'<tr>' +
-						'<td>' + escapeHtml(accountDisplay) + '</td>' +
-						'<td class="text-center">' + formatCreditAmountCell(amountNum, row) + '</td>' +
-						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO, row)) + '</td>' +
-						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
+						'<td class="text-center" data-order="' + row._creditSeq + '">' + escapeHtml(dateDisplay || '') + '</td>' +
+						'<td class="text-center" data-order="' + (isCreditOutTransaction(row) ? -Math.abs(amountNum) : amountNum) + '">' + formatCreditAmountCell(amountNum, row) + '</td>' +
+						'<td class="text-center" data-order="' + balanceNum + '">' + formatCreditBalanceCell(balanceNum) + '</td>' +
+						'<td>' + escapeHtml(row.CREDIT_ACTION || '') + '</td>' +
 						'<td>' + remarksCell + '</td>' +
 					'</tr>';
 			}).join('');
@@ -1130,10 +1112,19 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 			}
 
 			$('#credit-details-table').DataTable({
-				order: [],
+				order: [[0, 'desc']],
 				autoWidth: false,
 				pageLength: 10,
-				dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>'
+				dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+				drawCallback: function () {
+					// Paging stays newest-first (page 1 = latest entries), but within the page
+					// the rows are shown oldest-to-newest so the latest transaction sits at the bottom.
+					var order = this.api().order();
+					if (order.length && order[0][0] === 0 && order[0][1] === 'desc') {
+						var $tbody = $(this).children('tbody');
+						$tbody.append($tbody.children('tr').get().reverse());
+					}
+				}
 			});
 		},
 		error: function () {
@@ -2963,6 +2954,87 @@ $(document).off('click', '#btn-guest-portal-print').on('click', '#btn-guest-port
 $(document).off('click', '#btn-guest-portal-export').on('click', '#btn-guest-portal-export', function (e) {
 	e.preventDefault();
 	exportGuestPortalTable();
+});
+
+/** Credit Details modal table → .xlsx (same on-screen order as the table). */
+function exportCreditDetailsTable() {
+	var $tbl = $('#credit-details-table');
+	var rows = [];
+	var headers = [];
+	if ($.fn.DataTable.isDataTable($tbl[0])) {
+		var table = $tbl.DataTable();
+		var colCount = $tbl.find('thead th').length;
+		$tbl.find('thead th').each(function () {
+			headers.push($(this).text().trim().toUpperCase());
+		});
+		table.rows({ search: 'applied' }).every(function (rowIdx) {
+			var row = [];
+			for (var i = 0; i < colCount; i++) {
+				row.push(stripGuestPortalCell(table.cell(rowIdx, i).render('display')).toUpperCase());
+			}
+			rows.push(row);
+		});
+		// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+		var order = table.order();
+		if (order.length && order[0][0] === 0 && order[0][1] === 'desc') rows.reverse();
+	}
+	if (!rows.length) {
+		if (typeof Swal !== 'undefined') {
+			Swal.fire({ icon: 'info', title: 'Export', text: 'No credit records to export.', confirmButtonColor: '#0d6efd' });
+		} else {
+			alert('No credit records to export.');
+		}
+		return;
+	}
+	var title = ($('#credit-account-title').text() || '').trim();
+	var safeTitle = title.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+	var outName = ((safeTitle ? safeTitle + '-' : '') + 'Credit').slice(0, 80) + '.xlsx';
+	var $btn = $('#btn-credit-details-export');
+	$btn.prop('disabled', true);
+	fetch('/marker_history/export_xlsx', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		credentials: 'same-origin',
+		body: JSON.stringify({
+			headers: headers,
+			rows: rows,
+			filename: outName,
+			sheetName: 'Credit Details',
+			profileKey: 'creditDetails'
+		})
+	})
+		.then(function (res) {
+			if (!res.ok) {
+				return res.json().catch(function () { return {}; }).then(function (j) {
+					throw new Error((j && j.error) ? j.error : 'Export failed');
+				});
+			}
+			return res.blob();
+		})
+		.then(function (blob) {
+			var link = document.createElement('a');
+			link.href = URL.createObjectURL(blob);
+			link.download = outName;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(link.href);
+		})
+		.catch(function (err) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Export', text: err.message || 'Export failed', confirmButtonColor: '#0d6efd' });
+			} else {
+				alert(err.message || 'Export failed');
+			}
+		})
+		.finally(function () {
+			$btn.prop('disabled', false);
+		});
+}
+
+$(document).off('click', '#btn-credit-details-export').on('click', '#btn-credit-details-export', function (e) {
+	e.preventDefault();
+	exportCreditDetailsTable();
 });
 
 

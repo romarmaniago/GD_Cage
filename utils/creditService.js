@@ -215,6 +215,18 @@ function normalizeProgramDate(raw) {
 	return m ? m[1] : null;
 }
 
+/** Local YYYY-MM-DD of a Date / datetime string (date part of ENCODED_DT). */
+function toLocalYmd(value) {
+	if (typeof value === 'string') {
+		const fromString = normalizeProgramDate(value);
+		if (fromString) return fromString;
+	}
+	const d = value instanceof Date ? value : new Date(value);
+	if (isNaN(d.getTime())) return null;
+	const pad = (n) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function normalizeGuarantor(raw) {
 	const v = String(raw || '').trim();
 	if (!v) return null;
@@ -250,11 +262,21 @@ async function insertCreditRecord(pool, {
 	const direction = directionForAction(action);
 	const source = normalizeCreditSource(creditSource, action);
 	const when = encodedDt || new Date();
-	const programDateVal = normalizeProgramDate(programDate);
+	let programDateVal = normalizeProgramDate(programDate);
 	const guarantorVal = normalizeGuarantor(guarantor);
 
 	try {
 		await ensureCreditTable(pool);
+		const gameIdVal = gameId != null ? parseInt(gameId, 10) || null : null;
+		// No explicit program date: inherit the game's, else the date part of ENCODED_DT.
+		if (!programDateVal && gameIdVal) {
+			const [gameRows] = await pool.execute(
+				`SELECT DATE_FORMAT(PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[gameIdVal]
+			);
+			programDateVal = normalizeProgramDate(gameRows && gameRows[0] && gameRows[0].PROGRAM_DATE);
+		}
+		if (!programDateVal) programDateVal = toLocalYmd(when);
 		const ledgerIdVal = ledgerId != null ? parseInt(ledgerId, 10) || null : null;
 		if (ledgerIdVal) {
 			const [existing] = await pool.execute(
@@ -278,7 +300,7 @@ async function insertCreditRecord(pool, {
 				amt,
 				balanceAfter != null ? Number(balanceAfter) : null,
 				ledgerIdVal,
-				gameId != null ? parseInt(gameId, 10) || null : null,
+				gameIdVal,
 				programDateVal,
 				guarantorVal,
 				remarks || null,
@@ -809,7 +831,7 @@ async function updateCreditFieldsByLedgerId(pool, ledgerId, fields, editedBy = n
 
 		const [result] = await pool.execute(
 			`UPDATE credit_transaction
-			 SET PROGRAM_DATE = ?,
+			 SET PROGRAM_DATE = COALESCE(?, PROGRAM_DATE, DATE(ENCODED_DT)),
 			     GUARANTOR = ?,
 			     REMARKS = ?,
 			     GUEST_ID = ?,

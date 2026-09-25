@@ -136,6 +136,16 @@ const PROFILES = {
 		skipGrandTotal: true,
 		amountNumFmt: '#,##0;[Red](#,##0)'
 	},
+	creditDetails: {
+		// Cols: 1 DATE, 2 AMOUNT, 3 BALANCE, 4 TRANSACTION, 5 REMARKS — Guest Portal Credit Details modal
+		amountCols: [2, 3],
+		signedCols: [2, 3],
+		labelCols: 1,
+		leftAlignCols: [4, 5],
+		centerAlignCols: [1],
+		skipGrandTotal: true,
+		amountNumFmt: '#,##0;[Red](#,##0)'
+	},
 	dailyReportMatrix: {
 		labelCols: 1,
 		zebraRows: true,

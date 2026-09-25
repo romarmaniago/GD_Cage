@@ -291,32 +291,26 @@
                     <p class="text-muted mb-0">Loading credit details...</p>
                 </div>
                 <div class="row g-2 mb-3 credit-balance-row">
-                    <div class="col-12 col-md-6">
+                    <div class="col-12">
                         <div class="credit-balance-box">
-                            <label class="form-label text-muted small mb-1">Cash Credit</label>
-                            <div id="credit-junket-balance" class="credit-balance-value">0</div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <div class="credit-balance-box">
-                            <label class="form-label text-muted small mb-1">Game Credit</label>
-                            <div id="credit-game-balance" class="credit-balance-value">0</div>
+                            <label class="form-label text-muted small mb-1">Total Credit</label>
+                            <div id="credit-total-balance" class="credit-balance-value">0</div>
                         </div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end mb-2">
-                    <button type="button" class="btn btn-sm btn-primary" id="btn-credit-return">
-                        Return Credit
+                    <button type="button" class="btn btn-sm btn-success" id="btn-credit-details-export">
+                        <i class="fa fa-file-excel me-1" aria-hidden="true"></i>Export
                     </button>
                 </div>
                 <div class="credit-history-dt-wrap credit-history-card table-responsive">
                     <table class="table marker-history-table w-100 mb-0" id="credit-details-table">
                         <thead>
                             <tr>
-                                <th>ACCOUNT NAME</th>
+                                <th class="text-center" style="width: 160px;">DATE</th>
                                 <th class="text-center" style="width: 130px;">AMOUNT</th>
-                                <th>TRANSACTION TYPE</th>
-                                <th class="text-center" style="width: 180px;">DATE</th>
+                                <th class="text-center" style="width: 130px;">BALANCE</th>
+                                <th>TRANSACTION</th>
                                 <th style="width: 220px;">REMARKS</th>
                             </tr>
                         </thead>
@@ -791,7 +785,8 @@ body > .flatpickr-calendar {
 }
 #modal-account-details #accountDetails tbody td:nth-child(2),
 #modal-account-details #accountDetails tbody td:nth-child(3),
-#modal-credit-details #credit-details-table tbody td:nth-child(2) {
+#modal-credit-details #credit-details-table tbody td:nth-child(2),
+#modal-credit-details #credit-details-table tbody td:nth-child(3) {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
@@ -1167,6 +1162,16 @@ body > .flatpickr-calendar {
     font-weight: 700;
     font-size: 0.95rem;
     letter-spacing: 0.01em;
+}
+#modal-credit-details .credit-balance-box {
+    padding: 0.75rem 0.65rem;
+}
+#modal-credit-details .credit-balance-box .form-label {
+    font-size: 0.95rem;
+}
+#modal-credit-details #credit-total-balance {
+    font-size: 1.75rem;
+    min-height: 44px;
 }
 .credit-history-card {
     border-radius: 0.5rem;
