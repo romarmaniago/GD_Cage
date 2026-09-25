@@ -849,6 +849,11 @@ function ensureJunketLossTable() {
         return junketLossTable;
     }
 
+    function isJunketLossDefaultDateSortDesc(api) {
+        var order = api.order();
+        return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+    }
+
     junketLossTable = $('#junket-loss-tbl').DataTable({
         pageLength: 25,
         order: [[0, 'desc']],
@@ -859,10 +864,12 @@ function ensureJunketLossTable() {
         columns: [
             {
                 data: 'PROGRAM_DATE',
+                // Program Date, then Date & Time as tie-breaker.
+                orderData: [0, 1],
                 render: function (data, type, row) {
                     const raw = data || row.ENCODED_DT || '';
                     if (!raw) return '';
-                    if (type === 'sort') return String(raw).slice(0, 10);
+                    // Sort on the same local date that is displayed.
                     return moment(raw).format('YYYY-MM-DD');
                 }
             },
@@ -923,6 +930,12 @@ function ensureJunketLossTable() {
             applyJunketLossControlsLayout();
         },
         drawCallback: function () {
+            // Paging stays newest-first (page 1 = latest entries), but within the page
+            // the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+            if (isJunketLossDefaultDateSortDesc(this.api())) {
+                var $tbody = $(this).children('tbody');
+                $tbody.append($tbody.children('tr').get().reverse());
+            }
             applyJunketLossControlsLayout();
             initJunketLossCellTooltips();
         }
@@ -1041,6 +1054,9 @@ $(document).ready(function () {
                 });
             if (cells.length) rows.push(cells);
         });
+        // Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+        var order = junketLossTable.order();
+        if (order.length && order[0][0] === 0 && order[0][1] === 'desc') rows.reverse();
         return { headers: headers, rows: rows };
     }
 

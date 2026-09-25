@@ -906,6 +906,12 @@ $(document).ready(function () {
         "autoWidth": true,
         "scrollX": false,
         "drawCallback": function () {
+            // Paging stays newest-first (page 1 = latest entries), but within the page
+            // the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+            if (isCapitalDefaultDateSortDesc(this.api())) {
+                var $tbody = $(this).children('tbody');
+                $tbody.append($tbody.children('tr').get().reverse());
+            }
             layoutCapitalTableControls();
             if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
                 window.RemarksEditor.initCellTooltips('#capital-tbl');
@@ -2601,6 +2607,11 @@ function escapeCapitalPrintHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function isCapitalDefaultDateSortDesc(api) {
+    var order = api.order();
+    return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+}
+
 function getAuthorizedMasterAccountTablePayload() {
     if (!$.fn.DataTable.isDataTable('#capital-tbl')) {
         return { headers: [], rows: [] };
@@ -2622,6 +2633,8 @@ function getAuthorizedMasterAccountTablePayload() {
             });
         if (cells.length) rows.push(cells);
     });
+    // Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+    if (isCapitalDefaultDateSortDesc($('#capital-tbl').DataTable())) rows.reverse();
     return { headers: headers, rows: rows };
 }
 

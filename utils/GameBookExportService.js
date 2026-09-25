@@ -60,23 +60,19 @@ function sanitizeFilename(filename, fallback) {
 	return outName;
 }
 
-const DEFAULT_GROUP_NAME = 'main';
-
-/** Main always first, then everything else alphabetically — matches the Manage Groups list order. */
+/** Chronological, oldest first — matches the Game Book screen: Program Date, then Game Start,
+ *  then Game # ('YYYY-MM-DD' / 'YYYY-MM-DD HH:mm' strings, so a plain compare is chronological). */
 function sortGameBookExportRows(rows) {
 	return rows.slice().sort((a, b) => {
-		const nameA = String((a && a.group_name) || 'Main').trim();
-		const nameB = String((b && b.group_name) || 'Main').trim();
-		const isMainA = nameA.toLowerCase() === DEFAULT_GROUP_NAME;
-		const isMainB = nameB.toLowerCase() === DEFAULT_GROUP_NAME;
-		if (isMainA !== isMainB) return isMainA ? -1 : 1;
-		const nameCmp = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-		if (nameCmp !== 0) return nameCmp;
-		// Same group — break ties by Game Start (both are 'YYYY-MM-DD HH:mm' strings, so
-		// a plain string compare sorts chronologically).
+		const dateA = String((a && a.program_date) || '');
+		const dateB = String((b && b.program_date) || '');
+		if (dateA !== dateB) return dateA.localeCompare(dateB);
 		const startA = String((a && a.game_start) || '');
 		const startB = String((b && b.game_start) || '');
-		return startA.localeCompare(startB);
+		if (startA !== startB) return startA.localeCompare(startB);
+		const gameA = String((a && a.game_id_label) || '');
+		const gameB = String((b && b.game_id_label) || '');
+		return gameA.localeCompare(gameB, undefined, { numeric: true });
 	});
 }
 

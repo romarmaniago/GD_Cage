@@ -2059,6 +2059,13 @@ function getOrInitAccountDetailsDataTable() {
 			placeGuestPortalTableControls();
 		},
 		drawCallback: function () {
+			// Paging stays newest-first (page 1 = latest entries), but within the page
+			// the rows are shown oldest-to-newest so the latest transaction sits at the bottom.
+			var order = this.api().order();
+			if (order.length && order[0][0] === 0 && order[0][1] === 'desc') {
+				var $tbody = $(this).children('tbody');
+				$tbody.append($tbody.children('tr').get().reverse());
+			}
 			initAccountDetailsRemarksTooltips();
 		}
 	});
@@ -2645,6 +2652,9 @@ function getGuestPortalTablePayload() {
 		}
 		rows.push(row);
 	});
+	// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+	var order = table.order();
+	if (order.length && order[0][0] === 0 && order[0][1] === 'desc') rows.reverse();
 	return { headers: headers, rows: rows };
 }
 

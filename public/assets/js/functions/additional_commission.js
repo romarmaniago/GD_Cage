@@ -317,12 +317,26 @@
         if (av < bv) return dir === 'asc' ? -1 : 1;
         if (av > bv) return dir === 'asc' ? 1 : -1;
 
+        if (key === 'programDate') {
+          // Same Program Date: break the tie by Date, then record id, in the same direction.
+          const sign = dir === 'asc' ? 1 : -1;
+          const timeDiff = getSortValue(a, 'date') - getSortValue(b, 'date');
+          if (timeDiff !== 0) return sign * timeDiff;
+          return sign * ((Number(a.IDNo) || 0) - (Number(b.IDNo) || 0));
+        }
+
         const dateDiff = getRowProgramDateValue(b) - getRowProgramDateValue(a);
         if (dateDiff !== 0) return dateDiff;
         return (Number(b.IDNo) || 0) - (Number(a.IDNo) || 0);
       });
 
       return list;
+    }
+
+    /** Default sort (Program Date desc): paging stays newest-first, but each page is shown
+     *  oldest-to-newest so the latest entry sits at the bottom. */
+    function isDefaultDateSortDesc() {
+      return (sortState.sortKey || 'programDate') === 'programDate' && sortState.sortDir !== 'asc';
     }
 
     function syncSortHeaders() {
@@ -586,6 +600,11 @@
           }
         });
 
+        $table.on('draw.dt', function () {
+          if (!isDefaultDateSortDesc()) return;
+          const $tbody = $table.children('tbody');
+          $tbody.append($tbody.children('tr').get().reverse());
+        });
         $table.on('init.dt draw.dt', layoutAdditionalCommissionControls);
         $table.on('draw.dt', initAdditionalCommissionRemarksTooltips);
       }
@@ -615,7 +634,8 @@
         dataTable.rows.add(sorted);
         dataTable.draw(false);
       } else {
-        tableBody.innerHTML = sorted.map((row) => {
+        const displayRows = isDefaultDateSortDesc() ? sorted.slice().reverse() : sorted;
+        tableBody.innerHTML = displayRows.map((row) => {
           const type = getRowType(row);
           const typeLabel = getTypeLabel(type);
           const amount = Number(row.AMOUNT) || 0;

@@ -113,8 +113,9 @@ $(document).ready(function () {
 			ordering: true,
 			info: true,
 			paging: true,
-			order: [[0, 'desc']],
+			order: [[0, 'desc']], // Program Date (descending), then Date
 			columnDefs: [
+				{ targets: 0, orderData: [0, 1] },
 				{
 					targets: '_all',
 					createdCell: function (cell, _cellData, rowMeta) {
@@ -149,6 +150,13 @@ $(document).ready(function () {
 				emptyTable: t.no_data_available || 'No data available in table'
 			},
 			drawCallback: function () {
+				// Paging stays newest-first (page 1 = latest entries), but within the page
+				// the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+				var order = this.api().order();
+				if (order.length && order[0][0] === 0 && order[0][1] === 'desc') {
+					var $tbody = $(this).children('tbody');
+					$tbody.append($tbody.children('tr').get().reverse());
+				}
 				if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
 					window.RemarksEditor.initCellTooltips('#dash-fnb-table');
 				}

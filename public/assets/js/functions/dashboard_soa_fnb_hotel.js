@@ -265,7 +265,9 @@
         return;
       }
 
-      els.historyBody.innerHTML = entries.map((row) => {
+      // Server returns newest-first (Program Date, then encoded time); show oldest-to-newest
+      // so the latest entry sits at the bottom.
+      els.historyBody.innerHTML = entries.slice().reverse().map((row) => {
         const category = row.category || '—';
         const programDate = formatDateDisplay(row.soa_date || '');
         return `

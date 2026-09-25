@@ -23,7 +23,7 @@ window.houseExpenseVehicleRows = [];
 window.houseExpenseItemSearchQuery = '';
 window.houseExpenseAnimateItemTable = false;
 window.houseExpenseItemTableSortState = {
-    sortKey: 'date_time',
+    sortKey: 'program_date',
     sortDir: 'desc'
 };
 window.houseExpenseItemPage = 1;
@@ -357,10 +357,23 @@ function sortHouseExpenseItemRows(rows) {
         if (av < bv) return dir === 'asc' ? -1 : 1;
         if (av > bv) return dir === 'asc' ? 1 : -1;
 
+        if (key === 'program_date') {
+            // Same Program Date: break the tie by Date & Time in the same direction.
+            var at = getHouseExpenseItemSortValue(a, 'date_time');
+            var bt = getHouseExpenseItemSortValue(b, 'date_time');
+            return dir === 'asc' ? at - bt : bt - at;
+        }
         return getHouseExpenseProgramDateSortValue(b) - getHouseExpenseProgramDateSortValue(a);
     });
 
     return list;
+}
+
+/** Default sort (Program Date desc): paging stays newest-first, but each page / print /
+ *  export is shown oldest-to-newest so the latest entry sits at the bottom. */
+function isHouseExpenseDefaultDateSortDesc() {
+    var sortState = window.houseExpenseItemTableSortState || {};
+    return (sortState.sortKey || 'program_date') === 'program_date' && sortState.sortDir !== 'asc';
 }
 
 function syncHouseExpenseItemTableSortHeaders() {
@@ -1198,6 +1211,7 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
 
         var startIdx = (page - 1) * pageSize;
         var pageRows = rows.slice(startIdx, startIdx + pageSize);
+        if (isHouseExpenseDefaultDateSortDesc()) pageRows.reverse();
 
         var html = pageRows
             .map(function (row) {
@@ -2718,6 +2732,7 @@ $(document).ready(function () {
         var filtered = sortHouseExpenseItemRows(
             houseExpenseGetFilteredItemRows(window.houseExpenseLastRows || [])
         );
+        if (isHouseExpenseDefaultDateSortDesc()) filtered.reverse();
         var rows = filtered.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
             var formattedAmount = amount.toLocaleString('en-US', {
@@ -2850,6 +2865,9 @@ $(document).ready(function () {
             return;
         }
         var headers = ['Program Date', 'Date & Time', 'Name', 'In-Charge', 'Receiver', 'Description', 'Amount'];
+        // Match the on-screen order (latest at the bottom on the default sort).
+        data = sortHouseExpenseItemRows(data);
+        if (isHouseExpenseDefaultDateSortDesc()) data.reverse();
         var rows = data.map(function (row) {
             var amount = parseFloat(row.AMOUNT) || 0;
             var programDate = formatHouseExpenseProgramDateCell(row);
@@ -3094,7 +3112,7 @@ $(document).ready(function () {
 
         var key = $(this).attr('data-sort-key') || 'date_time';
         var sortState = window.houseExpenseItemTableSortState || {
-            sortKey: 'date_time',
+            sortKey: 'program_date',
             sortDir: 'desc'
         };
 

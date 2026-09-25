@@ -109,6 +109,14 @@
 												<input type="text" id="daterange-picker" class="form-control form-control-sm text-center" placeholder="<%= __('gamelist.select_date') %>" autocomplete="off" />
 											</div>
 
+											<!-- Quick Program Date Filter: Yesterday / Today -->
+											<div id="game-day-filter-wrapper" class="game-list-status-filter-wrap">
+												<div class="game-status-filter-tabs" role="tablist">
+													<button type="button" class="game-status-filter-tab game-day-filter-tab" data-day="yesterday">Yesterday</button>
+													<button type="button" class="game-status-filter-tab game-day-filter-tab" data-day="today">Today</button>
+												</div>
+											</div>
+
 											<!-- Game Status Filter: All / On Game / Finished (+ Settled / Unsettled) -->
 											<div id="game-status-filter-wrapper" class="game-list-status-filter-wrap">
 												<div class="game-status-filter-tabs" role="tablist">
@@ -677,6 +685,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 }
 
 /* Game status filter — segmented tabs */
+#game-day-filter-wrapper.is-placed,
 #game-status-filter-wrapper.is-placed {
 	position: static;
 	display: inline-flex;
@@ -684,6 +693,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	vertical-align: middle;
 }
 
+#game-day-filter-wrapper .game-status-filter-tabs,
 #game-status-filter-wrapper .game-status-filter-tabs {
 	display: inline-flex;
 	align-items: stretch;
@@ -695,6 +705,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	overflow: hidden;
 }
 
+#game-day-filter-wrapper .game-status-filter-tab,
 #game-status-filter-wrapper .game-status-filter-tab {
 	border: none;
 	background: transparent;
@@ -707,21 +718,25 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	transition: background 0.15s ease, color 0.15s ease;
 }
 
+#game-day-filter-wrapper .game-status-filter-tab + .game-status-filter-tab,
 #game-status-filter-wrapper .game-status-filter-tab + .game-status-filter-tab {
 	border-left: 1px solid #e0e0e0;
 }
 
+#game-day-filter-wrapper .game-status-filter-tab:hover:not(.active),
 #game-status-filter-wrapper .game-status-filter-tab:hover:not(.active) {
 	background: #f5f2ec;
 	color: #333;
 }
 
+#game-day-filter-wrapper .game-status-filter-tab.active,
 #game-status-filter-wrapper .game-status-filter-tab.active {
 	background: #c8a24c;
 	color: #fff;
 	font-weight: 600;
 }
 
+#game-day-filter-wrapper .game-status-filter-tab:focus,
 #game-status-filter-wrapper .game-status-filter-tab:focus {
 	outline: none;
 }

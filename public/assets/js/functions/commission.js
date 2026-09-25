@@ -962,11 +962,18 @@ $(document).ready(function() {
         $('#commission-tbl').DataTable().destroy();
     }
 
+    /** Default sort (Program Date desc): paging stays newest-first, but each page / print /
+     *  export is shown oldest-to-newest so the latest game sits at the bottom. */
+    function isCommissionDefaultDateSortDesc(api) {
+        var order = api.order();
+        return !!(order.length && order[0][0] === 1 && order[0][1] === 'desc');
+    }
+
     // Initialize DataTable
     var dataTable = $('#commission-tbl').DataTable({
     "scrollX": false,
     "autoWidth": false,
-    "order": [[16, 'desc']],
+    "order": [[1, 'desc']],
     "columnDefs": [
       {
         "targets": 0,
@@ -979,6 +986,8 @@ $(document).ready(function() {
         "targets": 1,
         "width": "7%",
         "className": "col-program-date",
+        // Program Date, then Game Start, then Game # as tie-breakers.
+        "orderData": [1, 2, 8],
         "render": function (data, type) {
           var dateMoment = parseCommissionDisplayDate(data);
           if (type === 'sort' || type === 'type') {
@@ -1043,6 +1052,10 @@ $(document).ready(function() {
         }
     },
     "drawCallback": function () {
+        if (isCommissionDefaultDateSortDesc(this.api())) {
+            var $tbody = $(this).children('tbody');
+            $tbody.append($tbody.children('tr').get().reverse());
+        }
         layoutCommissionControls();
         refreshCompareSelectAllHeader();
         refreshCompareCheckboxCells();
@@ -1406,6 +1419,8 @@ $(document).ready(function() {
             });
             if (cells.length) rows.push(cells);
         });
+        // Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+        if (isCommissionDefaultDateSortDesc(dt)) rows.reverse();
 
         var dataRowCount = rows.length;
         if (includeFooter && dataRowCount > 0) {

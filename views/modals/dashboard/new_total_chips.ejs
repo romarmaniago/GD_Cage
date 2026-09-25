@@ -1072,7 +1072,8 @@ $(document).ready(function() {
           programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof window.totalChipsRowActions === 'function' ? window.totalChipsRowActions(row) : ''),
-          sortDate: window.formatTotalChipsProgramDate(row)
+          // Program Date, then Date & Time as tie-breaker ('YYYY-MM-DD' + 'YYYY-MM-DD HH:mm' sort as text)
+          sortDate: window.formatTotalChipsProgramDate(row) + ' ' + window.formatEncodedDate(row.ENCODED_DT)
         };
       });
 
@@ -1104,7 +1105,8 @@ $(document).ready(function() {
           programDate: window.formatTotalChipsProgramDate(row),
           date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof window.totalChipsRowActions === 'function' ? window.totalChipsRowActions(row) : ''),
-          sortDate: window.formatTotalChipsProgramDate(row)
+          // Program Date, then Date & Time as tie-breaker ('YYYY-MM-DD' + 'YYYY-MM-DD HH:mm' sort as text)
+          sortDate: window.formatTotalChipsProgramDate(row) + ' ' + window.formatEncodedDate(row.ENCODED_DT)
         };
       });
 
@@ -1173,6 +1175,13 @@ $(document).ready(function() {
           "processing": "Loading chips transactions..."
         },
         drawCallback: function(settings) {
+          // Paging stays newest-first (page 1 = latest entries), but within the page
+          // the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+          const order = this.api().order();
+          if (order.length && order[0][0] === 0 && order[0][1] === 'desc') {
+            const $tbody = $(this).children('tbody');
+            $tbody.append($tbody.children('tr').get().reverse());
+          }
           $('[data-bs-toggle="tooltip"]').tooltip();
           if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
             window.RemarksEditor.initCellTooltips('#total-chips-history-tbl');

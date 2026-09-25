@@ -107,6 +107,11 @@ $(document).ready(function() {
 	});
 
 	// Initialize DataTable
+	function isFnbHotelDefaultDateSortDesc(api) {
+		const order = api.order();
+		return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+	}
+
 	function initializeDataTable() {
 		if ($.fn.DataTable.isDataTable('#fnb-hotel-table')) {
 			$('#fnb-hotel-table').DataTable().destroy();
@@ -122,8 +127,9 @@ $(document).ready(function() {
 			info: true,
 			paging: true,
 			autoWidth: false,
-			order: [[0, 'desc']], // Sort by Program Date (descending)
+			order: [[0, 'desc']], // Sort by Program Date (descending), then Date
 			columnDefs: [
+				{ targets: 0, orderData: [0, 1] },
 				{
 					targets: [0, 1], // Program Date + Date: sort by data-order / @data-order
 					render: function (data) {
@@ -161,6 +167,12 @@ $(document).ready(function() {
 				emptyTable: translations.no_data_found || "No data available in table"
 			},
 			drawCallback: function () {
+				// Paging stays newest-first (page 1 = latest entries), but within the page
+				// the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+				if (isFnbHotelDefaultDateSortDesc(this.api())) {
+					const $tbody = $(this).children('tbody');
+					$tbody.append($tbody.children('tr').get().reverse());
+				}
 				if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
 					window.RemarksEditor.initCellTooltips('#fnb-hotel-table');
 				}
@@ -349,6 +361,8 @@ $(document).ready(function() {
 				});
 			if (cells.length) rows.push(cells);
 		});
+		// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+		if (isFnbHotelDefaultDateSortDesc(dt)) rows.reverse();
 		return { headers, rows };
 	}
 

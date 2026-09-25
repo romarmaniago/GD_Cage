@@ -451,6 +451,13 @@
 		});
 	}
 
+	function isGiDefaultDateSortDesc(api) {
+		var dt = api || dataTable;
+		if (!dt) return false;
+		var order = dt.order();
+		return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+	}
+
 	function initDataTable() {
 		dataTable = $('#game_information-tbl').DataTable({
 			paging: true,
@@ -459,12 +466,22 @@
 			info: true,
 			searching: true,
 			ordering: true,
-			order: [[0, 'desc'], [1, 'desc']],
+			order: [[0, 'desc']],
 			autoWidth: false,
 			columnDefs: [
+				// Program Date, then Game Start, then Game # as tie-breakers.
+				{ targets: 0, orderData: [0, 1, 7] },
 				{ targets: [2, 3], className: 'text-start' },
 				{ targets: [8, 9, 10, 11, 12, 13, 14], className: 'text-end' }
 			],
+			drawCallback: function () {
+				// Paging stays newest-first (page 1 = latest games), but within the page
+				// the rows are shown oldest-to-newest so the latest game sits at the bottom.
+				if (isGiDefaultDateSortDesc(this.api())) {
+					var $tbody = $(this).children('tbody');
+					$tbody.append($tbody.children('tr').get().reverse());
+				}
+			},
 			language: {
 				search: 'Search:',
 				lengthMenu: 'Show _MENU_',
@@ -1023,6 +1040,9 @@
 			});
 			if (cells.length) rows.push(cells);
 		});
+
+		// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+		if (isGiDefaultDateSortDesc()) rows.reverse();
 
 		var dataRowCount = rows.length;
 		if (includeFooter && dataRowCount) {

@@ -1182,6 +1182,11 @@ function getTipExportHeaders() {
 	];
 }
 
+function isTipDefaultDateSortDesc(api) {
+	var order = api.order();
+	return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+}
+
 function getTipTablePayload() {
 	var headers = getTipExportHeaders();
 	var rows = [];
@@ -1196,6 +1201,8 @@ function getTipTablePayload() {
 			});
 		if (cells.length) rows.push(cells);
 	});
+	// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+	if (isTipDefaultDateSortDesc(tipTable)) rows.reverse();
 	return { headers: headers, rows: rows };
 }
 
@@ -1397,6 +1404,12 @@ $(document).ready(function () {
 			relocateTipDateFilterIntoControls();
 		},
 		drawCallback: function () {
+			// Paging stays newest-first (page 1 = latest entries), but within the page
+			// the rows are shown oldest-to-newest so the latest entry sits at the bottom.
+			if (isTipDefaultDateSortDesc(this.api())) {
+				var $tbody = $(this).children('tbody');
+				$tbody.append($tbody.children('tr').get().reverse());
+			}
 			if (window.RemarksEditor && typeof window.RemarksEditor.initCellTooltips === 'function') {
 				window.RemarksEditor.initCellTooltips('#tip-tbl');
 			}

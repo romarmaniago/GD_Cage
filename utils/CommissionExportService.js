@@ -56,12 +56,19 @@ function sanitizeFilename(filename, fallback) {
 	return outName;
 }
 
-/** Most recent first, matching the on-screen table's default sort. */
+/** Chronological, oldest first — matches the Commission screen: Program Date, then Game Start,
+ *  then Game # ('YYYY-MM-DD' / 'YYYY-MM-DD HH:mm' strings, so a plain compare is chronological). */
 function sortCommissionExportRows(rows) {
 	return rows.slice().sort((a, b) => {
-		const dateA = String((a && a.game_start) || '');
-		const dateB = String((b && b.game_start) || '');
-		return dateB.localeCompare(dateA);
+		const dateA = String((a && a.program_date) || '');
+		const dateB = String((b && b.program_date) || '');
+		if (dateA !== dateB) return dateA.localeCompare(dateB);
+		const startA = String((a && a.game_start) || '');
+		const startB = String((b && b.game_start) || '');
+		if (startA !== startB) return startA.localeCompare(startB);
+		const gameA = String((a && a.game_no) || '');
+		const gameB = String((b && b.game_no) || '');
+		return gameA.localeCompare(gameB, undefined, { numeric: true });
 	});
 }
 

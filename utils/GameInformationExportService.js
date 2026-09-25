@@ -66,7 +66,10 @@ function sortGameInformationExportRows(rows) {
 		if (dateA !== dateB) return dateA.localeCompare(dateB);
 		const startA = String((a && a.game_start) || '');
 		const startB = String((b && b.game_start) || '');
-		return startA.localeCompare(startB);
+		if (startA !== startB) return startA.localeCompare(startB);
+		const gameA = String((a && a.game_no) || '');
+		const gameB = String((b && b.game_no) || '');
+		return gameA.localeCompare(gameB, undefined, { numeric: true });
 	});
 }
 

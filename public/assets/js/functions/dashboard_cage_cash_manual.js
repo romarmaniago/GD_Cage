@@ -332,7 +332,17 @@
 			els.historyBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No entries for this date</td></tr>';
 			return;
 		}
-		els.historyBody.innerHTML = entries.map(function (row) {
+		// Program Date, then encoded time, then id — oldest-to-newest so the latest entry sits at the bottom.
+		var sortTime = function (value) {
+			var t = value ? new Date(value).getTime() : 0;
+			return Number.isFinite(t) ? t : 0;
+		};
+		var sorted = entries.slice().sort(function (a, b) {
+			return (sortTime(a.report_date || a.encoded_dt) - sortTime(b.report_date || b.encoded_dt)) ||
+				(sortTime(a.encoded_dt) - sortTime(b.encoded_dt)) ||
+				((Number(a.id) || 0) - (Number(b.id) || 0));
+		});
+		els.historyBody.innerHTML = sorted.map(function (row) {
 			return '<tr>' +
 				'<td class="cage-manual-cash-col-date">' + escapeHtml(formatReportDate(row.report_date || row.encoded_dt)) + '</td>' +
 				'<td class="cage-manual-cash-col-amount text-end">' + formatSignedAmountCell(row.amount) + '</td>' +

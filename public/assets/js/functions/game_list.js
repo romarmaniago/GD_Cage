@@ -4509,7 +4509,41 @@ $(document).ready(function () {
 		var multi = !!(rng && rng.from && rng.to && rng.from !== rng.to);
 		$w.toggleClass('program-date-multi-day-search', multi);
 		fitGameListRangePicker('program-date-range-picker');
+		syncGameDayFilterTabs();
 	}
+
+	/** Yesterday / Today quick tabs: highlight the tab matching the selected single program date. */
+	function getClientYesterdayYmd() {
+		var d = new Date();
+		d.setDate(d.getDate() - 1);
+		return (
+			d.getFullYear() +
+			'-' +
+			String(d.getMonth() + 1).padStart(2, '0') +
+			'-' +
+			String(d.getDate()).padStart(2, '0')
+		);
+	}
+
+	function syncGameDayFilterTabs() {
+		var $tabs = $('#game-day-filter-wrapper .game-day-filter-tab');
+		if (!$tabs.length) return;
+		$tabs.removeClass('active');
+		if (window.selectedProgramDateRangeMultiDay) return;
+		var sel = String(window.selectedProgramDate || '').slice(0, 10);
+		if (sel === getClientTodayYmd()) {
+			$tabs.filter('[data-day="today"]').addClass('active');
+		} else if (sel === getClientYesterdayYmd()) {
+			$tabs.filter('[data-day="yesterday"]').addClass('active');
+		}
+	}
+
+	$(document).off('click.gameListDayFilter').on('click.gameListDayFilter', '#game-day-filter-wrapper .game-day-filter-tab', function () {
+		var target = $(this).data('day') === 'yesterday' ? getClientYesterdayYmd() : getClientTodayYmd();
+		if (typeof window.navigateToDate === 'function') {
+			window.navigateToDate(target);
+		}
+	});
 
 	function buildGameStartCell(gameStartText) {
 		return gameStartText;
@@ -4952,7 +4986,8 @@ $(document).ready(function () {
 			if (mode === 'ongame') return st === 'ongame' || st === 'pending';
 			if (mode === 'finished') return st === 'finished';
 			if (mode === 'settled') return st === 'finished' && settled === true;
-			if (mode === 'unsettled') return st === 'finished' && settled === false;
+			// Unsettled = not yet settled: finished-but-unsettled plus on-game/pending games
+			if (mode === 'unsettled') return st === 'ongame' || st === 'pending' || (st === 'finished' && settled === false);
 			return true;
 		});
 	}
@@ -5015,6 +5050,15 @@ $(document).ready(function () {
 			}
 		}
 
+		var $dayFilter = $('#game-day-filter-wrapper');
+		if ($dayFilter.length) {
+			$dayFilter.addClass('is-placed');
+			var $dayAnchor = $statusFilter.length ? $statusFilter : ($daterange.length ? $daterange : ($programDate.length ? $programDate : $length));
+			if ($dayFilter.parent()[0] !== $left[0] || $dayFilter.prev()[0] !== $dayAnchor[0]) {
+				$dayFilter.detach().insertAfter($dayAnchor);
+			}
+		}
+
 		if ($filter.length && $filter.parent()[0] !== $controls[0]) {
 			$controls.append($filter);
 		}
@@ -5038,6 +5082,11 @@ $(document).ready(function () {
         $('#game_list-tbl').DataTable().destroy();
     }
 
+	function isGameListDefaultDateSortDesc(api) {
+		var order = api.order();
+		return !!(order.length && order[0][0] === 0 && order[0][1] === 'desc');
+	}
+
 	var dataTable = $('#game_list-tbl').DataTable({
 		responsive: false,
 		paging: true,
@@ -5046,7 +5095,7 @@ $(document).ready(function () {
 		ordering: true,
 		info: true,
 		autoWidth: false,
-		order: [[7, 'desc']],  // GAME # column: latest game ID first
+		order: [[0, 'desc']],  // Program Date, then Game Start, then Game # (see orderData on column 0)
 		// Default and minimum page length set to 100 (no 10/25/etc. options)
 		pageLength: 100,
 		lengthMenu: [
@@ -5055,7 +5104,7 @@ $(document).ready(function () {
 		],
 	
 		columnDefs: [
-			{ targets: 0, type: 'game-list-date', className: 'col-program-date text-start' },
+			{ targets: 0, type: 'game-list-date', className: 'col-program-date text-start', orderData: [0, 1, 7] },
 			{ targets: 1, type: 'game-list-date', className: 'col-game-start text-start' },
 			{ targets: 2, type: 'game-list-acct-group', className: 'col-acct-no', width: '1%' },
 			{ targets: 3, className: 'col-guest', width: '1%' },
@@ -5129,6 +5178,12 @@ $(document).ready(function () {
 		},
 
 		drawCallback: function () {
+			// Paging stays newest-first (page 1 = latest games), but within the page
+			// the rows are shown oldest-to-newest so the latest game sits at the bottom.
+			if (isGameListDefaultDateSortDesc(this.api())) {
+				var $tbody = $(this).children('tbody');
+				$tbody.append($tbody.children('tr').get().reverse());
+			}
 			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
 			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
 			updateMergeSettleButtonState();
@@ -5186,6 +5241,8 @@ $(document).ready(function () {
 			});
 			if (cells.length) rows.push(cells);
 		});
+		// Match the on-screen order: default date sort shows oldest-to-newest (latest at bottom).
+		if (isGameListDefaultDateSortDesc(dt)) rows.reverse();
 		var dataRowCount = rows.length;
 		if (includeFooter && dataRowCount > 0) {
 			rows.push([
@@ -5542,7 +5599,7 @@ $(document).ready(function () {
                 window._gameListExportRows = {}; // reset each load; keyed by game_list_id for the detailed export
                 // When in account mode we don't add game rows; we add account rows when all record APIs are done
                 var pendingAccountMode = hasAccountSearch ? data.length : 0;
-                if (!hasAccountSearch) dataTable.order([[7, 'desc']]); // Game view: sort by GAME # (column 7)
+                if (!hasAccountSearch) dataTable.order([[0, 'desc']]); // Game view: Program Date → Game Start → Game #
 
                 function addAccountRows() {
                     var parts = accountSearchVal.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
@@ -6355,6 +6412,12 @@ $(document).ready(function () {
                     window.styleFlatpickrMonthNameClickable(instance);
                 }
             },
+            onClose: function (selectedDates, dateStr, instance) {
+                // One click then close = single program date
+                if (selectedDates && selectedDates.length === 1) {
+                    instance.setDate([selectedDates[0], selectedDates[0]], true);
+                }
+            },
             onChange: function (selectedDates, dateStr, instance) {
                 if (!selectedDates || selectedDates.length !== 2) {
                     return;
@@ -6439,12 +6502,20 @@ $(document).ready(function () {
     var initialProgramDate =
         (wrapperForInit && wrapperForInit.getAttribute('data-initial-program-date')) ||
         getClientTodayYmd();
-    window.selectedProgramDate = initialProgramDate;
-    window.selectedProgramDate = initialProgramDate;
-    window.selectedProgramDateRangeMultiDay = false;
+    // Default: settlement-month range (same as dashboard). A ?date=YYYY-MM-DD deep link keeps its single date.
+    var hasUrlSingleDate = /[?&]date=\d{4}-\d{2}-\d{2}(&|$)/.test(window.location.search);
+    var initialRangeFrom = initialProgramDate;
+    var initialRangeTo = initialProgramDate;
+    if (!hasUrlSingleDate && typeof window.getMonthEndCutoffRange === 'function') {
+        var cutoffRange = window.getMonthEndCutoffRange();
+        initialRangeFrom = cutoffRange.startDate;
+        initialRangeTo = cutoffRange.endDate;
+    }
+    window.selectedProgramDate = initialRangeFrom;
+    window.selectedProgramDateRangeMultiDay = initialRangeFrom !== initialRangeTo;
     var programDateRangeEl = document.getElementById('program-date-range-picker');
     if (programDateRangeEl && programDateRangeEl._flatpickr) {
-        programDateRangeEl._flatpickr.setDate([initialProgramDate, initialProgramDate], false);
+        programDateRangeEl._flatpickr.setDate([initialRangeFrom, initialRangeTo], false);
         syncProgramDatePickerDisplay(programDateRangeEl._flatpickr);
     }
     syncProgramDateMultiDayChrome();
