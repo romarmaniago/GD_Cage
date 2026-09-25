@@ -711,11 +711,34 @@ $(document).ready(function () {
 			return;
 		}
 
+        if (submitButton.prop('disabled')) return;
+        var originalSubmitText = submitButton.text();
+
         // Disable submit button to prevent multiple submissions
         submitButton.prop('disabled', true).text('Processing...');
 
         var formData = form.serialize();
+        var toAccountText = $.trim(form.find('#txtAccount option:selected').text());
+        var confirmHtml = 'Are you sure you want to save this transaction?<br><br><strong>Transfer: ₱' +
+            amountNum.toLocaleString('en-US') + '</strong>' +
+            (toAccountText ? '<br>To: <strong>' + $('<div>').text(toAccountText).html() + '</strong>' : '');
 
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm Transfer',
+            html: confirmHtml,
+            showCancelButton: true,
+            confirmButtonText: 'Yes, confirm',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                submitButton.prop('disabled', false).text(originalSubmitText);
+                return;
+            }
+            saveTransfer();
+        });
+
+        function saveTransfer() {
         $.ajax({
             url: '/add_account_details/transfer',
             type: 'POST',
@@ -749,9 +772,10 @@ $(document).ready(function () {
             },
             complete: function () {
                 // Re-enable submit button after request completes
-                submitButton.prop('disabled', false).text('Save');
+                submitButton.prop('disabled', false).text(originalSubmitText);
             }
         });
+        }
     });
 });
 
@@ -1533,7 +1557,8 @@ function account_details(account_id_data, agent_code, account_name) {
 	$('.txtAmount').val('');
 	$('.remarks').val('');
 	$('input[name="txtTrans"]').prop('checked', false);
-	
+	if (typeof syncReturnTypeOptions === 'function') syncReturnTypeOptions();
+
 	$('#account_id_add').val(account_id_data);
 	$('#account_agent_id').val('');
 
@@ -2372,6 +2397,34 @@ async function account_details_v2(ledgerId, guestName, acctName) {
   window.account_details_v2 = account_details_v2;
   
 	
+function syncReturnTypeOptions() {
+	const isReturn = $('#return_trans').is(':checked');
+	$('#return-type-options').toggleClass('d-none', !isReturn);
+	if (!isReturn) $('input[name="optReturnType"]').prop('checked', false);
+}
+
+$(document).off('change.returnType', 'input[name="txtTrans"]').on('change.returnType', 'input[name="txtTrans"]', syncReturnTypeOptions);
+
+// Allow deselecting a checked radio by clicking it (or its label) again.
+const deselectableRadioSelector = '#modal-account-details input[name="txtTrans"], #modal-account-details input[name="optReturnType"]';
+
+$(document)
+	.off('mousedown.radioDeselect', '#modal-account-details input[type="radio"], #modal-account-details label[for]')
+	.on('mousedown.radioDeselect', '#modal-account-details input[type="radio"], #modal-account-details label[for]', function () {
+		const input = this.tagName === 'LABEL' ? document.getElementById(this.htmlFor) : this;
+		if (input && $(input).is(deselectableRadioSelector)) {
+			$(input).data('wasChecked', input.checked);
+		}
+	})
+	.off('click.radioDeselect', deselectableRadioSelector)
+	.on('click.radioDeselect', deselectableRadioSelector, function () {
+		const $radio = $(this);
+		if ($radio.data('wasChecked')) {
+			$radio.prop('checked', false).trigger('change');
+		}
+		$radio.data('wasChecked', false);
+	});
+
 function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector, totalBalanceSelector, modalSelector }) {
 	$(formSelector).submit(function (event) {
 		event.preventDefault();
@@ -2421,10 +2474,15 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			Swal.fire({
 				icon: 'error',
 				title: 'Transaction Type Required',
-				text: 'Please select a transaction type (Deposit or Withdraw).',
+				text: 'Please select a transaction type (Deposit, Withdraw, Credit or Credit Return).',
 				confirmButtonText: 'OK'
 			});
 			restoreButton();
+			return;
+		}
+
+		if (selectedTrans === 'return') {
+			submitCreditReturn();
 			return;
 		}
 
@@ -2439,12 +2497,113 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			return;
 		}
 
-		const formData = $form.serialize();
+		// withGuarantor: show a required Guarantor input; its value is passed to onConfirm.
+		function confirmSave(label, onConfirm, withGuarantor) {
+			let guarantorAutocomplete = null;
+			Swal.fire({
+				icon: 'question',
+				title: 'Confirm ' + label,
+				html: 'Are you sure you want to save this transaction?<br><br><strong>' + label + ': ₱' + formatNumberWithCommas(enteredAmount) + '</strong>' +
+					'<br>Remarks: <strong>' + ($('<div>').text($.trim($form.find(remarksSelector).val() || '')).html() || '—') + '</strong>',
+				showCancelButton: true,
+				confirmButtonText: 'Yes, confirm',
+				cancelButtonText: 'Cancel',
+				...(withGuarantor ? {
+					input: 'text',
+					inputLabel: 'Guarantor',
+					inputPlaceholder: 'Enter guarantor',
+					inputAttributes: { maxlength: 255, autocomplete: 'off' },
+					inputValidator: value => (!$.trim(value) ? 'Guarantor is required.' : undefined),
+					didOpen: () => {
+						if (window.CreditGuarantorAutocomplete) {
+							guarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField(Swal.getInput());
+						}
+					},
+					willClose: () => {
+						if (guarantorAutocomplete) guarantorAutocomplete.destroy();
+					}
+				} : {})
+			}).then(result => {
+				if (result.isConfirmed) onConfirm(withGuarantor ? $.trim(result.value) : undefined);
+				else restoreButton();
+			});
+		}
 
-		$.ajax({
+		function submitCreditReturn() {
+			const accountId = $form.find('input[name="txtAccountId"]').val();
+			const returnType = $form.find('input[name="optReturnType"]:checked').val();
+			const showError = (title, text) => {
+				Swal.fire({ icon: 'error', title, text, confirmButtonText: 'OK' });
+				restoreButton();
+			};
+
+			if (!accountId) return showError('Error', 'Missing account.');
+			if (!returnType) return showError('Return Type Required', 'Please select how the credit is returned (Cash or Deposit).');
+			if (enteredAmount <= 0) return showError('Invalid Amount', 'Credit Return must be greater than zero.');
+
+			$.get('/account_credit_balance/' + accountId)
+				.done(function (res) {
+					const creditBalance = parseFloat(res && res.credit_balance) || 0;
+					if (creditBalance <= 0) {
+						return showError('No Credit', 'This account has no outstanding credit to return.');
+					}
+					if (enteredAmount > creditBalance) {
+						return showError('Invalid Amount', 'Return amount exceeds the credit balance of ₱' + formatNumberWithCommas(creditBalance));
+					}
+					if (returnType === '12' && enteredAmount > availableBalance) {
+						return showError('Insufficient Balance', 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(availableBalance));
+					}
+
+					const returnLabel = 'Credit Return (' + (returnType === '12' ? 'Deposit' : 'Cash') + ')';
+					confirmSave(returnLabel, guarantor => $.ajax({
+						url: '/add_marker_settlement',
+						method: 'POST',
+						data: {
+							txtAccountMarker: accountId,
+							txtMarkerReturn: String(enteredAmount),
+							optTransType: returnType,
+							optReturnSource: 'auto',
+							txtGuarantor: guarantor,
+							AgentBalance: String(availableBalance),
+							remarks: $form.find(remarksSelector).val() || ''
+						},
+						success: function (response) {
+							if (!response || !response.success) {
+								return showError('Error', (response && (response.error || response.message)) || 'Error processing your request.');
+							}
+							$(document).trigger('agency:account-transaction-saved', {
+								accountId,
+								transactionType: returnType,
+								context: 'credit-return'
+							});
+							Swal.fire({ title: 'Success!!!', icon: 'success', confirmButtonText: 'OK' }).then(() => {
+								reloadDataDetails();
+								$form.find(amountSelector).val('');
+								$form.find(remarksSelector).val('');
+								$form.find('input[name="txtTrans"]').prop('checked', false);
+								syncReturnTypeOptions();
+							});
+							restoreButton();
+						},
+						error: function (xhr) {
+							showError('Error', (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || 'Error processing your request.');
+						}
+					}), true);
+				})
+				.fail(function () {
+					showError('Error', 'Unable to verify the credit balance. Please try again.');
+				});
+		}
+
+		const formData = $form.serialize();
+		const transLabels = { '1': 'Deposit', '2': 'Withdraw', '3': 'Credit' };
+
+		const isCredit = selectedTrans === '3';
+
+		confirmSave(transLabels[selectedTrans] || 'Transaction', guarantor => $.ajax({
 			url: '/add_account_details',
 			type: 'POST',
-			data: formData,
+			data: isCredit ? formData + '&' + $.param({ txtGuarantor: guarantor }) : formData,
 			success: function (response) {
 				$(document).trigger('agency:account-transaction-saved', {
 					accountId: $form.find('input[name="txtAccountId"]').val() || null,
@@ -2510,7 +2669,7 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 				});
 			},
 			complete: restoreButton
-		});
+		}), isCredit);
 	});
 }
 
