@@ -3004,6 +3004,31 @@ router.post('/add_account_details', async (req, res) => {
 	}
 });
 
+const hasTelegramChatId = (agentRow) => agentRow && agentRow.TELEGRAM_ID != null && String(agentRow.TELEGRAM_ID).trim() !== '';
+const noTelegramChatIdMessage = (AGENT_CODE, NAME) =>
+	`No Telegram Chat ID for ${AGENT_CODE} - ${NAME}. Please set the guest's Chat ID first.`;
+
+//ACCOUNT BUTTON CHECK BALANCE — pre-check so the UI can stop before the confirm dialog
+router.get('/check_balance/:accountId/chat_id', async (req, res) => {
+	try {
+		const [results] = await pool.query(`
+			SELECT agent.TELEGRAM_ID, agent.AGENT_CODE, agent.NAME
+			FROM account
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			WHERE account.IDNo = ?
+		`, [req.params.accountId]);
+		if (results.length === 0) return res.json({ success: false, message: 'Account not found.' });
+		const { AGENT_CODE, NAME } = results[0];
+		if (!hasTelegramChatId(results[0])) {
+			return res.json({ success: true, hasChatId: false, message: noTelegramChatIdMessage(AGENT_CODE, NAME) });
+		}
+		res.json({ success: true, hasChatId: true });
+	} catch (err) {
+		console.error('Balance check chat id error:', err);
+		res.status(500).json({ success: false });
+	}
+});
+
 //ACCOUNT BUTTON CHECK BALANCE
 router.post('/check_balance/:accountId', async (req, res) => {
 	const { accountId } = req.params;
@@ -3021,6 +3046,10 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		if (results.length === 0) return res.json({ success: false });
 
 		const { AGENT_CODE, NAME } = results[0];
+		// No guest Chat ID → don't send anything (not even to additional chats).
+		if (!hasTelegramChatId(results[0])) {
+			return res.json({ success: false, noChatId: true, message: noTelegramChatIdMessage(AGENT_CODE, NAME) });
+		}
 		const TELEGRAM_ID = getAgentTelegramChatId(results[0]);
 
 		// Calculate balance from ledger entries (excludes Credit/IOU)

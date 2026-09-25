@@ -3637,8 +3637,8 @@ document.addEventListener('DOMContentLoaded', function () {
 				});
 			} else {
 				await Swal.fire({
-					icon: 'error',
-					title: 'Failed',
+					icon: result.noChatId ? 'warning' : 'error',
+					title: result.noChatId ? 'No Chat ID' : 'Failed',
 					text: result.message || 'Unable to send balance to Telegram.',
 					confirmButtonColor: '#d33'
 				});
@@ -3668,6 +3668,23 @@ document.addEventListener('DOMContentLoaded', function () {
 					confirmButtonColor: '#3085d6'
 				});
 				return;
+			}
+
+			// Stop early when the guest has no Telegram Chat ID.
+			try {
+				const chatRes = await fetch(`/check_balance/${accountId}/chat_id`);
+				const chatInfo = await chatRes.json();
+				if (chatRes.ok && chatInfo.success && chatInfo.hasChatId === false) {
+					await Swal.fire({
+						icon: 'warning',
+						title: 'No Chat ID',
+						text: chatInfo.message || 'This guest has no Telegram Chat ID.',
+						confirmButtonColor: '#3085d6'
+					});
+					return;
+				}
+			} catch (err) {
+				console.error(err); // server still rejects on send if the Chat ID is missing
 			}
 
 			const balanceDisplay = getGuestPortalDisplayBalance();
