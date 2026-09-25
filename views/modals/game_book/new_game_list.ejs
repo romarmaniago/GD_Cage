@@ -167,6 +167,7 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
               </div>
         </div>
         <div class="modal-footer">
+            <button type="button" id="late-cashout-btn" class="btn btn-sm btn-warning me-auto">Late Cashout</button>
             <button type="submit" id="submit-game-list-btn" class="btn btn-sm btn-primary" data-label="<%= __('modal_new_game_list.save') %>"><%= __('modal_new_game_list.save') %></button>
             <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_game_list.close') %></button>
         </div>
@@ -320,7 +321,88 @@ const _sqlRollerCCAdd = typeof sqlRollerCCAdd !== 'undefined' ? sqlRollerCCAdd :
     </div>
 </div>
 
+<div class="modal fade" id="modal-late-cashout" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="lateCashoutLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content late-cashout-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="lateCashoutLabel">Late Cashout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="late_cashout_form">
+                <div class="modal-body">
+                    <input type="hidden" id="lateCashoutBalance" value="0" />
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <input type="text" class="form-control" id="lateCashoutProgramDate" autocomplete="off" placeholder="YYYY-MM-DD" style="max-width: 13.5rem;" />
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-6">
+                            <select class="form-select" id="lateCashoutAccount" style="width: 100%;" data-placeholder="Choose an account..." required></select>
+                        </div>
+                        <div class="col-sm-6">
+                            <select class="form-select" id="lateCashoutGuest" style="width: 100%;" data-placeholder="Select guest (optional)" disabled>
+                                <option value="">--SELECT GUEST--</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="late-cashout-section">
+                        <div class="late-cashout-field-grid">
+                            <label class="form-label mb-0" for="lateCashoutCashNN">Cash</label>
+                            <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" placeholder="NN Chips" id="lateCashoutCashNN" autocomplete="off" />
+                            <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" placeholder="CC Chips" id="lateCashoutCashCC" autocomplete="off" />
+                        </div>
+                        <div class="late-cashout-field-grid">
+                            <label class="form-label mb-0" for="lateCashoutDepNN">Deposit</label>
+                            <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" placeholder="NN Chips" id="lateCashoutDepNN" autocomplete="off" />
+                            <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" placeholder="CC Chips" id="lateCashoutDepCC" autocomplete="off" />
+                        </div>
+                    </div>
+                    <hr style="border: 1px solid">
+                    <div class="late-cashout-field-grid">
+                        <label class="form-label mb-0" for="lateCashoutRate">Rolling Game</label>
+                        <input type="number" class="form-control text-center" step="0.05" min="0" max="100" id="lateCashoutRate" value="1.5" placeholder="%" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" id="late-cashout-submit-btn" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
+#modal-late-cashout .late-cashout-content {
+    width: 32rem;
+    max-width: 100%;
+}
+#modal-late-cashout .select2-container {
+    z-index: 1060;
+}
+#modal-late-cashout .select2-dropdown {
+    z-index: 9999;
+}
+#modal-late-cashout .late-cashout-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+#modal-late-cashout .late-cashout-field-grid {
+    display: grid;
+    grid-template-columns: 6.75rem minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: center;
+}
+#modal-late-cashout .late-cashout-field-grid .form-control {
+    width: 100%;
+    min-width: 0;
+}
+#modal-late-cashout .late-cashout-field-grid label {
+    white-space: nowrap;
+    font-weight: 500;
+}
 #modal-new-game-list .select2-container {
     z-index: 1060;
 }
@@ -1941,6 +2023,193 @@ document.addEventListener('DOMContentLoaded', function () {
         return loadModalBalances();
     };
     window.updateNewGameBalanceSummary = updateBalanceSummary;
+});
+</script>
+
+<script>
+/** Late Cashout: new game with cash-out records only (no buy-in). */
+document.addEventListener('DOMContentLoaded', function () {
+    function lcParse(id) {
+        var v = ($('#' + id).val() || '').toString().replace(/,/g, '').trim();
+        return v === '' ? 0 : parseFloat(v);
+    }
+
+    function lcSelect2($el, placeholder) {
+        if (!$el.length || typeof $el.select2 !== 'function') return;
+        if ($el.data('select2')) $el.select2('destroy');
+        $el.select2({ placeholder: placeholder, dropdownParent: $('#modal-late-cashout'), width: '100%' });
+    }
+
+    function lcInitDate() {
+        var el = document.getElementById('lateCashoutProgramDate');
+        if (!el) return;
+        if (typeof flatpickr === 'undefined') {
+            var d = new Date();
+            var pad = function (n) { return String(n).padStart(2, '0'); };
+            el.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            return;
+        }
+        if (el._flatpickr) el._flatpickr.destroy();
+        flatpickr(el, {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'M j, Y',
+            defaultDate: new Date(),
+            allowInput: true,
+            disableMobile: true,
+            onReady: function (_s, _d, fp) { fp.calendarContainer.classList.add('new-game-date-calendar'); }
+        });
+    }
+
+    function lcLoadAccounts() {
+        var $acc = $('#lateCashoutAccount');
+        $acc.empty().append($('<option>', { value: '', text: '--SELECT ACCOUNT--' }));
+        lcSelect2($acc, 'Choose an account...');
+        $.getJSON('/account_data', function (rows) {
+            (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                var label = String(row.agent_code || '').trim() || String(row.agent_name || '').trim() || ('Account #' + row.account_id);
+                $acc.append($('<option>', { value: row.account_id, text: label }).attr('data-agent-id', row.agent_id || ''));
+            });
+            $acc.trigger('change.select2');
+        });
+    }
+
+    function lcLoadGuests() {
+        var $acc = $('#lateCashoutAccount');
+        var $guest = $('#lateCashoutGuest');
+        var agentId = $acc.find('option:selected').attr('data-agent-id') || '';
+        $guest.empty().append($('<option>', { value: '', text: '--SELECT GUEST--' })).prop('disabled', true);
+        lcSelect2($guest, 'Select guest (optional)');
+        if (!$acc.val() || !agentId) return;
+        $.getJSON('/guest_data?agentId=' + encodeURIComponent(agentId), function (rows) {
+            (Array.isArray(rows) ? rows : []).forEach(function (g) {
+                $guest.append($('<option>', { value: g.guest_id, text: (g.guest_name || '').toUpperCase() }));
+            });
+            $guest.prop('disabled', false).trigger('change.select2');
+        });
+    }
+
+    function lcLoadBalance() {
+        var accountId = $('#lateCashoutAccount').val();
+        $('#lateCashoutBalance').val(0);
+        if (!accountId) return;
+        $.getJSON('/account_details_data_deposit/' + encodeURIComponent(accountId), function (rows) {
+            var bal = 0;
+            (Array.isArray(rows) ? rows : []).forEach(function (row) {
+                var amt = parseFloat(row.AMOUNT) || 0;
+                if (row.TRANSACTION === 'DEPOSIT' || row.TRANSACTION === 'MARKER REDEEM') bal += amt;
+                else if (row.TRANSACTION === 'WITHDRAW' || row.TRANSACTION === 'IOU RETURN DEPOSIT') bal -= amt;
+            });
+            $('#lateCashoutBalance').val(bal);
+        });
+    }
+
+    function lcReset() {
+        $('#lateCashoutCashNN, #lateCashoutCashCC, #lateCashoutDepNN, #lateCashoutDepCC').val('').removeClass('is-invalid');
+        $('#lateCashoutBalance').val(0);
+        $('#lateCashoutRate').val('1.5').removeClass('is-invalid');
+        $('#late-cashout-submit-btn').prop('disabled', false).text('Save');
+    }
+
+    $(document).on('click', '#late-cashout-btn', function () {
+        $('#modal-new-game-list').modal('hide');
+        lcReset();
+        $('#modal-late-cashout').modal('show');
+        lcInitDate();
+        lcLoadAccounts();
+        lcLoadGuests();
+    });
+
+    $(document).on('change', '#lateCashoutAccount', function () {
+        lcLoadGuests();
+        lcLoadBalance();
+    });
+
+    $(document).on('input', '#lateCashoutCashNN, #lateCashoutDepNN', function () {
+        var n = lcParse(this.id);
+        $(this).toggleClass('is-invalid', !Number.isFinite(n) || n < 0 || (n > 0 && n % 1000 !== 0));
+    });
+
+    $(document).on('submit', '#late_cashout_form', function (e) {
+        e.preventDefault();
+        var fail = function (title, text) { Swal.fire({ icon: 'error', title: title, text: text, confirmButtonText: 'OK' }); };
+
+        var accountId = $('#lateCashoutAccount').val() || '';
+        var programDateEl = document.getElementById('lateCashoutProgramDate');
+        var programDate = programDateEl ? String(programDateEl.value || '').trim() : '';
+        var cashNN = lcParse('lateCashoutCashNN');
+        var cashCC = lcParse('lateCashoutCashCC');
+        var depNN = lcParse('lateCashoutDepNN');
+        var depCC = lcParse('lateCashoutDepCC');
+        var values = [cashNN, cashCC, depNN, depCC];
+
+        if (!accountId) return fail('Warning', 'Please choose an account.');
+        if (programDate && !/^\d{4}-\d{2}-\d{2}$/.test(programDate)) return fail('Invalid date', 'Please use YYYY-MM-DD or choose from the calendar.');
+        if (values.some(function (n) { return !Number.isFinite(n) || n < 0; })) return fail('Invalid Input', 'Please enter valid amounts.');
+        if ((cashNN > 0 && cashNN % 1000 !== 0) || (depNN > 0 && depNN % 1000 !== 0)) {
+            return fail('Invalid NN Chips amount', 'NN amounts must be in thousands (e.g. 1,000 / 2,000 / 3,000).');
+        }
+        var total = cashNN + cashCC + depNN + depCC;
+        if (total <= 0) return fail('Warning', 'Please enter at least one cash-out amount.');
+        var rateRaw = String($('#lateCashoutRate').val() || '').trim();
+        var rate = parseFloat(rateRaw);
+        if (rateRaw === '' || !Number.isFinite(rate) || rate < 0 || rate > 100) return fail('Invalid Input', 'Please enter a valid game rate (0 - 100).');
+
+        var accountText = $('#lateCashoutAccount option:selected').text() || accountId;
+        var guestId = $('#lateCashoutGuest').val() || '';
+        var guestText = guestId ? $('#lateCashoutGuest option:selected').text() : '';
+        var fmt = function (n) { return n.toLocaleString('en-US'); };
+        var lines = ['Program date: ' + (programDate || '-'), 'Account: ' + accountText];
+        if (guestText) lines.push('Guest: ' + guestText);
+        if (cashNN > 0) lines.push('Cash (NN): ' + fmt(cashNN));
+        if (cashCC > 0) lines.push('Cash (CC): ' + fmt(cashCC));
+        if (depNN > 0) lines.push('Deposit (NN): ' + fmt(depNN));
+        if (depCC > 0) lines.push('Deposit (CC): ' + fmt(depCC));
+        lines.push('Total Cash-out: ' + fmt(total));
+        lines.push('Rolling Game: ' + rate.toFixed(2) + '%');
+
+        Swal.fire({
+            title: 'Confirm Late Cashout',
+            html: lines.map(function (l) { return $('<div>').text(l).html(); }).join('<br>'),
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, proceed',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            var $btn = $('#late-cashout-submit-btn');
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
+            $.ajax({
+                url: '/add_game_list_late_cashout',
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    txtAccountCode: accountId,
+                    txtGuestId: guestId,
+                    txtProgramDate: programDate,
+                    totalBalanceGuest: $('#lateCashoutBalance').val(),
+                    split_cash_nn: cashNN,
+                    split_cash_cc: cashCC,
+                    split_dep_nn: depNN,
+                    split_dep_cc: depCC,
+                    txtCommisionRate: rate
+                },
+                success: function () {
+                    $('#modal-late-cashout').modal('hide');
+                    Swal.fire({ icon: 'success', title: 'Late Cashout saved', showConfirmButton: false, timer: 1200 }).then(function () {
+                        if (typeof reloadData === 'function') reloadData();
+                        else window.location.reload();
+                    });
+                },
+                error: function (xhr) {
+                    fail('Error', (xhr.responseJSON && xhr.responseJSON.error) || 'An error occurred.');
+                    $btn.prop('disabled', false).text('Save');
+                }
+            });
+        });
+    });
+
+    $(document).on('hidden.bs.modal', '#modal-late-cashout', lcReset);
 });
 </script>
 

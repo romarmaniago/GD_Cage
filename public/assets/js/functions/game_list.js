@@ -3222,7 +3222,7 @@ function buildGameReceiptTipSection(data) {
 	return buildGameReceiptSectionTable('gsr-section-tip', bodyRows);
 }
 
-function buildGameReceiptSlipHtml(data, isLatest) {
+function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
 	var accountLine = [data.agent_code, data.agent_name].filter(Boolean).join(' - ');
 	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
 	var isTipReceipt = data.type === 'tip';
@@ -3281,11 +3281,15 @@ function buildGameReceiptSlipHtml(data, isLatest) {
 	return (
 		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '">' +
 		'<div class="game-start-receipt-slip-body">' +
-		'<p class="gsr-brand">GOLDEN DRAGON</p>' +
+		'<p class="gsr-brand' + (isOnGame ? ' gsr-brand--on-game' : '') + '">GOLDEN DRAGON</p>' +
 		'<p class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</p>' +
 		'<p class="gsr-title">' + (data.title || '* Game start *') + '</p>' +
 		'<p class="gsr-account">' + accountLine + '</p>' +
 		'<p class="gsr-game-no">' + gameNoLine + '</p>' +
+		(Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).map(function (label) {
+			var tagClass = label === 'CUTOFF' ? 'gsr-cutoff-tag--cutoff' : 'gsr-cutoff-tag--new-day';
+			return '<p class="gsr-cutoff-label"><span class="gsr-cutoff-tag ' + tagClass + '">' + label + '</span></p>';
+		}).join('') +
 		buyinTable +
 		cashoutRows +
 		tipRows +
@@ -3346,13 +3350,14 @@ function getGameReceiptsTrack($container) {
 	return $track;
 }
 
-function populateAllGameReceipts(receipts) {
+function populateAllGameReceipts(receipts, gameStatus) {
 	var $container = $('#game-receipts-container');
 	if (!$container.length) return;
 	var list = receipts || [];
 	var latestIndex = getLatestReceiptIndex(list);
+	var isOnGame = parseInt(gameStatus, 10) === 2;
 	var html = list.map(function (r, i) {
-		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex);
+		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex, isOnGame);
 	}).join('');
 	getGameReceiptsTrack($container).html(html);
 	beginGameReceiptsSettling();
@@ -3361,12 +3366,12 @@ function populateAllGameReceipts(receipts) {
 	});
 }
 
-function populateGameReceiptModal(data) {
-	populateAllGameReceipts([data]);
+function populateGameReceiptModal(data, gameStatus) {
+	populateAllGameReceipts([data], gameStatus);
 }
 
-function populateGameStartReceiptModal(data) {
-	populateAllGameReceipts([data]);
+function populateGameStartReceiptModal(data, gameStatus) {
+	populateAllGameReceipts([data], gameStatus);
 }
 
 function showGameStartReceiptModal() {
@@ -3392,7 +3397,7 @@ function showGameReceipts(gameId) {
 				}
 				return;
 			}
-			populateAllGameReceipts(receipts);
+			populateAllGameReceipts(receipts, data.game_status);
 			showGameStartReceiptModal();
 		},
 		error: function (xhr) {
@@ -3419,7 +3424,7 @@ function showGameReceiptByType(gameId, type) {
 				}
 				return;
 			}
-			populateGameReceiptModal(receipt);
+			populateGameReceiptModal(receipt, data.game_status);
 			showGameStartReceiptModal();
 		},
 		error: function (xhr) {
@@ -11401,6 +11406,16 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
         CUTOFF_PARENT_GAME_ID: cutoffParentGameId,
         CUTOFF_CONTINUED_GAME_ID: cutoffContinuedGameId
     });
+    // CUTOFF = game was cut off into a new game; New Day = game continues a cut off game
+    var settlementCutoffTags = '';
+    if (parseInt(cutoffParentGameId, 10)) {
+        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--new-day">New Day</span>';
+    }
+    if (parseInt(cutoffContinuedGameId, 10)) {
+        settlementCutoffTags += '<span class="settlement-cutoff-tag settlement-cutoff-tag--cutoff">CUTOFF</span>';
+    }
+    $settlementModal.find('.settlement-cutoff-tags').html(settlementCutoffTags);
+    $settlementModal.find('.settlement-receipt-row--cutoff').css('display', settlementCutoffTags ? '' : 'none');
     $settlementModal.data('is-settled', 0);
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $('#settlement-agent-code').text('');

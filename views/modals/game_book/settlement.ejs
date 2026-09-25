@@ -232,6 +232,32 @@
         display: contents;
     }
 
+    .settlement-cutoff-tag {
+        display: inline-block;
+        color: #fff;
+        padding: 0.05rem 0.4rem;
+        margin-right: 0.25rem;
+        border-radius: 3px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .settlement-cutoff-tag--cutoff {
+        background: #0d6efd;
+    }
+
+    .settlement-cutoff-tag--new-day {
+        background: #dc3545;
+    }
+
+    #modal-settlement .settlement-receipt-row--cutoff {
+        display: block;
+        grid-column: 1 / -1;
+        text-align: center;
+        font-weight: 700;
+        margin-top: 0.35rem;
+    }
+
     #modal-settlement .settlement-receipt-label {
         grid-column: 1;
         text-align: right;
@@ -710,6 +736,7 @@
                     <span class="settlement-receipt-colon">:</span>
                     <span class="settlement-receipt-value-col settlement-receipt-value-col--amount" id="paymentDisplay"><span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"></span></span>
                 </div>
+                <div class="settlement-receipt-row settlement-receipt-row--cutoff settlement-cutoff-tags" style="display: none;"></div>
             </div>
                         </div>
                         </div>
@@ -1024,6 +1051,14 @@ $(document).ready(function() {
         slipBodyEl.querySelectorAll('.settlement-receipt-row').forEach(function(row) {
             var labelEl = row.querySelector('.settlement-receipt-label');
             var labelText = labelEl ? labelEl.textContent.replace(/\s+/g, ' ').trim() : '';
+            if (row.classList.contains('settlement-receipt-row--cutoff')) {
+                if (row.style.display === 'none') return;
+                row.querySelectorAll('.settlement-cutoff-tag').forEach(function(tag) {
+                    var tagText = tag.textContent.trim();
+                    if (tagText) lines.push(tagText);
+                });
+                return;
+            }
             if (!labelText) {
                 return;
             }
@@ -1179,6 +1214,10 @@ $(document).ready(function() {
             '.settlement-receipt-print-root .settlement-receipt-prefix-ghost{display:none;}',
             '.settlement-receipt-print-root .settlement-receipt-amount{display:inline-block;}',
             '.settlement-receipt-print-root .settlement-receipt-print-value{display:inline-block;width:100%;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}',
+            '.settlement-receipt-print-root .settlement-cutoff-tag{display:inline-block;color:#fff;padding:0.05rem 0.4rem;margin-right:0.25rem;border-radius:3px;}',
+            '.settlement-receipt-print-root .settlement-cutoff-tag--cutoff{background:#0d6efd;}',
+            '.settlement-receipt-print-root .settlement-cutoff-tag--new-day{background:#dc3545;}',
+            '.settlement-receipt-print-root .settlement-receipt-row--cutoff{display:block;grid-column:1 / -1;text-align:center;font-weight:700;margin-top:0.35rem;}',
             '.settlement-receipt-print-root .settlement-receipt-divider{align-self:stretch;border-top:1px solid #c8c8c8;margin:0.55rem 0 0.45rem;height:0;width:100%;}',
             '.settlement-receipt-print-root .settlement-receipt-value-col.is-bold,.settlement-receipt-print-root #winLoss,.settlement-receipt-print-root #rolling{font-weight:700;}',
             '.settlement-receipt-print-root .settlement-receipt-amount.is-negative{color:#dc3545;font-weight:700;}',
