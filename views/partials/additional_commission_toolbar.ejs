@@ -14,6 +14,10 @@
     splitWrapClass: 'additional-commission-daterange-wrap additional-commission-split-daterange junket-loss-split-daterange house-expense-split-daterange'
   }) %>
 </div>
+<%# Moved next to the Add button by additional_commission.js (layoutAdditionalCommissionControls). %>
+<button type="button" id="btn-additional-commission-settle" class="btn btn-sm btn-primary d-none additional-commission-settle-btn" data-view-only-disable>
+  <%= __('house_expense.settle') || 'Settle' %>
+</button>
 <button
   type="button"
   class="expense-cat-panel-add-btn js-additional-commission-add d-none"

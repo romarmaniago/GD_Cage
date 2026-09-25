@@ -338,8 +338,9 @@ ON
 	let sqlJunketCredit = getCreditGrandTotalSql();
 	let sqlJunketExpense = sqlJunketExpenseTotal();
 	let sqlJunketReturnMoney = sqlJunketReturnMoneyTotal();
-	// JUNKET_LOSS = all losses (company expense); JUNKET_LOSS_CASH = only losses that come out of cash balance.
-	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS, SUM(CASE WHEN NON_CASH = 1 THEN 0 ELSE AMOUNT END) AS JUNKET_LOSS_CASH FROM junket_loss WHERE ACTIVE =1';
+	// JUNKET_LOSS = unsettled losses (company expense; settled ones were withdrawn from junket_capital);
+	// JUNKET_LOSS_CASH = only losses that come out of cash balance (settling moves no cash, so all count).
+	let sqlJunketLoss = 'SELECT SUM(CASE WHEN LOSS_SETTLEMENT_ID IS NULL THEN AMOUNT ELSE 0 END) AS JUNKET_LOSS, SUM(CASE WHEN NON_CASH = 1 THEN 0 ELSE AMOUNT END) AS JUNKET_LOSS_CASH FROM junket_loss WHERE ACTIVE =1';
 	let sqlJunketExpenseGoods = sqlJunketExpenseGoodsTotal();
 	let sqlJunketExpenseNonGoods = sqlJunketExpenseNonGoodsTotal();
 
@@ -998,7 +999,7 @@ let sqlServiceSettle = `
 			const [additionalRows] = await pool.execute(
 				`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 				 FROM additional_commission
-				 WHERE ACTIVE = 1`
+				 WHERE ACTIVE = 1 AND ADDITIONAL_SETTLEMENT_ID IS NULL`
 			);
 			totalAdditionalCommission = Math.round(Number(additionalRows[0]?.total || 0));
 		} catch (err) {
@@ -1301,6 +1302,22 @@ function normalizeJunketCapitalDateRange(startDate, endDate) {
 	return start <= end ? { start, end } : { start: end, end: start };
 }
 
+const EXPENSE_SETTLEMENT_CAPITAL_LOCKED = 'This entry comes from a Junket Expenses / Loss Amount / Additional settlement and cannot be edited or archived.';
+
+/** junket_capital row written by Junket Expenses, Loss Amount or Additional → Settle. */
+async function isExpenseSettlementCapital(capitalId) {
+	const [rows] = await pool.execute(
+		`SELECT IDNo FROM junket_expense_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
+		 UNION ALL
+		 SELECT IDNo FROM junket_loss_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
+		 UNION ALL
+		 SELECT IDNo FROM additional_commission_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
+		 LIMIT 1`,
+		[capitalId, capitalId, capitalId]
+	);
+	return rows.length > 0;
+}
+
 // ADD JUNKET CAPITAL (Authorized Master Account)
 router.post('/add_junket_capital', async (req, res) => {
 	let connection;
@@ -1461,9 +1478,15 @@ router.get('/junket_capital_data', async (req, res) => {
 				k.ACCOUNT_ID AS capital_account_id,
 				TRIM(CONCAT_WS(' - ', ag.AGENT_CODE, ag.NAME)) AS capital_account_label,
 				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
+				es.IDNo AS expense_settlement_id,
+				ls.IDNo AS loss_settlement_id,
+				acs.IDNo AS additional_settlement_id,
 				'junket_capital' AS REMARKS_SOURCE
 			FROM junket_capital k
 			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
+			LEFT JOIN junket_expense_settlement es ON es.CAPITAL_ID = k.IDNo AND es.ACTIVE = 1
+			LEFT JOIN junket_loss_settlement ls ON ls.CAPITAL_ID = k.IDNo AND ls.ACTIVE = 1
+			LEFT JOIN additional_commission_settlement acs ON acs.CAPITAL_ID = k.IDNo AND acs.ACTIVE = 1
 			LEFT JOIN account acc ON acc.IDNo = k.ACCOUNT_ID
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			WHERE k.ACTIVE = 1
@@ -2412,6 +2435,9 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 		if (!id) {
 			return res.status(400).send('Invalid ID');
 		}
+		if (await isExpenseSettlementCapital(id)) {
+			return res.status(409).send(EXPENSE_SETTLEMENT_CAPITAL_LOCKED);
+		}
 
 		const rawProgramDate = txtProgramDate == null ? '' : String(txtProgramDate).trim();
 		let programDate = null;
@@ -2567,6 +2593,9 @@ router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async 
 		const id = parseInt(req.params.id, 10);
 		if (!Number.isFinite(id) || id <= 0) {
 			return res.status(400).send('Invalid id.');
+		}
+		if (await isExpenseSettlementCapital(id)) {
+			return res.status(409).send(EXPENSE_SETTLEMENT_CAPITAL_LOCKED);
 		}
 		const date_now = new Date();
 		const userId = req.session.user_id;

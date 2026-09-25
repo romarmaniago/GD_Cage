@@ -836,6 +836,7 @@
 <%- include ('modals/junket/house_expense_category_modals') %>
 <%- include ('modals/junket/house_expense_vehicle_modals') %>
 <%- include ('modals/junket/house_expense_receipt') %>
+<%- include ('modals/junket/house_expense_settlement') %>
 <% if (canEditWlRate) { %><%- include ('modals/dashboard/wl_rate') %><% } %>
 <%- include ('modals/dashboard/fnb_details') %>
 <%- include ('modals/dashboard/hotel_details') %>
@@ -845,6 +846,8 @@
 <%- include ('partials/fnb_hotel_receipt_modal') %>
 <%- include ('modals/dashboard/tip_details') %>
 <%- include ('modals/dashboard/junket_loss') %>
+<%- include ('modals/junket/junket_loss_settlement') %>
+<%- include ('modals/junket/additional_commission_settlement') %>
 <%- include ('modals/tip/tip_in') %>
 <%- include ('modals/tip/tip_settlement') %>
 <%- include ('modals/tip/tip_receipt') %>
@@ -860,11 +863,11 @@
       telebet: "<%= __('gamelist.telebet') %>"
    };
 </script>
-<script src="/assets/js/functions/capital.js?v=7"></script>
+<script src="/assets/js/functions/capital.js?v=11"></script>
 <script src="/assets/js/functions/reset.js"></script>
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
-<script src="/assets/js/functions/dashboard_grid.js?v=23"></script>
+<script src="/assets/js/functions/dashboard_grid.js?v=25"></script>
 <script src="/assets/js/functions/dashboard_copy_image.js"></script>
 <script src="/assets/js/functions/dashboard_cage_cash_manual.js"></script>
 <script src="/assets/js/functions/dashboard_anticipated.js"></script>
@@ -936,7 +939,7 @@
 <script src="/assets/js/functions/gamebook_daily_report.js"></script>
 <%- include('partials/house_expense_dashboard_scripts') %>
 <%- include('partials/commission_dashboard_scripts') %>
-<script src="/assets/js/functions/additional_commission.js"></script>
+<script src="/assets/js/functions/additional_commission.js?v=3"></script>
 <%- include('partials/junket_loss_dashboard_scripts') %>
 <script>
    window.fnbHotelTranslations = {

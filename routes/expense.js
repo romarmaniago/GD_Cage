@@ -18,6 +18,7 @@ const { sendTelegramToEmployees } = require('../utils/telegram');
 const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
 const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
 const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
+const { SQL_HOUSE_EXPENSE_APPROVED_ONLY } = require('../utils/houseExpenseQueries');
 
 /** YYYY-MM-DD from picker; null if missing/invalid. */
 function parseProgramDate(raw) {
@@ -620,6 +621,9 @@ router.put('/edit_return_money/:id', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.params.id, 10);
 		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		if (await isExpenseRecordSettled('junket_return_money', id)) {
+			return res.status(409).json({ error: SETTLED_LOCK_ERROR, message: SETTLED_LOCK_ERROR });
+		}
 
 		const { txtDescription, txtInCharge, txtAmount, txtProgramDate } = req.body;
 		const programDate = parseProgramDate(txtProgramDate);
@@ -680,6 +684,9 @@ router.put('/remove_return_money/:id', checkSession, async (req, res) => {
 	try {
 		const id = parseInt(req.params.id, 10);
 		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		if (await isExpenseRecordSettled('junket_return_money', id)) {
+			return res.status(409).json({ error: SETTLED_LOCK_ERROR, message: SETTLED_LOCK_ERROR });
+		}
 		const date_now = new Date();
 
 		const [rows] = await pool.execute(
@@ -773,6 +780,9 @@ router.put('/junket_house_expense/reject/:id', checkSession, async (req, res) =>
 	try {
 		const id = parseInt(req.params.id, 10);
 		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+		if (await isExpenseRecordSettled('junket_house_expense', id)) {
+			return res.status(409).json({ error: SETTLED_LOCK_ERROR, message: SETTLED_LOCK_ERROR });
+		}
 
 		const [rows] = await pool.execute(
 			'SELECT APPROVAL_STATUS FROM junket_house_expense WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
@@ -861,6 +871,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.EDITED_DT,
 						e.ACTIVE,
 						e.RESET,
+						e.EXPENSE_SETTLEMENT_ID,
 						(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 						e.IDNo AS expense_id,
 						ec.IDNo AS expense_category_id,
@@ -895,7 +906,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						rm.EDITED_BY,
 						rm.EDITED_DT,
 						rm.ACTIVE,
-						1 AS RESET,
+						COALESCE(rm.RESET, 1) AS RESET,
+						rm.EXPENSE_SETTLEMENT_ID,
 						0 AS EDIT_LOG_COUNT,
 						rm.IDNo AS expense_id,
 						NULL AS expense_category_id,
@@ -950,6 +962,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.EDITED_DT,
 							e.ACTIVE,
 							e.RESET,
+							e.EXPENSE_SETTLEMENT_ID,
 							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
 							ec.IDNo AS expense_category_id,
@@ -1005,6 +1018,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.EDITED_DT,
 							e.ACTIVE,
 							e.RESET,
+							e.EXPENSE_SETTLEMENT_ID,
 							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
 							ec.IDNo AS expense_category_id,
@@ -1039,7 +1053,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							rm.EDITED_BY,
 							rm.EDITED_DT,
 							rm.ACTIVE,
-							1 AS RESET,
+							COALESCE(rm.RESET, 1) AS RESET,
+							rm.EXPENSE_SETTLEMENT_ID,
 							0 AS EDIT_LOG_COUNT,
 							rm.IDNo AS expense_id,
 							NULL AS expense_category_id,
@@ -1102,6 +1117,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.EDITED_DT,
 				e.ACTIVE,
 				e.RESET,
+				e.EXPENSE_SETTLEMENT_ID,
 				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 				e.IDNo AS expense_id,
 				ec.IDNo AS expense_category_id,
@@ -1136,7 +1152,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				rm.EDITED_BY,
 				rm.EDITED_DT,
 				rm.ACTIVE,
-				1 AS RESET,
+				COALESCE(rm.RESET, 1) AS RESET,
+				rm.EXPENSE_SETTLEMENT_ID,
 				0 AS EDIT_LOG_COUNT,
 				rm.IDNo AS expense_id,
 				NULL AS expense_category_id,
@@ -1262,6 +1279,9 @@ router.get('/junket_house_expense/:id/edit_log', async (req, res) => {
 router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
+		if (await isExpenseRecordSettled('junket_house_expense', id)) {
+			return res.status(409).json({ error: SETTLED_LOCK_ERROR, message: SETTLED_LOCK_ERROR });
+		}
 		const {
 			txtCategory,
 			txtReceiptNo,
@@ -1496,6 +1516,9 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 router.put('/junket_house_expense/remove/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
+		if (await isExpenseRecordSettled('junket_house_expense', id)) {
+			return res.status(409).json({ error: SETTLED_LOCK_ERROR, message: SETTLED_LOCK_ERROR });
+		}
 		const date_now = new Date();
 
 		// Fetch expense details before delete for Telegram
@@ -1570,6 +1593,223 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 // ======================= EXPENSE DAILY SETTLEMENT ==================
 
 // GET expense settlement info (default date and settled dates)
+/** M/D/YYYY for remarks. */
+function formatSettlementYmd(ymd) {
+	const p = String(ymd).split('-').map(Number);
+	return `${p[1]}/${p[2]}/${p[0]}`;
+}
+
+function todayLocalYmd() {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * SETTLE JUNKET EXPENSES (Settlement (Expenses) modal → Save)
+ * Settles every unsettled (RESET = 1), non-rejected expense and return money whose program date
+ * is within fromDate..toDate: withdraws the net amount from junket_capital (TRANSACTION_ID = 2,
+ * DESCRIPTION = 'Expenses') and tags the rows RESET = 0 / EXPENSE_SETTLEMENT_ID.
+ * No cash_transaction is written — each approved expense already has its own.
+ */
+router.post('/junket_house_expense/settle', checkSession, async (req, res) => {
+	const fromDate = parseProgramDate(req.body?.fromDate);
+	const toDate = parseProgramDate(req.body?.toDate);
+	if (!fromDate || !toDate || fromDate > toDate) {
+		return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+	}
+	const expectedRaw = req.body?.expectedAmount;
+	const expectedAmount = expectedRaw === undefined || expectedRaw === null || expectedRaw === ''
+		? null
+		: Number(expectedRaw);
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const [expenseRows] = await connection.execute(
+			`SELECT IDNo, AMOUNT
+			 FROM junket_house_expense
+			 WHERE ACTIVE = 1
+				AND RESET = 1
+				AND EXPENSE_SETTLEMENT_ID IS NULL
+				AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}
+				AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?
+			 FOR UPDATE`,
+			[fromDate, toDate]
+		);
+		const [returnRows] = await connection.execute(
+			`SELECT IDNo, AMOUNT
+			 FROM junket_return_money
+			 WHERE ACTIVE = 1
+				AND COALESCE(RESET, 1) = 1
+				AND EXPENSE_SETTLEMENT_ID IS NULL
+				AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?
+			 FOR UPDATE`,
+			[fromDate, toDate]
+		);
+
+		if (!expenseRows.length && !returnRows.length) {
+			await connection.rollback();
+			return res.status(400).json({ error: 'Nothing to settle for the selected dates.' });
+		}
+
+		const sum = (rows) => rows.reduce((acc, r) => acc + (Number(r.AMOUNT) || 0), 0);
+		const expenseTotal = Math.round(sum(expenseRows) * 100) / 100;
+		const returnMoneyTotal = Math.round(sum(returnRows) * 100) / 100;
+		const amount = Math.round((expenseTotal - returnMoneyTotal) * 100) / 100;
+
+		if (expectedAmount !== null && Number.isFinite(expectedAmount) && Math.abs(expectedAmount - amount) >= 0.01) {
+			await connection.rollback();
+			return res.status(409).json({
+				error: 'Expenses changed since the settlement was opened. Please review the new total.',
+				amount
+			});
+		}
+		if (amount < 0) {
+			await connection.rollback();
+			return res.status(400).json({ error: 'Return money is greater than the expenses for these dates.' });
+		}
+
+		const dateNow = new Date();
+		const userId = req.session?.user_id ?? null;
+
+		const [settleResult] = await connection.execute(
+			`INSERT INTO junket_expense_settlement
+				(DATE_FROM, DATE_TO, EXPENSE_TOTAL, RETURN_MONEY_TOTAL, AMOUNT, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+			[fromDate, toDate, expenseTotal, returnMoneyTotal, amount, userId, dateNow]
+		);
+		const settlementId = settleResult.insertId;
+
+		let capitalId = null;
+		if (amount > 0) {
+			const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
+			const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
+			const remarks = `Expense settlement ${formatSettlementYmd(fromDate)} - ${formatSettlementYmd(toDate)}`;
+			const [capitalResult] = await connection.execute(
+				`INSERT INTO junket_capital
+					(TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+				 VALUES (2, ?, 'Expenses', ?, ?, 1, ?, ?, ?)`,
+				[fullname, amount, remarks, userId, dateNow, todayLocalYmd()]
+			);
+			capitalId = capitalResult.insertId;
+			await connection.execute(
+				'UPDATE junket_expense_settlement SET CAPITAL_ID = ? WHERE IDNo = ?',
+				[capitalId, settlementId]
+			);
+		}
+
+		const markSettled = async (table, rows) => {
+			if (!rows.length) return;
+			const ids = rows.map((r) => r.IDNo);
+			await connection.execute(
+				`UPDATE ${table} SET RESET = 0, EXPENSE_SETTLEMENT_ID = ? WHERE IDNo IN (${ids.map(() => '?').join(',')})`,
+				[settlementId, ...ids]
+			);
+		};
+		await markSettled('junket_house_expense', expenseRows);
+		await markSettled('junket_return_money', returnRows);
+
+		await connection.commit();
+		res.json({
+			success: true,
+			settlement_id: settlementId,
+			capital_id: capitalId,
+			amount,
+			expense_count: expenseRows.length,
+			return_money_count: returnRows.length
+		});
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		console.error('Error settling junket expenses:', err);
+		res.status(500).json({ error: 'Failed to settle expenses' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+/**
+ * View one saved expense settlement (opened from the Authorized Master Account ledger).
+ * Breakdown is per MAIN category — same layout as the Settlement (Expenses) slip.
+ */
+router.get('/junket_expense_settlement/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const [settleRows] = await pool.execute(
+			`SELECT IDNo,
+				DATE_FORMAT(DATE_FROM, '%Y-%m-%d') AS DATE_FROM,
+				DATE_FORMAT(DATE_TO, '%Y-%m-%d') AS DATE_TO,
+				EXPENSE_TOTAL, RETURN_MONEY_TOTAL, AMOUNT, CAPITAL_ID, ENCODED_DT
+			 FROM junket_expense_settlement
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!settleRows.length) return res.status(404).json({ error: 'Settlement not found' });
+
+		const [mainRows] = await pool.execute(
+			`SELECT IDNo, CATEGORY
+			 FROM expense_category
+			 WHERE ACTIVE = 1 AND (PARENT_ID IS NULL OR PARENT_ID = 0)
+			 ORDER BY CATEGORY ASC`
+		);
+		const [sumRows] = await pool.execute(
+			`SELECT COALESCE(NULLIF(ec.PARENT_ID, 0), ec.IDNo) AS MAIN_ID,
+				MAX(COALESCE(pc.CATEGORY, ec.CATEGORY)) AS MAIN_NAME,
+				SUM(e.AMOUNT) AS AMOUNT
+			 FROM junket_house_expense e
+			 JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 LEFT JOIN expense_category pc ON pc.IDNo = NULLIF(ec.PARENT_ID, 0)
+			 WHERE e.EXPENSE_SETTLEMENT_ID = ? AND e.ACTIVE = 1
+			 GROUP BY COALESCE(NULLIF(ec.PARENT_ID, 0), ec.IDNo)`,
+			[id]
+		);
+
+		const sums = new Map(sumRows.map((r) => [String(r.MAIN_ID), r]));
+		const mains = mainRows.map((m) => {
+			const hit = sums.get(String(m.IDNo));
+			sums.delete(String(m.IDNo));
+			return { name: m.CATEGORY || '', amount: -(Number(hit && hit.AMOUNT) || 0) };
+		});
+		// Settled under a main category that has since been removed.
+		sums.forEach((r) => mains.push({ name: r.MAIN_NAME || 'Uncategorized', amount: -(Number(r.AMOUNT) || 0) }));
+
+		const settlement = settleRows[0];
+		const returnMoney = Number(settlement.RETURN_MONEY_TOTAL) || 0;
+		if (returnMoney) mains.push({ name: 'Return Money', amount: returnMoney });
+
+		res.json({
+			id: settlement.IDNo,
+			date_from: settlement.DATE_FROM,
+			date_to: settlement.DATE_TO,
+			amount: Number(settlement.AMOUNT) || 0,
+			capital_id: settlement.CAPITAL_ID,
+			settled_at: settlement.ENCODED_DT,
+			mains,
+			total: -(Number(settlement.AMOUNT) || 0)
+		});
+	} catch (err) {
+		console.error('Error loading expense settlement:', err);
+		res.status(500).json({ error: 'Failed to load settlement' });
+	}
+});
+
+/** True when the expense / return money row belongs to an expense settlement (locked). */
+async function isExpenseRecordSettled(table, id) {
+	const [rows] = await pool.execute(
+		`SELECT EXPENSE_SETTLEMENT_ID FROM ${table} WHERE IDNo = ? LIMIT 1`,
+		[id]
+	);
+	return !!(rows.length && rows[0].EXPENSE_SETTLEMENT_ID != null);
+}
+
+const SETTLED_LOCK_ERROR = 'This record is already settled and can no longer be changed.';
+
 router.get('/expense_settlement_info', async (req, res) => {
 	try {
 		const now = new Date();

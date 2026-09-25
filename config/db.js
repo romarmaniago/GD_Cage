@@ -6,9 +6,11 @@ const { ensureHouseExpenseProgramDateSchema } = require('../utils/ensureHouseExp
 const { ensureReturnMoneyProgramDateSchema } = require('../utils/ensureReturnMoneyProgramDateSchema');
 const { ensureReturnMoneyInChargeSchema } = require('../utils/ensureReturnMoneyInChargeSchema');
 const { ensureReturnMoneyResetSchema } = require('../utils/ensureReturnMoneyResetSchema');
+const { ensureExpenseSettlementSchema } = require('../utils/ensureExpenseSettlementSchema');
 const { ensureHouseExpenseVehicleSchema } = require('../utils/ensureHouseExpenseVehicleSchema');
 const { ensureTipSchema } = require('../utils/ensureTipSchema');
 const { ensureJunketLossSchema } = require('../utils/ensureJunketLossSchema');
+const { ensureJunketLossSettlementSchema } = require('../utils/ensureJunketLossSettlementSchema');
 const { ensureJunketCapitalProgramDateSchema } = require('../utils/ensureJunketCapitalProgramDateSchema');
 const { ensureJunketTotalChipsProgramDateSchema } = require('../utils/ensureJunketTotalChipsProgramDateSchema');
 const { ensureJunketCapitalTransferSchema } = require('../utils/ensureJunketCapitalTransferSchema');
@@ -24,6 +26,7 @@ const { ensureNetProfitShareProgramDateSchema } = require('../utils/ensureNetPro
 const { ensureDashboardWlShareSchema } = require('../utils/ensureDashboardWlShareSchema');
 const { dropGameDailySettlementSchema } = require('../utils/ensureGameDailySettlementCleanup');
 const { ensureAdditionalCommissionSchema } = require('../utils/ensureAdditionalCommissionSchema');
+const { ensureAdditionalCommissionSettlementSchema } = require('../utils/ensureAdditionalCommissionSettlementSchema');
 const { ensureBeyondChipsSchema } = require('../utils/ensureBeyondChipsSchema');
 const { ensureCageManualCashSchema } = require('../utils/ensureCageManualCashSchema');
 const { ensureDashboardCheckRemarksSchema } = require('../utils/ensureDashboardCheckRemarksSchema');
@@ -62,9 +65,11 @@ const pool = mysql.createPool({
 		await ensureReturnMoneyProgramDateSchema(pool);
 		await ensureReturnMoneyInChargeSchema(pool);
 		await ensureReturnMoneyResetSchema(pool);
+		await ensureExpenseSettlementSchema(pool);
 		await ensureHouseExpenseVehicleSchema(pool);
 		await ensureTipSchema(pool);
 		await ensureJunketLossSchema(pool);
+		await ensureJunketLossSettlementSchema(pool);
 		await ensureJunketCapitalProgramDateSchema(pool);
 		await ensureJunketTotalChipsProgramDateSchema(pool);
 		await ensureJunketCapitalTransferSchema(pool);
@@ -79,6 +84,7 @@ const pool = mysql.createPool({
 		await ensureNetProfitShareProgramDateSchema(pool);
 		await ensureDashboardWlShareSchema(pool);
 		await ensureAdditionalCommissionSchema(pool);
+		await ensureAdditionalCommissionSettlementSchema(pool);
 		await ensureBeyondChipsSchema(pool);
 		await ensureCageManualCashSchema(pool);
 		await ensureSoaFnbHotelSchema(pool);

@@ -73,18 +73,27 @@ async function computeWinLossForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
-async function computeReturnMoneyForPeriod(pool, dateFrom, dateTo) {
+/** Only rows not yet settled via Junket Expenses → Settle (see routes/expense.js). */
+const SQL_EXPENSE_UNSETTLED = 'EXPENSE_SETTLEMENT_ID IS NULL';
+
+async function computeReturnMoneyForPeriod(pool, dateFrom, dateTo, { unsettledOnly = false } = {}) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 		 FROM junket_return_money
 		 WHERE ACTIVE = 1
+			${unsettledOnly ? `AND ${SQL_EXPENSE_UNSETTLED}` : ''}
 			AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
 }
 
-async function computeExpenseForPeriod(pool, dateFrom, dateTo) {
+/**
+ * Net expenses (expenses - return money) for the period.
+ * unsettledOnly: exclude rows already settled — those were withdrawn from junket_capital,
+ * so the Main panel must not subtract them a second time.
+ */
+async function computeExpenseForPeriod(pool, dateFrom, dateTo, { unsettledOnly = false } = {}) {
 	const [expense, returnMoney] = await Promise.all([
 		sumScalar(
 			pool,
@@ -92,20 +101,26 @@ async function computeExpenseForPeriod(pool, dateFrom, dateTo) {
 			 FROM junket_house_expense
 			 WHERE ACTIVE = 1
 				AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}
+				${unsettledOnly ? `AND ${SQL_EXPENSE_UNSETTLED}` : ''}
 				AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`,
 			[dateFrom, dateTo]
 		),
-		computeReturnMoneyForPeriod(pool, dateFrom, dateTo)
+		computeReturnMoneyForPeriod(pool, dateFrom, dateTo, { unsettledOnly })
 	]);
 	return expense - returnMoney;
 }
 
+/**
+ * Loss Amount for the Main / Anticipated panels. Settled losses (Loss Amount → Settle) are excluded:
+ * they were already withdrawn from junket_capital, so they must not be subtracted a second time.
+ */
 async function computeJunketLossForPeriod(pool, dateFrom, dateTo) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 		 FROM junket_loss
 		 WHERE ACTIVE = 1
+			AND LOSS_SETTLEMENT_ID IS NULL
 			AND PROGRAM_DATE BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
@@ -147,12 +162,14 @@ async function computeSoaForPeriod(pool, dateFrom, dateTo) {
 	);
 }
 
+/** Settled rows (Additional → Settle) are excluded: already withdrawn from junket_capital. */
 async function computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo) {
 	return sumScalar(
 		pool,
 		`SELECT COALESCE(SUM(AMOUNT), 0) AS total
 		 FROM additional_commission
 		 WHERE ACTIVE = 1
+			AND ADDITIONAL_SETTLEMENT_ID IS NULL
 			AND DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)) BETWEEN ? AND ?`,
 		[dateFrom, dateTo]
 	);
@@ -337,8 +354,8 @@ async function computeMainPanelSumTotal(pool) {
 		computeCreditGrandTotal(pool),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND RESET=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_return_money WHERE ACTIVE=1 AND RESET=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1`),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_loss WHERE ACTIVE=1 AND LOSS_SETTLEMENT_ID IS NULL`),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM additional_commission WHERE ACTIVE=1 AND ADDITIONAL_SETTLEMENT_ID IS NULL`),
 		computeCommissionSettlementAllTime(pool),
 		loadServiceExpenseDataAllTime(pool),
 		computeTipBalanceForPeriod(pool),
@@ -759,6 +776,7 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 	const [
 		winLoss,
 		expense,
+		expenseUnsettled,
 		junketLoss,
 		soa,
 		additionalCommission,
@@ -769,6 +787,7 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 	] = await Promise.all([
 		computeWinLossForPeriod(pool, dateFrom, dateTo),
 		computeExpenseForPeriod(pool, dateFrom, dateTo),
+		computeExpenseForPeriod(pool, dateFrom, dateTo, { unsettledOnly: true }),
 		computeJunketLossForPeriod(pool, dateFrom, dateTo),
 		computeSoaForPeriod(pool, dateFrom, dateTo),
 		computeAdditionalCommissionForPeriod(pool, dateFrom, dateTo),
@@ -786,7 +805,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 			serviceCategories.reduce((sum, cat) => sum + (Number(cat.junketOut) || 0), 0)
 	);
 
-	const companyExpenseBase = expense + junketLoss + commissionSettlement + additionalCommission;
+	// Settled expenses are excluded here too (Anticipated Profit → Company).
+	const companyExpenseBase = expenseUnsettled + junketLoss + commissionSettlement + additionalCommission;
 	const serviceBalanceTotal = Math.round(
 		serviceCategories.reduce((sum, cat) => sum + (Number(cat.balance) || 0), 0)
 	);
@@ -795,7 +815,7 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 	const mainAvailableAmount = Math.round(
 		companyCapitalBalance
 		- (Number(cageMain.credit) || 0)
-		- expense
+		- expenseUnsettled
 		- junketLoss
 		- commissionSettlement
 		- additionalCommission
@@ -807,6 +827,8 @@ async function computeDashboardPeriodSummary(pool, dateFromInput, dateToInput) {
 		date_to: dateTo,
 		win_loss: winLoss,
 		expense,
+		// Main panel "Expenses": settled expenses are already out of company capital.
+		expense_unsettled: expenseUnsettled,
 		junket_loss: junketLoss,
 		soa,
 		additional_commission: additionalCommission,

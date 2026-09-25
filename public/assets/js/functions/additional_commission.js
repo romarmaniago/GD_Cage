@@ -99,20 +99,27 @@
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
     }
 
-    function formatProgramDate(row) {
+    /**
+     * Program date as YYYY-MM-DD in local time. The API sends PROGRAM_DATE as an ISO timestamp of local
+     * midnight (e.g. 2026-09-24T16:00:00.000Z for Sep 25 at UTC+8), so slicing the string would be a day early.
+     */
+    function getRowProgramYmd(row) {
       const raw = row && (row.PROGRAM_DATE || row.ENCODED_DT);
       if (!raw) return '';
-      const ymd = String(raw).slice(0, 10);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return escapeHtml(ymd);
-      return formatDateTime(raw).slice(0, 10);
+      const str = String(raw);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      return formatYmd(raw);
+    }
+
+    function formatProgramDate(row) {
+      return escapeHtml(getRowProgramYmd(row));
     }
 
     function getRowProgramDateValue(row) {
-      const raw = row && (row.PROGRAM_DATE || row.ENCODED_DT);
-      if (!raw) return 0;
-      const ymd = String(raw).slice(0, 10);
-      const parsed = new Date(ymd);
-      return Number.isNaN(parsed.getTime()) ? new Date(raw).getTime() || 0 : parsed.getTime();
+      const ymd = getRowProgramYmd(row);
+      if (!ymd) return 0;
+      const parts = ymd.split('-').map(Number);
+      return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
     }
 
     function formatAmount(value) {
@@ -218,8 +225,21 @@
       return '';
     }
 
+    /** Row belongs to an Additional settlement (Settle → Save): shown in a different color and locked. */
+    function isSettled(row) {
+      return !!(row && row.ADDITIONAL_SETTLEMENT_ID != null && row.ADDITIONAL_SETTLEMENT_ID !== '');
+    }
+
     function buildActionButtons(row) {
       const id = escapeHtml(row.IDNo);
+      if (isSettled(row)) {
+        return `
+        <div class="additional-commission-action-btns">
+          <button type="button" class="btn btn-sm btn-alt-secondary btn-receipt-additional-commission" data-id="${id}" title="Receipt"><i class="fa fa-receipt"></i></button>
+          <span class="junket-loss-settled-pill" title="Settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span>
+        </div>
+      `;
+      }
       const editDeleteButtons = canEditAdditionalCommission
         ? `
           <button type="button" class="btn btn-sm btn-alt-primary btn-edit-additional-commission" data-id="${id}" title="Edit"><i class="fa fa-pencil-alt"></i></button>
@@ -271,11 +291,11 @@
       if (api) {
         api.rows({ search: 'applied' }).every(function () {
           const row = this.data();
-          total += Number(row && row.AMOUNT) || 0;
+          if (!isSettled(row)) total += Number(row && row.AMOUNT) || 0;
         });
       } else {
         total = (records || []).reduce(function (sum, row) {
-          return sum + (Number(row && row.AMOUNT) || 0);
+          return isSettled(row) ? sum : sum + (Number(row && row.AMOUNT) || 0);
         }, 0);
       }
 
@@ -435,6 +455,11 @@
         }
         addButton.classList.remove('d-none');
       }
+      const settleButton = document.getElementById('btn-additional-commission-settle');
+      if (settleButton && settleButton.nextElementSibling !== addButton) {
+        $filterHighlight.prepend(settleButton);
+        settleButton.classList.remove('d-none');
+      }
       if ($filterLabel.length && $filterLabel.parent()[0] !== $filterHighlight[0]) {
         $filterHighlight.append($filterLabel);
       }
@@ -481,7 +506,12 @@
             fromDate = toDate;
             toDate = swap;
           }
-          additionalCommissionSplitOverrideRange = { start: fromDate, end: toDate };
+          additionalCommissionSplitOverrideRange = {
+            start: fromDate,
+            end: toDate,
+            displayStart: range.start <= range.end ? range.start : range.end,
+            displayEnd: range.start <= range.end ? range.end : range.start
+          };
           loadAdditionalCommissionData();
         }
       });
@@ -595,6 +625,9 @@
             }
           ],
           data: [],
+          createdRow: function (tr, row) {
+            if (isSettled(row)) tr.classList.add('is-settled');
+          },
           footerCallback: function () {
             updateAdditionalCommissionTableTotal(this.api());
           }
@@ -642,7 +675,7 @@
           const amountClass = amount ? 'text-danger' : '';
 
           return `
-          <tr>
+          <tr${isSettled(row) ? ' class="is-settled"' : ''}>
             <td>${formatProgramDate(row)}</td>
             <td>${formatDateTime(row.ENCODED_DT)}</td>
             <td>${formatAccountName(row)}</td>
@@ -771,9 +804,7 @@
       setSelectedType(row.TYPE);
       amountInput.value = formatAmountInput(String(row.AMOUNT || ''));
       remarksInput.value = row.REMARKS || '';
-      const programDate = row.PROGRAM_DATE
-        ? String(row.PROGRAM_DATE).slice(0, 10)
-        : (row.ENCODED_DT ? formatYmd(row.ENCODED_DT) : todayProgramDateValue());
+      const programDate = getRowProgramYmd(row) || todayProgramDateValue();
       ensureProgramDatePicker(programDate);
 
       if (dashListModalEl) {
@@ -1011,6 +1042,26 @@
     });
 
     window.loadAdditionalCommissionData = loadAdditionalCommissionData;
+
+    /** All loaded rows, for the settlement slip. */
+    window.additionalCommissionGetRows = function () {
+      return records || [];
+    };
+
+    /** The range exactly as the user picked it (YYYY-MM-DD), without the month-end API expansion. */
+    window.additionalCommissionGetDisplayRange = function () {
+      if (additionalCommissionSplitOverrideRange && additionalCommissionSplitOverrideRange.displayStart) {
+        return {
+          fromDate: additionalCommissionSplitOverrideRange.displayStart,
+          toDate: additionalCommissionSplitOverrideRange.displayEnd
+        };
+      }
+      const dates = dateRangePicker ? dateRangePicker.selectedDates || [] : [];
+      if (!dates.length) return { fromDate: null, toDate: null };
+      const a = moment(dates[0]).format('YYYY-MM-DD');
+      const b = moment(dates[dates.length - 1]).format('YYYY-MM-DD');
+      return a <= b ? { fromDate: a, toDate: b } : { fromDate: b, toDate: a };
+    };
 
     // Enable DataTables UI (search + show entries).
     initDataTableOnce();

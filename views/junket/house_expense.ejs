@@ -1,5 +1,5 @@
 <%- include('../partials/header') %>
-<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=13">
+<link rel="stylesheet" href="/assets/css/house_expense_explorer.css?v=14">
 <%- include('../partials/loader') %>
 
 
@@ -220,6 +220,7 @@
         <%- include ('../modals/junket/house_expense_category_modals') %>
         <%- include ('../modals/junket/house_expense_vehicle_modals') %>
         <%- include ('../modals/junket/house_expense_receipt') %>
+        <%- include ('../modals/junket/house_expense_settlement') %>
         <div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
@@ -295,7 +296,7 @@
             </div>
         </div>
         <%- include ('../partials/permission_view_only_script') %>
-        <%- include ('../partials/footer'); -%>     
+        <%- include ('../partials/footer'); -%>
        
         
        
@@ -399,7 +400,7 @@
             };
         </script>
         
-        <script src="/assets/js/functions/house_expense.js"></script>
+        <script src="/assets/js/functions/house_expense.js?v=3"></script>
         <script>
             /* Category modals — wired like #modal-new-house-expense (see $(document).ready in house_expense.js) */
             $(function () {

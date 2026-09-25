@@ -105,6 +105,7 @@
 </div>
 
 <%- include('../partials/junket_loss_receipt_modal') %>
+<%- include('../modals/junket/junket_loss_settlement') %>
 
 <%- include ('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
@@ -116,7 +117,7 @@
     error: "<%= __('junket_loss.export_error') || 'Export failed' %>"
   };
 </script>
-<script src="/assets/js/functions/junket_loss.js"></script>
+<script src="/assets/js/functions/junket_loss.js?v=2"></script>
 
 <style>
   .card-body {

@@ -1,0 +1,116 @@
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-house-expense-settlement',
+    slipTitle: 'Settlement (Expenses)',
+    slipSectionTitle: 'Main Category'
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    /** Range exactly as shown in the filter (main picker or split date inputs), YYYY-MM-DD. */
+    function getSelectedRange() {
+        if (typeof window.houseExpenseGetDisplayRange === 'function') {
+            var r = window.houseExpenseGetDisplayRange();
+            return { start: r.fromDate, end: r.toDate };
+        }
+        return { start: null, end: null };
+    }
+
+    function rowProgramDate(r) {
+        if (typeof formatHouseExpenseProgramDateCell === 'function') return formatHouseExpenseProgramDateCell(r);
+        var raw = r.PROGRAM_DATE || r.ENCODED_DT;
+        return raw ? moment.utc(raw).utcOffset(8).format('YYYY-MM-DD') : '';
+    }
+
+    /** Expense totals per main category; expenses are shown as negatives, return money positive. */
+    function buildMainCategoryTotals(sourceRows, range) {
+        // Only not-yet-settled rows whose program date falls inside Start ~ Finish
+        // (same rule as POST /junket_house_expense/settle).
+        var rows = (sourceRows || []).filter(function (r) {
+            if (!r) return false;
+            if (typeof houseExpenseIsApprovedForTotals === 'function' && !houseExpenseIsApprovedForTotals(r)) return false;
+            if (r.EXPENSE_SETTLEMENT_ID != null && r.EXPENSE_SETTLEMENT_ID !== '') return false;
+            if (r.RESET != null && Number(r.RESET) !== 1) return false;
+            var d = rowProgramDate(r);
+            return !!d && d >= range.start && d <= range.end;
+        });
+        var catRows = window.houseExpenseCategoryRows || [];
+        var byId = {};
+        catRows.forEach(function (c) { if (c) byId[String(c.IDNo)] = c; });
+
+        function mainIdOf(catId) {
+            var c = byId[String(catId)];
+            if (!c) return String(catId);
+            var p = c.PARENT_ID;
+            return (p == null || p === '' || Number(p) === 0) ? String(c.IDNo) : String(p);
+        }
+
+        var sums = {};
+        var returnMoney = 0;
+        rows.forEach(function (r) {
+            var amt = Number(r.AMOUNT) || 0;
+            if (r.record_type === 'return_money') {
+                returnMoney += amt;
+                return;
+            }
+            var key = r.expense_category_id != null && r.expense_category_id !== '' ? mainIdOf(r.expense_category_id) : '';
+            sums[key] = (sums[key] || 0) + amt;
+        });
+
+        var mains = catRows.filter(function (c) {
+            return c && (c.PARENT_ID == null || c.PARENT_ID === '' || Number(c.PARENT_ID) === 0);
+        }).map(function (c) {
+            return { name: c.CATEGORY || '', amount: -(sums[String(c.IDNo)] || 0) };
+        });
+        mains.sort(function (a, b) {
+            return String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' });
+        });
+
+        // Expenses whose category is missing from the catalog.
+        Object.keys(sums).forEach(function (k) {
+            var isMain = catRows.some(function (c) { return c && String(c.IDNo) === k; });
+            if (!isMain && sums[k]) mains.push({ name: 'Uncategorized', amount: -sums[k] });
+        });
+
+        if (returnMoney) {
+            var rmLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.return_money) || 'Return Money';
+            mains.push({ name: rmLabel, amount: returnMoney });
+        }
+
+        var total = mains.reduce(function (s, m) { return s + m.amount; }, 0);
+        return { mains: mains, total: total, count: rows.length };
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-house-expense-settlement',
+        title: 'Settlement (Expenses)',
+        triggerSelector: '#btn-house-expense-settle',
+        getRange: getSelectedRange,
+        getRows: function () { return window.houseExpenseLastRows || []; },
+        fetchRows: function (range) {
+            return $.ajax({
+                url: '/junket_house_expense_data',
+                method: 'GET',
+                data: { fromDate: range.start, toDate: range.end }
+            });
+        },
+        summarize: buildMainCategoryTotals,
+        settleUrl: '/junket_house_expense/settle',
+        viewUrl: function (id) { return '/junket_expense_settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle expenses?',
+        imageFileName: 'settlement-expenses.png',
+        emptyLabel: 'No main categories',
+        afterSettled: function () {
+            // Dashboard: Company / Expenses panels are server-rendered — reload the page.
+            if (document.getElementById('modal-dash-house-expense')) {
+                window.location.reload();
+                return;
+            }
+            if (typeof window.reloadData === 'function') window.reloadData();
+        }
+    });
+
+    /** Authorized Master Account ledger → settlement button. */
+    window.openExpenseSettlementView = slip.openView;
+});
+</script>

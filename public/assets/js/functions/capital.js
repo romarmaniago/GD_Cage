@@ -261,7 +261,8 @@ var HOUSE_BALANCE_TYPE_LABELS = {
     'F&B': true,
     'Hotel': true,
     'Incidental': true,
-    'Expenses': true
+    'Expenses': true,
+    'Additional': true
 };
 
 function isHouseCashInOutRow(row) {
@@ -284,7 +285,8 @@ function isHouseBalanceCashOutType(desc) {
         label === 'F&B' ||
         label === 'Hotel' ||
         label === 'Incidental' ||
-        label === 'Expenses';
+        label === 'Expenses' ||
+        label === 'Additional';
 }
 
 function getDefaultMonthEndRange() {
@@ -726,7 +728,23 @@ function reloadCapitalData() {
                                         <i class="fa fa-trash-alt"></i>
                                   </button>`
                         : '';
-                    btn = `<div class="capital-action-btns">` + receiptBtn + editArchiveBtns + `</div>`;
+                    if (row.expense_settlement_id || row.loss_settlement_id || row.additional_settlement_id) {
+                        // Junket Expenses / Loss Amount / Additional → Settle row: receipt + settlement slip;
+                        // editing/archiving it would desync it from the settled records, so those stay hidden.
+                        const viewCall = row.expense_settlement_id
+                            ? `openExpenseSettlementView(${Number(row.expense_settlement_id)})`
+                            : row.loss_settlement_id
+                                ? `openJunketLossSettlementView(${Number(row.loss_settlement_id)})`
+                                : `openAdditionalSettlementView(${Number(row.additional_settlement_id)})`;
+                        btn = `<div class="capital-action-btns">` + receiptBtn +
+                            `<button type="button" onclick="${viewCall}" class="btn btn-sm btn-alt-secondary"
+                                    title="View settlement" aria-label="View settlement">
+                                    <i class="fa fa-file-invoice"></i>
+                              </button>` +
+                            `</div>`;
+                    } else {
+                        btn = `<div class="capital-action-btns">` + receiptBtn + editArchiveBtns + `</div>`;
+                    }
                 }
 
                 var formattedProgramDate = '—';

@@ -140,9 +140,36 @@ function applyJunketLossSplitDateRange(range) {
         fromDate = toDate;
         toDate = swap;
     }
-    junketLossSplitOverrideRange = { fromDate: fromDate, toDate: toDate };
+    junketLossSplitOverrideRange = {
+        fromDate: fromDate,
+        toDate: toDate,
+        displayFrom: range.start <= range.end ? range.start : range.end,
+        displayTo: range.start <= range.end ? range.end : range.start
+    };
     fetchJunketLossData();
 }
+
+/** The range exactly as the user picked it (YYYY-MM-DD), without the month-end API expansion. */
+window.junketLossGetDisplayRange = function () {
+    if (junketLossSplitOverrideRange && junketLossSplitOverrideRange.displayFrom) {
+        return { fromDate: junketLossSplitOverrideRange.displayFrom, toDate: junketLossSplitOverrideRange.displayTo };
+    }
+    const el = document.getElementById('junket-loss-daterange');
+    const dates = el && el._flatpickr ? el._flatpickr.selectedDates || [] : [];
+    if (!dates.length) return { fromDate: null, toDate: null };
+    const a = moment(dates[0]).format('YYYY-MM-DD');
+    const b = moment(dates[dates.length - 1]).format('YYYY-MM-DD');
+    return a <= b ? { fromDate: a, toDate: b } : { fromDate: b, toDate: a };
+};
+
+/** All loaded rows (every tab), for the settlement slip. */
+window.junketLossGetRows = function () {
+    return junketLossTable ? junketLossTable.rows().data().toArray() : [];
+};
+
+window.reloadJunketLossData = function () {
+    fetchJunketLossData();
+};
 
 function applyJunketLossDateFilter(fpInstance) {
     const range = resolveJunketLossDateRange(fpInstance);
@@ -355,6 +382,12 @@ function resetJunketLossFormFields() {
     junketLossAccountGuestResetting = false;
 }
 
+/** Row belongs to a Loss Amount settlement (Settle → Save): shown in a different color and locked. */
+function isJunketLossSettled(row) {
+    return !!(row && row.LOSS_SETTLEMENT_ID != null && row.LOSS_SETTLEMENT_ID !== '');
+}
+window.isJunketLossSettled = isJunketLossSettled;
+
 /** junket_loss.TRANSACTION: 1 = Loss (positive AMOUNT), 2 = Recovery (negative AMOUNT). */
 function isJunketLossRecovery(row) {
     return !!row && (Number(row.TRANSACTION) === 2 || Number(row.AMOUNT) < 0);
@@ -383,11 +416,13 @@ function formatJunketLossAmountDisplay(value) {
 
 function updateJunketLossTableTotal(api) {
     if (!api) return;
+    // Settled rows are already out of company capital, so they are not part of the total.
     const total = api
-        .column(4, { search: 'applied' })
+        .rows({ search: 'applied' })
         .data()
-        .reduce(function (sum, value) {
-            return sum + (Number(value) || 0);
+        .toArray()
+        .reduce(function (sum, row) {
+            return isJunketLossSettled(row) ? sum : sum + (Number(row.AMOUNT) || 0);
         }, 0);
     $('#junket-loss-total-amount').html(formatJunketLossAmountDisplay(total));
 }
@@ -534,6 +569,14 @@ function findJunketLossRowById(id) {
 
 function buildJunketLossActionButtons(row) {
     const id = row && row.IDNo != null ? row.IDNo : '';
+    if (isJunketLossSettled(row)) {
+        return (
+            '<div class="junket-loss-action-btns">' +
+            '<button type="button" class="btn btn-sm btn-alt-secondary btn-junket-loss-receipt" data-id="' + id + '" title="Receipt"><i class="fa fa-receipt"></i></button>' +
+            '<span class="junket-loss-settled-pill" title="Settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span>' +
+            '</div>'
+        );
+    }
     const editDeleteButtons = isJunketLossSuperAdmin()
         ? '<button type="button" class="btn btn-sm btn-alt-primary btn-junket-loss-edit" data-id="' + id + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
           '<button type="button" class="btn btn-sm btn-alt-danger btn-junket-loss-remove" data-id="' + id + '" title="Delete"><i class="fa fa-trash-alt"></i></button>'
@@ -923,6 +966,9 @@ function ensureJunketLossTable() {
                 }
             }
         ],
+        createdRow: function (tr, row) {
+            if (isJunketLossSettled(row)) tr.classList.add('is-settled');
+        },
         footerCallback: function () {
             updateJunketLossTableTotal(this.api());
         },

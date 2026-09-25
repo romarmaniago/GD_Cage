@@ -675,7 +675,7 @@ $(document).ready(function() {
             totalRolling += parseNumCell(rollingValue);
             totalRollingSettlement += parseNumCell(rollingSettlementValue);
             totalFnb += parseNumCell(fnbValue);
-            totalPayment += parseNumCell(paymentValue);
+            totalPayment += parseNumCell(paymentValue, { signed: true });
         });
 
         function formatNumber(num) {
@@ -688,7 +688,7 @@ $(document).ready(function() {
         $('#GRAND_TOTAL_ROLLING').html(fmtCommissionAmount(totalRolling, 'signed'));
         $('#GRAND_ROLLING_SETTLEMENT').html(fmtCommissionAmount(totalRollingSettlement, 'out'));
         $('#GRAND_FNB').text(formatAddChgAmount(totalFnb));
-        $('#GRAND_PAYMENT').html(fmtCommissionAmount(totalPayment, 'out'));
+        $('#GRAND_PAYMENT').html(fmtCommissionAmount(totalPayment, 'signed'));
     }
 
     function getCommissionDateInput() {
@@ -973,6 +973,7 @@ $(document).ready(function() {
     var dataTable = $('#commission-tbl').DataTable({
     "scrollX": false,
     "autoWidth": false,
+    "pageLength": 100,
     "order": [[1, 'desc']],
     "columnDefs": [
       {
@@ -1276,7 +1277,8 @@ $(document).ready(function() {
                                         fmtCommissionAmount(total_rolling_chips, 'signed'),
                                         fmtCommissionAmount(net, 'out'),
                                         formatAddChgAmount(fb),
-                                        fmtCommissionAmount(paymentValue, 'out'),
+                                        // Payout to agent (net > add charge) shows as (x); agent owes house shows positive.
+                                        fmtCommissionAmount(-paymentValue, 'signed'),
                                         formattedGameEnd
                                     ]).node();
                                     $(commissionRowNode).data('commissionExport', {
@@ -1294,7 +1296,7 @@ $(document).ready(function() {
                                         rolling: total_rolling_chips,
                                         settlement: -Math.abs(net),
                                         add_charge: fb,
-                                        total_settle: -Math.abs(paymentValue),
+                                        total_settle: -paymentValue,
                                         game_end: formattedGameEnd
                                     });
                                 },

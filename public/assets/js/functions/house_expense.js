@@ -314,8 +314,9 @@ function houseExpenseGetApprovalStatus(row) {
     return Number.isNaN(s) ? 1 : s;
 }
 
+/** Counts toward totals: not rejected and not yet settled (settled rows are already paid out of capital). */
 function houseExpenseIsApprovedForTotals(row) {
-    return houseExpenseGetApprovalStatus(row) !== 2;
+    return houseExpenseGetApprovalStatus(row) !== 2 && !houseExpenseIsSettled(row);
 }
 
 /** Pending/rejected first; approved last. */
@@ -740,7 +741,22 @@ function copyHouseExpenseReceiptSlipTextButton(slipBodyEl, $btn) {
         .finally(ui.restoreBtn);
 }
 
+/** Row belongs to an expense settlement (Settle → Save): shown in a different color and locked. */
+function houseExpenseIsSettled(row) {
+    return !!(row && row.EXPENSE_SETTLEMENT_ID != null && row.EXPENSE_SETTLEMENT_ID !== '');
+}
+
+function houseExpenseSettledPillHtml() {
+    return (
+        '<span class="house-expense-status-pill house-expense-status-pill--settled" data-bs-toggle="tooltip" data-bs-placement="top" title="Settled — locked">' +
+        '<i class="fa fa-lock" aria-hidden="true"></i>Settled</span>'
+    );
+}
+
 function buildReturnMoneyActionButtons(row) {
+    if (houseExpenseIsSettled(row)) {
+        return '<div class="house-expense-actions">' + houseExpenseSettledPillHtml() + '</div>';
+    }
     var permissions = parseInt($('#user-role').data('permissions'), 10);
     if (permissions === 2) {
         return (
@@ -838,6 +854,31 @@ function buildHouseExpenseActionButtons(row, amount) {
               String(histTitle).replace(/"/g, '&quot;') +
               '"><i class="fa fa-history"></i></button>'
             : '';
+
+    // Settled: view-only (approve stays available — it does not change the settled amount).
+    if (houseExpenseIsSettled(row)) {
+        var settledApproveHtml =
+            isPendingExpense && permissions !== 2
+                ? '<button type="button" class="btn btn-sm house-expense-btn-approve" onclick="approveHouseExpense(' +
+                  row.expense_id +
+                  ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+                  houseExpenseHtmlEscape(t.approve || 'Approve') +
+                  '"><i class="fa fa-check" aria-hidden="true"></i></button>'
+                : '';
+        return (
+            '<div class="house-expense-actions">' +
+            settledApproveHtml +
+            buildHouseExpenseSlipReceiptBtn(row.expense_id) +
+            '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="viewReceipt(\'' +
+            houseExpenseJsQuote(row.photoUrl || '') +
+            '\')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+            (t.view_receipt || 'View Receipt') +
+            '"><i class="fa fa-eye"></i></button>' +
+            historyBtnHtml +
+            houseExpenseSettledPillHtml() +
+            '</div>'
+        );
+    }
     var editBtnClass =
         logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
     var editBtnClassReadonly =
@@ -1236,7 +1277,9 @@ function renderHouseExpenseItemEntriesTable(allRows, options) {
                 var descriptionColHtml = houseExpenseHtmlEscape(houseExpenseItemDescriptionColumnText(row));
 
                 return (
-                    '<tr class="js-expense-entry-row" data-expense-id="' +
+                    '<tr class="js-expense-entry-row' +
+                    (houseExpenseIsSettled(row) ? ' is-settled' : '') +
+                    '" data-expense-id="' +
                     attrEncode(row.expense_id) +
                     '">' +
                     '<td class="expense-item-program-date-cell">' +
@@ -2581,16 +2624,6 @@ $(document).ready(function () {
 
     var houseExpenseSplitOverrideRange = null;
 
-    function houseExpenseApiEndDate(endYmd) {
-        if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(String(endYmd))) return endYmd;
-        var parts = String(endYmd).slice(0, 10).split('-').map(Number);
-        var lastDayOfMonth = new Date(parts[0], parts[1], 0).getDate();
-        if (parts[2] === lastDayOfMonth - 1 && window.MonthEndCutoffRange) {
-            return window.MonthEndCutoffRange.expandApiEndDateToMonthEnd(endYmd);
-        }
-        return endYmd;
-    }
-
     function houseExpenseResolveDateRange(fpInstance) {
         if (houseExpenseSplitOverrideRange && houseExpenseSplitOverrideRange.fromDate && houseExpenseSplitOverrideRange.toDate) {
             return houseExpenseSplitOverrideRange;
@@ -2614,11 +2647,11 @@ $(document).ready(function () {
 
         if (selectedDates && selectedDates.length >= 2) {
             var from = formatYmd(selectedDates[0]);
-            var to = houseExpenseApiEndDate(formatYmd(selectedDates[1]));
+            var to = formatYmd(selectedDates[1]);
             return from <= to ? { fromDate: from, toDate: to } : { fromDate: to, toDate: from };
         }
         if (selectedDates && selectedDates.length === 1) {
-            var single = houseExpenseApiEndDate(formatYmd(selectedDates[0]));
+            var single = formatYmd(selectedDates[0]);
             return { fromDate: single, toDate: single };
         }
 
@@ -2626,7 +2659,7 @@ $(document).ready(function () {
         if (label && window.MonthEndCutoffRange) {
             var parsed = window.MonthEndCutoffRange.parseRangeString(label);
             var fromDate = window.MonthEndCutoffRange.toApiDate(parsed.start);
-            var toDate = houseExpenseApiEndDate(window.MonthEndCutoffRange.toApiDate(parsed.end));
+            var toDate = window.MonthEndCutoffRange.toApiDate(parsed.end);
             if (fromDate && toDate) {
                 return fromDate <= toDate
                     ? { fromDate: fromDate, toDate: toDate }
@@ -2638,12 +2671,25 @@ $(document).ready(function () {
             var fallback = window.MonthEndCutoffRange.getMonthEndCutoffRange();
             return {
                 fromDate: fallback.startDate,
-                toDate: houseExpenseApiEndDate(fallback.endDateApi || fallback.endDate)
+                toDate: fallback.endDate
             };
         }
 
         return { fromDate: null, toDate: null };
     }
+
+    /** The range exactly as the user picked it (YYYY-MM-DD). */
+    window.houseExpenseGetDisplayRange = function () {
+        if (houseExpenseSplitOverrideRange && houseExpenseSplitOverrideRange.displayFrom) {
+            return { fromDate: houseExpenseSplitOverrideRange.displayFrom, toDate: houseExpenseSplitOverrideRange.displayTo };
+        }
+        var el = document.getElementById('daterange-picker');
+        var dates = el && el._flatpickr ? el._flatpickr.selectedDates || [] : [];
+        if (!dates.length) return { fromDate: null, toDate: null };
+        var a = moment(dates[0]).format('YYYY-MM-DD');
+        var b = moment(dates[dates.length - 1]).format('YYYY-MM-DD');
+        return a <= b ? { fromDate: a, toDate: b } : { fromDate: b, toDate: a };
+    };
 
     function initializeExpenseTable() {
         function reloadData(resetExplorer, fpInstance) {
@@ -2942,13 +2988,20 @@ $(document).ready(function () {
         onRangeApplied: function (range) {
             if (!range || !range.start || !range.end) return;
             var fromDate = range.start;
-            var toDate = houseExpenseApiEndDate(range.end);
+            var toDate = range.end;
             if (fromDate > toDate) {
                 var swap = fromDate;
                 fromDate = toDate;
                 toDate = swap;
             }
-            houseExpenseSplitOverrideRange = { fromDate: fromDate, toDate: toDate };
+            var displayFrom = range.start <= range.end ? range.start : range.end;
+            var displayTo = range.start <= range.end ? range.end : range.start;
+            houseExpenseSplitOverrideRange = {
+                fromDate: fromDate,
+                toDate: toDate,
+                displayFrom: displayFrom,
+                displayTo: displayTo
+            };
             toggleHouseExpenseBreakdownPanel('daterange');
             if (typeof window.reloadData === 'function') window.reloadData();
         }

@@ -10,7 +10,7 @@ async function getAdditionalCommissionTotal(connection) {
     const [totalRows] = await connection.execute(
         `SELECT COALESCE(SUM(AMOUNT), 0) AS total
          FROM additional_commission
-         WHERE ACTIVE = 1`
+         WHERE ACTIVE = 1 AND ADDITIONAL_SETTLEMENT_ID IS NULL`
     );
     return Math.round(Number(totalRows[0]?.total || 0));
 }
@@ -286,7 +286,8 @@ router.get('/additional_commission_data', checkSession, async (req, res) => {
             ac.AMOUNT,
             ac.REMARKS,
             ac.PROGRAM_DATE,
-            ac.ENCODED_DT
+            ac.ENCODED_DT,
+            ac.ADDITIONAL_SETTLEMENT_ID
         FROM additional_commission ac
         LEFT JOIN agent ON agent.IDNo = ac.AGENT_ID
         ${whereSql}
@@ -298,6 +299,175 @@ router.get('/additional_commission_data', checkSession, async (req, res) => {
     } catch (error) {
         console.error('Error loading additional commission data:', error);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+const ADDITIONAL_SETTLED_LOCKED = 'This additional commission is already settled and can no longer be changed.';
+
+/** True when the additional_commission row belongs to an Additional settlement (locked). */
+async function isAdditionalCommissionSettled(id) {
+    const [rows] = await pool.execute(
+        'SELECT ADDITIONAL_SETTLEMENT_ID FROM additional_commission WHERE IDNo = ? LIMIT 1',
+        [id]
+    );
+    return !!(rows.length && rows[0].ADDITIONAL_SETTLEMENT_ID != null);
+}
+
+/**
+ * Slip label per row: the account code (same as the table's Account # column).
+ * CASE/CHAR_LENGTH instead of NULLIF(…, ''): AGENT_CODE's collation can't be compared with a literal here.
+ */
+const SQL_ADDITIONAL_ACCOUNT_CODE = 'COALESCE(agent.AGENT_CODE, CAST(ac.AGENT_ID AS CHAR))';
+const SQL_ADDITIONAL_SETTLEMENT_GROUP =
+    `CASE WHEN CHAR_LENGTH(TRIM(${SQL_ADDITIONAL_ACCOUNT_CODE})) > 0 THEN TRIM(${SQL_ADDITIONAL_ACCOUNT_CODE}) ELSE 'No Account' END`;
+
+function formatSettlementYmd(ymd) {
+    const p = String(ymd).split('-').map(Number);
+    return `${p[1]}/${p[2]}/${p[0]}`;
+}
+
+function todayLocalYmd() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * SETTLE ADDITIONAL COMMISSION (Settlement (Additional) modal → Save)
+ * Settles every unsettled additional_commission row whose program date is within fromDate..toDate:
+ * withdraws the total from junket_capital (TRANSACTION_ID = 2, DESCRIPTION = 'Additional') and tags
+ * the rows with ADDITIONAL_SETTLEMENT_ID. Account ledgers (Transfer type) are left untouched.
+ */
+router.post('/additional_commission/settle', checkSession, async (req, res) => {
+    const fromDate = parseProgramDate(req.body?.fromDate);
+    const toDate = parseProgramDate(req.body?.toDate);
+    if (!fromDate || !toDate || fromDate > toDate) {
+        return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+    }
+    const expectedRaw = req.body?.expectedAmount;
+    const expectedAmount = expectedRaw === undefined || expectedRaw === null || expectedRaw === ''
+        ? null
+        : Number(expectedRaw);
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [rows] = await connection.execute(
+            `SELECT IDNo, AMOUNT
+             FROM additional_commission
+             WHERE ACTIVE = 1
+               AND ADDITIONAL_SETTLEMENT_ID IS NULL
+               AND DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)) BETWEEN ? AND ?
+             FOR UPDATE`,
+            [fromDate, toDate]
+        );
+        if (!rows.length) {
+            await connection.rollback();
+            return res.status(400).json({ error: 'Nothing to settle for the selected dates.' });
+        }
+
+        const amount = Math.round(rows.reduce((acc, r) => acc + (Number(r.AMOUNT) || 0), 0) * 100) / 100;
+
+        if (expectedAmount !== null && Number.isFinite(expectedAmount) && Math.abs(expectedAmount - amount) >= 0.01) {
+            await connection.rollback();
+            return res.status(409).json({
+                error: 'Additional commission changed since the settlement was opened. Please review the new total.',
+                amount
+            });
+        }
+
+        const dateNow = new Date();
+        const userId = req.session?.user_id ?? null;
+
+        const [settleResult] = await connection.execute(
+            `INSERT INTO additional_commission_settlement (DATE_FROM, DATE_TO, AMOUNT, ACTIVE, ENCODED_BY, ENCODED_DT)
+             VALUES (?, ?, ?, 1, ?, ?)`,
+            [fromDate, toDate, amount, userId, dateNow]
+        );
+        const settlementId = settleResult.insertId;
+
+        let capitalId = null;
+        if (amount > 0) {
+            const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
+            const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
+            const remarks = `Additional settlement ${formatSettlementYmd(fromDate)} - ${formatSettlementYmd(toDate)}`;
+            const [capitalResult] = await connection.execute(
+                `INSERT INTO junket_capital
+                    (TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+                 VALUES (2, ?, 'Additional', ?, ?, 1, ?, ?, ?)`,
+                [fullname, amount, remarks, userId, dateNow, todayLocalYmd()]
+            );
+            capitalId = capitalResult.insertId;
+            await connection.execute(
+                'UPDATE additional_commission_settlement SET CAPITAL_ID = ? WHERE IDNo = ?',
+                [capitalId, settlementId]
+            );
+        }
+
+        const ids = rows.map((r) => r.IDNo);
+        await connection.execute(
+            `UPDATE additional_commission SET ADDITIONAL_SETTLEMENT_ID = ? WHERE IDNo IN (${ids.map(() => '?').join(',')})`,
+            [settlementId, ...ids]
+        );
+
+        const total = await getAdditionalCommissionTotal(connection);
+        await connection.commit();
+        res.json({ success: true, settlement_id: settlementId, capital_id: capitalId, amount, count: ids.length, total });
+    } catch (err) {
+        if (connection) {
+            try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+        }
+        console.error('Error settling additional commission:', err);
+        res.status(500).json({ error: 'Failed to settle additional commission' });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+/** View one saved Additional settlement (Authorized Master Account ledger), grouped per account code. */
+router.get('/additional_commission_settlement/:id', checkSession, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+        const [settleRows] = await pool.execute(
+            `SELECT IDNo,
+                DATE_FORMAT(DATE_FROM, '%Y-%m-%d') AS DATE_FROM,
+                DATE_FORMAT(DATE_TO, '%Y-%m-%d') AS DATE_TO,
+                AMOUNT, CAPITAL_ID, ENCODED_DT
+             FROM additional_commission_settlement
+             WHERE IDNo = ? AND ACTIVE = 1
+             LIMIT 1`,
+            [id]
+        );
+        if (!settleRows.length) return res.status(404).json({ error: 'Settlement not found' });
+
+        const [groupRows] = await pool.execute(
+            `SELECT ${SQL_ADDITIONAL_SETTLEMENT_GROUP} AS NAME, SUM(ac.AMOUNT) AS AMOUNT
+             FROM additional_commission ac
+             LEFT JOIN agent ON agent.IDNo = ac.AGENT_ID
+             WHERE ac.ADDITIONAL_SETTLEMENT_ID = ? AND ac.ACTIVE = 1
+             GROUP BY ${SQL_ADDITIONAL_SETTLEMENT_GROUP}
+             ORDER BY NAME ASC`,
+            [id]
+        );
+
+        const settlement = settleRows[0];
+        res.json({
+            id: settlement.IDNo,
+            date_from: settlement.DATE_FROM,
+            date_to: settlement.DATE_TO,
+            amount: Number(settlement.AMOUNT) || 0,
+            capital_id: settlement.CAPITAL_ID,
+            settled_at: settlement.ENCODED_DT,
+            // Additional commission is a cost (negative on the slip).
+            mains: groupRows.map((r) => ({ name: r.NAME, amount: -(Number(r.AMOUNT) || 0) })),
+            total: -(Number(settlement.AMOUNT) || 0)
+        });
+    } catch (err) {
+        console.error('Error loading additional commission settlement:', err);
+        res.status(500).json({ error: 'Failed to load settlement' });
     }
 });
 
@@ -370,8 +540,12 @@ router.put('/additional_commission/:id', checkSession, async (req, res) => {
         return res.status(403).json({ message: 'Only Super Admin can edit additional commission.' });
     }
 
-    const connection = await pool.getConnection();
     const recordId = parseInt(req.params.id, 10);
+    if (recordId && await isAdditionalCommissionSettled(recordId)) {
+        return res.status(409).json({ message: ADDITIONAL_SETTLED_LOCKED });
+    }
+
+    const connection = await pool.getConnection();
 
     try {
         const payload = parsePayload(req.body);
@@ -425,8 +599,12 @@ router.delete('/additional_commission/:id', checkSession, async (req, res) => {
         return res.status(403).json({ message: 'Only Super Admin can delete additional commission.' });
     }
 
-    const connection = await pool.getConnection();
     const recordId = parseInt(req.params.id, 10);
+    if (recordId && await isAdditionalCommissionSettled(recordId)) {
+        return res.status(409).json({ message: ADDITIONAL_SETTLED_LOCKED });
+    }
+
+    const connection = await pool.getConnection();
 
     try {
         if (!recordId) {
@@ -492,7 +670,15 @@ router.get('/commission_data', async (req, res) => {
         SELECT DISTINCT
             game_list.IDNo AS game_list_id,
             game_list.ACTIVE AS game_status,
-            game_list.FNB AS fnb,
+            -- Add charge is per game (same source as Game List). game_list.FNB holds the
+            -- whole group's total on the primary game after a merged settlement.
+            COALESCE((
+                SELECT SUM(gs.AMOUNT)
+                FROM game_services gs
+                WHERE gs.GAME_ID = game_list.IDNo
+                  AND gs.ACTIVE = 1
+                  AND gs.TRANSACTION_ID = 3
+            ), 0) AS fnb,
             game_list.PAYMENT AS payment,
             game_list.ACCOUNT_ID,
             game_list.ENCODED_DT AS GAME_DATE_START,

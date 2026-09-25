@@ -1,0 +1,334 @@
+/* Settlement slip modal (Junket Expenses / Loss Amount → Settle). Shared by views/partials/settlement_slip_modal.ejs. */
+/* Opens on top of the dashboard's Junket Expenses modal (and above commission.css's 1065 backdrop rule). */
+.hes-modal {
+    z-index: 1080;
+}
+
+.modal-backdrop.hes-backdrop {
+    z-index: 1075 !important;
+}
+
+/* SweetAlert (confirm / copied / errors) must sit above this modal while it is open. */
+body.hes-modal-open .swal2-container {
+    z-index: 1090 !important;
+}
+
+.hes-modal.show,
+.hes-modal.showing {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.hes-modal .hes-dialog {
+    --bs-modal-width: 460px;
+    width: 460px;
+    max-width: calc(100vw - 1.5rem);
+    margin: 0 auto;
+}
+
+.hes-modal .modal-content,
+.hes-modal .modal-body,
+.hes-modal .modal-footer {
+    background: #fff !important;
+}
+
+.hes-modal .modal-header {
+    background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%) !important;
+    border-bottom: 1px solid rgba(58, 46, 18, 0.25) !important;
+    padding: 0.75rem 1rem;
+    min-height: 3.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.hes-modal .modal-header .modal-title {
+    color: #3a2e12 !important;
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.hes-modal .modal-header .btn-close {
+    filter: none;
+    opacity: 0.65;
+}
+
+.hes-modal .modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.hes-modal .modal-body {
+    position: relative;
+    padding: 0.75rem 0.75rem 0.5rem;
+}
+
+.hes-modal .hes-receipt {
+    position: relative;
+    overflow: hidden;
+    padding: 0.75rem 0.85rem 0.6rem;
+    border-radius: 0.2rem;
+    min-height: 22rem;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    font-size: 17px;
+    background: #fff;
+}
+
+.hes-modal .hes-receipt > *:not(.hes-watermark) {
+    position: relative;
+    z-index: 1;
+}
+
+.hes-modal .hes-watermark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 29rem;
+    height: 29rem;
+    transform: translate(-50%, -50%);
+    background: url("/assets/images/GD-logo.png") center center / contain no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+    user-select: none;
+}
+
+.hes-modal .hes-section-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 19px;
+    margin-bottom: 0.4rem;
+}
+
+.hes-modal .hes-dates {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    column-gap: 0.5rem;
+    row-gap: 0.15rem;
+    align-items: center;
+    text-align: center;
+}
+
+.hes-modal .hes-date-label {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.hes-modal .hes-date-value {
+    width: 100%;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #e3dccb;
+    border-radius: 0.2rem;
+    padding: 0.2rem 0.35rem;
+    font: inherit;
+    color: inherit;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
+}
+
+.hes-modal .hes-date-value:hover,
+.hes-modal .hes-date-value:focus {
+    border-color: #c8a24c;
+}
+
+.hes-modal.is-view-mode .hes-date-value {
+    cursor: default;
+}
+
+.hes-modal.is-view-mode .hes-date-value:hover {
+    border-color: #e3dccb;
+}
+
+.hes-modal .hes-summary.is-loading {
+    opacity: 0.45;
+}
+
+.hes-modal .hes-date-sep {
+    font-weight: 700;
+}
+
+.hes-modal .hes-divider {
+    border-top: 1px solid #c8c8c8;
+    margin: 0.75rem 0 0.6rem;
+}
+
+/* Category list + transfer rows share one centered grid so labels/amounts line up:
+   [spacer] [label] [gap] [amount] [spacer] */
+.hes-modal .hes-summary {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, max-content) 6rem max-content 1fr;
+    row-gap: 0.4rem;
+    align-items: baseline;
+}
+
+.hes-modal .hes-cat-list,
+.hes-modal .hes-transfer {
+    display: contents;
+}
+
+.hes-modal .hes-summary .hes-cat-name,
+.hes-modal .hes-summary .hes-total-label,
+.hes-modal .hes-summary .hes-transfer-label {
+    grid-column: 2;
+}
+
+.hes-modal .hes-summary .hes-amount,
+.hes-modal .hes-summary .hes-transfer-value,
+.hes-modal .hes-summary .hes-authorized-amount {
+    grid-column: 4;
+}
+
+.hes-modal .hes-summary .hes-divider {
+    grid-column: 1 / -1;
+}
+
+.hes-modal .hes-cat-name {
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hes-modal .hes-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.hes-modal .hes-amount.is-negative {
+    color: #dc3545;
+}
+
+.hes-modal .hes-cat-list .hes-total-label,
+.hes-modal .hes-cat-list .hes-total-value {
+    font-weight: 700;
+    padding-top: 0.35rem;
+    margin-top: 0.15rem;
+}
+
+.hes-modal .hes-total-label {
+    text-align: right;
+}
+
+.hes-modal .hes-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.85rem;
+    padding: 0.5rem 0;
+}
+
+.hes-modal .hes-transfer-label {
+    text-align: right;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+/* Tighter rows for Transfer / Authorized / Master Account than the category list. */
+.hes-modal .hes-transfer > * {
+    margin-top: -0.2rem;
+}
+
+.hes-modal .hes-transfer-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hes-modal .hes-authorized-amount {
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.hes-modal .modal-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 0.5rem;
+    padding: 0.3rem 0.75rem 0.55rem;
+    border-top: 0;
+}
+
+.hes-modal .modal-footer > * {
+    margin: 0;
+}
+
+.hes-modal .hes-copy-row {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.hes-modal .modal-footer .btn {
+    font-size: 0.78rem;
+    padding: 0.22rem 0.55rem;
+    line-height: 1.25;
+}
+
+.hes-modal .hes-copy-row .btn {
+    color: #fff !important;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.hes-modal .hes-save-btn {
+    min-width: 4.5rem;
+    color: #fff !important;
+    background: #20252e !important;
+    border-color: #20252e !important;
+}
+
+/* Loss Amount table: settled rows (Loss Amount → Settle) are tinted and locked. */
+body #junket-loss-tbl tbody tr.is-settled td,
+body #junket-loss-tbl tbody tr.is-settled:hover td,
+body #modal-dash-junket-loss #junket-loss-tbl tbody tr.is-settled td,
+body #modal-dash-junket-loss #junket-loss-tbl tbody tr.is-settled:hover td {
+    background-color: #e4f3e8 !important;
+}
+
+.junket-loss-settled-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1.15;
+    color: #05603a;
+    background: #ecfdf3;
+    border: 1px solid #a6f4c5;
+}
+
+.junket-loss-settled-pill i {
+    font-size: 0.68rem;
+}
+
+/* Additional table: settled rows (Additional → Settle) are tinted and locked. */
+body #additional-commission-tbl tbody tr.is-settled td,
+body #additional-commission-tbl tbody tr.is-settled:hover td,
+body #modal-dash-additional-commission #additional-commission-tbl tbody tr.is-settled td,
+body #modal-dash-additional-commission #additional-commission-tbl tbody tr.is-settled:hover td {
+    background-color: #e4f3e8 !important;
+}
+
+.additional-commission-settle-btn {
+    margin-right: 0.35rem;
+    white-space: nowrap;
+}

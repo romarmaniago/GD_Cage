@@ -1,0 +1,62 @@
+<%#
+  Settlement slip modal (Junket Expenses / Loss Amount → Settle), wired by
+  public/assets/js/functions/settlement_slip.js (window.createSettlementSlip).
+  Params: slipModalId, slipTitle, slipSectionTitle
+%>
+<link rel="stylesheet" href="/assets/css/settlement_slip.css?v=3">
+<script src="/assets/js/functions/settlement_slip.js?v=1"></script>
+
+<div class="modal fade hes-modal" id="<%= slipModalId %>" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="<%= slipModalId %>-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered hes-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="<%= slipModalId %>-label"><%= slipTitle %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="hes-receipt">
+                    <div class="hes-watermark" aria-hidden="true"></div>
+
+                    <div class="hes-section-title">Program Date</div>
+                    <div class="hes-dates">
+                        <span class="hes-date-label">Start</span>
+                        <span></span>
+                        <span class="hes-date-label">Finish</span>
+                        <input type="text" class="hes-date-value hes-start-date" autocomplete="off" aria-label="Start date">
+                        <span class="hes-date-sep">~</span>
+                        <input type="text" class="hes-date-value hes-end-date" autocomplete="off" aria-label="Finish date">
+                    </div>
+
+                    <div class="hes-divider" aria-hidden="true"></div>
+
+                    <div class="hes-section-title"><%= slipSectionTitle %></div>
+                    <div class="hes-summary">
+                        <div class="hes-cat-list"></div>
+
+                        <div class="hes-divider" aria-hidden="true"></div>
+
+                        <div class="hes-transfer">
+                            <span class="hes-transfer-label">Transfer</span>
+                            <span class="hes-transfer-value hes-transfer-info"></span>
+
+                            <span class="hes-transfer-label">Authorized</span>
+                            <span class="hes-authorized-amount">0</span>
+
+                            <span class="hes-transfer-label">Master Account</span>
+                            <span class="hes-transfer-value hes-master-account"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="hes-copy-row">
+                    <button type="button" class="btn btn-sm hes-copy-image-btn"><%= __('modal_settlement.copy_image') %></button>
+                    <button type="button" class="btn btn-sm hes-copy-text-btn"><%= __('modal_settlement.copy_text') %></button>
+                </div>
+                <button type="button" class="btn btn-sm btn-dark hes-save-btn">Save</button>
+            </div>
+        </div>
+    </div>
+</div>

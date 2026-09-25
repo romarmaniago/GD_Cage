@@ -1,0 +1,83 @@
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-junket-loss-settlement',
+    slipTitle: 'Settlement (Loss Amount)',
+    slipSectionTitle: 'Main Category'
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    /** Range exactly as shown in the filter (main picker or split date inputs), YYYY-MM-DD. */
+    function getSelectedRange() {
+        if (typeof window.junketLossGetDisplayRange === 'function') {
+            var r = window.junketLossGetDisplayRange();
+            return { start: r.fromDate, end: r.toDate };
+        }
+        return { start: null, end: null };
+    }
+
+    /** Same local date the Loss Amount table shows in its Program Date column. */
+    function rowProgramDate(r) {
+        return r && r.PROGRAM_DATE ? moment(r.PROGRAM_DATE).format('YYYY-MM-DD') : '';
+    }
+
+    /**
+     * Loss per account code; loss is a cost (negative), recoveries net it back.
+     * Same rows as POST /loss_amount/settle: unsettled, program date within Start ~ Finish.
+     */
+    function buildAccountTotals(sourceRows, range) {
+        var rows = (sourceRows || []).filter(function (r) {
+            if (!r) return false;
+            if (r.LOSS_SETTLEMENT_ID != null && r.LOSS_SETTLEMENT_ID !== '') return false;
+            var d = rowProgramDate(r);
+            return !!d && d >= range.start && d <= range.end;
+        });
+
+        var sums = {};
+        rows.forEach(function (r) {
+            var key = (r.ACCOUNT_CODE && String(r.ACCOUNT_CODE).trim()) || 'No Account';
+            sums[key] = (sums[key] || 0) + (Number(r.AMOUNT) || 0);
+        });
+
+        var mains = Object.keys(sums)
+            .sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); })
+            .map(function (k) { return { name: k, amount: -sums[k] }; });
+        var total = mains.reduce(function (s, m) { return s + m.amount; }, 0);
+        return { mains: mains, total: total, count: rows.length };
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-junket-loss-settlement',
+        title: 'Settlement (Loss Amount)',
+        triggerSelector: '#btn-junket-loss-settle',
+        getRange: getSelectedRange,
+        getRows: function () {
+            return typeof window.junketLossGetRows === 'function' ? window.junketLossGetRows() : [];
+        },
+        fetchRows: function (range) {
+            return $.ajax({
+                url: '/loss_amount_data',
+                method: 'GET',
+                data: { fromDate: range.start, toDate: range.end }
+            });
+        },
+        summarize: buildAccountTotals,
+        settleUrl: '/loss_amount/settle',
+        viewUrl: function (id) { return '/junket_loss_settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle loss amount?',
+        imageFileName: 'settlement-loss-amount.png',
+        emptyLabel: 'No loss amount',
+        afterSettled: function () {
+            // Dashboard: Company / Loss Amount panels are server-rendered — reload the page.
+            if (document.getElementById('modal-dash-junket-loss')) {
+                window.location.reload();
+                return;
+            }
+            if (typeof window.reloadJunketLossData === 'function') window.reloadJunketLossData();
+        }
+    });
+
+    /** Authorized Master Account ledger → settlement button. */
+    window.openJunketLossSettlementView = slip.openView;
+});
+</script>

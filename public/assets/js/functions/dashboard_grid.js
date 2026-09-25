@@ -1896,6 +1896,10 @@
 
     const winLoss = Math.round(Number(summary.win_loss) || 0);
     const expense = Math.round(Number(summary.expense) || 0);
+    // Main + Anticipated exclude settled expenses (already withdrawn from company capital).
+    const expenseMain = summary.expense_unsettled != null
+      ? Math.round(Number(summary.expense_unsettled) || 0)
+      : expense;
     const junketLoss = Math.round(Number(summary.junket_loss) || 0);
     const soa = Math.round(Number(summary.soa) || 0);
     const additional = Math.round(Number(summary.additional_commission) || 0);
@@ -1923,8 +1927,8 @@
     setHtmlById('dash-wl-settlement', formatDashAmtHtml(wlSettlement));
     setHtmlById('dash-soa-fnb-hotel-total', formatDashAmtHtml(soa, true));
     setHtmlById('dash-casino-total', formatDashAmtHtml(casinoTotal));
-    setHtmlById('dash-expenses-total', formatDashAmtHtml(expense, true));
-    setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expense, true));
+    setHtmlById('dash-expenses-total', formatDashAmtHtml(expenseMain, true));
+    setHtmlById('dash-expenses-total-anticipated', formatDashAmtHtml(expenseMain, true));
     setHtmlById('dash-junket-loss-total', formatDashAmtHtml(junketLoss, true));
     setHtmlById('dash-junket-loss-total-anticipated', formatDashAmtHtml(junketLoss, true));
     setHtmlById('dash-commission-settlement-total', formatDashAmtHtml(commission, true));

@@ -1,0 +1,84 @@
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-additional-commission-settlement',
+    slipTitle: 'Settlement (Additional)',
+    slipSectionTitle: 'Main Category'
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    /** Range exactly as shown in the filter (main picker or split date inputs), YYYY-MM-DD. */
+    function getSelectedRange() {
+        if (typeof window.additionalCommissionGetDisplayRange === 'function') {
+            var r = window.additionalCommissionGetDisplayRange();
+            return { start: r.fromDate, end: r.toDate };
+        }
+        return { start: null, end: null };
+    }
+
+    /** Local program date — same rule as the server: DATE(COALESCE(PROGRAM_DATE, ENCODED_DT)). */
+    function rowProgramDate(r) {
+        var raw = r && (r.PROGRAM_DATE || r.ENCODED_DT);
+        return raw ? moment(raw).format('YYYY-MM-DD') : '';
+    }
+
+    /**
+     * Additional commission per account code (a cost, so negative on the slip).
+     * Same rows as POST /additional_commission/settle: unsettled, program date within Start ~ Finish.
+     */
+    function buildAccountTotals(sourceRows, range) {
+        var rows = (sourceRows || []).filter(function (r) {
+            if (!r) return false;
+            if (r.ADDITIONAL_SETTLEMENT_ID != null && r.ADDITIONAL_SETTLEMENT_ID !== '') return false;
+            var d = rowProgramDate(r);
+            return !!d && d >= range.start && d <= range.end;
+        });
+
+        var sums = {};
+        rows.forEach(function (r) {
+            var key = (r.account != null && String(r.account).trim()) || 'No Account';
+            sums[key] = (sums[key] || 0) + (Number(r.AMOUNT) || 0);
+        });
+
+        var mains = Object.keys(sums)
+            .sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); })
+            .map(function (k) { return { name: k, amount: -sums[k] }; });
+        var total = mains.reduce(function (s, m) { return s + m.amount; }, 0);
+        return { mains: mains, total: total, count: rows.length };
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-additional-commission-settlement',
+        title: 'Settlement (Additional)',
+        triggerSelector: '#btn-additional-commission-settle',
+        getRange: getSelectedRange,
+        getRows: function () {
+            return typeof window.additionalCommissionGetRows === 'function' ? window.additionalCommissionGetRows() : [];
+        },
+        fetchRows: function (range) {
+            return $.ajax({
+                url: '/additional_commission_data',
+                method: 'GET',
+                data: { start: range.start, end: range.end }
+            });
+        },
+        summarize: buildAccountTotals,
+        settleUrl: '/additional_commission/settle',
+        viewUrl: function (id) { return '/additional_commission_settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle additional commission?',
+        imageFileName: 'settlement-additional.png',
+        emptyLabel: 'No additional commission',
+        afterSettled: function () {
+            // Dashboard: Company / Additional panels are server-rendered — reload the page.
+            if (document.getElementById('modal-dash-additional-commission')) {
+                window.location.reload();
+                return;
+            }
+            if (typeof window.loadAdditionalCommissionData === 'function') window.loadAdditionalCommissionData();
+        }
+    });
+
+    /** Authorized Master Account ledger → settlement button. */
+    window.openAdditionalSettlementView = slip.openView;
+});
+</script>

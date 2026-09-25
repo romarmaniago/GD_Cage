@@ -1496,3 +1496,32 @@ body.open-pool-select-mode .house-expense-select-all-slot {
 .select2-results__options::-webkit-scrollbar {
     display: none;
 }
+
+/* Settled expenses (Settlement (Expenses) → Save): tinted row + locked "Settled" pill. Shared by page + dashboard modal. */
+.expense-explorer-item-col #expense-item-cat-tbl tbody tr.js-expense-entry-row.is-settled td,
+#modal-dash-house-expense .expense-explorer-item-col #expense-item-cat-tbl tbody tr.js-expense-entry-row.is-settled td {
+  background-color: #e4f3e8 !important;
+}
+.expense-explorer-item-col #expense-item-cat-tbl tbody tr.js-expense-entry-row.is-settled:hover td,
+#modal-dash-house-expense .expense-explorer-item-col #expense-item-cat-tbl tbody tr.js-expense-entry-row.is-settled:hover td {
+  background-color: #d5ecdc !important;
+}
+.house-expense-status-pill.house-expense-status-pill--settled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.15;
+  color: #05603a;
+  background: #ecfdf3;
+  border: 1px solid #a6f4c5;
+}
+.house-expense-status-pill.house-expense-status-pill--settled i {
+  font-size: 0.68rem;
+}

@@ -1318,6 +1318,39 @@ async function performInGameSettlement(db, params) {
 	};
 }
 
+const JUNKET_LOSS_SETTLED_GAME_MSG =
+	'The Loss Amount of this game is already settled (Loss Amount → Settle), so this action is blocked.';
+
+/**
+ * True when a game's linked junket_loss row (GAME_ID or game_list.JUNKET_LOSS_ID) belongs to a
+ * Loss Amount settlement. Settled loss rows are locked, so game actions that would edit / archive
+ * them are refused up front — before anything is changed.
+ */
+async function gameHasSettledJunketLoss(db, gameIds, { recoveryOnly = false } = {}) {
+	const ids = (gameIds || []).map((n) => parseInt(n, 10)).filter((n) => n > 0);
+	if (!ids.length) return false;
+	const ph = ids.map(() => '?').join(',');
+	try {
+		const [rows] = await db.execute(
+			`SELECT jl.IDNo
+			 FROM junket_loss jl
+			 WHERE jl.ACTIVE = 1
+				AND jl.LOSS_SETTLEMENT_ID IS NOT NULL
+				${recoveryOnly ? 'AND jl.TRANSACTION = 2' : ''}
+				AND (
+					jl.GAME_ID IN (${ph})
+					OR jl.IDNo IN (SELECT gl.JUNKET_LOSS_ID FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.JUNKET_LOSS_ID IS NOT NULL)
+				)
+			 LIMIT 1`,
+			[...ids, ...ids]
+		);
+		return rows.length > 0;
+	} catch (err) {
+		console.error('gameHasSettledJunketLoss:', err);
+		return false;
+	}
+}
+
 /** Soft-delete junket_loss row(s) linked to a game (JUNKET_LOSS_ID and/or GAME_ID). */
 async function softDeleteJunketLossLinkedToGame(db, gameId, junketLossId, editedBy, dateNow) {
 	if (!gameId || !editedBy) return;
@@ -4554,6 +4587,9 @@ router.put('/game_list/remove/:id', async (req, res) => {
 	if (!id || !editedBy) {
 		return res.status(400).send('Invalid request');
 	}
+	if (await gameHasSettledJunketLoss(pool, [id])) {
+		return res.status(409).send(JUNKET_LOSS_SETTLED_GAME_MSG);
+	}
 
 	try {
 		let junketLossId = null;
@@ -4599,6 +4635,19 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 
 	const date_now = new Date();
 	const editedBy = req.session?.user_id || null;
+
+	try {
+		const [parentRows] = await pool.execute(
+			`SELECT IDNo FROM game_list
+			 WHERE PENDING_ROLLER_LINK_GAME_ID = ? AND PENDING_ROLLER_RESOLVE = 2 AND ACTIVE != 0`,
+			[gameId]
+		);
+		if (await gameHasSettledJunketLoss(pool, [gameId, ...parentRows.map((r) => r.IDNo)])) {
+			return res.status(409).json({ error: JUNKET_LOSS_SETTLED_GAME_MSG });
+		}
+	} catch (err) {
+		console.error('game_list/delete settled-loss check:', err);
+	}
 
 	const connection = await pool.getConnection();
 	try {
@@ -4831,6 +4880,10 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			txtCutoffBuyInCC,
 			txtCutoffLastRolling
 		} = req.body;
+
+		if (txtStatus === '2' && await gameHasSettledJunketLoss(pool, [id], { recoveryOnly: true })) {
+			return res.status(409).json({ error: JUNKET_LOSS_SETTLED_GAME_MSG });
+		}
 
 		const formattedWinloss = parseFloat(txtWinloss) || 0;
 		const adjustedWinloss = formattedWinloss > 0 ? -formattedWinloss : Math.abs(formattedWinloss);
@@ -5300,6 +5353,9 @@ router.post('/game_list/pending_resolve', async (req, res) => {
 		if (!gameRows.length) throw pendingResolveError(400, 'Game is not in PENDING status.');
 		const pendingGame = gameRows[0];
 		if (pendingGame.SETTLED === 1) throw pendingResolveError(403, 'Cannot resolve a settled game.');
+		if (lossAmount > 0 && await gameHasSettledJunketLoss(connection, [pendingGameId])) {
+			throw pendingResolveError(409, JUNKET_LOSS_SETTLED_GAME_MSG);
+		}
 
 		const rollerTotals = await getRollerTotalsForGame(connection, pendingGameId);
 		const balance = parseFloat(rollerTotals.requiredReturnTotal) || 0;
@@ -5544,6 +5600,9 @@ router.post('/add_settlement', async (req, res) => {
 		// "Loss Amount" option (new game from a pending game only): the commission recovers the
 		// pending loss instead of being paid out — no account ledger, no cash entries.
 		const isCommissionToLoss = txtTransType === 'loss';
+		if (isCommissionToLoss && await gameHasSettledJunketLoss(pool, [primaryGameId])) {
+			return res.status(409).json({ success: false, message: JUNKET_LOSS_SETTLED_GAME_MSG });
+		}
 		if (isCommissionToLoss) {
 			const pendingOrigin = await getPendingOriginForNewGame(pool, primaryGameId);
 			if (!pendingOrigin || pendingOrigin.lossAmount <= 0) {
@@ -7634,6 +7693,20 @@ router.put('/game_record/edit/:id', checkSession, async (req, res) => {
 router.put('/game_record/remove/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
 	let date_now = new Date();
+
+	try {
+		const [preRows] = await pool.execute('SELECT GAME_ID FROM game_record WHERE IDNo = ? LIMIT 1', [id]);
+		const preGameId = preRows.length ? preRows[0].GAME_ID : null;
+		if (
+			preGameId &&
+			(await isArchivedPendingGuestResolveBuyin(pool, preGameId, id)) &&
+			(await gameHasSettledJunketLoss(pool, [preGameId]))
+		) {
+			return res.status(409).send(JUNKET_LOSS_SETTLED_GAME_MSG);
+		}
+	} catch (err) {
+		console.error('game_record/remove settled-loss check:', err);
+	}
 
 		// First update the record based on IDNo
 		const query = `UPDATE game_record SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
