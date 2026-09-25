@@ -1716,7 +1716,7 @@ function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, 
 	// a dash when there is none. The Remarks column stays user input only.
 	var transactionLabel = transactionCell;
 	var autoRemarks = String(sourceRow.AUTO_REMARKS || '').trim();
-	transactionCell = autoRemarks ? escapeHtmlAttr(autoRemarks.toUpperCase()) : '—';
+	transactionCell = autoRemarks ? linkAccountLedgerGameNumbers(escapeHtmlAttr(autoRemarks.toUpperCase())) : '—';
 	var row = [encodedDate, amountCell, balanceAfterCell, transactionCell, remarks || ''];
 	row.push(
 		renderAccountLedgerActionCell(
@@ -1732,6 +1732,107 @@ function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, 
 	row.push(transactionLabel);
 	return row;
 }
+
+// "#90055" in AUTO_REMARKS → link that opens the Gamebook filtered to that game (new tab, portal stays open).
+function linkAccountLedgerGameNumbers(escapedText) {
+	return String(escapedText || '').replace(/#(\d+)/g, function (match, gameId) {
+		return '<a href="/game_list?id=' + gameId + '" target="_blank" rel="noopener" class="account-ledger-game-link">' + match + '</a>';
+	});
+}
+
+// Click on a game number → popup with that game's Gamebook row (embed mode), on top of the Agent Portal.
+// Ctrl/Cmd/middle-click keeps the normal link behaviour (opens the full Gamebook in a new tab).
+function openAccountLedgerGameModal(gameId) {
+	var $modal = $('#modal-account-ledger-game');
+	if (!$modal.length) {
+		$modal = $(
+			'<div class="modal fade" id="modal-account-ledger-game" tabindex="-1" aria-hidden="true">' +
+				'<div class="modal-dialog modal-dialog-centered" style="max-width: 95vw;">' +
+					'<div class="modal-content">' +
+						'<div class="modal-header bg-primary py-2">' +
+							'<h5 class="modal-title text-white"></h5>' +
+							'<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>' +
+						'</div>' +
+						'<div class="modal-body p-0 position-relative">' +
+							'<div class="account-ledger-game-loading d-flex align-items-center justify-content-center" style="position: absolute; inset: 0; background: #fff; z-index: 1;">' +
+								'<div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div>' +
+								'<span class="text-muted small">Loading game...</span>' +
+							'</div>' +
+							'<iframe style="width: 100%; height: 160px; border: 0; display: block;"></iframe>' +
+						'</div>' +
+					'</div>' +
+				'</div>' +
+			'</div>'
+		).appendTo('body');
+		// Fit the iframe to the Gamebook card inside it (rows load by ajax, so keep watching its size).
+		$modal.find('iframe').on('load', function () {
+			var iframe = this;
+			if (iframe._fitObserver) iframe._fitObserver.disconnect();
+			if (iframe._modalObserver) iframe._modalObserver.disconnect();
+			var doc;
+			try { doc = iframe.contentDocument; } catch (err) { return; }
+			if (!doc || !doc.body) return;
+			$modal.find('.account-ledger-game-loading').removeClass('d-flex').hide();
+			// Size to the bottom of the game table itself (not the card, which has extra space below it).
+			var target = doc.getElementById('game_list-tbl') || doc.querySelector('.content-inner .card') || doc.body;
+			// A Gamebook modal / SweetAlert open inside the iframe (Remarks, Settlement, Change Status...)
+			// needs room — grow to the max height while one is open, shrink back when it closes.
+			var innerDialogOpen = function () {
+				var cls = doc.body.classList;
+				return cls.contains('modal-open') || cls.contains('swal2-shown');
+			};
+			var fit = function () {
+				var maxH = window.innerHeight * 0.85;
+				if (innerDialogOpen()) {
+					iframe.style.height = maxH + 'px';
+					doc.documentElement.style.overflowY = '';
+					doc.body.style.overflowY = '';
+					return;
+				}
+				var rect = target.getBoundingClientRect();
+				var scrollTop = doc.documentElement.scrollTop || doc.body.scrollTop || 0;
+				var h = Math.ceil(rect.bottom + scrollTop) + 4;
+				iframe.style.height = Math.min(Math.max(h, 60), maxH) + 'px';
+				// The page runs past the table (card padding etc.) — no scrollbar unless the table itself doesn't fit.
+				var overflow = h > maxH ? 'auto' : 'hidden';
+				doc.documentElement.style.overflowY = overflow;
+				doc.body.style.overflowY = overflow;
+			};
+			fit();
+			if (window.ResizeObserver) {
+				iframe._fitObserver = new ResizeObserver(fit);
+				iframe._fitObserver.observe(target);
+			}
+			if (window.MutationObserver) {
+				iframe._modalObserver = new MutationObserver(fit);
+				iframe._modalObserver.observe(doc.body, { attributes: true, attributeFilter: ['class'] });
+			}
+		});
+		// Stack above the Agent Portal modal and its backdrop.
+		$modal.css('z-index', 1070).on('shown.bs.modal', function () {
+			$('.modal-backdrop').last().css('z-index', 1065);
+		}).on('hidden.bs.modal', function () {
+			var iframe = $modal.find('iframe')[0];
+			if (iframe._fitObserver) iframe._fitObserver.disconnect();
+			if (iframe._modalObserver) iframe._modalObserver.disconnect();
+			iframe.style.height = '160px';
+			$(iframe).attr('src', 'about:blank');
+			// Keep scrolling locked while the Agent Portal is still open underneath.
+			if ($('.modal.show').length) $('body').addClass('modal-open');
+		});
+	}
+	$modal.find('.modal-title').text('Game #' + gameId);
+	$modal.find('.account-ledger-game-loading').addClass('d-flex').show();
+	$modal.find('iframe').attr('src', '/game_list?id=' + encodeURIComponent(gameId) + '&embed=1');
+	bootstrap.Modal.getOrCreateInstance($modal[0]).show();
+}
+
+$(document).off('click', '#accountDetails .account-ledger-game-link').on('click', '#accountDetails .account-ledger-game-link', function (e) {
+	if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+	e.preventDefault();
+	var gameId = String($(this).attr('href') || '').replace(/^.*[?&]id=(\d+).*$/, '$1');
+	if (/^\d+$/.test(gameId)) openAccountLedgerGameModal(gameId);
+});
 
 function accountDetailsTransactionLabelIndex() {
 	return accountDetailsHiddenIdColIndex() + 1;

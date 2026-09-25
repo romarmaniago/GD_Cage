@@ -1,4 +1,43 @@
 <%- include('../partials/header') %>
+	<script>
+		// Embed mode (/game_list?id=N&embed=1): opened inside the Agent Portal's game popup — table only, no page chrome.
+		if (/[?&]embed=1(&|$)/.test(window.location.search)) document.body.classList.add('gd-embed');
+	</script>
+	<style>
+		body.gd-embed #loader-container,
+		body.gd-embed aside.sidebar,
+		body.gd-embed .iq-banner,
+		body.gd-embed .card > .card-header,
+		body.gd-embed .dataTables_wrapper > .row.mb-2:first-child,
+		body.gd-embed #game_list-tbl tfoot,
+		body.gd-embed .dataTables_info,
+		body.gd-embed .dataTables_paginate,
+		body.gd-embed .row:has(> div > .dataTables_info),
+		body.gd-embed .row:has(> div > .dataTables_paginate),
+		body.gd-embed #game_list-tbl_wrapper > .row:not(:has(#game_list-tbl)) {
+			display: none !important;
+		}
+		body.gd-embed .content-inner .card,
+		body.gd-embed .content-inner .card .dataTables_wrapper {
+			margin-bottom: 0 !important;
+			padding-bottom: 0 !important;
+		}
+		html:has(body.gd-embed),
+		body.gd-embed {
+			min-height: 0 !important;
+			overflow-x: hidden !important;
+		}
+		body.gd-embed .main-content {
+			margin-left: 0 !important;
+			padding: 0 !important;
+			width: 100% !important;
+			min-height: 0 !important;
+		}
+		body.gd-embed .content-inner {
+			padding: 0.5rem !important;
+			margin-top: 0 !important;
+		}
+	</style>
 	<%- include('../partials/loader') %>
 		<%- include ('../partials/sidebar'); -%>
 			<%- include ('../partials/topbar'); -%>
