@@ -6035,7 +6035,7 @@ $(document).ready(function () {
 								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
 								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:24px !important;">
 										 <i class="fa fa-clipboard-check"></i>
@@ -6154,7 +6154,7 @@ $(document).ready(function () {
 								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
 								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm ${settleClass} action-btn-square action-btn-square-lg js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:24px !important;">
 										 <i class="fa fa-clipboard-check"></i>
@@ -10998,7 +10998,7 @@ $(document).ready(function () {
 										style="font-size:8px !important; margin-right: 5px;">
 										<i class="fa fa-history"></i>
 								</button>
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID }, ${row.CUTOFF_PARENT_GAME_ID || 'null'}, ${row.CUTOFF_CONTINUED_GAME_ID || 'null'})" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
 										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:10px !important;">
 										<i class="fa fa-clipboard-check"></i>
@@ -11393,8 +11393,14 @@ function openSettlementChooseAccountModal() {
 	});
 }
 
-function settlement_history(record_id, acc_id) {
+function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinuedGameId) {
     var $settlementModal = $('#modal-settlement');
+    // Game No. display matches the Game # column, e.g. "90053 (90052)"
+    var settlementGameNoText = buildCutoffGameIdPlainLabel({
+        game_list_id: record_id,
+        CUTOFF_PARENT_GAME_ID: cutoffParentGameId,
+        CUTOFF_CONTINUED_GAME_ID: cutoffContinuedGameId
+    });
     $settlementModal.data('is-settled', 0);
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $('#settlement-agent-code').text('');
@@ -11476,7 +11482,7 @@ function settlement_history(record_id, acc_id) {
         if (!currentGameMetrics) {
             return;
         }
-        applySettlementMetricsToForm(currentGameMetrics, formatSettlementGameNoDisplay([parseInt(record_id, 10)]));
+        applySettlementMetricsToForm(currentGameMetrics, settlementGameNoText);
         $settlementModal.data('commissionRow', currentGameMetrics.meta || null);
         currentCommissionType = currentGameMetrics.CommissionType;
         isSettled = !!currentGameMetrics.SETTLED;
