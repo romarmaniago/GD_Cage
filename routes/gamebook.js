@@ -284,13 +284,14 @@ function isInGameSplitEnabled(body) {
 	);
 }
 
-function buildInGameParentCashoutLegs(body, parentTransType) {
+/** NN + Remaining CC — in-game settlement always books this transfer as DEPOSIT, regardless of parent MOP. */
+function buildInGameParentCashoutLegs(body) {
 	const nn = parseChipAmount(body.txtInGameRemainingNN || body.txtInGameBuyInNN);
 	const cc = parseChipAmount(body.txtInGameRemainingCC || body.txtInGameBuyInCC);
 	if (nn + cc <= 0) {
 		return [];
 	}
-	return [{ nn, cc, transType: parentTransType }];
+	return [{ nn, cc, transType: 2 }];
 }
 
 function buildInGameSplitBuyInLegs(body) {
@@ -360,8 +361,8 @@ function parseInGameSettlementSplit(body, expectedPayment) {
 	return { buyIn, cashOut, expected };
 }
 
-function buildInGameNewGameBuyInLegs(body, parentTransType, commissionBuyInAmount) {
-	const legs = buildInGameParentCashoutLegs(body, parentTransType);
+function buildInGameNewGameBuyInLegs(body, commissionBuyInAmount) {
+	const legs = buildInGameParentCashoutLegs(body);
 	const commissionLeg = buildInGameCommissionBuyInLeg(commissionBuyInAmount);
 	if (commissionLeg) {
 		legs.push(commissionLeg);
@@ -1185,7 +1186,8 @@ async function performInGameSettlement(db, params) {
 			encodedBy,
 			dateNow,
 			programDate,
-			agentQuery
+			agentQuery,
+			autoRemarks: `In-Game Settlement - In #${parentGameId}`
 		});
 	}
 
@@ -1260,7 +1262,8 @@ async function performInGameSettlement(db, params) {
 			encodedBy,
 			dateNow,
 			tradingDateNew,
-			agentQuery
+			agentQuery,
+			autoRemarks: `In-Game Settlement - Out #${newGameId}`
 		});
 	}
 
@@ -4964,17 +4967,10 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			const connection = await pool.getConnection();
 			try {
 				await connection.beginTransaction();
-				const [gameMetaRows] = await connection.execute(
-					`SELECT INITIAL_MOP FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
-					[id]
-				);
-				const initialMop = gameMetaRows.length ? gameMetaRows[0].INITIAL_MOP : null;
-				const parentTransType = await resolveParentTransType(connection, id, initialMop);
 				const settlementFigures = await computeInGameSettlementFigures(connection, id, req.body);
-				const cashoutLegs = buildInGameParentCashoutLegs(req.body, parentTransType);
+				const cashoutLegs = buildInGameParentCashoutLegs(req.body);
 				const buyInLegs = buildInGameNewGameBuyInLegs(
 					req.body,
-					parentTransType,
 					settlementFigures.settlementSplit.buyIn
 				);
 
