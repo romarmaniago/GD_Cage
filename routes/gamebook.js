@@ -235,19 +235,19 @@ function splitCutoffRemainingCc(remainingCc) {
 	return { transferCc: amount, depositCc: 0 };
 }
 
-/** NN + full Remaining CC — transferred parent mop → new-game buy-in. */
-function buildCutoffTransferLegs(body, parentTransType) {
+/** NN + full Remaining CC — cut off always books this transfer as DEPOSIT, regardless of parent MOP. */
+function buildCutoffTransferLegs(body) {
 	const nn = parseChipAmount(body.txtCutoffRemainingNN || body.txtCutoffBuyInNN);
 	const cc = parseChipAmount(body.txtCutoffRemainingCC || body.txtCutoffBuyInCC);
 	const { transferCc } = splitCutoffRemainingCc(cc);
 	if (nn + transferCc <= 0) {
 		return [];
 	}
-	return [{ nn, cc: transferCc, transType: parentTransType }];
+	return [{ nn, cc: transferCc, transType: 2 }];
 }
 
-function buildCutoffParentCashoutLegs(body, parentTransType) {
-	return [...buildCutoffTransferLegs(body, parentTransType)];
+function buildCutoffParentCashoutLegs(body) {
+	return [...buildCutoffTransferLegs(body)];
 }
 
 function buildCutoffSplitBuyInLegs(body) {
@@ -261,8 +261,8 @@ function buildCutoffSplitBuyInLegs(body) {
 	].filter((leg) => leg.nn + leg.cc > 0);
 }
 
-function buildCutoffNewGameBuyInLegs(body, parentTransType) {
-	const legs = buildCutoffTransferLegs(body, parentTransType);
+function buildCutoffNewGameBuyInLegs(body) {
+	const legs = buildCutoffTransferLegs(body);
 	legs.push(...buildCutoffSplitBuyInLegs(body));
 	return legs;
 }
@@ -4912,14 +4912,8 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			const connection = await pool.getConnection();
 			try {
 				await connection.beginTransaction();
-				const [parentMetaRows] = await connection.execute(
-					`SELECT INITIAL_MOP FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1`,
-					[id]
-				);
-				const parentInitialMop = parentMetaRows.length ? parentMetaRows[0].INITIAL_MOP : null;
-				const parentTransType = await resolveParentTransType(connection, id, parentInitialMop);
-				const cashoutLegs = buildCutoffParentCashoutLegs(req.body, parentTransType);
-				const buyInLegs = buildCutoffNewGameBuyInLegs(req.body, parentTransType);
+				const cashoutLegs = buildCutoffParentCashoutLegs(req.body);
+				const buyInLegs = buildCutoffNewGameBuyInLegs(req.body);
 
 				const cutoffResult = await performGameCutoff(connection, {
 					parentGameId: id,
