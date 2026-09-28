@@ -1315,6 +1315,16 @@
             return isNegative ? -Math.abs(num) : num;
         }
 
+        // Negative → (7,000); parseAmount reads the parentheses back as negative
+        function formatSignedParen(value) {
+            var num = Number(value) || 0;
+            return num < 0 ? '(' + formatAmount(Math.abs(num)) + ')' : formatAmount(num);
+        }
+
+        function formatAlwaysParen(value) {
+            return '(' + formatAmount(Math.abs(Number(value) || 0)) + ')';
+        }
+
         function formatAmount(value) {
             return parseAmount(value).toLocaleString('en-US', {
                 minimumFractionDigits: 0,
@@ -1452,9 +1462,10 @@
             $panel.data('rolling-settlement', settlement);
             $panel.data('payment', payment);
 
-            $panel.find('[data-field="rollingSettlementDisplay"]').val(formatAmount(settlement)).toggleClass('is-negative', settlement < 0);
+            // Same format as the main Multiple Settlement receipt: Settlement/Payment always (x) in red
+            $panel.find('[data-field="rollingSettlementDisplay"]').val(formatAlwaysParen(settlement)).addClass('is-negative');
             $panel.find('[data-field="addChargeDisplay"]').val(formatAmount(addCharge));
-            $panel.find('[data-field="paymentDisplay"]').val(formatAmount(payment)).toggleClass('is-negative', payment < 0);
+            $panel.find('[data-field="paymentDisplay"]').val(formatAlwaysParen(payment)).addClass('is-negative');
 
             var $rate = $panel.find('[data-field="rollingRate"]');
             if (!$rate.prop('readonly')) {
@@ -1497,7 +1508,7 @@
 
             var houseWinLoss = parseAmount($mainModal.find('#winLossMerge').val());
             var $winLoss = $panel.find('[data-field="winLossMerge"]');
-            $winLoss.val(formatAmount(houseWinLoss)).prop('readonly', true).attr('data-allow-negative', '1');
+            $winLoss.val(formatSignedParen(houseWinLoss)).toggleClass('is-negative', houseWinLoss < 0).prop('readonly', true).attr('data-allow-negative', '1');
 
             $panel.find('[data-field="rollingMerge"]').val($mainModal.find('#rollingMerge').val()).prop('readonly', false).attr('data-field', 'rolling');
             var rateRaw = String($mainModal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();

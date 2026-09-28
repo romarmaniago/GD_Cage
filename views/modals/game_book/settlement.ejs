@@ -704,7 +704,7 @@
                     <span class="settlement-receipt-label">Win / Loss</span>
                     <span class="settlement-receipt-colon">:</span>
                     <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
-                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="winLoss" name="txtWinLoss" readonly></span>
+                        <span class="settlement-receipt-prefix-ghost" aria-hidden="true"></span><input class="settlement-receipt-hidden-value" type="hidden" id="winLoss" name="txtWinLoss"><span class="settlement-receipt-amount" id="winLossDisplay"></span>
                     </span>
                 </div>
                 <div class="settlement-receipt-row">
@@ -985,6 +985,13 @@ $(document).ready(function() {
         };
     }
 
+    // Win/Loss: negative shows as (7,000) in red; hidden #winLoss keeps the signed number for calculations
+    function renderWinLossDisplay($amount, value) {
+        var num = parseAmount(value);
+        var text = num < 0 ? '(' + formatAmount(Math.abs(num)) + ')' : formatAmount(num);
+        $amount.text(text).toggleClass('is-negative', num < 0);
+    }
+
     function formatSettlementRateDisplay(value) {
         var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
         if (!raw) {
@@ -1009,6 +1016,8 @@ $(document).ready(function() {
     function refreshSettlementReceiptDisplay($modal) {
         $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
         syncSettlementDateTimeDisplay($modal);
+
+        renderWinLossDisplay($modal.find('#winLossDisplay'), $modal.find('#winLoss').val());
 
         var settlementDisplay = formatSettlementDueDisplay($modal.find('#rollingSettlement').val());
         $modal.find('#rollingSettlementDisplay .settlement-receipt-amount')
@@ -1184,7 +1193,7 @@ $(document).ready(function() {
 
         replaceSettlementPrintInput($clone, 'buyIn', String($source.find('#buyIn').val() || '').trim(), false);
         replaceSettlementPrintInput($clone, 'chipsReturn', String($source.find('#chipsReturn').val() || '').trim(), false);
-        replaceSettlementPrintInput($clone, 'winLoss', String($source.find('#winLoss').val() || '').trim(), true);
+        $clone.find('#winLoss').remove();
         replaceSettlementPrintInput($clone, 'rolling', String($source.find('#rolling').val() || '').trim(), true);
         replaceSettlementPrintInput($clone, 'rollingRate', String($source.find('#rollingRate').val() || '').trim(), false);
 
@@ -1427,6 +1436,8 @@ $(document).ready(function() {
             this.removeAttribute('name');
         });
 
+        $source.find('#settlement-' + panelKey + '-winLoss').attr('data-field', 'winLoss');
+        $source.find('#settlement-' + panelKey + '-winLossDisplay').attr('data-field', 'winLossDisplay');
         $source.find('#settlement-' + panelKey + '-rollingSettlementDisplay').attr('data-field', 'rollingSettlementDisplay');
         $source.find('#settlement-' + panelKey + '-addChargeDisplay').attr('data-field', 'addChargeDisplay');
         $source.find('#settlement-' + panelKey + '-paymentDisplay').attr('data-field', 'paymentDisplay');
@@ -1453,7 +1464,8 @@ $(document).ready(function() {
 
         var houseWinLoss = parseAmount($mainModal.find('#winLoss').val());
         var $winLoss = $panel.find('[data-field="winLoss"]');
-        $winLoss.val(formatAmount(houseWinLoss)).prop('readonly', true).attr('data-allow-negative', '1');
+        $winLoss.val(formatAmount(houseWinLoss));
+        renderWinLossDisplay($panel.find('[data-field="winLossDisplay"]'), houseWinLoss);
 
         $panel.find('[data-field="rolling"]').val($mainModal.find('#rolling').val()).prop('readonly', false);
         var rateRaw = String($mainModal.find('#rollingRate').val() || '').replace(/%/g, '').trim();
@@ -1797,7 +1809,7 @@ $(document).ready(function() {
         $modal.find('.settlement-footer-actions').show();
         placeSettlementEditButton($modal, false);
         $modal.find('#edit-settlement-btn').text('Edit').prop('disabled', false);
-        $modal.find('#buyIn, #chipsReturn, #winLoss, #rolling, #rollingRate').prop('readonly', true);
+        $modal.find('#buyIn, #chipsReturn, #rolling, #rollingRate').prop('readonly', true);
         $modal.find('.settlement-service-amount').prop('readonly', true);
         refreshSettlementReceiptDisplay($modal);
         updateSettlementCopyButtons($modal);

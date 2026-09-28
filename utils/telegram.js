@@ -11,6 +11,13 @@ let guestBotInstance; // GUEST bot instance
 let employeeBotInstance; // EMPLOYEE bot instance
 let managementBotInstance; // MANAGEMENT bot instance
 const RECENT_TELEGRAM_SEND_TTL_MS = 15000;
+
+// Negative amounts in outgoing messages show as (7,000) instead of -7,000.
+// Only a standalone "-<number>" is touched (after start/space/colon/₱), so dates, IDs and "GD036 - NAME" stay as-is.
+function formatNegativeAmounts(text) {
+  if (text == null) return text;
+  return String(text).replace(/(^|[\s:₱])-(\d[\d,]*(?:\.\d+)?)(?=$|[\s;!?)%])/gm, '$1($2)');
+}
 const recentTelegramSends = new Map();
 
 function pruneRecentTelegramSends(nowTs = Date.now()) {
@@ -67,6 +74,7 @@ function extractLogMeta(opts) {
 //  - logPreview is stored in telegram_send_log.message_preview instead of the full Telegram body
 //  - logMeta is stored in dedicated columns (guest_account_code, guest_name, amount)
 async function sendTelegramMessage(text, telegramId, options = {}) {
+  text = formatNegativeAmounts(text);
   const opts = typeof options === 'number' ? { retries: options } : options || {};
   const retries = opts.retries != null ? opts.retries : 2;
   const logPreview =
@@ -228,6 +236,7 @@ async function getEmployeeChatIds() {
 // Send message to all employee chat IDs using EMPLOYEE bot
 // options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } }
 async function sendTelegramToEmployees(text, options = {}) {
+  text = formatNegativeAmounts(text);
   const opts = options || {};
   const logPreview =
     opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
@@ -334,6 +343,7 @@ async function getManagementChatIds() {
 // Send message to all management chat IDs using MANAGEMENT bot
 // options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } }
 async function sendTelegramToManagement(text, options = {}) {
+  text = formatNegativeAmounts(text);
   const opts = options || {};
   const logPreview =
     opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
@@ -514,6 +524,7 @@ async function compressImage(buffer, targetSize = 9 * 1024 * 1024) {
 // Send photo with caption (accepts buffer or file path) - GUEST bot only
 // Automatically compresses images > 10MB to fit Telegram's photo limit
 async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramId) {
+  caption = formatNegativeAmounts(caption);
   const { default: fetch } = await import('node-fetch');
   const FormData = (await import('form-data')).default;
   const token = await getTelegramToken('GUEST');
@@ -728,7 +739,7 @@ async function startGuestBot() {
       const time_now = new Date().toLocaleTimeString();
 
       const msg = `GD Cage\n\n* Balance check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nBalance: ${balance.toLocaleString()}\n\nDate: ${date_now}\nTime: ${time_now}`;
-      bot.sendMessage(telegramId, msg);
+      bot.sendMessage(telegramId, formatNegativeAmounts(msg));
 
     } catch (err) {
       console.error('❌ Error:', err);

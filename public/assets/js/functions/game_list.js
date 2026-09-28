@@ -11676,14 +11676,21 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
             return;
         }
         
+        // Match the receipt: negative Win/Loss and any nonzero Settlement/Payment show as red (x)
+        var confirmParenAmount = function (num) {
+            return '<span style="color:#dc3545;font-weight:700;">(' + Math.abs(num).toLocaleString('en-US') + ')</span>';
+        };
+        var winLossNum = parseFloat(winLoss) || 0;
+        var settlementNum = parseFloat(rollingSettlement) || 0;
+        var paymentNum = parseFloat(payment) || 0;
         var settlementRows = [
             ['Game No.', $('#gameNo').text() || 'N/A'],
             ['Buy-In', parseFloat(buyIn).toLocaleString('en-US')],
             ['Chips Return', parseFloat(chipsReturn).toLocaleString('en-US')],
-            ['Win/Loss', parseFloat(winLoss).toLocaleString('en-US')],
+            ['Win/Loss', winLossNum < 0 ? confirmParenAmount(winLossNum) : winLossNum.toLocaleString('en-US'), 'right'],
             ['Rolling', parseFloat(rolling).toLocaleString('en-US')],
             ['Rate', parseFloat(rollingRate).toFixed(2) + '%'],
-            ['Settlement', parseFloat(rollingSettlement).toLocaleString('en-US')]
+            ['Settlement', settlementNum ? confirmParenAmount(settlementNum) : '0', 'right']
         ];
         $settlementModal.find('.settlement-service-row').each(function () {
             var label = $(this).find('.settlement-service-label').text().trim();
@@ -11692,7 +11699,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 settlementRows.push([label, amount.toLocaleString('en-US')]);
             }
         });
-        settlementRows.push(['Payment', parseFloat(payment).toLocaleString('en-US')]);
+        settlementRows.push(['Payment', paymentNum ? confirmParenAmount(paymentNum) : '0', 'right']);
         if (transType === 'loss') {
             settlementRows.push(['Payment to', 'Loss Amount (Pending #' + ($settlementModal.data('settlementPendingGameId') || '?') + ')']);
         }
