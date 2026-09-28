@@ -302,19 +302,19 @@ async function computeCommissionSettlementAllTime(pool) {
 async function loadServiceExpenseDataAllTime(pool) {
 	const [junketDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
 	);
 	const [junketCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET' GROUP BY SERVICE_TYPE`
 	);
 	const [guestDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
 	);
 	const [guestCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST' GROUP BY SERVICE_TYPE`
 	);
 	const categories = await fetchActiveServiceCategories(pool);
 	return buildDashboardServiceExpensePayload(
@@ -382,6 +382,7 @@ async function computeMainPanelSumTotal(pool) {
 	);
 }
 
+/** Add Charge balance; settled rows (Add Charge → Settle) are already moved into junket_capital. */
 async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const dateFilter = `AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`;
 	const params = [dateFrom, dateTo];
@@ -389,7 +390,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [junketDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -397,7 +398,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [junketCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -405,7 +406,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [guestDepositRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params
@@ -413,7 +414,7 @@ async function loadServiceExpenseDataForPeriod(pool, dateFrom, dateTo) {
 	const [guestCashRows] = await pool.execute(
 		`SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		 FROM game_services
-		 WHERE ACTIVE = 1 AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
+		 WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 			${dateFilter}
 		 GROUP BY SERVICE_TYPE`,
 		params

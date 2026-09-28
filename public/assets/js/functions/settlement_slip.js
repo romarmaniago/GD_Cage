@@ -20,6 +20,11 @@
  *   afterSettled()   refresh the page / table after a successful settle
  *   imageFileName    download name when image clipboard is unsupported
  *   emptyLabel       shown when there are no rows in the list
+ *   fetchOnOpen      true: call fetchRows as soon as the slip opens (figures computed server-side)
+ *   getContext(btn)  optional: per-trigger context (e.g. which category), passed to getRange / getRows /
+ *                    fetchRows / settleExtra / onOpen
+ *   settleExtra(ctx) optional: extra fields for the settle POST (e.g. { category })
+ *   onOpen(ctx, $modal) / onView(res, $modal)  optional: adjust the slip (e.g. its title) when opened
  */
 (function () {
     if (window.createSettlementSlip) return;
@@ -117,6 +122,7 @@
         var pickers = null;
         var pending = { count: 0, amount: 0 };
         var viewMode = false;
+        var context = null;
 
         function initDatePickers() {
             if (pickers || typeof flatpickr !== 'function') return;
@@ -154,7 +160,7 @@
         function fetchRowsAndRender() {
             var seq = ++fetchSeq;
             var $summary = find('.hes-summary').addClass('is-loading');
-            $.when(config.fetchRows({ start: range.start, end: range.end }))
+            $.when(config.fetchRows({ start: range.start, end: range.end }, context))
                 .done(function (data) {
                     if (seq !== fetchSeq) return;
                     rows = data || [];
@@ -170,8 +176,9 @@
         }
 
         function renderSettle() {
-            var data = config.summarize(rows, range);
+            var data = config.summarize(rows, range) || {};
             renderTotals(data);
+            data.count = Number(data.count) || 0;
             // Net amount to withdraw from junket_capital (costs are negatives here).
             pending = { count: data.count, amount: Math.round(-data.total * 100) / 100 };
             find('.hes-save-btn')
@@ -181,6 +188,9 @@
 
         /** data = { mains: [{ name, amount }], total } */
         function renderTotals(data) {
+            data = data || {};
+            if (!Array.isArray(data.mains)) data.mains = [];
+            data.total = Number(data.total) || 0;
             var html = [];
             if (!data.mains.length) {
                 html.push('<div class="hes-empty">' + esc(config.emptyLabel || 'No records') + '</div>');
@@ -219,7 +229,7 @@
 
         function buildText() {
             var lines = [];
-            lines.push(config.title);
+            lines.push(find('.modal-title').text().trim() || config.title);
             lines.push('Program Date : ' + fmtDate(range.start) + ' ~ ' + fmtDate(range.end));
             lines.push('');
             var $list = find('.hes-cat-list').children();
@@ -235,20 +245,25 @@
 
         $(document).on('click', config.triggerSelector, function (e) {
             e.preventDefault();
-            var r = config.getRange() || {};
+            var ctx = typeof config.getContext === 'function' ? config.getContext(this) : null;
+            var r = config.getRange(ctx) || {};
             if (!r.start || !r.end) {
                 swalMsg('info', 'Please select a date range.', '');
                 return;
             }
             fetchSeq++;
+            context = ctx;
             range = { start: r.start, end: r.end };
-            rows = config.getRows() || [];
+            rows = config.getRows(ctx) || [];
+            if (typeof config.onOpen === 'function') config.onOpen(ctx, $modal());
             initDatePickers();
             setPickerDates();
             setViewMode(false);
             find('.hes-summary').removeClass('is-loading');
             renderSettle();
             showModal();
+            // Slips computed server-side load their figures once opened.
+            if (config.fetchOnOpen) fetchRowsAndRender();
         });
 
         $(document).on('show.bs.modal', modalSel, function () {
@@ -272,7 +287,9 @@
             var amount = pending.amount;
             var confirmText =
                 'Settle ' + pending.count + ' record(s) from ' + fmtDate(settleRange.start) + ' to ' + fmtDate(settleRange.end) +
-                '. ' + fmtAmount(amount) + ' will be deducted from the Authorized Master Account. Settled records can no longer be edited.';
+                '. ' + fmtAmount(Math.abs(amount)) +
+                (amount < 0 ? ' will be added to' : ' will be deducted from') +
+                ' the Authorized Master Account. Settled records can no longer be edited.';
 
             var confirmPromise = typeof Swal !== 'undefined'
                 ? Swal.fire({
@@ -293,7 +310,10 @@
                     url: config.settleUrl,
                     method: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ fromDate: settleRange.start, toDate: settleRange.end, expectedAmount: amount })
+                    data: JSON.stringify($.extend(
+                        { fromDate: settleRange.start, toDate: settleRange.end, expectedAmount: amount },
+                        typeof config.settleExtra === 'function' ? config.settleExtra(context) : {}
+                    ))
                 })
                     .done(function (res) {
                         swalMsg('success', 'Settled', fmtAmount(res.amount) + ' settled.').then(function () {
@@ -357,7 +377,9 @@
                 fetchSeq++;
                 $.ajax({ url: config.viewUrl(settlementId), method: 'GET' })
                     .done(function (res) {
+                        context = null;
                         range = { start: res.date_from, end: res.date_to };
+                        if (typeof config.onView === 'function') config.onView(res, $modal());
                         initDatePickers();
                         setPickerDates();
                         setViewMode(true);

@@ -262,10 +262,19 @@ var HOUSE_BALANCE_TYPE_LABELS = {
     'Hotel': true,
     'Incidental': true,
     'Expenses': true,
-    'Additional': true
+    'Additional': true,
+    'Add Charge': true
 };
 
+/** junket_capital row written by a Settle (Expenses / Loss Amount / Additional / Add Charge or one category). */
+function isSettlementCapitalRow(row) {
+    return !!(row && (row.expense_settlement_id || row.loss_settlement_id ||
+        row.additional_settlement_id || row.service_settlement_id));
+}
+
 function isHouseCashInOutRow(row) {
+    // Settlement rows always show: a single Add Charge category keeps its own name as the type (e.g. a new "Spa").
+    if (isSettlementCapitalRow(row)) return true;
     const label = normalizeHouseBalanceTypeLabel(getHouseBalanceTypeDesc(row));
     return !!HOUSE_BALANCE_TYPE_LABELS[label];
 }
@@ -286,7 +295,9 @@ function isHouseBalanceCashOutType(desc) {
         label === 'Hotel' ||
         label === 'Incidental' ||
         label === 'Expenses' ||
-        label === 'Additional';
+        label === 'Additional' ||
+        // Add Charge settlement can be a withdrawal or a deposit; direction comes from TRANSACTION_ID.
+        label === 'Add Charge';
 }
 
 function getDefaultMonthEndRange() {
@@ -678,7 +689,7 @@ function reloadCapitalData() {
                 // Determine if this row represents a Cash Balance entry
                 const isCashBalance =
                     cbal > 0 &&
-                    (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc));
+                    (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc) || isSettlementCapitalRow(row));
 
                 // Show edit/delete for Cash Balance rows (Super Admin only)
                 let btn = '';
@@ -728,14 +739,16 @@ function reloadCapitalData() {
                                         <i class="fa fa-trash-alt"></i>
                                   </button>`
                         : '';
-                    if (row.expense_settlement_id || row.loss_settlement_id || row.additional_settlement_id) {
-                        // Junket Expenses / Loss Amount / Additional → Settle row: receipt + settlement slip;
-                        // editing/archiving it would desync it from the settled records, so those stay hidden.
+                    if (row.expense_settlement_id || row.loss_settlement_id || row.additional_settlement_id || row.service_settlement_id) {
+                        // Junket Expenses / Loss Amount / Additional / Add Charge → Settle row: receipt + settlement
+                        // slip; editing/archiving it would desync it from the settled records, so those stay hidden.
                         const viewCall = row.expense_settlement_id
                             ? `openExpenseSettlementView(${Number(row.expense_settlement_id)})`
                             : row.loss_settlement_id
                                 ? `openJunketLossSettlementView(${Number(row.loss_settlement_id)})`
-                                : `openAdditionalSettlementView(${Number(row.additional_settlement_id)})`;
+                                : row.additional_settlement_id
+                                    ? `openAdditionalSettlementView(${Number(row.additional_settlement_id)})`
+                                    : `openServiceSettlementView(${Number(row.service_settlement_id)})`;
                         btn = `<div class="capital-action-btns">` + receiptBtn +
                             `<button type="button" onclick="${viewCall}" class="btn btn-sm btn-alt-secondary"
                                     title="View settlement" aria-label="View settlement">
@@ -785,7 +798,7 @@ function reloadCapitalData() {
                     combinedChipsText = `Credit Cash :\n${window.fmtAmt ? window.fmtAmt(IOU) : IOU.toLocaleString('en-US')}`;
                 } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) {
                     combinedChipsText = `Junket Expense : ${fmtCapitalAmount(row.capital_amount, 'out')}`;
-                } else if (cbal > 0 && (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc))) {
+                } else if (cbal > 0 && (isHouseBalanceCashInType(typeDesc) || isHouseBalanceCashOutType(typeDesc) || isSettlementCapitalRow(row))) {
                     combinedChipsText = fmtCapitalAmount(cbal, houseBalanceDirectionFromTxn(row.TRANSACTION_ID));
                 } else {
                     combinedChipsText = ''; // Empty string if no valid data to display

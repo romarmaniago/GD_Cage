@@ -120,7 +120,7 @@ $(document).ready(function() {
 		const translations = window.fnbHotelTranslations || {};
 
 		dataTable = $('#fnb-hotel-table').DataTable({
-			pageLength: 10,
+			pageLength: 25,
 			lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
 			searching: true,
 			ordering: true,
@@ -166,6 +166,9 @@ $(document).ready(function() {
 				},
 				emptyTable: translations.no_data_found || "No data available in table"
 			},
+			footerCallback: function () {
+				updateFnbHotelTotal(this.api());
+			},
 			drawCallback: function () {
 				// Paging stays newest-first (page 1 = latest entries), but within the page
 				// the rows are shown oldest-to-newest so the latest entry sits at the bottom.
@@ -181,6 +184,23 @@ $(document).ready(function() {
 
 		// Apply initial filter to already-rendered rows
 		updateFilter(currentFilter);
+	}
+
+	/**
+	 * Footer Total: signed like the Amount column / dashboard Add Charge (JUNKET = outflow), over the
+	 * filtered rows (date range, category tab, search). Settled rows are already in company capital.
+	 */
+	function updateFnbHotelTotal(api) {
+		const $total = $('#fnb-hotel-total-amount');
+		if (!$total.length || !api) return;
+		let total = 0;
+		api.rows({ search: 'applied' }).nodes().each(function (node) {
+			if (!node || node.dataset.settled === '1') return;
+			total += Number(node.dataset.signedAmount) || 0;
+		});
+		$total.html(typeof window.formatServiceChargeAmount === 'function'
+			? window.formatServiceChargeAmount(total, 'GUEST')
+			: total.toLocaleString('en-US'));
 	}
 
 	function updateFilter(filter) {
@@ -261,8 +281,17 @@ $(document).ready(function() {
 						? window.fnbHotelReceipt.buttonHtml(service)
 						: '';
 
+					// Add Charge → Settle: tinted, locked row (differs from the game "Settled" badge below).
+					const isServiceSettled = service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '';
+
 					let actionHtml = '';
-					if (canEdit && canDelete) {
+					if (isServiceSettled) {
+						actionHtml = `
+							<div class="btn-group">
+								${receiptBtn}
+								<span class="junket-loss-settled-pill" title="Add Charge settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span>
+							</div>`;
+					} else if (canEdit && canDelete) {
 						actionHtml = `
 							<div class="btn-group">
 								${receiptBtn}
@@ -309,7 +338,7 @@ $(document).ready(function() {
 						actionHtml = receiptBtn ? `<div class="btn-group">${receiptBtn}</div>` : '';
 					}
 
-					dataTable.row.add([
+					const addedRow = dataTable.row.add([
 						programDateCellData,
 						dateCellData,
 						agentHtml,
@@ -320,6 +349,13 @@ $(document).ready(function() {
 						remarksHtml,
 						actionHtml
 					]);
+					const node = addedRow.node();
+					if (node) {
+						const isJunket = String(service.SOURCE_TYPE || '').toUpperCase() === 'JUNKET';
+						node.dataset.signedAmount = String(isJunket ? -Math.abs(amt) : amt);
+						node.dataset.settled = isServiceSettled ? '1' : '0';
+						if (isServiceSettled) node.classList.add('is-settled');
+					}
 				});
 
 				dataTable.draw();
@@ -334,6 +370,26 @@ $(document).ready(function() {
 
 	// Expose reload for other scripts (new/edit modals)
 	window.reloadFnbHotelData = reloadData;
+
+	/** The range exactly as the user picked it (YYYY-MM-DD), without the month-end expansion — for Settle. */
+	window.fnbHotelGetDisplayRange = function () {
+		let a = null;
+		let b = null;
+		if (fnbHotelSplitOverrideRange && fnbHotelSplitOverrideRange.displayStart) {
+			a = fnbHotelSplitOverrideRange.displayStart;
+			b = fnbHotelSplitOverrideRange.displayEnd;
+		} else if (fnbHotelDatePicker && fnbHotelDatePicker.selectedDates && fnbHotelDatePicker.selectedDates.length) {
+			a = fnbHotelDatePicker.selectedDates[0];
+			b = fnbHotelDatePicker.selectedDates[fnbHotelDatePicker.selectedDates.length - 1];
+		} else if (window.MonthEndCutoffRange) {
+			const r = window.MonthEndCutoffRange.getMonthEndCutoffRange();
+			return { fromDate: r.startDate, toDate: r.endDate };
+		}
+		if (!a || !b) return { fromDate: null, toDate: null };
+		const from = formatYmdLocal(a);
+		const to = formatYmdLocal(b);
+		return from <= to ? { fromDate: from, toDate: to } : { fromDate: to, toDate: from };
+	};
 
 	function getFnbHotelExportFilename() {
 		const now = new Date();
@@ -558,7 +614,7 @@ $(document).ready(function() {
 			if (!range || !range.startDate || !range.endDate) return;
 			const startDate = range.startDate;
 			const endDate = fnbHotelExpandEndDate(range.endDate);
-			fnbHotelSplitOverrideRange = { start: startDate, end: endDate };
+			fnbHotelSplitOverrideRange = { start: startDate, end: endDate, displayStart: range.startDate, displayEnd: range.endDate };
 			applyFnbHotelDateFilter([startDate, endDate]);
 		}
 	})) || { syncFromRange: function () {}, isSyncing: function () { return false; } };

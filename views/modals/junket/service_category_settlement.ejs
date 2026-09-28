@@ -1,0 +1,66 @@
+<%# Dashboard F&B / Hotel / Incidental / … modals → Settle: settles ONE Add Charge category. %>
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-service-category-settlement',
+    slipTitle: 'Settlement (Add Charge)',
+    slipSectionTitle: 'Main Category'
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    function ymd(d) {
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
+    function slipTitle(category) {
+        return 'Settlement (' + (category || 'Add Charge') + ')';
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-service-category-settlement',
+        title: 'Settlement (Add Charge)',
+        triggerSelector: '.js-dash-service-settle',
+        // The open modal's category (set on show by dashboard_fnb.js / … / dashboard_service_category.js)
+        // and its date picker, which always mirrors the active filter (split dates included).
+        getContext: function (btn) {
+            return {
+                category: window.__dashServiceActiveCategory || '',
+                rangeInputId: btn.getAttribute('data-range-input')
+            };
+        },
+        getRange: function (ctx) {
+            var el = ctx && document.getElementById(ctx.rangeInputId);
+            var dates = el && el._flatpickr ? el._flatpickr.selectedDates || [] : [];
+            if (dates.length < 1) return { start: null, end: null };
+            var a = ymd(dates[0]);
+            var b = ymd(dates[dates.length - 1]);
+            return a <= b ? { start: a, end: b } : { start: b, end: a };
+        },
+        getRows: function () { return null; },
+        fetchOnOpen: true,
+        fetchRows: function (range, ctx) {
+            return $.ajax({
+                url: '/fnb-hotel/settlement_preview',
+                method: 'GET',
+                data: { fromDate: range.start, toDate: range.end, category: ctx ? ctx.category : '' }
+            });
+        },
+        // Before the preview arrives the factory passes [] (no rows yet), so only trust a real preview object.
+        summarize: function (preview) {
+            return preview && Array.isArray(preview.mains) ? preview : { mains: [], total: 0, count: 0 };
+        },
+        settleExtra: function (ctx) { return { category: ctx ? ctx.category : '' }; },
+        onOpen: function (ctx, $modal) { $modal.find('.modal-title').text(slipTitle(ctx && ctx.category)); },
+        settleUrl: '/fnb-hotel/settle',
+        viewUrl: function (id) { return '/fnb-hotel/settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle Add Charge?',
+        imageFileName: 'settlement-add-charge.png',
+        emptyLabel: 'No service categories',
+        afterSettled: function () {
+            // Company / Add Charge panels are server-rendered — reload the dashboard.
+            window.location.reload();
+        }
+    });
+});
+</script>

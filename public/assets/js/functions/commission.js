@@ -672,8 +672,9 @@ $(document).ready(function() {
             totalBuyIn += parseNumCell(buyInValue);
             totalChipsReturn += parseNumCell(chipsReturnValue);
             totalWinLoss += parseNumCell(winLossValue, { signed: true });
-            totalRolling += parseNumCell(rollingValue);
-            totalRollingSettlement += parseNumCell(rollingSettlementValue);
+            totalRolling += parseNumCell(rollingValue, { signed: true });
+            // Signed like the Gamebook export: (x) = commission paid out; plain = negative-rolling game, reduces the total.
+            totalRollingSettlement += parseNumCell(rollingSettlementValue, { signed: true });
             totalFnb += parseNumCell(fnbValue);
             totalPayment += parseNumCell(paymentValue, { signed: true });
         });
@@ -686,7 +687,7 @@ $(document).ready(function() {
         $('#GRAND_CHIPS_RETURN').text(formatAddChgAmount(totalChipsReturn));
         $('#GRAND_WIN_LOSS').html(fmtCommissionAmount(totalWinLoss, 'signed'));
         $('#GRAND_TOTAL_ROLLING').html(fmtCommissionAmount(totalRolling, 'signed'));
-        $('#GRAND_ROLLING_SETTLEMENT').html(fmtCommissionAmount(totalRollingSettlement, 'out'));
+        $('#GRAND_ROLLING_SETTLEMENT').html(fmtCommissionAmount(totalRollingSettlement, 'signed'));
         $('#GRAND_FNB').text(formatAddChgAmount(totalFnb));
         $('#GRAND_PAYMENT').html(fmtCommissionAmount(totalPayment, 'signed'));
     }
@@ -1147,7 +1148,7 @@ $(document).ready(function() {
                             accountId: row.ACCOUNT_ID
                         });
                         var RollingRate = row.COMMISSION_PERCENTAGE; // Ensure the RollingRate is correct
-                        var fb = row.fnb || 0; // Use the FNB value from the row
+                        var fb = parseFloat(row.fnb) || 0; // Use the FNB value from the row (numeric — `+` would string-concat)
                         var payment = row.payment || 0; // Use the PAYMENT value from the row
 
                         ajaxCalls.push(
@@ -1238,11 +1239,14 @@ $(document).ready(function() {
 							
 							        var net;
 							
-								net = window.computeGameCommission(row, winlossValue, total_rolling_chips, { absRolling: false });
+								net = window.computeGameCommission(row, winlossValue, total_rolling_chips);
+								// Same sign convention as the Gamebook list/export: negative rolling -> commission comes back (plain), else paid out (x).
+								var signedCommission = total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net);
 
                                     // Payment calculation based on RollingSettlement and fb
                                     var RollingSettlement = (total_rolling_chips * RollingRate) / 100;
-                                    var paymentValue = Math.round(net - fb);
+                                    // Total Settle, signed like the Gamebook: commission sign + Add Chg (owed by the agent).
+                                    var paymentValue = Math.round(signedCommission + fb);
 
 
                                     // Add to grand totals
@@ -1252,7 +1256,7 @@ $(document).ready(function() {
                                     totalRolling += total_rolling_chips;
                                     totalChipsReturn += total_cash_out_chips;
                                     totalWinLoss += winlossValue; // Ensure unformatted value for calculation
-                                    totalRollingSettlement += net;
+                                    totalRollingSettlement += signedCommission;
                                     totalFNB += fb;
                                     totalPayment += paymentValue;
                                     
@@ -1275,10 +1279,10 @@ $(document).ready(function() {
                                         formatAddChgAmount(total_cash_out_chips),
                                         winloss,
                                         fmtCommissionAmount(total_rolling_chips, 'signed'),
-                                        fmtCommissionAmount(net, 'out'),
+                                        fmtCommissionAmount(signedCommission, 'signed'),
                                         formatAddChgAmount(fb),
-                                        // Payout to agent (net > add charge) shows as (x); agent owes house shows positive.
-                                        fmtCommissionAmount(-paymentValue, 'signed'),
+                                        // Payout to agent shows as (x); agent owes house shows positive.
+                                        fmtCommissionAmount(paymentValue, 'signed'),
                                         formattedGameEnd
                                     ]).node();
                                     $(commissionRowNode).data('commissionExport', {
@@ -1294,9 +1298,9 @@ $(document).ready(function() {
                                         cashout: total_cash_out_chips,
                                         winloss: winlossValue,
                                         rolling: total_rolling_chips,
-                                        settlement: -Math.abs(net),
+                                        settlement: signedCommission,
                                         add_charge: fb,
-                                        total_settle: -paymentValue,
+                                        total_settle: paymentValue,
                                         game_end: formattedGameEnd
                                     });
                                 },

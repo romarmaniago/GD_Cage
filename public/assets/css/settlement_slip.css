@@ -332,3 +332,9 @@ body #modal-dash-additional-commission #additional-commission-tbl tbody tr.is-se
     margin-right: 0.35rem;
     white-space: nowrap;
 }
+
+/* Add Charge table: settled rows (Add Charge → Settle) are tinted and locked. */
+body #fnb-hotel-table tbody tr.is-settled td,
+body #fnb-hotel-table tbody tr.is-settled:hover td {
+    background-color: #e4f3e8 !important;
+}

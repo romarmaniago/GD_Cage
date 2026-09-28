@@ -15,6 +15,10 @@
 						splitLocaleNs: 'house_expense',
 						splitWrapClass: 'dash-service-daterange-wrap dash-service-split-daterange house-expense-split-daterange'
 					}) %>
+					<%# Settle this category only — wired by views/modals/junket/service_category_settlement.ejs %>
+					<button type="button" class="btn btn-sm btn-primary js-dash-service-settle ms-auto" data-range-input="dash-delivery-daterange" data-view-only-disable>
+						<%= __('house_expense.settle') || 'Settle' %>
+					</button>
 				</div>
 				<div class="table-responsive dash-service-table-panel">
 					<%- include('../../partials/dash_service_add_button', { buttonId: 'btn-dash-delivery-new-record', title: __('fnb_hotel.new_record'), servicePreset: 'Delivery' }) %>

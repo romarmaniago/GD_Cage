@@ -1747,20 +1747,22 @@ table.dataTable tbody tr.highlight-row {
 									totalAmount += parseCell(data[8] || '0');
 									totalChipsReturn += parseCell(data[9] || '0');
 									totalWinLoss += parseCell(data[10] || '0', { signed: true });
-									totalRolling += parseCell(data[11] || '0');
-									totalCommission += parseCell(data[12] || '0');
+									// Signed like the export: negative rolling shows as (x); commission (x) is paid out,
+									// plain commission (negative-rolling game) is money back and reduces the total.
+									totalRolling += parseCell(data[11] || '0', { signed: true });
+									totalCommission += parseCell(data[12] || '0', { signed: true });
 									totalAddChg += parseCell(data[13] || '0');
-									totalSettle += parseCell(data[14] || '0');
+									totalSettle += parseCell(data[14] || '0', { signed: true });
 									totalRollerChips += parseCell(data[16] || '0');
 								});
 
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').html(window.formatListAmount ? window.formatListAmount(totalRolling, 'signed') : totalRolling.toLocaleString('en-US'));
 								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
-								$('#game_list-tbl tfoot #GRAND_COMMISSION').html(window.formatListAmount ? window.formatListAmount(totalCommission, 'out') : totalCommission.toLocaleString('en-US'));
+								$('#game_list-tbl tfoot #GRAND_COMMISSION').html(window.formatListAmount ? window.formatListAmount(totalCommission, 'signed') : totalCommission.toLocaleString('en-US'));
 								$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(totalAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(window.formatListAmount ? window.formatListAmount(totalSettle, 'out') : totalSettle.toLocaleString('en-US'));
+								$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(window.formatListAmount ? window.formatListAmount(totalSettle, 'signed') : totalSettle.toLocaleString('en-US'));
 								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(window.formatListAmount ? window.formatListAmount(totalWinLoss, 'signed') : totalWinLoss.toLocaleString('en-US'));
 
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);

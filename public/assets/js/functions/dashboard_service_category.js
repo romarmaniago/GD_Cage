@@ -30,7 +30,8 @@ $(document).ready(function () {
 		if (!value) return '-';
 		var d = new Date(value);
 		if (Number.isNaN(d.getTime())) return '-';
-		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+		var pad = function (n) { return String(n).padStart(2, '0'); };
+		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 	}
 
 	function formatYmdLocal(d) {
@@ -221,6 +222,11 @@ $(document).ready(function () {
 			? window.fnbHotelReceipt.buttonHtml(service)
 			: '';
 
+		// Add Charge → Settle: locked (differs from the game "Settled" badge below).
+		if (service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '') {
+			return '<div class="btn-group">' + receiptBtn + '<span class="junket-loss-settled-pill" title="Add Charge settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span></div>';
+		}
+
 		if (canEdit && canDelete) {
 			return [
 				'<div class="btn-group">',
@@ -313,6 +319,11 @@ $(document).ready(function () {
 		return String(endYmd).slice(0, 10);
 	}
 
+	/** Picked end date → filter end, expanding a month-end cut-off (2nd-to-last day) to the month's last day. */
+	function expandPickedEndDate(date) {
+		return ymdToLocalDate(apiEndDate(formatYmdLocal(date))) || date;
+	}
+
 	function ymdToLocalDate(ymd) {
 		if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(String(ymd))) return null;
 		var parts = String(ymd).slice(0, 10).split('-').map(Number);
@@ -330,10 +341,13 @@ $(document).ready(function () {
 		}
 		dateStart = startDate;
 		dateEnd = endDate;
+		// Picker shows the cut-off as picked (e.g. Sep 29); the filter above keeps the month-end end (Sep 30).
+		var displayEnd = ymdToLocalDate(endYmd);
+		if (!displayEnd || displayEnd < startDate) displayEnd = endDate;
 		var rangeEl = document.getElementById('dash-service-category-daterange');
 		if (rangeEl && rangeEl._flatpickr) {
 			try {
-				rangeEl._flatpickr.setDate([startDate, endDate], false);
+				rangeEl._flatpickr.setDate([startDate, displayEnd], false);
 			} catch (err) { /* ignore */ }
 		}
 		if (dataTable) dataTable.draw();
@@ -394,7 +408,7 @@ $(document).ready(function () {
 			onChange: function (selectedDates) {
 				if (selectedDates.length === 2) {
 					dateStart = selectedDates[0];
-					dateEnd = selectedDates[1];
+					dateEnd = expandPickedEndDate(selectedDates[1]);
 					if (dataTable) dataTable.draw();
 				}
 			},
@@ -404,7 +418,7 @@ $(document).ready(function () {
 					dateEnd = null;
 				} else if (selectedDates.length === 2) {
 					dateStart = selectedDates[0];
-					dateEnd = selectedDates[1];
+					dateEnd = expandPickedEndDate(selectedDates[1]);
 				}
 				if (dataTable) dataTable.draw();
 			}

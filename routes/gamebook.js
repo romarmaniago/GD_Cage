@@ -1321,6 +1321,33 @@ async function performInGameSettlement(db, params) {
 	};
 }
 
+const GAME_SERVICE_SETTLED_MSG =
+	'This Add Charge record is already settled (Add Charge → Settle), so it can no longer be changed.';
+
+/** Add Charge settlement lock: a single service row, or any service row of a game. */
+async function isGameServiceSettled(db, serviceId) {
+	try {
+		const [rows] = await db.execute('SELECT SERVICE_SETTLEMENT_ID FROM game_services WHERE IDNo = ? LIMIT 1', [serviceId]);
+		return !!(rows.length && rows[0].SERVICE_SETTLEMENT_ID != null);
+	} catch (err) {
+		console.error('isGameServiceSettled:', err);
+		return false;
+	}
+}
+
+async function gameHasSettledServices(db, gameId) {
+	try {
+		const [rows] = await db.execute(
+			'SELECT IDNo FROM game_services WHERE GAME_ID = ? AND ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NOT NULL LIMIT 1',
+			[gameId]
+		);
+		return rows.length > 0;
+	} catch (err) {
+		console.error('gameHasSettledServices:', err);
+		return false;
+	}
+}
+
 const JUNKET_LOSS_SETTLED_GAME_MSG =
 	'The Loss Amount of this game is already settled (Loss Amount → Settle), so this action is blocked.';
 
@@ -3498,6 +3525,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 router.put('/game_services/:id', checkSession, async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
+		if (await isGameServiceSettled(pool, serviceId)) {
+			return res.status(409).json({ error: GAME_SERVICE_SETTLED_MSG });
+		}
 		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '').toString().replace(/,/g, ''));
@@ -3633,6 +3663,9 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 
 		if (Number.isNaN(serviceId) || Number.isNaN(gameId)) {
 			return res.status(400).json({ error: 'Invalid input' });
+		}
+		if (await isGameServiceSettled(pool, serviceId)) {
+			return res.status(409).json({ error: GAME_SERVICE_SETTLED_MSG });
 		}
 
 		const updatedBy = req.session?.user_id || null;
@@ -6037,6 +6070,11 @@ router.put('/game_list/:id/program_date', async (req, res) => {
 	}
 	if (!program_date) {
 		return res.status(400).json({ error: 'Invalid program date.' });
+	}
+	if (await gameHasSettledServices(pool, id)) {
+		return res.status(409).json({
+			error: 'This game has Add Charge records that are already settled, so its program date can no longer be changed.'
+		});
 	}
 	let connection;
 	try {

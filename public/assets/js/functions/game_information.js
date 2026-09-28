@@ -284,8 +284,11 @@
 		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
 		var rollingNegative = (parseFloat(row.ROLLING) || 0) < 0;
 		var sharedGame = !gamebookRow && isSharedGame(row);
-		var displayCommission = sharedGame ? giSharedPositiveAmount(net, row) : net;
-		var displaySettle = sharedGame ? giSharedSettleAmount(net, addChg, row.WIN_LOSS) : settle;
+		// Signed like the Game Book list/export: negative-rolling game -> commission comes back (+), else paid out (x);
+		// Total Settle = signed commission + Add Chg (owed by the agent).
+		var signedNet = rollingNegative ? Math.abs(net) : -Math.abs(net);
+		var displayCommission = sharedGame ? giSharedPositiveAmount(net, row) : signedNet;
+		var displaySettle = sharedGame ? giSharedSettleAmount(net, addChg, row.WIN_LOSS) : signedNet + addChg;
 		if (sharedGame) {
 			giDebugLog('row', {
 				gameNo: row.GAME_NO,
@@ -318,9 +321,9 @@
 			fmtAmt(row.CASH_OUT),
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
-			sharedGame ? fmtAmt(displayCommission) : (rollingNegative ? fmtAmt(Math.abs(net)) : fmtAmt(net, 'out')),
+			sharedGame ? fmtAmt(displayCommission) : fmtAmt(displayCommission, 'signed'),
 			fmtAmt(addChg),
-			sharedGame ? fmtAmt(displaySettle) : fmtAmt(settle, 'out'),
+			sharedGame ? fmtAmt(displaySettle) : fmtAmt(displaySettle, 'signed'),
 			formatManualGameEnd(row)
 		];
 		if (gamebookRow) {
@@ -335,13 +338,13 @@
 			cashout: parseFloat(row.CASH_OUT) || 0,
 			winloss: parseFloat(row.WIN_LOSS) || 0,
 			rolling: parseFloat(row.ROLLING) || 0,
-			commission: sharedGame ? displayCommission : net,
+			commission: displayCommission,
 			addChg: addChg,
 			settle: displaySettle
 		});
 
-		var settlementValue = sharedGame ? displayCommission : (rollingNegative ? Math.abs(net) : -Math.abs(net));
-		var totalSettleValue = sharedGame ? displaySettle : -Math.abs(settle);
+		var settlementValue = displayCommission;
+		var totalSettleValue = displaySettle;
 		$(rowNode).data('giExport', {
 			program_date: ymd(row.PROGRAM_DATE) || '',
 			game_start: formatGameStart(row.GAME_START),
@@ -386,9 +389,9 @@
 		$('#GI_GRAND_CASHOUT').html(fmtAmt(tots.cashout));
 		$('#GI_GRAND_WINLOSS').html(fmtAmt(tots.winloss, 'signed'));
 		$('#GI_GRAND_ROLLING').html(fmtAmt(tots.rolling, 'signed'));
-		$('#GI_GRAND_COMMISSION').html(fmtAmt(tots.commission, 'out'));
+		$('#GI_GRAND_COMMISSION').html(fmtAmt(tots.commission, 'signed'));
 		$('#GI_GRAND_ADD_CHG').html(fmtAmt(tots.addChg));
-		$('#GI_GRAND_SETTLE').html(fmtAmt(tots.settle, 'out'));
+		$('#GI_GRAND_SETTLE').html(fmtAmt(tots.settle, 'signed'));
 	}
 
 	function updateGrandTotalsFromFiltered(api) {

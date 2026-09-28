@@ -6,6 +6,14 @@ const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/Exce
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
+const {
+	pickServiceCategories,
+	summarizeServiceRows,
+	loadUnsettledServiceRows,
+	previewServiceSettlement,
+	summarizeSettledServices,
+	fetchActiveServiceCategories
+} = require('../utils/serviceSettlement');
 
 const validTransactionIds = [1, 2, 3];
 const validSourceTypes = ['JUNKET', 'GUEST'];
@@ -119,6 +127,7 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					user_info.FIRSTNAME AS encoded_by_name,
 					gs.ENCODED_DT,
 					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
+					gs.SERVICE_SETTLEMENT_ID,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
@@ -161,6 +170,7 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					user_info.FIRSTNAME AS encoded_by_name,
 					gs.ENCODED_DT,
 					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
+					gs.SERVICE_SETTLEMENT_ID,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
@@ -385,6 +395,9 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		if (Number.isNaN(serviceId)) {
 			return res.status(400).json({ error: 'Invalid service ID' });
 		}
+		if (await isServiceSettled(serviceId)) {
+			return res.status(409).json({ error: SERVICE_SETTLED_LOCKED });
+		}
 
 		// Check if service exists and has no game_id
 		const [[existingService]] = await pool.execute(
@@ -527,6 +540,9 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		if (Number.isNaN(serviceId)) {
 			return res.status(400).json({ error: 'Invalid service ID' });
 		}
+		if (await isServiceSettled(serviceId)) {
+			return res.status(409).json({ error: SERVICE_SETTLED_LOCKED });
+		}
 
 		// Check if service exists and has no game_id (get fields needed for account_ledger cleanup)
 		const [[existingService]] = await pool.execute(
@@ -578,6 +594,181 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		return res.status(500).json({ error: 'Failed to delete the record.' });
 	}
 });
+
+const SERVICE_SETTLED_LOCKED = 'This Add Charge record is already settled and can no longer be changed.';
+
+/** True when the game_services row belongs to an Add Charge settlement (locked). */
+async function isServiceSettled(id) {
+	const [rows] = await pool.execute('SELECT SERVICE_SETTLEMENT_ID FROM game_services WHERE IDNo = ? LIMIT 1', [id]);
+	return !!(rows.length && rows[0].SERVICE_SETTLEMENT_ID != null);
+}
+
+function formatSettlementYmd(ymd) {
+	const p = String(ymd).split('-').map(Number);
+	return `${p[1]}/${p[2]}/${p[0]}`;
+}
+
+function todayLocalYmd() {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * junket_capital DESCRIPTION for a single-category settlement. F & B uses the Authorized Master Account's
+ * existing 'F&B' type (no spaces); other categories keep their own name (Hotel, Incidental, …).
+ */
+function capitalTypeForServiceCategory(category) {
+	return category.key === 'fnb' ? 'F&B' : category.label;
+}
+
+function parseSettlementRange(query) {
+	const fromDate = parseProgramDate(query?.fromDate);
+	const toDate = parseProgramDate(query?.toDate);
+	if (!fromDate || !toDate || fromDate > toDate) return null;
+	return { fromDate, toDate };
+}
+
+/** Settlement (Add Charge) slip for a range: per service category, signed like the dashboard. */
+router.get('/fnb-hotel/settlement_preview', checkSession, async (req, res) => {
+	const range = parseSettlementRange(req.query);
+	if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+	try {
+		const preview = await previewServiceSettlement(pool, range.fromDate, range.toDate, req.query.category);
+		if (!preview) return res.status(400).json({ error: 'Unknown service category.' });
+		res.json(preview);
+	} catch (err) {
+		console.error('Error loading Add Charge settlement preview:', err);
+		res.status(500).json({ error: 'Failed to load Add Charge settlement' });
+	}
+});
+
+/**
+ * SETTLE ADD CHARGE (Settlement (Add Charge) modal → Save)
+ * Settles every unsettled game_services row (active service category) whose program date is within
+ * fromDate..toDate. The signed net goes to junket_capital as 'Add Charge' (or the category's own name when
+ * only one category is settled): a net cost is withdrawn (TRANSACTION_ID = 2), a net gain deposited
+ * (TRANSACTION_ID = 1). Rows get SERVICE_SETTLEMENT_ID.
+ * expectedAmount is the net shown on the slip (Authorized); optional `category` settles one category only.
+ */
+router.post('/fnb-hotel/settle', checkSession, async (req, res) => {
+	const range = parseSettlementRange(req.body);
+	if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+	const expectedRaw = req.body?.expectedAmount;
+	const expectedAmount = expectedRaw === undefined || expectedRaw === null || expectedRaw === ''
+		? null
+		: Number(expectedRaw);
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const categories = pickServiceCategories(await fetchActiveServiceCategories(connection), req.body?.category);
+		if (!categories) {
+			await connection.rollback();
+			return res.status(400).json({ error: 'Unknown service category.' });
+		}
+		const singleCategory = req.body?.category ? categories[0].label : null;
+		const rows = await loadUnsettledServiceRows(connection, range.fromDate, range.toDate, { forUpdate: true });
+		const summary = summarizeServiceRows(categories, rows);
+		if (!summary.rows.length) {
+			await connection.rollback();
+			return res.status(400).json({ error: 'Nothing to settle for the selected dates.' });
+		}
+
+		// Slip convention: costs negative, so the capital amount is -total (positive = withdraw).
+		const net = Math.round(-summary.total * 100) / 100;
+		if (expectedAmount !== null && Number.isFinite(expectedAmount) && Math.abs(expectedAmount - net) >= 0.01) {
+			await connection.rollback();
+			return res.status(409).json({
+				error: 'Add Charge records changed since the settlement was opened. Please review the new total.',
+				amount: net
+			});
+		}
+
+		const dateNow = new Date();
+		const userId = req.session?.user_id ?? null;
+
+		const [settleResult] = await connection.execute(
+			`INSERT INTO service_settlement (DATE_FROM, DATE_TO, CATEGORY, AMOUNT, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, 1, ?, ?)`,
+			[range.fromDate, range.toDate, singleCategory, summary.total, userId, dateNow]
+		);
+		const settlementId = settleResult.insertId;
+
+		let capitalId = null;
+		if (net !== 0) {
+			const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
+			const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
+			// One category (dashboard F&B / Hotel / … modal): the capital type is the category itself.
+			const capitalType = singleCategory ? capitalTypeForServiceCategory(categories[0]) : 'Add Charge';
+			const remarks = `${capitalType} settlement ${formatSettlementYmd(range.fromDate)} - ${formatSettlementYmd(range.toDate)}`;
+			const [capitalResult] = await connection.execute(
+				`INSERT INTO junket_capital
+					(TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+				 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+				[net > 0 ? 2 : 1, fullname, capitalType, Math.abs(net), remarks, userId, dateNow, todayLocalYmd()]
+			);
+			capitalId = capitalResult.insertId;
+			await connection.execute('UPDATE service_settlement SET CAPITAL_ID = ? WHERE IDNo = ?', [capitalId, settlementId]);
+		}
+
+		const ids = summary.rows.map((r) => r.IDNo);
+		await connection.execute(
+			`UPDATE game_services SET SERVICE_SETTLEMENT_ID = ? WHERE IDNo IN (${ids.map(() => '?').join(',')})`,
+			[settlementId, ...ids]
+		);
+
+		await connection.commit();
+		res.json({ success: true, settlement_id: settlementId, capital_id: capitalId, amount: Math.abs(net), count: ids.length });
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		console.error('Error settling Add Charge:', err);
+		res.status(500).json({ error: 'Failed to settle Add Charge' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+/** View one saved Add Charge settlement (Authorized Master Account ledger). */
+router.get('/fnb-hotel/settlement/:id', checkSession, async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+		const [settleRows] = await pool.execute(
+			`SELECT IDNo,
+				DATE_FORMAT(DATE_FROM, '%Y-%m-%d') AS DATE_FROM,
+				DATE_FORMAT(DATE_TO, '%Y-%m-%d') AS DATE_TO,
+				CATEGORY, AMOUNT, CAPITAL_ID, ENCODED_DT
+			 FROM service_settlement
+			 WHERE IDNo = ? AND ACTIVE = 1
+			 LIMIT 1`,
+			[id]
+		);
+		if (!settleRows.length) return res.status(404).json({ error: 'Settlement not found' });
+
+		const settlement = settleRows[0];
+		const summary = await summarizeSettledServices(pool, id, settlement.CATEGORY);
+		res.json({
+			id: settlement.IDNo,
+			category: settlement.CATEGORY || null,
+			date_from: settlement.DATE_FROM,
+			date_to: settlement.DATE_TO,
+			amount: Number(settlement.AMOUNT) || 0,
+			capital_id: settlement.CAPITAL_ID,
+			settled_at: settlement.ENCODED_DT,
+			mains: summary.mains,
+			total: Number(settlement.AMOUNT) || 0
+		});
+	} catch (err) {
+		console.error('Error loading Add Charge settlement:', err);
+		res.status(500).json({ error: 'Failed to load settlement' });
+	}
+});
+
 
 module.exports = router;
 

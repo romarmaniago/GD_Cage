@@ -848,6 +848,8 @@
 <%- include ('modals/dashboard/junket_loss') %>
 <%- include ('modals/junket/junket_loss_settlement') %>
 <%- include ('modals/junket/additional_commission_settlement') %>
+<%- include ('modals/junket/service_settlement') %>
+<%- include ('modals/junket/service_category_settlement') %>
 <%- include ('modals/tip/tip_in') %>
 <%- include ('modals/tip/tip_settlement') %>
 <%- include ('modals/tip/tip_receipt') %>
@@ -863,7 +865,7 @@
       telebet: "<%= __('gamelist.telebet') %>"
    };
 </script>
-<script src="/assets/js/functions/capital.js?v=11"></script>
+<script src="/assets/js/functions/capital.js?v=13"></script>
 <script src="/assets/js/functions/reset.js"></script>
 <script src="/assets/js/functions/accountDashboard.js"></script>
 <script src="/assets/js/functions/account.js"></script>
@@ -875,11 +877,11 @@
 <script src="/assets/js/functions/dashboard_service_balance.js?v=3"></script>
 <script src="/assets/js/functions/dash_service_table_controls.js"></script>
 <script src="/assets/js/functions/fnb_hotel_receipt.js"></script>
-<script src="/assets/js/functions/dashboard_service_category.js?v=2"></script>
-<script src="/assets/js/functions/dashboard_fnb.js"></script>
-<script src="/assets/js/functions/dashboard_hotel.js"></script>
-<script src="/assets/js/functions/dashboard_incidental.js"></script>
-<script src="/assets/js/functions/dashboard_delivery.js"></script>
+<script src="/assets/js/functions/dashboard_service_category.js?v=4"></script>
+<script src="/assets/js/functions/dashboard_fnb.js?v=3"></script>
+<script src="/assets/js/functions/dashboard_hotel.js?v=3"></script>
+<script src="/assets/js/functions/dashboard_incidental.js?v=3"></script>
+<script src="/assets/js/functions/dashboard_delivery.js?v=3"></script>
 <script src="/assets/js/functions/dashboard_soa_fnb_hotel.js"></script>
 <script type="application/json" id="tip-in-i18n"><%- JSON.stringify({
   invalidAmount: __('tip.in_invalid_amount'),

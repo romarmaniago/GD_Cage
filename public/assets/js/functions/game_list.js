@@ -3857,8 +3857,8 @@ function captureGameListExportRow(row, vals) {
 	if (!window._gameListExportRows) window._gameListExportRows = {};
 	var rolling = vals.rolling || 0;
 	// Mirror the on-screen sign/color conventions (see formatListAmount 'out' mode and the
-	// formattedNet ternary): Cash-out and Total Settle always display as an outflow (negative),
-	// and Settlement flips sign depending on whether rolling is negative.
+	// formattedNet ternary): Cash-out always displays as an outflow (negative); Total Settle is
+	// already signed, and Settlement flips sign depending on whether rolling is negative.
 	var settlementDisplay = rolling < 0 ? Math.abs(vals.settlement || 0) : -Math.abs(vals.settlement || 0);
 	var programDate = row.PROGRAM_DATE ? moment(row.PROGRAM_DATE).format('YYYY-MM-DD') : '';
 	var gameStart = row.GAME_DATE_START ? moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm') : '';
@@ -3884,7 +3884,7 @@ function captureGameListExportRow(row, vals) {
 		fnb: parseFloat(row.ADD_CHG_FNB || 0),
 		hotel: parseFloat(row.ADD_CHG_HOTEL || 0),
 		incidental: parseFloat(row.ADD_CHG_INCIDENTAL || 0),
-		total_settle: -Math.abs(vals.totalSettle || 0),
+		total_settle: vals.totalSettle || 0,
 		roller_chips: vals.rollerChips || 0,
 		note: row.REMARKS || '',
 		settled: row.SETTLED === 1
@@ -5474,9 +5474,9 @@ $(document).ready(function () {
 				parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
 				parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
 				formatListAmount(acc.total_rolling || 0, 'signed'),
-				(acc.total_rolling || 0) < 0 ? formatListAmount(Math.abs(acc.total_commission || 0)) : formatListAmount(acc.total_commission || 0, 'out'),
+				formatListAmount(acc.total_commission || 0, 'signed'),
 				parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
-				formatListAmount(acc.total_settle || 0, 'out'),
+				formatListAmount(acc.total_settle || 0, 'signed'),
 				'-',
 				parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
 				'-'
@@ -5496,9 +5496,9 @@ $(document).ready(function () {
 		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 		$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').html(formatListAmount(grandRolling, 'signed'));
 		$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_COMMISSION').html(grandRolling < 0 ? formatListAmount(Math.abs(grandCommission)) : formatListAmount(grandCommission, 'out'));
+		$('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'signed'));
 		$('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-		$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'out'));
+		$('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'signed'));
 		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
 	};
 
@@ -5636,9 +5636,9 @@ $(document).ready(function () {
                             parseFloat(acc.total_cash_out || 0).toLocaleString('en-US'),
                             parseFloat(acc.total_winloss || 0).toLocaleString('en-US'),
                             formatListAmount(acc.total_rolling || 0, 'signed'),
-                            (acc.total_rolling || 0) < 0 ? formatListAmount(Math.abs(acc.total_commission || 0)) : formatListAmount(acc.total_commission || 0, 'out'),
+                            formatListAmount(acc.total_commission || 0, 'signed'),
                             parseFloat(acc.total_add_chg || 0).toLocaleString('en-US'),
-                            formatListAmount(acc.total_settle || 0, 'out'),
+                            formatListAmount(acc.total_settle || 0, 'signed'),
                             '-',
                             parseFloat(acc.total_roller_chips || 0).toLocaleString('en-US'),
                             '-'
@@ -5658,9 +5658,9 @@ $(document).ready(function () {
                     $('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(grandChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                     $('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').html(formatListAmount(grandRolling, 'signed'));
                     $('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(grandRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_COMMISSION').html(grandRolling < 0 ? formatListAmount(Math.abs(grandCommission)) : formatListAmount(grandCommission, 'out'));
+                    $('#game_list-tbl tfoot #GRAND_COMMISSION').html(formatListAmount(grandCommission, 'signed'));
                     $('#game_list-tbl tfoot #GRAND_ADD_CHG').text(grandAddChg.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
-                    $('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'out'));
+                    $('#game_list-tbl tfoot #GRAND_TOTAL_SETTLE').html(formatListAmount(grandTotalSettle, 'signed'));
                     $('#game_list-tbl tfoot #GRAND_WIN_LOSS').html(formatListAmount(grandWinLoss, 'signed'));
                 }
 
@@ -5839,7 +5839,8 @@ $(document).ready(function () {
 							 // Rolling (1): |rolling| x rate; Shared (2): W/L x rate; Share + Rolling (3): both (see commission_calc.js)
 							 net = window.computeGameCommission(row, WinLoss, total_rolling_chips);
 							var addChgValue = parseFloat(row.ADD_CHG || row.add_chg || 0);
-							var totalSettleValue = net - addChgValue;
+							// Signed like Commission: negative-rolling game -> commission comes back (+); Add Chg is owed by the agent (+).
+							var totalSettleValue = (total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net)) + addChgValue;
 	
 							// Add to grand totals
 							totalInitialBuyIn += total_initial;
@@ -5865,7 +5866,7 @@ $(document).ready(function () {
 							at.total_rolling_real += total_rolling_real_chips;
 							at.total_rolling += total_rolling_chips;
 							at.total_roller_chips += total_roller_chips;
-							at.total_commission += net;
+							at.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
 							at.total_winloss += WinLoss;
 							at.total_add_chg += addChgValue;
 							at.total_settle += totalSettleValue;
@@ -5918,7 +5919,7 @@ $(document).ready(function () {
 								
 									// Format net value as an integer
 									var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
-									var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
+									var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCellOg = buildGameStartCell(game_start);
 								
@@ -6000,7 +6001,7 @@ $(document).ready(function () {
 									at3.total_rolling_real += total_rolling_real_chips;
 									at3.total_rolling += total_rolling_chips;
 									at3.total_roller_chips += total_roller_chips;
-									at3.total_commission += net;
+									at3.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
 									at3.total_winloss += WinLoss;
 									at3.total_add_chg += addChgValue;
 									at3.total_settle += totalSettleValue;
@@ -6054,7 +6055,7 @@ $(document).ready(function () {
 								
 								// Format net value as an integer
 								var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
-								var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
+								var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCell = buildGameStartCell(game_start);
 								
@@ -6109,7 +6110,7 @@ $(document).ready(function () {
 									at1.total_rolling_real += total_rolling_real_chips;
 									at1.total_rolling += total_rolling_chips;
 									at1.total_roller_chips += total_roller_chips;
-									at1.total_commission += net;
+									at1.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
 									at1.total_winloss += WinLoss;
 									at1.total_add_chg += addChgValue;
 									at1.total_settle += totalSettleValue;
@@ -6172,7 +6173,7 @@ $(document).ready(function () {
 							   </div>`;
 						   // Format net value as an integer
 						   var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
-						   var formattedTotalSettle = formatListAmount(totalSettleValue, 'out');
+						   var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 						   var gameStartCellEnd = buildGameStartCell(game_start);

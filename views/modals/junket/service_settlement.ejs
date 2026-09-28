@@ -1,0 +1,56 @@
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-service-settlement',
+    slipTitle: 'Settlement (Add Charge)',
+    slipSectionTitle: 'Main Category'
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    /** Range exactly as shown in the filter (main picker or split date inputs), YYYY-MM-DD. */
+    function getSelectedRange() {
+        if (typeof window.fnbHotelGetDisplayRange === 'function') {
+            var r = window.fnbHotelGetDisplayRange();
+            return { start: r.fromDate, end: r.toDate };
+        }
+        return { start: null, end: null };
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-service-settlement',
+        title: 'Settlement (Add Charge)',
+        triggerSelector: '#btn-fnb-hotel-settle',
+        getRange: getSelectedRange,
+        // Figures come from the server (same per-category signs as the dashboard's Add Charge).
+        getRows: function () { return null; },
+        fetchOnOpen: true,
+        fetchRows: function (range) {
+            return $.ajax({
+                url: '/fnb-hotel/settlement_preview',
+                method: 'GET',
+                data: { fromDate: range.start, toDate: range.end }
+            });
+        },
+        // Before the preview arrives the factory passes [] (no rows yet), so only trust a real preview object.
+        summarize: function (preview) {
+            return preview && Array.isArray(preview.mains) ? preview : { mains: [], total: 0, count: 0 };
+        },
+        // Title names the category when a saved settlement covered just one (dashboard category modal).
+        onOpen: function (_ctx, $modal) { $modal.find('.modal-title').text('Settlement (Add Charge)'); },
+        onView: function (res, $modal) {
+            $modal.find('.modal-title').text('Settlement (' + (res && res.category ? res.category : 'Add Charge') + ')');
+        },
+        settleUrl: '/fnb-hotel/settle',
+        viewUrl: function (id) { return '/fnb-hotel/settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle Add Charge?',
+        imageFileName: 'settlement-add-charge.png',
+        emptyLabel: 'No service categories',
+        afterSettled: function () {
+            if (typeof window.reloadFnbHotelData === 'function') window.reloadFnbHotelData();
+        }
+    });
+
+    /** Authorized Master Account ledger → settlement button. */
+    window.openServiceSettlementView = slip.openView;
+});
+</script>
