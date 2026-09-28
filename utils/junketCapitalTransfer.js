@@ -110,6 +110,14 @@ async function buildCapitalTransferRemarks(connection, accountId, userRemarks) {
 	return mergeTransferRemarks(userRemarks, label);
 }
 
+/**
+ * AUTO_REMARKS for the account side (shown in the Account Details "Transaction" column), same wording as
+ * an account-to-account transfer: house out → account deposit = "Transfer - from Company", else "… to Company".
+ */
+function capitalTransferAutoRemarks(accountTxnId) {
+	return accountTxnId === 1 ? 'Transfer - from Company' : 'Transfer - to Company';
+}
+
 async function insertCapitalTransferAccountLedger(connection, {
 	accountId,
 	amount,
@@ -129,9 +137,9 @@ async function insertCapitalTransferAccountLedger(connection, {
 	const [result] = await connection.execute(
 		`INSERT INTO account_ledger (
 			ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC,
-			AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT
-		) VALUES (?, ?, 2, ?, ?, ?, ?, ?)`,
-		[accountId, accountTxnId, transactionDesc, amount, ledgerRemarks, userId, dateNow]
+			AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT
+		) VALUES (?, ?, 2, ?, ?, ?, ?, ?, ?)`,
+		[accountId, accountTxnId, transactionDesc, amount, ledgerRemarks, capitalTransferAutoRemarks(accountTxnId), userId, dateNow]
 	);
 	return result.insertId;
 }
@@ -156,10 +164,10 @@ async function updateCapitalTransferAccountLedger(connection, {
 	await connection.execute(
 		`UPDATE account_ledger
 		 SET ACCOUNT_ID = ?, TRANSACTION_ID = ?, TRANSACTION_TYPE = 2,
-		     TRANSACTION_DESC = ?, AMOUNT = ?, REMARKS = ?,
+		     TRANSACTION_DESC = ?, AMOUNT = ?, REMARKS = ?, AUTO_REMARKS = ?,
 		     EDITED_BY = ?, EDITED_DT = ?
 		 WHERE IDNo = ? AND ACTIVE = 1`,
-		[accountId, accountTxnId, transactionDesc, amount, ledgerRemarks, userId, dateNow, accountLedgerId]
+		[accountId, accountTxnId, transactionDesc, amount, ledgerRemarks, capitalTransferAutoRemarks(accountTxnId), userId, dateNow, accountLedgerId]
 	);
 }
 
