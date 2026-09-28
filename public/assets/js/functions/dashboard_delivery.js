@@ -166,7 +166,8 @@ $(document).ready(function () {
 			: '';
 
 		// Add Charge → Settle: locked (differs from the game "Settled" badge below).
-		if (service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '') {
+		if ((service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '') ||
+			(service.COMMISSION_SETTLEMENT_ID != null && service.COMMISSION_SETTLEMENT_ID !== '')) {
 			return '<div class="btn-group">' + receiptBtn + '<span class="junket-loss-settled-pill" title="Add Charge settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span></div>';
 		}
 

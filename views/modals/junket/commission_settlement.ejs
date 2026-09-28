@@ -1,0 +1,58 @@
+<%- include('../../partials/settlement_slip_modal', {
+    slipModalId: 'modal-commission-settlement',
+    slipTitle: 'Settlement (Commission)',
+    slipSectionTitle: ''
+}) %>
+
+<script>
+// jQuery/Bootstrap load in the footer, after this partial.
+document.addEventListener('DOMContentLoaded', function () {
+    /** Range exactly as shown in the filter (main picker or split date inputs), YYYY-MM-DD. */
+    function getSelectedRange() {
+        if (typeof window.commissionGetDisplayRange === 'function') {
+            var r = window.commissionGetDisplayRange();
+            return { start: r.fromDate, end: r.toDate };
+        }
+        return { start: null, end: null };
+    }
+
+    var slip = window.createSettlementSlip({
+        modalId: 'modal-commission-settlement',
+        title: 'Settlement (Commission)',
+        triggerSelector: '#btn-commission-settle',
+        getRange: getSelectedRange,
+        // Figures come from the server (same per-game math as the dashboard's Commission).
+        getRows: function () { return null; },
+        fetchOnOpen: true,
+        fetchRows: function (range) {
+            return $.ajax({
+                url: '/commission/settlement_preview',
+                method: 'GET',
+                data: { fromDate: range.start, toDate: range.end }
+            });
+        },
+        // Before the preview arrives the factory passes [] (no rows yet), so only trust a real preview object.
+        summarize: function (preview) {
+            return preview && Array.isArray(preview.mains)
+                ? preview
+                : { mains: [], total: 0, count: 0, hideGrandTotal: true };
+        },
+        settleUrl: '/commission/settle',
+        viewUrl: function (id) { return '/commission/settlement/' + encodeURIComponent(id); },
+        confirmTitle: 'Settle commission?',
+        imageFileName: 'settlement-commission.png',
+        emptyLabel: 'No settled games',
+        afterSettled: function () {
+            // Dashboard: Company / Commission panels are server-rendered — reload the page.
+            if (document.getElementById('modal-dash-commission')) {
+                window.location.reload();
+                return;
+            }
+            if (typeof window.commissionReloadData === 'function') window.commissionReloadData();
+        }
+    });
+
+    /** Authorized Master Account ledger → settlement button. */
+    window.openCommissionSettlementView = slip.openView;
+});
+</script>

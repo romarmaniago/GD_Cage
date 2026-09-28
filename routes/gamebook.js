@@ -1321,6 +1321,47 @@ async function performInGameSettlement(db, params) {
 	};
 }
 
+const COMMISSION_SETTLED_GAME_MSG =
+	'The commission of this game is already settled (Commission → Settle), so the game can no longer be changed.';
+
+/**
+ * Route guard: refuse any change to a game whose commission was settled (game_list.COMMISSION_SETTLEMENT_ID),
+ * before the handler touches anything. `resolveGameIds(req)` returns the game id(s) the request affects.
+ */
+function commissionLock(resolveGameIds) {
+	return async function (req, res, next) {
+		try {
+			const raw = await resolveGameIds(req);
+			const ids = [].concat(raw || []).map((n) => parseInt(n, 10)).filter((n) => n > 0);
+			if (ids.length) {
+				const [rows] = await pool.execute(
+					`SELECT IDNo FROM game_list
+					 WHERE IDNo IN (${ids.map(() => '?').join(',')}) AND COMMISSION_SETTLEMENT_ID IS NOT NULL
+					 LIMIT 1`,
+					ids
+				);
+				if (rows.length) {
+					return res.status(409).json({ success: false, error: COMMISSION_SETTLED_GAME_MSG, message: COMMISSION_SETTLED_GAME_MSG });
+				}
+			}
+		} catch (err) {
+			console.error('commissionLock:', err);
+		}
+		return next();
+	};
+}
+
+const gameFromParamId = (req) => req.params.id;
+const gameFromParamGameId = (req) => req.params.gameId;
+const gameFromBody = (req) => req.body?.game_id;
+async function gameFromRecordParam(req) {
+	const [rows] = await pool.execute('SELECT GAME_ID FROM game_record WHERE IDNo = ? LIMIT 1', [req.params.id]);
+	return rows.length ? rows[0].GAME_ID : null;
+}
+/** add_settlement: the primary game plus cut-off / multiple-settlement partners. */
+const gameFromSettlementBody = (req) => [req.body?.game_id_settle]
+	.concat(String(req.body?.txtCutoffLinkedGameIds || '').split(','));
+
 const GAME_SERVICE_SETTLED_MSG =
 	'This Add Charge record is already settled (Add Charge → Settle), so it can no longer be changed.';
 
@@ -3384,7 +3425,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 });
 
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
-router.post('/add_game_services', checkSession, async (req, res) => {
+router.post('/add_game_services', checkSession, commissionLock(gameFromBody), async (req, res) => {
 	try {
 		const { game_id, service_type, amount, delivery_fee, remarks, transaction_id, agent_id } = req.body;
 		const gameId = parseInt(game_id, 10);
@@ -3522,7 +3563,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 });
 
 // Update a service
-router.put('/game_services/:id', checkSession, async (req, res) => {
+router.put('/game_services/:id', checkSession, commissionLock(gameFromBody), async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
 		if (await isGameServiceSettled(pool, serviceId)) {
@@ -3656,7 +3697,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 });
 
 // Delete a service (soft delete)
-router.delete('/game_services/:id', checkSession, async (req, res) => {
+router.delete('/game_services/:id', checkSession, commissionLock(gameFromBody), async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
 		const gameId = parseInt(req.body.game_id, 10);
@@ -4615,7 +4656,7 @@ router.get('/game_list/:id/receipts', async (req, res) => {
 });
 
 // DELETE GAME LIST (Deactivate - soft delete)
-router.put('/game_list/remove/:id', async (req, res) => {
+router.put('/game_list/remove/:id', commissionLock(gameFromParamId), async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const date_now = new Date();
 	const editedBy = req.session.user_id || null;
@@ -4658,7 +4699,7 @@ router.put('/game_list/remove/:id', async (req, res) => {
 });
 
 // DELETE GAME LIST (Super Admin + Manager - SOFT DELETE, excludes game_services)
-router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
+router.delete('/game_list/delete/:id', checkSession, commissionLock(gameFromParamId), async (req, res) => {
 	const permissions = req.session?.permissions;
 	if (permissions !== 0 && permissions !== 11) {
 		return res.status(403).json({ error: 'You do not have permission to delete games.' });
@@ -4895,7 +4936,7 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 });
 
 // STATUS GAME LIST (Updated with mysql2/promise)
-router.put('/game_list/change_status/:id', async (req, res) => {
+router.put('/game_list/change_status/:id', commissionLock(gameFromParamId), async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
@@ -5142,7 +5183,7 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 });
 
 // Assign or change guest on an existing game (ON GAME, END GAME, or PENDING).
-router.put('/game_list/:id/guest', async (req, res) => {
+router.put('/game_list/:id/guest', commissionLock(gameFromParamId), async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
 		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
@@ -5224,7 +5265,7 @@ router.put('/game_list/:id/guest', async (req, res) => {
 	}
 });
 
-router.put('/game_list/:id/group', async (req, res) => {
+router.put('/game_list/:id/group', commissionLock(gameFromParamId), async (req, res) => {
 	try {
 		const encodedBy = req.session.user_id;
 		if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
@@ -5567,7 +5608,7 @@ router.get('/game_list/commission_settlement_detail', checkSession, async (req, 
 });
 
 // ADD SETTLEMENT
-router.post('/add_settlement', async (req, res) => {
+router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (req, res) => {
 	const {
 		game_id_settle,
 		txtAccountIDSettle,
@@ -5953,7 +5994,7 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 });
 
 // Settlement slip: Done → fake_settle 1 (FAKE_SETTLE = 1). Official /add_settlement resets to 0.
-router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req, res) => {
+router.put('/game_list/:gameId/settlement_fake_settle', checkSession, commissionLock(gameFromParamGameId), async (req, res) => {
 	const gameId = parseInt(req.params.gameId, 10);
 	const raw = req.body && (req.body.fake_settle != null ? req.body.fake_settle : req.body.FAKE_SETTLE);
 	const fakeSettle = raw === 1 || raw === '1' || raw === true ? 1 : 0;
@@ -5984,7 +6025,7 @@ router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req
 });
 
 // Update commission / game rate (Rolling, Shared, Share + Rolling) for ACTIVE 1/2/3
-router.put('/game_list/:id/commission_percentage', async (req, res) => {
+router.put('/game_list/:id/commission_percentage', commissionLock(gameFromParamId), async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const raw = req.body && (req.body.commission_percentage != null ? req.body.commission_percentage : req.body.txtCommisionRate);
 	const rate = parseFloat(String(raw || '').replace(/,/g, ''));
@@ -6058,7 +6099,7 @@ router.put('/game_list/:id/remarks', async (req, res) => {
 });
 
 // Update PROGRAM_DATE (date only) for ACTIVE 1/2/3
-router.put('/game_list/:id/program_date', async (req, res) => {
+router.put('/game_list/:id/program_date', commissionLock(gameFromParamId), async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const program_date = normalizeSettlementDateYmd(req.body?.program_date);
 	const permissions = req.session?.permissions;
@@ -6131,7 +6172,7 @@ router.put('/game_list/:id/program_date', async (req, res) => {
 });
 
 // Update game type (LIVE / TELEBET) for ACTIVE 1/2/3
-router.put('/game_list/:id/game_type', async (req, res) => {
+router.put('/game_list/:id/game_type', commissionLock(gameFromParamId), async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const raw = req.body && (req.body.game_type != null ? req.body.game_type : req.body.GAME_TYPE);
 	const gameType = normalizeTelegramGameTypeKey(raw);
@@ -6170,7 +6211,7 @@ router.put('/game_list/:id/game_type', async (req, res) => {
 });
 
 // Update commission type (Rolling / Shared / Share + Rolling) for ACTIVE 1/2/3
-router.put('/game_list/:id/commission_type', async (req, res) => {
+router.put('/game_list/:id/commission_type', commissionLock(gameFromParamId), async (req, res) => {
 	const id = parseInt(req.params.id, 10);
 	const newType = parseInt(req.body?.commission_type, 10);
 	const hasRate = req.body && req.body.commission_percentage != null && req.body.commission_percentage !== '';
@@ -6231,7 +6272,7 @@ router.put('/game_list/:id/commission_type', async (req, res) => {
 });
 
 // EDIT GAME LIST COMMISSION
-router.put('/game_list/:id', async (req, res) => {
+router.put('/game_list/:id', commissionLock(gameFromParamId), async (req, res) => {
     const id = parseInt(req.params.id);
     const {
         txtExpense,
@@ -6259,7 +6300,7 @@ router.put('/game_list/:id', async (req, res) => {
 
 
 // ADD GAME RECORD BUYIN
-router.post('/game_list/add/buyin', async (req, res) => {
+router.post('/game_list/add/buyin', commissionLock(gameFromBody), async (req, res) => {
 	const {
 		game_id,
 		txtAccountCode,
@@ -6436,7 +6477,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 });
 
 // ADD GAME RECORD BUYIN (Split: Cash + Deposit + Credit)
-router.post('/game_list/add/buyin_split', async (req, res) => {
+router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (req, res) => {
 	const {
 		game_id,
 		txtAccountCode,
@@ -6653,7 +6694,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 
 
 // ADD GAME RECORD CASH OUT
-router.post('/game_list/add/cashout', async (req, res) => {
+router.post('/game_list/add/cashout', commissionLock(gameFromBody), async (req, res) => {
 	const {
 		game_id,
 		txtAccountCode,
@@ -6854,7 +6895,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 });
 
 // Split cash-out (Cash + Deposit + Credit legs) in a single DB transaction — all-or-nothing
-router.post('/game_list/add/cashout_split', async (req, res) => {
+router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async (req, res) => {
 	const {
 		game_id,
 		txtAccountCode,
@@ -7252,7 +7293,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 
 
 // ADD GAME RECORD ROLLING
-router.post('/game_list/add/rolling', async (req, res) => {
+router.post('/game_list/add/rolling', commissionLock(gameFromBody), async (req, res) => {
 	const { game_id, txtNN, txtCC } = req.body;
 
 	// Block add when game is settled
@@ -7322,7 +7363,7 @@ router.get('/game_list/:game_id/rolling/last', async (req, res) => {
 	}
 });
 
-router.post('/game_list/rolling/:id/update', async (req, res) => {
+router.post('/game_list/rolling/:id/update', commissionLock(gameFromRecordParam), async (req, res) => {
 	const recordId = parseInt(req.params.id, 10);
 	const { txtNN, txtCC } = req.body;
 
@@ -7380,7 +7421,7 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 });
 
 // ADD GAME RECORD ROLLER CHIPS
-router.post('/game_list/add/roller_chips', async (req, res) => {
+router.post('/game_list/add/roller_chips', commissionLock(gameFromBody), async (req, res) => {
 	const { game_id, txtRollerNN, txtRollerCC, txtTransType } = req.body;
 
 	// Block add when game is settled
@@ -7445,7 +7486,7 @@ router.post('/game_list/add/roller_chips', async (req, res) => {
 
 
 // ADD GAME RECORD
-router.post('/add_game_record', checkSession, async (req, res) => {
+router.post('/add_game_record', checkSession, commissionLock(gameFromBody), async (req, res) => {
     const {
         game_id,
         txtTradingDate,
@@ -7563,7 +7604,7 @@ router.get('/game_record/single/:id', checkSession, async (req, res) => {
 });
 
 // EDIT GAME RECORD (Super Admin only)
-router.put('/game_record/edit/:id', checkSession, async (req, res) => {
+router.put('/game_record/edit/:id', checkSession, commissionLock(gameFromRecordParam), async (req, res) => {
 	const permissions = req.session?.permissions;
 	if (permissions !== 0) {
 		return res.status(403).json({ error: 'Only Super Admin can edit game records.' });
@@ -7718,7 +7759,7 @@ router.put('/game_record/edit/:id', checkSession, async (req, res) => {
 });
 
 // DELETE GAME RECORD
-router.put('/game_record/remove/:id', checkSession, async (req, res) => {
+router.put('/game_record/remove/:id', checkSession, commissionLock(gameFromRecordParam), async (req, res) => {
 	const id = parseInt(req.params.id);
 	let date_now = new Date();
 

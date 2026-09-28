@@ -3,8 +3,8 @@
   public/assets/js/functions/settlement_slip.js (window.createSettlementSlip).
   Params: slipModalId, slipTitle, slipSectionTitle
 %>
-<link rel="stylesheet" href="/assets/css/settlement_slip.css?v=4">
-<script src="/assets/js/functions/settlement_slip.js?v=5"></script>
+<link rel="stylesheet" href="/assets/css/settlement_slip.css?v=8">
+<script src="/assets/js/functions/settlement_slip.js?v=7"></script>
 
 <div class="modal fade hes-modal" id="<%= slipModalId %>" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="<%= slipModalId %>-label" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered hes-dialog">
@@ -30,7 +30,7 @@
 
                     <div class="hes-divider" aria-hidden="true"></div>
 
-                    <div class="hes-section-title"><%= slipSectionTitle %></div>
+                    <% if (slipSectionTitle) { %><div class="hes-section-title"><%= slipSectionTitle %></div><% } %>
                     <div class="hes-summary">
                         <div class="hes-cat-list"></div>
 
@@ -55,7 +55,7 @@
                     <button type="button" class="btn btn-sm hes-copy-image-btn"><%= __('modal_settlement.copy_image') %></button>
                     <button type="button" class="btn btn-sm hes-copy-text-btn"><%= __('modal_settlement.copy_text') %></button>
                 </div>
-                <button type="button" class="btn btn-sm btn-dark hes-save-btn">Save</button>
+                <button type="button" class="btn btn-sm btn-primary hes-save-btn">Save</button>
             </div>
         </div>
     </div>

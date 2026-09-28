@@ -282,7 +282,8 @@ $(document).ready(function() {
 						: '';
 
 					// Add Charge → Settle: tinted, locked row (differs from the game "Settled" badge below).
-					const isServiceSettled = service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '';
+					const isServiceSettled = (service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '') ||
+						(service.COMMISSION_SETTLEMENT_ID != null && service.COMMISSION_SETTLEMENT_ID !== '');
 
 					let actionHtml = '';
 					if (isServiceSettled) {

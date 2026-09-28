@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const {
+    loadCommissionGames,
+    buildCommissionSettlement,
+    previewCommissionSettlement
+} = require('../utils/commissionSettlement');
 
 const TYPE_DEPOSIT = 1;
 const TYPE_CASHOUT = 2;
@@ -648,6 +653,150 @@ router.delete('/additional_commission/:id', checkSession, async (req, res) => {
 });
 
 // GET COMMISSION DATA
+function parseCommissionSettlementRange(src) {
+    const fromDate = parseProgramDate(src?.fromDate);
+    const toDate = parseProgramDate(src?.toDate);
+    if (!fromDate || !toDate || fromDate > toDate) return null;
+    return { fromDate, toDate };
+}
+
+/** Settlement (Commission) slip for a range: one section per commission setup (Rolling / Share / Share + Rolling). */
+router.get('/commission/settlement_preview', checkSession, async (req, res) => {
+    const range = parseCommissionSettlementRange(req.query);
+    if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+    try {
+        res.json(await previewCommissionSettlement(pool, range.fromDate, range.toDate));
+    } catch (err) {
+        console.error('Error loading commission settlement preview:', err);
+        res.status(500).json({ error: 'Failed to load commission settlement' });
+    }
+});
+
+/**
+ * SETTLE COMMISSION (Settlement (Commission) modal → Save)
+ * Settles every settled game (Commission table) whose program date is within fromDate..toDate: the slip
+ * total (commission paid out + the games' "Settle" Add Charge) goes to junket_capital as 'Settlement' —
+ * a net payout is withdrawn (TRANSACTION_ID = 2), a net gain deposited (TRANSACTION_ID = 1).
+ * Games (locked in Gamebook) and their Add Charge rows get COMMISSION_SETTLEMENT_ID.
+ */
+router.post('/commission/settle', checkSession, async (req, res) => {
+    const range = parseCommissionSettlementRange(req.body);
+    if (!range) return res.status(400).json({ error: 'Select a valid Start and Finish date.' });
+    const expectedRaw = req.body?.expectedAmount;
+    const expectedAmount = expectedRaw === undefined || expectedRaw === null || expectedRaw === ''
+        ? null
+        : Number(expectedRaw);
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const games = await loadCommissionGames(connection, { ...range, forUpdate: true });
+        if (!games.length) {
+            await connection.rollback();
+            return res.status(400).json({ error: 'Nothing to settle for the selected dates.' });
+        }
+        const slip = await buildCommissionSettlement(connection, games);
+
+        // Slip convention: payouts negative, so the capital amount is -total (positive = withdraw).
+        const net = Math.round(-slip.total * 100) / 100;
+        if (expectedAmount !== null && Number.isFinite(expectedAmount) && Math.abs(expectedAmount - net) >= 0.01) {
+            await connection.rollback();
+            return res.status(409).json({
+                error: 'Commission changed since the settlement was opened. Please review the new total.',
+                amount: net
+            });
+        }
+
+        const dateNow = new Date();
+        const userId = req.session?.user_id ?? null;
+
+        const [settleResult] = await connection.execute(
+            `INSERT INTO commission_settlement (DATE_FROM, DATE_TO, AMOUNT, ACTIVE, ENCODED_BY, ENCODED_DT)
+             VALUES (?, ?, ?, 1, ?, ?)`,
+            [range.fromDate, range.toDate, slip.total, userId, dateNow]
+        );
+        const settlementId = settleResult.insertId;
+
+        let capitalId = null;
+        if (net !== 0) {
+            const [userRows] = await connection.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [userId]);
+            const fullname = userRows.length ? userRows[0].FIRSTNAME || null : null;
+            const remarks = `Commission settlement ${formatSettlementYmd(range.fromDate)} - ${formatSettlementYmd(range.toDate)}`;
+            const [capitalResult] = await connection.execute(
+                `INSERT INTO junket_capital
+                    (TRANSACTION_ID, FULLNAME, DESCRIPTION, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+                 VALUES (?, ?, 'Settlement', ?, ?, 1, ?, ?, ?)`,
+                [net > 0 ? 2 : 1, fullname, Math.abs(net), remarks, userId, dateNow, todayLocalYmd()]
+            );
+            capitalId = capitalResult.insertId;
+            await connection.execute('UPDATE commission_settlement SET CAPITAL_ID = ? WHERE IDNo = ?', [capitalId, settlementId]);
+        }
+
+        const gameIds = games.map((g) => g.IDNo);
+        await connection.execute(
+            `UPDATE game_list SET COMMISSION_SETTLEMENT_ID = ? WHERE IDNo IN (${gameIds.map(() => '?').join(',')})`,
+            [settlementId, ...gameIds]
+        );
+        if (slip.serviceIds.length) {
+            await connection.execute(
+                `UPDATE game_services SET COMMISSION_SETTLEMENT_ID = ? WHERE IDNo IN (${slip.serviceIds.map(() => '?').join(',')})`,
+                [settlementId, ...slip.serviceIds]
+            );
+        }
+
+        await connection.commit();
+        res.json({ success: true, settlement_id: settlementId, capital_id: capitalId, amount: Math.abs(net), count: gameIds.length });
+    } catch (err) {
+        if (connection) {
+            try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+        }
+        console.error('Error settling commission:', err);
+        res.status(500).json({ error: 'Failed to settle commission' });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+/** View one saved Commission settlement (Authorized Master Account ledger). */
+router.get('/commission/settlement/:id', checkSession, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+        const [settleRows] = await pool.execute(
+            `SELECT IDNo,
+                DATE_FORMAT(DATE_FROM, '%Y-%m-%d') AS DATE_FROM,
+                DATE_FORMAT(DATE_TO, '%Y-%m-%d') AS DATE_TO,
+                AMOUNT, CAPITAL_ID, ENCODED_DT
+             FROM commission_settlement
+             WHERE IDNo = ? AND ACTIVE = 1
+             LIMIT 1`,
+            [id]
+        );
+        if (!settleRows.length) return res.status(404).json({ error: 'Settlement not found' });
+
+        const settlement = settleRows[0];
+        const games = await loadCommissionGames(pool, { settlementId: id });
+        const slip = await buildCommissionSettlement(pool, games, { settlementId: id });
+        res.json({
+            id: settlement.IDNo,
+            date_from: settlement.DATE_FROM,
+            date_to: settlement.DATE_TO,
+            amount: Number(settlement.AMOUNT) || 0,
+            capital_id: settlement.CAPITAL_ID,
+            settled_at: settlement.ENCODED_DT,
+            mains: slip.mains,
+            hideGrandTotal: true,
+            total: Number(settlement.AMOUNT) || 0
+        });
+    } catch (err) {
+        console.error('Error loading commission settlement:', err);
+        res.status(500).json({ error: 'Failed to load settlement' });
+    }
+});
+
 router.get('/commission_data', async (req, res) => {
     // Change `const` to `let` for start and end so they can be reassigned
     let { start, end } = req.query;
@@ -688,6 +837,7 @@ router.get('/commission_data', async (req, res) => {
             game_list.SETTLED,
             game_list.COMMISSION_PERCENTAGE, game_list.SHARE_PERCENTAGE, game_list.ROLLING_PERCENTAGE,
             game_list.COMMISSION_TYPE,
+            game_list.COMMISSION_SETTLEMENT_ID,
             account.IDNo AS account_no,
             agent.IDNo AS agent_id,
             agent.AGENT_CODE AS agent_code,

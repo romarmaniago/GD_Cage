@@ -73,25 +73,25 @@ async function loadDashboardServiceExpenseData() {
 	const [junketDepositRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
+		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND COMMISSION_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [junketCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
+		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND COMMISSION_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'JUNKET'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [guestDepositRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND COMMISSION_SETTLEMENT_ID IS NULL AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
 		GROUP BY SERVICE_TYPE
 	`);
 	const [guestCashRows] = await pool.execute(`
 		SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 		FROM game_services
-		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
+		WHERE ACTIVE = 1 AND SERVICE_SETTLEMENT_ID IS NULL AND COMMISSION_SETTLEMENT_ID IS NULL AND TRANSACTION_ID IN (1, 3) AND SOURCE_TYPE = 'GUEST'
 		GROUP BY SERVICE_TYPE
 	`);
 	const categories = await fetchActiveServiceCategories(pool);
@@ -897,6 +897,7 @@ let sqlServiceSettle = `
 				FROM game_list 
 				WHERE game_list.ACTIVE IN (1, 2)
 					AND game_list.SETTLED = 1
+					AND game_list.COMMISSION_SETTLEMENT_ID IS NULL
 				ORDER BY game_list.IDNo ASC`;
 
 			const [games] = await pool.execute(commissionQuery);
@@ -1302,9 +1303,9 @@ function normalizeJunketCapitalDateRange(startDate, endDate) {
 	return start <= end ? { start, end } : { start: end, end: start };
 }
 
-const EXPENSE_SETTLEMENT_CAPITAL_LOCKED = 'This entry comes from a Junket Expenses / Loss Amount / Additional / Add Charge settlement and cannot be edited or archived.';
+const EXPENSE_SETTLEMENT_CAPITAL_LOCKED = 'This entry comes from a Settle (Expenses / Loss Amount / Additional / Add Charge / Commission) and cannot be edited or archived.';
 
-/** junket_capital row written by Junket Expenses, Loss Amount, Additional or Add Charge → Settle. */
+/** junket_capital row written by a Settle: Junket Expenses, Loss Amount, Additional, Add Charge or Commission. */
 async function isExpenseSettlementCapital(capitalId) {
 	const [rows] = await pool.execute(
 		`SELECT IDNo FROM junket_expense_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
@@ -1314,8 +1315,10 @@ async function isExpenseSettlementCapital(capitalId) {
 		 SELECT IDNo FROM additional_commission_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
 		 UNION ALL
 		 SELECT IDNo FROM service_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
+		 UNION ALL
+		 SELECT IDNo FROM commission_settlement WHERE CAPITAL_ID = ? AND ACTIVE = 1
 		 LIMIT 1`,
-		[capitalId, capitalId, capitalId, capitalId]
+		[capitalId, capitalId, capitalId, capitalId, capitalId]
 	);
 	return rows.length > 0;
 }
@@ -1484,6 +1487,7 @@ router.get('/junket_capital_data', async (req, res) => {
 				ls.IDNo AS loss_settlement_id,
 				acs.IDNo AS additional_settlement_id,
 				ss.IDNo AS service_settlement_id,
+				cs.IDNo AS commission_settlement_id,
 				'junket_capital' AS REMARKS_SOURCE
 			FROM junket_capital k
 			LEFT JOIN user_info u ON k.ENCODED_BY = u.IDNo
@@ -1491,6 +1495,7 @@ router.get('/junket_capital_data', async (req, res) => {
 			LEFT JOIN junket_loss_settlement ls ON ls.CAPITAL_ID = k.IDNo AND ls.ACTIVE = 1
 			LEFT JOIN additional_commission_settlement acs ON acs.CAPITAL_ID = k.IDNo AND acs.ACTIVE = 1
 			LEFT JOIN service_settlement ss ON ss.CAPITAL_ID = k.IDNo AND ss.ACTIVE = 1
+			LEFT JOIN commission_settlement cs ON cs.CAPITAL_ID = k.IDNo AND cs.ACTIVE = 1
 			LEFT JOIN account acc ON acc.IDNo = k.ACCOUNT_ID
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			WHERE k.ACTIVE = 1

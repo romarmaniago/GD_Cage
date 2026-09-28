@@ -196,12 +196,27 @@
                 html.push('<div class="hes-empty">' + esc(config.emptyLabel || 'No records') + '</div>');
             }
             data.mains.forEach(function (m) {
-                html.push(
-                    '<span class="hes-cat-name" title="' + esc(m.name) + '">' + esc(m.name) + '</span>' +
-                    amountHtml(m.amount)
-                );
+                // Sectioned slips (Commission): kind = info | divider | title | total; default = label + amount.
+                if (m.kind === 'divider') {
+                    html.push('<div class="hes-divider" aria-hidden="true"></div>');
+                } else if (m.kind === 'title') {
+                    html.push('<span class="hes-group-title">' + esc(m.name) + '</span>');
+                } else if (m.kind === 'info') {
+                    html.push('<span class="hes-cat-name hes-info-label">' + esc(m.name) + '</span>' +
+                        '<span class="hes-amount hes-info-value">' + esc(m.text) + '</span>');
+                } else if (m.kind === 'total') {
+                    html.push('<span class="hes-total-label">' + esc(m.name || 'Total') + '</span>' +
+                        amountHtml(m.amount, 'hes-total-value'));
+                } else {
+                    html.push(
+                        '<span class="hes-cat-name" title="' + esc(m.name) + '">' + esc(m.name) + '</span>' +
+                        amountHtml(m.amount)
+                    );
+                }
             });
-            html.push('<span class="hes-total-label">Total</span>' + amountHtml(data.total, 'hes-total-value'));
+            if (!data.hideGrandTotal) {
+                html.push('<span class="hes-total-label">Total</span>' + amountHtml(data.total, 'hes-total-value'));
+            }
             find('.hes-cat-list').html(html.join(''));
             find('.hes-authorized-amount').text(fmtAmount(Math.abs(data.total)));
         }
@@ -233,8 +248,17 @@
             lines.push('Program Date : ' + fmtDate(range.start) + ' ~ ' + fmtDate(range.end));
             lines.push('');
             var $list = find('.hes-cat-list').children();
-            for (var i = 0; i + 1 < $list.length; i += 2) {
-                lines.push($list.eq(i).text().trim() + ' : ' + $list.eq(i + 1).text().trim());
+            for (var i = 0; i < $list.length; i++) {
+                var $el = $list.eq(i);
+                if ($el.hasClass('hes-divider')) {
+                    lines.push('');
+                } else if ($el.hasClass('hes-group-title') || $el.hasClass('hes-empty')) {
+                    lines.push($el.text().trim());
+                } else if (i + 1 < $list.length) {
+                    // label + value pair
+                    lines.push($el.text().trim() + ' : ' + $list.eq(i + 1).text().trim());
+                    i++;
+                }
             }
             lines.push('');
             lines.push('Transfer : ' + find('.hes-transfer-info').text().trim());
@@ -384,7 +408,7 @@
                         setPickerDates();
                         setViewMode(true);
                         find('.hes-summary').removeClass('is-loading');
-                        renderTotals({ mains: res.mains || [], total: Number(res.total) || 0 });
+                        renderTotals({ mains: res.mains || [], total: Number(res.total) || 0, hideGrandTotal: !!res.hideGrandTotal });
                         showModal();
                     })
                     .fail(function (xhr) {

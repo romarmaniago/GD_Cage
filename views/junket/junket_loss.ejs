@@ -238,17 +238,29 @@
     max-width: 150px;
   }
 
+  /* Keep short columns on one line; Description gets a larger share of the width */
+  #junket-loss-tbl thead th:not(:nth-child(8)),
+  #junket-loss-tbl tbody td:not(:nth-child(8)) {
+    white-space: nowrap;
+  }
+
   #junket-loss-tbl thead th:nth-child(8),
   #junket-loss-tbl tbody td:nth-child(8) {
-    max-width: 260px;
+    width: 25% !important;
+    min-width: 260px;
   }
 
   #junket-loss-tbl tbody td:nth-child(7) .junket-loss-clip-cell {
     max-width: 150px;
   }
 
+  /* Description: use the full column width and wrap instead of truncating */
   #junket-loss-tbl tbody td:nth-child(8) .junket-loss-clip-cell {
-    max-width: 260px;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
   }
 
   #junket-loss-tbl tbody .junket-loss-clip-cell {

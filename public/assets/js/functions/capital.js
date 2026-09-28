@@ -269,7 +269,7 @@ var HOUSE_BALANCE_TYPE_LABELS = {
 /** junket_capital row written by a Settle (Expenses / Loss Amount / Additional / Add Charge or one category). */
 function isSettlementCapitalRow(row) {
     return !!(row && (row.expense_settlement_id || row.loss_settlement_id ||
-        row.additional_settlement_id || row.service_settlement_id));
+        row.additional_settlement_id || row.service_settlement_id || row.commission_settlement_id));
 }
 
 function isHouseCashInOutRow(row) {
@@ -739,7 +739,7 @@ function reloadCapitalData() {
                                         <i class="fa fa-trash-alt"></i>
                                   </button>`
                         : '';
-                    if (row.expense_settlement_id || row.loss_settlement_id || row.additional_settlement_id || row.service_settlement_id) {
+                    if (isSettlementCapitalRow(row)) {
                         // Junket Expenses / Loss Amount / Additional / Add Charge → Settle row: receipt + settlement
                         // slip; editing/archiving it would desync it from the settled records, so those stay hidden.
                         const viewCall = row.expense_settlement_id
@@ -748,7 +748,9 @@ function reloadCapitalData() {
                                 ? `openJunketLossSettlementView(${Number(row.loss_settlement_id)})`
                                 : row.additional_settlement_id
                                     ? `openAdditionalSettlementView(${Number(row.additional_settlement_id)})`
-                                    : `openServiceSettlementView(${Number(row.service_settlement_id)})`;
+                                    : row.service_settlement_id
+                                        ? `openServiceSettlementView(${Number(row.service_settlement_id)})`
+                                        : `openCommissionSettlementView(${Number(row.commission_settlement_id)})`;
                         btn = `<div class="capital-action-btns">` + receiptBtn +
                             `<button type="button" onclick="${viewCall}" class="btn btn-sm btn-alt-secondary"
                                     title="View settlement" aria-label="View settlement">

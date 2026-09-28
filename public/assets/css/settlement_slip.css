@@ -138,12 +138,15 @@ body.hes-modal-open .swal2-container {
     border-color: #c8a24c;
 }
 
-.hes-modal.is-view-mode .hes-date-value {
+/* View settlement (saved, read-only): Program Date reads as plain text, not an input. */
+.hes-modal.is-view-mode .hes-date-value,
+.hes-modal.is-view-mode .hes-date-value:hover,
+.hes-modal.is-view-mode .hes-date-value:focus {
     cursor: default;
-}
-
-.hes-modal.is-view-mode .hes-date-value:hover {
-    border-color: #e3dccb;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    pointer-events: none;
 }
 
 .hes-modal .hes-summary.is-loading {
@@ -284,11 +287,13 @@ body.hes-modal-open .swal2-container {
     box-shadow: none !important;
 }
 
+/* Save follows the modal theme's primary button (gd-modal-theme.css), like the Copy buttons. */
 .hes-modal .hes-save-btn {
     min-width: 4.5rem;
     color: #fff !important;
-    background: #20252e !important;
-    border-color: #20252e !important;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
+    border-color: transparent !important;
+    font-weight: 600;
 }
 
 /* Loss Amount table: settled rows (Loss Amount → Settle) are tinted and locked. */
@@ -337,4 +342,34 @@ body #modal-dash-additional-commission #additional-commission-tbl tbody tr.is-se
 body #fnb-hotel-table tbody tr.is-settled td,
 body #fnb-hotel-table tbody tr.is-settled:hover td {
     background-color: #e4f3e8 !important;
+}
+
+/* Sectioned slips (Commission): section title spans the grid; info line (Rolling Rate) is plain text. */
+.hes-modal .hes-summary .hes-group-title {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 0.1rem;
+}
+
+.hes-modal .hes-summary .hes-info-value {
+    font-weight: 700;
+}
+
+/* Commission slip is long: let the body scroll instead of the page. */
+.hes-modal .modal-body {
+    max-height: calc(100vh - 11rem);
+    overflow-y: auto;
+}
+
+/* Commission table: games settled via Commission → Settle are tinted and locked. */
+body #commission-tbl tbody tr.is-settled td,
+body #commission-tbl tbody tr.is-settled:hover td,
+body #modal-dash-commission #commission-tbl tbody tr.is-settled td,
+body #modal-dash-commission #commission-tbl tbody tr.is-settled:hover td {
+    background-color: #e4f3e8 !important;
+}
+
+#commission-tbl .junket-loss-settled-pill {
+    margin-left: 0.25rem;
 }

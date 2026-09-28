@@ -52,6 +52,7 @@ async function loadUnsettledServiceRows(db, fromDate, toDate, { forUpdate = fals
 		 FROM game_services
 		 WHERE ACTIVE = 1
 			AND SERVICE_SETTLEMENT_ID IS NULL
+			AND COMMISSION_SETTLEMENT_ID IS NULL
 			AND TRANSACTION_ID IN (1, 2, 3)
 			AND SOURCE_TYPE IN ('JUNKET', 'GUEST')
 			AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?

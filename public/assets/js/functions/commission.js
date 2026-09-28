@@ -660,6 +660,8 @@ $(document).ready(function() {
         table.rows({ search: 'applied' }).every(function () {
             var data = this.data();
             if (!data) return;
+            // Commission → Settle: already in company capital, so not in the Grand Total.
+            if ($(this.node()).hasClass('is-settled')) return;
 
             var buyInValue = data[9] || '0';
             var chipsReturnValue = data[10] || '0';
@@ -916,7 +918,12 @@ $(document).ready(function() {
                 fromDate = toDate;
                 toDate = swap;
             }
-            commissionSplitOverrideRange = { start: fromDate, end: toDate };
+            commissionSplitOverrideRange = {
+                start: fromDate,
+                end: toDate,
+                displayStart: range.start <= range.end ? range.start : range.end,
+                displayEnd: range.start <= range.end ? range.end : range.start
+            };
             reloadData();
         },
         onRangeCleared: function () {
@@ -1249,6 +1256,9 @@ $(document).ready(function() {
                                     var paymentValue = Math.round(signedCommission + fb);
 
 
+                                    // Commission → Settle: locked, tinted; calculateCommissionTotals() leaves it out of the Grand Total.
+                                    var isCommissionSettled = row.COMMISSION_SETTLEMENT_ID != null && row.COMMISSION_SETTLEMENT_ID !== '';
+
                                     // Add to grand totals
                                     totalInitialBuyIn += total_initial;
                                     totalAdditionalBuyIn += total_buy_in_chips;
@@ -1283,8 +1293,11 @@ $(document).ready(function() {
                                         formatAddChgAmount(fb),
                                         // Payout to agent shows as (x); agent owes house shows positive.
                                         fmtCommissionAmount(paymentValue, 'signed'),
-                                        formattedGameEnd
+                                        isCommissionSettled
+                                            ? formattedGameEnd + ' <span class="junket-loss-settled-pill" title="Commission settled — locked"><i class="fa fa-lock" aria-hidden="true"></i>Settled</span>'
+                                            : formattedGameEnd
                                     ]).node();
+                                    if (isCommissionSettled) $(commissionRowNode).addClass('is-settled');
                                     $(commissionRowNode).data('commissionExport', {
                                         program_date: commissionProgramDate,
                                         game_start: commissionGameStart,
@@ -1355,6 +1368,20 @@ $(document).ready(function() {
     }
 
     window.setCommissionDateRange = setCommissionDateRange;
+
+    /** The range exactly as the user picked it (YYYY-MM-DD), without the month-end expansion — for Settle. */
+    window.commissionGetDisplayRange = function () {
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var ymd = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+        if (commissionSplitOverrideRange && commissionSplitOverrideRange.displayStart) {
+            return { fromDate: commissionSplitOverrideRange.displayStart, toDate: commissionSplitOverrideRange.displayEnd };
+        }
+        var dates = flatpickrInstance && flatpickrInstance.selectedDates ? flatpickrInstance.selectedDates : [];
+        if (!dates.length) return { fromDate: null, toDate: null };
+        var a = ymd(dates[0]);
+        var b = ymd(dates[dates.length - 1]);
+        return a <= b ? { fromDate: a, toDate: b } : { fromDate: b, toDate: a };
+    };
     window.commissionReloadData = reloadData;
 
     // Load data initially (full page only; dashboard loads on modal open)

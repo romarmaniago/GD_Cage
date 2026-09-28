@@ -128,6 +128,7 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					gs.ENCODED_DT,
 					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 					gs.SERVICE_SETTLEMENT_ID,
+					gs.COMMISSION_SETTLEMENT_ID,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
@@ -171,6 +172,7 @@ router.get('/fnb-hotel', checkSession, async (req, res) => {
 					gs.ENCODED_DT,
 					DATE_FORMAT(gs.PROGRAM_DATE, '%Y-%m-%d') AS PROGRAM_DATE,
 					gs.SERVICE_SETTLEMENT_ID,
+					gs.COMMISSION_SETTLEMENT_ID,
 					game_list.SETTLED AS game_settled
 				FROM game_services gs
 				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
@@ -597,10 +599,13 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 
 const SERVICE_SETTLED_LOCKED = 'This Add Charge record is already settled and can no longer be changed.';
 
-/** True when the game_services row belongs to an Add Charge settlement (locked). */
+/** True when the game_services row is settled — Add Charge → Settle, or with its game's Commission → Settle. */
 async function isServiceSettled(id) {
-	const [rows] = await pool.execute('SELECT SERVICE_SETTLEMENT_ID FROM game_services WHERE IDNo = ? LIMIT 1', [id]);
-	return !!(rows.length && rows[0].SERVICE_SETTLEMENT_ID != null);
+	const [rows] = await pool.execute(
+		'SELECT SERVICE_SETTLEMENT_ID, COMMISSION_SETTLEMENT_ID FROM game_services WHERE IDNo = ? LIMIT 1',
+		[id]
+	);
+	return !!(rows.length && (rows[0].SERVICE_SETTLEMENT_ID != null || rows[0].COMMISSION_SETTLEMENT_ID != null));
 }
 
 function formatSettlementYmd(ymd) {
