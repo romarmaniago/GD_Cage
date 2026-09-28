@@ -22,11 +22,34 @@ const VOIDED_SETTLEMENT_LOGS_SQL = VOIDED_SETTLEMENT_SOURCES.map(([table, label]
 			DATE_FORMAT(s.DATE_FROM, '%c/%e/%Y'), ' – ', DATE_FORMAT(s.DATE_TO, '%c/%e/%Y'),
 			' (', FORMAT(ABS(COALESCE(s.AMOUNT, 0)), 0), ') — Reason: ', COALESCE(s.VOID_REASON, '-')) COLLATE utf8mb4_unicode_ci AS name,
 		  'settlement_voided' COLLATE utf8mb4_unicode_ci AS action_type, s.VOIDED_DT AS action_time,
-		  NULL AS guest_name, NULL AS account_name, ABS(COALESCE(s.AMOUNT, 0)) AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  NULL AS guest_name, NULL AS account_name,
+		  -- Signed: a voided payout (capital Cash-out) returns money to Capital (+); a voided gain (Cash-in) takes it back (−).
+		  IF(jc.TRANSACTION_ID = 1, -1, 1) * ABS(COALESCE(s.AMOUNT, 0)) AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Settlement' COLLATE utf8mb4_unicode_ci AS source_table
 		  FROM ${table} s
+		  LEFT JOIN junket_capital jc ON jc.IDNo = s.CAPITAL_ID
 		  LEFT JOIN user_info u ON s.VOIDED_BY = u.IDNo
 		  WHERE s.ACTIVE = 0 AND s.VOIDED_DT IS NOT NULL)`).join('');
+
+/** junket_capital rows archived by a settlement void — those are logged as "Settlement voided", not as a removal. */
+const CAPITAL_FROM_SETTLEMENT_SQL = VOIDED_SETTLEMENT_SOURCES
+	.map(([table]) => `EXISTS (SELECT 1 FROM ${table} st WHERE st.CAPITAL_ID = jc.IDNo)`)
+	.join(' OR ');
+
+/**
+ * Company (junket_capital) row description: "Cash-in|Cash-out - [Transfer from|to <account>] - <remarks> (₱amount)".
+ * Transfer rows name the guest account (Cash-in = from the account, Cash-out = to the account).
+ */
+const CAPITAL_NAME_SQL = `CONCAT(CONCAT_WS(' - ',
+	CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Company' END,
+	IF(jc.ACCOUNT_ID IS NULL, NULL, CONCAT('Transfer ', IF(jc.TRANSACTION_ID = 1, 'from ', 'to '),
+		COALESCE(NULLIF(TRIM(tg.AGENT_CODE), ''), CONCAT('Account #', jc.ACCOUNT_ID)),
+		IFNULL(CONCAT(' (', NULLIF(TRIM(tg.NAME), ''), ')'), ''))),
+	NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci`;
+
+/** Guest account of a Company ↔ account transfer (junket_capital.ACCOUNT_ID). */
+const CAPITAL_ACCOUNT_JOIN_SQL = `LEFT JOIN account ta ON ta.IDNo = jc.ACCOUNT_ID
+		  LEFT JOIN agent tg ON tg.IDNo = ta.AGENT_ID`;
 
 // GET Activity Logs for Agents, Guests, Transactions, Junket Expenses, Users, User Roles, and Bookings
 router.get('/activity_logs', async (req, res) => {
@@ -267,22 +290,34 @@ router.get('/activity_logs', async (req, res) => {
 		  FROM junket_total_chips j
 		  LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 		  WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
-		-- JUNKET_CAPITAL (add)
+		-- JUNKET_CAPITAL (cash-in / cash-out) — kept after archive/void so the original movement stays in the history
 		UNION ALL
-		(SELECT jc.IDNo AS related_id, CONCAT(CONCAT_WS(' - ', CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Capital' END, NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci AS name, 'capital_added' COLLATE utf8mb4_unicode_ci AS action_type, jc.ENCODED_DT AS action_time,
-		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, '' COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		(SELECT jc.IDNo AS related_id, ${CAPITAL_NAME_SQL} AS name,
+		  (CASE WHEN jc.TRANSACTION_ID = 2 THEN 'capital_cashout' ELSE 'capital_cashin' END) COLLATE utf8mb4_unicode_ci AS action_type, jc.ENCODED_DT AS action_time,
+		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, COALESCE(jc.DESCRIPTION, '') COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Capital' COLLATE utf8mb4_unicode_ci AS source_table
 		  FROM junket_capital jc
+		  ${CAPITAL_ACCOUNT_JOIN_SQL}
 		  LEFT JOIN user_info u ON jc.ENCODED_BY = u.IDNo
-		  WHERE jc.ACTIVE = 1 AND jc.ENCODED_DT IS NOT NULL)
+		  WHERE jc.ENCODED_DT IS NOT NULL)
 		-- JUNKET_CAPITAL (edit)
 		UNION ALL
-		(SELECT jc.IDNo AS related_id, CONCAT(CONCAT_WS(' - ', CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Capital' END, NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci AS name, 'capital_edited' COLLATE utf8mb4_unicode_ci AS action_type, jc.EDITED_DT AS action_time,
-		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, '' COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		(SELECT jc.IDNo AS related_id, ${CAPITAL_NAME_SQL} AS name, 'capital_edited' COLLATE utf8mb4_unicode_ci AS action_type, jc.EDITED_DT AS action_time,
+		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, COALESCE(jc.DESCRIPTION, '') COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Capital' COLLATE utf8mb4_unicode_ci AS source_table
 		  FROM junket_capital jc
+		  ${CAPITAL_ACCOUNT_JOIN_SQL}
 		  LEFT JOIN user_info u ON jc.EDITED_BY = u.IDNo
 		  WHERE jc.ACTIVE = 1 AND jc.EDITED_DT IS NOT NULL)
+		-- JUNKET_CAPITAL (archived manually — reverses the original movement)
+		UNION ALL
+		(SELECT jc.IDNo AS related_id, ${CAPITAL_NAME_SQL} AS name, 'capital_removed' COLLATE utf8mb4_unicode_ci AS action_type, jc.EDITED_DT AS action_time,
+		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, COALESCE(jc.DESCRIPTION, '') COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Capital' COLLATE utf8mb4_unicode_ci AS source_table
+		  FROM junket_capital jc
+		  ${CAPITAL_ACCOUNT_JOIN_SQL}
+		  LEFT JOIN user_info u ON jc.EDITED_BY = u.IDNo
+		  WHERE jc.ACTIVE = 0 AND jc.EDITED_DT IS NOT NULL AND NOT (${CAPITAL_FROM_SETTLEMENT_SQL}))
 		-- SETTLEMENT (voided)
 		${VOIDED_SETTLEMENT_LOGS_SQL}
 	  ) AS logs

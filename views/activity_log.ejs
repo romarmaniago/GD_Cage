@@ -25,7 +25,7 @@
                                 <option value="Junket Expense">Junket Expense</option>
                                 <option value="Services">Services</option>
                                 <option value="Junket Total Chips">Junket Total Chips</option>
-                                <option value="Junket Capital">Junket Capital</option>
+                                <option value="Junket Capital">Company</option>
                                 <option value="Daily Settlement">Daily Settlement</option>
                                 <option value="Guest">Guest</option>
                                 <option value="agency">Agency</option>
@@ -126,16 +126,96 @@
         return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
     }
 
+    var CAPITAL_ACTIONS = ['capital_cashin', 'capital_cashout', 'capital_edited', 'capital_removed', 'capital_added'];
+
+    // junket_capital.DESCRIPTION (sent as account_name) → the page the money went to / came from.
+    function getCapitalEndingPage(log) {
+        var desc = String(log.account_name || '').replace(/<[^>]*>/g, '').trim();
+        if (!desc) return 'Company';
+        if (desc === 'Transfer') return 'Account';
+        if (desc === 'Settlement') return 'Commission';
+        return desc;
+    }
+
+    function isCapitalCashOut(log) {
+        var action = String(log.action_type || '');
+        if (action === 'capital_cashout') return true;
+        if (action === 'capital_cashin') return false;
+        return /^Cash-out\b/i.test(String(log.name || ''));
+    }
+
+    /**
+     * Action label + money direction for each log. The amount colour always follows the label:
+     * 'in' → green, 'out' → red in parentheses, 'neutral' → plain.
+     */
+    function getActivityFlow(log) {
+        var action = String(log.action_type || '');
+        var amount = parseFloat(log.amount) || 0;
+        var name = String(log.name || '');
+        switch (action) {
+            case 'capital_cashin':
+            case 'capital_cashout':
+            case 'capital_added': {
+                var out = isCapitalCashOut(log);
+                return { label: out ? 'Cash-out' : 'Cash-in', dir: out ? 'out' : 'in' };
+            }
+            case 'capital_edited':
+                return { label: 'Edit', dir: isCapitalCashOut(log) ? 'out' : 'in' };
+            case 'capital_removed':
+                // Archiving a capital entry reverses it.
+                return { label: 'Archive', dir: isCapitalCashOut(log) ? 'in' : 'out' };
+            case 'settlement_voided':
+                return { label: 'Void', dir: amount < 0 ? 'out' : 'in' };
+            case 'settlement_added':
+                return { label: 'Settlement', dir: 'neutral' };
+            case 'deposit':
+                return { label: 'Deposit', dir: 'in' };
+            case 'withdraw':
+                return { label: 'Withdraw', dir: 'out' };
+            case 'transfer':
+                return { label: 'Transfer', dir: 'neutral' };
+            case 'credit_return':
+                return { label: 'Credit Return', dir: 'in' };
+            case 'game_added':
+                return { label: 'New Game', dir: 'in' };
+            case 'game_buyin':
+                return { label: 'Buy-in', dir: 'in' };
+            case 'game_cashout':
+                return { label: 'Cash Out', dir: 'out' };
+            case 'game_rolling':
+                return { label: 'Rolling', dir: 'neutral' };
+            case 'roller_add':
+                return { label: 'Out', dir: 'out' };
+            case 'roller_return':
+                return { label: 'Return', dir: 'in' };
+            case 'service_added':
+                // Positive = charge paid out; negative = settled / credited back.
+                return amount < 0 ? { label: 'In', dir: 'in' } : { label: 'Out', dir: 'out' };
+            case 'junket_chips_added':
+                if (/^Buy-in/i.test(name)) return { label: 'Buy-in', dir: 'in' };
+                if (/^Cash-out/i.test(name)) return { label: 'Cash-out', dir: 'out' };
+                if (/^Rolling/i.test(name)) return { label: 'Rolling', dir: 'neutral' };
+                return { label: 'Chips', dir: 'neutral' };
+            case 'expense_added':
+                return { label: 'Expense', dir: 'out' };
+            case 'expense_edited':
+                return { label: "<%= __('dashboard.action_edit') %>", dir: 'out' };
+            case 'return_added':
+                return { label: 'Deposit', dir: 'in' };
+        }
+        return { label: getActionDisplay(action), dir: amount < 0 ? 'out' : 'neutral' };
+    }
+
     function getStartingPage(log) {
         var action = String(log.action_type || '');
         var source = String(log.source_table || '');
         if (['deposit', 'withdraw', 'transfer', 'credit_return', 'transaction'].includes(action)) return 'Credit';
         if (action === 'junket_chips_added') return 'Dashboard';
-        if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
+        if (CAPITAL_ACTIONS.includes(action)) return 'Company';
         if (['return_added', 'return_edited'].includes(action)) return 'Line';
         if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
         if (action === 'settlement_added') return 'Dashboard';
-        if (action === 'settlement_voided') return 'Capital';
+        if (action === 'settlement_voided') return 'Company';
         if (['game_added', 'game_buyin', 'game_cashout', 'game_rolling', 'roller_add', 'roller_return'].includes(action)) return 'Game Book';
         if (action === 'service_added') return 'Game Book';
         if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
@@ -161,7 +241,7 @@
         }
         if (action === 'junket_chips_added') return 'Game Book';
         if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
-        if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
+        if (CAPITAL_ACTIONS.includes(action)) return getCapitalEndingPage(log);
         if (action === 'settlement_added') return 'Game Book';
         if (action === 'settlement_voided') {
             // "Settlement voided: <type> …" → the page the settled records belong to.
@@ -184,9 +264,9 @@
         'Junket Expense': 'Expense',
         'Services': 'Game Book',
         'Junket Total Chips': 'Dashboard',
-        'Junket Capital': 'Capital',
+        'Junket Capital': 'Company',
         'Daily Settlement': 'Dashboard',
-        'Settlement': 'Capital',
+        'Settlement': 'Company',
         'Guest': 'Guest',
         'agency': 'Agency',
         'User': 'User'
@@ -197,41 +277,15 @@
         return String(text).replace(/₱([\d,]+)(\.\d{2})?/g, '<strong>₱$1</strong>');
     }
 
+    // Fallback labels for logs without a money flow (see getActivityFlow).
     function getActionDisplay(actionType) {
-        if (actionType === 'settlement_added') return 'Settlement';
-        if (actionType === 'settlement_voided') return 'Void';
-        if (actionType === 'game_added') return 'New Game';
-        if (actionType === 'deposit') return 'Deposit';
-        if (actionType === 'withdraw') return 'Cash Out';
-        if (actionType === 'transfer') return 'Transfer';
-        if (actionType === 'credit_return') return 'Credit';
-        if (actionType === 'game_buyin') return 'In';
-        if (actionType === 'game_cashout') return 'Cash Out';
-        if (actionType === 'game_rolling') return 'Out';
-        if (actionType === 'roller_add') return 'In';
-        if (actionType === 'roller_return') return 'Out';
-        if (actionType === 'junket_chips_added') return 'Cash';
-        if (actionType === 'service_added') return 'Out';
-        if (actionType === 'return_added') return 'Deposit';
-        if (actionType === 'capital_added') return 'Cash-in';
-        if (actionType === 'capital_edited') return 'Edit';
-        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "return_added"];
-        const editKeys = ["edited", "expense_edited", "user_edited", "role_edited", "return_edited", "capital_edited"];
+        const addKeys = ["added", "user_added", "role_added", "booking_added"];
+        const editKeys = ["edited", "user_edited", "role_edited", "return_edited"];
         if (addKeys.includes(actionType)) return "<%= __('dashboard.action_add') %>";
         if (editKeys.includes(actionType)) return "<%= __('dashboard.action_edit') %>";
         if (actionType === 'deleted') return "<%= __('dashboard.action_delete') %>";
         if (actionType === 'transaction') return "<%= __('dashboard.transaction') %>";
         return actionType || "-";
-    }
-
-    function getActivityAmountDirection(log) {
-        const action = String(log.action_type || '').toLowerCase();
-        const outActions = ['withdraw', 'game_cashout', 'game_buyin', 'expense_added', 'junket_chips_added'];
-        const inActions = ['deposit', 'credit_return', 'roller_return', 'return_added'];
-        if (outActions.includes(action)) return 'out';
-        if (inActions.includes(action)) return 'in';
-        if (parseFloat(log.amount) < 0) return 'out';
-        return 'neutral';
     }
 
     function formatAmount(log) {
@@ -249,13 +303,16 @@
         if (isNaN(n)) return "-";
         if (n === 0) return "-";
         var fmt = window.AmountFormat;
-        var dir = getActivityAmountDirection(log);
+        var dir = getActivityFlow(log).dir;
         var abs = Math.abs(n);
         var formatted = fmt ? fmt.formatCommas(abs) : abs.toLocaleString('en-US');
-        if (dir === 'out' || n < 0) {
+        if (dir === 'out') {
             return '<span class="activity-amt-out">(' + formatted + ')</span>';
         }
-        return '<span class="activity-amt-in">' + formatted + '</span>';
+        if (dir === 'in') {
+            return '<span class="activity-amt-in">' + formatted + '</span>';
+        }
+        return '<span class="activity-amt-neutral">' + formatted + '</span>';
     }
 
     function getClickableText(fullText, linkUrl, ledgerId, guest = '', acctName = '', sourceTable = '') {
@@ -395,7 +452,7 @@
                             url = log.related_id > 0 ? `/game_list?id=${log.related_id}` : "/fnb-hotel";
                         } else if (log.action_type === "junket_chips_added" && log.source_table === "Junket Total Chips") {
                             url = "/dashboard";
-                        } else if (["capital_added", "capital_edited"].includes(log.action_type) && log.source_table === "Junket Capital") {
+                        } else if (CAPITAL_ACTIONS.includes(log.action_type) && log.source_table === "Junket Capital") {
                             url = "/dashboard";
                         } else if (log.action_type === "settlement_added" && log.source_table === "Daily Settlement") {
                             url = "/game_list";
@@ -412,7 +469,7 @@
                         <td style="color:#6c757d; white-space:nowrap;">${startingPage}</td>
                         <td style="text-align:right;">${formatAmount(log)}</td>
                         <td style="color:#6c757d; white-space:nowrap;">${endingPage}</td>
-                        <td style="color:#6c757d;">${getActionDisplay(log.action_type)}</td>
+                        <td style="color:#6c757d;">${getActivityFlow(log).label}</td>
                         <td style="color:#6c757d;">${getClickableText(displayName, url, log.related_id, log.guest_name, log.account_name, log.source_table)}</td>
                         <td style="color:#6c757d;">${log.encoded_by_name || "—"}</td>
                     </tr>`;
@@ -608,6 +665,11 @@
 
     .activity-amt-out {
         color: #dc2626;
+        font-weight: 600;
+    }
+
+    .activity-amt-neutral {
+        color: #475569;
         font-weight: 600;
     }
 
