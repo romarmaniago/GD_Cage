@@ -25,11 +25,21 @@
  *                    fetchRows / settleExtra / onOpen
  *   settleExtra(ctx) optional: extra fields for the settle POST (e.g. { category })
  *   onOpen(ctx, $modal) / onView(res, $modal)  optional: adjust the slip (e.g. its title) when opened
+ *   voidUrl(id)      optional: POST { reason } to void a saved settlement (View settlement → Void, Super Admin)
  */
 (function () {
     if (window.createSettlementSlip) return;
 
     var html2canvasPromise = null;
+
+    // An open Bootstrap modal (e.g. Authorized Master Account under the slip) traps focus and steals it from a
+    // SweetAlert input, so the Void reason textarea couldn't be typed in. Stop focus events inside SweetAlert
+    // before they reach the modal's focus trap (capture phase on window runs before Bootstrap's document handler).
+    window.addEventListener('focusin', function (e) {
+        if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+            e.stopImmediatePropagation();
+        }
+    }, true);
 
     function esc(s) {
         return String(s == null ? '' : s)
@@ -123,6 +133,7 @@
         var pending = { count: 0, amount: 0 };
         var viewMode = false;
         var context = null;
+        var viewedId = null;
 
         function initDatePickers() {
             if (pickers || typeof flatpickr !== 'function') return;
@@ -225,6 +236,9 @@
         function setViewMode(on) {
             viewMode = !!on;
             find('.hes-save-btn').toggleClass('d-none', viewMode);
+            // Void: saved settlements only, Super Admin only (the server checks too).
+            var canVoid = viewMode && typeof config.voidUrl === 'function' && String($modal().attr('data-can-void')) === '1';
+            find('.hes-void-btn').toggleClass('d-none', !canVoid);
             if (pickers) {
                 [pickers.start, pickers.end].forEach(function (fp) {
                     fp.set('clickOpens', !viewMode);
@@ -358,6 +372,54 @@
             });
         });
 
+        $(document).on('click', modalSel + ' .hes-void-btn', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            if (!viewMode || !viewedId || typeof config.voidUrl !== 'function') return;
+
+            var text = 'Void this settlement (' + fmtDate(range.start) + ' ~ ' + fmtDate(range.end) + ', ' +
+                find('.hes-authorized-amount').text().trim() + ')? Its Authorized Master Account entry will be removed.';
+            var reasonPromise = typeof Swal !== 'undefined'
+                ? Swal.fire({
+                    icon: 'warning',
+                    title: 'Void settlement?',
+                    text: text,
+                    input: 'textarea',
+                    inputPlaceholder: 'Reason for voiding (required)',
+                    showCancelButton: true,
+                    confirmButtonText: 'Void',
+                    cancelButtonText: 'Cancel',
+                    inputValidator: function (value) {
+                        return String(value || '').trim() ? undefined : 'Please enter the reason.';
+                    }
+                }).then(function (r) { return r.isConfirmed ? String(r.value || '').trim() : null; })
+                : Promise.resolve(window.prompt(text + '\n\nReason (required):'));
+
+            reasonPromise.then(function (reason) {
+                if (!reason || !String(reason).trim()) return;
+                var original = $btn.html();
+                $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+                $.ajax({
+                    url: config.voidUrl(viewedId),
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ reason: String(reason).trim() })
+                })
+                    .done(function (res) {
+                        swalMsg('success', 'Voided', (res.released || 0) + ' record(s) are unsettled again.').then(function () {
+                            // Company, dashboard panels and the ledger all change — reload.
+                            window.location.reload();
+                        });
+                    })
+                    .fail(function (xhr) {
+                        swalMsg('error', 'Void failed', (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to void the settlement.');
+                    })
+                    .always(function () {
+                        $btn.prop('disabled', false).html(original);
+                    });
+            });
+        });
+
         $(document).on('click', modalSel + ' .hes-copy-image-btn', function (e) {
             e.preventDefault();
             var $btn = $(this);
@@ -402,6 +464,7 @@
                 $.ajax({ url: config.viewUrl(settlementId), method: 'GET' })
                     .done(function (res) {
                         context = null;
+                        viewedId = settlementId;
                         range = { start: res.date_from, end: res.date_to };
                         if (typeof config.onView === 'function') config.onView(res, $modal());
                         initDatePickers();

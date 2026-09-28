@@ -43,6 +43,7 @@ const { ensureAccountLedgerLinkedGameIdsSchema } = require('../utils/ensureAccou
 const { ensureAccountLedgerAutoRemarksSchema } = require('../utils/ensureAccountLedgerAutoRemarksSchema');
 const { dropGameListMultiSettledSchema } = require('../utils/dropGameListMultiSettledSchema');
 const { ensureGameGroupSchema } = require('../utils/ensureGameGroupSchema');
+const { ensureSettlementVoidSchema } = require('../utils/ensureSettlementVoidSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -102,6 +103,8 @@ const pool = mysql.createPool({
 		await ensureAccountLedgerLinkedGameIdsSchema(pool);
 		await ensureAccountLedgerAutoRemarksSchema(pool);
 		await ensureGameGroupSchema(pool);
+		// After every settlement batch table exists.
+		await ensureSettlementVoidSchema(pool);
 		await backfillCreditFromLedger(pool);
 		await dropGameDailySettlementSchema(pool);
 		await dropGameListMultiSettledSchema(pool);

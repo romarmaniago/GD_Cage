@@ -373,3 +373,16 @@ body #modal-dash-commission #commission-tbl tbody tr.is-settled:hover td {
 #commission-tbl .junket-loss-settled-pill {
     margin-left: 0.25rem;
 }
+
+/* Void (View settlement, Super Admin): destructive, so red instead of the theme's gray primary. */
+.hes-modal .hes-void-btn {
+    min-width: 4.5rem;
+    color: #fff !important;
+    background: #dc3545 !important;
+    border-color: #dc3545 !important;
+    font-weight: 600;
+}
+
+.hes-modal .hes-void-btn:hover {
+    filter: brightness(0.92);
+}

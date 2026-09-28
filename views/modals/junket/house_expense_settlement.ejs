@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         summarize: buildMainCategoryTotals,
         settleUrl: '/junket_house_expense/settle',
         viewUrl: function (id) { return '/junket_expense_settlement/' + encodeURIComponent(id); },
+        voidUrl: function (id) { return '/settlement/expense/' + encodeURIComponent(id) + '/void'; },
         confirmTitle: 'Settle expenses?',
         imageFileName: 'settlement-expenses.png',
         emptyLabel: 'No main categories',

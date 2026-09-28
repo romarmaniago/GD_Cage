@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
         summarize: buildAccountTotals,
         settleUrl: '/additional_commission/settle',
         viewUrl: function (id) { return '/additional_commission_settlement/' + encodeURIComponent(id); },
+        voidUrl: function (id) { return '/settlement/additional/' + encodeURIComponent(id) + '/void'; },
         confirmTitle: 'Settle additional commission?',
         imageFileName: 'settlement-additional.png',
         emptyLabel: 'No additional commission',

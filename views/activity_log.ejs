@@ -135,6 +135,7 @@
         if (['return_added', 'return_edited'].includes(action)) return 'Line';
         if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
         if (action === 'settlement_added') return 'Dashboard';
+        if (action === 'settlement_voided') return 'Capital';
         if (['game_added', 'game_buyin', 'game_cashout', 'game_rolling', 'roller_add', 'roller_return'].includes(action)) return 'Game Book';
         if (action === 'service_added') return 'Game Book';
         if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
@@ -162,6 +163,14 @@
         if (['expense_added', 'expense_edited'].includes(action)) return 'Expense';
         if (['capital_added', 'capital_edited'].includes(action)) return 'Capital';
         if (action === 'settlement_added') return 'Game Book';
+        if (action === 'settlement_voided') {
+            // "Settlement voided: <type> …" → the page the settled records belong to.
+            if (name.indexOf('voided: expenses') >= 0) return 'Expense';
+            if (name.indexOf('voided: loss amount') >= 0) return 'Loss Amount';
+            if (name.indexOf('voided: additional') >= 0) return 'Additional';
+            if (name.indexOf('voided: commission') >= 0) return 'Commission';
+            return 'Add Charge';
+        }
         if (['user_added', 'user_edited', 'role_added', 'role_edited'].includes(action)) return 'User';
         if (source === 'agency') return 'Agency';
         if (source === 'Guest') return 'Guest';
@@ -177,6 +186,7 @@
         'Junket Total Chips': 'Dashboard',
         'Junket Capital': 'Capital',
         'Daily Settlement': 'Dashboard',
+        'Settlement': 'Capital',
         'Guest': 'Guest',
         'agency': 'Agency',
         'User': 'User'
@@ -189,6 +199,7 @@
 
     function getActionDisplay(actionType) {
         if (actionType === 'settlement_added') return 'Settlement';
+        if (actionType === 'settlement_voided') return 'Void';
         if (actionType === 'game_added') return 'New Game';
         if (actionType === 'deposit') return 'Deposit';
         if (actionType === 'withdraw') return 'Cash Out';
@@ -388,6 +399,8 @@
                             url = "/dashboard";
                         } else if (log.action_type === "settlement_added" && log.source_table === "Daily Settlement") {
                             url = "/game_list";
+                        } else if (log.action_type === "settlement_voided") {
+                            url = "/dashboard";
                         }
                     }
                     let displayName = log.name;

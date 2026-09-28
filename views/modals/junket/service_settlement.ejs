@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         settleUrl: '/fnb-hotel/settle',
         viewUrl: function (id) { return '/fnb-hotel/settlement/' + encodeURIComponent(id); },
+        voidUrl: function (id) { return '/settlement/service/' + encodeURIComponent(id) + '/void'; },
         confirmTitle: 'Settle Add Charge?',
         imageFileName: 'settlement-add-charge.png',
         emptyLabel: 'No service categories',

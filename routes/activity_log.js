@@ -2,6 +2,32 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+/**
+ * Voided settlements (View settlement → Void, utils/settlementVoid.js): one log line per voided batch,
+ * e.g. "Settlement voided: Additional 9/25/2026 – 9/25/2026 (200,000) — Reason: …", logged by the voider.
+ * [batch table, label SQL]; Add Charge shows its category when only one was settled.
+ */
+const VOIDED_SETTLEMENT_SOURCES = [
+	['junket_expense_settlement', "'Expenses'"],
+	['junket_loss_settlement', "'Loss Amount'"],
+	['additional_commission_settlement', "'Additional'"],
+	['service_settlement', "COALESCE(s.CATEGORY, 'Add Charge')"],
+	['commission_settlement', "'Commission'"]
+];
+
+const VOIDED_SETTLEMENT_LOGS_SQL = VOIDED_SETTLEMENT_SOURCES.map(([table, label]) => `
+		UNION ALL
+		(SELECT s.IDNo AS related_id,
+		  CONCAT('Settlement voided: ', ${label}, ' ',
+			DATE_FORMAT(s.DATE_FROM, '%c/%e/%Y'), ' – ', DATE_FORMAT(s.DATE_TO, '%c/%e/%Y'),
+			' (', FORMAT(ABS(COALESCE(s.AMOUNT, 0)), 0), ') — Reason: ', COALESCE(s.VOID_REASON, '-')) COLLATE utf8mb4_unicode_ci AS name,
+		  'settlement_voided' COLLATE utf8mb4_unicode_ci AS action_type, s.VOIDED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, ABS(COALESCE(s.AMOUNT, 0)) AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Settlement' COLLATE utf8mb4_unicode_ci AS source_table
+		  FROM ${table} s
+		  LEFT JOIN user_info u ON s.VOIDED_BY = u.IDNo
+		  WHERE s.ACTIVE = 0 AND s.VOIDED_DT IS NOT NULL)`).join('');
+
 // GET Activity Logs for Agents, Guests, Transactions, Junket Expenses, Users, User Roles, and Bookings
 router.get('/activity_logs', async (req, res) => {
 	try {
@@ -257,6 +283,8 @@ router.get('/activity_logs', async (req, res) => {
 		  FROM junket_capital jc
 		  LEFT JOIN user_info u ON jc.EDITED_BY = u.IDNo
 		  WHERE jc.ACTIVE = 1 AND jc.EDITED_DT IS NOT NULL)
+		-- SETTLEMENT (voided)
+		${VOIDED_SETTLEMENT_LOGS_SQL}
 	  ) AS logs
 	  ${dateFilter}
 	  ORDER BY logs.action_time DESC

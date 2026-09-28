@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         settleUrl: '/commission/settle',
         viewUrl: function (id) { return '/commission/settlement/' + encodeURIComponent(id); },
+        voidUrl: function (id) { return '/settlement/commission/' + encodeURIComponent(id) + '/void'; },
         confirmTitle: 'Settle commission?',
         imageFileName: 'settlement-commission.png',
         emptyLabel: 'No settled games',

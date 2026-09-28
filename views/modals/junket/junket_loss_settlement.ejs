@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
         summarize: buildAccountTotals,
         settleUrl: '/loss_amount/settle',
         viewUrl: function (id) { return '/junket_loss_settlement/' + encodeURIComponent(id); },
+        voidUrl: function (id) { return '/settlement/loss/' + encodeURIComponent(id) + '/void'; },
         confirmTitle: 'Settle loss amount?',
         imageFileName: 'settlement-loss-amount.png',
         emptyLabel: 'No loss amount',
