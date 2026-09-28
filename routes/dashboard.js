@@ -14,6 +14,13 @@ const { checkSession, sessions } = require('./auth');
 // Current Time W/L Cage/Gaming Acc. also excludes daily_table_reports through July 30, 2026.
 const DASH_ROLLING_MANUAL_CUTOFF = '2026-07-31';
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { getAgentTelegramChatId } = require('../utils/agentTelegram');
+const {
+	sendCompanyTransferTelegram,
+	sendLedgerEditedTelegram,
+	sendLedgerDeletedTelegram,
+	tgAmount
+} = require('../utils/accountTelegramNotice');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 const {
@@ -58,6 +65,7 @@ const {
 	isCapitalTransferType,
 	parseAccountId,
 	getAccountCashBalance,
+	getCompanyCapitalBalance,
 	validateActiveAccount,
 	insertCapitalTransferAccountLedger,
 	updateCapitalTransferAccountLedger,
@@ -1366,6 +1374,17 @@ router.post('/add_junket_capital', async (req, res) => {
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
+		// Transfer out of the company must fit the dashboard Main → "Company" balance.
+		if (isTransfer && txn === 2) {
+			const companyBalance = await getCompanyCapitalBalance(connection);
+			if (txtAmount2 > companyBalance) {
+				await connection.rollback();
+				return res.status(400).send(
+					'Insufficient company balance. Available: ' + companyBalance.toLocaleString('en-US') + '.'
+				);
+			}
+		}
+
 		let accountLedgerId = null;
 		// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
 		const storedRemarks = Remarks;
@@ -1447,6 +1466,12 @@ router.post('/add_junket_capital', async (req, res) => {
 		}
 
 		await connection.commit();
+		if (isTransfer) {
+			// House out (2) = the account received the amount.
+			sendCompanyTransferTelegram({ accountId, fromCompany: txn === 2, amount: txtAmount2 });
+		}
+		// Agent Portal saves via AJAX; the dashboard form still posts natively and follows the redirect.
+		if (req.xhr) return res.json({ success: true });
 		res.redirect('/dashboard');
 	} catch (err) {
 		if (connection) {
@@ -2506,6 +2531,22 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 		// Store remarks exactly as encoded — the account link is kept via ACCOUNT_ID.
 		const storedRemarks = Remarks;
 
+		// Transfer out of the company must fit the Company balance, with this record's current effect undone first.
+		if (isTransfer && txn === 2) {
+			const oldTxn = parseInt(existing.TRANSACTION_ID, 10);
+			const oldAmount = parseFloat(existing.AMOUNT) || 0;
+			let companyBalance = await getCompanyCapitalBalance(connection);
+			if (oldTxn === 1) companyBalance -= oldAmount;
+			if (oldTxn === 2) companyBalance += oldAmount;
+			companyBalance = Math.round(companyBalance);
+			if (amount > companyBalance) {
+				await connection.rollback();
+				return res.status(400).send(
+					'Insufficient company balance. Available: ' + companyBalance.toLocaleString('en-US') + '.'
+				);
+			}
+		}
+
 		if (isTransfer) {
 			const account = await validateActiveAccount(connection, accountId);
 			if (!account) {
@@ -2584,6 +2625,22 @@ router.put('/junket_capital/:id', checkSession, requireSuperAdmin, async (req, r
 
 		await connection.commit();
 		res.send('Junket updated successfully');
+
+		// Tell the agent when a Company transfer on their account changed.
+		const oldAccountId = existing.ACCOUNT_LEDGER_ID ? parseInt(existing.ACCOUNT_ID, 10) : null;
+		const oldTxn = parseInt(existing.TRANSACTION_ID, 10);
+		const oldAmount = parseFloat(existing.AMOUNT) || 0;
+		// House in (1) = the account gave the amount to the company.
+		if (oldAccountId && isTransfer && oldAccountId === accountId && oldTxn === txn) {
+			if (oldAmount !== amount) {
+				sendLedgerEditedTelegram({ accountId, title: 'Transfer', oldAmount, newAmount: amount, isOut: txn === 1 });
+			}
+		} else {
+			if (oldAccountId) {
+				sendLedgerDeletedTelegram({ accountId: oldAccountId, title: 'Transfer', amount: oldAmount, isOut: oldTxn === 1 });
+			}
+			if (isTransfer) sendCompanyTransferTelegram({ accountId, fromCompany: txn === 2, amount });
+		}
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
@@ -2613,7 +2670,7 @@ router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async 
 		await connection.beginTransaction();
 
 		const [capitalRows] = await connection.execute(
-			`SELECT ACCOUNT_LEDGER_ID
+			`SELECT ACCOUNT_LEDGER_ID, ACCOUNT_ID, AMOUNT, TRANSACTION_ID
 			 FROM junket_capital
 			 WHERE IDNo = ? AND ACTIVE = 1
 			 LIMIT 1`,
@@ -2661,6 +2718,16 @@ router.put('/junket_capital/remove/:id', checkSession, requireSuperAdmin, async 
 
 		await connection.commit();
 		res.send('Junket updated successfully');
+
+		// Tell the agent their Company transfer was removed.
+		if (capitalRows.length && capitalRows[0].ACCOUNT_LEDGER_ID && capitalRows[0].ACCOUNT_ID) {
+			sendLedgerDeletedTelegram({
+				accountId: capitalRows[0].ACCOUNT_ID,
+				title: 'Transfer',
+				amount: parseFloat(capitalRows[0].AMOUNT) || 0,
+				isOut: parseInt(capitalRows[0].TRANSACTION_ID, 10) === 1
+			});
+		}
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
@@ -3101,7 +3168,8 @@ router.post('/add_marker_settlement', async (req, res) => {
 		}
 
 		const agentQuery = `
-            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID,
+                   COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?`;
@@ -3109,14 +3177,17 @@ router.post('/add_marker_settlement', async (req, res) => {
 		const [agentResults] = await pool.execute(agentQuery, [accountId]);
 
 		if (agentResults.length > 0) {
-			const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
+			const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+			// Honors the agent's Telegram on/off (null when disabled or missing).
+			const telegramId = getAgentTelegramChatId(agentResults[0]);
 			let text;
 
 			// Safely parse AgentBalance
 			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
 
 			if (optTransType === '12') {
-				text = `GD Cage\n\n* Credit Return *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString('en-US')} - Deposit\nBalance: ${parseFloat(currentBalance).toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				// Thru deposit takes the amount from the balance → "(10,000) - Deposit".
+				text = `GD Cage\n\n* Credit Return *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${tgAmount(markerReturn, true)} - Deposit\nBalance: ${tgAmount(currentBalance)}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else {
 				text = `GD Cage\n\n* Credit Return *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString('en-US')} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
@@ -4187,6 +4258,15 @@ function listDatesInclusive(fromStr, toStr) {
 	}
 	return dates;
 }
+
+router.get('/company_capital_balance', checkSession, async (req, res) => {
+	try {
+		res.json({ balance: await getCompanyCapitalBalance(pool) });
+	} catch (err) {
+		console.error('company_capital_balance:', err);
+		res.status(500).json({ message: 'Error loading company balance.' });
+	}
+});
 
 router.get('/dashboard_house_balances', checkSession, async (req, res) => {
 	try {

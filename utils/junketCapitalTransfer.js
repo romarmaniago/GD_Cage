@@ -68,6 +68,18 @@ async function getAccountCashBalance(connection, accountId) {
 	return depositAmount + markerRedeemAmount - withdrawAmount - markerReturnDeposit;
 }
 
+/** Dashboard Main → "Company": all-time junket_capital in (1) minus out (2). */
+async function getCompanyCapitalBalance(connection) {
+	const [rows] = await connection.execute(
+		`SELECT
+			COALESCE(SUM(CASE WHEN TRANSACTION_ID = 1 THEN AMOUNT ELSE 0 END), 0) -
+			COALESCE(SUM(CASE WHEN TRANSACTION_ID = 2 THEN AMOUNT ELSE 0 END), 0) AS balance
+		 FROM junket_capital
+		 WHERE ACTIVE = 1`
+	);
+	return Math.round(parseFloat(rows && rows[0] && rows[0].balance) || 0);
+}
+
 async function validateActiveAccount(connection, accountId) {
 	const [rows] = await connection.execute(
 		`SELECT acc.IDNo
@@ -190,6 +202,7 @@ module.exports = {
 	isCapitalTransferType,
 	parseAccountId,
 	getAccountCashBalance,
+	getCompanyCapitalBalance,
 	validateActiveAccount,
 	getAccountDisplayLabel,
 	mergeTransferRemarks,

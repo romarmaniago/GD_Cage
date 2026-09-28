@@ -8,6 +8,24 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { insertCreditRecord, updateCreditFieldsByLedgerId, softDeleteCreditByLedgerId } = require('../utils/creditService');
+const { getCompanyCapitalBalance } = require('../utils/junketCapitalTransfer');
+const { sendLedgerEditedTelegram, sendLedgerDeletedTelegram, tgAmount } = require('../utils/accountTelegramNotice');
+
+/** "* Withdrawal *" → "Withdrawal" (receipt title reused for edit / delete Telegram notices). */
+function receiptTitleText(receipt) {
+	return String((receipt && receipt.title) || '').replace(/^\*\s*|\s*\*$/g, '').trim() || 'Transaction';
+}
+
+/**
+ * Accounts to notify about an edit / delete, each with whether the amount took money from its balance.
+ * A transfer's other side moved the opposite way.
+ */
+function ledgerNoticeTargets(receipt, pairAccountId) {
+	const isOut = ['WITHDRAW', 'IOU RETURN DEPOSIT'].includes(String(receipt.transaction || '').toUpperCase());
+	const targets = [{ accountId: receipt.account_id, isOut }];
+	if (pairAccountId) targets.push({ accountId: pairAccountId, isOut: !isOut });
+	return targets;
+}
 const { ensureAgencyNameColorSchema } = require('../utils/ensureAgencyNameColorSchema');
 
 // Lazy, cached guarantee that agency.NAME_COLOR exists (in case the startup
@@ -127,6 +145,47 @@ async function fetchEditableGuestPortalLedger(connection, id) {
 		[id]
 	);
 	return rows[0] || null;
+}
+
+/**
+ * Account side of a Company (junket_capital) transfer — linked by junket_capital.ACCOUNT_LEDGER_ID.
+ * TRANSACTION_ID 1 = from company (account deposit), 2 = to company (account withdraw).
+ */
+async function fetchCompanyTransferLedger(connection, id) {
+	const [rows] = await connection.execute(
+		`SELECT al.*, jc.IDNo AS CAPITAL_ID
+		 FROM account_ledger al
+		 JOIN junket_capital jc ON jc.ACCOUNT_LEDGER_ID = al.IDNo AND jc.ACTIVE = 1
+		 WHERE al.IDNo = ? AND al.ACTIVE = 1 AND al.GAME_ID IS NULL AND al.TRANSACTION_TYPE = 2
+		 LIMIT 1`,
+		[id]
+	);
+	return rows[0] || null;
+}
+
+/** Credit return (junket or game credit) made outside a game, with its credit_transaction row. */
+async function fetchCreditReturnLedger(connection, id) {
+	const [rows] = await connection.execute(
+		`SELECT al.*, ct.GUARANTOR AS CREDIT_GUARANTOR, ct.GUEST_ID AS CREDIT_GUEST_ID,
+		        DATE_FORMAT(ct.PROGRAM_DATE, '%Y-%m-%d') AS CREDIT_PROGRAM_DATE
+		 FROM account_ledger al
+		 JOIN credit_transaction ct ON ct.LEDGER_ID = al.IDNo AND ct.ACTIVE = 1
+		 WHERE al.IDNo = ? AND al.ACTIVE = 1 AND al.GAME_ID IS NULL
+		   AND al.TRANSACTION_TYPE = 3 AND al.TRANSACTION_ID IN (11, 12)
+		   AND UPPER(TRIM(COALESCE(al.TRANSACTION_DESC, ''))) IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN')
+		 LIMIT 1`,
+		[id]
+	);
+	return rows[0] || null;
+}
+
+async function setCapitalCashTransaction(connection, capitalId, fields) {
+	const sets = Object.keys(fields).map((k) => `${k} = ?`).join(', ');
+	await connection.execute(
+		`UPDATE cash_transaction SET ${sets}
+		 WHERE TRANSACTION_ID = ? AND ACTIVE = 1 AND CATEGORY IN ('Capital In', 'Capital Out')`,
+		[...Object.values(fields), capitalId]
+	);
 }
 
 async function syncTransactionHistoryOnEdit(connection, ledgerId, amount, remarks) {
@@ -265,13 +324,15 @@ const telegramAccountCashMessage = (_req, opts) => {
 		txtTrans,
 		txtRemarks,
 		date_nowTG,
-		updated_time
+		updated_time,
+		categoryTitle
 	} = opts;
 	const L = { account: 'Account', amount: 'Amount', balance: 'Balance', totalCredit: 'Total credit', remarks: 'Remarks', date: 'Date', time: 'Time' };
-	const title = telegramCashTransactionTitle(transaction);
+	// Agent Portal Expenses / Loss Amount / Add Charge use their own title instead of Account deposit/withdrawal.
+	const title = categoryTitle || telegramCashTransactionTitle(transaction);
 	const balanceLabel = String(txtTrans) === '3' ? L.totalCredit : L.balance;
 	const remarksLine = txtRemarks ? `${L.remarks}: ${txtRemarks}\n` : '';
-	return `GD Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString('en-US')}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString('en-US')}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
+	return `GD Cage\n\n* ${title} *\n\n${L.account}: ${guestAccountNum} - ${guestName}\n${L.amount}: ${tgAmount(displayWithdraw, String(txtTrans) === '2')}\n${balanceLabel}: ${tgAmount(amountForTelegram)}\n${remarksLine}${L.date}: ${date_nowTG}\n${L.time}: ${updated_time}`;
 };
 
 const telegramBalanceCheckMessage = (_req, AGENT_CODE, NAME, balanceFormatted, date_now, time_now) => {
@@ -279,11 +340,11 @@ const telegramBalanceCheckMessage = (_req, AGENT_CODE, NAME, balanceFormatted, d
 };
 
 const telegramTransferFromMessage = (_req, fromCode, fromName, toCode, toName, totalAmount, senderBalance, date_nowTG, updated_time) => {
-	return `GD Cage\n\n* Transfer *\n\nAccount: ${fromCode} - ${fromName}\nTo: ${toCode} - ${toName}\nAmount: -${totalAmount.toLocaleString('en-US')}\nBalance: ${senderBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+	return `GD Cage\n\n* Transfer *\n\nAccount: ${fromCode} - ${fromName}\nTo: ${toCode} - ${toName}\nAmount: ${tgAmount(totalAmount, true)}\nBalance: ${tgAmount(senderBalance)}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
 const telegramTransferToMessage = (_req, toCode, toName, fromCode, fromName, totalAmount, receiverBalance, date_nowTG, updated_time) => {
-	return `GD Cage\n\n* Transfer *\n\nTo: ${toCode} - ${toName}\nFrom: ${fromCode} - ${fromName}\nAmount: ${totalAmount.toLocaleString('en-US')}\nBalance: ${receiverBalance.toLocaleString('en-US')}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+	return `GD Cage\n\n* Transfer *\n\nTo: ${toCode} - ${toName}\nFrom: ${fromCode} - ${fromName}\nAmount: ${tgAmount(totalAmount)}\nBalance: ${tgAmount(receiverBalance)}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 };
 
 // Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)
@@ -2754,7 +2815,8 @@ router.post('/add_account_details', async (req, res) => {
 		totalBalanceGuest,
 		txtGuestId,
 		txtProgramDate,
-		txtGuarantor
+		txtGuarantor,
+		txtCategory
 	} = req.body;
 	let date_now = new Date();
 
@@ -2763,12 +2825,25 @@ router.post('/add_account_details', async (req, res) => {
 	let txtAmountNum = amountRaw;
 	const balanceBefore = await getCurrentBalance(txtAccountId);
 
-	// account_ledger: REMARKS = user input only, AUTO_REMARKS = Deposit - Cash / Withdraw - Cash.
+	if (String(txtTrans) === '2' && amountNumber > balanceBefore + 0.009) {
+		return res.status(400).json({
+			success: false,
+			error: `Insufficient balance. Available: ${balanceBefore.toLocaleString('en-US')}.`
+		});
+	}
+
+	// Agent Portal rows that are a plain deposit/withdraw with their own label (Deposit - Expenses, ...).
+	const categoryTitle = { 'EXPENSES': 'Expenses', 'LOSS AMOUNT': 'Loss Amount', 'ADD CHARGE': 'Add Charge' }[
+		String(txtCategory || '').trim().toUpperCase()
+	] || '';
+	const categoryLabel = categoryTitle || 'Cash';
+
+	// account_ledger: REMARKS = user input only, AUTO_REMARKS = Deposit - Cash / Withdraw - Cash (or the category).
 	// remarksValue (user input, else the auto text) still feeds history / cash_transaction / Telegram.
 	const userRemarks = (txtRemarks || '').toString().trim() || null;
 	let autoRemarks = null;
-	if (String(txtTrans) === '1') autoRemarks = 'Deposit - Cash';
-	else if (String(txtTrans) === '2') autoRemarks = 'Withdraw - Cash';
+	if (String(txtTrans) === '1') autoRemarks = `Deposit - ${categoryLabel}`;
+	else if (String(txtTrans) === '2') autoRemarks = `Withdraw - ${categoryLabel}`;
 	const remarksValue = userRemarks || autoRemarks || '';
 
 	const [[accountRow]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [txtAccountId]);
@@ -2926,10 +3001,11 @@ router.post('/add_account_details', async (req, res) => {
 					txtTrans,
 					txtRemarks: remarksValue,
 					date_nowTG,
-					updated_time
+					updated_time,
+					categoryTitle: categoryTitle || null
 				});
 
-				const telegramLogPreview = guestPortalTransactionLogPreview(transaction, {
+				const telegramLogPreview = categoryTitle || guestPortalTransactionLogPreview(transaction, {
 					transactionDesc: transacDesc
 				});
 				const telegramSendOpts = {
@@ -3152,6 +3228,21 @@ router.post('/add_account_details/transfer', async (req, res) => {
 	const totalAmount = normalizeNumber(txtAmount);
 	const transferFromBalance = normalizeNumber(txtTransferFromBalance);
 	const transferToBalance = normalizeNumber(txtTransferToBalance);
+
+	if (!txtAccountId || !txtAccount || String(txtAccountId) === String(txtAccount)) {
+		return res.status(400).json({ success: false, error: 'Select a different account to transfer with.' });
+	}
+	if (!(totalAmount > 0)) {
+		return res.status(400).json({ success: false, error: 'Transfer amount must be greater than zero.' });
+	}
+	// The giving account must cover the amount — never trust the balance the client sent.
+	const senderAvailable = await getCurrentBalance(txtAccountId);
+	if (totalAmount > senderAvailable + 0.009) {
+		return res.status(400).json({
+			success: false,
+			error: `Insufficient balance. Available: ${senderAvailable.toLocaleString('en-US')}.`
+		});
+	}
 
 	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, AUTO_REMARKS, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
@@ -3969,15 +4060,81 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 		}
 
 		const date_now = new Date();
+
+		// Captured before the delete so the Telegram notice can name the transaction.
+		const before = await buildGuestPortalLedgerReceipt(id).catch(() => null);
+		let pairAccountId = null;
+		const notifyDeleted = () => {
+			if (!before) return;
+			const title = receiptTitleText(before);
+			ledgerNoticeTargets(before, pairAccountId).forEach(({ accountId, isOut }) => {
+				sendLedgerDeletedTelegram({ accountId, title, amount: before.amount, isOut });
+			});
+		};
+
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
 		const ledger = await fetchEditableGuestPortalLedger(connection, id);
 		if (!ledger) {
+			const companyLedger = await fetchCompanyTransferLedger(connection, id);
+			if (companyLedger) {
+				const amount = parseFloat(companyLedger.AMOUNT) || 0;
+				const fromCompany = parseInt(companyLedger.TRANSACTION_ID, 10) === 1;
+				// Undoing the transfer takes the amount back from whichever side received it.
+				if (fromCompany) {
+					const accountBalance = await getCurrentBalance(companyLedger.ACCOUNT_ID);
+					if (amount > accountBalance + 0.009) {
+						await connection.rollback();
+						return res.status(400).json({
+							success: false,
+							message: `Cannot delete: the account only has ${accountBalance.toLocaleString('en-US')} left to return to the company.`
+						});
+					}
+				} else {
+					const companyBalance = await getCompanyCapitalBalance(connection);
+					if (amount > companyBalance + 0.009) {
+						await connection.rollback();
+						return res.status(400).json({
+							success: false,
+							message: `Cannot delete: the company only has ${companyBalance.toLocaleString('en-US')} left to return to the account.`
+						});
+					}
+				}
+				await connection.execute(
+					`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+					[req.session.user_id, date_now, id]
+				);
+				await connection.execute(
+					`UPDATE junket_capital SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+					[req.session.user_id, date_now, companyLedger.CAPITAL_ID]
+				);
+				await setCapitalCashTransaction(connection, companyLedger.CAPITAL_ID, {
+					ACTIVE: 0, EDITED_BY: req.session.user_id, EDITED_DT: date_now
+				});
+				await syncTransactionHistoryOnDelete(connection, id);
+				await connection.commit();
+				res.json({ success: true });
+				return notifyDeleted();
+			}
+
+			const creditReturnLedger = await fetchCreditReturnLedger(connection, id);
+			if (creditReturnLedger) {
+				await connection.execute(
+					`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+					[req.session.user_id, date_now, id]
+				);
+				await softDeleteCreditByLedgerId(connection, id, req.session.user_id, date_now);
+				await syncTransactionHistoryOnDelete(connection, id);
+				await connection.commit();
+				res.json({ success: true });
+				return notifyDeleted();
+			}
+
 			await connection.rollback();
 			return res.status(403).json({
 				success: false,
-				message: 'Only manual Guest Portal deposit/withdraw/transfer can be deleted. Edit game-related entries in Gamebook.'
+				message: 'Only manual Guest Portal transactions can be deleted. Edit game-related entries in Gamebook.'
 			});
 		}
 
@@ -3991,6 +4148,7 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 				return res.status(404).json({ success: false, message: 'Transfer pair not found.' });
 			}
 			ledgerIds.push(pair.IDNo);
+			pairAccountId = pair.ACCOUNT_ID;
 		}
 
 		for (const ledgerId of ledgerIds) {
@@ -4013,6 +4171,7 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 		}
 		await connection.commit();
 		res.json({ success: true });
+		notifyDeleted();
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (_) { /* ignore */ }
@@ -4047,15 +4206,101 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 		const remarks = req.body?.remarks != null ? String(req.body.remarks).trim() : '';
 		const date_now = new Date();
 
+		// Captured before the edit so the Telegram notice can show old → new.
+		const before = await buildGuestPortalLedgerReceipt(id).catch(() => null);
+		let pairAccountId = null;
+		const notifyEdited = () => {
+			if (!before || Math.abs((Number(before.amount) || 0) - parsedAmount) < 0.005) return;
+			const title = receiptTitleText(before);
+			ledgerNoticeTargets(before, pairAccountId).forEach(({ accountId, isOut }) => {
+				sendLedgerEditedTelegram({ accountId, title, oldAmount: before.amount, newAmount: parsedAmount, isOut });
+			});
+		};
+
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
 		const ledger = await fetchEditableGuestPortalLedger(connection, id);
 		if (!ledger) {
+			const fail = async (message) => {
+				await connection.rollback();
+				return res.status(400).json({ success: false, message });
+			};
+			const fmt = (n) => Number(n).toLocaleString('en-US');
+
+			const companyLedger = await fetchCompanyTransferLedger(connection, id);
+			if (companyLedger) {
+				const oldAmount = parseFloat(companyLedger.AMOUNT) || 0;
+				const fromCompany = parseInt(companyLedger.TRANSACTION_ID, 10) === 1;
+				const accountBalance = await getCurrentBalance(companyLedger.ACCOUNT_ID);
+				const companyBalance = await getCompanyCapitalBalance(connection);
+				const giverAvailable = (fromCompany ? companyBalance : accountBalance) + oldAmount;
+				const receiverBalance = fromCompany ? accountBalance : companyBalance;
+				// The giving side must cover the new amount; a lower amount is taken back from the receiver.
+				if (parsedAmount > giverAvailable + 0.009) {
+					return fail(`Insufficient ${fromCompany ? 'company' : 'account'} balance. Available: ${fmt(giverAvailable)}.`);
+				}
+				if (oldAmount - parsedAmount > receiverBalance + 0.009) {
+					return fail(`Cannot lower the amount: the ${fromCompany ? 'account' : 'company'} only has ${fmt(receiverBalance)} left.`);
+				}
+
+				await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
+				await connection.execute(
+					`UPDATE junket_capital SET AMOUNT = ?, REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+					[parsedAmount, remarks || null, req.session.user_id, date_now, companyLedger.CAPITAL_ID]
+				);
+				await setCapitalCashTransaction(connection, companyLedger.CAPITAL_ID, {
+					AMOUNT: String(parsedAmount), EDITED_BY: req.session.user_id, EDITED_DT: date_now
+				});
+				await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+				await connection.commit();
+				res.json({ success: true });
+				return notifyEdited();
+			}
+
+			const creditReturnLedger = await fetchCreditReturnLedger(connection, id);
+			if (creditReturnLedger) {
+				const oldAmount = parseFloat(creditReturnLedger.AMOUNT) || 0;
+				const creditAvailable = (await getCreditBalance(creditReturnLedger.ACCOUNT_ID)) + oldAmount;
+				if (parsedAmount > creditAvailable + 0.009) {
+					return fail(`Return amount exceeds the credit balance of ${fmt(creditAvailable)}.`);
+				}
+				// Thru deposit (12): the return is taken from the account balance.
+				if (parseInt(creditReturnLedger.TRANSACTION_ID, 10) === 12) {
+					const accountAvailable = (await getCurrentBalance(creditReturnLedger.ACCOUNT_ID)) + oldAmount;
+					if (parsedAmount > accountAvailable + 0.009) {
+						return fail(`Insufficient account balance. Available: ${fmt(accountAvailable)}.`);
+					}
+				}
+
+				// Pass the stored guarantor/guest/program date so the update keeps them.
+				const creditUpdated = await updateCreditFieldsByLedgerId(
+					connection,
+					id,
+					{
+						amount: parsedAmount,
+						remarks,
+						guarantor: creditReturnLedger.CREDIT_GUARANTOR,
+						guestId: creditReturnLedger.CREDIT_GUEST_ID,
+						programDate: creditReturnLedger.CREDIT_PROGRAM_DATE
+					},
+					req.session.user_id,
+					date_now
+				);
+				if (!creditUpdated) {
+					await connection.rollback();
+					return res.status(404).json({ success: false, message: 'Linked credit record not found for this transaction.' });
+				}
+				await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
+				await connection.commit();
+				res.json({ success: true });
+				return notifyEdited();
+			}
+
 			await connection.rollback();
 			return res.status(403).json({
 				success: false,
-				message: 'Only manual Guest Portal deposit/withdraw/transfer can be edited. Edit game-related entries in Gamebook.'
+				message: 'Only manual Guest Portal transactions can be edited. Edit game-related entries in Gamebook.'
 			});
 		}
 
@@ -4084,6 +4329,7 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 				await connection.rollback();
 				return res.status(404).json({ success: false, message: 'Transfer pair not found.' });
 			}
+			pairAccountId = pair.ACCOUNT_ID;
 			await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
 			await updateGuestPortalLedgerRow(connection, pair.IDNo, parsedAmount, remarks, req.session.user_id, date_now);
 			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
@@ -4094,6 +4340,7 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 		}
 		await connection.commit();
 		res.json({ success: true });
+		notifyEdited();
 	} catch (err) {
 		if (connection) {
 			try { await connection.rollback(); } catch (_) { /* ignore */ }
@@ -4353,6 +4600,7 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 			al.REMARKS,
 			al.ENCODED_DT,
 			al.TRANSACTION_DESC,
+			al.AUTO_REMARKS,
 			al.TRANSFER,
 			al.TRANSFER_AGENT,
 			al.GAME_ID,
@@ -4399,9 +4647,24 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 		}
 	}
 
+	// Transfer from / to Company (account side of a junket_capital transfer) → * Transfer *
+	const desc = String(row.TRANSACTION_DESC || '').trim().toUpperCase();
+	if (!transferLabel && ['COMPANY', 'TRANSFERRED FROM HOUSE BALANCE', 'TRANSFERRED TO HOUSE BALANCE'].includes(desc)) {
+		transferLabel = transaction === 'DEPOSIT' ? 'Received from Company' : 'Transferred to Company';
+	}
+
+	// Agent Portal Expenses / Loss Amount / Add Charge: AUTO_REMARKS "Deposit - Expenses" → * Expenses *
+	const categoryMatch = desc === 'ACCOUNT DETAILS'
+		? /^(?:Deposit|Withdraw) - (Expenses|Loss Amount|Add Charge)$/i.exec(String(row.AUTO_REMARKS || '').trim())
+		: null;
+	const titleText = categoryMatch
+		? categoryMatch[1].replace(/\b\w/g, (c) => c.toUpperCase())
+		: guestPortalReceiptTitle(transaction, row.TRANSACTION_DESC || '', transferLabel, serviceType);
+
 	return {
 		ledger_id: row.IDNo,
-		title: `* ${guestPortalReceiptTitle(transaction, row.TRANSACTION_DESC || '', transferLabel, serviceType)} *`,
+		account_id: row.ACCOUNT_ID,
+		title: `* ${titleText} *`,
 		transaction,
 		transaction_desc: row.TRANSACTION_DESC || '',
 		service_type: serviceType,

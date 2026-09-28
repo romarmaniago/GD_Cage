@@ -78,67 +78,42 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div class="form-group">
-                                        <div class="row g-0">
-                                            <div class="col-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_trans" name="txtTrans">
-                                                    <label class="form-check-label" for="cash_trans">
-                                                        <span class="d-flex align-items-center"><%= __('modal_account_details.deposit') %></span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="issue_trans" name="txtTrans">
-                                                    <label class="form-check-label" for="issue_trans">
-                                                        <span class="d-flex align-items-center"><%= __('modal_account_details.credit') %></span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit_trans" name="txtTrans">
-                                                    <label class="form-check-label" for="deposit_trans">
-                                                        <span class="d-flex align-items-center"><%= __('modal_account_details.withdraw') %></span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="return" id="return_trans" name="txtTrans">
-                                                    <label class="form-check-label" for="return_trans">
-                                                        <span class="d-flex align-items-center">Credit Return</span>
-                                                    </label>
-                                                </div>
-                                            </div>
+                                    <!-- One row per Update: the sign of the amount picks the direction -->
+                                    <div class="form-group portal-txn-rows">
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.deposit_withdrawal') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="deposit" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
                                         </div>
-                                        <div class="row g-0 d-none mb-1" id="return-type-options">
-                                            <div class="col-6 offset-6 ps-4">
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="11" id="return_type_cash" name="optReturnType">
-                                                    <label class="form-check-label" for="return_type_cash">Cash</label>
-                                                </div>
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="12" id="return_type_deposit" name="optReturnType">
-                                                    <label class="form-check-label" for="return_type_deposit">Deposit</label>
-                                                </div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label portal-txn-label-select">
+                                                <select class="form-select" id="portal_txn_account" data-placeholder="<%= __('modal_account_details.choose_account') %>" style="width: 100%;">
+                                                    <option></option>
+                                                </select>
                                             </div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="account" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
                                         </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="transfer_trans" name="transferAction" onclick="transfer_account()">
-                                            <label class="form-check-label" for="transfer_trans">
-                                                <span class="d-flex align-items-center"><%= __('modal_account_details.transfer_account') %></span>
-                                            </label>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.company') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="company" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
+                                        </div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.credit') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="credit" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
+                                        </div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.expenses') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="category" data-category="EXPENSES" data-label="Expenses" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
+                                        </div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.loss_amount') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="category" data-category="LOSS AMOUNT" data-label="Loss Amount" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
+                                        </div>
+                                        <div class="portal-txn-row">
+                                            <div class="portal-txn-label"><%= __('modal_account_details.add_charge') %></div>
+                                            <input type="text" class="form-control portal-txn-amount" data-txn="category" data-category="ADD CHARGE" data-label="Add Charge" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
                                         </div>
                                     </div>
-                                 
-                                    
-                                    <div class="form-group">
-                                        <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-                                               class="form-control txtAmount txtAmount_alt" name="txtAmount" placeholder="<%= __('modal_account_details.amount_placeholder') %>" required>
-                                    </div>
-                                    <div class="form-group">
+                                    <div class="form-group d-none">
                                         <input type="text" name="txtRemarks" class="form-control remarks remarks_alt" placeholder="<%= __('modal_account_details.remarks_placeholder') %>">
                                     </div>
                                     
@@ -552,6 +527,10 @@ body.guest-portal-child-open #modal-credit-return.show {
 body.guest-portal-child-open .modal-backdrop.show {
     z-index: 1050 !important;
 }
+/* Alerts from a child modal (e.g. Edit Transaction errors) must sit above it */
+body.guest-portal-child-open .swal2-container {
+    z-index: 1080 !important;
+}
 
     /* Zoomed image styles – show whole image on hover (no crop) */
 #zoomed-image {
@@ -592,6 +571,133 @@ body.guest-portal-child-open .modal-backdrop.show {
 #modal-account-details .account-photo-upload-label {
     cursor: pointer;
     z-index: 10;
+}
+
+/* Transaction rows: label + signed amount (one row per Update) */
+#modal-account-details .portal-txn-rows {
+    --ptx-ink: #2b2b2b;
+    --ptx-muted: #9aa0ab;
+    --ptx-line: #d9d2c1;
+    --ptx-gold: #c9a54a;
+    --ptx-gold-soft: #fbf5e4;
+    --ptx-out: #dc3545;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+#modal-account-details .portal-txn-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    padding: 2px 4px;
+    border-radius: 8px;
+    transition: background-color 0.15s ease;
+}
+/* The row holding the amount for this Update */
+#modal-account-details .portal-txn-row.is-active {
+    background-color: var(--ptx-gold-soft);
+}
+#modal-account-details .portal-txn-label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 36px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ptx-ink);
+    text-align: right;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+}
+#modal-account-details .portal-txn-row.is-active .portal-txn-label {
+    color: #8a6a1c;
+}
+#modal-account-details .portal-txn-row.is-locked .portal-txn-label {
+    color: var(--ptx-muted);
+}
+#modal-account-details .portal-txn-label-select .select2-container {
+    width: 100% !important;
+}
+#modal-account-details .portal-txn-label-select .select2-container .select2-selection--single {
+    height: 36px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+}
+/* Right-aligned like the other labels. The shared select2 style makes this a flex box, so align with justify-content. */
+#modal-account-details .portal-txn-label-select .select2-container .select2-selection--single .select2-selection__rendered {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    height: 36px;
+    padding: 0;
+    line-height: 36px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ptx-ink);
+    text-align: right;
+}
+#modal-account-details .portal-txn-label-select .select2-selection__placeholder {
+    color: var(--ptx-ink);
+}
+/* Gold on hover / open marks the label as a picker */
+#modal-account-details .portal-txn-label-select .select2-selection--single:hover .select2-selection__rendered,
+#modal-account-details .portal-txn-label-select .select2-selection--single:hover .select2-selection__placeholder,
+#modal-account-details .portal-txn-label-select .select2-container--open .select2-selection__rendered,
+#modal-account-details .portal-txn-label-select .select2-container--open .select2-selection__placeholder {
+    color: #8a6a1c;
+}
+#modal-account-details .portal-txn-label-select .select2-selection__arrow {
+    display: none;
+}
+/* Clear (×) sits beside the code instead of floating away from it */
+#modal-account-details .portal-txn-label-select .select2-selection__clear {
+    position: static;
+    float: none;
+    order: -1;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    color: var(--ptx-muted);
+}
+#modal-account-details .portal-txn-label-select .select2-selection__clear:hover {
+    color: var(--ptx-out);
+}
+#modal-account-details .portal-txn-row .form-control {
+    height: 36px;
+    padding: 2px 6px;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ptx-ink);
+    background-color: #fff;
+    border: 1px solid var(--ptx-line);
+    border-radius: 6px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#modal-account-details .portal-txn-row .form-control::placeholder {
+    font-size: 13px;
+    font-weight: 400;
+    color: #b3b8c2;
+}
+#modal-account-details .portal-txn-row .form-control:focus {
+    border-color: var(--ptx-gold);
+    box-shadow: 0 0 0 3px rgba(201, 165, 74, 0.2);
+    outline: none;
+}
+/* "-10,000" takes money out → red, like "(10,000)" in the ledger */
+#modal-account-details .portal-txn-row .form-control.is-out {
+    color: var(--ptx-out);
+}
+#modal-account-details .portal-txn-row .form-control:disabled {
+    background-color: #f6f5f2;
+    border-color: #ebe7de;
+    cursor: not-allowed;
 }
 #modal-account-details .modal-content {
     border: none;

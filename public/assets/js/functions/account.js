@@ -1548,7 +1548,6 @@ function account_details(account_id_data, agent_code, account_name) {
 	$('.txtAmount').val('');
 	$('.remarks').val('');
 	$('input[name="txtTrans"]').prop('checked', false);
-	if (typeof syncReturnTypeOptions === 'function') syncReturnTypeOptions();
 
 	$('#account_id_add').val(account_id_data);
 	$('#account_agent_id').val('');
@@ -1564,6 +1563,14 @@ function account_details(account_id_data, agent_code, account_name) {
 		reloadDataDetails();
 	} catch (err) {
 		console.error('Error initializing account details table:', err);
+	}
+
+	// After the ledger load so a failure here never blanks the balance/table.
+	try {
+		resetPortalTxnForm();
+		loadPortalTxnAccounts(account_id_data);
+	} catch (err) {
+		console.error('Error resetting portal transaction rows:', err);
 	}
 }
 window.account_details = account_details;
@@ -1652,7 +1659,12 @@ function isGuestPortalLedgerEditable(row) {
 	var transType = parseInt(row.TRANSACTION_TYPE, 10);
 	var isManualTransfer = isTransfer && transType === 2 && (transId === 1 || transId === 2) && !desc;
 	var isManualDepositOrWithdraw = !isTransfer && transType === 2 && (transId === 1 || transId === 2) && desc === 'ACCOUNT DETAILS';
-	return isManualTransfer || isManualDepositOrWithdraw;
+	// Transfer from / to Company (account side of a junket_capital transfer)
+	var isCompanyTransfer = transType === 2 && (transId === 1 || transId === 2) &&
+		(desc === 'COMPANY' || desc === 'TRANSFERRED FROM HOUSE BALANCE' || desc === 'TRANSFERRED TO HOUSE BALANCE');
+	var isCreditReturn = transType === 3 && (transId === 11 || transId === 12) &&
+		(desc === 'RETURN_SOURCE:CREDIT' || desc === 'RETURN_SOURCE:BUYIN');
+	return isManualTransfer || isManualDepositOrWithdraw || isCompanyTransfer || isCreditReturn;
 }
 
 function renderAccountLedgerActionCell(ledgerId, rawAmount, remarks, editable) {
@@ -2275,7 +2287,7 @@ function accountDetailsRemarksColumnDefs(opts) {
 				$('.total_withdraw').html(window.AmountFormat
 					? '₱' + window.AmountFormat.formatAmountNegativeHtml(withdraw_amount)
 					: `₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
-				$('.total_balance').text(`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+				$('.total_balance').text(totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 }));
 				$('#total_balanceGuest').val(totalAmount);
 				currentAccountBalance = totalAmount;
 			});
@@ -2286,7 +2298,7 @@ function accountDetailsRemarksColumnDefs(opts) {
 					const creditAmount = parseFloat(res.credit_balance) || 0;
 					if (creditAmount > 0) {
 						$('#credit-iou-card').removeClass('d-none');
-						$('.credit_balance').text(`₱${creditAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+						$('.credit_balance').text(creditAmount.toLocaleString('en-US', { minimumFractionDigits: 0 }));
 					} else {
 						$('#credit-iou-card').addClass('d-none');
 						$('.credit_balance').text('');
@@ -2388,34 +2400,6 @@ async function account_details_v2(ledgerId, guestName, acctName) {
   window.account_details_v2 = account_details_v2;
   
 	
-function syncReturnTypeOptions() {
-	const isReturn = $('#return_trans').is(':checked');
-	$('#return-type-options').toggleClass('d-none', !isReturn);
-	if (!isReturn) $('input[name="optReturnType"]').prop('checked', false);
-}
-
-$(document).off('change.returnType', 'input[name="txtTrans"]').on('change.returnType', 'input[name="txtTrans"]', syncReturnTypeOptions);
-
-// Allow deselecting a checked radio by clicking it (or its label) again.
-const deselectableRadioSelector = '#modal-account-details input[name="txtTrans"], #modal-account-details input[name="optReturnType"]';
-
-$(document)
-	.off('mousedown.radioDeselect', '#modal-account-details input[type="radio"], #modal-account-details label[for]')
-	.on('mousedown.radioDeselect', '#modal-account-details input[type="radio"], #modal-account-details label[for]', function () {
-		const input = this.tagName === 'LABEL' ? document.getElementById(this.htmlFor) : this;
-		if (input && $(input).is(deselectableRadioSelector)) {
-			$(input).data('wasChecked', input.checked);
-		}
-	})
-	.off('click.radioDeselect', deselectableRadioSelector)
-	.on('click.radioDeselect', deselectableRadioSelector, function () {
-		const $radio = $(this);
-		if ($radio.data('wasChecked')) {
-			$radio.prop('checked', false).trigger('change');
-		}
-		$radio.data('wasChecked', false);
-	});
-
 function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector, totalBalanceSelector, modalSelector }) {
 	$(formSelector).submit(function (event) {
 		event.preventDefault();
@@ -2465,15 +2449,10 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			Swal.fire({
 				icon: 'error',
 				title: 'Transaction Type Required',
-				text: 'Please select a transaction type (Deposit, Withdraw, Credit or Credit Return).',
+				text: 'Please select a transaction type (Deposit, Withdraw or Credit).',
 				confirmButtonText: 'OK'
 			});
 			restoreButton();
-			return;
-		}
-
-		if (selectedTrans === 'return') {
-			submitCreditReturn();
 			return;
 		}
 
@@ -2518,72 +2497,6 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 				if (result.isConfirmed) onConfirm(withGuarantor ? $.trim(result.value) : undefined);
 				else restoreButton();
 			});
-		}
-
-		function submitCreditReturn() {
-			const accountId = $form.find('input[name="txtAccountId"]').val();
-			const returnType = $form.find('input[name="optReturnType"]:checked').val();
-			const showError = (title, text) => {
-				Swal.fire({ icon: 'error', title, text, confirmButtonText: 'OK' });
-				restoreButton();
-			};
-
-			if (!accountId) return showError('Error', 'Missing account.');
-			if (!returnType) return showError('Return Type Required', 'Please select how the credit is returned (Cash or Deposit).');
-			if (enteredAmount <= 0) return showError('Invalid Amount', 'Credit Return must be greater than zero.');
-
-			$.get('/account_credit_balance/' + accountId)
-				.done(function (res) {
-					const creditBalance = parseFloat(res && res.credit_balance) || 0;
-					if (creditBalance <= 0) {
-						return showError('No Credit', 'This account has no outstanding credit to return.');
-					}
-					if (enteredAmount > creditBalance) {
-						return showError('Invalid Amount', 'Return amount exceeds the credit balance of ₱' + formatNumberWithCommas(creditBalance));
-					}
-					if (returnType === '12' && enteredAmount > availableBalance) {
-						return showError('Insufficient Balance', 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(availableBalance));
-					}
-
-					const returnLabel = 'Credit Return (' + (returnType === '12' ? 'Deposit' : 'Cash') + ')';
-					confirmSave(returnLabel, guarantor => $.ajax({
-						url: '/add_marker_settlement',
-						method: 'POST',
-						data: {
-							txtAccountMarker: accountId,
-							txtMarkerReturn: String(enteredAmount),
-							optTransType: returnType,
-							optReturnSource: 'auto',
-							txtGuarantor: guarantor,
-							AgentBalance: String(availableBalance),
-							remarks: $form.find(remarksSelector).val() || ''
-						},
-						success: function (response) {
-							if (!response || !response.success) {
-								return showError('Error', (response && (response.error || response.message)) || 'Error processing your request.');
-							}
-							$(document).trigger('agency:account-transaction-saved', {
-								accountId,
-								transactionType: returnType,
-								context: 'credit-return'
-							});
-							Swal.fire({ title: 'Success!!!', icon: 'success', confirmButtonText: 'OK' }).then(() => {
-								reloadDataDetails();
-								$form.find(amountSelector).val('');
-								$form.find(remarksSelector).val('');
-								$form.find('input[name="txtTrans"]').prop('checked', false);
-								syncReturnTypeOptions();
-							});
-							restoreButton();
-						},
-						error: function (xhr) {
-							showError('Error', (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) || 'Error processing your request.');
-						}
-					}), true);
-				})
-				.fail(function () {
-					showError('Error', 'Unable to verify the credit balance. Please try again.');
-				});
 		}
 
 		const formData = $form.serialize();
@@ -2672,12 +2585,335 @@ bindAccountDetailsForm({
 	modalSelector: '#modal-add-account-details'
 });
 
-bindAccountDetailsForm({
-	formSelector: '#modal-account-details #add_new_account_details_alt',
-	amountSelector: '.txtAmount_alt',
-	remarksSelector: '.remarks_alt',
-	totalBalanceSelector: '#total_balanceGuest',
-	modalSelector: '#modal-account-details'
+// ── Agent Portal transaction rows ─────────────────────────────────────────
+// One row per Update. The sign of the amount picks the direction (no sign = +):
+//   Deposit / Withdrawal  + deposit                      - withdraw
+//   Choose an Account     + take from that account       - give to that account
+//   Company               + take from company            - give to company
+//   Credit                + credit (guarantor)           - credit return thru deposit (guarantor)
+const PORTAL_TXN_FORM = '#modal-account-details #add_new_account_details_alt';
+const PORTAL_TXN_ACCOUNT = '#portal_txn_account';
+
+function portalTxnAmounts() {
+	return $(PORTAL_TXN_FORM).find('.portal-txn-amount');
+}
+
+/** "1,000" / "+1,000" → { sign: '+', abs: 1000 }; "-1,000" → { sign: '-', abs: 1000 }. No sign means +. */
+function parsePortalSignedAmount(raw) {
+	const m = /^([+-]?)(\d+(?:\.\d+)?)$/.exec(String(raw || '').replace(/[,\s]/g, ''));
+	if (!m) return null;
+	const abs = parseFloat(m[2]);
+	return abs > 0 ? { sign: m[1] || '+', abs } : null;
+}
+
+function formatPortalSignedInput(value) {
+	const str = String(value || '').trim();
+	const sign = str[0] === '+' || str[0] === '-' ? str[0] : '';
+	let digits = str.replace(/[^\d.]/g, '');
+	const dot = digits.indexOf('.');
+	if (dot !== -1) digits = digits.slice(0, dot + 1) + digits.slice(dot + 1).replace(/\./g, '');
+	const [intPart, decPart] = digits.split('.');
+	const grouped = (intPart || '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	return sign + grouped + (decPart !== undefined ? '.' + decPart.slice(0, 2) : '');
+}
+
+// Only one row may hold an amount; the others lock until it is cleared.
+function syncPortalTxnRowLock() {
+	const $inputs = portalTxnAmounts();
+	const $filled = $inputs.filter((_, el) => $.trim(el.value) !== '');
+	const $active = $filled.first();
+	$inputs.prop('disabled', false);
+	if ($filled.length) $inputs.not($active).prop('disabled', true);
+	// Row styling: highlight the row in use, dim the locked ones, red for a - amount.
+	$inputs.each(function () {
+		const isActive = $active.length && this === $active[0];
+		$(this).toggleClass('is-out', /^\s*-/.test(this.value))
+			.closest('.portal-txn-row')
+			.toggleClass('is-active', !!isActive)
+			.toggleClass('is-locked', !!$filled.length && !isActive);
+	});
+}
+
+function resetPortalTxnForm() {
+	portalTxnAmounts().val('').prop('disabled', false).removeClass('is-out')
+		.closest('.portal-txn-row').removeClass('is-active is-locked');
+	$(PORTAL_TXN_FORM).find('.remarks_alt').val('');
+	$(PORTAL_TXN_ACCOUNT).val('').trigger('change.select2');
+}
+
+function loadPortalTxnAccounts(currentAccountId) {
+	const $select = $(PORTAL_TXN_ACCOUNT);
+	if (!$select.length) return;
+	if (!$select.hasClass('select2-hidden-accessible') && $.fn.select2) {
+		$select.select2({
+			placeholder: $select.data('placeholder') || 'Choose an Account',
+			allowClear: true,
+			dropdownParent: $('#modal-account-details')
+		});
+	}
+	$.get('/account_data').done(function (rows) {
+		$select.empty().append($('<option>', { value: '' }));
+		// Agent codes only, in alphabetical order (GD2 before GD10).
+		(rows || [])
+			.filter(row => String(row.account_id) !== String(currentAccountId))
+			.sort((a, b) => String(a.agent_code || '').localeCompare(String(b.agent_code || ''), 'en', { numeric: true }))
+			.forEach(function (row) {
+				$select.append($('<option>', {
+					value: row.account_id,
+					text: row.agent_code,
+					'data-balance': parseFloat(row.total_balance) || 0
+				}));
+			});
+		$select.val('').trigger('change');
+	});
+}
+
+function todayPortalYmd() {
+	const d = new Date();
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+$(document)
+	.off('input.portalTxn', PORTAL_TXN_FORM + ' .portal-txn-amount')
+	.on('input.portalTxn', PORTAL_TXN_FORM + ' .portal-txn-amount', function () {
+		const formatted = formatPortalSignedInput(this.value);
+		if (formatted !== this.value) this.value = formatted;
+		syncPortalTxnRowLock();
+	});
+
+$(PORTAL_TXN_FORM).on('submit', function (event) {
+	event.preventDefault();
+
+	const $form = $(this);
+	const submitButton = $form.find('button[type="submit"]');
+	if (submitButton.prop('disabled')) return;
+
+	const originalHtml = submitButton.data('original-html') || submitButton.html();
+	submitButton.data('original-html', originalHtml);
+	submitButton.prop('disabled', true).html(`
+		<span class="spinner-border spinner-border-sm me-1 text-white" role="status" aria-hidden="true"></span>
+		<span class="text-white">Loading...</span>
+	`);
+	const restoreButton = () => submitButton.prop('disabled', false).html(originalHtml);
+	const showError = (title, text) => {
+		Swal.fire({ icon: 'error', title, text, confirmButtonText: 'OK' });
+		restoreButton();
+	};
+	const fmtAmount = n => Number(n).toLocaleString('en-US');
+
+	const $filled = portalTxnAmounts().filter((_, el) => $.trim(el.value) !== '');
+	if (!$filled.length) {
+		return showError('Amount Required', 'Enter an amount in one of the rows, e.g. 5,000 or -5,000.');
+	}
+	if ($filled.length > 1) {
+		return showError('One Transaction Only', 'Only one row can be saved per Update.');
+	}
+
+	const txn = $filled.data('txn');
+	const parsed = parsePortalSignedAmount($filled.val());
+	if (!parsed) {
+		return showError('Invalid Amount', 'Enter a valid amount, e.g. 5,000 or -5,000.');
+	}
+
+	const isIn = parsed.sign === '+';
+	const amount = parsed.abs;
+	const accountId = $form.find('input[name="txtAccountId"]').val();
+	const remarks = $.trim($form.find('.remarks_alt').val() || '');
+	const availableBalance = parseFloat(String($('#total_balanceGuest').val() || '0').replace(/,/g, '')) || 0;
+
+	if (!accountId) return showError('Error', 'Missing account.');
+
+	// - amounts read like the ledger: red, in parentheses.
+	const confirmAmountHtml = isIn
+		? fmtAmount(amount)
+		: '<span style="color:#dc3545 !important;">(' + fmtAmount(amount) + ')</span>';
+
+	// withGuarantor: show a required Guarantor input; its value is passed to onConfirm.
+	function confirmSave(label, extraHtml, onConfirm, withGuarantor) {
+		let guarantorAutocomplete = null;
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm ' + label,
+			html: 'Are you sure you want to save this transaction?<br><br><strong>' + label + ': ' + confirmAmountHtml + '</strong>' +
+				(extraHtml || ''),
+			showCancelButton: true,
+			confirmButtonText: 'Yes, confirm',
+			cancelButtonText: 'Cancel',
+			...(withGuarantor ? {
+				input: 'text',
+				inputLabel: 'Guarantor',
+				inputPlaceholder: 'Enter guarantor',
+				inputAttributes: { maxlength: 255, autocomplete: 'off' },
+				inputValidator: value => (!$.trim(value) ? 'Guarantor is required.' : undefined),
+				didOpen: () => {
+					if (window.CreditGuarantorAutocomplete) {
+						guarantorAutocomplete = window.CreditGuarantorAutocomplete.initCreditGuarantorField(Swal.getInput());
+					}
+				},
+				willClose: () => {
+					if (guarantorAutocomplete) guarantorAutocomplete.destroy();
+				}
+			} : {})
+		}).then(result => {
+			if (result.isConfirmed) onConfirm(withGuarantor ? $.trim(result.value) : undefined);
+			else restoreButton();
+		});
+	}
+
+	function onSaved(response, context) {
+		$(document).trigger('agency:account-transaction-saved', { accountId, transactionType: txn, context });
+		const warning = response && typeof response === 'object' && response.success &&
+			(response.error || (Array.isArray(response.errors) && response.errors.length ? response.errors.join('<br>') : ''));
+		const done = () => {
+			reloadDataDetails();
+			resetPortalTxnForm();
+		};
+		if (warning) {
+			Swal.fire({
+				title: 'Transaction Saved!',
+				html: '<strong>' + (response.message || '') + '</strong><br><br>' + warning,
+				icon: 'warning',
+				confirmButtonText: 'OK'
+			}).then(done);
+		} else {
+			Swal.fire({ title: 'Success!!!', icon: 'success', confirmButtonText: 'OK' }).then(done);
+		}
+		restoreButton();
+	}
+
+	function post(url, data, context) {
+		$.ajax({
+			url,
+			method: 'POST',
+			data,
+			success: function (response) {
+				if (response && typeof response === 'object' && response.success === false) {
+					return showError('Error', response.error || response.message || 'Error processing your request.');
+				}
+				onSaved(response, context);
+			},
+			error: function (xhr) {
+				const msg = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) ||
+					String(xhr.responseText || '').slice(0, 200) || 'Error processing your request.';
+				showError('Error', msg);
+			}
+		});
+	}
+
+	const sendToTelegram = $form.find('#sendToTelegram').is(':checked') ? 'on' : '';
+
+	// Expenses / Loss Amount / Add Charge are a plain deposit (+) or withdraw (-) with their own label.
+	if (txn === 'deposit' || txn === 'category') {
+		if (!isIn && amount > availableBalance) {
+			return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
+		}
+		const category = txn === 'category' ? String($filled.data('category') || '') : '';
+		const label = (isIn ? 'Deposit' : 'Withdraw') + (category ? ' - ' + $filled.data('label') : '');
+		return confirmSave(label, '', () => post('/add_account_details', {
+			txtAccountId: accountId,
+			txtTrans: isIn ? '1' : '2',
+			txtAmount: String(amount),
+			txtRemarks: remarks,
+			txtCategory: category,
+			sendToTelegram,
+			totalBalanceGuest: String(availableBalance)
+		}, category ? 'category' : 'deposit'));
+	}
+
+	if (txn === 'account') {
+		const $opt = $(PORTAL_TXN_ACCOUNT).find('option:selected');
+		const otherId = $(PORTAL_TXN_ACCOUNT).val();
+		if (!otherId) return showError('Account Required', 'Choose an account for this transfer.');
+		const otherLabel = $opt.text();
+		const otherBalance = parseFloat($opt.data('balance')) || 0;
+
+		// + pulls from the chosen account, - sends to it; the giving side must cover the amount.
+		if (isIn && amount > otherBalance) {
+			return showError('Insufficient Balance', otherLabel + ' only has ' + fmtAmount(otherBalance) + ' available.');
+		}
+		if (!isIn && amount > availableBalance) {
+			return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
+		}
+		const extra = '<br>' + (isIn ? 'From' : 'To') + ': <strong>' + $('<div>').text(otherLabel).html() + '</strong>';
+		return confirmSave('Transfer', extra, () => post('/add_account_details/transfer', {
+			txtAccountId: isIn ? otherId : accountId,
+			txtAccount: isIn ? accountId : otherId,
+			txtAmount: String(amount)
+		}, 'transfer'));
+	}
+
+	if (txn === 'company') {
+		if (!isIn && amount > availableBalance) {
+			return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
+		}
+		const extra = '<br>' + (isIn ? 'From' : 'To') + ': <strong>Company</strong>';
+		// House txn 2 (out) = account deposit; house txn 1 (in) = account withdraw.
+		const saveCompany = () => confirmSave('Transfer', extra, () => post('/add_junket_capital', {
+			txtAmount: String(amount),
+			Remarks: remarks,
+			optWithdrawDeposit: isIn ? '2' : '1',
+			description: 'Transfer',
+			txtProgramDate: todayPortalYmd(),
+			txtAccountId: accountId
+		}, 'company'));
+		if (!isIn) return saveCompany();
+
+		// + takes from the company: it must cover the amount (the server re-checks on save).
+		return $.get('/company_capital_balance')
+			.done(function (data) {
+				const companyBalance = Number(data && data.balance) || 0;
+				if (amount > companyBalance) {
+					return showError('Insufficient Company Balance', 'The amount exceeds the available company balance of ' + fmtAmount(companyBalance));
+				}
+				saveCompany();
+			})
+			.fail(function () {
+				showError('Error', 'Unable to verify the company balance. Please try again.');
+			});
+	}
+
+	if (txn === 'credit') {
+		if (isIn) {
+			return confirmSave('Credit', '', guarantor => post('/add_account_details', {
+				txtAccountId: accountId,
+				txtTrans: '3',
+				txtAmount: String(amount),
+				txtRemarks: remarks,
+				txtGuarantor: guarantor,
+				sendToTelegram,
+				totalBalanceGuest: String(availableBalance)
+			}, 'credit'), true);
+		}
+
+		// Credit return from the portal is always thru deposit (optTransType 12).
+		return $.get('/account_credit_balance/' + accountId)
+			.done(function (res) {
+				const creditBalance = parseFloat(res && res.credit_balance) || 0;
+				if (creditBalance <= 0) {
+					return showError('No Credit', 'This account has no outstanding credit to return.');
+				}
+				if (amount > creditBalance) {
+					return showError('Invalid Amount', 'Return amount exceeds the credit balance of ' + fmtAmount(creditBalance));
+				}
+				if (amount > availableBalance) {
+					return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
+				}
+				confirmSave('Credit Return (Deposit)', '', guarantor => post('/add_marker_settlement', {
+					txtAccountMarker: accountId,
+					txtMarkerReturn: String(amount),
+					optTransType: '12',
+					optReturnSource: 'auto',
+					txtGuarantor: guarantor,
+					AgentBalance: String(availableBalance),
+					remarks
+				}, 'credit-return'), true);
+			})
+			.fail(function () {
+				showError('Error', 'Unable to verify the credit balance. Please try again.');
+			});
+	}
+
+	showError('Error', 'Unknown transaction row.');
 });
 
 bindAccountDetailsForm({
@@ -3264,6 +3500,12 @@ function buildGuestPortalReceiptSlipHtml(data) {
 	var depositAmt = isDeposit ? amount : 0;
 	var withdrawAmt = isWithdraw ? amount : 0;
 	var remarks = data.remarks != null ? String(data.remarks).trim() : '';
+	// "Transferred to GD084" / "Received from Company" — skipped when the peer is unknown.
+	var transferLabel = String(data.transfer_label || '').trim();
+	var transferRow = /\s(to|from)\s+\S/i.test(transferLabel)
+		? '<tr><td class="gpr-label">Transfer :</td><td class="gpr-value gpr-value-wrap">' +
+			guestPortalReceiptHtmlEscape(transferLabel) + '</td></tr>'
+		: '';
 
 	var detailRows =
 		'<tr><td class="gpr-label">Date :</td><td class="gpr-value">' +
@@ -3272,6 +3514,7 @@ function buildGuestPortalReceiptSlipHtml(data) {
 		guestPortalReceiptHtmlEscape(data.account_code || '') + '</td></tr>' +
 		'<tr><td class="gpr-label">Name :</td><td class="gpr-value gpr-value-wrap">' +
 		guestPortalReceiptHtmlEscape(data.account_name || '') + '</td></tr>' +
+		transferRow +
 		'<tr><td class="gpr-label">Deposit :</td><td class="gpr-value">' +
 		formatGuestPortalReceiptAmount(depositAmt) + '</td></tr>' +
 		'<tr><td class="gpr-label">Withdrawal :</td><td class="gpr-value' + (withdrawAmt ? ' gpr-amount-out' : '') + '">' +
@@ -3603,7 +3846,7 @@ document.addEventListener('DOMContentLoaded', function () {
 		const displayText = ($('#modal-account-details .total_balance').first().text() || '').trim();
 		if (displayText) return displayText;
 		const raw = Number($('#total_balanceGuest').val()) || 0;
-		return '₱' + raw.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+		return raw.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 	}
 
 	function getGuestPortalAccountLabel() {
