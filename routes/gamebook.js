@@ -10,63 +10,10 @@ const dashboardQueries = require('../utils/dashboardQueries');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
 const { buildGameBookGroupedExportXlsx } = require('../utils/GameBookExportService');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
-const { getEnabledChatIds } = require('../utils/telegramChatIds');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
 const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql } = require('../utils/creditService');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 const { computeGameCommission, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
-
-// Helper function to get agent notification chat IDs from telegram_api table
-// Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
-async function getAgentNotificationChatIds() {
-	try {
-		// Query telegram_api table for GUEST user type with AGENT_CHATID column
-		const [rows] = await pool.execute(
-			'SELECT AGENT_CHATID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
-			['GUEST']
-		);
-		
-		if (rows.length === 0 || !rows[0].AGENT_CHATID) return [];
-		return getEnabledChatIds(rows[0].AGENT_CHATID);
-	} catch (error) {
-		// If AGENT_CHATID column doesn't exist yet, return empty array
-		console.warn('Error fetching agent notification chat IDs (AGENT_CHATID column may not exist):', error.message);
-		return [];
-	}
-}
-
-// Helper function to send message to agent notification chat IDs
-// options: { logPreview?: string, logMeta?: { accountCode, guestName, amount } } — forwarded to sendTelegramMessage
-async function sendToAgentNotifications(agentCode, messageText, options = {}) {
-	if (!agentCode || !messageText) return;
-
-	// Check if agent code is between INF501 and INF599 (case-insensitive)
-	const agentCodeUpper = String(agentCode).toUpperCase();
-	const isInRange = agentCodeUpper >= 'INF501' && agentCodeUpper <= 'INF599';
-
-	if (!isInRange) return; // Only send notifications for INF501-INF599
-
-	try {
-		const chatIds = await getAgentNotificationChatIds();
-
-		if (chatIds.length === 0) {
-			return; // No notifications configured
-		}
-
-		// Send to each configured chat ID
-		for (const chatId of chatIds) {
-			try {
-				await sendTelegramMessage(messageText, chatId, options || {});
-			} catch (error) {
-				console.error(`Error sending message to chat ID ${chatId} for agent ${agentCode}:`, error.message);
-				// Continue sending to other chat IDs even if one fails
-			}
-		}
-	} catch (error) {
-		console.error('Error in sendToAgentNotifications:', error.message);
-		// Continue execution even if notification fails
-	}
-}
 
 /**
  * Build a Telegram send options bag for gamebook events.
@@ -2956,11 +2903,6 @@ router.post('/add_game_list', async (req, res) => {
 				}
 			}
 			try {
-				await sendToAgentNotifications(agentCode, managementText, gameStartOpts);
-			} catch (telegramError) {
-				console.error('Failed to send to agent notifications:', telegramError.message);
-			}
-			try {
 				await sendTelegramToAdditionalChats(text, gameStartOpts);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
@@ -3209,7 +3151,6 @@ router.post('/add_game_list_split', async (req, res) => {
 				if (telegramId) {
 					try { await sendTelegramMessage(text, telegramId, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
 				}
-				try { await sendToAgentNotifications(agentCode, managementText, splitOpts); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
 				try { await sendTelegramToAdditionalChats(text, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
 				try { await sendTelegramToManagement(managementText, splitOpts); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
 			}
@@ -3359,7 +3300,6 @@ router.post('/add_game_list_late_cashout', async (req, res) => {
 			if (telegramId) {
 				try { await sendTelegramMessage(text, telegramId, opts); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
 			}
-			try { await sendToAgentNotifications(agentCode, text, opts); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
 			try { await sendTelegramToAdditionalChats(text, opts); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
 			try { await sendTelegramToManagement(managementText, opts); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
 		}
@@ -5795,11 +5735,6 @@ router.post('/add_settlement', commissionLock(gameFromSettlementBody), async (re
 					console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, managementText, settlementOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
-				}
-				try {
 					await sendTelegramToAdditionalChats(text, settlementOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
@@ -5965,11 +5900,6 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 				} catch (e) {
 					console.error('settlement_slip_telegram agent:', e.message);
 				}
-			}
-			try {
-				await sendToAgentNotifications(agentCode, managementText, editSettlementOpts);
-			} catch (e) {
-				console.error('settlement_slip_telegram agent notify:', e.message);
 			}
 			try {
 				await sendTelegramToAdditionalChats(text, editSettlementOpts);
@@ -6435,11 +6365,6 @@ router.post('/game_list/add/buyin', commissionLock(gameFromBody), async (req, re
 					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, text, addBuyinOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
-				}
-				try {
 					await sendTelegramToAdditionalChats(text, addBuyinOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
@@ -6659,11 +6584,6 @@ router.post('/game_list/add/buyin_split', commissionLock(gameFromBody), async (r
 					console.error('No TELEGRAM_ID found for Account Code:', txtAccountCode);
 				}
 				try {
-					await sendToAgentNotifications(agentCode, text, addBuyinSplitOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
-				}
-				try {
 					await sendTelegramToAdditionalChats(text, addBuyinSplitOpts);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
@@ -6868,11 +6788,6 @@ router.post('/game_list/add/cashout', commissionLock(gameFromBody), async (req, 
 					}
 				} else {
 					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
-				}
-				try {
-					await sendToAgentNotifications(agentCode, text, cashoutOpts);
-				} catch (telegramError) {
-					console.error('Failed to send to agent notifications:', telegramError.message);
 				}
 				try {
 					await sendTelegramToAdditionalChats(text, cashoutOpts);
@@ -7267,11 +7182,6 @@ router.post('/game_list/add/cashout_split', commissionLock(gameFromBody), async 
 				}
 			} else {
 				console.error('No TELEGRAM_ID found for Account Code:', txtAccountCode);
-			}
-			try {
-				await sendToAgentNotifications(agentCode, text, cashoutSplitOpts);
-			} catch (telegramError) {
-				console.error('Failed to send to agent notifications:', telegramError.message);
 			}
 			try {
 				await sendTelegramToAdditionalChats(text, cashoutSplitOpts);

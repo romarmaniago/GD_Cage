@@ -28,10 +28,11 @@ function pruneRecentTelegramSends(nowTs = Date.now()) {
   }
 }
 
-function shouldSkipDuplicateTelegramSend(chatId, text) {
+function shouldSkipDuplicateTelegramSend(chatId, text, botUser = 'GUEST') {
   const nowTs = Date.now();
   pruneRecentTelegramSends(nowTs);
-  const dedupeKey = `${String(chatId)}::${String(text)}`;
+  // Keyed per bot: GUEST and MANAGEMENT may share a chat ID with identical text and both must go out.
+  const dedupeKey = `${botUser}::${String(chatId)}::${String(text)}`;
   const existingExpiry = recentTelegramSends.get(dedupeKey);
   if (existingExpiry && existingExpiry > nowTs) {
     return true;
@@ -270,7 +271,7 @@ async function sendTelegramToEmployees(text, options = {}) {
 
   for (const id of chatIds) {
     try {
-      if (shouldSkipDuplicateTelegramSend(id, text)) {
+      if (shouldSkipDuplicateTelegramSend(id, text, 'EMPLOYEE')) {
         continue;
       }
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -377,7 +378,7 @@ async function sendTelegramToManagement(text, options = {}) {
 
   for (const id of chatIds) {
     try {
-      if (shouldSkipDuplicateTelegramSend(id, text)) {
+      if (shouldSkipDuplicateTelegramSend(id, text, 'MANAGEMENT')) {
         continue;
       }
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
