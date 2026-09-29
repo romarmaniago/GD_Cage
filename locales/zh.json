@@ -822,6 +822,8 @@
 	"change_game_no": {
 		"modify_game": "修改游戏",
 		"current_game_number": "当前游戏编号",
+		"next_game_number": "下一个游戏编号",
+		"no_game_yet": "暂无游戏",
 		"new_game_number": "新游戏编号",
 		"update_game_number": "更新游戏编号",
 		"loading_game_number": "加载中...",

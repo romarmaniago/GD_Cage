@@ -822,6 +822,8 @@
 	"change_game_no": {
 		"modify_game": "ゲームの変更",
 		"current_game_number": "現在のゲーム番号",
+		"next_game_number": "次のゲーム番号",
+		"no_game_yet": "ゲームはまだありません",
 		"new_game_number": "新しいゲーム番号",
 		"update_game_number": "ゲーム番号の更新",
 		"loading_game_number": "読み込み中...",

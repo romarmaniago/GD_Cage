@@ -34,11 +34,14 @@
                                                             <th class="text-center">
                                                                 <%= __('change_game_no.current_game_number') %>
                                                             </th>
+                                                            <th class="text-center">
+                                                                <%= __('change_game_no.next_game_number') %>
+                                                            </th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="gameNumberData">
                                                         <tr>
-                                                            <td class="text-center fw-bold text-primary">
+                                                            <td colspan="2" class="text-center fw-bold text-primary">
                                                                 <%= __('change_game_no.loading_game_number') %>
                                                             </td>
                                                         </tr>
@@ -110,6 +113,7 @@
                     <script>
                         // Pass translation to JavaScript
                         const noRecordsFoundText = "<%= __('change_game_no.no_records_found') %>";
+                        const noGameYetText = "<%= __('change_game_no.no_game_yet') %>";
                         
                         $(document).ready(function () {
                             console.log("Fetching latest game number...");
@@ -134,12 +138,16 @@
                                         gameTable.empty();
 
                                         if (!response.success) {
-                                            gameTable.append(`<tr><td class="text-center text-danger">${response.message}</td></tr>`);
+                                            gameTable.append(`<tr><td colspan="2" class="text-center text-danger">${response.message}</td></tr>`);
                                             return;
                                         }
 
-                                        latestGameNo = response.gameNumber; // Store latest game number
-                                        gameTable.append(`<tr><td class="text-center fw-bold text-primary">${latestGameNo}</td></tr>`);
+                                        latestGameNo = response.gameNumber || 0; // Store latest game number (0 = no records yet)
+                                        const currentText = latestGameNo > 0 ? latestGameNo : noGameYetText;
+                                        gameTable.append(`<tr>
+                                            <td class="text-center fw-bold text-primary">${currentText}</td>
+                                            <td class="text-center fw-bold text-success">${response.nextGameNumber}</td>
+                                        </tr>`);
                                     },
                                     error: function () {
                                         Swal.fire('Error', 'Failed to fetch game number. Please try again.', 'error');

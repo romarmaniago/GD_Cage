@@ -773,6 +773,8 @@
 	"change_game_no": {
 		"modify_game": "Modify Game",
 		"current_game_number": "Current Game Number",
+		"next_game_number": "Next Game Number",
+		"no_game_yet": "No games yet",
 		"new_game_number": "New Game Number",
 		"update_game_number": "Update Game Number",
 		"loading_game_number": "Loading...",

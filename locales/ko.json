@@ -822,6 +822,8 @@
 	"change_game_no": {
 		"modify_game": "게임 수정",
 		"current_game_number": "현재 게임 번호",
+		"next_game_number": "다음 게임 번호",
+		"no_game_yet": "아직 게임 없음",
 		"new_game_number": "새 게임 번호",
 		"update_game_number": "게임 번호 업데이트",
 		"loading_game_number": "로딩중...",

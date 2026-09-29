@@ -29,15 +29,11 @@ router.post('/game_list/update_game_number', async (req, res) => {
 		return res.json({ success: false, message: 'User session expired. Please log in again.' });
 	  }
   
-	  // Get the latest game number
+	  // Get the latest game number (0 when game_list has no records yet)
 	  const fetchQuery = `SELECT IDNo FROM game_list ORDER BY IDNo DESC LIMIT 1`;
 	  const [result] = await pool.execute(fetchQuery);
-  
-	  if (result.length === 0) {
-		return res.json({ success: false, message: 'No game number available' });
-	  }
-  
-	  const latestGameNo = result[0].IDNo;
+
+	  const latestGameNo = result.length ? result[0].IDNo : 0;
 	  console.log("Latest game number:", latestGameNo);
   
 	  if (parseInt(newGameNo) <= latestGameNo) {
@@ -89,18 +85,34 @@ router.get('/game_list/logs', async (req, res) => {
   
   // GET: Retrieve the latest game number
   router.get('/game_list/latest/game_number', async (req, res) => {
+	let conn;
 	try {
-	  const query = `SELECT MAX(IDNo) AS currentGameNo FROM game_list`;
-	  const [result] = await pool.execute(query);
-  
-	  if (result.length === 0 || !result[0].currentGameNo) {
-		return res.json({ success: false, message: 'No game number available' });
-	  }
-  
-	  res.json({ success: true, gameNumber: result[0].currentGameNo });
+	  conn = await pool.getConnection();
+
+	  const [maxResult] = await conn.query(`SELECT MAX(IDNo) AS currentGameNo FROM game_list`);
+	  const currentGameNo = maxResult[0].currentGameNo || 0;
+
+	  // MySQL 8 caches information_schema AUTO_INCREMENT; force a fresh value (ignored on servers without this variable)
+	  try {
+		await conn.query(`SET SESSION information_schema_stats_expiry = 0`);
+	  } catch (e) { /* not supported (MariaDB / MySQL 5.7) */ }
+
+	  const [aiResult] = await conn.query(`
+		SELECT AUTO_INCREMENT
+		FROM information_schema.tables
+		WHERE table_name = 'game_list' AND table_schema = DATABASE()
+	  `);
+	  const autoIncrement = aiResult.length ? Number(aiResult[0].AUTO_INCREMENT) || 0 : 0;
+
+	  // Next ID is never lower than MAX + 1 (InnoDB guarantees this on insert)
+	  const nextGameNo = Math.max(autoIncrement, currentGameNo + 1);
+
+	  res.json({ success: true, gameNumber: currentGameNo, nextGameNumber: nextGameNo });
 	} catch (error) {
 	  console.error('Error fetching game number:', error);
 	  res.status(500).json({ success: false, message: 'Database error' });
+	} finally {
+	  if (conn) conn.release();
 	}
   });
 // Export the router
