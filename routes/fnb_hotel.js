@@ -460,6 +460,47 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		const now = new Date();
 		const absAmt = Math.abs(amt);
 
+		// Agent Portal Add Charge: its account side is a "Withdraw / Deposit - Add Charge" ledger row.
+		// Move that row with the new amount (+ charge = withdraw, - = deposit) instead of re-creating
+		// a SERVICES row, and keep it a GUEST deposit charge on the same account.
+		const [portalLedgerRows] = await pool.execute(
+			`SELECT IDNo, ACCOUNT_ID FROM account_ledger
+			 WHERE SERVICE_ID = ? AND ACTIVE = 1 AND TRANSACTION_DESC = 'ACCOUNT DETAILS'
+			 LIMIT 1`,
+			[serviceId]
+		);
+		const portalLedger = portalLedgerRows[0];
+		if (portalLedger) {
+			// The balance already reflects the old charge; undo it before checking the new one.
+			const available = (await getAccountDepositBalance(portalLedger.ACCOUNT_ID)) + (parseFloat(existingService.AMOUNT) || 0);
+			if (amt > available + 0.009) {
+				return res.status(400).json({
+					error: `Amount exceeds the available balance (${available.toLocaleString('en-US')}).`
+				});
+			}
+			await pool.execute(
+				`UPDATE game_services
+				 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, PROGRAM_DATE = ?, UPDATED_BY = ?, UPDATED_DT = ?
+				 WHERE IDNo = ?`,
+				[resolvedCategory, amt, remarks || '', programDate, updatedBy, now, serviceId]
+			);
+			await pool.execute(
+				`UPDATE account_ledger
+				 SET TRANSACTION_ID = ?, AMOUNT = ?, REMARKS = ?, AUTO_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ?`,
+				[
+					amt >= 0 ? 2 : 1,
+					absAmt,
+					(remarks || '').toString().trim() || null,
+					amt >= 0 ? 'Withdraw - Add Charge' : 'Deposit - Add Charge',
+					updatedBy,
+					now,
+					portalLedger.IDNo
+				]
+			);
+			return res.json({ success: true });
+		}
+
 		// Hard check: a GUEST deposit charge must fit the available balance.
 		// Add back this record's current charge — it is reversed by this update.
 		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {

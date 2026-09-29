@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { buildTableExportXlsx, sendTableExportResponse } = require('../utils/ExcelExportService');
+const { getAccountCashBalance } = require('../utils/junketCapitalTransfer');
 const {
 	toApiDate,
 	getMonthEndCutoffRange,
@@ -241,13 +242,50 @@ router.put('/loss_amount/:id', checkSession, async (req, res) => {
 
 		// Keep the row's Loss / Recovery type: the edit form only sends the amount, never its sign.
 		const [existingRows] = await pool.execute(
-			'SELECT TRANSACTION FROM junket_loss WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			'SELECT TRANSACTION, AMOUNT, ACCOUNT_ID, ACCOUNT_LEDGER_ID FROM junket_loss WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
 			[id]
 		);
 		if (!existingRows.length) {
 			return res.status(404).json({ message: 'Loss amount not found' });
 		}
 		const transaction = parseInt(existingRows[0].TRANSACTION, 10) || JUNKET_LOSS_TRANS_LOSS;
+
+		// Agent Portal Loss Amount: move its "Withdraw / Deposit - Loss Amount" ledger row with it,
+		// on the same account (a Loss takes from the balance, so the new amount must fit).
+		const portalLedger = await fetchPortalLossLedger(existingRows[0].ACCOUNT_LEDGER_ID);
+		if (portalLedger) {
+			const newAbs = Math.abs(Number(cleanAmount) || 0);
+			if (parseInt(portalLedger.TRANSACTION_ID, 10) === 2) {
+				const available = (await getAccountCashBalance(pool, portalLedger.ACCOUNT_ID)) + (parseFloat(portalLedger.AMOUNT) || 0);
+				if (newAbs > available + 0.009) {
+					return res.status(400).json({
+						message: `Amount exceeds the account balance (${available.toLocaleString('en-US')}).`
+					});
+				}
+			}
+			await pool.execute(
+				`UPDATE junket_loss
+				 SET DESCRIPTION = ?, AMOUNT = ?, IN_CHARGE = ?, PROGRAM_DATE = ?, GUEST_ID = ?, PAYMENT_TYPE = ?,
+				     EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ? AND ACTIVE = 1`,
+				[
+					txtDescription.trim(),
+					signedJunketLossAmount(cleanAmount, transaction),
+					txtInCharge.trim(),
+					programDate,
+					guestId,
+					paymentType,
+					req.session.user_id,
+					date_now,
+					id
+				]
+			);
+			await pool.execute(
+				`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+				[newAbs, req.session.user_id, date_now, portalLedger.IDNo]
+			);
+			return res.json({ message: 'Updated successfully' });
+		}
 
 		const query = `
 			UPDATE junket_loss
@@ -290,8 +328,19 @@ router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
 			return res.status(409).json({ message: JUNKET_LOSS_SETTLED_LOCKED });
 		}
 
+		const [lossRows] = await pool.execute('SELECT ACCOUNT_LEDGER_ID FROM junket_loss WHERE IDNo = ? LIMIT 1', [id]);
+
 		const query = `UPDATE junket_loss SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+
+		// Agent Portal Loss Amount: its ledger row on the account goes with it.
+		const portalLedger = await fetchPortalLossLedger(lossRows[0] && lossRows[0].ACCOUNT_LEDGER_ID);
+		if (portalLedger) {
+			await pool.execute(
+				'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
+				[req.session.user_id, date_now, portalLedger.IDNo]
+			);
+		}
 
 		res.json({ message: 'Archived successfully' });
 	} catch (error) {
@@ -301,6 +350,17 @@ router.put('/loss_amount/remove/:id', checkSession, async (req, res) => {
 });
 
 const JUNKET_LOSS_SETTLED_LOCKED = 'This loss amount is already settled and can no longer be changed.';
+
+/** Active "Withdraw / Deposit - Loss Amount" ledger row an Agent Portal Loss Amount is linked to. */
+async function fetchPortalLossLedger(ledgerId) {
+	const id = parseInt(ledgerId, 10);
+	if (!id) return null;
+	const [rows] = await pool.execute(
+		'SELECT IDNo, ACCOUNT_ID, TRANSACTION_ID, AMOUNT FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+		[id]
+	);
+	return rows[0] || null;
+}
 
 /** True when the junket_loss row belongs to a Loss Amount settlement (locked). */
 async function isJunketLossSettled(id) {

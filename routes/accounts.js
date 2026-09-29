@@ -9,6 +9,7 @@ const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = req
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { insertCreditRecord, updateCreditFieldsByLedgerId, softDeleteCreditByLedgerId } = require('../utils/creditService');
 const { getCompanyCapitalBalance } = require('../utils/junketCapitalTransfer');
+const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
 const { sendLedgerEditedTelegram, sendLedgerDeletedTelegram, tgAmount } = require('../utils/accountTelegramNotice');
 
 /** "* Withdrawal *" → "Withdrawal" (receipt title reused for edit / delete Telegram notices). */
@@ -186,6 +187,208 @@ async function setCapitalCashTransaction(connection, capitalId, fields) {
 		 WHERE TRANSACTION_ID = ? AND ACTIVE = 1 AND CATEGORY IN ('Capital In', 'Capital Out')`,
 		[...Object.values(fields), capitalId]
 	);
+}
+
+function localYmd(date) {
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Agent Portal Add Charge: an Add Charge record (game_services, deposit, GUEST) plus the account's
+ * "Withdraw / Deposit - Add Charge" ledger row, linked by account_ledger.SERVICE_ID, in one DB transaction.
+ * The charge mirrors the balance move: withdraw X = +X charge to the guest, deposit X = -X.
+ * Returns the ledger insert result like pool.query does.
+ */
+async function insertAddChargeWithLedger({ accountId, agentId, txtTrans, amount, serviceCategory, userRemarks, autoRemarks, userId, now }) {
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+		const serviceAmount = txtTrans === '2' ? amount : -amount;
+		const [service] = await connection.execute(
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, GUEST_ID, SOURCE_TYPE, ACTIVE, ENCODED_BY, ENCODED_DT, PROGRAM_DATE)
+			 VALUES (NULL, ?, ?, ?, 2, ?, NULL, 'GUEST', 1, ?, ?, ?)`,
+			[serviceCategory, serviceAmount, userRemarks || '', agentId, userId, now, localYmd(now)]
+		);
+		const ledgerResult = await connection.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, SERVICE_ID, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, 2, 'ACCOUNT DETAILS', ?, ?, ?, ?, ?, ?)`,
+			[accountId, txtTrans, amount, userRemarks, autoRemarks, service.insertId, userId, now]
+		);
+		await connection.commit();
+		return ledgerResult;
+	} catch (err) {
+		await connection.rollback();
+		throw err;
+	} finally {
+		connection.release();
+	}
+}
+
+/**
+ * Agent Portal Loss Amount: the account's "Withdraw / Deposit - Loss Amount" ledger row plus a Loss Amount
+ * record (junket_loss) linked by junket_loss.ACCOUNT_LEDGER_ID, in one DB transaction.
+ * Withdraw X = Loss X, deposit X = Recovery -X. NON_CASH = 1: the ledger row already carries the cash.
+ */
+async function insertLossWithLedger({ accountId, txtTrans, amount, paymentType, userRemarks, autoRemarks, inCharge, userId, now }) {
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+		const ledgerResult = await connection.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, 2, 'ACCOUNT DETAILS', ?, ?, ?, ?, ?)`,
+			[accountId, txtTrans, amount, userRemarks, autoRemarks, userId, now]
+		);
+		const isLoss = txtTrans === '2';
+		await connection.execute(
+			`INSERT INTO junket_loss (DESCRIPTION, AMOUNT, IN_CHARGE, PROGRAM_DATE, ACCOUNT_ID, GUEST_ID, PAYMENT_TYPE, NON_CASH, TRANSACTION, ACCOUNT_LEDGER_ID, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, NULL, ?, 1, ?, ?, ?, ?)`,
+			[
+				userRemarks || 'Agent Portal',
+				isLoss ? amount : -amount,
+				inCharge || 'Agent Portal',
+				localYmd(now),
+				accountId,
+				paymentType,
+				isLoss ? 1 : 2,
+				ledgerResult[0].insertId,
+				userId,
+				now
+			]
+		);
+		await connection.commit();
+		return ledgerResult;
+	} catch (err) {
+		await connection.rollback();
+		throw err;
+	} finally {
+		connection.release();
+	}
+}
+
+/**
+ * Agent Portal Expenses: the account's "Withdraw / Deposit - Expenses" ledger row plus an expense
+ * (junket_house_expense, main category Others) linked by ACCOUNT_LEDGER_ID, in one DB transaction.
+ * Withdraw X = expense X, deposit X = -X. The ledger row carries the cage cash (the linked expense is
+ * left out of cash totals — SQL_HOUSE_EXPENSE_CASH_ONLY). Shown in the list as Description (RECEIPT_NO)
+ * "Account - Remarks" and In-Charge (DESCRIPTION) the encoder.
+ */
+async function insertExpenseWithLedger({ accountId, txtTrans, amount, categoryId, receiptText, userRemarks, autoRemarks, inCharge, userId, now }) {
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+		const ledgerResult = await connection.execute(
+			`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, AUTO_REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, 2, 'ACCOUNT DETAILS', ?, ?, ?, ?, ?)`,
+			[accountId, txtTrans, amount, userRemarks, autoRemarks, userId, now]
+		);
+		const dateTime = `${localYmd(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+		await connection.execute(
+			`INSERT INTO junket_house_expense
+			 (CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, RECEIVER, AMOUNT, ENCODED_BY, ENCODED_DT, PROGRAM_DATE, CREATED_DT, DAILY_SETTLEMENT, APPROVAL_STATUS, ACCOUNT_LEDGER_ID)
+			 VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, 1, 0, ?)`,
+			[
+				categoryId,
+				receiptText,
+				dateTime,
+				inCharge || 'Agent Portal',
+				txtTrans === '2' ? amount : -amount,
+				userId,
+				now,
+				localYmd(now),
+				now,
+				ledgerResult[0].insertId
+			]
+		);
+		await connection.commit();
+		return ledgerResult;
+	} catch (err) {
+		await connection.rollback();
+		throw err;
+	} finally {
+		connection.release();
+	}
+}
+
+/**
+ * The list record behind a portal "Withdraw / Deposit - Add Charge / Loss Amount / Expenses" ledger row, if any:
+ * { table: 'game_services' | 'junket_loss' | 'junket_house_expense', id, settled }.
+ * All mirror the ledger: withdraw X = +X, deposit X = -X.
+ */
+async function fetchLinkedPortalRecord(connection, ledger) {
+	if (!ledger || String(ledger.TRANSACTION_DESC || '').trim().toUpperCase() !== 'ACCOUNT DETAILS') return null;
+	if (ledger.SERVICE_ID) {
+		const [rows] = await connection.execute(
+			`SELECT IDNo, SERVICE_SETTLEMENT_ID, COMMISSION_SETTLEMENT_ID
+			 FROM game_services WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1`,
+			[ledger.SERVICE_ID]
+		);
+		const row = rows[0];
+		if (row) {
+			return {
+				table: 'game_services',
+				id: row.IDNo,
+				settled: row.SERVICE_SETTLEMENT_ID != null || row.COMMISSION_SETTLEMENT_ID != null,
+				settledMessage: 'This Add Charge is already settled and can no longer be changed.'
+			};
+		}
+	}
+	const [lossRows] = await connection.execute(
+		`SELECT IDNo, LOSS_SETTLEMENT_ID FROM junket_loss WHERE ACCOUNT_LEDGER_ID = ? AND ACTIVE = 1 LIMIT 1`,
+		[ledger.IDNo]
+	);
+	if (lossRows[0]) {
+		return {
+			table: 'junket_loss',
+			id: lossRows[0].IDNo,
+			settled: lossRows[0].LOSS_SETTLEMENT_ID != null,
+			settledMessage: 'This Loss Amount is already settled and can no longer be changed.'
+		};
+	}
+	const [expenseRows] = await connection.execute(
+		`SELECT IDNo, EXPENSE_SETTLEMENT_ID FROM junket_house_expense WHERE ACCOUNT_LEDGER_ID = ? AND ACTIVE = 1 LIMIT 1`,
+		[ledger.IDNo]
+	);
+	if (expenseRows[0]) {
+		return {
+			table: 'junket_house_expense',
+			id: expenseRows[0].IDNo,
+			settled: expenseRows[0].EXPENSE_SETTLEMENT_ID != null,
+			settledMessage: 'This expense is already settled and can no longer be changed.'
+		};
+	}
+	return null;
+}
+
+/** Keep the linked list record in step with an edited portal ledger row (withdraw = +X, deposit = -X). */
+async function updateLinkedPortalRecord(connection, linked, ledger, amount, remarks, userId, now) {
+	const signed = parseInt(ledger.TRANSACTION_ID, 10) === 2 ? amount : -amount;
+	if (linked.table === 'game_services') {
+		await connection.execute(
+			`UPDATE game_services SET AMOUNT = ?, REMARKS = ?, UPDATED_BY = ?, UPDATED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[signed, remarks || '', userId, now, linked.id]
+		);
+	} else {
+		// junket_loss / junket_house_expense share the column names
+		await connection.execute(
+			`UPDATE ${linked.table} SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[signed, userId, now, linked.id]
+		);
+	}
+}
+
+async function archiveLinkedPortalRecord(connection, linked, userId, now) {
+	if (linked.table === 'game_services') {
+		await connection.execute(
+			`UPDATE game_services SET ACTIVE = 0, UPDATED_BY = ?, UPDATED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[userId, now, linked.id]
+		);
+	} else {
+		// junket_loss / junket_house_expense share the column names
+		await connection.execute(
+			`UPDATE ${linked.table} SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
+			[userId, now, linked.id]
+		);
+	}
 }
 
 async function syncTransactionHistoryOnEdit(connection, ledgerId, amount, remarks) {
@@ -2816,7 +3019,8 @@ router.post('/add_account_details', async (req, res) => {
 		txtGuestId,
 		txtProgramDate,
 		txtGuarantor,
-		txtCategory
+		txtCategory,
+		txtServiceType
 	} = req.body;
 	let date_now = new Date();
 
@@ -2838,6 +3042,19 @@ router.post('/add_account_details', async (req, res) => {
 	] || '';
 	const categoryLabel = categoryTitle || 'Cash';
 
+	// Add Charge also needs a service category (F & B, Hotel, ...) for its Add Charge record.
+	let serviceCategory = null;
+	if (categoryTitle === 'Add Charge') {
+		serviceCategory = await resolveActiveServiceCategory(pool, txtServiceType);
+		if (!serviceCategory) {
+			return res.status(400).json({ success: false, error: 'Select an Add Charge category.' });
+		}
+	}
+	// Loss Amount from the portal is always paid in Cash (junket_loss PAYMENT_TYPE 2).
+	const lossPaymentType = categoryTitle === 'Loss Amount' ? 2 : null;
+	// Telegram title: "Expenses", "Loss Amount", "Add Charge - Hotel", ...
+	const telegramCategoryTitle = serviceCategory ? `${categoryTitle} - ${serviceCategory}` : categoryTitle;
+
 	// account_ledger: REMARKS = user input only, AUTO_REMARKS = Deposit - Cash / Withdraw - Cash (or the category).
 	// remarksValue (user input, else the auto text) still feeds history / cash_transaction / Telegram.
 	const userRemarks = (txtRemarks || '').toString().trim() || null;
@@ -2845,6 +3062,32 @@ router.post('/add_account_details', async (req, res) => {
 	if (String(txtTrans) === '1') autoRemarks = `Deposit - ${categoryLabel}`;
 	else if (String(txtTrans) === '2') autoRemarks = `Withdraw - ${categoryLabel}`;
 	const remarksValue = userRemarks || autoRemarks || '';
+
+	// Expenses from the portal land in the expense list under the main category Others,
+	// with Description = "Account - Remarks".
+	let expenseCategoryId = null;
+	let expenseReceiptText = null;
+	if (categoryTitle === 'Expenses') {
+		// Names can carry a translation ("OTHERS 기타"), so match a leading "Others" word; exact name first.
+		const [othersRows] = await pool.query(
+			`SELECT IDNo FROM expense_category
+			 WHERE ACTIVE = 1 AND (PARENT_ID IS NULL OR PARENT_ID = 0)
+			   AND (LOWER(TRIM(CATEGORY)) = 'others' OR LOWER(TRIM(CATEGORY)) LIKE 'others %')
+			 ORDER BY CHAR_LENGTH(TRIM(CATEGORY)) ASC
+			 LIMIT 1`
+		);
+		if (!othersRows.length) {
+			return res.status(400).json({ success: false, error: 'The expense main category "Others" was not found.' });
+		}
+		expenseCategoryId = othersRows[0].IDNo;
+		const [agentRows] = await pool.query(
+			`SELECT agent.AGENT_CODE, agent.NAME FROM account JOIN agent ON agent.IDNo = account.AGENT_ID
+			 WHERE account.IDNo = ? LIMIT 1`,
+			[txtAccountId]
+		);
+		const accountLabel = agentRows[0] ? [agentRows[0].AGENT_CODE, agentRows[0].NAME].filter(Boolean).join(' - ') : '';
+		expenseReceiptText = [accountLabel, userRemarks].filter(Boolean).join(' - ') || 'Agent Portal';
+	}
 
 	const [[accountRow]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [txtAccountId]);
 	const agentId = accountRow?.AGENT_ID ?? null;
@@ -2856,7 +3099,47 @@ router.post('/add_account_details', async (req, res) => {
 
 	try {
 		const transactionType = (txtTrans === '1' || txtTrans === '2') ? 2 : 3;
-		const [insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, userRemarks, autoRemarks, req.session.user_id, date_now]);
+		let insertResult;
+		if (serviceCategory) {
+			[insertResult] = await insertAddChargeWithLedger({
+				accountId: txtAccountId,
+				agentId,
+				txtTrans: String(txtTrans),
+				amount: amountNumber,
+				serviceCategory,
+				userRemarks,
+				autoRemarks,
+				userId: req.session.user_id,
+				now: date_now
+			});
+		} else if (lossPaymentType) {
+			[insertResult] = await insertLossWithLedger({
+				accountId: txtAccountId,
+				txtTrans: String(txtTrans),
+				amount: amountNumber,
+				paymentType: lossPaymentType,
+				userRemarks,
+				autoRemarks,
+				inCharge: [req.session.firstname, req.session.lastname].filter(Boolean).join(' '),
+				userId: req.session.user_id,
+				now: date_now
+			});
+		} else if (expenseCategoryId) {
+			[insertResult] = await insertExpenseWithLedger({
+				accountId: txtAccountId,
+				txtTrans: String(txtTrans),
+				amount: amountNumber,
+				categoryId: expenseCategoryId,
+				receiptText: expenseReceiptText,
+				userRemarks,
+				autoRemarks,
+				inCharge: [req.session.firstname, req.session.lastname].filter(Boolean).join(' '),
+				userId: req.session.user_id,
+				now: date_now
+			});
+		} else {
+			[insertResult] = await pool.query(insertQuery, [txtAccountId, txtTrans, transactionType, transacDesc, txtAmountNum, userRemarks, autoRemarks, req.session.user_id, date_now]);
+		}
 
 		if (String(txtTrans) === '3') {
 			const balanceAfterCredit = await getCreditBalance(txtAccountId).catch(() => null);
@@ -3002,10 +3285,10 @@ router.post('/add_account_details', async (req, res) => {
 					txtRemarks: remarksValue,
 					date_nowTG,
 					updated_time,
-					categoryTitle: categoryTitle || null
+					categoryTitle: telegramCategoryTitle || null
 				});
 
-				const telegramLogPreview = categoryTitle || guestPortalTransactionLogPreview(transaction, {
+				const telegramLogPreview = telegramCategoryTitle || guestPortalTransactionLogPreview(transaction, {
 					transactionDesc: transacDesc
 				});
 				const telegramSendOpts = {
@@ -4151,6 +4434,16 @@ router.put('/account_details/remove/:id', checkSession, async (req, res) => {
 			pairAccountId = pair.ACCOUNT_ID;
 		}
 
+		// Portal Add Charge / Loss Amount: its list record goes with it (unless already settled).
+		const linkedRecord = await fetchLinkedPortalRecord(connection, ledger);
+		if (linkedRecord && linkedRecord.settled) {
+			await connection.rollback();
+			return res.status(409).json({ success: false, message: linkedRecord.settledMessage });
+		}
+		if (linkedRecord) {
+			await archiveLinkedPortalRecord(connection, linkedRecord, req.session.user_id, date_now);
+		}
+
 		for (const ledgerId of ledgerIds) {
 			const [result] = await connection.execute(
 				`UPDATE account_ledger SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1`,
@@ -4335,7 +4628,16 @@ router.put('/account_details/edit/:id', checkSession, async (req, res) => {
 			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
 			await syncTransactionHistoryOnEdit(connection, pair.IDNo, parsedAmount, remarks);
 		} else {
+			// Portal Add Charge / Loss Amount: keep its list record in step.
+			const linkedRecord = await fetchLinkedPortalRecord(connection, ledger);
+			if (linkedRecord && linkedRecord.settled) {
+				await connection.rollback();
+				return res.status(409).json({ success: false, message: linkedRecord.settledMessage });
+			}
 			await updateGuestPortalLedgerRow(connection, id, parsedAmount, remarks, req.session.user_id, date_now);
+			if (linkedRecord) {
+				await updateLinkedPortalRecord(connection, linkedRecord, ledger, parsedAmount, remarks, req.session.user_id, date_now);
+			}
 			await syncTransactionHistoryOnEdit(connection, id, parsedAmount, remarks);
 		}
 		await connection.commit();
@@ -4601,6 +4903,7 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 			al.ENCODED_DT,
 			al.TRANSACTION_DESC,
 			al.AUTO_REMARKS,
+			al.SERVICE_ID,
 			al.TRANSFER,
 			al.TRANSFER_AGENT,
 			al.GAME_ID,
@@ -4657,9 +4960,15 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 	const categoryMatch = desc === 'ACCOUNT DETAILS'
 		? /^(?:Deposit|Withdraw) - (Expenses|Loss Amount|Add Charge)$/i.exec(String(row.AUTO_REMARKS || '').trim())
 		: null;
-	const titleText = categoryMatch
+	let titleText = categoryMatch
 		? categoryMatch[1].replace(/\b\w/g, (c) => c.toUpperCase())
 		: guestPortalReceiptTitle(transaction, row.TRANSACTION_DESC || '', transferLabel, serviceType);
+	// Portal Add Charge linked to its Add Charge record → * Add Charge - Hotel *
+	if (categoryMatch && row.SERVICE_ID) {
+		const [svcRows] = await pool.execute('SELECT SERVICE_TYPE FROM game_services WHERE IDNo = ? LIMIT 1', [row.SERVICE_ID]);
+		const svcType = svcRows[0] && String(svcRows[0].SERVICE_TYPE || '').trim();
+		if (svcType) titleText += ` - ${svcType}`;
+	}
 
 	return {
 		ledger_id: row.IDNo,

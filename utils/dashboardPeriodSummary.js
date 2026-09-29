@@ -1,4 +1,4 @@
-const { SQL_HOUSE_EXPENSE_APPROVED_ONLY } = require('./houseExpenseQueries');
+const { SQL_HOUSE_EXPENSE_APPROVED_ONLY, SQL_HOUSE_EXPENSE_CASH_ONLY } = require('./houseExpenseQueries');
 const { buildDashboardServiceExpensePayload } = require('./dashboardServiceBalance');
 const { fetchActiveServiceCategories } = require('./serviceCategoryHelpers');
 const { getMonthEndCutoffRange } = require('./monthEndCutoffRange');
@@ -580,7 +580,7 @@ async function computeCashForPeriod(pool, dateFrom, dateTo) {
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM tip WHERE ACTIVE=1 ${SQL_ROLLER_TIP_IN_CASHIN_ONLY} AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(j.CC_CHIPS),0) AS total FROM junket_total_chips j WHERE j.ACTIVE=1 AND j.TRANSACTION_ID=1 AND ${chipsDt('j')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_capital jc WHERE jc.ACTIVE=1 AND jc.TRANSACTION_ID=2 AND ${capitalDt('jc')} BETWEEN ? AND ?`, p),
-		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY} AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`, p),
+		sumScalar(pool, `SELECT COALESCE(SUM(AMOUNT),0) AS total FROM junket_house_expense WHERE ACTIVE=1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY} AND ${SQL_HOUSE_EXPENSE_CASH_ONLY} AND COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(j.NN_CHIPS),0) AS total FROM junket_total_chips j WHERE j.ACTIVE=1 AND j.TRANSACTION_ID=1 AND ${chipsDt('j')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(al.AMOUNT),0) AS total FROM account_ledger al JOIN account a ON a.IDNo=al.ACCOUNT_ID JOIN agent ag ON ag.IDNo=a.AGENT_ID WHERE al.ACTIVE=1 AND al.TRANSACTION_ID=2 AND al.TRANSACTION_DESC='ACCOUNT DETAILS' AND a.ACTIVE=1 AND ag.ACTIVE=1 AND ${ledgerDt('al')} BETWEEN ? AND ?`, p),
 		sumScalar(pool, `SELECT COALESCE(SUM(gr.NN_CHIPS+gr.CC_CHIPS),0) AS total FROM game_record gr INNER JOIN game_list gl ON gl.IDNo=gr.GAME_ID WHERE gr.ACTIVE=1 AND gr.CAGE_TYPE=2 ${SQL_DASHBOARD_GAME_CASHOUT_FILTER} AND ${gameDt('gl')} BETWEEN ? AND ?`, p),

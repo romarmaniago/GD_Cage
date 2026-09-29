@@ -41,6 +41,7 @@ async function ensureJunketLossSchema(pool) {
 				GAME_ID INT NULL DEFAULT NULL COMMENT 'game_list.IDNo',
 				NON_CASH TINYINT NOT NULL DEFAULT 0 COMMENT '1 = offset by a LOSS buy-in, not taken from cash balance',
 				TRANSACTION TINYINT NOT NULL DEFAULT 1 COMMENT '1=Loss (AMOUNT > 0), 2=Recovery (AMOUNT < 0)',
+				ACCOUNT_LEDGER_ID INT NULL DEFAULT NULL COMMENT 'account_ledger.IDNo — Agent Portal Loss Amount row',
 				ENCODED_BY INT NULL DEFAULT NULL,
 				ENCODED_DT DATETIME NULL DEFAULT NULL,
 				EDITED_BY INT NULL DEFAULT NULL,
@@ -82,6 +83,10 @@ async function ensureJunketLossSchema(pool) {
 		{
 			name: 'TRANSACTION',
 			ddl: `ADD COLUMN TRANSACTION TINYINT NOT NULL DEFAULT 1 COMMENT '1=Loss (AMOUNT > 0), 2=Recovery (AMOUNT < 0)'`
+		},
+		{
+			name: 'ACCOUNT_LEDGER_ID',
+			ddl: `ADD COLUMN ACCOUNT_LEDGER_ID INT NULL DEFAULT NULL COMMENT 'account_ledger.IDNo — Agent Portal Loss Amount row'`
 		}
 	];
 

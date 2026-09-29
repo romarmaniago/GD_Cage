@@ -19,6 +19,7 @@ const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
 const { formatDateTimeDisplay, formatDateDisplay } = require('../utils/formatDateTime');
 const { getMonthEndCutoffRange } = require('../utils/monthEndCutoffRange');
 const { SQL_HOUSE_EXPENSE_APPROVED_ONLY } = require('../utils/houseExpenseQueries');
+const { getAccountCashBalance } = require('../utils/junketCapitalTransfer');
 
 /** YYYY-MM-DD from picker; null if missing/invalid. */
 function parseProgramDate(raw) {
@@ -41,6 +42,17 @@ async function insertCashTransactionForExpense(pool, expenseId, amount, category
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		[expenseId, null, String(amount), 'Expenses', 2, categoryName, encodedBy, dateNow]
 	);
+}
+
+/** Active "Withdraw / Deposit - Expenses" ledger row an Agent Portal expense is linked to. */
+async function fetchPortalExpenseLedger(ledgerId) {
+	const id = parseInt(ledgerId, 10);
+	if (!id) return null;
+	const [rows] = await pool.execute(
+		'SELECT IDNo, ACCOUNT_ID, TRANSACTION_ID, AMOUNT FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+		[id]
+	);
+	return rows[0] || null;
 }
 
 async function ensureCashTransactionForExpense(pool, expenseId, amount, categoryName, encodedBy, dateNow) {
@@ -1303,6 +1315,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		// Build diff text; store in junket_house_expense_edit_log (full history, one row per save with changes)
 		const [oldRows] = await pool.execute(
 			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.RECEIVER, e.AMOUNT, e.KM_L, e.VEHICLE_ID, e.PHOTO,
+				e.ACCOUNT_LEDGER_ID,
 				COALESCE(e.APPROVAL_STATUS, 1) AS APPROVAL_STATUS,
 				hv.PLATE_NO AS vehicle_plate,
 				hv.MODEL AS vehicle_model,
@@ -1318,6 +1331,15 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		const approvalStatus = Number(old.APPROVAL_STATUS);
 		if (approvalStatus !== 0 && approvalStatus !== 1) {
 			return res.status(400).send('Only pending or approved expenses can be edited');
+		}
+		// Agent Portal expense: its account ledger row moves with the amount (+ = withdraw, - = deposit),
+		// so a bigger charge must fit the account (its balance already reflects the old amount).
+		const portalLedger = await fetchPortalExpenseLedger(old.ACCOUNT_LEDGER_ID);
+		if (portalLedger) {
+			const available = (await getAccountCashBalance(pool, portalLedger.ACCOUNT_ID)) + (Number(old.AMOUNT) || 0);
+			if (editXAmount > available + 0.009) {
+				return res.status(400).send(`Amount exceeds the account balance (${available.toLocaleString('en-US')}).`);
+			}
 		}
 		const oldAmount = old ? Number(old.AMOUNT) : null;
 		let changesText = null;
@@ -1440,6 +1462,20 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		params.push(id);
 
 		await pool.execute(query, params);
+		if (portalLedger) {
+			await pool.execute(
+				`UPDATE account_ledger SET TRANSACTION_ID = ?, AMOUNT = ?, AUTO_REMARKS = ?, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ? AND ACTIVE = 1`,
+				[
+					editXAmount >= 0 ? 2 : 1,
+					Math.abs(editXAmount),
+					editXAmount >= 0 ? 'Withdraw - Expenses' : 'Deposit - Expenses',
+					req.session.user_id,
+					date_now,
+					portalLedger.IDNo
+				]
+			);
+		}
 		if (changesText) {
 			await pool.execute(
 				'INSERT INTO junket_house_expense_edit_log (EXPENSE_ID, EDITED_BY, EDITED_DT, CHANGES_TEXT) VALUES (?, ?, ?, ?)',
@@ -1523,7 +1559,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 
 		// Fetch expense details before delete for Telegram
 		const [expRows] = await pool.execute(
-			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY, ec.CATEGORY, ec.TYPE
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY, e.ACCOUNT_LEDGER_ID, ec.CATEGORY, ec.TYPE
 			 FROM junket_house_expense e
 			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 			 WHERE e.IDNo = ? LIMIT 1`,
@@ -1559,6 +1595,14 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND CATEGORY = ? AND ACTIVE = 1',
 			[req.session.user_id, date_now, id, 'Expenses']
 		);
+		// Agent Portal expense: its ledger row on the account goes with it.
+		const portalLedger = await fetchPortalExpenseLedger(exp && exp.ACCOUNT_LEDGER_ID);
+		if (portalLedger) {
+			await pool.execute(
+				'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE = 1',
+				[req.session.user_id, date_now, portalLedger.IDNo]
+			);
+		}
 
 		// Telegram to Management: expense deleted with details
 		try {

@@ -2632,6 +2632,29 @@ function syncPortalTxnRowLock() {
 			.toggleClass('is-active', !!isActive)
 			.toggleClass('is-locked', !!$filled.length && !isActive);
 	});
+	// A row's radios (Add Charge category) only while that row holds the amount.
+	$(PORTAL_TXN_FORM).find('.portal-txn-options').each(function () {
+		$(this).toggleClass('d-none', $active.data('category') !== $(this).data('for'));
+	});
+}
+
+// Add Charge categories (services_category), loaded once as radio pills.
+let portalChargeTypesLoaded = false;
+function loadPortalChargeTypes() {
+	const $wrap = $('#portal_charge_types');
+	if (!$wrap.length || portalChargeTypesLoaded) return;
+	$.get('/services_category_data').done(function (rows) {
+		portalChargeTypesLoaded = true;
+		$wrap.empty();
+		(rows || []).forEach(function (row) {
+			const category = String(row.CATEGORY || '').trim();
+			if (!category) return;
+			$('<label class="portal-txn-option">')
+				.append($('<input type="radio" name="portalChargeType">').val(category))
+				.append($('<span>').text(category))
+				.appendTo($wrap);
+		});
+	});
 }
 
 function resetPortalTxnForm() {
@@ -2639,6 +2662,8 @@ function resetPortalTxnForm() {
 		.closest('.portal-txn-row').removeClass('is-active is-locked');
 	$(PORTAL_TXN_FORM).find('.remarks_alt').val('');
 	$(PORTAL_TXN_ACCOUNT).val('').trigger('change.select2');
+	$(PORTAL_TXN_FORM).find('.portal-txn-options').addClass('d-none').find('input').prop('checked', false);
+	loadPortalChargeTypes();
 }
 
 function loadPortalTxnAccounts(currentAccountId) {
@@ -2735,7 +2760,8 @@ $(PORTAL_TXN_FORM).on('submit', function (event) {
 			icon: 'question',
 			title: 'Confirm ' + label,
 			html: 'Are you sure you want to save this transaction?<br><br><strong>' + label + ': ' + confirmAmountHtml + '</strong>' +
-				(extraHtml || ''),
+				(extraHtml || '') +
+				'<br>Remarks: <strong>' + ($('<div>').text(remarks).html() || '—') + '</strong>',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, confirm',
 			cancelButtonText: 'Cancel',
@@ -2808,13 +2834,20 @@ $(PORTAL_TXN_FORM).on('submit', function (event) {
 			return showError('Insufficient Balance', 'The amount exceeds the available total balance of ' + fmtAmount(availableBalance));
 		}
 		const category = txn === 'category' ? String($filled.data('category') || '') : '';
-		const label = (isIn ? 'Deposit' : 'Withdraw') + (category ? ' - ' + $filled.data('label') : '');
+		// Add Charge also records to the Add Charge list, so it needs its category.
+		const serviceType = category === 'ADD CHARGE' ? String($('input[name="portalChargeType"]:checked').val() || '') : '';
+		if (category === 'ADD CHARGE' && !serviceType) {
+			return showError('Category Required', 'Select the Add Charge category (e.g. F & B, Hotel).');
+		}
+		const label = (isIn ? 'Deposit' : 'Withdraw') + (category ? ' - ' + $filled.data('label') : '') +
+			(serviceType ? ' (' + serviceType + ')' : '');
 		return confirmSave(label, '', () => post('/add_account_details', {
 			txtAccountId: accountId,
 			txtTrans: isIn ? '1' : '2',
 			txtAmount: String(amount),
 			txtRemarks: remarks,
 			txtCategory: category,
+			txtServiceType: serviceType,
 			sendToTelegram,
 			totalBalanceGuest: String(availableBalance)
 		}, category ? 'category' : 'deposit'));

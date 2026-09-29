@@ -2253,6 +2253,8 @@ router.get('/cash_out_details', async (req, res) => {
 			LEFT JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
 			LEFT JOIN user_info u ON jhe.ENCODED_BY = u.IDNo
 			WHERE jhe.ACTIVE = 1
+				-- Agent Portal expenses already appear as the account's withdraw / deposit
+				AND jhe.ACCOUNT_LEDGER_ID IS NULL
 				AND DATE(jhe.ENCODED_DT) BETWEEN ? AND ?
 			`,
 			dateParams

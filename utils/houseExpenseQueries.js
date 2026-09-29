@@ -1,16 +1,23 @@
 /** Match house_expense.js houseExpenseCountsForTotals: pending + approved; rejected excluded. */
 const SQL_HOUSE_EXPENSE_APPROVED_ONLY = 'COALESCE(APPROVAL_STATUS, 1) != 2';
 
+/**
+ * Cage cash only: an Agent Portal expense (ACCOUNT_LEDGER_ID set) already moves cash through the
+ * account's "Withdraw / Deposit - Expenses" ledger row, so counting it here too would double it.
+ */
+const SQL_HOUSE_EXPENSE_CASH_ONLY = 'ACCOUNT_LEDGER_ID IS NULL';
+
 function sqlJunketExpenseResetTotal() {
 	return `SELECT SUM(AMOUNT) AS RESET_EXPENSE
 		FROM junket_house_expense
 		WHERE ACTIVE = 1 AND RESET = 1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`;
 }
 
+/** Cage cash-out expenses (every caller feeds the cash balance). */
 function sqlJunketExpenseTotal() {
 	return `SELECT SUM(AMOUNT) AS JUNKET_EXPENSE
 		FROM junket_house_expense
-		WHERE ACTIVE = 1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY}`;
+		WHERE ACTIVE = 1 AND ${SQL_HOUSE_EXPENSE_APPROVED_ONLY} AND ${SQL_HOUSE_EXPENSE_CASH_ONLY}`;
 }
 
 function sqlJunketExpenseGoodsTotal() {
@@ -33,6 +40,7 @@ function sqlJunketExpenseNonGoodsTotal() {
 
 module.exports = {
 	SQL_HOUSE_EXPENSE_APPROVED_ONLY,
+	SQL_HOUSE_EXPENSE_CASH_ONLY,
 	sqlJunketExpenseResetTotal,
 	sqlJunketExpenseTotal,
 	sqlJunketExpenseGoodsTotal,

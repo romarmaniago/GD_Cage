@@ -107,13 +107,14 @@
                                         <div class="portal-txn-row">
                                             <div class="portal-txn-label"><%= __('modal_account_details.loss_amount') %></div>
                                             <input type="text" class="form-control portal-txn-amount" data-txn="category" data-category="LOSS AMOUNT" data-label="Loss Amount" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
-                                        </div>
-                                        <div class="portal-txn-row">
+                                        </div>                                        <div class="portal-txn-row">
                                             <div class="portal-txn-label"><%= __('modal_account_details.add_charge') %></div>
                                             <input type="text" class="form-control portal-txn-amount" data-txn="category" data-category="ADD CHARGE" data-label="Add Charge" inputmode="decimal" autocomplete="off" placeholder="<%= __('modal_account_details.signed_amount_placeholder') %>">
                                         </div>
+                                        <!-- Add Charge category (F & B, Hotel, ...) — shown while the Add Charge row has an amount -->
+                                        <div class="portal-txn-options d-none" data-for="ADD CHARGE" id="portal_charge_types" role="radiogroup" aria-label="<%= __('modal_account_details.add_charge') %>"></div>
                                     </div>
-                                    <div class="form-group d-none">
+                                    <div class="form-group">
                                         <input type="text" name="txtRemarks" class="form-control remarks remarks_alt" placeholder="<%= __('modal_account_details.remarks_placeholder') %>">
                                     </div>
                                     
@@ -613,7 +614,9 @@ body.guest-portal-child-open .swal2-container {
 #modal-account-details .portal-txn-row.is-active .portal-txn-label {
     color: #8a6a1c;
 }
-#modal-account-details .portal-txn-row.is-locked .portal-txn-label {
+#modal-account-details .portal-txn-row.is-locked .portal-txn-label,
+#modal-account-details .portal-txn-row.is-locked .portal-txn-label-select .select2-selection__rendered,
+#modal-account-details .portal-txn-row.is-locked .portal-txn-label-select .select2-selection__placeholder {
     color: var(--ptx-muted);
 }
 #modal-account-details .portal-txn-label-select .select2-container {
@@ -698,6 +701,45 @@ body.guest-portal-child-open .swal2-container {
     background-color: #f6f5f2;
     border-color: #ebe7de;
     cursor: not-allowed;
+}
+/* Add Charge category / Loss Amount Chips-Cash radios, as pills */
+#modal-account-details .portal-txn-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 2px 4px 4px;
+}
+#modal-account-details .portal-txn-options.d-none {
+    display: none;
+}
+#modal-account-details .portal-txn-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+#modal-account-details .portal-txn-option span {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ptx-ink);
+    background: #fff;
+    border: 1px solid var(--ptx-line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+#modal-account-details .portal-txn-option span:hover {
+    border-color: var(--ptx-gold);
+}
+#modal-account-details .portal-txn-option input:checked + span {
+    color: #fff;
+    background: var(--ptx-gold);
+    border-color: var(--ptx-gold);
+}
+#modal-account-details .portal-txn-option input:focus-visible + span {
+    box-shadow: 0 0 0 3px rgba(201, 165, 74, 0.3);
 }
 #modal-account-details .modal-content {
     border: none;

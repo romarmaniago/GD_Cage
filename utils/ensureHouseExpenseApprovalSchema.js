@@ -51,6 +51,14 @@ async function ensureHouseExpenseApprovalSchema(pool) {
     await pool.execute(
         'UPDATE junket_house_expense SET CREATED_DT = ENCODED_DT WHERE CREATED_DT IS NULL AND ENCODED_DT IS NOT NULL'
     );
+
+    // Agent Portal Expenses: the account's ledger row this expense mirrors (that row carries the cage cash).
+    if (!(await columnExists(pool, 'junket_house_expense', 'ACCOUNT_LEDGER_ID'))) {
+        await pool.execute(
+            'ALTER TABLE junket_house_expense ADD COLUMN ACCOUNT_LEDGER_ID INT NULL DEFAULT NULL COMMENT "account_ledger.IDNo — Agent Portal Expenses row"'
+        );
+        console.log('[junket_house_expense] Added column ACCOUNT_LEDGER_ID');
+    }
 }
 
 module.exports = {
