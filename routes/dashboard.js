@@ -22,7 +22,7 @@ const {
 	tgAmount
 } = require('../utils/accountTelegramNotice');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
-const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
+const { getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 const {
 	insertCreditRecord,
 	mapLedgerToCreditAction,
@@ -3164,7 +3164,7 @@ router.post('/add_marker_settlement', async (req, res) => {
 		}
 
 		if (returnSource === 'auto') {
-			await insertAutoSettlementRecords(sourceBalances);
+			await insertAutoSettlementRecords();
 		} else {
 			await insertSettlementRecord();
 		}
@@ -3263,15 +3263,11 @@ router.post('/add_marker_settlement', async (req, res) => {
 		});
 	}
 
-	async function insertAutoSettlementRecords(balances) {
-		const allocations = allocateMarkerReturn(
-			balances.balanceCredit,
-			balances.balanceBuyin,
-			markerReturn
-		);
-		for (const allocation of allocations) {
-			await insertSettlementRecord(allocation.source, allocation.amount);
-		}
+	// Auto return books one row for the full amount against the whole credit (no Cash/Game split).
+	// Tagged CREDIT; the waterfall netting in the balance queries carries any excess over the
+	// Cash Credit bucket into Game Credit, so account totals stay correct.
+	async function insertAutoSettlementRecords() {
+		await insertSettlementRecord('credit', markerReturn);
 	}
 });
 
