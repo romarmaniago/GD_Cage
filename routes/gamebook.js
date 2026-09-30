@@ -4390,6 +4390,7 @@ async function buildGameReceipts(gameId) {
 			agent.AGENT_CODE AS agent_code,
 			agent.NAME AS agent_name,
 			NULLIF(TRIM(g.NAME), '') AS guest_name,
+			COALESCE(NULLIF(TRIM(gg.NAME), ''), 'Main') AS group_name,
 			COALESCE((
 				SELECT SUM(gs.AMOUNT)
 				FROM game_services gs
@@ -4401,6 +4402,7 @@ async function buildGameReceipts(gameId) {
 		JOIN account ON game_list.ACCOUNT_ID = account.IDNo
 		JOIN agent ON agent.IDNo = account.AGENT_ID
 		LEFT JOIN guest g ON g.IDNo = game_list.GUEST_ID
+		LEFT JOIN game_group gg ON gg.IDNo = game_list.GROUP_ID
 		WHERE game_list.IDNo = ? AND game_list.ACTIVE != 0
 		LIMIT 1`,
 		[gameId]
@@ -4455,6 +4457,7 @@ async function buildGameReceipts(gameId) {
 		agent_code: game.agent_code || '',
 		agent_name: game.agent_name || '',
 		guest_name: game.guest_name || '',
+		group_name: game.group_name || '',
 		cutoff_labels: cutoffLabels
 	};
 
