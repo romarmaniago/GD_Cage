@@ -3223,7 +3223,7 @@ function buildGameReceiptTipSection(data) {
 }
 
 function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
-	var accountLine = [data.agent_code, data.agent_name].filter(Boolean).join(' - ');
+	var accountLine = [data.agent_code, data.guest_name].filter(Boolean).join(' - ');
 	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
 	var isTipReceipt = data.type === 'tip';
 	var buyinLabel = data.buyin_label || '* BUY IN';
