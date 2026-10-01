@@ -7,6 +7,7 @@
 //   #btn-dash-rolling-copy : the Main Cage Rolling Check table (header + full,
 //                           un-scrolled table + footer).
 //   #btn-dash-wl-copy      : the W/L Check table, same treatment.
+//   #btn-dash-on-game-copy : the On Game Details modal (title + full table).
 (function () {
 	'use strict';
 
@@ -136,6 +137,38 @@
 			.then(canvasToBlob);
 	}
 
+	// ---- On Game Details modal -------------------------------------------
+	// Title + full table; the footer buttons and close X are left out, and the
+	// scroll limits are lifted so a long list is not clipped.
+	function renderOnGameBlob() {
+		var content = document.querySelector('#modal-on-game-details .modal-content');
+		if (!content) return Promise.reject(new Error('On Game table not found.'));
+		var bg = window.getComputedStyle(content).backgroundColor;
+		if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') bg = '#ffffff';
+
+		return loadHtml2Canvas()
+			.then(function () {
+				return html2canvas(content, {
+					backgroundColor: bg, scale: SCALE, useCORS: true, logging: false,
+					onclone: function (doc) {
+						var c = doc.querySelector('#modal-on-game-details .modal-content');
+						if (!c) return;
+						var footer = c.querySelector('.modal-footer');
+						if (footer) footer.style.display = 'none';
+						var x = c.querySelector('.btn-close');
+						if (x) x.style.display = 'none';
+						[c, c.querySelector('.modal-body'), c.querySelector('.table-responsive')].forEach(function (el) {
+							if (!el) return;
+							el.style.height = 'auto';
+							el.style.maxHeight = 'none';
+							el.style.overflow = 'visible';
+						});
+					}
+				});
+			})
+			.then(canvasToBlob);
+	}
+
 	// ---- Wiring -----------------------------------------------------------
 	function runCopy(btn, blobMaker, okMsg, fileName) {
 		if (!btn || btn.disabled) return;
@@ -183,6 +216,13 @@
 					(kind === 'wl' ? 'wl-check' : 'main-cage-rolling-check') + '.png');
 			});
 		});
+
+		var onGameBtn = document.getElementById('btn-dash-on-game-copy');
+		if (onGameBtn) {
+			onGameBtn.addEventListener('click', function () {
+				runCopy(onGameBtn, renderOnGameBlob, 'On Game Details image copied. Paste it anywhere.', 'on-game-details.png');
+			});
+		}
 	}
 
 	if (document.readyState === 'loading') {

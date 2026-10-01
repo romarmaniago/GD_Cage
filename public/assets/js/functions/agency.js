@@ -345,6 +345,8 @@ function exportLineStatsReport(agencyId, lineName) {
       if (cd) {
         var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
         if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+        var mStar = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+        if (mStar) { try { filename = decodeURIComponent(mStar[1].trim()); } catch (e) {} }
       }
       return res.blob().then(function (blob) {
         return { blob: blob, filename: filename };
@@ -500,6 +502,8 @@ $(document).ready(function() {
         if (cd) {
           var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
           if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+          var mStar = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+          if (mStar) { try { filename = decodeURIComponent(mStar[1].trim()); } catch (e) {} }
         }
         return res.blob().then(function (blob) {
           return { blob: blob, filename: filename };
@@ -558,6 +562,8 @@ $(document).ready(function() {
         if (cd) {
           var m = /filename="([^"]+)"/i.exec(cd) || /filename=([^;]+)/i.exec(cd);
           if (m) filename = m[1].trim().replace(/^["']|["']$/g, '');
+          var mStar = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+          if (mStar) { try { filename = decodeURIComponent(mStar[1].trim()); } catch (e) {} }
         }
         return res.blob().then(function (blob) {
           return { blob: blob, filename: filename };

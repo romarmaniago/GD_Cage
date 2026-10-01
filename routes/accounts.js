@@ -4773,7 +4773,7 @@ router.post('/agency/export_agent_guest_matrix_xlsx', checkSession, async functi
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		res.attachment(outName);
 		return res.send(Buffer.from(buffer));
 	} catch (err) {
 		console.error('agency/export_agent_guest_matrix_xlsx:', err);
@@ -4788,7 +4788,7 @@ router.post('/agency/export_line_agent_matrix_xlsx', checkSession, async functio
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		res.attachment(outName);
 		return res.send(Buffer.from(buffer));
 	} catch (err) {
 		console.error('agency/export_line_agent_matrix_xlsx:', err);
@@ -4808,7 +4808,7 @@ router.post('/agency/export_line_stats_xlsx', checkSession, async function (req,
 
 		const buffer = await workbook.xlsx.writeBuffer();
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-		res.setHeader('Content-Disposition', 'attachment; filename="' + outName.replace(/"/g, '') + '"');
+		res.attachment(outName);
 		return res.send(Buffer.from(buffer));
 	} catch (err) {
 		console.error('agency/export_line_stats_xlsx:', err);
