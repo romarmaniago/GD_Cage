@@ -58,9 +58,14 @@
     #modal-settlement .settlement-main-content > .modal-header .modal-title,
     #modal-settlement .settlement-edit-panel-card .modal-header .modal-title {
         color: #3a2e12 !important;
-        font-size: 1.15rem;
+        font-size: 0.98rem;
         font-weight: 600;
         line-height: 1.3;
+        /* keep "Settlement - CODE (NAME)" on one line */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
     }
 
     #modal-settlement .settlement-main-content > .modal-header .btn-close,
@@ -632,6 +637,186 @@
         }
     }
 
+    /* --- Receipt look (matches game receipts): centered header, no colons, colored payment bar --- */
+    #modal-settlement .settlement-receipt-body {
+        font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    #modal-settlement .settlement-receipt-watermark {
+        /* exactly as wide as the receipt */
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1;
+        top: 42%;
+        opacity: 0.2;
+    }
+
+    #modal-settlement .settlement-receipt-divider {
+        border-top: 1px solid #c8c8c8;
+        margin: 0.65rem auto 0.5rem;
+        width: 75%;
+        align-self: center;
+    }
+
+    /* Header block: date on top, account big and centered, labels hidden */
+    #modal-settlement .settlement-receipt-grid--meta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        row-gap: 0.45rem;
+        text-align: center;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.45rem;
+        width: 100%;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-row {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-label,
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-colon {
+        display: none;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
+        display: block;
+        text-align: center;
+        white-space: normal;
+        overflow: visible;
+        font-size: 1.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    /* Date row goes first and smaller */
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child {
+        order: -1;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child .settlement-receipt-value-col {
+        font-size: 1.1rem;
+    }
+
+    /* Header lines like the game receipts: "CODE Group" / NAME / "LIVE #game" */
+    #modal-settlement .settlement-receipt-grid--meta #accNoPrefix,
+    #modal-settlement .settlement-receipt-grid--meta [data-field="accNoPrefix"] {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 0.45rem;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta #accNoName,
+    #modal-settlement .settlement-receipt-grid--meta [data-field="accNoName"] {
+        display: block;
+        font-size: 1.65rem;
+    }
+
+    #modal-settlement .settlement-receipt-grid--meta .settlement-receipt-row:nth-child(2) .settlement-receipt-value-col {
+        font-size: 1.15rem;
+    }
+
+    #modal-settlement .settlement-game-type {
+        color: #c00000;
+        font-size: 1.5rem;
+    }
+
+    #modal-settlement .settlement-game-type.settlement-game-type--live {
+        color: #0070c0;
+    }
+
+    #modal-settlement #gameNo::before,
+    #modal-settlement [data-field="gameNo"]::before {
+        content: '#';
+    }
+
+    /* Amount rows: label right-aligned beside the value, block centered */
+    #modal-settlement .settlement-receipt-grid--amounts {
+        --settlement-label-col: max-content;
+        --settlement-value-col: 9.5rem;
+        --settlement-receipt-col-gap: 0.75rem; /* x2: hidden colon column sits between */
+        width: fit-content;
+        margin: 0 auto;
+        row-gap: 0.15rem;
+        align-items: center;
+    }
+
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-colon {
+        display: none;
+    }
+
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-label {
+        text-align: right;
+        text-transform: uppercase;
+        font-weight: 400;
+        font-size: 1.35rem;
+        padding-right: 0;
+    }
+
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
+        font-size: 1.35rem;
+        padding-right: 0;
+    }
+
+    /* Win / Loss, Rolling: bold label, big value */
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-label,
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-label {
+        font-weight: 700;
+        font-size: 1.45rem;
+    }
+
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-value-col,
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-value-col {
+        font-size: 1.65rem;
+        font-weight: 700;
+    }
+
+    /* Settlement, Add Charge: bold label */
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-label,
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(7) .settlement-receipt-label {
+        font-weight: 700;
+    }
+
+    #modal-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-value-col {
+        font-size: 1.65rem;
+        font-weight: 700;
+    }
+
+    /* Payment: orange bar under the centered amount columns */
+    #modal-settlement .settlement-receipt-row--payment {
+        background: #f4b183;
+        border-radius: 0;
+        /* widen the bar past the text on both sides without moving the columns */
+        box-shadow: -0.9rem 0 0 #f4b183, 0.9rem 0 0 #f4b183;
+        padding: 0.55rem 0;
+        margin-top: 0.75rem;
+    }
+
+    #modal-settlement .settlement-receipt-row--payment .settlement-receipt-label {
+        font-weight: 700;
+        font-size: 1.5rem;
+        padding-right: 0;
+    }
+
+    #modal-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
+        font-size: 1.65rem;
+        font-weight: 700;
+        padding-right: 0;
+    }
+
+    #modal-settlement .settlement-receipt-amount.is-negative,
+    #modal-settlement .settlement-receipt-input.is-negative {
+        color: #e60000;
+    }
 </style>
 
 <div class="modal fade" id="modal-settlement" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="modal-settlement-label" aria-hidden="true">
@@ -672,7 +857,7 @@
                 <div class="settlement-receipt-row">
                     <span class="settlement-receipt-label"><%= __('modal_settlement.game_no') %></span>
                     <span class="settlement-receipt-colon">:</span>
-                    <span class="settlement-receipt-value-col is-bold" id="gameNo"></span>
+                    <span class="settlement-receipt-value-col is-bold"><span class="settlement-game-type" id="gameType"></span> <span id="gameNo"></span><span id="gameNoLinked"></span></span>
                 </div>
                 <div class="settlement-receipt-row">
                     <span class="settlement-receipt-label">Date</span>
@@ -1006,8 +1191,11 @@ $(document).ready(function() {
         var timeText = cleanValue($modal.find('#time').text());
         var formatted = formatReceiptDateTime(dateText, timeText);
         if (/^\d{4}-\d{2}-\d{2}$/.test(dateText) && timeText) {
+            // Same as game receipts: M/D/YYYY H:mm
             var parts = dateText.split('-');
-            formatted = parts[0] + '-' + parseInt(parts[1], 10) + '-' + parseInt(parts[2], 10) + ' ' + timeText;
+            var timeParts = timeText.split(':');
+            var shortTime = timeParts.length >= 2 ? parseInt(timeParts[0], 10) + ':' + timeParts[1] : timeText;
+            formatted = parseInt(parts[1], 10) + '/' + parseInt(parts[2], 10) + '/' + parts[0] + ' ' + shortTime;
         }
         $modal.find('#dateTime').text(formatted);
     }
@@ -1038,18 +1226,35 @@ $(document).ready(function() {
     }
     window.refreshSettlementReceiptDisplay = refreshSettlementReceiptDisplay;
 
-    function setSettlementAccountDisplay($modal, agentCode, agentName) {
+    function setSettlementAccountDisplay($modal, agentCode, agentName, groupName, guestName) {
         $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
         var code = String(agentCode == null ? '' : agentCode).trim();
         var name = String(agentName == null ? '' : agentName).trim();
+        var group = String(groupName == null ? '' : groupName).trim();
         var full = code ? (code + (name ? ' - ' + name : '')) : (name || 'N/A');
         var prefix = code ? (code + ' - ') : '';
         $modal.find('#accNo').text(full);
-        $modal.find('#accNoPrefix').text(prefix);
-        $modal.find('#accNoName').text(name);
+        // Receipt header: "CODE Group" on its own line, name below (trailing space keeps copy text readable)
+        $modal.find('#accNoPrefix').text(code ? (code + (group ? ' ' + group : '') + ' ') : '');
+        // Receipt shows the guest name; the Agent edit panel uses the agent name (see buildSettlementEditPanelReceipt)
+        var guest = String(guestName == null ? '' : guestName).trim();
+        if (guest === '-') guest = '';
+        $modal.data('settlementAgentName', name);
+        $modal.find('#accNoName').text(guest || name);
         $modal.find('.settlement-receipt-prefix-ghost').text(prefix);
     }
     window.setSettlementAccountDisplay = setSettlementAccountDisplay;
+
+    function setSettlementGameDisplay($modal, gameType, linkedGameId) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var type = String(gameType == null ? '' : gameType).trim().toUpperCase();
+        var linked = parseInt(linkedGameId, 10);
+        $modal.find('#gameType')
+            .text(type)
+            .toggleClass('settlement-game-type--live', type === 'LIVE');
+        $modal.find('#gameNoLinked').text(linked ? ' (#' + linked + ')' : '');
+    }
+    window.setSettlementGameDisplay = setSettlementGameDisplay;
 
     function buildSettlementReceiptSlipText(slipBodyEl) {
         if (!slipBodyEl) {
@@ -1444,6 +1649,8 @@ $(document).ready(function() {
         $source.find('#settlement-' + panelKey + '-accNoPrefix').attr('data-field', 'accNoPrefix');
         $source.find('#settlement-' + panelKey + '-accNoName').attr('data-field', 'accNoName');
         $source.find('#settlement-' + panelKey + '-gameNo').attr('data-field', 'gameNo');
+        $source.find('#settlement-' + panelKey + '-gameType').attr('data-field', 'gameType');
+        $source.find('#settlement-' + panelKey + '-gameNoLinked').attr('data-field', 'gameNoLinked');
         $source.find('#settlement-' + panelKey + '-dateTime').attr('data-field', 'dateTime');
 
         var $panelBody = $('#settlement-edit-' + panelKey + '-body');
@@ -1456,8 +1663,13 @@ $(document).ready(function() {
         $panel.data('payment', parseAmount($mainModal.find('#payment').val()));
 
         $panel.find('[data-field="accNoPrefix"]').text($mainModal.find('#accNoPrefix').text());
-        $panel.find('[data-field="accNoName"]').text($mainModal.find('#accNoName').text());
+        $panel.find('[data-field="accNoName"]').text(
+            panelKey === 'agent' && $mainModal.data('settlementAgentName')
+                ? $mainModal.data('settlementAgentName')
+                : $mainModal.find('#accNoName').text()
+        );
         $panel.find('[data-field="gameNo"]').text($mainModal.find('#gameNo').text());
+        $panel.find('[data-field="gameNoLinked"]').text($mainModal.find('#gameNoLinked').text());
         $panel.find('[data-field="dateTime"]').text($mainModal.find('#dateTime').text());
         $panel.find('[data-field="buyIn"]').val($mainModal.find('#buyIn').val()).prop('readonly', true);
         $panel.find('[data-field="chipsReturn"]').val($mainModal.find('#chipsReturn').val()).prop('readonly', true);
@@ -1815,13 +2027,21 @@ $(document).ready(function() {
         updateSettlementCopyButtons($modal);
     }
 
-    // Receipt date is always the moment the modal is opened.
-    $('#modal-settlement').on('show.bs.modal', function() {
-        var $modal = $(this);
-        var now = moment();
-        $modal.find('#date').text(now.format('YYYY-MM-DD'));
-        $modal.find('#time').text(now.format('HH:mm'));
+    // Receipt date: when the game was settled (COMMISSION ledger, else GAME_ENDED) for settled games,
+    // otherwise the moment the modal is opened.
+    function setSettlementReceiptDate($modal) {
+        $modal = $modal && $modal.length ? $modal : $('#modal-settlement');
+        var settledDt = $modal.data('settlementSettledDt');
+        var m = settledDt ? moment.utc(settledDt).utcOffset(8) : moment();
+        if (!m.isValid()) m = moment();
+        $modal.find('#date').text(m.format('YYYY-MM-DD'));
+        $modal.find('#time').text(m.format('HH:mm'));
         syncSettlementDateTimeDisplay($modal);
+    }
+    window.setSettlementReceiptDate = setSettlementReceiptDate;
+
+    $('#modal-settlement').on('show.bs.modal', function() {
+        setSettlementReceiptDate($(this));
     });
 
     $('#modal-settlement').on('shown.bs.modal', function() {

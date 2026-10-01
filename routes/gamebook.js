@@ -7483,7 +7483,7 @@ router.get('/game_list/:id/pending_origin', checkSession, async (req, res) => {
 
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, COALESCE(NULLIF(TRIM(g.NAME), ''), '-') AS guest_name, COALESCE((SELECT NULLIF(TRIM(gg.NAME), '') FROM game_group gg WHERE gg.IDNo = game_list.GROUP_ID LIMIT 1), 'Main') AS group_name, (SELECT al.ENCODED_DT FROM account_ledger al WHERE al.ACTIVE = 1 AND al.TRANSACTION_TYPE = 5 AND al.TRANSACTION_DESC = 'COMMISSION' AND (al.GAME_ID = game_list.IDNo OR FIND_IN_SET(game_list.IDNo, al.LINKED_GAME_IDS)) ORDER BY al.IDNo DESC LIMIT 1) AS settled_ledger_dt, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 

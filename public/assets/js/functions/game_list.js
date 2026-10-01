@@ -4903,8 +4903,8 @@ $(document).ready(function () {
 				$accSelect.append($('<option></option>').val(acct.id).text(acct.display));
 			});
 
-			$modal.find('#dateMerge').text(now.format('YYYY-MM-DD'));
-			$modal.find('#timeMerge').text(now.format('HH:mm'));
+			$modal.find('#dateMerge').text(now.format('M/D/YYYY'));
+			$modal.find('#timeMerge').text(now.format('H:mm'));
 
 			$modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
 			$modal.find('#chipsReturnMerge').val(formatMergeNumeric(totalChipsReturn));
@@ -11436,6 +11436,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
     $settlementModal.find('.settlement-cutoff-tags').html(settlementCutoffTags);
     $settlementModal.find('.settlement-receipt-row--cutoff').css('display', settlementCutoffTags ? '' : 'none');
     $settlementModal.data('is-settled', 0);
+    $settlementModal.data('settlementSettledDt', null);
     $settlementModal.data('settlementPrimaryGameId', record_id);
     $('#settlement-agent-code').text('');
     $settlementModal.find('#submit-settlement-btn').prop('disabled', false).text('Settle').show();
@@ -11563,9 +11564,19 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 var account_id = data[0].ACCOUNT_ID;
 
                 if (typeof window.setSettlementAccountDisplay === 'function') {
-                    window.setSettlementAccountDisplay($settlementModal, data[0].agent_code, data[0].agent_name);
+                    window.setSettlementAccountDisplay($settlementModal, data[0].agent_code, data[0].agent_name, data[0].group_name, data[0].guest_name);
                 } else {
                     $('#accNo').text(accNo || 'N/A');
+                }
+                if (typeof window.setSettlementGameDisplay === 'function') {
+                    // linked cut-off game is already part of #gameNo (buildCutoffGameIdPlainLabel)
+                    window.setSettlementGameDisplay($settlementModal, data[0].GAME_TYPE, null);
+                }
+                // Settled games show the settle time on the receipt instead of "now"
+                $settlementModal.data('settlementSettledDt',
+                    Number(data[0].SETTLED) === 1 ? (data[0].settled_ledger_dt || data[0].GAME_ENDED || null) : null);
+                if (typeof window.setSettlementReceiptDate === 'function') {
+                    window.setSettlementReceiptDate($settlementModal);
                 }
                 setGameListModalAccountLabel('#settlement-agent-code', data[0].agent_code, data[0].guest_name);
                 $('input[name="game_id_settle"]').val(record_id);

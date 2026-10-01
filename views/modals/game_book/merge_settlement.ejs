@@ -778,6 +778,156 @@
     #modal-merge-settlement .commission-detail-table tfoot th:first-child {
         text-align: left;
     }
+
+    /* --- Receipt look (matches game receipts): centered header, no colons, colored payment bar --- */
+    #modal-merge-settlement .settlement-receipt-body {
+        font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    #modal-merge-settlement .settlement-receipt-watermark {
+        width: 17rem;
+        height: 17rem;
+        opacity: 0.2;
+    }
+
+    #modal-merge-settlement .settlement-receipt-divider {
+        border-top: none;
+        margin: 0.35rem 0;
+    }
+
+    /* Header block: date on top, account big and centered, labels hidden */
+    #modal-merge-settlement .settlement-receipt-grid--meta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        row-gap: 0.45rem;
+        text-align: center;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.45rem;
+        width: 100%;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-label,
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-colon {
+        display: none;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
+        display: block;
+        text-align: center;
+        white-space: normal;
+        overflow: visible;
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    /* Date row goes first and smaller */
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child {
+        order: -1;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child .settlement-receipt-value-col {
+        font-size: 1rem;
+    }
+
+    /* Amount rows: label right-aligned beside the value, block centered */
+    #modal-merge-settlement .settlement-receipt-grid--amounts {
+        --settlement-label-col: max-content;
+        --settlement-value-col: 9.5rem;
+        --settlement-receipt-col-gap: 0.75rem; /* x2: hidden colon column sits between */
+        width: fit-content;
+        margin: 0 auto;
+        row-gap: 0.15rem;
+        align-items: center;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-colon {
+        display: none;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-label {
+        text-align: right;
+        text-transform: uppercase;
+        font-weight: 400;
+        font-size: 1.2rem;
+        padding-right: 0;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
+        font-size: 1.2rem;
+        padding-right: 0;
+    }
+
+    /* Win / Loss, Rolling: bold label, big value */
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-label,
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-label {
+        font-weight: 700;
+        font-size: 1.3rem;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-value-col,
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-value-col {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* Settlement, Add Charge: bold label */
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-label,
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(7) .settlement-receipt-label {
+        font-weight: 700;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-value-col {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* Payment: orange bar under the centered amount columns */
+    #modal-merge-settlement .settlement-receipt-row--payment {
+        background: #f4b183;
+        border-radius: 0;
+        /* widen the bar past the text on both sides without moving the columns */
+        box-shadow: -0.9rem 0 0 #f4b183, 0.9rem 0 0 #f4b183;
+        padding: 0.55rem 0;
+        margin-top: 0.75rem;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-label {
+        font-weight: 700;
+        font-size: 1.35rem;
+        padding-right: 0;
+    }
+
+    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
+        font-size: 1.5rem;
+        font-weight: 700;
+        padding-right: 0;
+    }
+
+    #modal-merge-settlement .settlement-receipt-amount.is-negative,
+    #modal-merge-settlement .settlement-receipt-input.is-negative {
+        color: #e60000;
+    }
+
+    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-name-select {
+        width: 100%;
+        text-align: center;
+        text-align-last: center;
+    }
 </style>
 
 <div class="modal fade" id="modal-merge-settlement" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="modal-merge-settlement-label" aria-hidden="true">

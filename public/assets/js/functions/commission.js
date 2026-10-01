@@ -1727,8 +1727,8 @@ $(document).ready(function() {
             $modal.find('#txtAccountIDMergeSettle').val(accountIds.join(','));
             $modal.find('#accNoMerge').text(nameText);
             $modal.find('#gameNoMerge').text(selectedIds.join(', '));
-            $modal.find('#dateMerge').text(now.format('YYYY-MM-DD'));
-            $modal.find('#timeMerge').text(now.format('HH:mm'));
+            $modal.find('#dateMerge').text(now.format('M/D/YYYY'));
+            $modal.find('#timeMerge').text(now.format('H:mm'));
             $modal.find('#buyInMerge').val(formatMergeNumeric(totalBuyIn));
             $modal.find('#chipsReturnMerge').val(formatMergeNumeric(totalChipsReturn));
             $modal.find('#winLossMerge').val(formatMergeNumeric(totalWinLoss));
