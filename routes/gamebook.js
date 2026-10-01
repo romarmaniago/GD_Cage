@@ -4137,6 +4137,7 @@ function sumChipsByTransaction(records, cageType, encodedDt) {
 	let cash = 0;
 	let deposit = 0;
 	let credit = 0;
+	let tip = 0;
 	(records || []).forEach((row) => {
 		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return;
 		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return;
@@ -4145,8 +4146,9 @@ function sumChipsByTransaction(records, cageType, encodedDt) {
 		if (trans === 1) cash += amt;
 		else if (trans === 2) deposit += amt;
 		else if (trans === 3 || trans === CASHOUT_TRANSACTION.CREDIT) credit += amt;
+		else if (trans === CASHOUT_TRANSACTION.TIP_ROLLER || trans === CASHOUT_TRANSACTION.TIP_DEALER) tip += amt;
 	});
-	return { cash, deposit, credit, total: cash + deposit + credit };
+	return { cash, deposit, credit, tip, total: cash + deposit + credit + tip };
 }
 
 function formatTipReceiptLineLabel(typeLabel, personName, statusLabel) {
@@ -4231,7 +4233,8 @@ function sortGameReceipts(receipts) {
 
 function isReceiptCashoutTransaction(trans) {
 	const t = parseInt(trans, 10);
-	return t === 1 || t === 2 || t === 3 || t === CASHOUT_TRANSACTION.CREDIT;
+	return t === 1 || t === 2 || t === 3 || t === CASHOUT_TRANSACTION.CREDIT
+		|| t === CASHOUT_TRANSACTION.TIP_ROLLER || t === CASHOUT_TRANSACTION.TIP_DEALER;
 }
 
 function computeReceiptWinLossRolling(records) {
@@ -4413,6 +4416,7 @@ async function buildGameReceipts(gameId) {
 
 	// CUTOFF = this game was cut off into a new game; New Day = this game continues a cut off game
 	const cutoffLabels = [];
+	let linkedGameId = null;
 	try {
 		const [linkRows] = await pool.execute(
 			`SELECT CUTOFF_PARENT_GAME_ID, CUTOFF_CONTINUED_GAME_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
@@ -4421,6 +4425,7 @@ async function buildGameReceipts(gameId) {
 		if (linkRows.length) {
 			if (parseInt(linkRows[0].CUTOFF_PARENT_GAME_ID, 10)) cutoffLabels.push('New Day');
 			if (parseInt(linkRows[0].CUTOFF_CONTINUED_GAME_ID, 10)) cutoffLabels.push('CUTOFF');
+			linkedGameId = parseInt(linkRows[0].CUTOFF_PARENT_GAME_ID, 10) || parseInt(linkRows[0].CUTOFF_CONTINUED_GAME_ID, 10) || null;
 		}
 	} catch (linkErr) {
 		// CUTOFF_* columns may be missing
@@ -4447,6 +4452,7 @@ async function buildGameReceipts(gameId) {
 			COALESCE(NULLIF(TRIM(t.TIP_STATUS), ''), 'Roller') AS tip_status_label
 		FROM tip t
 		WHERE t.GAME_ID = ? AND t.ACTIVE = 1
+		  AND t.CASHOUT_ID IS NULL -- cash-out tips already show on the CASHOUT / FINISH receipts
 		ORDER BY t.ENCODED_DT ASC, t.IDNo ASC`,
 		[gameId]
 	);
@@ -4458,7 +4464,8 @@ async function buildGameReceipts(gameId) {
 		agent_name: game.agent_name || '',
 		guest_name: game.guest_name || '',
 		group_name: game.group_name || '',
-		cutoff_labels: cutoffLabels
+		cutoff_labels: cutoffLabels,
+		linked_game_id: linkedGameId
 	};
 
 	const buyinRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 1);
@@ -4495,24 +4502,20 @@ async function buildGameReceipts(gameId) {
 
 	if (additionalDts.length > 0) {
 		const latestAddDt = additionalDts[additionalDts.length - 1];
-		const latestAdd = sumChipsByTransaction(recordRows, 1, latestAddDt);
+		// All additional buy-ins combined (total buy-in minus the initial buy-in)
 		receipts.push({
 			...base,
 			type: 'add_buyin',
 			title: '* ADD *',
 			encoded_dt: latestAddDt,
 			show_buyin: true,
-			show_cashout: true,
+			show_cashout: false,
 			show_summary: true,
 			buyin_label: '* TOTAL BUY IN',
-			cash: latestAdd.cash,
-			deposit: latestAdd.deposit,
-			credit: latestAdd.credit,
+			cash: totalBuyin.cash - initialBuyin.cash,
+			deposit: totalBuyin.deposit - initialBuyin.deposit,
+			credit: totalBuyin.credit - initialBuyin.credit,
 			buy_in: totalBuyin.total,
-			cashout_cash: totalCashout.cash,
-			cashout_deposit: totalCashout.deposit,
-			cashout_credit: totalCashout.credit,
-			total_cashout: totalCashout.total,
 			win_loss: winLoss,
 			rolling
 		});
@@ -4520,8 +4523,8 @@ async function buildGameReceipts(gameId) {
 
 	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2 && isReceiptCashoutTransaction(r.TRANSACTION));
 	if (cashoutRecords.length > 0) {
+		// All cash-outs combined (incl. tips), dated at the latest cash-out
 		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
-		const latestCashout = sumChipsByTransaction(recordRows, 2, latestCashoutDt);
 		receipts.push({
 			...base,
 			type: 'cashout',
@@ -4535,10 +4538,11 @@ async function buildGameReceipts(gameId) {
 			deposit: totalBuyin.deposit,
 			credit: totalBuyin.credit,
 			buy_in: totalBuyin.total,
-			cashout_cash: latestCashout.cash,
-			cashout_deposit: latestCashout.deposit,
-			cashout_credit: latestCashout.credit,
-			total_cashout: latestCashout.total,
+			cashout_cash: totalCashout.cash,
+			cashout_deposit: totalCashout.deposit,
+			cashout_credit: totalCashout.credit,
+			cashout_tip: totalCashout.tip,
+			total_cashout: totalCashout.total,
 			win_loss: winLoss,
 			rolling
 		});
@@ -4559,8 +4563,8 @@ async function buildGameReceipts(gameId) {
 			show_cashout: true,
 			show_summary: true,
 			show_settlement: true,
-			buyin_label: '* BUY IN',
-			cashout_label: '* CASH OUT',
+			buyin_label: '* TOTAL BUY IN',
+			cashout_label: '* TOTAL CASH OUT',
 			cash: totalBuyin.cash,
 			deposit: totalBuyin.deposit,
 			credit: totalBuyin.credit,
@@ -4568,6 +4572,7 @@ async function buildGameReceipts(gameId) {
 			cashout_cash: totalCashout.cash,
 			cashout_deposit: totalCashout.deposit,
 			cashout_credit: totalCashout.credit,
+			cashout_tip: totalCashout.tip,
 			total_cashout: totalCashout.total,
 			win_loss: winLoss,
 			rolling,

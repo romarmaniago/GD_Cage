@@ -77,198 +77,189 @@
 }
 
 #modal-game-start-receipt .game-start-receipt-slip {
-    flex: 0 0 280px;
-    min-width: 280px;
+    flex: 0 0 290px;
+    min-width: 290px;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.75rem 0.65rem;
-    font-family: Arial, Helvetica, sans-serif;
+    padding: 0;
+    font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
-    border: 1px solid #dee2e6;
+    border: 1px solid #c9ced6;
     margin-bottom: 0;
-    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Dimmed = opaque gray card (no transparency — blur stays on backdrop only) */
+#modal-game-start-receipt .game-start-receipt-slip--latest {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+    z-index: 3;
+    position: relative;
+}
+
+/* Past receipts stay in full color, just smaller and flat — latest stays raised */
 #modal-game-start-receipt .game-start-receipt-slip--past,
 #modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest,
 #modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--past,
 #modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--past:hover {
-    opacity: 1;
-    filter: none;
-    background: #c2c2c2;
-    color: #333;
-    border-color: #959595;
     transform: scale(0.96);
     box-shadow: none;
     z-index: 1;
     cursor: pointer;
 }
 
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-table td {
-    border-color: #8f8f8f;
-}
-
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-cashout,
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-tip,
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-summary,
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-section-settlement {
-    border-top-color: #555;
-}
-
-#modal-game-start-receipt .game-start-receipt-slip--past .gsr-negative {
-    color: #8b2229;
-}
-
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-table td {
-    border-color: #8f8f8f;
-}
-
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-cashout,
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-tip,
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-summary,
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-section-settlement {
-    border-top-color: #555;
-}
-
-#modal-game-start-receipt .game-receipts-container:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest .gsr-negative {
-    color: #8b2229;
-}
-
 #modal-game-start-receipt .game-start-receipt-slip--past:hover {
-    opacity: 1;
     filter: none;
-    background: #fff;
-    color: #000;
-    border-color: #adb5bd;
     transform: translateY(-10px) scale(1.03);
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
     z-index: 4;
     position: relative;
 }
 
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-table td {
-    border-color: #adb5bd;
-}
-
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-cashout,
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-tip,
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-summary,
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-section-settlement {
-    border-top-color: #000;
-}
-
-#modal-game-start-receipt .game-start-receipt-slip--past:hover .gsr-negative {
-    color: #dc3545;
-}
-
 /* Lock latest float while modal is opening (prevents hover/scroll flash) */
 #modal-game-start-receipt .game-receipts-container.is-settling .game-start-receipt-slip--latest,
 #modal-game-start-receipt .game-receipts-container.is-settling:has(.game-start-receipt-slip--past:hover) .game-start-receipt-slip--latest {
-    opacity: 1;
-    filter: none;
-    background: #fff;
-    color: #000;
-    border-color: #adb5bd;
-    transform: translateY(-10px) scale(1.03);
-    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
-    z-index: 3;
-}
-
-#modal-game-start-receipt .game-start-receipt-slip--latest {
-    opacity: 1;
     filter: none;
     transform: translateY(-10px) scale(1.03);
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
-    border-color: #adb5bd;
     z-index: 3;
-    position: relative;
 }
 
 #modal-game-start-receipt .game-start-receipt-slip-body {
     flex: 1 1 auto;
-    padding: 0.5rem 0.25rem 0;
+    background: #fff;
 }
 
-#modal-game-start-receipt .gsr-brand {
+#modal-game-start-receipt .gsr-header {
+    background: #2e75b6;
+    color: #fff;
     text-align: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.35rem;
     letter-spacing: 0.5px;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
-}
-
-#modal-game-start-receipt .gsr-brand--on-game {
-    background: #0d6efd;
-    color: #fff;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
+    padding: 0.45rem 0.5rem;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
 
+#modal-game-start-receipt .gsr-header--finish {
+    background: #ed7d31;
+}
+
+#modal-game-start-receipt .gsr-content {
+    position: relative;
+    padding: 0.35rem 0 0.6rem;
+}
+
+/* Dragon watermark */
+#modal-game-start-receipt .gsr-content::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 180px;
+    height: 180px;
+    margin-left: -90px;
+    background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+#modal-game-start-receipt .gsr-content > * {
+    position: relative;
+}
+
+#modal-game-start-receipt .gsr-meta-row {
+    display: flex;
+    align-items: center;
+    padding: 0 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+#modal-game-start-receipt .gsr-meta-tags,
+#modal-game-start-receipt .gsr-meta-spacer {
+    flex: 1 1 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+}
+
 #modal-game-start-receipt .gsr-datetime {
+    flex: 0 0 auto;
     text-align: center;
-    font-size: 0.85rem;
-    margin: 0 0 0.35rem;
-}
-
-#modal-game-start-receipt .gsr-title {
-    text-align: center;
-    font-style: italic;
-    font-size: 0.85rem;
-    margin: 0 0 0.5rem;
-}
-
-#modal-game-start-receipt .gsr-account,
-#modal-game-start-receipt .gsr-game-no {
-    text-align: center;
+    font-size: 0.8rem;
     font-weight: 700;
-    font-size: 0.85rem;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
-}
-
-#modal-game-start-receipt .gsr-cutoff-label {
-    text-align: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    margin: 0 0 0.35rem;
 }
 
 #modal-game-start-receipt .gsr-cutoff-tag {
     display: inline-block;
     color: #fff;
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.35rem;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
 
 #modal-game-start-receipt .gsr-cutoff-tag--cutoff {
-    background: #0d6efd;
+    background: #2e75b6;
 }
 
 #modal-game-start-receipt .gsr-cutoff-tag--new-day {
-    background: #dc3545;
+    background: #e60000;
+}
+
+#modal-game-start-receipt .gsr-account {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin: 0 0 0.6rem;
+    text-transform: uppercase;
+}
+
+#modal-game-start-receipt .gsr-guest {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.35rem;
+    margin: 0 0 0.6rem;
+    text-transform: uppercase;
+}
+
+#modal-game-start-receipt .gsr-game-no {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem;
+}
+
+#modal-game-start-receipt .gsr-game-type {
+    color: #c00000;
+    font-size: 1.25rem;
+    text-transform: uppercase;
+}
+
+#modal-game-start-receipt .gsr-game-type--live {
+    color: #0070c0;
 }
 
 #modal-game-start-receipt .gsr-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
+    margin-top: 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 700;
 }
 
 #modal-game-start-receipt .gsr-table td {
-    border: 1px solid #adb5bd;
-    padding: 0.3rem 0.5rem;
+    border: none;
+    padding: 0.4rem 0.75rem;
+    vertical-align: middle;
 }
 
 #modal-game-start-receipt .gsr-label {
-    text-align: left;
+    width: 58%;
+    text-align: right;
+    padding-right: 1.25rem !important;
 }
 
 #modal-game-start-receipt .gsr-value {
@@ -276,25 +267,45 @@
     white-space: nowrap;
 }
 
-#modal-game-start-receipt .gsr-total-row td {
-    font-weight: 700;
+#modal-game-start-receipt .gsr-total-row .gsr-value {
+    font-size: 1.2rem;
 }
 
 #modal-game-start-receipt .gsr-negative {
-    color: #dc3545;
+    color: #e60000;
 }
 
-#modal-game-start-receipt .gsr-section-cashout,
-#modal-game-start-receipt .gsr-section-tip,
-#modal-game-start-receipt .gsr-section-summary,
-#modal-game-start-receipt .gsr-section-settlement {
-    border-top: 2px solid #000;
+#modal-game-start-receipt .gsr-section-buyin .gsr-total-row td {
+    background: #ddebf7;
+}
+
+#modal-game-start-receipt .gsr-section-cashout .gsr-total-row td,
+#modal-game-start-receipt .gsr-section-tip .gsr-total-row td {
+    background: #fce4d6;
+}
+
+#modal-game-start-receipt .gsr-section-summary .gsr-total-row td {
+    background: #fff2cc;
+}
+
+#modal-game-start-receipt .gsr-section-settlement .gsr-total-row td {
+    background: #f8cbad;
+}
+
+#modal-game-start-receipt .gsr-section-settlement .gsr-act-row td {
+    background: #f4b183;
+}
+
+#modal-game-start-receipt .gsr-table .gsr-total-row td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 
 #modal-game-start-receipt .game-start-receipt-slip-actions {
     display: flex;
     gap: 0.35rem;
-    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #fff;
 }
 
 #modal-game-start-receipt .game-start-receipt-slip-actions .btn,

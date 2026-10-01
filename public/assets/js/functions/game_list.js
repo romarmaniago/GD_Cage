@@ -3159,33 +3159,15 @@ function formatGameStartReceiptAmount(value) {
 	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-function formatGameReceiptCashoutAmount(value) {
-	var n = Number(value || 0);
-	if (!n) return '';
-	return '(' + formatGameStartReceiptAmount(n) + ')';
-}
-
 function formatGameStartReceiptDateTime(encodedDt) {
 	if (!encodedDt) return '';
 	var m = moment.utc(encodedDt).utcOffset(8);
 	if (!m.isValid()) return '';
-	return m.format('YYYY-MM-DD HH:mm');
+	return m.format('M/D/YYYY H:mm');
 }
 
 function hasGameReceiptAmount(value) {
 	return Number(value || 0) !== 0;
-}
-
-function buildGameReceiptLegRow(label, value, options) {
-	if (!hasGameReceiptAmount(value)) return '';
-	options = options || {};
-	var formatted = options.negative
-		? formatGameReceiptCashoutAmount(value)
-		: formatGameStartReceiptAmount(value);
-	var valueClass = 'gsr-value' + (options.negative ? ' gsr-negative' : '') + (options.total ? ' gsr-total-value' : '');
-	var labelClass = 'gsr-label' + (options.total ? ' gsr-total-label' : '');
-	var rowClass = options.total ? ' class="gsr-total-row"' : '';
-	return '<tr' + rowClass + '><td class="' + labelClass + '">' + label + '</td><td class="' + valueClass + '">' + formatted + '</td></tr>';
 }
 
 function formatGameReceiptSignedAmount(value) {
@@ -3194,9 +3176,19 @@ function formatGameReceiptSignedAmount(value) {
 	return formatGameStartReceiptAmount(n);
 }
 
-function buildGameReceiptSummaryRow(label, value) {
-	var valueClass = 'gsr-value gsr-total-value' + (Number(value || 0) < 0 ? ' gsr-negative' : '');
-	return '<tr class="gsr-total-row"><td class="gsr-label gsr-total-label">' + label + '</td><td class="' + valueClass + '">' + formatGameReceiptSignedAmount(value) + '</td></tr>';
+/** options: total (bold/large row), always (show even when 0), rowClass (extra tr class),
+ *  payout (positive = paid out -> red with parentheses, e.g. settlement) */
+function buildGameReceiptLegRow(label, value, options) {
+	options = options || {};
+	if (!options.always && !hasGameReceiptAmount(value)) return '';
+	var n = Number(value || 0);
+	var isRed = options.payout ? n > 0 : n < 0;
+	var formatted = options.payout
+		? (n > 0 ? '(' + formatGameStartReceiptAmount(n) + ')' : formatGameStartReceiptAmount(Math.abs(n)))
+		: formatGameReceiptSignedAmount(value);
+	var valueClass = 'gsr-value' + (isRed ? ' gsr-negative' : '');
+	var rowClass = (options.total ? 'gsr-total-row' : 'gsr-leg-row') + (options.rowClass ? ' ' + options.rowClass : '');
+	return '<tr class="' + rowClass + '"><td class="gsr-label">' + label + '</td><td class="' + valueClass + '">' + formatted + '</td></tr>';
 }
 
 function buildGameReceiptSectionTable(sectionClass, bodyRows) {
@@ -3210,22 +3202,40 @@ function buildGameReceiptTipSection(data) {
 	var bodyRows = '';
 	if (Array.isArray(data.tip_lines) && data.tip_lines.length) {
 		bodyRows = data.tip_lines.map(function (line) {
-			return buildGameReceiptLegRow(line.label, line.amount, { negative: true });
+			return buildGameReceiptLegRow(line.label, line.amount);
 		}).join('');
 	} else {
 		bodyRows =
-			buildGameReceiptLegRow('- ROLLER', data.tip_roller, { negative: true }) +
-			buildGameReceiptLegRow('- DEALER', data.tip_dealer, { negative: true });
+			buildGameReceiptLegRow('- ROLLER', data.tip_roller) +
+			buildGameReceiptLegRow('- DEALER', data.tip_dealer);
 	}
 
-	bodyRows += buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { negative: true, total: true });
+	bodyRows += buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { total: true });
 	return buildGameReceiptSectionTable('gsr-section-tip', bodyRows);
 }
 
+var GAME_RECEIPT_HEADER_LABELS = {
+	game_start: 'START',
+	add_buyin: 'ADDITIONAL',
+	cashout: 'CASHOUT',
+	tip: 'TIP',
+	game_finish: 'FINISH'
+};
+
+function escapeGameReceiptHtml(value) {
+	return String(value == null ? '' : value)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+}
+
 function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
-	var accountLine = [data.agent_code, data.group_name, data.guest_name].filter(Boolean).join(' - ');
-	var gameNoLine = '# ' + (data.game_id || '') + ' - ' + (data.game_type || '');
 	var isTipReceipt = data.type === 'tip';
+	var headerLabel = GAME_RECEIPT_HEADER_LABELS[data.type] || String(data.title || '').replace(/\*/g, '').trim().toUpperCase();
+	var headerClass = data.type === 'game_finish' ? ' gsr-header--finish' : '';
+	var accountLine = [data.agent_code, data.group_name].filter(Boolean).join(' ');
+	var gameNoLine = '#' + (data.game_id || '') + (data.linked_game_id ? ' (#' + data.linked_game_id + ')' : '');
 	var buyinLabel = data.buyin_label || '* BUY IN';
 	var cashoutLabel = data.cashout_label || '* TOTAL CASH OUT';
 	var showBuyin = !isTipReceipt && data.show_buyin !== false;
@@ -3233,40 +3243,6 @@ function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
 	var showSummary = !isTipReceipt && !!data.show_summary;
 	var showSettlement = !isTipReceipt && !!data.show_settlement;
 	var showTip = isTipReceipt || !!data.show_tip;
-
-	var cashoutRows = '';
-	if (showCashout && hasGameReceiptAmount(data.total_cashout)) {
-		cashoutRows = buildGameReceiptSectionTable('gsr-section-cashout',
-			buildGameReceiptLegRow('- CASH', data.cashout_cash, { negative: true }) +
-			buildGameReceiptLegRow('- DEPOSIT', data.cashout_deposit, { negative: true }) +
-			buildGameReceiptLegRow('- CREDIT', data.cashout_credit, { negative: true }) +
-			buildGameReceiptLegRow(cashoutLabel, data.total_cashout, { negative: true, total: true })
-		);
-	}
-
-	var tipRows = '';
-	if (showTip) {
-		tipRows = buildGameReceiptTipSection(data);
-	}
-
-	var summaryRows = '';
-	if (showSummary) {
-		summaryRows =
-			'<table class="gsr-table gsr-section-summary">' +
-			'<tbody>' +
-			buildGameReceiptSummaryRow('* WIN / LOSS', data.win_loss) +
-			buildGameReceiptSummaryRow('* ROLLING', data.rolling) +
-			'</tbody></table>';
-	}
-
-	var settlementRows = '';
-	if (showSettlement) {
-		settlementRows = buildGameReceiptSectionTable('gsr-section-settlement',
-			buildGameReceiptLegRow('* SETTLEMENT', data.settlement, { negative: true, total: true }) +
-			buildGameReceiptLegRow('- ADD CHARGE', data.add_charge) +
-			buildGameReceiptLegRow('* ACT SETTLMENT', data.act_settlement, { negative: true, total: true })
-		);
-	}
 
 	var buyinTable = '';
 	if (showBuyin && hasGameReceiptAmount(data.buy_in)) {
@@ -3278,23 +3254,65 @@ function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
 		);
 	}
 
+	var cashoutRows = '';
+	if (showCashout && hasGameReceiptAmount(data.total_cashout)) {
+		cashoutRows = buildGameReceiptSectionTable('gsr-section-cashout',
+			buildGameReceiptLegRow('- CASH', data.cashout_cash) +
+			buildGameReceiptLegRow('- DEPOSIT', data.cashout_deposit) +
+			buildGameReceiptLegRow('- CREDIT', data.cashout_credit) +
+			buildGameReceiptLegRow('- TIP', data.cashout_tip) +
+			buildGameReceiptLegRow(cashoutLabel, data.total_cashout, { total: true })
+		);
+	}
+
+	var tipRows = showTip ? buildGameReceiptTipSection(data) : '';
+
+	var summaryRows = '';
+	if (showSummary) {
+		summaryRows = buildGameReceiptSectionTable('gsr-section-summary',
+			buildGameReceiptLegRow('* WIN / LOSS', data.win_loss, { total: true, always: true }) +
+			buildGameReceiptLegRow('* ROLLING', data.rolling, { total: true, always: true })
+		);
+	}
+
+	var settlementRows = '';
+	if (showSettlement) {
+		settlementRows = buildGameReceiptSectionTable('gsr-section-settlement',
+			buildGameReceiptLegRow('* SETTLEMENT', data.settlement, { total: true, always: true, payout: true }) +
+			buildGameReceiptLegRow('* ADD CHARGE', data.add_charge, { total: true, always: true }) +
+			buildGameReceiptLegRow('* ACT SETTLEMENT', data.act_settlement, { total: true, always: true, payout: true, rowClass: 'gsr-act-row' })
+		);
+	}
+
+	// NEW DAY badge only on START, CUT OFF badge only on FINISH
+	var cutoffTags = (Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).filter(function (label) {
+		if (label === 'CUTOFF') return data.type === 'game_finish';
+		return data.type === 'game_start';
+	}).map(function (label) {
+		var isCutoff = label === 'CUTOFF';
+		var tagClass = isCutoff ? 'gsr-cutoff-tag--cutoff' : 'gsr-cutoff-tag--new-day';
+		return '<span class="gsr-cutoff-tag ' + tagClass + '">' + (isCutoff ? 'CUT OFF' : 'NEW DAY') + '</span>';
+	}).join('');
+
 	return (
 		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '">' +
 		'<div class="game-start-receipt-slip-body">' +
-		'<p class="gsr-brand' + (isOnGame ? ' gsr-brand--on-game' : '') + '">GOLDEN DRAGON</p>' +
-		'<p class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</p>' +
-		'<p class="gsr-title">' + (data.title || '* Game start *') + '</p>' +
-		'<p class="gsr-account">' + accountLine + '</p>' +
-		'<p class="gsr-game-no">' + gameNoLine + '</p>' +
-		(Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).map(function (label) {
-			var tagClass = label === 'CUTOFF' ? 'gsr-cutoff-tag--cutoff' : 'gsr-cutoff-tag--new-day';
-			return '<p class="gsr-cutoff-label"><span class="gsr-cutoff-tag ' + tagClass + '">' + label + '</span></p>';
-		}).join('') +
+		'<div class="gsr-header' + headerClass + '">' + escapeGameReceiptHtml(headerLabel) + '</div>' +
+		'<div class="gsr-content">' +
+		'<div class="gsr-meta-row">' +
+		'<div class="gsr-meta-tags">' + cutoffTags + '</div>' +
+		'<div class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</div>' +
+		'<div class="gsr-meta-spacer"></div>' +
+		'</div>' +
+		'<p class="gsr-account">' + escapeGameReceiptHtml(accountLine) + '</p>' +
+		'<p class="gsr-guest">' + escapeGameReceiptHtml(data.guest_name || data.agent_name || '') + '</p>' +
+		'<p class="gsr-game-no"><span class="gsr-game-type' + (String(data.game_type || '').trim().toUpperCase() === 'LIVE' ? ' gsr-game-type--live' : '') + '">' + escapeGameReceiptHtml(data.game_type || '') + '</span> ' + gameNoLine + '</p>' +
 		buyinTable +
 		cashoutRows +
 		tipRows +
 		summaryRows +
 		settlementRows +
+		'</div>' +
 		'</div>' +
 		'<div class="game-start-receipt-slip-actions">' +
 		'<button type="button" class="btn btn-sm game-receipt-copy-btn js-copy-game-receipt-slip-image">' +
