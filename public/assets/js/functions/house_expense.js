@@ -404,10 +404,6 @@ function buildHouseExpenseSlipReceiptBtn(expenseId) {
     );
 }
 
-function formatHouseExpenseReceiptAmount(value) {
-    return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
 /** Expense amounts shown as red (n) on slip — matches receipt layout. */
 function formatHouseExpenseReceiptAmountParen(value) {
     var n = Math.abs(Number(value) || 0);
@@ -420,7 +416,7 @@ function formatHouseExpenseReceiptDateTime(encodedDt) {
     if (!encodedDt) return '';
     var m = moment.utc(encodedDt).utcOffset(8);
     if (!m.isValid()) return '';
-    return m.format('YYYY-MM-DD HH:mm');
+    return m.format('M/D/YYYY HH:mm');
 }
 
 function formatHouseExpenseReceiptDateOnly(encodedDt) {
@@ -453,29 +449,6 @@ function hasHouseExpenseReceiptField(value) {
     return String(value).trim() !== '';
 }
 
-function buildHouseExpenseReceiptLegRow(label, value, isTotal) {
-    if (!hasHouseExpenseReceiptField(value)) return '';
-    var valueClass = 'her-value' + (isTotal ? ' her-amount-value' : '');
-    var labelClass = 'her-label' + (isTotal ? ' her-total-label' : '');
-    var rowClass = isTotal ? ' class="her-total-row"' : '';
-    var display = isTotal
-        ? formatHouseExpenseReceiptAmountParen(value)
-        : formatHouseExpenseReceiptAmount(value);
-    return (
-        '<tr' +
-        rowClass +
-        '><td class="' +
-        labelClass +
-        '">' +
-        label +
-        '</td><td class="' +
-        valueClass +
-        '">' +
-        display +
-        '</td></tr>'
-    );
-}
-
 function buildHouseExpenseReceiptTextLegRow(label, value) {
     if (!hasHouseExpenseReceiptField(value)) return '';
     return (
@@ -487,55 +460,69 @@ function buildHouseExpenseReceiptTextLegRow(label, value) {
     );
 }
 
+/** Amount row on the slip — always red (n), since every expense is money out. */
+function buildHouseExpenseReceiptAmountRow(label, value, extraClass) {
+    return (
+        '<tr><td class="her-label">' +
+        label +
+        '</td><td class="her-value her-amount-value' +
+        (extraClass ? ' ' + extraClass : '') +
+        '">' +
+        formatHouseExpenseReceiptAmountParen(value) +
+        '</td></tr>'
+    );
+}
+
+function buildHouseExpenseReceiptLine(className, text) {
+    if (!hasHouseExpenseReceiptField(text)) return '';
+    return '<p class="' + className + '">' + houseExpenseHtmlEscape(String(text)) + '</p>';
+}
+
 function buildHouseExpenseReceiptSlipHtml(data) {
-    var kmDisplay = '';
-    if (data.km_l != null && Number.isFinite(Number(data.km_l))) {
-        kmDisplay = houseExpenseFormatKmDisplay(data.km_l);
+    var parentCategory = data.parent_category || '';
+    var isVehicle =
+        houseExpenseIsVehicleMainCategoryName(parentCategory) ||
+        houseExpenseIsVehicleMainCategoryName(data.category) ||
+        hasHouseExpenseReceiptField(data.vehicle_plate);
+
+    var vehicleHtml = '';
+    if (isVehicle) {
+        var vehicleText = [data.vehicle_model, data.vehicle_plate]
+            .filter(hasHouseExpenseReceiptField)
+            .map(function (v) { return String(v).trim(); })
+            .join(' / ');
+        var odoText =
+            data.km_l != null && Number.isFinite(Number(data.km_l))
+                ? 'ODO ' + houseExpenseFormatKmDisplay(data.km_l)
+                : '';
+        vehicleHtml =
+            buildHouseExpenseReceiptLine('her-line', vehicleText) +
+            buildHouseExpenseReceiptLine('her-line', odoText);
     }
 
-    var programDateDisplay = formatHouseExpenseReceiptDateOnly(data.program_date);
-    var detailsRows = '';
+    var amountRows =
+        buildHouseExpenseReceiptAmountRow('IN &amp; OUT', data.amount, 'her-in-out-value') +
+        (data.running_total != null ? buildHouseExpenseReceiptAmountRow('BALANCE', data.running_total) : '');
 
-    if (data.use_item_format) {
-        detailsRows =
-            '<tr><td class="her-label">Program Date :</td><td class="her-value">' +
-            houseExpenseHtmlEscape(programDateDisplay || '') +
-            '</td></tr>' +
-            buildHouseExpenseReceiptTextLegRow('Approved By :', data.description) +
-            buildHouseExpenseReceiptTextLegRow('Received By :', data.receiver) +
-            buildHouseExpenseReceiptLegRow('Amount :', data.amount, true);
-    } else {
-        detailsRows =
-            (programDateDisplay
-                ? buildHouseExpenseReceiptTextLegRow('- PROGRAM DATE', programDateDisplay)
-                : '') +
-            buildHouseExpenseReceiptTextLegRow('- RECEIPT NO', data.receipt_no) +
-            buildHouseExpenseReceiptTextLegRow('- IN-CHARGE', data.description) +
-            buildHouseExpenseReceiptTextLegRow('- RECEIVER', data.receiver) +
-            buildHouseExpenseReceiptTextLegRow('- VEHICLE', data.vehicle) +
-            (kmDisplay ? buildHouseExpenseReceiptTextLegRow('- KM/L', kmDisplay) : '') +
-            buildHouseExpenseReceiptTextLegRow('- ENCODED BY', data.encoded_by) +
-            buildHouseExpenseReceiptLegRow('* AMOUNT', data.amount, true);
-    }
-
-    var detailsTable = detailsRows
-        ? '<table class="her-table her-section-details"><tbody>' + detailsRows + '</tbody></table>'
-        : '';
+    var infoRows =
+        buildHouseExpenseReceiptTextLegRow('APPROVED BY', data.description) +
+        buildHouseExpenseReceiptTextLegRow('RECEIVED BY', data.receiver) +
+        buildHouseExpenseReceiptTextLegRow('DESCRIPTION', data.receipt_no);
 
     return (
         '<div class="house-expense-receipt-slip">' +
         '<div class="house-expense-receipt-slip-body">' +
-        '<p class="her-brand">GOLDEN DRAGON</p>' +
-        '<p class="her-title">' +
-        (data.title || '* Expenses *') +
-        '</p>' +
+        '<div class="her-header">EXPENSES</div>' +
+        '<div class="her-content">' +
         '<p class="her-datetime">' +
         formatHouseExpenseReceiptDateTime(data.created_dt) +
         '</p>' +
-        '<p class="her-category">' +
-        houseExpenseHtmlEscape(data.category || '') +
-        '</p>' +
-        detailsTable +
+        buildHouseExpenseReceiptLine('her-line', parentCategory) +
+        buildHouseExpenseReceiptLine('her-line', data.category) +
+        vehicleHtml +
+        '<table class="her-table her-amounts"><tbody>' + amountRows + '</tbody></table>' +
+        (infoRows ? '<table class="her-table her-info"><tbody>' + infoRows + '</tbody></table>' : '') +
+        '</div>' +
         '</div>' +
         '<div class="house-expense-receipt-slip-actions">' +
         '<button type="button" class="btn house-expense-receipt-copy-btn js-copy-house-expense-receipt-slip-image">' +

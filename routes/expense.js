@@ -1209,13 +1209,16 @@ async function buildHouseExpenseReceipt(expenseId) {
 			e.PROGRAM_DATE,
 			e.CREATED_DT,
 			e.APPROVAL_STATUS,
+			DATE_FORMAT(COALESCE(e.PROGRAM_DATE, DATE(e.ENCODED_DT)), '%Y-%m-%d') AS program_date_ymd,
 			ec.CATEGORY AS category_name,
 			ec.PARENT_ID AS category_parent_id,
+			pc.CATEGORY AS parent_category_name,
 			hv.PLATE_NO AS vehicle_plate,
 			hv.MODEL AS vehicle_model,
 			u.FIRSTNAME AS encoded_by_name
 		FROM junket_house_expense e
 		JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+		LEFT JOIN expense_category pc ON pc.IDNo = ec.PARENT_ID
 		JOIN user_info u ON u.IDNo = e.ENCODED_BY
 		LEFT JOIN house_expense_vehicle hv ON hv.IDNo = e.VEHICLE_ID AND hv.ACTIVE = 1
 		WHERE e.IDNo = ? AND e.ACTIVE = 1
@@ -1228,6 +1231,42 @@ async function buildHouseExpenseReceipt(expenseId) {
 	const vehicleParts = [row.vehicle_plate, row.vehicle_model].filter((v) => v != null && String(v).trim() !== '');
 	const kmL = row.KM_L != null && row.KM_L !== '' ? parseFloat(row.KM_L) : null;
 
+	// Running total within this expense's settlement month (month-end cut-off, e.g. Sep 30 – Oct 30)
+	// up to and including this one, ordered by program date then encode time. Same rules as the
+	// Junket Expenses TOTAL EXPENSES footer: rejected and settled excluded, Return Money subtracted.
+	const [py, pm, pd] = String(row.program_date_ymd).split('-').map(Number);
+	const cutoff = getMonthEndCutoffRange(new Date(py, pm - 1, pd));
+	const [balanceRows] = await pool.execute(
+		`SELECT
+			(SELECT COALESCE(SUM(x.AMOUNT), 0)
+			 FROM junket_house_expense x
+			 WHERE x.ACTIVE = 1
+				AND COALESCE(x.APPROVAL_STATUS, 1) <> 2
+				AND x.EXPENSE_SETTLEMENT_ID IS NULL
+				AND COALESCE(x.PROGRAM_DATE, DATE(x.ENCODED_DT)) BETWEEN ? AND ?
+				AND (
+					COALESCE(x.PROGRAM_DATE, DATE(x.ENCODED_DT)) < e.pd
+					OR (COALESCE(x.PROGRAM_DATE, DATE(x.ENCODED_DT)) = e.pd
+						AND (x.ENCODED_DT < e.ENCODED_DT OR (x.ENCODED_DT = e.ENCODED_DT AND x.IDNo <= e.IDNo)))
+				))
+			-
+			(SELECT COALESCE(SUM(rm.AMOUNT), 0)
+			 FROM junket_return_money rm
+			 WHERE rm.ACTIVE = 1
+				AND rm.EXPENSE_SETTLEMENT_ID IS NULL
+				AND COALESCE(rm.PROGRAM_DATE, DATE(rm.ENCODED_DT)) BETWEEN ? AND ?
+				AND (
+					COALESCE(rm.PROGRAM_DATE, DATE(rm.ENCODED_DT)) < e.pd
+					OR (COALESCE(rm.PROGRAM_DATE, DATE(rm.ENCODED_DT)) = e.pd AND rm.ENCODED_DT <= e.ENCODED_DT)
+				)) AS running_total
+		 FROM (
+			SELECT IDNo, ENCODED_DT, COALESCE(PROGRAM_DATE, DATE(ENCODED_DT)) AS pd
+			FROM junket_house_expense WHERE IDNo = ?
+		 ) e`,
+		[cutoff.startDate, cutoff.endDate, cutoff.startDate, cutoff.endDate, expenseId]
+	);
+	const runningTotal = parseFloat(balanceRows[0] && balanceRows[0].running_total) || 0;
+
 	return {
 		expense_id: row.IDNo,
 		title: '* Expenses *',
@@ -1235,6 +1274,10 @@ async function buildHouseExpenseReceipt(expenseId) {
 		program_date: row.PROGRAM_DATE || row.ENCODED_DT,
 		use_item_format: row.category_parent_id != null,
 		category: row.category_name || '',
+		parent_category: row.parent_category_name || '',
+		vehicle_model: row.vehicle_model || '',
+		vehicle_plate: row.vehicle_plate || '',
+		running_total: runningTotal,
 		receipt_no: row.RECEIPT_NO || '',
 		description: row.DESCRIPTION || '',
 		receiver: row.RECEIVER || '',
