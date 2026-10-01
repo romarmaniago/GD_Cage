@@ -14,7 +14,11 @@
 	var html2canvasPromise = null;
 
 	var SCALE = 2;
-	var BG = '#1c1c1c';
+	// Match the dashboard page background (body in dashboard_grid.css).
+	function pageBg() {
+		var c = window.getComputedStyle(document.body).backgroundColor;
+		return (!c || c === 'transparent' || c === 'rgba(0, 0, 0, 0)') ? '#333333' : c;
+	}
 
 	function loadHtml2Canvas() {
 		if (typeof html2canvas !== 'undefined') return Promise.resolve();
@@ -57,11 +61,23 @@
 		Array.prototype.forEach.call(btns, function (b) { b.style.display = 'none'; });
 	}
 
+	// html2canvas 1.4.1 paints the card body's 1px inset highlight
+	// (inset 0 1px 0 rgba(255,255,255,.4)) as a large translucent white block,
+	// leaving the value side of every row lighter than the label side. The line
+	// is invisible at this size anyway, so drop it in the clone only.
+	function dropInsetShadows(doc) {
+		var bodies = doc.querySelectorAll('.dash-card.gd-dash-panel > .card-body');
+		Array.prototype.forEach.call(bodies, function (b) { b.style.boxShadow = 'none'; });
+	}
+
 	// ---- Summary columns ----------------------------------------------------
 	function shotColumn(col) {
 		return html2canvas(col, {
-			backgroundColor: BG, scale: SCALE, useCORS: true, logging: false,
-			onclone: hideCopyButtons
+			backgroundColor: pageBg(), scale: SCALE, useCORS: true, logging: false,
+			onclone: function (doc) {
+				hideCopyButtons(doc);
+				dropInsetShadows(doc);
+			}
 		});
 	}
 
@@ -79,7 +95,7 @@
 				out.width = canvases[0].width + gap + canvases[1].width;
 				out.height = Math.max(canvases[0].height, canvases[1].height);
 				var ctx = out.getContext('2d');
-				ctx.fillStyle = BG;
+				ctx.fillStyle = pageBg();
 				ctx.fillRect(0, 0, out.width, out.height);
 				ctx.drawImage(canvases[0], 0, 0);
 				ctx.drawImage(canvases[1], canvases[0].width + gap, 0);

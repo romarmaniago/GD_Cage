@@ -32,7 +32,7 @@ const compression = require('compression');
 const TelegramBot = require('node-telegram-bot-api');
 const { sendTelegramToAdditionalChats, sendTelegramMessage } = require('../utils/telegram');
 const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
-const { allocateMarkerReturn, getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
+const { getMarkerReturnSourceDesc, getMarkerSourceBalances } = require('../utils/markerReturnAllocation');
 
 
 app.use(bodyParser.urlencoded({
@@ -5286,7 +5286,7 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 			}
 
 			if (returnSource === 'auto') {
-				await insertAutoSettlementRecords(conn, sourceBalances);
+				await insertAutoSettlementRecords(conn);
 			} else {
 				await insertSettlementRecord(conn);
 			}
@@ -5363,15 +5363,11 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 		await conn.query(insertQuery, [accountId, transType, 3, amount, req.session.user_id, date_now, userRemarks, 'CREDIT RETURN', returnSourceDesc]);
 	}
 
-	async function insertAutoSettlementRecords(conn, sourceBalances) {
-		const allocations = allocateMarkerReturn(
-			sourceBalances.balanceCredit,
-			sourceBalances.balanceBuyin,
-			markerReturn
-		);
-		for (const allocation of allocations) {
-			await insertSettlementRecord(conn, allocation.source, allocation.amount);
-		}
+	// Auto return books one row for the full amount against the whole credit (no Cash/Game split).
+	// Tagged CREDIT; the waterfall netting in the balance queries carries any excess over the
+	// Cash Credit bucket into Game Credit, so account totals stay correct.
+	async function insertAutoSettlementRecords(conn) {
+		await insertSettlementRecord(conn, 'credit', markerReturn);
 	}
 });
 

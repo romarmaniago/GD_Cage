@@ -1940,7 +1940,7 @@ body {
 /* W/L Check — center-align header + cell text; keep "The difference" on one line; lock body row height */
 .dash-dual-matrix-col.is-wl .dash-wl-head-excel,
 .dash-dual-matrix-col.is-wl .dash-wl-row {
-  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(6.75rem, 1.1fr) minmax(0, 0.7fr);
 }
 
 .dash-dual-matrix-col.is-wl .dash-wl-head-cell,
@@ -2388,7 +2388,7 @@ body {
 .dash-rolling-head-excel,
 .dash-rolling-row {
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.7fr);
   gap: 0;
 }
 
@@ -2732,7 +2732,7 @@ body {
 .dash-wl-head-excel,
 .dash-wl-row {
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
+  grid-template-columns: 4rem minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr);
   gap: 0;
 }
 
