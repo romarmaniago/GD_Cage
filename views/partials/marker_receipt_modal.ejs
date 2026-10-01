@@ -18,15 +18,18 @@
     margin-right: auto;
 }
 
+/* !important: dashboard_grid.css forces a beige bg + gold border on every .modal-content/.modal-body */
 #modal-marker-receipt .marker-receipt-content {
-    background: transparent;
-    border: none;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     box-shadow: none;
+    overflow: visible;
     width: 100%;
 }
 
 #modal-marker-receipt .modal-body {
-    background: transparent;
+    background: transparent !important;
     width: 100%;
 }
 
@@ -193,6 +196,123 @@
     background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
     border-color: transparent;
     border-radius: 0.2rem;
+}
+
+/* ---------- Credit slip (History receipt) ---------- */
+#modal-marker-receipt .marker-receipt-slip--credit {
+    max-width: 290px;
+    padding: 0;
+    font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
+    border: 1px solid #c9ced6;
+}
+
+#modal-marker-receipt .marker-receipt-slip--credit .marker-receipt-slip-body {
+    padding: 0;
+    background: #fff;
+}
+
+#modal-marker-receipt .mcr-header {
+    background: #e60000;
+    color: #fff;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.35rem;
+    letter-spacing: 0.5px;
+    padding: 0.45rem 0.5rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+#modal-marker-receipt .mcr-content {
+    position: relative;
+    padding: 0.4rem 0 0.75rem;
+}
+
+/* Dragon watermark */
+#modal-marker-receipt .mcr-content::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 220px;
+    height: 220px;
+    margin-left: -110px;
+    background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+#modal-marker-receipt .mcr-content > * {
+    position: relative;
+}
+
+#modal-marker-receipt .mcr-datetime {
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin: 0 0 0.4rem;
+}
+
+#modal-marker-receipt .mcr-account {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin: 0 0.5rem 0.4rem;
+    text-transform: uppercase;
+}
+
+#modal-marker-receipt .mcr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-weight: 700;
+}
+
+#modal-marker-receipt .mcr-table td {
+    border: none;
+    padding: 0.4rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Same label column width in both tables so the right-aligned labels line up */
+#modal-marker-receipt .mcr-table .mrr-label {
+    width: 42%;
+    text-align: right;
+    padding-right: 1rem;
+}
+
+#modal-marker-receipt .mcr-table .mrr-value {
+    width: auto;
+}
+
+#modal-marker-receipt .mcr-amounts .mrr-label {
+    font-size: 1rem;
+}
+
+#modal-marker-receipt .mcr-amounts .mrr-value {
+    font-size: 1.45rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+#modal-marker-receipt .mcr-info {
+    margin-top: 1.75rem;
+    font-size: 1rem;
+}
+
+#modal-marker-receipt .mcr-info .mrr-value {
+    text-align: center;
+}
+
+#modal-marker-receipt .marker-receipt-slip--credit .mrr-amount-out,
+#modal-marker-receipt .marker-receipt-slip--credit .mrr-balance-out {
+    color: #e60000 !important;
+}
+
+#modal-marker-receipt .marker-receipt-slip--credit .marker-receipt-slip-actions {
+    margin-top: 0;
+    padding: 0.5rem;
+    border-top: 1px solid #c9ced6;
+    background: #fff;
 }
 
 body.marker-receipt-open .modal-backdrop.show {

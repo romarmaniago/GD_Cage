@@ -1176,39 +1176,38 @@
         );
     }
 
-    function markerReceiptDateTime(value) {
+    /** Header datetime on the Credit slip, e.g. 10/1/2026 15:05. */
+    function markerReceiptSlipDateTime(value) {
         if (!value) return '';
         var m = window.moment ? parseMarkerHistoryDateString(value) : null;
-        return m && m.isValid() ? m.format('YYYY-MM-DD HH:mm') : String(value);
-    }
-
-    function markerReceiptDateOnly(value) {
-        if (!value) return '';
-        var m = window.moment ? parseMarkerHistoryDateString(value) : null;
-        return m && m.isValid() ? m.format('YYYY-MM-DD') : String(value).slice(0, 10);
+        return m && m.isValid() ? m.format('M/D/YYYY HH:mm') : String(value);
     }
 
     function buildMarkerReceiptHtml(row) {
         row = row || {};
         var t = window.markerTranslations || {};
         var isOut = isMarkerCreditOutTransaction(row);
-        var titleClass = isOut ? 'mrr-title mrr-title-out' : 'mrr-title';
-        var rowsHtml =
-            markerReceiptTextRow('DATE', formatProgramDateCell(row.PROGRAM_DATE, 'sort') || markerReceiptDateOnly(row.ENCODED_DT)) +
-            markerReceiptTextRow('ACCOUNT', row.AGENT_CODE) +
-            markerReceiptTextRow('NAME', row.AGENT_NAME) +
-            markerReceiptInOutRow('IN AND OUT', row.AMOUNT, isOut) +
-            markerReceiptBalanceRow('BALANCE', row.CREDIT_TOTAL) +
+        var amountRowsHtml =
+            markerReceiptInOutRow('IN & OUT', row.AMOUNT, isOut) +
+            markerReceiptBalanceRow('BALANCE', row.CREDIT_TOTAL);
+        var infoRowsHtml =
             markerReceiptTextRow('CONFIRMER', row.GUARANTOR) +
             markerReceiptTextRow('REMARKS', row.REMARKS);
+        var accountLine = [row.AGENT_CODE, row.AGENT_NAME]
+            .filter(markerReceiptHasValue)
+            .map(markerReceiptEscape)
+            .join(' ');
 
         return (
-            '<div class="marker-receipt-slip">' +
+            '<div class="marker-receipt-slip marker-receipt-slip--credit">' +
             '<div class="marker-receipt-slip-body">' +
-            '<p class="mrr-brand">GOLDEN DRAGON</p>' +
-            '<p class="' + titleClass + '">* Credit *</p>' +
-            '<p class="mrr-datetime">' + markerReceiptEscape(markerReceiptDateTime(row.ENCODED_DT)) + '</p>' +
-            '<table class="mrr-table"><tbody>' + rowsHtml + '</tbody></table>' +
+            '<div class="mcr-header">CREDIT</div>' +
+            '<div class="mcr-content">' +
+            '<p class="mcr-datetime">' + markerReceiptEscape(markerReceiptSlipDateTime(row.ENCODED_DT)) + '</p>' +
+            (accountLine ? '<p class="mcr-account">' + accountLine + '</p>' : '') +
+            '<table class="mcr-table mcr-amounts"><tbody>' + amountRowsHtml + '</tbody></table>' +
+            (infoRowsHtml ? '<table class="mcr-table mcr-info"><tbody>' + infoRowsHtml + '</tbody></table>' : '') +
+            '</div>' +
             '</div>' +
             '<div class="marker-receipt-slip-actions">' +
             '<button type="button" class="btn marker-receipt-copy-btn js-copy-marker-receipt-image">' + markerReceiptEscape(t.copy_image || 'Copy image') + '</button>' +
