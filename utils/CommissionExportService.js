@@ -85,7 +85,8 @@ function toRowValues(r) {
 	return {
 		program_date: r.program_date || '',
 		game_start: r.game_start || '',
-		acc: r.acc || '-',
+		// The on-screen agent code can carry a "*" marker (e.g. "* LX000"); drop it in the export.
+		acc: String(r.acc || '').replace(/\*/g, '').trim() || '-',
 		guest_name: r.guest_name || '-',
 		membership_no: r.membership_no ? numericOrText(r.membership_no) : '-',
 		game_type: r.game_type || '',

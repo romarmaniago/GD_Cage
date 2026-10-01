@@ -87,12 +87,15 @@ function numericOrText(value) {
 }
 
 function toRowValues(r) {
-	const code = r.agent_code || '';
-	const group = r.group_name || 'Main';
+	// The on-screen agent code can carry a "*" marker (e.g. "* LX000"); drop it in the export.
+	const code = String(r.agent_code || '').replace(/\*/g, '').trim();
+	const group = String(r.group_name || '').trim();
+	// "Main" is the default group, so it's left off; other groups are appended directly, e.g. "HB009A".
+	const showGroup = group && group.toLowerCase() !== 'main';
 	return {
 		program_date: r.program_date || '',
 		game_start: r.game_start || '',
-		acc_group: code ? code + ' (' + group + ')' : '',
+		acc_group: code ? (showGroup ? code + group : code) : '',
 		guest_name: r.guest_name || '-',
 		membership_no: r.membership_no ? numericOrText(r.membership_no) : '-',
 		game_type: r.game_type || '',
