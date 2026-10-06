@@ -11645,7 +11645,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
                 if (typeof window.setSettlementReceiptDate === 'function') {
                     window.setSettlementReceiptDate($settlementModal);
                 }
-                setGameListModalAccountLabel('#settlement-agent-code', data[0].agent_code, data[0].guest_name);
+                setGameListModalAccountLabel('#settlement-agent-code', data[0].agent_code, data[0].agent_name);
                 $('input[name="game_id_settle"]').val(record_id);
                 $('input[name="txtAccountIDSettle"]').val(account_id);
                 $settlementModal.data('settlementGameAccountId', account_id);
