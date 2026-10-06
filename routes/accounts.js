@@ -4982,6 +4982,8 @@ async function buildGuestPortalLedgerReceipt(ledgerId) {
 		account_name: row.agent_name || '',
 		amount,
 		balance_after: balanceAfter,
+		// Same text as the Agent Portal TRANSACTION column (e.g. "Deposit - Cash", "Settlement - #100049")
+		auto_remarks: row.AUTO_REMARKS || '',
 		remarks: row.REMARKS || '',
 		encoded_by: row.encoded_by_name || '',
 		encoded_dt: row.ENCODED_DT

@@ -1167,72 +1167,9 @@ $(document).ready(function () {
 		return tipReceiptHtml2CanvasPromise;
 	}
 
-	function tipReceiptDateTime(value) {
-		if (!value) return '';
-		if (window.moment) {
-			var m = moment.utc(value).utcOffset(8);
-			return m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
-		}
-		return String(value).slice(0, 16).replace('T', ' ');
-	}
-
-	function tipReceiptHasValue(value) {
-		if (value == null) return false;
-		if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
-		var s = String(value).trim();
-		return s !== '' && s !== '—' && s !== '-';
-	}
-
-	function tipReceiptTextRow(label, value) {
-		if (!tipReceiptHasValue(value)) return '';
-		return '<tr><td class="trs-label">' + tipHtmlEscape(label) + '</td><td class="trs-value">' +
-			tipHtmlEscape(String(value)) + '</td></tr>';
-	}
-
-	function tipReceiptAmountRow(label, value, withBorder, isSettlement) {
-		var rowClass = withBorder === false ? '' : ' class="trs-total-row"';
-		var num = Math.abs(Number(value) || 0);
-		var display = isSettlement ? '(' + formatMoney(num) + ')' : formatMoney(num);
-		var valueClass = isSettlement ? 'trs-value trs-amount-value' : 'trs-value trs-amount-black';
-		return '<tr' + rowClass + '><td class="trs-label trs-total-label">' + tipHtmlEscape(label) +
-			'</td><td class="' + valueClass + '">' + display + '</td></tr>';
-	}
-
+	// Slip markup is shared with the other Tip page — see window.TipReceiptSlip in views/modals/tip/tip_receipt.ejs
 	function buildTipReceiptSlipHtml(data) {
-		data = data || {};
-		var programDate = data.program_date ? String(data.program_date).slice(0, 10) : '';
-		var rows =
-			tipReceiptTextRow('PROGRAM DATE', programDate) +
-			tipReceiptTextRow('ACCOUNT', data.account) +
-			tipReceiptTextRow('NAME', data.name) +
-			tipReceiptTextRow('GUEST', data.guest) +
-			tipReceiptTextRow('GAME #', data.game_no) +
-			tipReceiptTextRow('STATUS', data.status) +
-			tipReceiptTextRow('NAME', data.person_name) +
-			tipReceiptTextRow('REMARKS', data.remarks);
-
-		if (data.from_game) {
-			rows +=
-				tipReceiptAmountRow('ROLLER', data.roller_amount, true, false) +
-				tipReceiptAmountRow('DEALER', data.dealer_amount, false, false);
-		} else {
-			rows += tipReceiptAmountRow('AMOUNT', data.amount, true, !!data.is_settlement);
-		}
-
-		return (
-			'<div class="tip-receipt-slip">' +
-			'<div class="tip-receipt-slip-body">' +
-			'<p class="trs-brand">GOLDEN DRAGON</p>' +
-			'<p class="trs-title">' + tipHtmlEscape(data.title || '* Tip *') + '</p>' +
-			'<p class="trs-datetime">' + tipHtmlEscape(tipReceiptDateTime(data.created_dt)) + '</p>' +
-			'<table class="trs-table"><tbody>' + rows + '</tbody></table>' +
-			'</div>' +
-			'<div class="tip-receipt-slip-actions">' +
-			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-image">Copy image</button>' +
-			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-text">Copy text</button>' +
-			'</div>' +
-			'</div>'
-		);
+		return window.TipReceiptSlip.buildHtml(data);
 	}
 
 	function showTipReceiptModal() {
@@ -1323,7 +1260,7 @@ $(document).ready(function () {
 
 	function copyTipReceiptText($btn) {
 		var slipBody = $btn.closest('.tip-receipt-slip').find('.tip-receipt-slip-body')[0];
-		var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+		var text = window.TipReceiptSlip.slipText(slipBody);
 		var ui = tipReceiptCopyUi($btn);
 		if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
 			ui.error('Clipboard is not supported in this browser.');

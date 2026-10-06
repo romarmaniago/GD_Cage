@@ -1741,13 +1741,28 @@ function computeGuestPortalBalanceAfterMap(rows) {
 	return map;
 }
 
+/**
+ * Agent Portal TRANSACTION text from AUTO_REMARKS (upper-cased) — shared by the ledger table and the receipt:
+ *   "TRANSFER - FROM/TO COMPANY"                 → "COMPANY - CASH"
+ *   "TRANSFER - FROM/TO HJ015" (another account)   → "TRANSFER - CASH"
+ *   "WITHDRAW - LOSS AMOUNT / EXPENSES / ADD CHARGE" → "LOSS AMOUNT - CASH" / …
+ */
+function formatAgentPortalTransactionText(autoRemarks) {
+	var text = String(autoRemarks || '').trim().toUpperCase();
+	if (/^TRANSFER - (FROM|TO) COMPANY$/.test(text)) return 'COMPANY - CASH';
+	if (/^TRANSFER - (FROM|TO)\b/.test(text)) return 'TRANSFER - CASH';
+	var portalCategory = /^(?:DEPOSIT|WITHDRAW) - (EXPENSES|LOSS AMOUNT|ADD CHARGE)$/.exec(text);
+	if (portalCategory) return portalCategory[1] + ' - CASH';
+	return text;
+}
+
 function buildAccountDetailsLedgerRow(encodedDate, transactionCell, amountCell, balanceAfterCell, remarks, sourceRow) {
 	var ledgerId = accountLedgerRowId(sourceRow);
 	// Transaction column shows only the system-generated AUTO_REMARKS (Buy In / Settlement / Transfer / ...);
 	// a dash when there is none. The Remarks column stays user input only.
 	var transactionLabel = transactionCell;
-	var autoRemarks = String(sourceRow.AUTO_REMARKS || '').trim();
-	transactionCell = autoRemarks ? linkAccountLedgerGameNumbers(escapeHtmlAttr(autoRemarks.toUpperCase())) : '—';
+	var autoRemarks = formatAgentPortalTransactionText(sourceRow.AUTO_REMARKS);
+	transactionCell = autoRemarks ? linkAccountLedgerGameNumbers(escapeHtmlAttr(autoRemarks)) : '—';
 	var row = [encodedDate, amountCell, balanceAfterCell, transactionCell, remarks || ''];
 	row.push(
 		renderAccountLedgerActionCell(
@@ -3505,19 +3520,17 @@ function formatGuestPortalReceiptAmount(value) {
 	return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-function formatGuestPortalReceiptDate(encodedDt) {
+/** Card header date/time like the other receipt slips, e.g. 10/6/2026 15:13 (UTC+8). */
+function formatGuestPortalReceiptSlipDateTime(encodedDt) {
 	if (!encodedDt) return '';
 	if (window.moment) {
 		var m = moment.utc(encodedDt).utcOffset(8);
-		if (m.isValid()) return m.format('M/D/YYYY');
-	}
-	var d = new Date(encodedDt);
-	if (!isNaN(d.getTime())) {
-		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+		if (m.isValid()) return m.format('M/D/YYYY H:mm');
 	}
 	return String(encodedDt);
 }
 
+/** Copy-text date/time, e.g. 2026-10-06 15:13 (UTC+8). */
 function formatGuestPortalReceiptDateTime(encodedDt) {
 	if (!encodedDt) return '';
 	if (window.moment) {
@@ -3527,52 +3540,74 @@ function formatGuestPortalReceiptDateTime(encodedDt) {
 	return String(encodedDt);
 }
 
+/** Ledger amount from the account's side: money in positive, money out negative. */
+function guestPortalReceiptSignedAmount(data) {
+	var trans = String(data.transaction || '').trim().toUpperCase();
+	var raw = Number(data.amount) || 0;
+	var amount = Math.abs(raw);
+	if (trans === 'WITHDRAW' || trans === 'IOU RETURN DEPOSIT' || isGuestPortalCreditCashEntry(trans, data.transaction_desc)) {
+		return -amount;
+	}
+	// Deposit-type rows: a negative amount is money out too (e.g. a settlement the agent pays)
+	return raw;
+}
+
+/** Excel number format: negative → red (x); otherwise plain with a hidden ")" so the last digits line up. */
+function guestPortalReceiptAmountCell(n) {
+	var formatted = formatGuestPortalReceiptAmount(n);
+	if (n < 0) return { html: '(' + formatted + ')', text: '(' + formatted + ')', out: true };
+	return { html: formatted + '<span class="gpr-paren-pad" aria-hidden="true">)</span>', text: formatted, out: false };
+}
+
 function buildGuestPortalReceiptSlipHtml(data) {
 	data = data || {};
-	var trans = String(data.transaction || '').trim().toUpperCase();
-	var signedAmount = Number(data.amount) || 0;
-	var amount = Math.abs(signedAmount);
-	var isDeposit = trans === 'DEPOSIT' || trans === 'MARKER REDEEM';
-	var isWithdraw = trans === 'WITHDRAW' || trans === 'IOU RETURN DEPOSIT';
-	// A negative deposit-type entry (e.g. a settlement the agent pays) goes under Withdrawal
-	if (isDeposit && signedAmount < 0) {
-		isDeposit = false;
-		isWithdraw = true;
+	var esc = guestPortalReceiptHtmlEscape;
+	var signed = guestPortalReceiptSignedAmount(data);
+	var inOut = guestPortalReceiptAmountCell(signed);
+	var balance = guestPortalReceiptAmountCell(Number(data.balance_after) || 0);
+	// Category under the name: the receipt title (Deposit / Withdrawal / Settlement / Add Charge - Hotel / …)
+	var category = String(data.title || '').replace(/\*/g, '').trim();
+	// "Add Charge - F & B" / "Expenses - …" → just the portal category (the sub-type is not part of it)
+	var portalTitle = /^(add charge|expenses|loss amount)\b/i.exec(category);
+	if (portalTitle) {
+		category = portalTitle[1].replace(/\b\w/g, function (c) { return c.toUpperCase(); });
 	}
-	var depositAmt = isDeposit ? amount : 0;
-	var withdrawAmt = isWithdraw ? amount : 0;
-	var remarks = data.remarks != null ? String(data.remarks).trim() : '';
-	// "Transferred to GD084" / "Received from Company" — skipped when the peer is unknown.
-	var transferLabel = String(data.transfer_label || '').trim();
-	var transferRow = /\s(to|from)\s+\S/i.test(transferLabel)
-		? '<tr><td class="gpr-label">Transfer :</td><td class="gpr-value gpr-value-wrap">' +
-			guestPortalReceiptHtmlEscape(transferLabel) + '</td></tr>'
-		: '';
+	// Same text as the ledger table's TRANSACTION column
+	var transaction = formatAgentPortalTransactionText(data.auto_remarks) || '-';
+	// From / to Company is its own category on the slip (not "Transfer")
+	if (transaction === 'COMPANY - CASH') category = 'Company';
+	var description = String(data.remarks || '').trim() || '-';
 
-	var detailRows =
-		'<tr><td class="gpr-label">Date :</td><td class="gpr-value">' +
-		guestPortalReceiptHtmlEscape(formatGuestPortalReceiptDate(data.encoded_dt)) + '</td></tr>' +
-		'<tr><td class="gpr-label">Account :</td><td class="gpr-value gpr-value-wrap">' +
-		guestPortalReceiptHtmlEscape(data.account_code || '') + '</td></tr>' +
-		'<tr><td class="gpr-label">Name :</td><td class="gpr-value gpr-value-wrap">' +
-		guestPortalReceiptHtmlEscape(data.account_name || '') + '</td></tr>' +
-		transferRow +
-		'<tr><td class="gpr-label">Deposit :</td><td class="gpr-value">' +
-		formatGuestPortalReceiptAmount(depositAmt) + '</td></tr>' +
-		'<tr><td class="gpr-label">Withdrawal :</td><td class="gpr-value' + (withdrawAmt ? ' gpr-amount-out' : '') + '">' +
-		(withdrawAmt ? '(' + formatGuestPortalReceiptAmount(withdrawAmt) + ')' : '0') + '</td></tr>' +
-		'<tr><td class="gpr-label">Balance :</td><td class="gpr-value">' +
-		formatGuestPortalReceiptAmount(data.balance_after) + '</td></tr>' +
-		'<tr><td class="gpr-label">Remarks :</td><td class="gpr-value gpr-value-wrap">' +
-		guestPortalReceiptHtmlEscape(remarks) + '</td></tr>';
+	var amountRows =
+		'<tr><td class="gpr-label">IN &amp; OUT</td><td class="gpr-value' + (inOut.out ? ' gpr-amount-out' : '') + '">' + inOut.html + '</td></tr>' +
+		'<tr><td class="gpr-label">BALANCE</td><td class="gpr-value' + (balance.out ? ' gpr-amount-out' : '') + '">' + balance.html + '</td></tr>';
+	var infoRows =
+		'<tr><td class="gpr-label">TRANSACTION</td><td class="gpr-value gpr-transaction">' + esc(transaction) + '</td></tr>' +
+		'<tr><td class="gpr-label">DESCRIPTION</td><td class="gpr-value">' + esc(description) + '</td></tr>';
+
+	// Copy text (stored on the slip): same blocks as the slip, with a blank line between them
+	var copyText = [
+		['* AGENT PORTAL *', formatGuestPortalReceiptDateTime(data.encoded_dt)],
+		[data.account_code || '', data.account_name || ''],
+		[category],
+		['IN & OUT ' + inOut.text, 'BALANCE ' + balance.text],
+		['TRANSACTION ' + transaction, 'DESCRIPTION ' + description]
+	].map(function (block) {
+		return block.filter(function (line) { return String(line).trim() !== ''; }).join('\n');
+	}).filter(Boolean).join('\n\n');
 
 	return (
-		'<div class="guest-portal-receipt-slip">' +
+		'<div class="guest-portal-receipt-slip" data-receipt-text="' + esc(encodeURIComponent(copyText)) + '">' +
 		'<div class="guest-portal-receipt-slip-body">' +
-		'<p class="gpr-brand">GOLDEN DRAGON</p>' +
-		'<p class="gpr-title">' + guestPortalReceiptHtmlEscape(data.title || '* Transaction *') + '</p>' +
-		'<p class="gpr-datetime">' + guestPortalReceiptHtmlEscape(formatGuestPortalReceiptDateTime(data.encoded_dt)) + '</p>' +
-		'<table class="gpr-table"><tbody>' + detailRows + '</tbody></table>' +
+		'<div class="gpr-header">* AGENT PORTAL *</div>' +
+		'<div class="gpr-content">' +
+		'<p class="gpr-datetime">' + esc(formatGuestPortalReceiptSlipDateTime(data.encoded_dt)) + '</p>' +
+		(data.account_code ? '<p class="gpr-account">' + esc(data.account_code) + '</p>' : '') +
+		(data.account_name ? '<p class="gpr-name">' + esc(data.account_name) + '</p>' : '') +
+		(category ? '<p class="gpr-category' + (signed < 0 ? ' gpr-category-out' : '') + '">' + esc(category) + '</p>' : '') +
+		'<table class="gpr-table gpr-amounts"><tbody>' + amountRows + '</tbody></table>' +
+		'<table class="gpr-table gpr-info"><tbody>' + infoRows + '</tbody></table>' +
+		'</div>' +
 		'</div>' +
 		'<div class="guest-portal-receipt-slip-actions">' +
 		'<button type="button" class="btn guest-portal-receipt-copy-btn js-copy-guest-portal-receipt-image">Copy image</button>' +
@@ -3683,7 +3718,10 @@ function copyGuestPortalReceiptSlipImage(slipBodyEl, $btn) {
 }
 
 function copyGuestPortalReceiptSlipText(slipBodyEl, $btn) {
-	var text = slipBodyEl && slipBodyEl.innerText ? slipBodyEl.innerText.trim() : '';
+	// Prefer the text the slip was built with (spec layout); fall back to the visible text
+	var slipEl = slipBodyEl && slipBodyEl.closest('.guest-portal-receipt-slip');
+	var stored = slipEl && slipEl.getAttribute('data-receipt-text');
+	var text = stored ? decodeURIComponent(stored) : (slipBodyEl && slipBodyEl.innerText ? slipBodyEl.innerText.trim() : '');
 	var original = $btn.html();
 	if (!text) return;
 	$btn.prop('disabled', true);

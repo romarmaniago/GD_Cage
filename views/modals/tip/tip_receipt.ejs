@@ -1,33 +1,45 @@
-<div class="modal fade" id="modal-tip-receipt" tabindex="-1" aria-labelledby="modalTipReceiptLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered tip-receipt-dialog">
-        <div class="modal-content tip-receipt-content position-relative">
-            <button type="button" class="btn-close tip-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
-            <div class="modal-body p-0">
-                <div id="tip-receipt-container" class="tip-receipt-container"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
+<div class="modal fade" id="modal-tip-receipt" tabindex="-1" aria-labelledby="modalTipReceiptLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered tip-receipt-dialog">
+        <div class="modal-content tip-receipt-content position-relative">
+            <button type="button" class="btn-close tip-receipt-close-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-body p-0">
+                <div id="tip-receipt-container" class="tip-receipt-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 #modal-tip-receipt .tip-receipt-dialog {
-    --bs-modal-width: min(98vw, 400px);
-    width: min(98vw, 400px) !important;
-    max-width: min(98vw, 400px) !important;
+    --bs-modal-width: min(98vw, 360px);
+    width: min(98vw, 360px) !important;
+    max-width: min(98vw, 360px) !important;
     margin-left: auto;
     margin-right: auto;
 }
 
+/* !important: dashboard_grid.css forces a beige bg + gold border on every .modal-content/.modal-body */
 #modal-tip-receipt .tip-receipt-content {
-    background: transparent;
-    border: none;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     box-shadow: none;
+    overflow: visible;
     width: 100%;
 }
 
 #modal-tip-receipt .modal-body {
-    background: transparent;
+    background: transparent !important;
     width: 100%;
+}
+
+/* dashboard_grid.css stripes/hovers every `.modal table` row — receipt stays plain white */
+#modal-tip-receipt table tbody tr,
+#modal-tip-receipt table tbody tr td,
+#modal-tip-receipt table tbody tr:nth-child(even) td,
+#modal-tip-receipt table tbody tr:hover,
+#modal-tip-receipt table tbody tr:hover td {
+    background-color: transparent !important;
 }
 
 #modal-tip-receipt .tip-receipt-close-btn {
@@ -63,122 +75,138 @@
     justify-content: center;
 }
 
+/* Same look as the Expenses / Credit / Loss Amount / Add Charge receipts */
 #modal-tip-receipt .tip-receipt-slip {
     width: 100%;
-    max-width: 360px;
+    max-width: 290px;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.75rem 0.65rem;
-    font-family: Arial, Helvetica, sans-serif;
+    padding: 0;
+    font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
-    border: 1px solid #dee2e6;
+    border: 1px solid #c9ced6;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
 }
 
 #modal-tip-receipt .tip-receipt-slip-body {
     flex: 1 1 auto;
-    padding: 0.5rem 0.25rem 0;
+    padding: 0;
+    background: #fff;
 }
 
-#modal-tip-receipt .trs-brand {
+#modal-tip-receipt .trs-header {
+    background: #70ad47;
+    color: #fff;
     text-align: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.35rem;
     letter-spacing: 0.5px;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
+    padding: 0.45rem 0.5rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+#modal-tip-receipt .trs-content {
+    position: relative;
+    padding: 0.4rem 0 0.75rem;
+}
+
+/* Dragon watermark */
+#modal-tip-receipt .trs-content::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 220px;
+    height: 220px;
+    margin-left: -110px;
+    background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+#modal-tip-receipt .trs-content > * {
+    position: relative;
 }
 
 #modal-tip-receipt .trs-datetime {
     text-align: center;
     font-size: 0.85rem;
-    margin: 0 0 0.35rem;
+    font-weight: 700;
+    margin: 0 0 0.6rem;
 }
 
-#modal-tip-receipt .trs-title {
-    text-align: center;
-    font-style: italic;
-    font-size: 0.85rem;
-    margin: 0 0 0.5rem;
-}
-
-#modal-tip-receipt .trs-category {
+#modal-tip-receipt .trs-account {
     text-align: center;
     font-weight: 700;
-    font-size: 0.85rem;
-    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+    margin: 0 0.5rem 0.6rem;
     text-transform: uppercase;
 }
 
 #modal-tip-receipt .trs-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
-    border: 1px solid #000;
-    box-sizing: border-box;
+    font-weight: 700;
 }
 
 #modal-tip-receipt .trs-table td {
     border: none;
-    border-bottom: 1px dotted #000;
-    padding: 0.35rem 0.45rem;
-    vertical-align: top;
+    padding: 0.4rem 0.75rem;
+    vertical-align: middle;
 }
 
-#modal-tip-receipt .trs-table td.trs-label {
-    width: 1%;
-    padding-right: 0.25rem;
-}
-
-#modal-tip-receipt .trs-table tr:last-child td {
-    border-bottom: none;
-}
-
-#modal-tip-receipt .trs-table tr:has(+ tr.trs-total-row) td {
-    border-bottom: none;
-}
-
-#modal-tip-receipt .trs-table tr.trs-total-row td {
-    border-top: 1px solid #000;
-    border-bottom: none;
-}
-
+/* Same label column width in both tables so the right-aligned labels line up */
 #modal-tip-receipt .trs-label {
-    text-align: left;
+    width: 42%;
+    text-align: right;
+    padding-right: 1rem !important;
     white-space: nowrap;
 }
 
-#modal-tip-receipt .trs-value {
+#modal-tip-receipt .trs-amounts {
+    margin-top: 0.5rem;
+}
+
+#modal-tip-receipt .trs-amounts .trs-label {
+    font-size: 1rem;
+}
+
+#modal-tip-receipt .trs-amounts .trs-value {
+    font-size: 1.45rem;
+    font-weight: 400;
     text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Money out (e.g. a tip settlement payout) → red (x); tips are plain */
+#modal-tip-receipt .trs-amount-out {
+    color: #e60000 !important;
+}
+
+/* Hidden ")" on plain amounts so the last digits line up (Excel number format) */
+#modal-tip-receipt .trs-paren-pad {
+    visibility: hidden;
+}
+
+#modal-tip-receipt .trs-info {
+    margin-top: 1.75rem;
+    font-size: 1rem;
+}
+
+#modal-tip-receipt .trs-info .trs-value {
+    text-align: center;
     white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-#modal-tip-receipt .trs-total-row td {
-    font-weight: 700;
-}
-
-#modal-tip-receipt .trs-total-label {
-    font-weight: 700;
-}
-
-#modal-tip-receipt .trs-amount-value {
-    color: #dc3545 !important;
-    font-weight: 700;
-}
-
-#modal-tip-receipt .trs-amount-black {
-    color: #000 !important;
-    font-weight: 700;
 }
 
 #modal-tip-receipt .tip-receipt-slip-actions {
     display: flex;
     gap: 0.35rem;
-    margin-top: 0.65rem;
+    padding: 0.5rem;
+    border-top: 1px solid #c9ced6;
+    background: #fff;
 }
 
 #modal-tip-receipt .tip-receipt-slip-actions .tip-receipt-copy-btn {
@@ -200,4 +228,151 @@ body.tip-receipt-open .modal-backdrop.show {
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
+
+/* Game tips: "CODE GROUP" / guest / "LIVE #game" lines, like the game receipts */
+#modal-tip-receipt .trs-guest {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin: 0 0.5rem 0.6rem;
+    text-transform: uppercase;
+}
+
+#modal-tip-receipt .trs-game {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 0 0 0.6rem;
+}
+
+#modal-tip-receipt .trs-game-type {
+    color: #c00000;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+}
+
+#modal-tip-receipt .trs-game-type--live {
+    color: #0070c0;
+}
 </style>
+
+<script>
+/*
+ * Tip receipt slip shared by the Tip page (tip.js) and the dashboard Tip modal (dashboard_tip.js).
+ * data comes from GET /tip/:id/receipt or /tip_settlement/:id/receipt.
+ */
+(function (window) {
+	'use strict';
+
+	function esc(value) {
+		return String(value == null ? '' : value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
+	function hasValue(value) {
+		if (value == null) return false;
+		if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+		var s = String(value).trim();
+		return s !== '' && s !== '—' && s !== '-';
+	}
+
+	/** Header date/time like the other receipt slips, e.g. 10/6/2026 15:13 (UTC+8). */
+	function slipDateTime(value) {
+		if (!value) return '';
+		if (window.moment) {
+			var m = window.moment.utc(value).utcOffset(8);
+			if (m.isValid()) return m.format('M/D/YYYY H:mm');
+		}
+		return String(value).slice(0, 16).replace('T', ' ');
+	}
+
+	/** Excel number format: negative (money out) → red (x); otherwise plain with a hidden ")". */
+	function amountRow(label, n) {
+		n = Number(n) || 0;
+		var formatted = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+		var isOut = n < 0;
+		var display = isOut ? '(' + formatted + ')' : formatted + '<span class="trs-paren-pad" aria-hidden="true">)</span>';
+		return '<tr><td class="trs-label">' + esc(label) + '</td><td class="trs-value' +
+			(isOut ? ' trs-amount-out' : '') + '">' + display + '</td></tr>';
+	}
+
+	function textRow(label, value) {
+		return '<tr><td class="trs-label">' + esc(label) + '</td><td class="trs-value">' +
+			esc(hasValue(value) ? value : '-') + '</td></tr>';
+	}
+
+	function buildHtml(data) {
+		data = data || {};
+		var tipLabel = String(data.tip_type || 'Roller').toUpperCase();
+
+		// Header lines: game tips like the game receipts, other tips just the account when there is one
+		var headerLines = '';
+		if (data.from_game) {
+			var accountLine = [data.account, data.group_name].filter(hasValue).map(esc).join(' ');
+			var gameType = String(data.game_type || '').trim().toUpperCase();
+			if (accountLine) headerLines += '<p class="trs-account">' + accountLine + '</p>';
+			if (hasValue(data.guest)) headerLines += '<p class="trs-guest">' + esc(data.guest) + '</p>';
+			if (hasValue(data.game_no)) {
+				headerLines += '<p class="trs-game"><span class="trs-game-type' + (gameType === 'LIVE' ? ' trs-game-type--live' : '') + '">' +
+					esc(gameType) + '</span> #' + esc(data.game_no) + '</p>';
+			}
+		} else if (hasValue(data.account)) {
+			headerLines += '<p class="trs-account">' + [data.account, data.name].filter(hasValue).map(esc).join(' ') + '</p>';
+		}
+
+		// Amounts: game tips show Roller (and Dealer when there is one); a settlement pays roller tips out
+		var amountRows = '';
+		if (data.from_game) {
+			if (hasValue(data.roller_amount) || !hasValue(data.dealer_amount)) amountRows += amountRow('ROLLER', data.roller_amount);
+			if (hasValue(data.dealer_amount)) amountRows += amountRow('DEALER', data.dealer_amount);
+		} else {
+			var amount = Math.abs(Number(data.amount) || 0);
+			amountRows += amountRow(tipLabel, data.is_settlement ? -amount : amount);
+		}
+		if (data.balance != null) amountRows += amountRow('BALANCE', data.balance);
+
+		// "ROLLER  APRIL" / "GM  BOBBY": tip status as the label, the person as the value
+		var infoRows = '';
+		var person = data.is_settlement ? data.name : data.person_name;
+		if (hasValue(data.status) || hasValue(person)) {
+			infoRows += textRow(String(data.status || tipLabel).toUpperCase(), hasValue(person) ? String(person).toUpperCase() : '');
+		}
+		infoRows += textRow('DESCRIPTION', data.remarks ? String(data.remarks).toUpperCase() : '');
+
+		return (
+			'<div class="tip-receipt-slip">' +
+			'<div class="tip-receipt-slip-body">' +
+			'<div class="trs-header">* TIP *</div>' +
+			'<div class="trs-content">' +
+			'<p class="trs-datetime">' + esc(slipDateTime(data.created_dt)) + '</p>' +
+			headerLines +
+			'<table class="trs-table trs-amounts"><tbody>' + amountRows + '</tbody></table>' +
+			'<table class="trs-table trs-info"><tbody>' + infoRows + '</tbody></table>' +
+			'</div>' +
+			'</div>' +
+			'<div class="tip-receipt-slip-actions">' +
+			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-image">Copy image</button>' +
+			'<button type="button" class="btn tip-receipt-copy-btn js-copy-tip-receipt-text">Copy text</button>' +
+			'</div>' +
+			'</div>'
+		);
+	}
+
+	/** Copy text: the slip text with a blank line between the amounts (… BALANCE) and the info rows. */
+	function slipText(slipBody) {
+		var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+		var infoTable = slipBody ? slipBody.querySelector('.trs-info') : null;
+		var infoText = infoTable && infoTable.innerText ? infoTable.innerText.trim() : '';
+		if (infoText && text.indexOf(infoText) > 0) {
+			text = text.replace(infoText, '\n' + infoText);
+		}
+		return text;
+	}
+
+	window.TipReceiptSlip = { buildHtml: buildHtml, slipText: slipText };
+})(window);
+</script>

@@ -154,6 +154,25 @@ async function getRollerTipAvailableBalance(db) {
 	};
 }
 
+/** Roller tip balance right after an entry: roller tips minus tip settlements encoded up to `asOf`
+ *  (same sources as getRollerTipAvailableBalance, not clamped so the receipt shows the real figure). */
+async function getRollerTipBalanceAsOf(db, asOf) {
+	const conn = db || pool;
+	const [[rollerRow]] = await conn.execute(
+		`SELECT COALESCE(SUM(t.AMOUNT), 0) AS TOTAL
+		 FROM tip t
+		 WHERE t.ACTIVE = 1 AND t.TIP_TYPE = ? AND t.ENCODED_DT <= ?`,
+		[TIP_TYPE.ROLLER, asOf]
+	);
+	const [[settledRow]] = await conn.execute(
+		`SELECT COALESCE(SUM(ts.AMOUNT), 0) AS TOTAL
+		 FROM tip_settlement ts
+		 WHERE ts.ACTIVE = 1 AND COALESCE(ts.ENCODED_DT, ts.SETTLEMENT_DATETIME) <= ?`,
+		[asOf]
+	);
+	return (parseFloat(rollerRow && rollerRow.TOTAL) || 0) - (parseFloat(settledRow && settledRow.TOTAL) || 0);
+}
+
 router.get('/tip', checkSession, function (req, res) {
 	const data = sessions(req, 'tip');
 	data.permissions = req.session.permissions;
@@ -990,11 +1009,14 @@ router.get('/tip/:id/receipt', checkSession, async (req, res) => {
 				t.TIP_STATUS,
 				t.REMARKS,
 				COALESCE(NULLIF(TRIM(CAST(gl.GAME_NO AS CHAR)), ''), CAST(t.GAME_ID AS CHAR)) AS GAME_NO,
+				gl.GAME_TYPE,
+				COALESCE(NULLIF(TRIM(gg.NAME), ''), 'Main') AS GROUP_NAME,
 				ag.AGENT_CODE,
 				ag.NAME AS AGENT_NAME,
 				COALESCE(NULLIF(TRIM(g_direct.NAME), ''), NULLIF(TRIM(g.NAME), '')) AS GUEST_NAME
 			 FROM tip t
 			 LEFT JOIN game_list gl ON gl.IDNo = t.GAME_ID
+			 LEFT JOIN game_group gg ON gg.IDNo = gl.GROUP_ID
 			 LEFT JOIN guest g ON g.IDNo = gl.GUEST_ID
 			 LEFT JOIN guest g_direct ON g_direct.IDNo = t.GUEST_ID
 			 LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
@@ -1016,13 +1038,16 @@ router.get('/tip/:id/receipt', checkSession, async (req, res) => {
 			name: row.AGENT_NAME || null,
 			guest: row.GUEST_NAME || null,
 			game_no: row.GAME_NO || null,
-			remarks: row.REMARKS || null
+			game_type: row.GAME_ID != null ? (row.GAME_TYPE || 'LIVE') : null,
+			group_name: row.GAME_ID != null ? row.GROUP_NAME : null,
+			remarks: row.REMARKS || null,
+			balance: await getRollerTipBalanceAsOf(pool, row.ENCODED_DT)
 		};
 
 		// Game-linked tips: show both Roller and Dealer amounts, no single AMOUNT line.
 		if (row.GAME_ID != null) {
 			const [siblings] = await pool.execute(
-				`SELECT TIP_TYPE, AMOUNT, TIP_STATUS
+				`SELECT TIP_TYPE, AMOUNT, TIP_STATUS, ROLLER_NAME
 				 FROM tip
 				 WHERE ACTIVE = 1 AND GAME_ID = ? AND ENCODED_DT = ?
 				   AND (ACCOUNT_ID <=> ?)`,
@@ -1030,21 +1055,30 @@ router.get('/tip/:id/receipt', checkSession, async (req, res) => {
 			);
 			let rollerAmount = 0;
 			let dealerAmount = 0;
+			let rollerInfo = null;
 			(siblings || []).forEach((s) => {
 				const amt = parseFloat(s.AMOUNT) || 0;
-				if (Number(s.TIP_TYPE) === TIP_TYPE.ROLLER) rollerAmount += amt;
-				else if (Number(s.TIP_TYPE) === TIP_TYPE.DEALER) dealerAmount += amt;
+				if (Number(s.TIP_TYPE) === TIP_TYPE.ROLLER) {
+					rollerAmount += amt;
+					if (!rollerInfo) rollerInfo = s;
+				} else if (Number(s.TIP_TYPE) === TIP_TYPE.DEALER) dealerAmount += amt;
 			});
+			const info = rollerInfo || (siblings && siblings[0]) || row;
 			return res.json(Object.assign(base, {
 				from_game: true,
 				category: 'Game Tip',
 				roller_amount: rollerAmount,
-				dealer_amount: dealerAmount
+				dealer_amount: dealerAmount,
+				status: info.TIP_STATUS || null,
+				person_name: info.ROLLER_NAME || null
 			}));
 		}
 
 		res.json(Object.assign(base, {
 			category: tipTypeLabel(row.TIP_TYPE) + ' Tip',
+			tip_type: tipTypeLabel(row.TIP_TYPE),
+			// The roller tip BALANCE only applies to roller tips
+			balance: Number(row.TIP_TYPE) === TIP_TYPE.ROLLER ? base.balance : null,
 			status: row.TIP_STATUS || null,
 			person_name: row.ROLLER_NAME || null,
 			amount: parseFloat(row.AMOUNT) || 0
@@ -1081,8 +1115,11 @@ router.get('/tip_settlement/:id/receipt', checkSession, async (req, res) => {
 		}
 
 		const row = rows[0];
+		const settledAt = row.ENCODED_DT || row.SETTLEMENT_DATETIME;
 		res.json({
 			title: '* Tip Settlement *',
+			tip_type: 'Roller',
+			balance: settledAt ? await getRollerTipBalanceAsOf(pool, settledAt) : null,
 			category: 'Roller Tip Payout',
 			is_settlement: true,
 			created_dt: row.ENCODED_DT || row.SETTLEMENT_DATETIME,

@@ -33,18 +33,19 @@
 		return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 	}
 
+	/** Header date/time like the other receipt slips, e.g. 10/6/2026 15:13 (UTC+8). */
 	function formatReceiptDateTime(value) {
 		if (!value) return '';
-		if (typeof window.fmtDtUtc8 === 'function') {
-			var out = window.fmtDtUtc8(value, '');
-			if (out) return out;
+		if (window.moment) {
+			var m = window.moment.utc(value).utcOffset(8);
+			if (m.isValid()) return m.format('M/D/YYYY H:mm');
 		}
 		var d = new Date(value);
 		if (Number.isNaN(d.getTime())) {
 			return String(value).slice(0, 16).replace('T', ' ');
 		}
-		return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
-			' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+		return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear() +
+			' ' + d.getHours() + ':' + pad2(d.getMinutes());
 	}
 
 	function paymentLabel(transactionId) {
@@ -76,14 +77,14 @@
 		return n;
 	}
 
-	function amountRow(label, value, sourceType) {
-		var n = signedAmount(value, sourceType);
-		var abs = Math.abs(n);
-		var formatted = abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-		var display = n < 0 ? '(' + formatted + ')' : formatted;
-		var cls = n < 0 ? 'fhr-amount-value' : 'fhr-amount-pos';
-		return '<tr class="fhr-total-row"><td class="fhr-label fhr-total-label">' + escapeHtml(label) +
-			'</td><td class="fhr-value ' + cls + '">' + display + '</td></tr>';
+	/** Amount row, Excel number format: negative (money out) → red (x); otherwise plain with a
+	 *  hidden ")" so the last digits line up. `n` is already signed (see signedAmount). */
+	function amountRow(label, n) {
+		var formatted = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+		var isOut = n < 0;
+		var display = isOut ? '(' + formatted + ')' : formatted + '<span class="fhr-paren-pad" aria-hidden="true">)</span>';
+		return '<tr><td class="fhr-label">' + escapeHtml(label) +
+			'</td><td class="fhr-value' + (isOut ? ' fhr-amount-out' : '') + '">' + display + '</td></tr>';
 	}
 
 	function payloadFromService(service) {
@@ -99,7 +100,10 @@
 			amount: service.AMOUNT,
 			sourceType: String(service.SOURCE_TYPE || '').trim(),
 			transactionId: service.TRANSACTION_ID,
-			remarks: String(service.REMARKS || '').trim()
+			remarks: String(service.REMARKS || '').trim(),
+			// Settled rows are out of the running BALANCE (same as the table Total)
+			settled: (service.SERVICE_SETTLEMENT_ID != null && service.SERVICE_SETTLEMENT_ID !== '') ||
+				(service.COMMISSION_SETTLEMENT_ID != null && service.COMMISSION_SETTLEMENT_ID !== '')
 		};
 	}
 
@@ -109,23 +113,74 @@
 			'data-receipt="' + data + '" title="Receipt"><i class="fa fa-receipt"></i></button>';
 	}
 
-	function buildReceiptHtml(data) {
+	function receiptSortKey(data) {
+		return [
+			String(data.programDate || '').slice(0, 10),
+			new Date(data.encodedDt || 0).getTime() || 0,
+			Number(data.id) || 0
+		];
+	}
+
+	function compareSortKeys(a, b) {
+		for (var i = 0; i < a.length; i++) {
+			if (a[i] < b[i]) return -1;
+			if (a[i] > b[i]) return 1;
+		}
+		return 0;
+	}
+
+	/**
+	 * Running BALANCE up to and including this charge (program date, then date & time), over the
+	 * rows the table shows (date range / category / search) — same rules as the table Total:
+	 * signed amounts, settled rows left out. Read from the receipt buttons of that table.
+	 */
+	function runningBalanceFor(receiptBtn, data) {
+		var table = receiptBtn && receiptBtn.closest('table');
+		if (!table || !window.jQuery || !window.jQuery.fn.DataTable || !window.jQuery.fn.DataTable.isDataTable(table)) {
+			return null;
+		}
+		var target = receiptSortKey(data);
+		var balance = 0;
+		window.jQuery(table).DataTable().rows({ search: 'applied' }).data().each(function (rowData) {
+			var cells = Array.isArray(rowData) ? rowData : [rowData];
+			cells.forEach(function (cell) {
+				var match = /data-receipt="([^"]+)"/.exec(typeof cell === 'string' ? cell : '');
+				if (!match) return;
+				var row;
+				try {
+					row = JSON.parse(decodeURIComponent(match[1]));
+				} catch (err) {
+					return;
+				}
+				if (row.settled || compareSortKeys(receiptSortKey(row), target) > 0) return;
+				balance += signedAmount(row.amount, row.sourceType);
+			});
+		});
+		return balance;
+	}
+
+	function buildReceiptHtml(data, balance) {
 		data = data || {};
-		var titleText = data.type ? ('* ' + data.type + ' *') : '* Add Charge *';
-		var rowsHtml =
-			textRow('PROGRAM DATE', formatReceiptDate(data.programDate)) +
-			textRow('ACCOUNT', data.account) +
-			textRow('NAME', data.name) +
-			amountRow('AMOUNT', data.amount, data.sourceType) +
-			textRow('REMARKS', data.remarks);
+		var accountLine = [data.account, data.name].filter(hasValue).map(escapeHtml).join(' ');
+		var amountRows =
+			amountRow('IN & OUT', signedAmount(data.amount, data.sourceType)) +
+			(balance != null ? amountRow('BALANCE', balance) : '');
+		var infoRows =
+			textRow('TYPE', data.type) +
+			textRow('PAYMENT', paymentLabel(data.transactionId).toUpperCase()) +
+			'<tr><td class="fhr-label">DESCRIPTION</td><td class="fhr-value">' +
+			escapeHtml(hasValue(data.remarks) ? data.remarks : '-') + '</td></tr>';
 
 		return (
 			'<div class="fnb-hotel-receipt-slip">' +
 			'<div class="fnb-hotel-receipt-slip-body">' +
-			'<p class="fhr-brand">GOLDEN DRAGON</p>' +
-			'<p class="fhr-title">' + escapeHtml(titleText) + '</p>' +
+			'<div class="fhr-header">* ADD CHARGE *</div>' +
+			'<div class="fhr-content">' +
 			'<p class="fhr-datetime">' + escapeHtml(formatReceiptDateTime(data.encodedDt)) + '</p>' +
-			'<table class="fhr-table"><tbody>' + rowsHtml + '</tbody></table>' +
+			(accountLine ? '<p class="fhr-account">' + accountLine + '</p>' : '') +
+			'<table class="fhr-table fhr-amounts"><tbody>' + amountRows + '</tbody></table>' +
+			'<table class="fhr-table fhr-info"><tbody>' + infoRows + '</tbody></table>' +
+			'</div>' +
 			'</div>' +
 			'<div class="fnb-hotel-receipt-slip-actions">' +
 			'<button type="button" class="btn fnb-hotel-receipt-copy-btn js-copy-fnb-hotel-receipt-image">Copy image</button>' +
@@ -135,11 +190,11 @@
 		);
 	}
 
-	function show(data) {
+	function show(data, balance) {
 		var modalEl = document.getElementById('modal-fnb-hotel-receipt');
 		var container = document.getElementById('fnb-hotel-receipt-container');
 		if (!modalEl || !container) return;
-		container.innerHTML = buildReceiptHtml(data);
+		container.innerHTML = buildReceiptHtml(data, balance);
 		if (window.jQuery) window.jQuery(modalEl).appendTo('body');
 		// Stack above an open dashboard service detail modal.
 		if (document.getElementById('modal-dash-fnb') || document.getElementById('modal-dash-service-category')) {
@@ -235,6 +290,12 @@
 		var slip = btn.closest('.fnb-hotel-receipt-slip');
 		var slipBody = slip ? slip.querySelector('.fnb-hotel-receipt-slip-body') : null;
 		var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+		// Blank line between the amounts (… BALANCE) and TYPE / PAYMENT / DESCRIPTION
+		var infoTable = slipBody ? slipBody.querySelector('.fhr-info') : null;
+		var infoText = infoTable && infoTable.innerText ? infoTable.innerText.trim() : '';
+		if (infoText && text.indexOf(infoText) > 0) {
+			text = text.replace(infoText, '\n' + infoText);
+		}
 		var ui = copyUi(btn);
 		if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
 			ui.error('Clipboard is not supported in this browser.');
@@ -258,7 +319,7 @@
 			} catch (err) {
 				data = {};
 			}
-			show(data);
+			show(data, runningBalanceFor(receiptBtn, data));
 			return;
 		}
 		var imageBtn = event.target.closest('.js-copy-fnb-hotel-receipt-image');

@@ -647,14 +647,17 @@ function junketLossReceiptTextRow(label, value) {
     );
 }
 
+/** Amount row, Excel number format: a loss (positive, money out) shows red (x); a recovery
+ *  (negative) is plain with a hidden ")" so the last digits line up. */
 function junketLossReceiptAmountRow(label, value) {
-    const num = Math.abs(Number(value) || 0);
-    const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-    const display = num ? '(' + formatted + ')' : '0';
+    const num = Number(value) || 0;
+    const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const isOut = num > 0;
+    const display = isOut ? '(' + formatted + ')' : formatted + '<span class="jlr-paren-pad" aria-hidden="true">)</span>';
     return (
-        '<tr class="jlr-total-row"><td class="jlr-label jlr-total-label">' +
+        '<tr><td class="jlr-label">' +
         junketLossReceiptEscape(label) +
-        '</td><td class="jlr-value jlr-amount-value">' +
+        '</td><td class="jlr-value' + (isOut ? ' jlr-amount-out' : '') + '">' +
         display +
         '</td></tr>'
     );
@@ -663,34 +666,66 @@ function junketLossReceiptAmountRow(label, value) {
 function junketLossReceiptDateTime(value) {
     if (!value) return '';
     const m = moment(value);
-    return m.isValid() ? m.format('YYYY-MM-DD HH:mm') : '';
+    return m.isValid() ? m.format('M/D/YYYY H:mm') : '';
+}
+
+/** Running BALANCE up to and including this entry (program date, then date & time): same rules
+ *  as the table TOTAL — settled entries are excluded, recoveries (negative) reduce it. */
+function getJunketLossRunningBalance(row) {
+    if (!junketLossTable || !row) return null;
+    const sortKey = function (r) {
+        const raw = r.PROGRAM_DATE || r.ENCODED_DT || '';
+        return [
+            raw ? moment(raw).format('YYYY-MM-DD') : '',
+            moment(r.ENCODED_DT || 0).valueOf() || 0,
+            Number(r.IDNo) || 0
+        ];
+    };
+    const compare = function (a, b) {
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] < b[i]) return -1;
+            if (a[i] > b[i]) return 1;
+        }
+        return 0;
+    };
+    const target = sortKey(row);
+    return junketLossTable
+        .rows()
+        .data()
+        .toArray()
+        .reduce(function (sum, r) {
+            if (isJunketLossSettled(r) || compare(sortKey(r), target) > 0) return sum;
+            return sum + (Number(r.AMOUNT) || 0);
+        }, 0);
 }
 
 function buildJunketLossReceiptHtml(row) {
     row = row || {};
-    const rawProgramDate = row.PROGRAM_DATE || row.ENCODED_DT || '';
-    const programDate = rawProgramDate ? moment(rawProgramDate).format('YYYY-MM-DD') : '';
-    const paymentType = Number(row.PAYMENT_TYPE);
-    const amountLabel = paymentType === 1 ? 'CHIPS' : paymentType === 2 ? 'CASH' : 'AMOUNT';
-    const rowsHtml =
-        junketLossReceiptTextRow('PROGRAM DATE', programDate) +
-        junketLossReceiptTextRow('ACCOUNT', row.ACCOUNT_CODE) +
-        junketLossReceiptTextRow('NAME', row.ACCOUNT_HOLDER) +
+    const accountLine = [row.ACCOUNT_CODE, row.ACCOUNT_HOLDER]
+        .filter(junketLossReceiptHasValue)
+        .map(function (v) { return junketLossReceiptEscape(String(v).trim()); })
+        .join(' ');
+    const balance = getJunketLossRunningBalance(row);
+    const amountRows =
+        junketLossReceiptAmountRow('IN & OUT', row.AMOUNT) +
+        (balance != null ? junketLossReceiptAmountRow('BALANCE', balance) : '');
+    const infoRows =
+        junketLossReceiptTextRow('TYPE', paymentTypeLabel(row.PAYMENT_TYPE).toUpperCase()) +
         junketLossReceiptTextRow('PERSON INVOLVED', row.IN_CHARGE) +
-        junketLossReceiptTextRow('DESCRIPTION', row.DESCRIPTION) +
-        junketLossReceiptAmountRow(amountLabel, row.AMOUNT);
+        junketLossReceiptTextRow('DESCRIPTION', row.DESCRIPTION);
 
     return (
         '<div class="junket-loss-receipt-slip">' +
         '<div class="junket-loss-receipt-slip-body">' +
-        '<p class="jlr-brand">GOLDEN DRAGON</p>' +
-        '<p class="jlr-title">* Loss Amount *</p>' +
+        '<div class="jlr-header">* LOSS AMOUNT *</div>' +
+        '<div class="jlr-content">' +
         '<p class="jlr-datetime">' +
         junketLossReceiptEscape(junketLossReceiptDateTime(row.ENCODED_DT)) +
         '</p>' +
-        '<table class="jlr-table"><tbody>' +
-        rowsHtml +
-        '</tbody></table>' +
+        (accountLine ? '<p class="jlr-account">' + accountLine + '</p>' : '') +
+        '<table class="jlr-table jlr-amounts"><tbody>' + amountRows + '</tbody></table>' +
+        (infoRows ? '<table class="jlr-table jlr-info"><tbody>' + infoRows + '</tbody></table>' : '') +
+        '</div>' +
         '</div>' +
         '<div class="junket-loss-receipt-slip-actions">' +
         '<button type="button" class="btn junket-loss-receipt-copy-btn js-copy-junket-loss-receipt-image">Copy image</button>' +
@@ -817,6 +852,12 @@ function copyJunketLossReceiptText(btn) {
     var slip = btn.closest('.junket-loss-receipt-slip');
     var slipBody = slip ? slip.querySelector('.junket-loss-receipt-slip-body') : null;
     var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+    // Blank line between the amounts (… BALANCE) and TYPE / PERSON INVOLVED / DESCRIPTION
+    var infoTable = slipBody ? slipBody.querySelector('.jlr-info') : null;
+    var infoText = infoTable && infoTable.innerText ? infoTable.innerText.trim() : '';
+    if (infoText && text.indexOf(infoText) > 0) {
+        text = text.replace(infoText, '\n' + infoText);
+    }
     var ui = junketLossReceiptCopyUi(btn);
     if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
         ui.error('Clipboard is not supported in this browser.');

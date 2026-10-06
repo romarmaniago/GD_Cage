@@ -487,9 +487,14 @@ function buildHouseExpenseReceiptSlipHtml(data) {
 
     var vehicleHtml = '';
     if (isVehicle) {
+        // The saved model can already hold "MODEL / COLOR / " pieces — drop the empty ones so the
+        // line never shows "/ /", e.g. "SUPER GRANDIA / WHITE / CAK5633"
         var vehicleText = [data.vehicle_model, data.vehicle_plate]
             .filter(hasHouseExpenseReceiptField)
-            .map(function (v) { return String(v).trim(); })
+            .join(' / ')
+            .split('/')
+            .map(function (v) { return v.trim(); })
+            .filter(Boolean)
             .join(' / ');
         var odoText =
             data.km_l != null && Number.isFinite(Number(data.km_l))
@@ -639,6 +644,12 @@ function copyHouseExpenseReceiptSlipText(slipBodyEl) {
     var text = slipBodyEl && slipBodyEl.innerText ? slipBodyEl.innerText.trim() : '';
     if (!text) {
         return Promise.reject(new Error('Receipt has no text to copy.'));
+    }
+    // Blank line between the amounts (… BALANCE) and APPROVED BY / RECEIVED BY / DESCRIPTION
+    var infoTable = slipBodyEl.querySelector('.her-info');
+    var infoText = infoTable && infoTable.innerText ? infoTable.innerText.trim() : '';
+    if (infoText && text.indexOf(infoText) > 0) {
+        text = text.replace(infoText, '\n' + infoText);
     }
     if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
         return Promise.reject(new Error('Clipboard is not supported in this browser.'));

@@ -1105,87 +1105,138 @@ body > .flatpickr-calendar {
 }
 #modal-guest-portal-receipt .guest-portal-receipt-slip {
     width: 100%;
-    max-width: 320px;
-    box-sizing: border-box;
-    overflow: hidden;
+    max-width: 290px;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.75rem 0.65rem;
-    font-family: Arial, Helvetica, sans-serif;
+    padding: 0;
+    font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
-    border: 1px solid #dee2e6;
+    border: 1px solid #c9ced6;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
 }
+
 #modal-guest-portal-receipt .guest-portal-receipt-slip-body {
     flex: 1 1 auto;
-    padding: 0.5rem 0.25rem 0;
-    min-width: 0;
-    overflow: hidden;
+    padding: 0;
+    background: #fff;
 }
-#modal-guest-portal-receipt .gpr-brand {
+
+#modal-guest-portal-receipt .gpr-header {
+    background: #70ad47;
+    color: #fff;
     text-align: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.35rem;
     letter-spacing: 0.5px;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
+    padding: 0.45rem 0.5rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
-#modal-guest-portal-receipt .gpr-title {
-    text-align: center;
-    font-style: italic;
-    font-size: 0.85rem;
-    margin: 0 0 0.35rem;
+
+#modal-guest-portal-receipt .gpr-content {
+    position: relative;
+    padding: 0.4rem 0 0.75rem;
 }
+
+/* Dragon watermark */
+#modal-guest-portal-receipt .gpr-content::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 220px;
+    height: 220px;
+    margin-left: -110px;
+    background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+#modal-guest-portal-receipt .gpr-content > * {
+    position: relative;
+}
+
 #modal-guest-portal-receipt .gpr-datetime {
     text-align: center;
     font-size: 0.85rem;
-    margin: 0 0 0.5rem;
+    font-weight: 700;
+    margin: 0 0 0.6rem;
 }
+
+#modal-guest-portal-receipt .gpr-account {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin: 0 0.5rem 0.6rem;
+    text-transform: uppercase;
+}
+
 #modal-guest-portal-receipt .gpr-table {
     width: 100%;
-    max-width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    border: 1px solid #000;
-    box-sizing: border-box;
-}
-#modal-guest-portal-receipt .gpr-table td {
-    border: none;
-    border-bottom: 1px dotted #000;
-    padding: 0.35rem 0.45rem;
-    vertical-align: top;
-}
-#modal-guest-portal-receipt .gpr-table tr:last-child td {
-    border-bottom: none;
-}
-#modal-guest-portal-receipt .gpr-label {
-    text-align: left;
-    white-space: nowrap;
-    width: 38%;
-}
-#modal-guest-portal-receipt .gpr-value {
-    text-align: right !important;
-    width: 62%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-#modal-guest-portal-receipt .gpr-value.gpr-value-wrap {
-    text-align: right !important;
-}
-#modal-guest-portal-receipt .gpr-amount-out {
-    color: #dc3545 !important;
     font-weight: 700;
 }
+
+#modal-guest-portal-receipt .gpr-table td {
+    border: none;
+    padding: 0.4rem 0.75rem;
+    vertical-align: middle;
+}
+
+/* Same label column width in both tables so the right-aligned labels line up */
+#modal-guest-portal-receipt .gpr-label {
+    width: 42%;
+    text-align: right;
+    padding-right: 1rem !important;
+    white-space: nowrap;
+}
+
+#modal-guest-portal-receipt .gpr-amounts {
+    margin-top: 0.5rem;
+}
+
+#modal-guest-portal-receipt .gpr-amounts .gpr-label {
+    font-size: 1rem;
+}
+
+#modal-guest-portal-receipt .gpr-amounts .gpr-value {
+    font-size: 1.45rem;
+    font-weight: 400;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Money out → red (x); money in is plain */
+#modal-guest-portal-receipt .gpr-amount-out {
+    color: #e60000 !important;
+}
+
+/* Hidden ")" on plain amounts so the last digits line up (Excel number format) */
+#modal-guest-portal-receipt .gpr-paren-pad {
+    visibility: hidden;
+}
+
+#modal-guest-portal-receipt .gpr-info {
+    margin-top: 1.75rem;
+    font-size: 1rem;
+}
+
+#modal-guest-portal-receipt .gpr-info .gpr-value {
+    text-align: center;
+    white-space: normal;
+}
+
 #modal-guest-portal-receipt .guest-portal-receipt-slip-actions {
     display: flex;
     gap: 0.35rem;
-    margin-top: 0.65rem;
+    padding: 0.5rem;
+    border-top: 1px solid #c9ced6;
+    background: #fff;
 }
-#modal-guest-portal-receipt .guest-portal-receipt-copy-btn {
+
+#modal-guest-portal-receipt .guest-portal-receipt-slip-actions .guest-portal-receipt-copy-btn {
     flex: 1 1 0;
     width: auto;
     min-width: 0;
@@ -1193,12 +1244,40 @@ body > .flatpickr-calendar {
     font-weight: 700;
     padding: 0.55rem 0.5rem;
     white-space: nowrap;
-    color: #fff !important;
-    background: linear-gradient(135deg, #52525b 0%, #71717a 100%) !important;
-    border-color: transparent !important;
+    color: #fff;
+    background: linear-gradient(135deg, #52525b 0%, #71717a 100%);
+    border-color: transparent;
     border-radius: 0.2rem;
-    box-shadow: none !important;
 }
+
+/* Category under the name (Deposit / Withdrawal / Settlement / …): blue = money in, red = money out */
+#modal-guest-portal-receipt .gpr-category {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin: 0 0.5rem 0.6rem;
+    text-transform: uppercase;
+    color: #0070c0;
+}
+
+#modal-guest-portal-receipt .gpr-category.gpr-category-out {
+    color: #e60000;
+}
+
+/* TRANSACTION (e.g. "SETTLEMENT - #100060") stays on one line, a bit smaller like the spec */
+#modal-guest-portal-receipt .gpr-info .gpr-transaction {
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+#modal-guest-portal-receipt .gpr-name {
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin: 0 0.5rem 0.4rem;
+    text-transform: uppercase;
+}
+
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
     position: sticky;
     top: 0;

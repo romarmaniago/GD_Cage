@@ -18,16 +18,28 @@
     margin-right: auto;
 }
 
+/* !important: dashboard_grid.css forces a beige bg + gold border on every .modal-content/.modal-body */
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-content {
-    background: transparent;
-    border: none;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     box-shadow: none;
+    overflow: visible;
     width: 100%;
 }
 
 #modal-fnb-hotel-receipt .modal-body {
-    background: transparent;
+    background: transparent !important;
     width: 100%;
+}
+
+/* dashboard_grid.css stripes/hovers every `.modal table` row — receipt stays plain white */
+#modal-fnb-hotel-receipt table tbody tr,
+#modal-fnb-hotel-receipt table tbody tr td,
+#modal-fnb-hotel-receipt table tbody tr:nth-child(even) td,
+#modal-fnb-hotel-receipt table tbody tr:hover,
+#modal-fnb-hotel-receipt table tbody tr:hover td {
+    background-color: transparent !important;
 }
 
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-close-btn {
@@ -63,112 +75,138 @@
     justify-content: center;
 }
 
+/* Same look as the Expenses / Credit / Loss Amount receipts */
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-slip {
     width: 100%;
-    max-width: 320px;
+    max-width: 290px;
     display: flex;
     flex-direction: column;
-    padding: 0.75rem 0.75rem 0.65rem;
-    font-family: Arial, Helvetica, sans-serif;
+    padding: 0;
+    font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
     color: #000;
     background: #fff;
-    border: 1px solid #dee2e6;
+    border: 1px solid #c9ced6;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
 }
 
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-slip-body {
     flex: 1 1 auto;
-    padding: 0.5rem 0.25rem 0;
+    padding: 0;
+    background: #fff;
 }
 
-#modal-fnb-hotel-receipt .fhr-brand {
+#modal-fnb-hotel-receipt .fhr-header {
+    background: #e60000;
+    color: #fff;
     text-align: center;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.35rem;
     letter-spacing: 0.5px;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
+    padding: 0.45rem 0.5rem;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+#modal-fnb-hotel-receipt .fhr-content {
+    position: relative;
+    padding: 0.4rem 0 0.75rem;
+}
+
+/* Dragon watermark */
+#modal-fnb-hotel-receipt .fhr-content::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 220px;
+    height: 220px;
+    margin-left: -110px;
+    background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+#modal-fnb-hotel-receipt .fhr-content > * {
+    position: relative;
 }
 
 #modal-fnb-hotel-receipt .fhr-datetime {
     text-align: center;
     font-size: 0.85rem;
-    margin: 0 0 0.35rem;
+    font-weight: 700;
+    margin: 0 0 0.6rem;
 }
 
-#modal-fnb-hotel-receipt .fhr-title {
+#modal-fnb-hotel-receipt .fhr-account {
     text-align: center;
-    font-style: italic;
-    font-size: 0.85rem;
-    margin: 0 0 0.5rem;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin: 0 0.5rem 0.6rem;
+    text-transform: uppercase;
 }
 
 #modal-fnb-hotel-receipt .fhr-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
-    border: 1px solid #000;
-    box-sizing: border-box;
+    font-weight: 700;
 }
 
 #modal-fnb-hotel-receipt .fhr-table td {
     border: none;
-    border-bottom: 1px dotted #000;
-    padding: 0.35rem 0.45rem;
+    padding: 0.4rem 0.75rem;
     vertical-align: middle;
 }
 
-#modal-fnb-hotel-receipt .fhr-table tr:last-child td {
-    border-bottom: none;
-}
-
-#modal-fnb-hotel-receipt .fhr-table tr:has(+ tr.fhr-total-row) td {
-    border-bottom: none;
-}
-
-#modal-fnb-hotel-receipt .fhr-table tr.fhr-total-row td {
-    border-top: 1px solid #000;
-    border-bottom: 1px solid #000;
-}
-
-#modal-fnb-hotel-receipt .fhr-table tr.fhr-total-row + tr td {
-    padding-top: 0.5rem;
-}
-
+/* Same label column width in both tables so the right-aligned labels line up */
 #modal-fnb-hotel-receipt .fhr-label {
-    text-align: left;
+    width: 42%;
+    text-align: right;
+    padding-right: 1rem !important;
     white-space: nowrap;
 }
 
-#modal-fnb-hotel-receipt .fhr-value {
+#modal-fnb-hotel-receipt .fhr-amounts {
+    margin-top: 0.5rem;
+}
+
+#modal-fnb-hotel-receipt .fhr-amounts .fhr-label {
+    font-size: 1rem;
+}
+
+#modal-fnb-hotel-receipt .fhr-amounts .fhr-value {
+    font-size: 1.45rem;
+    font-weight: 400;
     text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Charge (negative, money out) → red (x); positive is plain */
+#modal-fnb-hotel-receipt .fhr-amount-out {
+    color: #e60000 !important;
+}
+
+/* Hidden ")" on plain amounts so the last digits line up (Excel number format) */
+#modal-fnb-hotel-receipt .fhr-paren-pad {
+    visibility: hidden;
+}
+
+#modal-fnb-hotel-receipt .fhr-info {
+    margin-top: 1.75rem;
+    font-size: 1rem;
+}
+
+#modal-fnb-hotel-receipt .fhr-info .fhr-value {
+    text-align: center;
     white-space: normal;
-    width: 100%;
-}
-
-#modal-fnb-hotel-receipt .fhr-total-row td {
-    font-weight: 700;
-}
-
-#modal-fnb-hotel-receipt .fhr-total-label {
-    font-weight: 700;
-}
-
-#modal-fnb-hotel-receipt .fhr-amount-value {
-    color: #dc3545 !important;
-    font-weight: 700;
-}
-
-#modal-fnb-hotel-receipt .fhr-amount-pos {
-    color: #000 !important;
-    font-weight: 700;
 }
 
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-slip-actions {
     display: flex;
     gap: 0.35rem;
-    margin-top: 0.65rem;
+    padding: 0.5rem;
+    border-top: 1px solid #c9ced6;
+    background: #fff;
 }
 
 #modal-fnb-hotel-receipt .fnb-hotel-receipt-slip-actions .fnb-hotel-receipt-copy-btn {
