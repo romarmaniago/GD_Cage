@@ -292,6 +292,12 @@
     font-size: 1.45rem;
     text-align: right;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Hidden ")" on amounts without parentheses so the last digits line up (Excel number format) */
+#modal-marker-receipt .mrr-paren-pad {
+    visibility: hidden;
 }
 
 #modal-marker-receipt .mcr-info {

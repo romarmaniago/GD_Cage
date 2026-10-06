@@ -1149,10 +1149,14 @@
         return Math.abs(Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
+    // Excel number format: amounts without parentheses get a hidden ")" so every last digit lines up
+    // (hidden text is left out of Copy text, which reads innerText)
+    var MARKER_RECEIPT_PAREN_PAD = '<span class="mrr-paren-pad" aria-hidden="true">)</span>';
+
     function markerReceiptInOutRow(label, value, isOut) {
         var num = Math.abs(Number(value) || 0);
         var formatted = markerReceiptFormatAmount(num);
-        var display = num && isOut ? '(' + formatted + ')' : formatted;
+        var display = num && isOut ? '(' + formatted + ')' : formatted + MARKER_RECEIPT_PAREN_PAD;
         var cls = isOut ? 'mrr-value mrr-amount-out' : 'mrr-value';
         return (
             '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
@@ -1168,7 +1172,7 @@
         if (!Number.isFinite(num)) return '';
         var formatted = markerReceiptFormatAmount(num);
         var isNeg = num < 0;
-        var display = isNeg ? '(' + formatted + ')' : formatted;
+        var display = isNeg ? '(' + formatted + ')' : formatted + MARKER_RECEIPT_PAREN_PAD;
         var cls = isNeg ? 'mrr-value mrr-balance-out' : 'mrr-value';
         return (
             '<tr><td class="mrr-label">' + markerReceiptEscape(label) +
@@ -1191,8 +1195,8 @@
             markerReceiptInOutRow('IN & OUT', row.AMOUNT, isOut) +
             markerReceiptBalanceRow('BALANCE', row.CREDIT_TOTAL);
         var infoRowsHtml =
-            markerReceiptTextRow('CONFIRMER', row.GUARANTOR) +
-            markerReceiptTextRow('REMARKS', row.REMARKS);
+            markerReceiptTextRow('APPROVED BY', row.GUARANTOR) +
+            markerReceiptTextRow('DESCRIPTION', row.REMARKS);
         var accountLine = [row.AGENT_CODE, row.AGENT_NAME]
             .filter(markerReceiptHasValue)
             .map(markerReceiptEscape)
@@ -1420,6 +1424,12 @@
         var slip = btn.closest('.marker-receipt-slip');
         var slipBody = slip ? slip.querySelector('.marker-receipt-slip-body') : null;
         var text = slipBody && slipBody.innerText ? slipBody.innerText.trim() : '';
+        // Credit slip: blank line between the amounts (… BALANCE) and APPROVED BY / DESCRIPTION
+        var infoTable = slipBody ? slipBody.querySelector('.mcr-info') : null;
+        var infoText = infoTable && infoTable.innerText ? infoTable.innerText.trim() : '';
+        if (infoText && text.indexOf(infoText) > 0) {
+            text = text.replace(infoText, '\n' + infoText);
+        }
         var ui = markerReceiptCopyUi(btn);
         if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
             ui.error('Clipboard is not supported in this browser.');
