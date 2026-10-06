@@ -11,9 +11,9 @@
 
 <style>
 #modal-tip-receipt .tip-receipt-dialog {
-    --bs-modal-width: min(98vw, 360px);
-    width: min(98vw, 360px) !important;
-    max-width: min(98vw, 360px) !important;
+    --bs-modal-width: min(98vw, 400px);
+    width: min(98vw, 400px) !important;
+    max-width: min(98vw, 400px) !important;
     margin-left: auto;
     margin-right: auto;
 }
@@ -65,7 +65,7 @@
 
 #modal-tip-receipt .tip-receipt-slip {
     width: 100%;
-    max-width: 320px;
+    max-width: 360px;
     display: flex;
     flex-direction: column;
     padding: 0.75rem 0.75rem 0.65rem;
@@ -124,7 +124,12 @@
     border: none;
     border-bottom: 1px dotted #000;
     padding: 0.35rem 0.45rem;
-    vertical-align: middle;
+    vertical-align: top;
+}
+
+#modal-tip-receipt .trs-table td.trs-label {
+    width: 1%;
+    padding-right: 0.25rem;
 }
 
 #modal-tip-receipt .trs-table tr:last-child td {
@@ -147,8 +152,9 @@
 
 #modal-tip-receipt .trs-value {
     text-align: right;
-    white-space: nowrap;
-    width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 #modal-tip-receipt .trs-total-row td {
