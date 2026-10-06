@@ -142,8 +142,10 @@
     print-color-adjust: exact;
 }
 
+/* Same gold header as the settlement modal (settlement.ejs) */
 #modal-game-start-receipt .gsr-header--finish {
-    background: #ed7d31;
+    background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+    color: #3a2e12;
 }
 
 #modal-game-start-receipt .gsr-content {
@@ -163,6 +165,9 @@
     background: url('/assets/images/GD-logo.png') center / contain no-repeat;
     opacity: 0.18;
     pointer-events: none;
+    /* Sit above the row backgrounds so the colored rows don't cover the logo */
+    z-index: 1;
+    mix-blend-mode: multiply;
 }
 
 #modal-game-start-receipt .gsr-content > * {
@@ -265,6 +270,12 @@
 #modal-game-start-receipt .gsr-value {
     text-align: right;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Invisible ")" on positive amounts so digits align with (negative) rows */
+#modal-game-start-receipt .gsr-paren-pad {
+    visibility: hidden;
 }
 
 #modal-game-start-receipt .gsr-total-row .gsr-value {
@@ -288,8 +299,35 @@
     background: #fff2cc;
 }
 
-#modal-game-start-receipt .gsr-section-settlement .gsr-total-row td {
-    background: #f8cbad;
+/* RATE / SHARE / ROLLING — screen only (data-html2canvas-ignore keeps it out of the copied image) */
+#modal-game-start-receipt .gsr-section-rate .gsr-rate-row td {
+    background: #ededed;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+#modal-game-start-receipt .gsr-rate-value {
+    font-size: 1.1rem;
+    text-align: left;
+}
+
+#modal-game-start-receipt .gsr-split {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+#modal-game-start-receipt .gsr-split-value {
+    font-size: 1.1rem;
+}
+
+#modal-game-start-receipt .gsr-section-settlement .gsr-settle-row td {
+    background: #e2efda;
+}
+
+#modal-game-start-receipt .gsr-section-settlement .gsr-charge-row td {
+    background: #fff;
 }
 
 #modal-game-start-receipt .gsr-section-settlement .gsr-act-row td {

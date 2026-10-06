@@ -3166,60 +3166,128 @@ function formatGameStartReceiptDateTime(encodedDt) {
 	return m.format('M/D/YYYY H:mm');
 }
 
-function hasGameReceiptAmount(value) {
-	return Number(value || 0) !== 0;
-}
-
-function formatGameReceiptSignedAmount(value) {
+/** Card amount, Excel number-format style: negative -> red with parentheses (e.g. (5,500));
+ *  positive gets a hidden ")" so the last digits line up with negative rows */
+function formatGameReceiptCardAmount(value) {
 	var n = Number(value || 0);
-	if (n < 0) return '(' + formatGameStartReceiptAmount(Math.abs(n)) + ')';
-	return formatGameStartReceiptAmount(n);
+	return n < 0
+		? '(' + formatGameStartReceiptAmount(Math.abs(n)) + ')'
+		: formatGameStartReceiptAmount(n) + '<span class="gsr-paren-pad" aria-hidden="true">)</span>';
 }
 
-/** options: total (bold/large row), always (show even when 0), rowClass (extra tr class),
- *  payout (positive = paid out -> red with parentheses, e.g. settlement) */
-function buildGameReceiptLegRow(label, value, options) {
-	options = options || {};
-	if (!options.always && !hasGameReceiptAmount(value)) return '';
+/** Copy-text amount: negative -> parentheses (e.g. (5,500)) */
+function formatGameReceiptTextAmount(value) {
 	var n = Number(value || 0);
-	var isRed = options.payout ? n > 0 : n < 0;
-	var formatted = options.payout
-		? (n > 0 ? '(' + formatGameStartReceiptAmount(n) + ')' : formatGameStartReceiptAmount(Math.abs(n)))
-		: formatGameReceiptSignedAmount(value);
-	var valueClass = 'gsr-value' + (isRed ? ' gsr-negative' : '');
-	var rowClass = (options.total ? 'gsr-total-row' : 'gsr-leg-row') + (options.rowClass ? ' ' + options.rowClass : '');
-	return '<tr class="' + rowClass + '"><td class="gsr-label">' + label + '</td><td class="' + valueClass + '">' + formatted + '</td></tr>';
+	return n < 0 ? '(' + formatGameStartReceiptAmount(Math.abs(n)) + ')' : formatGameStartReceiptAmount(n);
 }
 
-function buildGameReceiptSectionTable(sectionClass, bodyRows) {
-	if (!bodyRows) return '';
-	return '<table class="gsr-table ' + sectionClass + '"><tbody>' + bodyRows + '</tbody></table>';
+function formatGameReceiptTextDateTime(encodedDt) {
+	if (!encodedDt) return '';
+	var m = moment.utc(encodedDt).utcOffset(8);
+	if (!m.isValid()) return '';
+	return m.format('YYYY-MM-DD HH:mm');
 }
 
-function buildGameReceiptTipSection(data) {
-	if (!hasGameReceiptAmount(data.total_tip)) return '';
+/** row options: textLabel (label in copy text), total (bold/large row), cardOnly (hidden in copy text), rowClass */
+function receiptRow(label, value, options) {
+	return $.extend({ label: label, value: Number(value || 0) }, options || {});
+}
 
-	var bodyRows = '';
-	if (Array.isArray(data.tip_lines) && data.tip_lines.length) {
-		bodyRows = data.tip_lines.map(function (line) {
-			return buildGameReceiptLegRow(line.label, line.amount);
-		}).join('');
-	} else {
-		bodyRows =
-			buildGameReceiptLegRow('- ROLLER', data.tip_roller) +
-			buildGameReceiptLegRow('- DEALER', data.tip_dealer);
+/** Sections shown on a receipt card (and its copy text), per receipt type */
+function getGameReceiptSections(data) {
+	var neg = function (v) { return -Math.abs(Number(v || 0)); };
+	var summary = {
+		cls: 'gsr-section-summary',
+		rows: [
+			receiptRow('* WIN/LOSS', data.win_loss, { textLabel: '* WIN / LOSS', total: true }),
+			receiptRow('* ROLLING', data.rolling, { total: true })
+		]
+	};
+
+	switch (data.type) {
+		case 'game_start':
+			return [{ cls: 'gsr-section-buyin', rows: [
+				receiptRow('- ADD B/I', data.add_buyin),
+				receiptRow('* BUY IN', data.buy_in, { total: true })
+			] }];
+		case 'add_buyin':
+			return [
+				{ cls: 'gsr-section-buyin', rows: [
+					receiptRow('- ADD B/I', data.add_buyin),
+					receiptRow('* BUY IN', data.buy_in, { total: true })
+				] },
+				summary
+			];
+		case 'cashout':
+			return [
+				{ cls: 'gsr-section-buyin', rows: [
+					receiptRow('- ADD B/I', 0, { cardOnly: true }),
+					receiptRow('* BUY IN', data.buy_in, { total: true })
+				] },
+				{ cls: 'gsr-section-cashout', rows: [
+					receiptRow('- ADD C/O', neg(data.add_cashout)),
+					receiptRow('* CASH OUT', neg(data.total_cashout), { total: true })
+				] },
+				summary
+			];
+		case 'game_finish':
+			return [
+				// textGroup: these sections print as one block (no blank line) in the copy text
+				{ cls: 'gsr-section-buyin', textGroup: 'totals', rows: [receiptRow('* BUY IN', data.buy_in, { total: true })] },
+				{ cls: 'gsr-section-cashout', textGroup: 'totals', rows: [receiptRow('* CASH OUT', neg(data.total_cashout), { total: true })] },
+				$.extend({ textGroup: 'totals' }, summary),
+				// RATE / SHARE / ROLLING: on screen only (not in copy image or copy text)
+				{ cls: 'gsr-section-rate', screenOnly: true, html: buildGameReceiptRateRows(data) },
+				// settlement / act_settlement: positive = paid out -> negative on the receipt
+				{ cls: 'gsr-section-settlement', rows: [
+					receiptRow('* SETTLEMENT', -Number(data.settlement || 0), { total: true, rowClass: 'gsr-settle-row' }),
+					receiptRow('* ADD CHARGE', data.add_charge, { total: true, rowClass: 'gsr-charge-row' }),
+					receiptRow('* PAYMENT', -Number(data.act_settlement || 0), { total: true, rowClass: 'gsr-act-row' })
+				] }
+			];
+		case 'tip':
+			var tipRows = (Array.isArray(data.tip_lines) && data.tip_lines.length)
+				? data.tip_lines.map(function (line) { return receiptRow(line.label, line.amount); })
+				: [receiptRow('- ROLLER', data.tip_roller), receiptRow('- DEALER', data.tip_dealer)];
+			tipRows.push(receiptRow('* TOTAL TIP', data.total_tip, { total: true }));
+			return [{ cls: 'gsr-section-tip', rows: tipRows }];
+		default:
+			return [];
 	}
+}
 
-	bodyRows += buildGameReceiptLegRow('* TOTAL TIP', data.total_tip, { total: true });
-	return buildGameReceiptSectionTable('gsr-section-tip', bodyRows);
+function formatGameReceiptPct(value, decimals) {
+	return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: 2 }) + '%';
+}
+
+function buildGameReceiptRateRows(data) {
+	return '<tr class="gsr-rate-row"><td class="gsr-label">RATE</td><td class="gsr-rate-value">' + formatGameReceiptPct(data.rate_pct, 2) + '</td></tr>' +
+		'<tr class="gsr-split-row"><td colspan="2"><div class="gsr-split">' +
+		'<span class="gsr-split-label">SHARE</span><span class="gsr-split-value">' + formatGameReceiptPct(data.share_pct, 0) + '</span>' +
+		'<span class="gsr-split-label">ROLLING</span><span class="gsr-split-value">' + formatGameReceiptPct(data.rolling_pct, 0) + '</span>' +
+		'</div></td></tr>';
+}
+
+function buildGameReceiptSectionTable(section) {
+	if (section.html) {
+		// data-html2canvas-ignore: left out of the copied image
+		return '<table class="gsr-table ' + section.cls + '"' + (section.screenOnly ? ' data-html2canvas-ignore="true"' : '') + '><tbody>' + section.html + '</tbody></table>';
+	}
+	var bodyRows = section.rows.map(function (row) {
+		var valueClass = 'gsr-value' + (row.value < 0 ? ' gsr-negative' : '');
+		var rowClass = (row.total ? 'gsr-total-row' : 'gsr-leg-row') + (row.rowClass ? ' ' + row.rowClass : '');
+		return '<tr class="' + rowClass + '"><td class="gsr-label">' + escapeGameReceiptHtml(row.label) + '</td>' +
+			'<td class="' + valueClass + '">' + formatGameReceiptCardAmount(row.value) + '</td></tr>';
+	}).join('');
+	return '<table class="gsr-table ' + section.cls + '"><tbody>' + bodyRows + '</tbody></table>';
 }
 
 var GAME_RECEIPT_HEADER_LABELS = {
-	game_start: 'START',
-	add_buyin: 'ADDITIONAL',
-	cashout: 'CASHOUT',
-	tip: 'TIP',
-	game_finish: 'FINISH'
+	game_start: '* START *',
+	add_buyin: '* ADD *',
+	cashout: '* ADD *',
+	tip: '* TIP *',
+	game_finish: '* SETTLEMENT *'
 };
 
 function escapeGameReceiptHtml(value) {
@@ -3230,61 +3298,43 @@ function escapeGameReceiptHtml(value) {
 		.replace(/"/g, '&quot;');
 }
 
-function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
-	var isTipReceipt = data.type === 'tip';
-	var headerLabel = GAME_RECEIPT_HEADER_LABELS[data.type] || String(data.title || '').replace(/\*/g, '').trim().toUpperCase();
+function getGameReceiptLines(data) {
+	return {
+		header: GAME_RECEIPT_HEADER_LABELS[data.type] || String(data.title || '').trim().toUpperCase(),
+		account: [data.agent_code, data.group_name].filter(Boolean).join(' ').toUpperCase(),
+		guest: String(data.guest_name || data.agent_name || '').toUpperCase(),
+		gameType: String(data.game_type || '').trim().toUpperCase(),
+		gameNo: '#' + (data.game_id || '') + (data.linked_game_id ? ' (#' + data.linked_game_id + ')' : '')
+	};
+}
+
+/** Plain-text version of a receipt (used by "Copy text") */
+function buildGameReceiptText(data) {
+	var l = getGameReceiptLines(data);
+	var blocks = [
+		[l.header, formatGameReceiptTextDateTime(data.encoded_dt)],
+		[l.account, l.guest, (l.gameType ? l.gameType + ' ' : '') + l.gameNo]
+	];
+	var prevGroup = null;
+	getGameReceiptSections(data).forEach(function (section) {
+		if (section.screenOnly) return;
+		var lines = section.rows.filter(function (row) { return !row.cardOnly; }).map(function (row) {
+			return (row.textLabel || row.label) + ' ' + formatGameReceiptTextAmount(row.value);
+		});
+		if (!lines.length) return;
+		if (section.textGroup && section.textGroup === prevGroup) blocks[blocks.length - 1] = blocks[blocks.length - 1].concat(lines);
+		else blocks.push(lines);
+		prevGroup = section.textGroup || null;
+	});
+	return blocks.map(function (b) { return b.join('\n'); }).join('\n\n');
+}
+
+function buildGameReceiptSlipHtml(data, isLatest) {
+	var l = getGameReceiptLines(data);
 	var headerClass = data.type === 'game_finish' ? ' gsr-header--finish' : '';
-	var accountLine = [data.agent_code, data.group_name].filter(Boolean).join(' ');
-	var gameNoLine = '#' + (data.game_id || '') + (data.linked_game_id ? ' (#' + data.linked_game_id + ')' : '');
-	var buyinLabel = data.buyin_label || '* BUY IN';
-	var cashoutLabel = data.cashout_label || '* TOTAL CASH OUT';
-	var showBuyin = !isTipReceipt && data.show_buyin !== false;
-	var showCashout = !isTipReceipt && !!data.show_cashout;
-	var showSummary = !isTipReceipt && !!data.show_summary;
-	var showSettlement = !isTipReceipt && !!data.show_settlement;
-	var showTip = isTipReceipt || !!data.show_tip;
+	var tablesHtml = getGameReceiptSections(data).map(buildGameReceiptSectionTable).join('');
 
-	var buyinTable = '';
-	if (showBuyin && hasGameReceiptAmount(data.buy_in)) {
-		buyinTable = buildGameReceiptSectionTable('gsr-section-buyin',
-			buildGameReceiptLegRow('- CASH', data.cash) +
-			buildGameReceiptLegRow('- DEPOSIT', data.deposit) +
-			buildGameReceiptLegRow('- CREDIT', data.credit) +
-			buildGameReceiptLegRow(buyinLabel, data.buy_in, { total: true })
-		);
-	}
-
-	var cashoutRows = '';
-	if (showCashout && hasGameReceiptAmount(data.total_cashout)) {
-		cashoutRows = buildGameReceiptSectionTable('gsr-section-cashout',
-			buildGameReceiptLegRow('- CASH', data.cashout_cash) +
-			buildGameReceiptLegRow('- DEPOSIT', data.cashout_deposit) +
-			buildGameReceiptLegRow('- CREDIT', data.cashout_credit) +
-			buildGameReceiptLegRow('- TIP', data.cashout_tip) +
-			buildGameReceiptLegRow(cashoutLabel, data.total_cashout, { total: true })
-		);
-	}
-
-	var tipRows = showTip ? buildGameReceiptTipSection(data) : '';
-
-	var summaryRows = '';
-	if (showSummary) {
-		summaryRows = buildGameReceiptSectionTable('gsr-section-summary',
-			buildGameReceiptLegRow('* WIN / LOSS', data.win_loss, { total: true, always: true }) +
-			buildGameReceiptLegRow('* ROLLING', data.rolling, { total: true, always: true })
-		);
-	}
-
-	var settlementRows = '';
-	if (showSettlement) {
-		settlementRows = buildGameReceiptSectionTable('gsr-section-settlement',
-			buildGameReceiptLegRow('* SETTLEMENT', data.settlement, { total: true, always: true, payout: true }) +
-			buildGameReceiptLegRow('* ADD CHARGE', data.add_charge, { total: true, always: true }) +
-			buildGameReceiptLegRow('* ACT SETTLEMENT', data.act_settlement, { total: true, always: true, payout: true, rowClass: 'gsr-act-row' })
-		);
-	}
-
-	// NEW DAY badge only on START, CUT OFF badge only on FINISH
+	// NEW DAY badge only on START, CUT OFF badge only on SETTLEMENT
 	var cutoffTags = (Array.isArray(data.cutoff_labels) ? data.cutoff_labels : []).filter(function (label) {
 		if (label === 'CUTOFF') return data.type === 'game_finish';
 		return data.type === 'game_start';
@@ -3295,23 +3345,20 @@ function buildGameReceiptSlipHtml(data, isLatest, isOnGame) {
 	}).join('');
 
 	return (
-		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '">' +
+		'<div class="game-start-receipt-slip' + (isLatest ? ' game-start-receipt-slip--latest' : ' game-start-receipt-slip--past') + '"' +
+		' data-receipt-text="' + escapeGameReceiptHtml(encodeURIComponent(buildGameReceiptText(data))) + '">' +
 		'<div class="game-start-receipt-slip-body">' +
-		'<div class="gsr-header' + headerClass + '">' + escapeGameReceiptHtml(headerLabel) + '</div>' +
+		'<div class="gsr-header' + headerClass + '">' + escapeGameReceiptHtml(l.header) + '</div>' +
 		'<div class="gsr-content">' +
 		'<div class="gsr-meta-row">' +
 		'<div class="gsr-meta-tags">' + cutoffTags + '</div>' +
 		'<div class="gsr-datetime">' + formatGameStartReceiptDateTime(data.encoded_dt) + '</div>' +
 		'<div class="gsr-meta-spacer"></div>' +
 		'</div>' +
-		'<p class="gsr-account">' + escapeGameReceiptHtml(accountLine) + '</p>' +
-		'<p class="gsr-guest">' + escapeGameReceiptHtml(data.guest_name || data.agent_name || '') + '</p>' +
-		'<p class="gsr-game-no"><span class="gsr-game-type' + (String(data.game_type || '').trim().toUpperCase() === 'LIVE' ? ' gsr-game-type--live' : '') + '">' + escapeGameReceiptHtml(data.game_type || '') + '</span> ' + gameNoLine + '</p>' +
-		buyinTable +
-		cashoutRows +
-		tipRows +
-		summaryRows +
-		settlementRows +
+		'<p class="gsr-account">' + escapeGameReceiptHtml(l.account) + '</p>' +
+		'<p class="gsr-guest">' + escapeGameReceiptHtml(l.guest) + '</p>' +
+		'<p class="gsr-game-no"><span class="gsr-game-type' + (l.gameType === 'LIVE' ? ' gsr-game-type--live' : '') + '">' + escapeGameReceiptHtml(l.gameType) + '</span> ' + escapeGameReceiptHtml(l.gameNo) + '</p>' +
+		tablesHtml +
 		'</div>' +
 		'</div>' +
 		'<div class="game-start-receipt-slip-actions">' +
@@ -3373,9 +3420,8 @@ function populateAllGameReceipts(receipts, gameStatus) {
 	if (!$container.length) return;
 	var list = receipts || [];
 	var latestIndex = getLatestReceiptIndex(list);
-	var isOnGame = parseInt(gameStatus, 10) === 2;
 	var html = list.map(function (r, i) {
-		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex, isOnGame);
+		return buildGameReceiptSlipHtml(r, list.length === 1 || i === latestIndex);
 	}).join('');
 	getGameReceiptsTrack($container).html(html);
 	beginGameReceiptsSettling();
@@ -3537,7 +3583,11 @@ function buildGameReceiptSlipImageBlob(slipBodyEl) {
 }
 
 function copyGameReceiptSlipText(slipBodyEl) {
-	var text = (slipBodyEl && slipBodyEl.innerText) ? slipBodyEl.innerText.trim() : '';
+	var slipEl = slipBodyEl && slipBodyEl.closest('.game-start-receipt-slip');
+	var encodedText = slipEl && slipEl.getAttribute('data-receipt-text');
+	var text = encodedText
+		? decodeURIComponent(encodedText)
+		: ((slipBodyEl && slipBodyEl.innerText) ? slipBodyEl.innerText.trim() : '');
 	if (!text) {
 		return Promise.reject(new Error('Receipt has no text to copy.'));
 	}

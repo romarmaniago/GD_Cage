@@ -13,7 +13,8 @@ const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { isTipEnabled, parseTipSplitAmounts, saveCashoutTips, archiveTipsForCashout, CASHOUT_TRANSACTION, parseRollerName, parseTipStatus } = require('../utils/saveCashoutTips');
 const { insertCreditRecord, creditWaterfallDisplaySql, getCreditHistorySql } = require('../utils/creditService');
 const { resolveActiveServiceCategory } = require('../utils/serviceCategoryHelpers');
-const { computeGameCommission, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
+const { COMMISSION_TYPE, computeGameCommission, getShareRollingSplit, isRollingBasedType, commissionTypeLabel, parseShareRollingInput } = require('../utils/commissionCalc');
+const { DEFAULT_ROLLING_RATE_PERCENT } = require('../utils/commissionSettlementCalc');
 
 /**
  * Build a Telegram send options bag for gamebook events.
@@ -4133,22 +4134,18 @@ function isSameReceiptEncodedDt(a, b) {
 	return aMs === bMs;
 }
 
-function sumChipsByTransaction(records, cageType, encodedDt) {
-	let cash = 0;
-	let deposit = 0;
-	let credit = 0;
-	let tip = 0;
-	(records || []).forEach((row) => {
-		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return;
-		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return;
-		const amt = parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
-		const trans = parseInt(row.TRANSACTION, 10);
-		if (trans === 1) cash += amt;
-		else if (trans === 2) deposit += amt;
-		else if (trans === 3 || trans === CASHOUT_TRANSACTION.CREDIT) credit += amt;
-		else if (trans === CASHOUT_TRANSACTION.TIP_ROLLER || trans === CASHOUT_TRANSACTION.TIP_DEALER) tip += amt;
-	});
-	return { cash, deposit, credit, tip, total: cash + deposit + credit + tip };
+function receiptRecordChips(row) {
+	return parseFloat(row.NN_CHIPS || 0) + parseFloat(row.CC_CHIPS || 0);
+}
+
+/** Total chips of a cage type (optionally one transaction's ENCODED_DT) — every TRANSACTION counts,
+ *  same as computeReceiptWinLossRolling, so BUY IN / CASH OUT always agree with WIN / LOSS */
+function sumReceiptChips(records, cageType, encodedDt) {
+	return (records || []).reduce((sum, row) => {
+		if (parseInt(row.CAGE_TYPE, 10) !== cageType) return sum;
+		if (encodedDt != null && !isSameReceiptEncodedDt(row.ENCODED_DT, encodedDt)) return sum;
+		return sum + receiptRecordChips(row);
+	}, 0);
 }
 
 function formatTipReceiptLineLabel(typeLabel, personName, statusLabel) {
@@ -4229,12 +4226,6 @@ function sortGameReceipts(receipts) {
 		if (aMs !== bMs) return aMs - bMs;
 		return (RECEIPT_TYPE_SORT_ORDER[a.type] || 99) - (RECEIPT_TYPE_SORT_ORDER[b.type] || 99);
 	});
-}
-
-function isReceiptCashoutTransaction(trans) {
-	const t = parseInt(trans, 10);
-	return t === 1 || t === 2 || t === 3 || t === CASHOUT_TRANSACTION.CREDIT
-		|| t === CASHOUT_TRANSACTION.TIP_ROLLER || t === CASHOUT_TRANSACTION.TIP_DEALER;
 }
 
 function computeReceiptWinLossRolling(records) {
@@ -4468,7 +4459,8 @@ async function buildGameReceipts(gameId) {
 		linked_game_id: linkedGameId
 	};
 
-	const buyinRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 1);
+	// Rows without chips (e.g. manual ADD GAME RECORD entries) never make their own card
+	const buyinRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 1 && receiptRecordChips(r) > 0);
 	const initialDt = buyinRecords.length ? buyinRecords[0].ENCODED_DT : null;
 	const additionalDts = [];
 	buyinRecords.forEach((r) => {
@@ -4477,108 +4469,101 @@ async function buildGameReceipts(gameId) {
 		}
 	});
 
-	const totalBuyin = sumChipsByTransaction(recordRows, 1, null);
-	const totalCashout = sumChipsByTransaction(recordRows, 2, null);
+	const totalBuyin = sumReceiptChips(recordRows, 1, null);
+	const totalCashout = sumReceiptChips(recordRows, 2, null);
 	const { win_loss: winLoss, rolling } = computeReceiptWinLossRolling(recordRows);
 	const receipts = [];
 
-	const initialBuyin = sumChipsByTransaction(recordRows, 1, initialDt);
-	if (initialBuyin.total > 0) {
+	const initialBuyin = sumReceiptChips(recordRows, 1, initialDt);
+	if (initialBuyin > 0) {
 		receipts.push({
 			...base,
 			type: 'game_start',
-			title: '* Game start *',
+			title: '* START *',
 			encoded_dt: initialDt,
-			show_buyin: true,
-			show_cashout: false,
-			show_summary: false,
-			buyin_label: '* BUY IN',
-			cash: initialBuyin.cash,
-			deposit: initialBuyin.deposit,
-			credit: initialBuyin.credit,
-			buy_in: initialBuyin.total
+			add_buyin: 0,
+			buy_in: initialBuyin
 		});
 	}
 
-	if (additionalDts.length > 0) {
-		const latestAddDt = additionalDts[additionalDts.length - 1];
-		// All additional buy-ins combined (total buy-in minus the initial buy-in)
+	// Records encoded at or before dt — running totals as of that transaction
+	const recordsUpTo = (dt) => {
+		const limitMs = receiptEncodedDtMs(dt);
+		if (limitMs == null) return recordRows;
+		return recordRows.filter((r) => {
+			const ms = receiptEncodedDtMs(r.ENCODED_DT);
+			return ms == null || ms <= limitMs;
+		});
+	};
+
+	// One card per add buy-in: this transaction's amount + running BUY IN / WIN-LOSS / ROLLING
+	additionalDts.forEach((addDt) => {
+		const snapshot = recordsUpTo(addDt);
+		const runningFigures = computeReceiptWinLossRolling(snapshot);
 		receipts.push({
 			...base,
 			type: 'add_buyin',
 			title: '* ADD *',
-			encoded_dt: latestAddDt,
-			show_buyin: true,
-			show_cashout: false,
-			show_summary: true,
-			buyin_label: '* TOTAL BUY IN',
-			cash: totalBuyin.cash - initialBuyin.cash,
-			deposit: totalBuyin.deposit - initialBuyin.deposit,
-			credit: totalBuyin.credit - initialBuyin.credit,
-			buy_in: totalBuyin.total,
-			win_loss: winLoss,
-			rolling
+			encoded_dt: addDt,
+			add_buyin: sumReceiptChips(recordRows, 1, addDt),
+			buy_in: sumReceiptChips(snapshot, 1, null),
+			win_loss: runningFigures.win_loss,
+			rolling: runningFigures.rolling
 		});
-	}
+	});
 
-	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2 && isReceiptCashoutTransaction(r.TRANSACTION));
-	if (cashoutRecords.length > 0) {
-		// All cash-outs combined (incl. tips), dated at the latest cash-out
-		const latestCashoutDt = cashoutRecords[cashoutRecords.length - 1].ENCODED_DT;
+	// One card per cash-out transaction (rows sharing an ENCODED_DT are one transaction)
+	const cashoutRecords = recordRows.filter((r) => parseInt(r.CAGE_TYPE, 10) === 2 && receiptRecordChips(r) > 0);
+	const cashoutDts = [];
+	cashoutRecords.forEach((r) => {
+		if (!cashoutDts.some((dt) => isSameReceiptEncodedDt(dt, r.ENCODED_DT))) cashoutDts.push(r.ENCODED_DT);
+	});
+	cashoutDts.forEach((cashoutDt) => {
+		const snapshot = recordsUpTo(cashoutDt);
+		const runningFigures = computeReceiptWinLossRolling(snapshot);
 		receipts.push({
 			...base,
 			type: 'cashout',
-			title: '* CASH OUT *',
-			encoded_dt: latestCashoutDt,
-			show_buyin: true,
-			show_cashout: true,
-			show_summary: true,
-			buyin_label: '* TOTAL BUY IN',
-			cash: totalBuyin.cash,
-			deposit: totalBuyin.deposit,
-			credit: totalBuyin.credit,
-			buy_in: totalBuyin.total,
-			cashout_cash: totalCashout.cash,
-			cashout_deposit: totalCashout.deposit,
-			cashout_credit: totalCashout.credit,
-			cashout_tip: totalCashout.tip,
-			total_cashout: totalCashout.total,
-			win_loss: winLoss,
-			rolling
+			title: '* ADD *',
+			encoded_dt: cashoutDt,
+			add_buyin: 0,
+			buy_in: sumReceiptChips(snapshot, 1, null),
+			add_cashout: sumReceiptChips(recordRows, 2, cashoutDt),
+			total_cashout: sumReceiptChips(snapshot, 2, null),
+			win_loss: runningFigures.win_loss,
+			rolling: runningFigures.rolling
 		});
-	}
+	});
 
 	const activeStatus = parseInt(game.ACTIVE, 10);
 	if (activeStatus === 1) {
-		const net = computeReceiptCommission(game, winLoss, rolling);
+		// settlement / act_settlement: positive = paid out to the guest
+		const settlement = computeReceiptCommission(game, winLoss, rolling);
 		const addChg = parseFloat(game.ADD_CHG) || 0;
-		const settlement = net;
-		const actSettlement = settlement - addChg;
+		// RATE / SHARE / ROLLING on the card. Shared game: COMMISSION_PERCENTAGE is the share %,
+		// so RATE shows the standard rolling rate and ROLLING is 0.
+		const commissionType = parseInt(game.COMMISSION_TYPE, 10);
+		const gameRatePct = parseFloat(game.COMMISSION_PERCENTAGE) || 0;
+		const split = commissionType === COMMISSION_TYPE.SHARED
+			? { ratePct: DEFAULT_ROLLING_RATE_PERCENT, sharePct: gameRatePct, rollingPct: 0 }
+			: commissionType === COMMISSION_TYPE.SHARE_ROLLING
+				? { ratePct: gameRatePct, ...getShareRollingSplit(game) }
+				: { ratePct: gameRatePct, sharePct: 0, rollingPct: 100 };
 		receipts.push({
 			...base,
 			type: 'game_finish',
-			title: '* Game FINISH *',
+			title: '* SETTLEMENT *',
 			encoded_dt: game.GAME_ENDED || new Date(),
-			show_buyin: true,
-			show_cashout: true,
-			show_summary: true,
-			show_settlement: true,
-			buyin_label: '* TOTAL BUY IN',
-			cashout_label: '* TOTAL CASH OUT',
-			cash: totalBuyin.cash,
-			deposit: totalBuyin.deposit,
-			credit: totalBuyin.credit,
-			buy_in: totalBuyin.total,
-			cashout_cash: totalCashout.cash,
-			cashout_deposit: totalCashout.deposit,
-			cashout_credit: totalCashout.credit,
-			cashout_tip: totalCashout.tip,
-			total_cashout: totalCashout.total,
+			buy_in: totalBuyin,
+			total_cashout: totalCashout,
 			win_loss: winLoss,
 			rolling,
+			rate_pct: split.ratePct,
+			share_pct: split.sharePct,
+			rolling_pct: split.rollingPct,
 			settlement,
 			add_charge: addChg,
-			act_settlement: actSettlement
+			act_settlement: settlement - addChg
 		});
 	}
 
