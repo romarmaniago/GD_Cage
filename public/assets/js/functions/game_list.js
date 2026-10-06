@@ -230,6 +230,14 @@ function formatMergeAlwaysParen(value) {
 	return '(' + formatMergeNumeric(Math.abs(Number(value) || 0)) + ')';
 }
 
+/** Commission as shown on the lists, from the house side: negative = paid out → red (x);
+ *  positive = the agent pays (a negative commission: negative rolling, or a Shared game's
+ *  share of a guest win) → plain. */
+function listCommissionValue(net) {
+	return -(Number(net) || 0);
+}
+window.listCommissionValue = listCommissionValue;
+
 function formatListAmount(value, mode) {
 	if (mode === 'out' && window.fmtOut) return window.fmtOut(value);
 	if (mode === 'signed' && window.fmtSigned) return window.fmtSigned(value);
@@ -3566,7 +3574,11 @@ function buildGameReceiptSlipImageBlob(slipBodyEl) {
 				backgroundColor: '#ffffff',
 				scale: 2,
 				useCORS: true,
-				logging: false
+				logging: false,
+				// Lets CSS hide on-screen-only chrome (e.g. edit-field boxes) in the copied image
+				onclone: function (clonedDoc) {
+					clonedDoc.documentElement.classList.add('receipt-capturing');
+				}
 			});
 		})
 		.then(function (canvas) {
@@ -3924,10 +3936,9 @@ function buildGameGroupBadge(row) {
 function captureGameListExportRow(row, vals) {
 	if (!window._gameListExportRows) window._gameListExportRows = {};
 	var rolling = vals.rolling || 0;
-	// Mirror the on-screen sign/color conventions (see formatListAmount 'out' mode and the
-	// formattedNet ternary): Cash-out always displays as an outflow (negative); Total Settle is
-	// already signed, and Settlement flips sign depending on whether rolling is negative.
-	var settlementDisplay = rolling < 0 ? Math.abs(vals.settlement || 0) : -Math.abs(vals.settlement || 0);
+	// Mirror the on-screen sign/color conventions: Cash-out always displays as an outflow
+	// (negative); Total Settle is already signed; Settlement is listCommissionValue (paid out = negative).
+	var settlementDisplay = listCommissionValue(vals.settlement);
 	var programDate = row.PROGRAM_DATE ? moment(row.PROGRAM_DATE).format('YYYY-MM-DD') : '';
 	var gameStart = row.GAME_DATE_START ? moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm') : '';
 	var gameEnded = row.GAME_ENDED ? moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm') : '';
@@ -4707,9 +4718,10 @@ $(document).ready(function () {
 	}
 
 	// Settlement/Actual Settlement: parenthesized red when non-zero, plain "0" otherwise.
+	// Settlement / Actual Settlement: paid out (positive) → (x); the guest owes (negative) → plain
 	function formatMergeDueCellText(value) {
 		var num = Number(value) || 0;
-		return num === 0 ? '0' : formatMergeAlwaysParen(num);
+		return num > 0 ? formatMergeAlwaysParen(num) : formatMergeNumeric(Math.abs(num));
 	}
 
 	function renderMergeCommissionDetailTable($modal, rows) {
@@ -4736,11 +4748,11 @@ $(document).ready(function () {
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.cash_out)));
 			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.win_loss) < 0).text(formatMergeSignedParen(row.win_loss)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.rolling)));
-			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.settlement) !== 0).text(formatMergeDueCellText(row.settlement)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.settlement) > 0).text(formatMergeDueCellText(row.settlement)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.fnb)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.hotel)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.incidental)));
-			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.actual_settlement) !== 0).text(formatMergeDueCellText(row.actual_settlement)));
+			$tr.append($('<td></td>').toggleClass('cd-cell-red', Number(row.actual_settlement) > 0).text(formatMergeDueCellText(row.actual_settlement)));
 			$body.append($tr);
 		});
 
@@ -4748,11 +4760,11 @@ $(document).ready(function () {
 		$modal.find('#cdTotalCashOut').text(formatMergeNumeric(totals.cash_out));
 		$modal.find('#cdTotalWinLoss').toggleClass('cd-cell-red', totals.win_loss < 0).text(formatMergeSignedParen(totals.win_loss));
 		$modal.find('#cdTotalRolling').text(formatMergeNumeric(totals.rolling));
-		$modal.find('#cdTotalSettlement').toggleClass('cd-cell-red', totals.settlement !== 0).text(formatMergeDueCellText(totals.settlement));
+		$modal.find('#cdTotalSettlement').toggleClass('cd-cell-red', totals.settlement > 0).text(formatMergeDueCellText(totals.settlement));
 		$modal.find('#cdTotalFnb').text(formatMergeNumeric(totals.fnb));
 		$modal.find('#cdTotalHotel').text(formatMergeNumeric(totals.hotel));
 		$modal.find('#cdTotalIncidental').text(formatMergeNumeric(totals.incidental));
-		$modal.find('#cdTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement !== 0).text(formatMergeDueCellText(totals.actual_settlement));
+		$modal.find('#cdTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement > 0).text(formatMergeDueCellText(totals.actual_settlement));
 	}
 
 	// Editable twin of the read-only detail table: Settlement is a free-typed input per
@@ -4767,10 +4779,10 @@ $(document).ready(function () {
 			var fnb = parseFloat($tr.attr('data-fnb')) || 0;
 			var hotel = parseFloat($tr.attr('data-hotel')) || 0;
 			var incidental = parseFloat($tr.attr('data-incidental')) || 0;
-			var settlement = parseMergeNumeric($tr.find('.cd-settlement-edit-input').val());
+			var settlement = Number($tr.find('.cd-settlement-edit-input').data('due')) || 0;
 			var actualSettlement = settlement - fnb - hotel - incidental;
 
-			$tr.find('.cd-edit-actual-cell').toggleClass('cd-cell-red', actualSettlement !== 0).text(formatMergeDueCellText(actualSettlement));
+			$tr.find('.cd-edit-actual-cell').toggleClass('cd-cell-red', actualSettlement > 0).text(formatMergeDueCellText(actualSettlement));
 
 			totals.buy_in += parseFloat($tr.attr('data-buy-in')) || 0;
 			totals.cash_out += parseFloat($tr.attr('data-cash-out')) || 0;
@@ -4787,11 +4799,11 @@ $(document).ready(function () {
 		$modal.find('#cdEditTotalCashOut').text(formatMergeNumeric(totals.cash_out));
 		$modal.find('#cdEditTotalWinLoss').toggleClass('cd-cell-red', totals.win_loss < 0).text(formatMergeSignedParen(totals.win_loss));
 		$modal.find('#cdEditTotalRolling').text(formatMergeNumeric(totals.rolling));
-		$modal.find('#cdEditTotalSettlement').toggleClass('cd-cell-red', totals.settlement !== 0).text(formatMergeDueCellText(totals.settlement));
+		$modal.find('#cdEditTotalSettlement').toggleClass('cd-cell-red', totals.settlement > 0).text(formatMergeDueCellText(totals.settlement));
 		$modal.find('#cdEditTotalFnb').text(formatMergeNumeric(totals.fnb));
 		$modal.find('#cdEditTotalHotel').text(formatMergeNumeric(totals.hotel));
 		$modal.find('#cdEditTotalIncidental').text(formatMergeNumeric(totals.incidental));
-		$modal.find('#cdEditTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement !== 0).text(formatMergeDueCellText(totals.actual_settlement));
+		$modal.find('#cdEditTotalActualSettlement').toggleClass('cd-cell-red', totals.actual_settlement > 0).text(formatMergeDueCellText(totals.actual_settlement));
 	}
 
 	function renderMergeCommissionDetailEditTable($modal, rows) {
@@ -4822,14 +4834,15 @@ $(document).ready(function () {
 			$tr.append($('<td></td>').text(formatMergeNumeric(row.rolling)));
 
 			var $settlementInput = $('<input type="text" class="cd-settlement-edit-input" inputmode="decimal">')
+				.data('due', settlement) // signed amount (positive = paid out); the text is display only
 				.val(formatMergeDueCellText(settlement))
-				.toggleClass('cd-cell-red', settlement !== 0);
+				.toggleClass('cd-cell-red', settlement > 0);
 			$tr.append($('<td></td>').append($settlementInput));
 
 			$tr.append($('<td></td>').text(formatMergeNumeric(fnb)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(hotel)));
 			$tr.append($('<td></td>').text(formatMergeNumeric(incidental)));
-			$tr.append($('<td class="cd-edit-actual-cell"></td>').toggleClass('cd-cell-red', actualSettlement !== 0).text(formatMergeDueCellText(actualSettlement)));
+			$tr.append($('<td class="cd-edit-actual-cell"></td>').toggleClass('cd-cell-red', actualSettlement > 0).text(formatMergeDueCellText(actualSettlement)));
 
 			$body.append($tr);
 		});
@@ -4861,21 +4874,22 @@ $(document).ready(function () {
 
 	$(document).on('input', '#modal-merge-settlement .cd-settlement-edit-input', function () {
 		formatMergeSettlementInputLive($(this));
-		$(this).toggleClass('cd-cell-red', parseMergeNumeric($(this).val()) !== 0);
+		var due = parseMergeNumeric($(this).val(), { signed: true });
+		$(this).data('due', due).toggleClass('cd-cell-red', due > 0);
 		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
 	});
 
-	// While focused, show plain editable digits (no parens) so typing is straightforward;
-	// on blur, redisplay using the same parenthesized/red "due amount" convention as the
-	// rest of the modal.
+	// While focused, show plain editable digits (no parens; "-" = the guest owes) so typing is
+	// straightforward; on blur, redisplay with the same due-amount convention as the rest of the
+	// modal ((x) red = paid out, plain = owed). The signed amount lives in data('due').
 	$(document).on('focus', '#modal-merge-settlement .cd-settlement-edit-input', function () {
-		var val = parseMergeNumeric($(this).val());
+		var val = Number($(this).data('due')) || 0;
 		$(this).val(val === 0 ? '' : (val < 0 ? '-' : '') + formatMergeNumeric(Math.abs(val)));
 	});
 
 	$(document).on('blur', '#modal-merge-settlement .cd-settlement-edit-input', function () {
-		var val = parseMergeNumeric($(this).val());
-		$(this).val(formatMergeDueCellText(val)).toggleClass('cd-cell-red', val !== 0);
+		var val = Number($(this).data('due')) || 0;
+		$(this).val(formatMergeDueCellText(val)).toggleClass('cd-cell-red', val > 0);
 		recalcMergeCommissionEditTotals($('#modal-merge-settlement'));
 	});
 
@@ -4907,7 +4921,8 @@ $(document).ready(function () {
 			// Commission column (12), not Total Settle (14) — Total Settle is already
 			// net of that game's own Add Chg, and services/Add Charge gets subtracted
 			// separately below, so summing it here would double-subtract Add Charge.
-			totalSettlement += parseMergeNumeric($row.find('td').eq(12).text());
+			// The column is signed from the house side ((x) = paid out), so flip it to the payout amount
+			totalSettlement -= parseMergeNumeric($row.find('td').eq(12).text(), { signed: true });
 			totalWinLoss += parseMergeNumeric($row.find('td').eq(10).text(), { signed: true });
 
 			var rateText = $.trim($row.find('td').eq(6).text())
@@ -4961,9 +4976,10 @@ $(document).ready(function () {
 			$modal.find('#winLossMerge').val(formatMergeSignedParen(totalWinLoss)).toggleClass('is-negative', totalWinLoss < 0);
 			$modal.find('#rollingMerge').val(formatMergeNumeric(totalRolling));
 			$modal.find('#rollingRateMerge').val(rateTextValue);
-			$modal.find('#rollingSettlementMerge').val(formatMergeAlwaysParen(totalSettlement)).addClass('is-negative');
+			// Plain signed numbers (positive = paid out); the modal renders them
+			$modal.find('#rollingSettlementMerge').val(formatMergeNumeric(totalSettlement));
 			$modal.find('#fbMerge').val(formatMergeNumeric(serviceAmount));
-			$modal.find('#paymentMerge').val(formatMergeAlwaysParen(paymentAmount)).addClass('is-negative');
+			$modal.find('#paymentMerge').val(formatMergeNumeric(paymentAmount));
 
 			renderMergeCommissionDetailTable($modal, detailRows);
 			renderMergeCommissionDetailEditTable($modal, detailRows);
@@ -5908,7 +5924,7 @@ $(document).ready(function () {
 							 net = window.computeGameCommission(row, WinLoss, total_rolling_chips);
 							var addChgValue = parseFloat(row.ADD_CHG || row.add_chg || 0);
 							// Signed like Commission: negative-rolling game -> commission comes back (+); Add Chg is owed by the agent (+).
-							var totalSettleValue = (total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net)) + addChgValue;
+							var totalSettleValue = listCommissionValue(net) + addChgValue;
 	
 							// Add to grand totals
 							totalInitialBuyIn += total_initial;
@@ -5934,7 +5950,7 @@ $(document).ready(function () {
 							at.total_rolling_real += total_rolling_real_chips;
 							at.total_rolling += total_rolling_chips;
 							at.total_roller_chips += total_roller_chips;
-							at.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
+							at.total_commission += listCommissionValue(net); // signed like the export: (x) = paid out
 							at.total_winloss += WinLoss;
 							at.total_add_chg += addChgValue;
 							at.total_settle += totalSettleValue;
@@ -5986,7 +6002,7 @@ $(document).ready(function () {
 								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', false, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')">' + parseFloat(total_roller_chips).toLocaleString('en-US') + '</button>';
 								
 									// Format net value as an integer
-									var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
+									var formattedNet = formatListAmount(listCommissionValue(net), 'signed');
 									var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCellOg = buildGameStartCell(game_start);
@@ -6069,7 +6085,7 @@ $(document).ready(function () {
 									at3.total_rolling_real += total_rolling_real_chips;
 									at3.total_rolling += total_rolling_chips;
 									at3.total_roller_chips += total_roller_chips;
-									at3.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
+									at3.total_commission += listCommissionValue(net); // signed like the export: (x) = paid out
 									at3.total_winloss += WinLoss;
 									at3.total_add_chg += addChgValue;
 									at3.total_settle += totalSettleValue;
@@ -6122,7 +6138,7 @@ $(document).ready(function () {
 							   </div>`;
 								
 								// Format net value as an integer
-								var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
+								var formattedNet = formatListAmount(listCommissionValue(net), 'signed');
 								var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
 								var gameStartCell = buildGameStartCell(game_start);
@@ -6178,7 +6194,7 @@ $(document).ready(function () {
 									at1.total_rolling_real += total_rolling_real_chips;
 									at1.total_rolling += total_rolling_chips;
 									at1.total_roller_chips += total_roller_chips;
-									at1.total_commission += total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net); // signed like the export: (x) = paid out
+									at1.total_commission += listCommissionValue(net); // signed like the export: (x) = paid out
 									at1.total_winloss += WinLoss;
 									at1.total_add_chg += addChgValue;
 									at1.total_settle += totalSettleValue;
@@ -6240,7 +6256,7 @@ $(document).ready(function () {
 								</button>
 							   </div>`;
 						   // Format net value as an integer
-						   var formattedNet = total_rolling_chips < 0 ? formatListAmount(Math.abs(net)) : formatListAmount(net, 'out');
+						   var formattedNet = formatListAmount(listCommissionValue(net), 'signed');
 						   var formattedTotalSettle = formatListAmount(totalSettleValue, 'signed');
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('YYYY-MM-DD HH:mm');
@@ -11262,7 +11278,8 @@ function applySettlementMetricsToForm(metrics, gameNoText, rollingRate) {
 	$('#chipsReturn').val(formatSettlementDisplayAmount(metrics.cashout_td));
 	$('#winLoss').val(formatSettlementDisplayAmount(metrics.winloss));
 	$('#rolling').val(formatSettlementDisplayAmount(metrics.total_rolling_chips));
-	$('#rollingRate').val(rollingRate != null ? rollingRate : metrics.RollingRate);
+	// RATE as on the game receipts: a shared game's rate is its share %, so RATE shows the standard 1.5%
+	$('#rollingRate').val(rollingRate != null ? rollingRate : Number(window.getReceiptRateSplit(metrics.meta).ratePct).toFixed(2));
 	$('#rollingSettlement').val(formatSettlementDisplayAmount(metrics.net));
 	if (typeof window.refreshSettlementReceiptDisplay === 'function') {
 		window.refreshSettlementReceiptDisplay($('#modal-settlement'));
@@ -11582,7 +11599,7 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
         var currentWinLoss = parseFloat(String($('#winLoss').val() || '').replace(/,/g, '')) || 0;
         var updatedRollingSettlement = Number(currentCommissionType) === 3 && currentGameMetrics
             ? window.computeGameCommission($.extend({}, currentGameMetrics.meta, { COMMISSION_PERCENTAGE: updatedRollingRate }), currentWinLoss, currentRolling)
-            : Math.round((Math.abs(currentRolling) * updatedRollingRate) / 100);
+            : Math.round((currentRolling * updatedRollingRate) / 100);
         $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString('en-US', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
@@ -11739,8 +11756,9 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
         // Shared Game (COMMISSION_TYPE 2): commission based on WIN/LOSS - can be negative, always allow.
-        // Rolling / Share + Rolling (1, 3): block only when services exceed settlement.
-        if (currentCommissionType != 2 && servicesValue > settlementValue) {
+        // Rolling / Share + Rolling (1, 3): block only when services exceed a paid-out settlement
+        // (a negative settlement, e.g. negative rolling, means the agent pays both — allowed).
+        if (currentCommissionType != 2 && settlementValue >= 0 && servicesValue > settlementValue) {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid!',
@@ -11755,30 +11773,41 @@ function settlement_history(record_id, acc_id, cutoffParentGameId, cutoffContinu
             return;
         }
         
-        // Match the receipt: negative Win/Loss and any nonzero Settlement/Payment show as red (x)
+        // Match the receipt, Excel number format: negatives (cash out, a negative Win/Loss or Rolling) and
+        // paid-out (positive) Settlement/Payment show as red (x); other amounts get a hidden ")" so every
+        // last digit lines up. A negative Settlement/Payment (the agent pays) is plain.
         var confirmParenAmount = function (num) {
-            return '<span style="color:#dc3545;font-weight:700;">(' + Math.abs(num).toLocaleString('en-US') + ')</span>';
+            return '<span style="color:#dc3545;">(' + Math.abs(num).toLocaleString('en-US') + ')</span>';
+        };
+        var confirmPlainAmount = function (num) {
+            return Math.abs(num).toLocaleString('en-US') + '<span style="visibility:hidden;">)</span>';
+        };
+        var confirmSignedAmount = function (num) {
+            return num < 0 ? confirmParenAmount(num) : confirmPlainAmount(num);
+        };
+        var confirmDueAmount = function (num) {
+            return num > 0 ? confirmParenAmount(num) : confirmPlainAmount(num);
         };
         var winLossNum = parseFloat(winLoss) || 0;
         var settlementNum = parseFloat(rollingSettlement) || 0;
         var paymentNum = parseFloat(payment) || 0;
         var settlementRows = [
             ['Game No.', $('#gameNo').text() || 'N/A'],
-            ['Buy-In', parseFloat(buyIn).toLocaleString('en-US')],
-            ['Chips Return', parseFloat(chipsReturn).toLocaleString('en-US')],
-            ['Win/Loss', winLossNum < 0 ? confirmParenAmount(winLossNum) : winLossNum.toLocaleString('en-US'), 'right'],
-            ['Rolling', parseFloat(rolling).toLocaleString('en-US')],
-            ['Rate', parseFloat(rollingRate).toFixed(2) + '%'],
-            ['Settlement', settlementNum ? confirmParenAmount(settlementNum) : '0', 'right']
+            ['Buy-In', confirmSignedAmount(parseFloat(buyIn) || 0), 'right'],
+            ['Chips Return', confirmSignedAmount(-Math.abs(parseFloat(chipsReturn) || 0)), 'right'],
+            ['Win/Loss', confirmSignedAmount(winLossNum), 'right'],
+            ['Rolling', confirmSignedAmount(parseFloat(rolling) || 0), 'right'],
+            ['Rate', parseFloat(rollingRate).toFixed(2) + '%', 'right'],
+            ['Settlement', confirmDueAmount(settlementNum), 'right']
         ];
         $settlementModal.find('.settlement-service-row').each(function () {
             var label = $(this).find('.settlement-service-label').text().trim();
             var amount = parseFloat(($(this).find('.settlement-service-amount').val() || '').replace(/,/g, '')) || 0;
             if (amount > 0 && label) {
-                settlementRows.push([label, amount.toLocaleString('en-US')]);
+                settlementRows.push([label, confirmPlainAmount(amount), 'right']);
             }
         });
-        settlementRows.push(['Payment', paymentNum ? confirmParenAmount(paymentNum) : '0', 'right']);
+        settlementRows.push(['Payment', confirmDueAmount(paymentNum), 'right']);
         if (transType === 'loss') {
             settlementRows.push(['Payment to', 'Loss Amount (Pending #' + ($settlementModal.data('settlementPendingGameId') || '?') + ')']);
         }

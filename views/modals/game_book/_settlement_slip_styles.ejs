@@ -1,0 +1,317 @@
+<%# Settlement receipt look shared by settlement.ejs and merge_settlement.ejs: the receipt, the Guest / Agent
+    panels and the split calculators. Print reads this block (style[data-settlement-slip-styles]). %>
+<style data-settlement-slip-styles>
+    .settlement-slip {
+        position: relative;
+        overflow: hidden;
+        font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
+        color: #000;
+        background: #fff;
+    }
+
+    .settlement-slip .ss-header {
+        background: linear-gradient(160deg, #f1d48a 0%, #c8a24c 100%);
+        color: #3a2e12;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.6rem;
+        letter-spacing: 0.5px;
+        padding: 0.3rem 0.5rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Dragon watermark — above the row colors (multiply) so the rows never cover it */
+    .settlement-slip .settlement-receipt-watermark {
+        position: absolute;
+        top: 3.4rem;
+        left: 50%;
+        width: 200px;
+        height: 200px;
+        margin-left: -100px;
+        background: url('/assets/images/GD-logo.png') center / contain no-repeat;
+        opacity: 0.18;
+        mix-blend-mode: multiply;
+        pointer-events: none;
+        user-select: none;
+        z-index: 2;
+    }
+
+    .settlement-slip .ss-meta {
+        position: relative;
+        padding: 0.35rem 0 0.1rem;
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .settlement-slip .ss-meta-row {
+        display: flex;
+        align-items: center;
+        padding: 0 0.5rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .settlement-slip .ss-meta-tags,
+    .settlement-slip .ss-meta-spacer {
+        flex: 1 1 0;
+        display: flex;
+        text-align: left;
+    }
+
+    .settlement-slip .ss-date {
+        flex: 0 0 auto;
+        font-size: 0.95rem;
+    }
+
+    .settlement-slip .ss-account {
+        font-size: 1.4rem;
+        text-transform: uppercase;
+        margin: 0 0 0.45rem;
+    }
+
+    .settlement-slip .ss-guest {
+        font-size: 1.55rem;
+        text-transform: uppercase;
+        margin: 0 0 0.45rem;
+    }
+
+    .settlement-slip .ss-game {
+        font-size: 1.05rem;
+        margin: 0 0 0.35rem;
+    }
+
+    .settlement-slip .settlement-game-type {
+        color: #c00000;
+        font-size: 1.4rem;
+        text-transform: uppercase;
+    }
+
+    .settlement-slip .settlement-game-type--live {
+        color: #0070c0;
+    }
+
+    .settlement-slip .ss-game-no:not(:empty)::before {
+        content: '#';
+    }
+
+    /* Amount rows: label right-aligned on the left half, value right-aligned on the right */
+    .settlement-slip .ss-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 50% 1fr;
+        align-items: center;
+        min-height: 2.15rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .settlement-slip .ss-gap {
+        margin-top: 0.85rem;
+    }
+
+    .settlement-slip .ss-label {
+        text-align: right;
+        white-space: nowrap;
+        padding: 0.25rem 1.25rem 0.25rem 0.5rem;
+    }
+
+    .settlement-slip .ss-value {
+        min-width: 0;
+        text-align: right;
+        white-space: nowrap;
+        font-size: 1.3rem;
+        font-variant-numeric: tabular-nums;
+        padding: 0.25rem 0.75rem 0.25rem 0;
+    }
+
+    .settlement-slip .ss-value .settlement-receipt-amount {
+        display: flex;
+        justify-content: flex-end;
+        align-items: baseline;
+    }
+
+    /* Excel number format: positive amounts get a hidden ")" so digits line up with (negative) rows */
+    .settlement-slip .ss-value .settlement-receipt-amount:not(.is-negative)::after {
+        content: ')';
+        visibility: hidden;
+    }
+
+    .settlement-slip .settlement-receipt-amount.is-negative {
+        color: #e60000;
+    }
+
+    .settlement-slip .settlement-receipt-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        color: inherit;
+        text-align: right;
+        box-shadow: none;
+        outline: none;
+    }
+
+    .settlement-slip .ss-row--buyin { background: #ddebf7; }
+    .settlement-slip .ss-row--cashout { background: #fce4d6; }
+    .settlement-slip .ss-row--summary { background: #fff2cc; }
+    .settlement-slip .ss-row--rate,
+    .settlement-slip .ss-row--split { background: #ededed; }
+    .settlement-slip .ss-row--settle { background: #e2efda; }
+    .settlement-slip .ss-row--charge { background: #fff; }
+    .settlement-slip .ss-row--payment { background: #f4b183; }
+
+    /* RATE: value sits just right of the label */
+    .settlement-slip .ss-row--rate .ss-value {
+        text-align: left;
+        padding-left: 0;
+    }
+
+    .settlement-slip .ss-row--rate .ss-value .settlement-receipt-amount {
+        justify-content: flex-start;
+    }
+
+    .settlement-slip .ss-row--rate .settlement-receipt-input {
+        text-align: left;
+        flex: 0 1 5.5rem;
+    }
+
+    .settlement-slip .ss-row--rate .settlement-receipt-amount::after {
+        content: none;
+    }
+
+    /* SHARE x%   ROLLING y% */
+    .settlement-slip .ss-row--split {
+        grid-template-columns: repeat(4, auto);
+        justify-content: space-around;
+        column-gap: 0.5rem;
+        padding: 0 0.5rem;
+    }
+
+    .settlement-slip .ss-split-value {
+        font-size: 1.2rem;
+    }
+
+    .settlement-slip .ss-pct-input {
+        width: 4.5rem;
+        text-align: center;
+    }
+
+    /* Split calculator blocks: section name on the left, its rows on the right */
+    .settlement-slip .ss-calc-block {
+        display: grid;
+        grid-template-columns: 28% 1fr;
+        align-items: center;
+        background: #ededed;
+        padding: 0.15rem 0;
+        font-weight: 700;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .settlement-slip .ss-calc-title {
+        text-align: center;
+        font-size: 1.15rem;
+    }
+
+    .settlement-slip .ss-calc-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 1rem;
+        align-items: center;
+        min-height: 1.6rem;
+        font-size: 1.05rem;
+        padding-right: 0.75rem;
+    }
+
+    .settlement-slip .ss-calc-row > :first-child {
+        text-align: right;
+    }
+
+    .settlement-slip .ss-calc-value {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 400;
+    }
+
+    .settlement-slip .ss-calc-value.is-negative {
+        color: #e60000;
+    }
+
+    /* Editable fields in the Guest / Agent receipts: boxed like the spec (box hidden in the copied image) */
+    /* Drawn with box-shadow (no border / padding) so the digits stay lined up with the other rows */
+    .settlement-edit-panel .settlement-slip .settlement-receipt-input:not([readonly]) {
+        position: relative;
+        z-index: 1; /* keep the box above the neighbouring row colours */
+        background: #fff;
+        box-shadow: 0 0 0 0.25rem #fff, 0 0 0 calc(0.25rem + 1px) #e60000;
+    }
+
+    .settlement-edit-panel .settlement-slip .settlement-receipt-input:not([readonly]):focus {
+        box-shadow: 0 0 0 0.25rem #fff, 0 0 0 calc(0.25rem + 1px) #0665d0;
+    }
+
+    .receipt-capturing .settlement-receipt-input {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* Split calculators (Company / Guest / Agent) */
+    .settlement-split-panel .modal-title {
+        font-size: 1rem;
+        white-space: nowrap;
+    }
+
+    .settlement-slip.settlement-split-body {
+        padding: 0.35rem 0 0.4rem;
+    }
+
+    /* Calculators: tighter rows / gaps than the receipt so the bigger text still fits */
+    .settlement-slip.settlement-split-body .ss-row {
+        min-height: 1.85rem;
+        font-size: 1.1rem;
+    }
+
+    .settlement-slip.settlement-split-body .ss-gap {
+        margin-top: 0.4rem;
+    }
+
+    .settlement-slip.settlement-split-body .ss-value,
+    .settlement-slip.settlement-split-body .ss-split-value {
+        font-size: 1.25rem;
+    }
+
+    .settlement-slip .settlement-split-input-wrap {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 0.1rem;
+        border: 1px solid #e60000;
+        background: #fff;
+        padding: 0 0.35rem;
+    }
+
+    .settlement-slip .settlement-split-input {
+        width: 3.5rem;
+        border: none;
+        background: transparent;
+        padding: 0;
+        font: inherit;
+        text-align: right;
+        outline: none;
+    }
+
+    .settlement-slip .settlement-split-input[readonly] {
+        color: #6c757d;
+        cursor: default;
+    }
+
+    .settlement-slip .settlement-split-pct-suffix {
+        font-weight: 700;
+    }
+</style>

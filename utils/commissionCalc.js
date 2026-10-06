@@ -3,10 +3,13 @@
  * Mirrors public/assets/js/functions/commission_calc.js — keep both in sync.
  *
  * COMMISSION_TYPE:
- *   1 = Rolling          → |Rolling| × Rate%
- *   2 = Shared           → Win/Loss × Rate%            (can be negative)
- *   3 = Share + Rolling  → Win/Loss × Share% + |Rolling| × Rate% × RollingPct%
- *                          (share part can be negative; Share 0 / Rolling 100 = plain Rolling)
+ *   1 = Rolling          → Rolling × Rate%
+ *   2 = Shared           → Win/Loss × Rate%
+ *   3 = Share + Rolling  → Win/Loss × Share% + Rolling × Rate% × RollingPct%
+ *                          (Share 0 / Rolling 100 = plain Rolling)
+ *
+ * Signed: positive = paid out to the agent; negative = the agent pays (a negative rolling or a
+ * share of a guest win). Settlement posts that sign as-is (negative PAYMENT = agent pays).
  */
 
 const COMMISSION_TYPE = Object.freeze({
@@ -35,11 +38,11 @@ function getShareRollingSplit(game) {
  * @param {number} rolling
  * @param {object} [opts]
  * @param {function} [opts.round=Math.round] - rounding applied once to the final amount
- * @param {boolean} [opts.absRolling=true] - use |rolling| for the rolling part
+ * @param {boolean} [opts.absRolling=false] - use |rolling| for the rolling part (legacy; default keeps the sign)
  */
 function computeGameCommission(game, winLoss, rolling, opts = {}) {
 	const round = opts.round || Math.round;
-	const absRolling = opts.absRolling !== false;
+	const absRolling = opts.absRolling === true;
 	const type = parseInt(game?.COMMISSION_TYPE ?? game?.commission_type, 10);
 	const rate = toNum(game?.COMMISSION_PERCENTAGE ?? game?.commission_percentage, 0);
 	const wl = toNum(winLoss, 0);

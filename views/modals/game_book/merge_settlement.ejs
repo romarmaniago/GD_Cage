@@ -46,238 +46,11 @@
         background: #fff !important;
     }
 
+    /* Receipt rows run edge to edge, like the game receipt cards */
     #modal-merge-settlement .modal-body {
         position: relative;
+        padding: 0 0 0.6rem;
     }
-
-    #modal-merge-settlement .settlement-receipt-body {
-        position: relative;
-        font-family: Arial, Helvetica, sans-serif;
-        color: #000;
-        font-size: 1.05rem;
-    }
-
-    #modal-merge-settlement .settlement-receipt-watermark {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 25rem;
-        height: 25rem;
-        transform: translate(-50%, -50%);
-        background: url("/assets/images/GD-logo.png") center center / contain no-repeat;
-        mix-blend-mode: multiply;
-        opacity: 0.12;
-        pointer-events: none;
-        z-index: 0;
-        user-select: none;
-    }
-
-    #modal-merge-settlement #merge-settlement-receipt-copy-area {
-        position: relative;
-        overflow: hidden;
-        padding: 0.65rem 0.75rem 0.35rem;
-        border-radius: 0.2rem;
-        min-height: 16rem;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    #modal-merge-settlement #merge-settlement-receipt-copy-area > *:not(.settlement-receipt-watermark) {
-        position: relative;
-        z-index: 1;
-    }
-
-    #modal-merge-settlement .settlement-receipt-stack {
-        --settlement-label-col: 6.75rem;
-        --settlement-value-col: minmax(0, 1fr);
-        --settlement-receipt-col-gap: 0.35rem;
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        box-sizing: border-box;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid {
-        width: 100%;
-        margin: 0;
-        display: grid;
-        grid-template-columns: var(--settlement-label-col) max-content var(--settlement-value-col);
-        column-gap: var(--settlement-receipt-col-gap);
-        row-gap: 0.24rem;
-        align-items: baseline;
-    }
-
-    #modal-merge-settlement .settlement-receipt-section {
-        display: contents;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row {
-        display: contents;
-    }
-
-    #modal-merge-settlement .settlement-receipt-label {
-        grid-column: 1;
-        text-align: right;
-        font-weight: 700;
-        font-size: 1.05rem;
-        white-space: nowrap;
-    }
-
-    #modal-merge-settlement .settlement-receipt-colon {
-        grid-column: 2;
-        font-weight: 700;
-        font-size: 1.05rem;
-    }
-
-    #modal-merge-settlement .settlement-receipt-value-col {
-        grid-column: 3;
-        font-size: 1.05rem;
-        min-width: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta {
-        --settlement-value-col: minmax(0, 1fr);
-        width: 100%;
-        max-width: 100%;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts {
-        --settlement-label-col: 5.75rem;
-        --settlement-value-col: 9.5rem;
-        --settlement-receipt-col-gap: 0.45rem;
-        width: fit-content;
-        max-width: 100%;
-        margin: 0 auto;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
-        text-align: left;
-        justify-self: stretch;
-        white-space: nowrap;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col--wrap {
-        white-space: normal;
-        overflow: visible;
-        text-overflow: clip;
-        line-height: 1.4;
-    }
-
-    #modal-merge-settlement .settlement-receipt-name-select {
-        appearance: auto;
-        max-width: 100%;
-        border: none;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-        font: inherit;
-        font-weight: inherit;
-        color: inherit;
-        cursor: pointer;
-    }
-
-    #modal-merge-settlement .settlement-receipt-name-select:focus {
-        outline: none;
-    }
-
-    #modal-merge-settlement .settlement-receipt-name-select:disabled {
-        color: inherit;
-        opacity: 1;
-        -webkit-text-fill-color: inherit;
-        appearance: none;
-        cursor: default;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
-        text-align: right;
-        justify-self: stretch;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-    }
-
-    #modal-merge-settlement .settlement-receipt-amount {
-        display: inline-block;
-    }
-
-    #modal-merge-settlement .settlement-receipt-divider {
-        align-self: stretch;
-        border-top: 1px solid #c8c8c8;
-        margin: 0.55rem 0 0.45rem;
-        height: 0;
-        width: 100%;
-    }
-
-    #modal-merge-settlement .settlement-receipt-value-col.is-bold {
-        font-weight: 700;
-    }
-
-    #modal-merge-settlement .settlement-receipt-amount.is-negative {
-        color: #dc3545;
-        font-weight: 700;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row--payment {
-        display: grid;
-        grid-column: 1 / -1;
-        grid-template-columns: subgrid;
-        column-gap: var(--settlement-receipt-col-gap);
-        background: rgba(253, 141, 124, 0.52);
-        border-radius: 0.15rem;
-        padding: 0.35rem 0;
-        margin-top: 0.35rem;
-        align-items: baseline;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-label {
-        padding-left: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
-        padding-right: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-input {
-        min-width: 0;
-        border: none;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-        font-size: inherit;
-        font-family: inherit;
-        font-weight: inherit;
-        color: inherit;
-        box-shadow: none;
-        outline: none;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-input {
-        width: 100%;
-        text-align: right;
-        field-sizing: content;
-    }
-
-    #modal-merge-settlement .settlement-receipt-input:focus {
-        box-shadow: none;
-        outline: none;
-    }
-
-    #modal-merge-settlement .settlement-receipt-input.is-negative {
-        color: #dc3545;
-        font-weight: 700;
-    }
-
-    #modal-merge-settlement #winLossMerge,
-    #modal-merge-settlement #rollingMerge {
-        font-weight: 700;
-    }
-
 
     #modal-merge-settlement .settlement-copy-row {
         display: flex;
@@ -321,74 +94,6 @@
         flex: 0 0 auto;
     }
 
-    #modal-merge-settlement .receipt-print-only { display: none; }
-
-    #modal-merge-settlement .receipt-print-content {
-        width: 100%;
-        max-width: 200mm;
-        margin: 0 auto;
-        color: #000;
-        font-family: Arial, sans-serif;
-        font-size: 6mm;
-        line-height: 1.3;
-    }
-
-    #modal-merge-settlement .receipt-brand {
-        text-align: center;
-        font-weight: 700;
-        font-size: 7.5mm;
-        margin: 0;
-        letter-spacing: 0.3px;
-    }
-
-    #modal-merge-settlement .receipt-subtitle {
-        text-align: center;
-        font-weight: 700;
-        font-size: 6.4mm;
-        margin: 4mm 0 0;
-    }
-
-    #modal-merge-settlement .receipt-datetime {
-        text-align: center;
-        font-weight: 700;
-        font-size: 5.6mm;
-        margin: 2mm 0 4mm;
-    }
-
-    #modal-merge-settlement .receipt-line {
-        border-top: 1px solid #000;
-        width: 90%;
-        margin: 4mm auto;
-    }
-
-    #modal-merge-settlement .receipt-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 3mm;
-        width: 72%;
-        min-width: 120mm;
-        margin: 2mm auto;
-    }
-
-    #modal-merge-settlement .receipt-row span:first-child {
-        width: 35%;
-        text-align: right;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    #modal-merge-settlement .receipt-row span:last-child {
-        width: 35%;
-        text-align: left;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    #modal-merge-settlement .receipt-total span {
-        font-size: 7mm;
-    }
-
     /* --- Edit mode: Guest/Agent split-calculator panels (ported from settlement.ejs) --- */
 
     #modal-merge-settlement .settlement-modal-cluster {
@@ -422,9 +127,9 @@
         flex-direction: column;
     }
 
-    #modal-merge-settlement .settlement-edit-panel-body {
+    #modal-merge-settlement .settlement-edit-panel-body:not(.settlement-split-body) {
         flex: 1 1 auto;
-        padding: 1rem 0.5rem 0.5rem;
+        padding: 0;
     }
 
     #modal-merge-settlement .settlement-edit-panel-card > .modal-footer {
@@ -434,16 +139,6 @@
 
     #modal-merge-settlement .settlement-edit-panel-card > .modal-footer .settlement-copy-row {
         margin: 0;
-    }
-
-    #modal-merge-settlement .settlement-edit-panel .settlement-receipt-input:not([readonly]) {
-        border-bottom: 1px dashed #adb5bd;
-        background: #fffef8;
-    }
-
-    #modal-merge-settlement .settlement-edit-panel .settlement-receipt-input:not([readonly]):focus {
-        border-bottom-color: #0665d0;
-        background: #f8fbff;
     }
 
     #modal-merge-settlement .settlement-modal-cluster.is-edit-mode {
@@ -513,120 +208,6 @@
     #modal-merge-settlement .settlement-modal-cluster.is-edit-mode .settlement-edit-receipt-copy-area {
         flex: 1 1 auto;
         width: 100%;
-    }
-
-    #modal-merge-settlement .settlement-edit-receipt-copy-area {
-        position: relative;
-        overflow: hidden;
-        padding: 0.65rem 0.75rem 0.35rem;
-        border-radius: 0.2rem;
-        min-height: 16rem;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    #modal-merge-settlement .settlement-edit-receipt-copy-area > *:not(.settlement-receipt-watermark) {
-        position: relative;
-        z-index: 1;
-    }
-
-    #modal-merge-settlement .settlement-split-panel .modal-header {
-        gap: 0.5rem;
-    }
-
-    #modal-merge-settlement .settlement-split-panel .modal-title {
-        font-size: 1rem;
-        white-space: nowrap;
-    }
-
-    #modal-merge-settlement .settlement-split-body {
-        padding: 0.65rem 5rem 0.75rem 1rem;
-        font-size: 1rem;
-    }
-
-    #modal-merge-settlement .settlement-split-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        column-gap: 1rem;
-        align-items: center;
-        padding: 0.3rem 0;
-    }
-
-    #modal-merge-settlement .settlement-split-row--total {
-        font-weight: 700;
-        font-size: 1.05rem;
-    }
-
-    #modal-merge-settlement .settlement-split-label {
-        color: #3a2e12;
-        white-space: nowrap;
-        text-align: right;
-    }
-
-    #modal-merge-settlement .settlement-split-value {
-        font-variant-numeric: tabular-nums;
-        text-align: right;
-    }
-
-    #modal-merge-settlement .settlement-split-value.is-negative {
-        color: #dc3545;
-    }
-
-    #modal-merge-settlement .settlement-split-divider {
-        border-top: 1px dotted #b7bcc2;
-        margin: 0.55rem -5.3rem 0.55rem -1.3rem;
-    }
-
-    #modal-merge-settlement .settlement-split-input-wrap,
-    #modal-merge-settlement .settlement-split-rate-input-wrap {
-        display: inline-flex;
-        align-items: center;
-        justify-self: end;
-        gap: 0.2rem;
-    }
-
-    #modal-merge-settlement .settlement-split-input {
-        width: 4rem;
-        box-sizing: border-box;
-        border: 1px solid #adb5bd;
-        border-radius: 0.2rem;
-        padding: 0.15rem 0.3rem;
-        font-size: 0.88rem;
-        text-align: right;
-        background: #fff;
-    }
-
-    #modal-merge-settlement .settlement-split-rate-input-wrap {
-        background: #fffef8;
-        border-radius: 999px;
-        padding: 0.2rem 0.65rem 0.2rem 0.85rem;
-        box-shadow: inset 0 1px 2px rgba(58, 46, 18, 0.18);
-    }
-
-    #modal-merge-settlement .settlement-split-rate-input-wrap .settlement-split-input {
-        width: 3rem;
-        border: none;
-        background: transparent;
-        padding: 0;
-        color: #3a2e12;
-        font-weight: 600;
-    }
-
-    #modal-merge-settlement .settlement-split-rate-input-wrap .settlement-split-input:focus {
-        outline: none;
-    }
-
-    #modal-merge-settlement .settlement-split-input[readonly] {
-        background: #eceef1;
-        border-color: #cfd4da;
-        color: #6c757d;
-        cursor: default;
-    }
-
-    #modal-merge-settlement .settlement-split-pct-suffix {
-        color: #3a2e12;
-        font-weight: 600;
     }
 
     /* --- Commission Settlement (Detail): separate panel below the main modal cluster --- */
@@ -779,156 +360,36 @@
         text-align: left;
     }
 
-    /* --- Receipt look (matches game receipts): centered header, no colons, colored payment bar --- */
-    #modal-merge-settlement .settlement-receipt-body {
-        font-family: Calibri, 'Segoe UI', Arial, Helvetica, sans-serif;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-
-    #modal-merge-settlement .settlement-receipt-watermark {
-        width: 17rem;
-        height: 17rem;
-        opacity: 0.2;
-    }
-
-    #modal-merge-settlement .settlement-receipt-divider {
-        border-top: none;
-        margin: 0.35rem 0;
-    }
-
-    /* Header block: date on top, account big and centered, labels hidden */
-    #modal-merge-settlement .settlement-receipt-grid--meta {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        row-gap: 0.45rem;
-        text-align: center;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.45rem;
-        width: 100%;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row {
-        display: block;
-        width: 100%;
-        text-align: center;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-label,
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-colon {
-        display: none;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-value-col {
-        display: block;
-        text-align: center;
-        white-space: normal;
-        overflow: visible;
-        font-size: 1.5rem;
-        font-weight: 700;
+    /* Account picker sits on the receipt's account line */
+    #modal-merge-settlement .settlement-receipt-name-select {
+        appearance: auto;
+        max-width: 100%;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        color: inherit;
         text-transform: uppercase;
-    }
-
-    /* Date row goes first and smaller */
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child {
-        order: -1;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-row:last-child .settlement-receipt-value-col {
-        font-size: 1rem;
-    }
-
-    /* Amount rows: label right-aligned beside the value, block centered */
-    #modal-merge-settlement .settlement-receipt-grid--amounts {
-        --settlement-label-col: max-content;
-        --settlement-value-col: 9.5rem;
-        --settlement-receipt-col-gap: 0.75rem; /* x2: hidden colon column sits between */
-        width: fit-content;
-        margin: 0 auto;
-        row-gap: 0.15rem;
-        align-items: center;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-colon {
-        display: none;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-label {
-        text-align: right;
-        text-transform: uppercase;
-        font-weight: 400;
-        font-size: 1.2rem;
-        padding-right: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-value-col--amount {
-        font-size: 1.2rem;
-        padding-right: 0;
-    }
-
-    /* Win / Loss, Rolling: bold label, big value */
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-label,
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-label {
-        font-weight: 700;
-        font-size: 1.3rem;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(3) .settlement-receipt-value-col,
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(4) .settlement-receipt-value-col {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
-    /* Settlement, Add Charge: bold label */
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-label,
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(7) .settlement-receipt-label {
-        font-weight: 700;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--amounts .settlement-receipt-row:nth-child(6) .settlement-receipt-value-col {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
-    /* Payment: orange bar under the centered amount columns */
-    #modal-merge-settlement .settlement-receipt-row--payment {
-        background: #f4b183;
-        border-radius: 0;
-        /* widen the bar past the text on both sides without moving the columns */
-        box-shadow: -0.9rem 0 0 #f4b183, 0.9rem 0 0 #f4b183;
-        padding: 0.55rem 0;
-        margin-top: 0.75rem;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-label {
-        font-weight: 700;
-        font-size: 1.35rem;
-        padding-right: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-row--payment .settlement-receipt-value-col {
-        font-size: 1.5rem;
-        font-weight: 700;
-        padding-right: 0;
-    }
-
-    #modal-merge-settlement .settlement-receipt-amount.is-negative,
-    #modal-merge-settlement .settlement-receipt-input.is-negative {
-        color: #e60000;
-    }
-
-    #modal-merge-settlement .settlement-receipt-grid--meta .settlement-receipt-name-select {
-        width: 100%;
         text-align: center;
         text-align-last: center;
+        cursor: pointer;
+    }
+
+    #modal-merge-settlement .settlement-receipt-name-select:focus {
+        outline: none;
+    }
+
+    #modal-merge-settlement .settlement-receipt-name-select:disabled {
+        appearance: none;
+        opacity: 1;
+        color: inherit;
+        -webkit-text-fill-color: inherit;
+        cursor: default;
     }
 </style>
+
+<%- include('_settlement_slip_styles') %>
 
 <div class="modal fade" id="modal-merge-settlement" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false" tabindex="-1" aria-labelledby="modal-merge-settlement-label" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered settlement-receipt-dialog">
@@ -944,87 +405,57 @@
                 <input type="hidden" name="merge_game_ids" id="mergeGameIds" value="">
 
                 <div class="modal-body">
-                    <div id="merge-settlement-receipt-copy-area" class="settlement-receipt-body">
+                    <%# The callers (game_list.js / commission.js) fill the hidden inputs in their own number formats;
+                        refreshMergeReceiptDisplay renders the *Display elements from them when the modal opens. %>
+                    <div id="merge-settlement-receipt-copy-area" class="settlement-receipt-body settlement-slip">
                         <div class="settlement-receipt-watermark" aria-hidden="true"></div>
+                        <div class="ss-header">* SETTLEMENT *</div>
 
-                        <div class="settlement-receipt-stack">
-                            <div class="settlement-receipt-grid settlement-receipt-grid--meta">
-                                <div class="settlement-receipt-section">
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Name</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <select class="settlement-receipt-value-col is-bold settlement-receipt-name-select" id="accNoMerge"></select>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Date</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col is-bold"><span id="dateMerge"></span> <span id="timeMerge"></span></span>
-                                    </div>
-                                </div>
+                        <div class="ss-meta">
+                            <div class="ss-meta-row">
+                                <div class="ss-meta-tags"></div>
+                                <div class="ss-date"><span id="dateMerge"></span> <span id="timeMerge"></span></div>
+                                <div class="ss-meta-spacer"></div>
                             </div>
+                            <div class="ss-account"><select class="settlement-receipt-name-select" id="accNoMerge"></select></div>
+                            <div class="ss-game ss-merge-games" id="mergeGamesDisplay"></div>
+                        </div>
 
-                            <div class="settlement-receipt-divider" aria-hidden="true"></div>
-
-                            <div class="settlement-receipt-grid settlement-receipt-grid--amounts">
-                                <div class="settlement-receipt-section">
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Buy In</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="buyInMerge" name="txtBuyInMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Cash Out</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="chipsReturnMerge" name="txtChipsReturnMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Win / Loss</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="winLossMerge" name="txtWinLossMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Rolling</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount is-bold">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingMerge" name="txtRollingMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Rate</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingRateMerge" name="txtRollingRateMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Settlement</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingSettlementMerge" name="txtRollingSettlementMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row">
-                                        <span class="settlement-receipt-label">Add Charge</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="fbMerge" name="txtFNBMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                    <div class="settlement-receipt-row settlement-receipt-row--payment">
-                                        <span class="settlement-receipt-label">Payment</span>
-                                        <span class="settlement-receipt-colon">:</span>
-                                        <span class="settlement-receipt-value-col settlement-receipt-value-col--amount">
-                                            <span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="paymentMerge" name="txtPaymentMerge" readonly></span>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="ss-row ss-row--buyin ss-gap" data-text-label="* BUY IN" data-text-block="totals">
+                            <span class="ss-label">* BUY IN</span>
+                            <span class="ss-value"><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="buyInMerge" name="txtBuyInMerge" readonly></span></span>
+                        </div>
+                        <div class="ss-row ss-row--cashout ss-gap" data-text-label="* CASH OUT" data-text-block="totals">
+                            <span class="ss-label">* CASH OUT</span>
+                            <span class="ss-value"><input type="hidden" id="chipsReturnMerge" name="txtChipsReturnMerge"><span class="settlement-receipt-amount" id="chipsReturnMergeDisplay"></span></span>
+                        </div>
+                        <div class="ss-row ss-row--summary ss-gap" data-text-label="* WIN / LOSS" data-text-block="totals">
+                            <span class="ss-label">* WIN/LOSS</span>
+                            <span class="ss-value"><input type="hidden" id="winLossMerge" name="txtWinLossMerge"><span class="settlement-receipt-amount" id="winLossMergeDisplay"></span></span>
+                        </div>
+                        <div class="ss-row ss-row--summary" data-text-label="* ROLLING" data-text-block="totals">
+                            <span class="ss-label">* ROLLING</span>
+                            <span class="ss-value"><input type="hidden" id="rollingMerge" name="txtRollingMerge"><span class="settlement-receipt-amount" id="rollingMergeDisplay"></span></span>
+                        </div>
+                        <div class="ss-row ss-row--rate ss-gap" data-html2canvas-ignore="true">
+                            <span class="ss-label">RATE</span>
+                            <span class="ss-value"><input type="hidden" id="rollingRateMerge" name="txtRollingRateMerge"><span class="settlement-receipt-amount"><input class="settlement-receipt-input" type="text" id="rollingRateMergeDisplay" readonly></span></span>
+                        </div>
+                        <div class="ss-row ss-row--split ss-gap" data-html2canvas-ignore="true">
+                            <span>SHARE</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input" type="text" id="sharePctMerge" value="0%" inputmode="decimal" readonly></span>
+                            <span>ROLLING</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input" type="text" id="rollingPctMerge" value="100%" inputmode="decimal" readonly></span>
+                        </div>
+                        <div class="ss-row ss-row--settle ss-gap" data-text-label="* SETTLEMENT" data-text-block="settlement">
+                            <span class="ss-label">SETTLEMENT</span>
+                            <span class="ss-value" id="rollingSettlementMergeDisplay"><input type="hidden" id="rollingSettlementMerge" name="txtRollingSettlementMerge"><span class="settlement-receipt-amount"></span></span>
+                        </div>
+                        <div class="ss-row ss-row--charge" data-text-label="* ADD CHARGE" data-text-block="settlement">
+                            <span class="ss-label">ADD CHARGE</span>
+                            <span class="ss-value" id="fbMergeDisplay"><input type="hidden" id="fbMerge" name="txtFNBMerge"><span class="settlement-receipt-amount">0</span></span>
+                        </div>
+                        <div class="ss-row ss-row--payment" data-text-label="* PAYMENT" data-text-block="settlement">
+                            <span class="ss-label">PAYMENT</span>
+                            <span class="ss-value" id="paymentMergeDisplay"><input type="hidden" id="paymentMerge" name="txtPaymentMerge"><span class="settlement-receipt-amount"></span></span>
                         </div>
                     </div>
 
@@ -1072,37 +503,39 @@
         <div class="settlement-edit-panel settlement-split-panel d-none" id="merge-settlement-calc-company-panel" aria-hidden="true">
             <div class="settlement-edit-panel-card">
                 <div class="modal-header bg-primary">
-                    <h5 class="modal-title text-white">Company Rate :</h5>
-                    <span class="settlement-split-rate-input-wrap">
-                        <input type="text" class="settlement-split-input" id="merge-calc-company-rate" value="0" inputmode="decimal" aria-label="Company rate">
-                        <span class="settlement-split-pct-suffix">%</span>
-                    </span>
+                    <h5 class="modal-title text-white">Company Rate</h5>
                 </div>
-                <div class="settlement-edit-panel-body settlement-split-body">
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-company-rate-rolling">0</span>
+                <div class="settlement-edit-panel-body settlement-split-body settlement-slip">
+                    <div class="ss-row ss-row--rate">
+                        <span class="ss-label">RATE</span>
+                        <span class="ss-value">
+                            <span class="settlement-split-input-wrap">
+                                <input type="text" class="settlement-split-input" id="merge-calc-company-rate" value="0" inputmode="decimal" aria-label="Company rate">
+                                <span class="settlement-split-pct-suffix">%</span>
+                            </span>
+                        </span>
                     </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rate :</span>
-                        <span class="settlement-split-value" id="merge-calc-company-rate-rate-display">0%</span>
+                    <div class="ss-row ss-row--split ss-gap">
+                        <span>SHARE</span><span class="ss-split-value js-calc-share-pct">0%</span>
+                        <span>ROLLING</span><span class="ss-split-value js-calc-rolling-pct">100%</span>
                     </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-company-rate-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Rate</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-company-rate-rolling">0</span></div>
+                            <div class="ss-calc-row"><span>Rate</span><span class="ss-calc-value" id="merge-calc-company-rate-rate-display">0%</span></div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-company-rate-settlement">0</span></div>
+                        </div>
                     </div>
-                    <div class="settlement-split-divider"></div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-company-pct-rolling">0</span>
-                    </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Percentage :</span>
-                        <span class="settlement-split-value">100%</span>
-                    </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-company-pct-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Percentage</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-company-pct-rolling">0</span></div>
+                            <div class="ss-calc-row"><span>Percentage</span><span class="ss-calc-value">100%</span></div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-company-pct-settlement">0</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1112,37 +545,48 @@
                 <div class="modal-header bg-primary">
                     <h5 class="modal-title text-white">Edit Mode (Guest)</h5>
                 </div>
-                <div class="settlement-edit-panel-body settlement-split-body">
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-guest-rate-rolling">0</span>
+                <div class="settlement-edit-panel-body settlement-split-body settlement-slip">
+                    <div class="ss-row ss-row--rate">
+                        <span class="ss-label">RATE</span>
+                        <span class="ss-value js-calc-company-rate-display">0%</span>
                     </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rate :</span>
-                        <span class="settlement-split-input-wrap">
-                            <input type="text" class="settlement-split-input" id="merge-calc-guest-rate-input" value="0" inputmode="decimal" aria-label="Guest rate split">
-                            <span class="settlement-split-pct-suffix">%</span>
-                        </span>
+                    <div class="ss-row ss-row--split ss-gap">
+                        <span>SHARE</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input js-calc-share-pct" type="text" value="0%" inputmode="decimal" data-split-field="sharePct" aria-label="Share %"></span>
+                        <span>ROLLING</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input js-calc-rolling-pct" type="text" value="100%" inputmode="decimal" data-split-field="rollingPct" aria-label="Rolling %"></span>
                     </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-guest-rate-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Rate</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-guest-rate-rolling">0</span></div>
+                            <div class="ss-calc-row">
+                                <span>Rate</span>
+                                <span class="ss-calc-value">
+                                    <span class="settlement-split-input-wrap">
+                                        <input type="text" class="settlement-split-input" id="merge-calc-guest-rate-input" value="0" inputmode="decimal" aria-label="Guest rate split">
+                                        <span class="settlement-split-pct-suffix">%</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-guest-rate-settlement">0</span></div>
+                        </div>
                     </div>
-                    <div class="settlement-split-divider"></div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-guest-pct-rolling">0</span>
-                    </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Percentage :</span>
-                        <span class="settlement-split-input-wrap">
-                            <input type="text" class="settlement-split-input" id="merge-calc-guest-pct-input" value="0" inputmode="decimal" aria-label="Guest percentage split">
-                            <span class="settlement-split-pct-suffix">%</span>
-                        </span>
-                    </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-guest-pct-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Percentage</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-guest-pct-rolling">0</span></div>
+                            <div class="ss-calc-row">
+                                <span>Percentage</span>
+                                <span class="ss-calc-value">
+                                    <span class="settlement-split-input-wrap">
+                                        <input type="text" class="settlement-split-input" id="merge-calc-guest-pct-input" value="0" inputmode="decimal" aria-label="Guest percentage split">
+                                        <span class="settlement-split-pct-suffix">%</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-guest-pct-settlement">0</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1152,31 +596,32 @@
                 <div class="modal-header bg-primary">
                     <h5 class="modal-title text-white">Edit Mode (Agent)</h5>
                 </div>
-                <div class="settlement-edit-panel-body settlement-split-body">
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-rate-rolling">0</span>
+                <div class="settlement-edit-panel-body settlement-split-body settlement-slip">
+                    <div class="ss-row ss-row--rate">
+                        <span class="ss-label">RATE</span>
+                        <span class="ss-value js-calc-company-rate-display">0%</span>
                     </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rate :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-rate-display">0%</span>
+                    <div class="ss-row ss-row--split ss-gap">
+                        <span>SHARE</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input js-calc-share-pct" type="text" value="0%" inputmode="decimal" data-split-field="sharePct" aria-label="Share %"></span>
+                        <span>ROLLING</span><span class="ss-split-value"><input class="settlement-receipt-input ss-pct-input js-calc-rolling-pct" type="text" value="100%" inputmode="decimal" data-split-field="rollingPct" aria-label="Rolling %"></span>
                     </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-rate-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Rate</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-agent-rate-rolling">0</span></div>
+                            <div class="ss-calc-row"><span>Rate</span><span class="ss-calc-value" id="merge-calc-agent-rate-display">0%</span></div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-agent-rate-settlement">0</span></div>
+                        </div>
                     </div>
-                    <div class="settlement-split-divider"></div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Rolling :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-pct-rolling">0</span>
-                    </div>
-                    <div class="settlement-split-row">
-                        <span class="settlement-split-label">Percentage :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-pct-display">0%</span>
-                    </div>
-                    <div class="settlement-split-row settlement-split-row--total">
-                        <span class="settlement-split-label">Settlement :</span>
-                        <span class="settlement-split-value" id="merge-calc-agent-pct-settlement">0</span>
+                    <div class="ss-calc-block ss-gap">
+                        <div class="ss-calc-title">Percentage</div>
+                        <div>
+                            <div class="ss-calc-row"><span>Win/Loss</span><span class="ss-calc-value js-calc-winloss">0</span></div>
+                            <div class="ss-calc-row"><span>Rolling</span><span class="ss-calc-value" id="merge-calc-agent-pct-rolling">0</span></div>
+                            <div class="ss-calc-row"><span>Percentage</span><span class="ss-calc-value" id="merge-calc-agent-pct-display">0%</span></div>
+                            <div class="ss-calc-row"><span>Settlement</span><span class="ss-calc-value" id="merge-calc-agent-pct-settlement">0</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1274,205 +719,29 @@
         </div>
         </div>
         </div>
-
-            <div class="receipt-print-only">
-                <div class="receipt-print-content">
-                    <p class="receipt-brand">CAGEX DEMO</p>
-                    <p class="receipt-subtitle">Multiple Settlement</p>
-                    <div class="receipt-line"></div>
-                    <p class="receipt-datetime" id="printMergeReceiptDateTime"></p>
-
-                    <div class="receipt-row"><span>Name :</span><span id="printMergeReceiptName">0</span></div>
-                    <div class="receipt-line"></div>
-
-                    <div class="receipt-row"><span>Buy In :</span><span id="printMergeReceiptBuyIn">0</span></div>
-                    <div class="receipt-row"><span>Cash Out :</span><span id="printMergeReceiptCashOut">0</span></div>
-                    <div class="receipt-row"><span>W/L :</span><span id="printMergeReceiptWinLoss">0</span></div>
-                    <div class="receipt-row"><span>Rolling :</span><span id="printMergeReceiptRolling">0</span></div>
-                    <div class="receipt-row"><span>Rate :</span><span id="printMergeReceiptRate">0</span></div>
-                    <div class="receipt-row"><span>Settlement :</span><span id="printMergeReceiptSettlement">0</span></div>
-                    <div class="receipt-row"><span>Services :</span><span id="printMergeReceiptServices">0</span></div>
-                    <div class="receipt-line"></div>
-                    <div class="receipt-row receipt-total"><span>Total :</span><span id="printMergeReceiptTotal">0</span></div>
-                    <div class="receipt-line"></div>
-                </div>
-            </div>
     </div>
 </div>
 
 <script>
     $(document).ready(function () {
-        function cleanValue(value) {
-            if (value === undefined || value === null) return '0';
-            var text = String(value).trim();
-            return text.length ? text : '0';
-        }
+        var MERGE_MODAL = '#modal-merge-settlement';
 
-        function getReceiptPrintStyles() {
-            return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:90%;margin:4mm auto;} .receipt-row{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;width:72%;min-width:120mm;margin:2mm auto;} .receipt-row span:first-child{width:35%;text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{width:35%;text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
-        }
+        /* --- Number helpers --- */
 
-        function updateMergeReceiptPrintData($modal) {
-            var dateText = cleanValue($modal.find('#dateMerge').text());
-            var timeText = cleanValue($modal.find('#timeMerge').text());
-            $modal.find('#printMergeReceiptDateTime').text(dateText + ' ' + timeText);
-            $modal.find('#printMergeReceiptName').text(cleanValue($modal.find('#accNoMerge option:selected').text()));
-            $modal.find('#printMergeReceiptBuyIn').text(cleanValue($modal.find('#buyInMerge').val()));
-            $modal.find('#printMergeReceiptCashOut').text(cleanValue($modal.find('#chipsReturnMerge').val()));
-            $modal.find('#printMergeReceiptWinLoss').text(cleanValue($modal.find('#winLossMerge').val()));
-            $modal.find('#printMergeReceiptRolling').text(cleanValue($modal.find('#rollingMerge').val()));
-            $modal.find('#printMergeReceiptRate').text(cleanValue($modal.find('#rollingRateMerge').val()));
-            $modal.find('#printMergeReceiptSettlement').text(cleanValue($modal.find('#rollingSettlementMerge').val()));
-            $modal.find('#printMergeReceiptServices').text(cleanValue($modal.find('#fbMerge').val()));
-            $modal.find('#printMergeReceiptTotal').text(cleanValue($modal.find('#paymentMerge').val()));
-        }
-
-        function openMergeReceiptPrintWindow($modal) {
-            var receiptHtml = $modal.find('.receipt-print-only').html();
-            var iframe = document.createElement('iframe');
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = '0';
-            iframe.setAttribute('aria-hidden', 'true');
-            document.body.appendChild(iframe);
-
-            var iframeDoc = iframe.contentWindow.document;
-            iframeDoc.open();
-            iframeDoc.write('<!doctype html><html><head><title>Multiple Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
-            iframeDoc.close();
-
-            setTimeout(function () {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-                setTimeout(function () {
-                    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-                }, 500);
-            }, 100);
-        }
-
-        $(document).on('click', '#print-merge-settlement-btn', function () {
-            var $modal = $('#modal-merge-settlement');
-            updateMergeReceiptPrintData($modal);
-            openMergeReceiptPrintWindow($modal);
-        });
-
-        function buildMergeReceiptSlipText(slipBodyEl) {
-            if (!slipBodyEl) return '';
-            var lines = [];
-            slipBodyEl.querySelectorAll('.settlement-receipt-row').forEach(function (row) {
-                var labelEl = row.querySelector('.settlement-receipt-label');
-                var labelText = labelEl ? labelEl.textContent.replace(/\s+/g, ' ').trim() : '';
-                if (!labelText) return;
-
-                var value = '';
-                var select = row.querySelector('select.settlement-receipt-value-col');
-                var input = row.querySelector('.settlement-receipt-input');
-                if (select) {
-                    value = select.options.length ? String(select.options[select.selectedIndex].text || '').trim() : '';
-                } else if (input) {
-                    value = String(input.value || '').trim();
-                } else {
-                    var amountEl = row.querySelector('.settlement-receipt-amount');
-                    if (amountEl) {
-                        value = String(amountEl.textContent || '').replace(/\s+/g, ' ').trim();
-                    } else {
-                        var valueCol = row.querySelector('.settlement-receipt-value-col');
-                        if (valueCol) value = String((valueCol.innerText != null ? valueCol.innerText : valueCol.textContent) || '').replace(/\s+/g, ' ').trim();
-                    }
-                }
-
-                lines.push(labelText + ' : ' + value);
-            });
-            return lines.join('\n');
-        }
-
-        function copyMergeReceiptSlipTextButton(slipBodyEl, $btn) {
-            if (!slipBodyEl || !$btn || !$btn.length) return;
-
-            var originalHtml = $btn.html();
-            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
-
-            var text = buildMergeReceiptSlipText(slipBodyEl);
-            if (!text) {
-                $btn.prop('disabled', false).html(originalHtml);
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Receipt has no text to copy.', confirmButtonText: 'OK' });
-                }
-                return;
-            }
-
-            if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-                $btn.prop('disabled', false).html(originalHtml);
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Clipboard is not supported in this browser.', confirmButtonText: 'OK' });
-                }
-                return;
-            }
-
-            navigator.clipboard.writeText(text)
-                .then(function () {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Copied!',
-                            text: 'Receipt text copied. You can paste it anywhere.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    }
-                })
-                .catch(function (err) {
-                    var msg = (err && err.message) ? err.message : 'Unable to copy receipt text.';
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
-                    }
-                })
-                .finally(function () {
-                    $btn.prop('disabled', false).html(originalHtml);
-                });
-        }
-
-        $('#modal-merge-settlement').on('click', '.settlement-main-content .js-copy-merge-settlement-slip-image', function (e) {
-            e.preventDefault();
-            var $btn = $(this);
-            var slipBody = document.getElementById('merge-settlement-receipt-copy-area');
-            if (typeof window.copyGameReceiptSlipImage === 'function') {
-                window.copyGameReceiptSlipImage(slipBody, $btn);
-                return;
-            }
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Image copy is not available.', confirmButtonText: 'OK' });
-            }
-        });
-
-        $('#modal-merge-settlement').on('click', '.settlement-main-content .js-copy-merge-settlement-slip-text', function (e) {
-            e.preventDefault();
-            var $btn = $(this);
-            var slipBody = document.getElementById('merge-settlement-receipt-copy-area');
-            copyMergeReceiptSlipTextButton(slipBody, $btn);
-        });
-
-        /* --- Edit mode: Guest/Agent commission-split preview (ported from settlement.ejs) --- */
-
+        // Reads "1,234", "-1,234" and "(1,234)" (parentheses = negative)
         function parseAmount(value) {
             var raw = String(value || '').trim();
             var isNegative = /^\(.*\)$/.test(raw);
-            var num = parseFloat(raw.replace(/,/g, '').replace(/[()]/g, ''));
+            var num = parseFloat(raw.replace(/,/g, '').replace(/[()%]/g, ''));
             if (isNaN(num)) return 0;
             return isNegative ? -Math.abs(num) : num;
         }
 
-        // Negative → (7,000); parseAmount reads the parentheses back as negative
-        function formatSignedParen(value) {
-            var num = Number(value) || 0;
-            return num < 0 ? '(' + formatAmount(Math.abs(num)) + ')' : formatAmount(num);
-        }
-
-        function formatAlwaysParen(value) {
-            return '(' + formatAmount(Math.abs(Number(value) || 0)) + ')';
+        // Settlement / Payment: game_list.js always wraps them in parentheses (even payouts),
+        // commission.js sends plain numbers — so parentheses here are display only, not a sign.
+        function parseDueAmount(value) {
+            var num = parseFloat(String(value || '').replace(/[,()]/g, '').trim());
+            return isNaN(num) ? 0 : num;
         }
 
         function formatAmount(value) {
@@ -1482,15 +751,23 @@
             });
         }
 
+        // Settlement / Payment: positive = paid out to the guest → red (x);
+        // negative = the guest owes (e.g. a Share part) → plain black, like the game receipts
         function formatSettlementDueDisplay(value) {
             var num = parseAmount(value);
-            if (!num) {
-                return { text: '0', negative: false };
-            }
-            return {
-                text: '(' + formatAmount(Math.abs(num)) + ')',
-                negative: true
-            };
+            if (num > 0) return { text: '(' + formatAmount(num) + ')', negative: true };
+            return { text: formatAmount(Math.abs(num)), negative: false };
+        }
+
+        // Negative → red (x)
+        function renderSignedAmount($amount, value) {
+            var num = Number(value) || 0;
+            $amount.text(num < 0 ? '(' + formatAmount(Math.abs(num)) + ')' : formatAmount(num)).toggleClass('is-negative', num < 0);
+        }
+
+        function renderDueAmount($amount, value) {
+            var display = formatSettlementDueDisplay(value);
+            $amount.text(display.text).toggleClass('is-negative', display.negative);
         }
 
         function formatSettlementRateDisplay(value) {
@@ -1499,27 +776,25 @@
             return raw.indexOf('%') !== -1 ? raw : raw + '%';
         }
 
+        function formatSettlementPct(value) {
+            return Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }) + '%';
+        }
+
         function formatInputWithCommas($input) {
             var raw = String($input.val() || '').replace(/,/g, '').trim();
             if (!raw) {
                 $input.val('');
                 return;
             }
-
-            var allowNegative = $input.attr('data-allow-negative') === '1';
-            var isNegative = allowNegative && raw.startsWith('-');
+            var isNegative = $input.attr('data-allow-negative') === '1' && raw.charAt(0) === '-';
             var normalized = raw.replace(/[^\d.]/g, '');
             var firstDot = normalized.indexOf('.');
             if (firstDot !== -1) {
                 normalized = normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '');
             }
-            if (isNegative && normalized) {
-                normalized = '-' + normalized;
-            }
-
+            if (isNegative && normalized) normalized = '-' + normalized;
             var num = parseFloat(normalized);
             if (isNaN(num)) return;
-
             $input.val(num.toLocaleString('en-US', {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 2
@@ -1580,42 +855,234 @@
             }));
         }
 
-        // The merge receipt's Settlement/Add Charge/Payment are plain readonly inputs
-        // (no separate "display span" the way settlement.ejs has) — so the cloned guest/
-        // agent panels just write straight into those inputs' .val() on every recalc.
-        // Mixed commission types across the selected games have no single formula that
-        // reproduces each game's own type-specific commission from just rolling/rate, so when
-        // commissionRow is null (not every game is the same Share+Rolling split), split the
-        // already-computed combined total proportionally by rolling share instead — this
-        // guarantees Guest + Agent always add up to the original Multiple Settlement total,
-        // no matter how the rolling is divided between them.
-        function mergeSplitSettlement($modal, commissionRow, winLoss, rollingValue, ratePercent, totalRolling) {
-            if (commissionRow) {
-                return window.computeReceiptPanelSettlement(commissionRow, winLoss, rollingValue, ratePercent, totalRolling);
+        /* --- Main receipt --- */
+
+        // Renders the receipt from the hidden inputs the callers filled (see openMergeSettlementModal)
+        function refreshMergeReceiptDisplay($modal) {
+            renderSignedAmount($modal.find('#chipsReturnMergeDisplay'), -Math.abs(parseAmount($modal.find('#chipsReturnMerge').val())));
+            renderSignedAmount($modal.find('#winLossMergeDisplay'), parseAmount($modal.find('#winLossMerge').val()));
+            renderSignedAmount($modal.find('#rollingMergeDisplay'), parseAmount($modal.find('#rollingMerge').val()));
+            renderDueAmount($modal.find('#rollingSettlementMergeDisplay .settlement-receipt-amount'), parseDueAmount($modal.find('#rollingSettlementMerge').val()));
+            $modal.find('#fbMergeDisplay .settlement-receipt-amount').text(formatAmount($modal.find('#fbMerge').val()));
+            renderDueAmount($modal.find('#paymentMergeDisplay .settlement-receipt-amount'), parseDueAmount($modal.find('#paymentMerge').val()));
+
+            // Rate can be the word "Mixed" when the selected games don't share one rate
+            var rateRaw = String($modal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
+            var rateNum = parseFloat(rateRaw.replace(/,/g, ''));
+            $modal.find('#rollingRateMergeDisplay').val(isNaN(rateNum) ? rateRaw : rateNum.toFixed(2) + '%');
+
+            var split = getMergeDefaultSplit($modal);
+            $modal.find('#sharePctMerge').val(formatSettlementPct(split.sharePct));
+            $modal.find('#rollingPctMerge').val(formatSettlementPct(split.rollingPct));
+
+            var gameIds = String($modal.find('#mergeGameIds').val() || '').split(',').map(function (id) {
+                return id.trim();
+            }).filter(Boolean);
+            $modal.find('#mergeGamesDisplay').text(gameIds.map(function (id) { return '#' + id; }).join(', '));
+        }
+
+        // Game's own SHARE / ROLLING %: the shared Share + Rolling split when every selected game has it, else 0 / 100
+        function getMergeDefaultSplit($modal) {
+            return window.getReceiptRateSplit($modal.data('commissionRow'));
+        }
+
+        // Same layout as the game receipt copy text: header + date, account block, then the amount rows
+        function buildMergeReceiptSlipText(slipBodyEl) {
+            if (!slipBodyEl) return '';
+            var textOf = function (selector) {
+                var el = slipBodyEl.querySelector(selector);
+                return el ? String(el.textContent || '').replace(/\s+/g, ' ').trim() : '';
+            };
+            var select = slipBodyEl.querySelector('.settlement-receipt-name-select');
+            var accountText = select && select.options.length ? String(select.options[select.selectedIndex].text || '').trim() : '';
+            var dateText = textOf('.ss-date');
+            var dt = typeof moment === 'function' ? moment(dateText, 'M/D/YYYY H:mm', true) : null;
+            var blocks = [
+                [textOf('.ss-header'), dt && dt.isValid() ? dt.format('YYYY-MM-DD HH:mm') : dateText],
+                [accountText.toUpperCase(), textOf('.ss-merge-games')]
+            ];
+
+            var prevBlock = null;
+            slipBodyEl.querySelectorAll('.ss-row[data-text-label]').forEach(function (row) {
+                var input = row.querySelector('.settlement-receipt-input');
+                var amountEl = row.querySelector('.settlement-receipt-amount');
+                var value = input ? String(input.value || '').trim() : (amountEl ? String(amountEl.textContent || '').trim() : '');
+                var line = row.getAttribute('data-text-label') + ' ' + value;
+                var block = row.getAttribute('data-text-block');
+                if (block && block === prevBlock) blocks[blocks.length - 1].push(line);
+                else blocks.push([line]);
+                prevBlock = block;
+            });
+
+            return blocks.map(function (b) {
+                return b.filter(Boolean).join('\n');
+            }).join('\n\n');
+        }
+
+        function copyMergeReceiptSlipTextButton(slipBodyEl, $btn) {
+            if (!slipBodyEl || !$btn || !$btn.length) return;
+
+            var originalHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+            var text = buildMergeReceiptSlipText(slipBodyEl);
+            if (!text) {
+                $btn.prop('disabled', false).html(originalHtml);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Receipt has no text to copy.', confirmButtonText: 'OK' });
+                }
+                return;
             }
-            var originalTotal = parseAmount($modal.find('#rollingSettlementMerge').val());
-            return totalRolling ? Math.round(originalTotal * (rollingValue / totalRolling)) : 0;
+
+            if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                $btn.prop('disabled', false).html(originalHtml);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Clipboard is not supported in this browser.', confirmButtonText: 'OK' });
+                }
+                return;
+            }
+
+            navigator.clipboard.writeText(text)
+                .then(function () {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Copied!',
+                            text: 'Receipt text copied. You can paste it anywhere.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                })
+                .catch(function (err) {
+                    var msg = (err && err.message) ? err.message : 'Unable to copy receipt text.';
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({ icon: 'error', title: 'Copy failed', text: msg, confirmButtonText: 'OK' });
+                    }
+                })
+                .finally(function () {
+                    $btn.prop('disabled', false).html(originalHtml);
+                });
+        }
+
+        // Print uses the receipt itself with the shared receipt styles (_settlement_slip_styles.ejs)
+        function openMergeReceiptPrintWindow($modal) {
+            var $source = $modal.find('#merge-settlement-receipt-copy-area');
+            var $clone = $source.clone();
+            $clone.find('input.settlement-receipt-input').each(function () {
+                var $input = $(this);
+                var $orig = $source.find('#' + this.id);
+                $input.replaceWith($('<span></span>').text(String($orig.val() || '').trim()));
+            });
+            var $select = $clone.find('.settlement-receipt-name-select');
+            $select.replaceWith($('<span></span>').text($source.find('.settlement-receipt-name-select option:selected').text()));
+            $clone.find('[id]').removeAttr('id');
+
+            var slipStylesEl = document.querySelector('style[data-settlement-slip-styles]');
+            var slipStyles = slipStylesEl ? slipStylesEl.textContent : '';
+            slipStyles = slipStyles.replace(/url\('\/assets\//g, "url('" + window.location.origin + '/assets/');
+            var styles = '@page{size:auto;margin:8mm;}html,body{margin:0;padding:0;}' +
+                'body{display:flex;justify-content:center;padding:8mm 0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+                '.settlement-receipt-print-root{width:26.25rem;border:1px solid #222;}' + slipStyles;
+            var receiptHtml = $('<div class="settlement-receipt-print-root"></div>').append($clone).prop('outerHTML');
+
+            var iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(iframe);
+
+            var iframeDoc = iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write('<!doctype html><html><head><title>Multiple Settlement Receipt</title><style>' + styles + '</style></head><body>' + receiptHtml + '</body></html>');
+            iframeDoc.close();
+
+            setTimeout(function () {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(function () {
+                    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                }, 500);
+            }, 300);
+        }
+
+        $(document).on('click', '#print-merge-settlement-btn', function () {
+            openMergeReceiptPrintWindow($(MERGE_MODAL));
+        });
+
+        $(MERGE_MODAL).on('click', '.settlement-main-content .js-copy-merge-settlement-slip-image', function (e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var slipBody = document.getElementById('merge-settlement-receipt-copy-area');
+            if (typeof window.copyGameReceiptSlipImage === 'function') {
+                window.copyGameReceiptSlipImage(slipBody, $btn);
+                return;
+            }
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Copy failed', text: 'Image copy is not available.', confirmButtonText: 'OK' });
+            }
+        });
+
+        $(MERGE_MODAL).on('click', '.settlement-main-content .js-copy-merge-settlement-slip-text', function (e) {
+            e.preventDefault();
+            copyMergeReceiptSlipTextButton(document.getElementById('merge-settlement-receipt-copy-area'), $(this));
+        });
+
+        /* --- Edit mode: Guest / Agent receipts --- */
+
+        // Guest / Agent settlement. Share + Rolling merges (commissionRow set): the usual formula with the
+        // panel's Rate / Share % / Rolling %. Mixed games have no single formula, so the rolling part is the
+        // merged Settlement split by rolling (Guest + Agent still add up to it); Share % adds W/L × Share%
+        // on that side's rolling, and Rolling % scales the rolling part (0 / 100 = original split).
+        function mergePanelSettlement($modal, winLoss, rolling, rate, split, totalRolling) {
+            if ($modal.data('commissionRow')) {
+                return window.computeSplitPanelSettlement(winLoss, rolling, rate, split.sharePct, split.rollingPct, totalRolling);
+            }
+            var shareFactor = totalRolling ? rolling / totalRolling : 1;
+            var rollingPart = parseDueAmount($modal.find('#rollingSettlementMerge').val()) * shareFactor;
+            return Math.round(rollingPart * split.rollingPct / 100 + winLoss * split.sharePct / 100 * shareFactor);
+        }
+
+        // Add Charge split: Guest keeps what is typed in its box (default: all of it), Agent takes the rest
+        function getMergePanelAddCharge($panel) {
+            var $modal = $(MERGE_MODAL);
+            var total = parseAmount($modal.find('#fbMerge').val());
+            var $guestInput = $modal.find('#merge-settlement-edit-guest-panel [data-field="addCharge"]');
+            var guestCharge = $guestInput.length ? Math.max(0, Math.min(total, parseAmount($guestInput.val()))) : total;
+            return $panel.is('#merge-settlement-edit-guest-panel') ? guestCharge : total - guestCharge;
+        }
+
+        // Panel SHARE / ROLLING %: what is typed in the panel, else the merge's own split
+        function getMergePanelSplit($panel) {
+            var $share = $panel ? $panel.find('[data-field="sharePct"]') : $();
+            var $rolling = $panel ? $panel.find('[data-field="rollingPct"]') : $();
+            if (!$share.length || !$rolling.length) {
+                return getMergeDefaultSplit($(MERGE_MODAL));
+            }
+            return { sharePct: parseAmount($share.val()), rollingPct: parseAmount($rolling.val()) };
         }
 
         function recalcMergeEditPanelTotals($panel) {
             if (!$panel || !$panel.length) return;
 
+            var $modal = $(MERGE_MODAL);
             var rolling = parseAmount($panel.find('[data-field="rolling"]').val());
             var rate = parseAmount($panel.find('[data-field="rollingRate"]').val());
-            var addCharge = parseAmount($panel.data('add-charge'));
-            var winLoss = parseAmount($panel.find('[data-field="winLossMerge"]').val());
-            var $mergeModal = $('#modal-merge-settlement');
-            var totalRolling = parseAmount($mergeModal.find('#rollingMerge').val());
-            var settlement = mergeSplitSettlement($mergeModal, $mergeModal.data('commissionRow'), winLoss, rolling, rate, totalRolling);
+            var winLoss = parseAmount($modal.find('#winLossMerge').val());
+            var totalRolling = parseAmount($modal.find('#rollingMerge').val());
+            var settlement = mergePanelSettlement($modal, winLoss, rolling, rate, getMergePanelSplit($panel), totalRolling);
+            var addCharge = getMergePanelAddCharge($panel);
             var payment = settlement - addCharge;
 
-            $panel.data('rolling-settlement', settlement);
-            $panel.data('payment', payment);
-
-            // Same format as the main Multiple Settlement receipt: Settlement/Payment always (x) in red
-            $panel.find('[data-field="rollingSettlementDisplay"]').val(formatAlwaysParen(settlement)).addClass('is-negative');
-            $panel.find('[data-field="addChargeDisplay"]').val(formatAmount(addCharge));
-            $panel.find('[data-field="paymentDisplay"]').val(formatAlwaysParen(payment)).addClass('is-negative');
+            renderDueAmount($panel.find('[data-field="rollingSettlementDisplay"] .settlement-receipt-amount'), settlement);
+            renderDueAmount($panel.find('[data-field="paymentDisplay"] .settlement-receipt-amount'), payment);
+            if (!$panel.find('[data-field="addCharge"]').length) {
+                $panel.find('[data-field="addChargeDisplay"] .settlement-receipt-amount').text(formatAmount(addCharge));
+            }
 
             var $rate = $panel.find('[data-field="rollingRate"]');
             if (!$rate.prop('readonly')) {
@@ -1623,9 +1090,16 @@
             }
         }
 
-        // Note: the merged Rate field can hold the literal text "Mixed" when the selected
-        // games don't share one rate. parseAmount() falls back to 0 for that — the user
-        // types the real split rate manually in that case, same as an unset rate.
+        // Panel copies of the main receipt; data-field keeps the original id (short names for the edit fields)
+        var MERGE_PANEL_FIELDS = {
+            rollingRateMergeDisplay: 'rollingRate',
+            sharePctMerge: 'sharePct',
+            rollingPctMerge: 'rollingPct',
+            rollingSettlementMergeDisplay: 'rollingSettlementDisplay',
+            fbMergeDisplay: 'addChargeDisplay',
+            paymentMergeDisplay: 'paymentDisplay'
+        };
+
         function buildMergeEditPanelReceipt($mainModal, panelKey) {
             var $source = $mainModal.find('#merge-settlement-receipt-copy-area').clone(false);
             $source.removeAttr('id').addClass('settlement-edit-receipt-copy-area');
@@ -1633,39 +1107,35 @@
             $source.find('[id]').each(function () {
                 var oldId = this.id;
                 this.id = 'merge-settlement-' + panelKey + '-' + oldId;
+                $(this).attr('data-field', MERGE_PANEL_FIELDS[oldId] || oldId);
             });
+            $source.find('input[name]').removeAttr('name');
 
-            // Name is a read-only echo of the main receipt's chosen account in the Guest/Agent panels.
-            $source.find('select.settlement-receipt-name-select').prop('disabled', true);
-
-            $source.find('.settlement-receipt-input').each(function () {
-                var field = this.id.replace('merge-settlement-' + panelKey + '-', '');
-                $(this).attr('data-field', field);
-                this.removeAttribute('name');
-            });
+            // Name is a read-only echo of the main receipt's chosen account
+            var $select = $source.find('select.settlement-receipt-name-select');
+            $select.val($mainModal.find('#accNoMerge').val()).prop('disabled', true);
 
             var $panelBody = $('#merge-settlement-edit-' + panelKey + '-body');
             $panelBody.empty().append($source);
-
             var $panel = $panelBody.closest('.settlement-edit-panel');
-            // Add Charge applies to Guest only — Agent always 0 (mirrors settlement.ejs).
-            $panel.data('add-charge', panelKey === 'agent' ? 0 : parseAmount($mainModal.find('#fbMerge').val()));
-            $panel.data('rolling-settlement', parseAmount($mainModal.find('#rollingSettlementMerge').val()));
-            $panel.data('payment', parseAmount($mainModal.find('#paymentMerge').val()));
 
-            $panel.find('[data-field="buyInMerge"]').val($mainModal.find('#buyInMerge').val()).prop('readonly', true);
-            $panel.find('[data-field="chipsReturnMerge"]').val($mainModal.find('#chipsReturnMerge').val()).prop('readonly', true);
+            $panel.find('[data-field="buyInMerge"]').val($mainModal.find('#buyInMerge').val());
+            // Rolling is editable here: swap the display for a box (the hidden value is not needed)
+            $panel.find('input[type="hidden"][data-field="rollingMerge"]').remove();
+            $panel.find('[data-field="rollingMergeDisplay"]').removeClass('is-negative')
+                .html('<input class="settlement-receipt-input" type="text" data-field="rolling" data-allow-negative="1" inputmode="decimal">');
+            $panel.find('[data-field="rolling"]').val($mainModal.find('#rollingMerge').val()).prop('readonly', false);
+            var rateRaw = String($mainModal.find('#rollingRateMergeDisplay').val() || '').replace(/%/g, '').trim();
+            $panel.find('[data-field="rollingRate"]').val(rateRaw).prop('readonly', false);
+            $panel.find('[data-field="sharePct"]').val($mainModal.find('#sharePctMerge').val()).prop('readonly', false);
+            $panel.find('[data-field="rollingPct"]').val($mainModal.find('#rollingPctMerge').val()).prop('readonly', false);
 
-            var houseWinLoss = parseAmount($mainModal.find('#winLossMerge').val());
-            var $winLoss = $panel.find('[data-field="winLossMerge"]');
-            $winLoss.val(formatSignedParen(houseWinLoss)).toggleClass('is-negative', houseWinLoss < 0).prop('readonly', true).attr('data-allow-negative', '1');
-
-            $panel.find('[data-field="rollingMerge"]').val($mainModal.find('#rollingMerge').val()).prop('readonly', false).attr('data-field', 'rolling');
-            var rateRaw = String($mainModal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
-            $panel.find('[data-field="rollingRateMerge"]').val(rateRaw).prop('readonly', false).attr('data-field', 'rollingRate');
-            $panel.find('[data-field="rollingSettlementMerge"]').attr('data-field', 'rollingSettlementDisplay');
-            $panel.find('[data-field="fbMerge"]').attr('data-field', 'addChargeDisplay');
-            $panel.find('[data-field="paymentMerge"]').attr('data-field', 'paymentDisplay');
+            // Guest gets an Add Charge box (defaults to the full Add Charge); Agent shows the rest
+            if (panelKey === 'guest') {
+                $panel.find('[data-field="addChargeDisplay"] .settlement-receipt-amount')
+                    .html('<input class="settlement-receipt-input" type="text" data-field="addCharge" inputmode="decimal">');
+                $panel.find('[data-field="addCharge"]').val(formatAmount($mainModal.find('#fbMerge').val()));
+            }
 
             recalcMergeEditPanelTotals($panel);
             return $panel;
@@ -1673,7 +1143,7 @@
 
         // Guest + Agent rolling always equals the merged total rolling.
         function syncMergeCounterpartRolling($sourcePanel, clampEdited) {
-            var $modal = $('#modal-merge-settlement');
+            var $modal = $(MERGE_MODAL);
             var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
             var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
             if (!$sourcePanel || !$sourcePanel.length || !$guestPanel.length || !$agentPanel.length) return;
@@ -1684,19 +1154,39 @@
             var $sourceInput = $sourcePanel.find('[data-field="rolling"]');
             var edited = parseAmount($sourceInput.val());
 
+            // Each side stays between 0 and the total — works for a negative total rolling too
+            edited = Math.max(Math.min(0, totalRolling), Math.min(Math.max(0, totalRolling), edited));
             if (clampEdited) {
-                edited = Math.max(0, Math.min(totalRolling, edited));
                 $sourceInput.val(formatAmount(edited));
-            } else if (edited < 0) {
-                edited = 0;
             }
 
-            var otherRolling = Math.max(0, totalRolling - Math.min(edited, totalRolling));
+            var otherRolling = totalRolling - edited;
             $otherPanel.find('[data-field="rolling"]').val(formatAmount(otherRolling));
 
             recalcMergeEditPanelTotals($sourcePanel);
             recalcMergeEditPanelTotals($otherPanel);
         }
+
+        function formatMergePctInput($input) {
+            if ($input.length) {
+                $input.val(formatSettlementPct(clampMergeSplitPct($input.val())));
+            }
+        }
+
+        // Guest Add Charge: 0 .. main Add Charge
+        function formatMergeAddChargeInput($input) {
+            if (!$input.length) return;
+            var total = parseAmount($(MERGE_MODAL).find('#fbMerge').val());
+            $input.val(formatAmount(Math.max(0, Math.min(total, parseAmount($input.val())))));
+        }
+
+        function recalcMergeEditPanels($modal) {
+            recalcMergeEditPanelTotals($modal.find('#merge-settlement-edit-guest-panel'));
+            recalcMergeEditPanelTotals($modal.find('#merge-settlement-edit-agent-panel'));
+            refreshMergeSplitCalculators($modal);
+        }
+
+        /* --- Split calculators (Company / Guest / Agent) --- */
 
         function clampMergeSplitRate(value, max) {
             var num = parseFloat(String(value == null ? '' : value).replace(/,/g, '').replace(/%/g, '').trim());
@@ -1739,67 +1229,92 @@
             return raw;
         }
 
+        // Rolling is only ever counted in whole thousands, so split Rolling rounds to the nearest 1,000.
+        // The other side's share of the total rolling (same sign as the total; negative totals allowed)
+        function remainderRolling(totalRolling, part) {
+            var rest = totalRolling - part;
+            return totalRolling >= 0 ? Math.max(0, rest) : Math.min(0, rest);
+        }
+
         function roundMergeToThousand(value) {
             return Math.round(Number(value || 0) / 1000) * 1000;
         }
 
-        function renderMergeSplitAmountCell($cell, value) {
-            var display = formatSettlementDueDisplay(value);
-            $cell.text(display.text).toggleClass('is-negative', display.negative);
+        // Calculator SHARE / ROLLING: text on Company, a box on Guest / Agent (left alone while being typed in)
+        function setMergeSplitPctCell($cell, value) {
+            if ($cell.is('input')) {
+                if (!$cell.is(':focus')) $cell.val(formatSettlementPct(value));
+                return;
+            }
+            $cell.text(formatSettlementPct(value));
         }
 
         function refreshMergeSplitCalculators($modal) {
-            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal = $modal && $modal.length ? $modal : $(MERGE_MODAL);
             if (Number($modal.data('merge-settlement-edit-mode')) !== 1) return;
 
             var totalRolling = parseAmount($modal.find('#rollingMerge').val());
             var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
 
-            // Share + Rolling: share part follows each side's rolling (see computeReceiptPanelSettlement).
-            // Otherwise (mixed types), split the original combined total proportionally.
-            var splitRow = $modal.data('commissionRow');
+            // Company uses the merge's SHARE / ROLLING %; Guest and Agent use what is set in their panels
             var splitWinLoss = parseAmount($modal.find('#winLossMerge').val());
-            var splitSettlement = function (rollingValue) {
-                return mergeSplitSettlement($modal, splitRow, splitWinLoss, rollingValue, companyRate, totalRolling);
+            var companySplit = getMergePanelSplit(null);
+            var guestSplit = getMergePanelSplit($modal.find('#merge-settlement-edit-guest-panel'));
+            var agentSplit = getMergePanelSplit($modal.find('#merge-settlement-edit-agent-panel'));
+            var splitSettlement = function (rollingValue, split) {
+                return mergePanelSettlement($modal, splitWinLoss, rollingValue, companyRate, split, totalRolling);
             };
 
-            $modal.find('#merge-calc-company-rate-rolling').text(formatAmount(totalRolling));
+            // Rows on all three calculators: Win/Loss, company RATE, SHARE / ROLLING
+            $modal.find('.js-calc-winloss').each(function () {
+                renderSignedAmount($(this), splitWinLoss);
+            });
+            $modal.find('.js-calc-company-rate-display').text(
+                companyRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + '%'
+            );
+            [
+                ['#merge-settlement-calc-company-panel', companySplit],
+                ['#merge-settlement-calc-guest-panel', guestSplit],
+                ['#merge-settlement-calc-agent-panel', agentSplit]
+            ].forEach(function (entry) {
+                var $calc = $modal.find(entry[0]);
+                setMergeSplitPctCell($calc.find('.js-calc-share-pct'), entry[1].sharePct);
+                setMergeSplitPctCell($calc.find('.js-calc-rolling-pct'), entry[1].rollingPct);
+            });
+
+            renderSignedAmount($modal.find('#merge-calc-company-rate-rolling'), totalRolling);
             $modal.find('#merge-calc-company-rate-rate-display').text(formatMergeSplitPctValue(companyRate) + '%');
-            var totalSettlement = splitSettlement(totalRolling);
-            renderMergeSplitAmountCell($modal.find('#merge-calc-company-rate-settlement'), totalSettlement);
-            $modal.find('#merge-calc-company-pct-rolling').text(formatAmount(totalRolling));
-            renderMergeSplitAmountCell($modal.find('#merge-calc-company-pct-settlement'), totalSettlement);
+            var totalSettlement = splitSettlement(totalRolling, companySplit);
+            renderDueAmount($modal.find('#merge-calc-company-rate-settlement'), totalSettlement);
+            renderSignedAmount($modal.find('#merge-calc-company-pct-rolling'), totalRolling);
+            renderDueAmount($modal.find('#merge-calc-company-pct-settlement'), totalSettlement);
 
             var guestRate = clampMergeSplitRate($modal.find('#merge-calc-guest-rate-input').val(), companyRate);
             var agentRate = Math.max(0, Math.round((companyRate - guestRate) * 10000) / 10000);
             var guestRateRolling = companyRate > 0 ? roundMergeToThousand((totalRolling * guestRate) / companyRate) : 0;
-            var agentRateRolling = Math.max(0, totalRolling - guestRateRolling);
-            var guestRateSettlement = splitSettlement(guestRateRolling);
-            var agentRateSettlement = splitSettlement(agentRateRolling);
+            var agentRateRolling = remainderRolling(totalRolling, guestRateRolling);
 
-            $modal.find('#merge-calc-guest-rate-rolling').text(formatAmount(guestRateRolling));
-            renderMergeSplitAmountCell($modal.find('#merge-calc-guest-rate-settlement'), guestRateSettlement);
-            $modal.find('#merge-calc-agent-rate-rolling').text(formatAmount(agentRateRolling));
+            renderSignedAmount($modal.find('#merge-calc-guest-rate-rolling'), guestRateRolling);
+            renderDueAmount($modal.find('#merge-calc-guest-rate-settlement'), splitSettlement(guestRateRolling, guestSplit));
+            renderSignedAmount($modal.find('#merge-calc-agent-rate-rolling'), agentRateRolling);
             $modal.find('#merge-calc-agent-rate-display').text(formatMergeSplitPctValue(agentRate) + '%');
-            renderMergeSplitAmountCell($modal.find('#merge-calc-agent-rate-settlement'), agentRateSettlement);
+            renderDueAmount($modal.find('#merge-calc-agent-rate-settlement'), splitSettlement(agentRateRolling, agentSplit));
 
             var guestPct = clampMergeSplitPct($modal.find('#merge-calc-guest-pct-input').val());
             var agentPct = Math.round((100 - guestPct) * 100) / 100;
             var guestPctRolling = roundMergeToThousand((totalRolling * guestPct) / 100);
-            var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
-            var guestPctSettlement = splitSettlement(guestPctRolling);
-            var agentPctSettlement = splitSettlement(agentPctRolling);
+            var agentPctRolling = remainderRolling(totalRolling, guestPctRolling);
 
-            $modal.find('#merge-calc-guest-pct-rolling').text(formatAmount(guestPctRolling));
-            renderMergeSplitAmountCell($modal.find('#merge-calc-guest-pct-settlement'), guestPctSettlement);
-            $modal.find('#merge-calc-agent-pct-rolling').text(formatAmount(agentPctRolling));
+            renderSignedAmount($modal.find('#merge-calc-guest-pct-rolling'), guestPctRolling);
+            renderDueAmount($modal.find('#merge-calc-guest-pct-settlement'), splitSettlement(guestPctRolling, guestSplit));
+            renderSignedAmount($modal.find('#merge-calc-agent-pct-rolling'), agentPctRolling);
             $modal.find('#merge-calc-agent-pct-display').text(formatMergeSplitPctValue(agentPct) + '%');
-            renderMergeSplitAmountCell($modal.find('#merge-calc-agent-pct-settlement'), agentPctSettlement);
+            renderDueAmount($modal.find('#merge-calc-agent-pct-settlement'), splitSettlement(agentPctRolling, agentSplit));
         }
 
         function restoreMergeOriginalSplitToEditPanels($modal) {
             var rollingVal = $modal.find('#rollingMerge').val();
-            var rateRaw = String($modal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
+            var rateRaw = String($modal.find('#rollingRateMergeDisplay').val() || '').replace(/%/g, '').trim();
             [$modal.find('#merge-settlement-edit-guest-panel'), $modal.find('#merge-settlement-edit-agent-panel')].forEach(function ($panel) {
                 if (!$panel.length) return;
                 $panel.find('[data-field="rolling"]').val(rollingVal);
@@ -1809,7 +1324,7 @@
         }
 
         function applyMergeSplitToEditPanels($modal) {
-            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal = $modal && $modal.length ? $modal : $(MERGE_MODAL);
             var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
             var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
             if (!$guestPanel.length || !$agentPanel.length) return;
@@ -1821,7 +1336,7 @@
                 var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
                 var guestRate = clampMergeSplitRate($modal.find('#merge-calc-guest-rate-input').val(), companyRate);
                 var guestRolling = companyRate > 0 ? roundMergeToThousand((totalRolling * guestRate) / companyRate) : 0;
-                var agentRolling = Math.max(0, totalRolling - guestRolling);
+                var agentRolling = remainderRolling(totalRolling, guestRolling);
 
                 $guestPanel.find('[data-field="rolling"]').val(formatAmount(guestRolling));
                 $agentPanel.find('[data-field="rolling"]').val(formatAmount(agentRolling));
@@ -1830,7 +1345,7 @@
             } else if (mode === 'pct') {
                 var guestPct = clampMergeSplitPct($modal.find('#merge-calc-guest-pct-input').val());
                 var guestPctRolling = roundMergeToThousand((totalRolling * guestPct) / 100);
-                var agentPctRolling = Math.max(0, totalRolling - guestPctRolling);
+                var agentPctRolling = remainderRolling(totalRolling, guestPctRolling);
 
                 $guestPanel.find('[data-field="rolling"]').val(formatAmount(guestPctRolling));
                 $agentPanel.find('[data-field="rolling"]').val(formatAmount(agentPctRolling));
@@ -1842,7 +1357,7 @@
         }
 
         function resetMergeSplitCalculators($modal) {
-            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal = $modal && $modal.length ? $modal : $(MERGE_MODAL);
             $modal.removeData('merge-split-active-mode');
             var rateRaw = String($modal.find('#rollingRateMerge').val() || '').replace(/%/g, '').trim();
             $modal.find('#merge-calc-company-rate').val(rateRaw || '0');
@@ -1854,6 +1369,10 @@
             if (!$panel || !$panel.length) return;
             formatInputWithCommas($panel.find('[data-field="rolling"]'));
             formatRollingRateInput($panel.find('[data-field="rollingRate"]'));
+            $panel.find('[data-field="sharePct"], [data-field="rollingPct"]').each(function () {
+                formatMergePctInput($(this));
+            });
+            formatMergeAddChargeInput($panel.find('[data-field="addCharge"]'));
             recalcMergeEditPanelTotals($panel);
         }
 
@@ -1896,7 +1415,7 @@
         }
 
         function setMergeEditMode($modal, enabled) {
-            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal = $modal && $modal.length ? $modal : $(MERGE_MODAL);
             var $cluster = $modal.find('#merge-settlement-modal-cluster');
             var $guestPanel = $modal.find('#merge-settlement-edit-guest-panel');
             var $agentPanel = $modal.find('#merge-settlement-edit-agent-panel');
@@ -1925,30 +1444,30 @@
         }
 
         function resetMergeSettlementModalView($modal) {
-            $modal = $modal && $modal.length ? $modal : $('#modal-merge-settlement');
+            $modal = $modal && $modal.length ? $modal : $(MERGE_MODAL);
             if (Number($modal.data('merge-settlement-edit-mode')) === 1) {
                 setMergeEditMode($modal, false);
             }
         }
 
-        $('#modal-merge-settlement').on('shown.bs.modal', function () {
+        $(MERGE_MODAL).on('shown.bs.modal', function () {
             var $modal = $(this);
             resetMergeSettlementModalView($modal);
+            refreshMergeReceiptDisplay($modal);
             setMergeEditMode($modal, true);
         });
 
-        $('#modal-merge-settlement').on('hidden.bs.modal', function () {
+        $(MERGE_MODAL).on('hidden.bs.modal', function () {
             resetMergeSettlementModalView($(this));
         });
 
-        // Keep the read-only Name echoes in the Guest/Agent panels (and the print view)
-        // in sync whenever the account picked in the main receipt changes.
-        $('#modal-merge-settlement').on('change', '#accNoMerge', function () {
+        // Keep the read-only Name echoes in the Guest/Agent panels in sync with the main receipt's account.
+        $(MERGE_MODAL).on('change', '#accNoMerge', function () {
             var selectedValue = $(this).val();
-            $('#modal-merge-settlement').find('select.settlement-receipt-name-select').not(this).val(selectedValue);
+            $(MERGE_MODAL).find('select.settlement-receipt-name-select').not(this).val(selectedValue);
         });
 
-        $('#modal-merge-settlement').on('input', '.settlement-edit-panel [data-field="rolling"], .settlement-edit-panel [data-field="rollingRate"]', function () {
+        $(MERGE_MODAL).on('input', '.settlement-edit-panel [data-field="rolling"], .settlement-edit-panel [data-field="rollingRate"]', function () {
             var $input = $(this);
             var $panel = $input.closest('.settlement-edit-panel');
             if ($input.attr('data-field') === 'rolling') {
@@ -1959,16 +1478,53 @@
             recalcMergeEditPanelTotals($panel);
         });
 
-        $('#modal-merge-settlement').on('blur', '.settlement-edit-panel [data-field="rolling"]', function () {
+        $(MERGE_MODAL).on('blur', '.settlement-edit-panel [data-field="rolling"]', function () {
             var $input = $(this);
-            var $panel = $input.closest('.settlement-edit-panel');
             formatInputWithCommas($input);
-            syncMergeCounterpartRolling($panel, true);
+            syncMergeCounterpartRolling($input.closest('.settlement-edit-panel'), true);
         });
 
-        $('#modal-merge-settlement').on('blur', '.settlement-edit-panel [data-field="rollingRate"]', function () {
+        $(MERGE_MODAL).on('blur', '.settlement-edit-panel [data-field="rollingRate"]', function () {
             formatRollingRateInput($(this));
             recalcMergeEditPanelTotals($(this).closest('.settlement-edit-panel'));
+        });
+
+        // SHARE / ROLLING % per panel (also feeds that side's split calculator)
+        $(MERGE_MODAL).on('input', '.settlement-edit-panel [data-field="sharePct"], .settlement-edit-panel [data-field="rollingPct"]', function () {
+            recalcMergeEditPanels($(MERGE_MODAL));
+        });
+
+        $(MERGE_MODAL).on('blur', '.settlement-edit-panel [data-field="sharePct"], .settlement-edit-panel [data-field="rollingPct"]', function () {
+            formatMergePctInput($(this));
+            recalcMergeEditPanels($(MERGE_MODAL));
+        });
+
+        // Guest / Agent calculator SHARE / ROLLING boxes edit the same field on that side's receipt panel
+        function copyMergeCalcSplitToEditPanel($input) {
+            var editPanelId = $input.closest('.settlement-split-panel').attr('id').replace('-calc-', '-edit-');
+            $('#' + editPanelId).find('[data-field="' + $input.attr('data-split-field') + '"]').val($input.val());
+        }
+
+        $(MERGE_MODAL).on('input', '.settlement-split-panel [data-split-field]', function () {
+            copyMergeCalcSplitToEditPanel($(this));
+            recalcMergeEditPanels($(MERGE_MODAL));
+        });
+
+        $(MERGE_MODAL).on('blur', '.settlement-split-panel [data-split-field]', function () {
+            formatMergePctInput($(this));
+            copyMergeCalcSplitToEditPanel($(this));
+            recalcMergeEditPanels($(MERGE_MODAL));
+        });
+
+        // Guest Add Charge — Agent's Add Charge follows as the remainder
+        $(MERGE_MODAL).on('input', '.settlement-edit-panel [data-field="addCharge"]', function () {
+            formatInputWithCommasLive($(this));
+            recalcMergeEditPanels($(MERGE_MODAL));
+        });
+
+        $(MERGE_MODAL).on('blur', '.settlement-edit-panel [data-field="addCharge"]', function () {
+            formatMergeAddChargeInput($(this));
+            recalcMergeEditPanels($(MERGE_MODAL));
         });
 
         function handleMergeCompanyRateChange($modal, finalize) {
@@ -1981,14 +1537,15 @@
             }
         }
 
-        $('#modal-merge-settlement').on('input', '#merge-calc-company-rate', function () {
-            handleMergeCompanyRateChange($('#modal-merge-settlement'), false);
+        $(MERGE_MODAL).on('input', '#merge-calc-company-rate', function () {
+            handleMergeCompanyRateChange($(MERGE_MODAL), false);
         });
 
-        $('#modal-merge-settlement').on('blur', '#merge-calc-company-rate', function () {
-            handleMergeCompanyRateChange($('#modal-merge-settlement'), true);
+        $(MERGE_MODAL).on('blur', '#merge-calc-company-rate', function () {
+            handleMergeCompanyRateChange($(MERGE_MODAL), true);
         });
 
+        // Agent's Rate/Percentage are auto-computed — Guest is the only side typed into.
         function handleMergeRateSplitChange($modal, $input, finalize) {
             var companyRate = clampMergeSplitRate($modal.find('#merge-calc-company-rate').val(), 100);
             var raw = finalize ? formatMergeSplitPctValue(clampMergeSplitRate($input.val(), companyRate)) : liveClampMergeSplitInput($input.val(), companyRate);
@@ -2005,12 +1562,12 @@
             applyMergeSplitToEditPanels($modal);
         }
 
-        $('#modal-merge-settlement').on('input', '#merge-calc-guest-rate-input', function () {
-            handleMergeRateSplitChange($('#modal-merge-settlement'), $(this), false);
+        $(MERGE_MODAL).on('input', '#merge-calc-guest-rate-input', function () {
+            handleMergeRateSplitChange($(MERGE_MODAL), $(this), false);
         });
 
-        $('#modal-merge-settlement').on('blur', '#merge-calc-guest-rate-input', function () {
-            handleMergeRateSplitChange($('#modal-merge-settlement'), $(this), true);
+        $(MERGE_MODAL).on('blur', '#merge-calc-guest-rate-input', function () {
+            handleMergeRateSplitChange($(MERGE_MODAL), $(this), true);
         });
 
         function handleMergePctSplitChange($modal, $input, finalize) {
@@ -2028,12 +1585,12 @@
             applyMergeSplitToEditPanels($modal);
         }
 
-        $('#modal-merge-settlement').on('input', '#merge-calc-guest-pct-input', function () {
-            handleMergePctSplitChange($('#modal-merge-settlement'), $(this), false);
+        $(MERGE_MODAL).on('input', '#merge-calc-guest-pct-input', function () {
+            handleMergePctSplitChange($(MERGE_MODAL), $(this), false);
         });
 
-        $('#modal-merge-settlement').on('blur', '#merge-calc-guest-pct-input', function () {
-            handleMergePctSplitChange($('#modal-merge-settlement'), $(this), true);
+        $(MERGE_MODAL).on('blur', '#merge-calc-guest-pct-input', function () {
+            handleMergePctSplitChange($(MERGE_MODAL), $(this), true);
         });
     });
 </script>

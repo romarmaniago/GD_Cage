@@ -106,7 +106,7 @@ function reduceGameRecords(records) {
 	};
 }
 
-/** Net commission, same rule as the Game Book: type 1/3 on |rolling|, type 2 on win/loss. */
+/** Net commission, same rule as the Game Book (signed: negative rolling → the agent pays). */
 function computeCommission(commissionType, commissionPercentage, rolling, winLoss, split = {}) {
 	const rate = Number(commissionPercentage) || 0;
 	if (!rate) return 0;

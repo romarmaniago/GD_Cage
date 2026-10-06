@@ -1625,13 +1625,16 @@ function formatAccountLedgerTransactionCell(transaction, transactionDesc, servic
 			const formatted = n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 			return `<span class="text-danger">(${formatted})</span>`;
 		}
+		// A negative amount on a deposit-type row is money out too (e.g. a settlement the agent pays)
 		const isOut = transaction === 'WITHDRAW'
 			|| transaction === 'MARKER REDEEM'
-			|| transaction === 'IOU RETURN DEPOSIT';
+			|| transaction === 'IOU RETURN DEPOSIT'
+			|| n < 0;
 		if (window.AmountFormat) {
-			if (isOut) return window.AmountFormat.formatAmountNegativeHtml(n);
+			if (isOut) return window.AmountFormat.formatAmountNegativeHtml(Math.abs(n));
 			return window.AmountFormat.formatCommas(n);
 		}
+		if (isOut) return `<span class="text-danger">(${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0 })})</span>`;
 		return n.toLocaleString('en-US', { minimumFractionDigits: 0 });
 	}
 
@@ -3527,9 +3530,15 @@ function formatGuestPortalReceiptDateTime(encodedDt) {
 function buildGuestPortalReceiptSlipHtml(data) {
 	data = data || {};
 	var trans = String(data.transaction || '').trim().toUpperCase();
-	var amount = Math.abs(Number(data.amount) || 0);
+	var signedAmount = Number(data.amount) || 0;
+	var amount = Math.abs(signedAmount);
 	var isDeposit = trans === 'DEPOSIT' || trans === 'MARKER REDEEM';
 	var isWithdraw = trans === 'WITHDRAW' || trans === 'IOU RETURN DEPOSIT';
+	// A negative deposit-type entry (e.g. a settlement the agent pays) goes under Withdrawal
+	if (isDeposit && signedAmount < 0) {
+		isDeposit = false;
+		isWithdraw = true;
+	}
 	var depositAmt = isDeposit ? amount : 0;
 	var withdrawAmt = isWithdraw ? amount : 0;
 	var remarks = data.remarks != null ? String(data.remarks).trim() : '';

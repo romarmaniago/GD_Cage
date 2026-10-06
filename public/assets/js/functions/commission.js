@@ -215,6 +215,11 @@ $(document).ready(function() {
         return Number(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
+    // Compare modal Settlement / Payment (positive = paid out): paid out -> (x) red, owed -> plain
+    function fmtCompareDue(num) {
+        return fmtCommissionAmount(-(Number(num) || 0), 'signed');
+    }
+
     function formatAddChgAmount(num) {
         return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
@@ -267,8 +272,9 @@ $(document).ready(function() {
             fnbNum: parseNumCell(snapshot.fnb),
             rollingRateNum: rateNum,
             originalRollingRateNum: rateNum,
-            settlementNum: parseNumCell(snapshot.settlement),
-            paymentNum: parseNumCell(snapshot.payment)
+            // List cells are house-signed ((x) = paid out); keep the payout amount (positive = paid out)
+            settlementNum: -parseNumCell(snapshot.settlement, { signed: true }),
+            paymentNum: -parseNumCell(snapshot.payment, { signed: true })
         };
     }
 
@@ -360,10 +366,10 @@ $(document).ready(function() {
             '<td>' + escapeHtml(row.totalRolling) + '</td>' +
             '<td class="commission-compare-rate-cell">' + rateCell + '</td>' +
             '<td class="commission-compare-settlement-cell">' +
-            escapeHtml(fmtCompareAmount(row.settlementNum)) + '</td>' +
+            fmtCompareDue(row.settlementNum) + '</td>' +
             '<td>' + escapeHtml(formatAddChgAmount(row.fnbNum)) + '</td>' +
             '<td class="commission-compare-payment-cell">' +
-            escapeHtml(fmtCompareAmount(row.paymentNum)) + '</td>' +
+            fmtCompareDue(row.paymentNum) + '</td>' +
             '<td>' + escapeHtml(row.dateTime) + '</td>' +
             '</tr>'
         );
@@ -394,9 +400,9 @@ $(document).ready(function() {
         $compareWinLossTotal.html(fmtCommissionAmount(totals.winLoss, 'signed'));
         applyWinLossColor($compareWinLossTotal, totals.winLoss);
         $('#commission-compare-total-rolling').text(fmtCompareAmount(totals.rolling));
-        $('#commission-compare-total-settlement').text(fmtCompareAmount(totals.settlement));
+        $('#commission-compare-total-settlement').html(fmtCompareDue(totals.settlement));
         $('#commission-compare-total-fnb').text(formatAddChgAmount(totals.fnb));
-        $('#commission-compare-total-payment').html(fmtCommissionAmount(totals.payment, 'out'));
+        $('#commission-compare-total-payment').html(fmtCompareDue(totals.payment));
     }
 
     function refreshCompareModalRowCells() {
@@ -406,9 +412,9 @@ $(document).ready(function() {
             $(this).find('.commission-compare-rate-display')
                 .text(formatRollingRatePercent(row.rollingRateNum));
             $(this).find('.commission-compare-settlement-cell')
-                .text(fmtCompareAmount(row.settlementNum));
+                .html(fmtCompareDue(row.settlementNum));
             $(this).find('.commission-compare-payment-cell')
-                .text(fmtCompareAmount(row.paymentNum));
+                .html(fmtCompareDue(row.paymentNum));
         });
         updateCompareModalTotals();
     }
@@ -1247,8 +1253,9 @@ $(document).ready(function() {
 							        var net;
 							
 								net = window.computeGameCommission(row, winlossValue, total_rolling_chips);
-								// Same sign convention as the Gamebook list/export: negative rolling -> commission comes back (plain), else paid out (x).
-								var signedCommission = total_rolling_chips < 0 ? Math.abs(net) : -Math.abs(net);
+								// Same sign convention as the Gamebook list/export (listCommissionValue): paid out -> (x) red;
+								// a negative commission (negative rolling, or a Shared game's share of a guest win) -> plain.
+								var signedCommission = -net;
 
                                     // Payment calculation based on RollingSettlement and fb
                                     var RollingSettlement = (total_rolling_chips * RollingRate) / 100;
@@ -1725,7 +1732,8 @@ $(document).ready(function() {
                 return m ? { COMMISSION_TYPE: m.commissionType, SHARE_PERCENTAGE: m.sharePct, ROLLING_PERCENTAGE: m.rollingPct } : null;
             })));
             $modal.find('#txtAccountIDMergeSettle').val(accountIds.join(','));
-            $modal.find('#accNoMerge').text(nameText);
+            // #accNoMerge is a <select> (account picker) — show the name as its single option
+            $modal.find('#accNoMerge').empty().append($('<option></option>').text(nameText));
             $modal.find('#gameNoMerge').text(selectedIds.join(', '));
             $modal.find('#dateMerge').text(now.format('M/D/YYYY'));
             $modal.find('#timeMerge').text(now.format('H:mm'));

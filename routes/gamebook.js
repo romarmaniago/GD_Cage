@@ -4320,7 +4320,8 @@ async function computeInGameSettlementFigures(db, gameId, body) {
 		servicesTotal
 	}, body);
 
-	if (isRollingBasedType(commissionType) && servicesTotal > projected.commissionGross + 0.001) {
+	// Negative commission (negative rolling): the agent pays both, so services are not capped by it
+	if (isRollingBasedType(commissionType) && projected.commissionGross >= 0 && servicesTotal > projected.commissionGross + 0.001) {
 		const err = new Error('Services cannot exceed the computed settlement/commission amount.');
 		err.statusCode = 400;
 		throw err;

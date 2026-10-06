@@ -61,10 +61,6 @@
 		return pct.toFixed(2) + '% <span class="badge commission-badge ' + cls + '" title="' + title + '">' + label + '</span>';
 	}
 
-	function isSharedGame(row) {
-		return parseInt(row.COMMISSION_TYPE, 10) === 2;
-	}
-
 	var GI_DEBUG_SHARED = true;
 
 	function giDebugLog(label, payload) {
@@ -84,37 +80,6 @@
 		else if (wl > 0 && n < 0) signed = -n;
 		giDebugLog('signedCommission', { net: n, winLoss: wl, signed: signed });
 		return signed;
-	}
-
-	/** Shared games: company view — commission and settle only, as positive amounts. */
-	function giSharedPositiveAmount(value, row) {
-		if (!isSharedGame(row)) return parseFloat(value) || 0;
-		var positive = Math.abs(giSharedSignedCommission(value, row.WIN_LOSS));
-		giDebugLog('displayCommission', {
-			gameNo: row.GAME_NO,
-			rawCommission: parseFloat(value) || 0,
-			winLoss: parseFloat(row.WIN_LOSS) || 0,
-			displayCommission: positive
-		});
-		return positive;
-	}
-
-	function giSharedSettleAmount(net, addChg, winLoss) {
-		var signedNet = giSharedSignedCommission(net, winLoss);
-		var displayCommission = Math.abs(signedNet);
-		var charge = Math.abs(parseFloat(addChg) || 0);
-		var displaySettle = displayCommission - charge;
-		giDebugLog('settle', {
-			rawCommission: parseFloat(net) || 0,
-			winLoss: parseFloat(winLoss) || 0,
-			signedCommission: signedNet,
-			displayCommission: displayCommission,
-			addCharge: parseFloat(addChg) || 0,
-			chargeMagnitude: charge,
-			formula: displayCommission + ' - ' + charge + ' = ' + displaySettle,
-			displaySettle: displaySettle
-		});
-		return displaySettle;
 	}
 
 	var dataTable = null;
@@ -281,26 +246,11 @@
 		if (row.manual_id) manualGamesById[row.manual_id] = row;
 		var addChg = parseFloat(row.ADD_CHARGE) || 0;
 		var net = parseFloat(row.COMMISSION) || 0;
-		var settle = parseFloat(row.TOTAL_SETTLEMENT) || 0;
-		var rollingNegative = (parseFloat(row.ROLLING) || 0) < 0;
-		var sharedGame = !gamebookRow && isSharedGame(row);
-		// Signed like the Game Book list/export: negative-rolling game -> commission comes back (+), else paid out (x);
+		// Signed like the Game Book list/export (listCommissionValue): paid out -> (x) red; a negative
+		// commission (negative rolling, or a Shared game's share of a guest win) -> plain.
 		// Total Settle = signed commission + Add Chg (owed by the agent).
-		var signedNet = rollingNegative ? Math.abs(net) : -Math.abs(net);
-		var displayCommission = sharedGame ? giSharedPositiveAmount(net, row) : signedNet;
-		var displaySettle = sharedGame ? giSharedSettleAmount(net, addChg, row.WIN_LOSS) : signedNet + addChg;
-		if (sharedGame) {
-			giDebugLog('row', {
-				gameNo: row.GAME_NO,
-				manualId: row.manual_id,
-				winLoss: parseFloat(row.WIN_LOSS) || 0,
-				rawCommission: net,
-				addCharge: addChg,
-				storedSettlement: settle,
-				displayCommission: displayCommission,
-				displaySettle: displaySettle
-			});
-		}
+		var displayCommission = -net;
+		var displaySettle = displayCommission + addChg;
 		var gameType =
 			String(row.GAME_TYPE || '').toUpperCase() === 'TELEBET'
 				? t('telebet', 'TELEBET')
@@ -321,9 +271,9 @@
 			fmtAmt(row.CASH_OUT),
 			fmtAmt(row.WIN_LOSS, 'signed'),
 			fmtAmt(row.ROLLING, 'signed'),
-			sharedGame ? fmtAmt(displayCommission) : fmtAmt(displayCommission, 'signed'),
+			fmtAmt(displayCommission, 'signed'),
 			fmtAmt(addChg),
-			sharedGame ? fmtAmt(displaySettle) : fmtAmt(displaySettle, 'signed'),
+			fmtAmt(displaySettle, 'signed'),
 			formatManualGameEnd(row)
 		];
 		if (gamebookRow) {
