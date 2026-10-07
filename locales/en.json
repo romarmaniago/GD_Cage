@@ -1514,6 +1514,9 @@
 		"details_lbl_concierge": "Concierge",
 		"details_lbl_company": "Company",
 		"copy_as_image": "Copy as image",
+		"copy_as_text": "Copy as text",
+		"copy_lbl_image": "Image",
+		"copy_lbl_text": "Text",
 		"copy": "Copy",
 		"copied": "Copied",
 		"copy_image_failed": "Copy failed"

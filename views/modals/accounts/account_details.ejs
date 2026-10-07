@@ -432,12 +432,20 @@
                         <div class="col-12 d-flex mx-auto">
                             <div class="passport-details-card rounded-3 overflow-hidden w-100 d-flex flex-column" id="gd-details-card">
                                 <div id="gd-details-capture" class="flex-grow-1 position-relative">
-                                <button type="button" class="btn" id="btn-copy-gd-details"
+                                <div id="gd-details-copy-actions">
+                                <button type="button" class="btn gd-details-copy-btn" id="btn-copy-gd-details"
                                     title="<%= __('modal_account_details.copy_as_image') %>"
                                     data-copied="<%= __('modal_account_details.copied') %>"
                                     data-fail="<%= __('modal_account_details.copy_image_failed') %>">
-                                    <i class="fa fa-clone"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy') %></span>
+                                    <i class="fa fa-image"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_image') %></span>
                                 </button>
+                                <button type="button" class="btn gd-details-copy-btn" id="btn-copy-gd-details-text"
+                                    title="<%= __('modal_account_details.copy_as_text') %>"
+                                    data-copied="<%= __('modal_account_details.copied') %>"
+                                    data-fail="<%= __('modal_account_details.copy_image_failed') %>">
+                                    <i class="fa fa-align-left"></i><span class="btn-copy-gd-label"><%= __('modal_account_details.copy_lbl_text') %></span>
+                                </button>
+                                </div>
                                 <table class="table table-bordered passport-modal-details-table mb-0 w-100">
                                     <tbody>
                                         <tr><th colspan="2" class="passport-section-title gd-details-title">GOLDEN DRAGON</th></tr>
@@ -1543,11 +1551,15 @@ body > .flatpickr-calendar {
 #modal-passport-details #gd-details-capture {
     background: #fff;
 }
-#modal-passport-details #btn-copy-gd-details {
+#modal-passport-details #gd-details-copy-actions {
     position: absolute;
     top: 7px;
     right: 8px;
     z-index: 2;
+    display: flex;
+    gap: 0.3rem;
+}
+#modal-passport-details .gd-details-copy-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.32rem;
@@ -1562,15 +1574,15 @@ body > .flatpickr-calendar {
     box-shadow: 0 1px 3px rgba(58, 46, 18, 0.14);
     transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
-#modal-passport-details #btn-copy-gd-details i {
+#modal-passport-details .gd-details-copy-btn i {
     font-size: 0.78rem;
 }
-#modal-passport-details #btn-copy-gd-details:hover {
+#modal-passport-details .gd-details-copy-btn:hover {
     background: #3a2e12;
     color: #f1d48a;
     box-shadow: 0 2px 6px rgba(58, 46, 18, 0.28);
 }
-#modal-passport-details #btn-copy-gd-details:disabled {
+#modal-passport-details .gd-details-copy-btn:disabled {
     opacity: 0.75;
 }
 #modal-passport-details .passport-modal-details-table tbody .passport-section-gap td {
@@ -2008,21 +2020,46 @@ body > .flatpickr-calendar {
         });
     }
 
-    // Copy the GOLDEN DRAGON details card as an image
+    // Copy the GOLDEN DRAGON details card as an image / as text
     var btnCopyGdDetails = document.getElementById('btn-copy-gd-details');
-    if (btnCopyGdDetails) {
-        var gdCopyLabel = btnCopyGdDetails.innerHTML;
-        var GD_COPIED = btnCopyGdDetails.getAttribute('data-copied') || 'Copied';
-        var GD_COPY_FAIL = btnCopyGdDetails.getAttribute('data-fail') || 'Copy failed';
+    var btnCopyGdDetailsText = document.getElementById('btn-copy-gd-details-text');
 
-        var ensureGdHtml2Canvas = function () {
+    // Spinner while copying, "Copied" on success, error popup on failure, then the button's own label again
+    var runGdDetailsCopy = function (btn, copyFn) {
+        var label = btn.innerHTML;
+        var copiedText = btn.getAttribute('data-copied') || 'Copied';
+        var failText = btn.getAttribute('data-fail') || 'Copy failed';
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        Promise.resolve()
+            .then(function () { return copyFn(failText); })
+            .then(function () {
+                btn.innerHTML = '<i class="fa fa-check me-1"></i>' + copiedText;
+            })
+            .catch(function (err) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: failText, text: (err && err.message) || '' });
+                } else {
+                    alert((err && err.message) || failText);
+                }
+            })
+            .finally(function () {
+                setTimeout(function () {
+                    btn.disabled = false;
+                    btn.innerHTML = label;
+                }, 1200);
+            });
+    };
+
+    if (btnCopyGdDetails) {
+        var ensureGdHtml2Canvas = function (failText) {
             if (typeof html2canvas !== 'undefined') return Promise.resolve();
             if (typeof loadGuestPortalReceiptHtml2Canvas === 'function') return loadGuestPortalReceiptHtml2Canvas();
             return new Promise(function (resolve, reject) {
                 var s = document.createElement('script');
                 s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
                 s.onload = function () { resolve(); };
-                s.onerror = function () { reject(new Error(GD_COPY_FAIL)); };
+                s.onerror = function () { reject(new Error(failText)); };
                 document.head.appendChild(s);
             });
         };
@@ -2030,48 +2067,66 @@ body > .flatpickr-calendar {
         btnCopyGdDetails.addEventListener('click', function () {
             var target = document.getElementById('gd-details-capture');
             if (!target) return;
-            btnCopyGdDetails.disabled = true;
-            btnCopyGdDetails.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
-            ensureGdHtml2Canvas()
-                .then(function () {
-                    return html2canvas(target, {
-                        backgroundColor: '#ffffff',
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        ignoreElements: function (el) { return el.id === 'btn-copy-gd-details'; }
+            runGdDetailsCopy(btnCopyGdDetails, function (failText) {
+                return ensureGdHtml2Canvas(failText)
+                    .then(function () {
+                        return html2canvas(target, {
+                            backgroundColor: '#ffffff',
+                            scale: 2,
+                            useCORS: true,
+                            logging: false,
+                            ignoreElements: function (el) { return el.id === 'gd-details-copy-actions'; }
+                        });
+                    })
+                    .then(function (canvas) {
+                        return new Promise(function (resolve, reject) {
+                            canvas.toBlob(function (blob) {
+                                if (blob) resolve(blob);
+                                else reject(new Error(failText));
+                            }, 'image/png');
+                        });
+                    })
+                    .then(function (blob) {
+                        if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+                            throw new Error(failText);
+                        }
+                        return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
                     });
-                })
-                .then(function (canvas) {
-                    return new Promise(function (resolve, reject) {
-                        canvas.toBlob(function (blob) {
-                            if (blob) resolve(blob);
-                            else reject(new Error(GD_COPY_FAIL));
-                        }, 'image/png');
-                    });
-                })
-                .then(function (blob) {
-                    if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
-                        throw new Error(GD_COPY_FAIL);
-                    }
-                    return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                })
-                .then(function () {
-                    btnCopyGdDetails.innerHTML = '<i class="fa fa-check me-1"></i>' + GD_COPIED;
-                })
-                .catch(function (err) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'error', title: GD_COPY_FAIL, text: (err && err.message) || '' });
-                    } else {
-                        alert((err && err.message) || GD_COPY_FAIL);
-                    }
-                })
-                .finally(function () {
-                    setTimeout(function () {
-                        btnCopyGdDetails.disabled = false;
-                        btnCopyGdDetails.innerHTML = gdCopyLabel;
-                    }, 1200);
-                });
+            });
+        });
+    }
+
+    // Plain-text version of the card: "Label: value" per row, a blank line between sections
+    var buildGdDetailsText = function (target) {
+        var clean = function (el) { return el ? el.textContent.replace(/\s+/g, ' ').trim() : ''; };
+        var lines = [];
+        Array.prototype.forEach.call(target.querySelectorAll('table tbody tr'), function (tr) {
+            if (tr.classList.contains('passport-section-gap')) {
+                lines.push('');
+                return;
+            }
+            var title = tr.querySelector('.passport-section-title');
+            if (title) {
+                lines.push(clean(title));
+                return;
+            }
+            var label = clean(tr.querySelector('th'));
+            if (label) lines.push(label + ': ' + clean(tr.querySelector('td')));
+        });
+        return lines.join('\n').trim();
+    };
+
+    if (btnCopyGdDetailsText) {
+        btnCopyGdDetailsText.addEventListener('click', function () {
+            var target = document.getElementById('gd-details-capture');
+            if (!target) return;
+            runGdDetailsCopy(btnCopyGdDetailsText, function (failText) {
+                var text = buildGdDetailsText(target);
+                if (!text || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                    throw new Error(failText);
+                }
+                return navigator.clipboard.writeText(text);
+            });
         });
     }
 
