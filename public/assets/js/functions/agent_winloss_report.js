@@ -625,6 +625,11 @@ $(document).ready(function () {
 
 	$(document).on('init.dt draw.dt', '#agent-winloss-report-tbl', layoutAgentWinlossControls);
 
+	// Digits line up right-to-left: the ")" of a negative amount hangs outside the digit column
+	if (window.gdAlignParenNumbers) {
+		window.gdAlignParenNumbers('.agent-winloss-page', ['table tbody td.text-end', 'table tfoot th.text-end']);
+	}
+
 	loadAgents().then(function () {
 		initDateRangePicker();
 		initSplitDateRange();
