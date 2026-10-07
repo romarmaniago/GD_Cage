@@ -96,6 +96,30 @@ const superAdminOnly = [checkSession, requireSuperAdmin];
 - **View-only users** (`permissions === 2`): use `permission-view-only.js` and `data-view-only-disable` on elements. Modals can open; Save/Edit/Delete inside modals are disabled.
 - Date ranges: use `window.MonthEndCutoffRange` / `getDateRange()` from `common.js` + `month_end_cutoff_range.js`.
 - Amount formatting: `format_amount.js`, `format_datetime.js`.
+- **Logic goes in `.js`, not inline in `.ejs`.** New behaviour belongs in the page's file under `public/assets/js/functions/`; the view only gets the `<script src>`. Page CSS is different: many views keep their styles in an inline `<style>` block, so CSS edits stay there.
+- **Shared page scripts must no-op where their elements are missing.** `commission.js`, `junket_loss.js` and `house_expense.js` are also loaded by the dashboard through `views/partials/*_dashboard_scripts.ejs`, and `game_list.js` by `agency.ejs` and `telegram.ejs`. Guard on the element or helper before using it.
+- **Bump `?v=N` on the `<script src>` when a page script changes**, otherwise browsers keep the cached file. Not every include has a version yet — add one when you touch the script.
+
+### Amount columns (digit alignment)
+
+Negatives display as red `(1,234)`. In a right-aligned column the digits must line up regardless of sign, so the closing `)` hangs to the right of the digit column:
+
+```
+ 328,000,000
+ (54,660,000)
+```
+
+- Shared helper: `public/assets/js/functions/num_paren_align.js` → `window.gdAlignParenNumbers(rootSelector, targetSelectors)`. It measures `)` in the cell's font and shifts negative values right by that width (into the cell's right padding), and re-applies whenever the root's content changes (DataTables redraws, re-rendered panels).
+- Load it with a `<script src>` **before** the page script, then call it from the page script behind `if (window.gdAlignParenNumbers)`.
+- The column must be right-aligned with some right padding, and body and footer cells need the same right padding or the totals will not line up with the rows.
+- Already wired: dashboard (`dashboard_num_align.js`), Game Book, Game Information, Agent Win/Loss, Commission, Commission Analytics, Add Charge (`fnb_hotel.js`), Loss Amount, Junket Expenses.
+- Receipts use a different trick for the same goal: positives get a hidden `)` after them (`gsr-paren-pad` in `game_list.js`, `::after` in `_settlement_slip_styles.ejs`).
+
+### Receipts and Copy image / Copy text
+
+- Game receipts are built server-side in `buildGameReceipts` (`routes/gamebook.js`) and rendered by `game_list.js`; the settlement slip is `views/modals/game_book/settlement.ejs` with shared styles in `_settlement_slip_styles.ejs` (also used by `merge_settlement.ejs`).
+- Copy image uses **html2canvas 1.4.1**. It draws `<input>` values differently from plain text, so a value inside an input can sit slightly off in the copied image even when it looks right on screen. `data-html2canvas-ignore` keeps on-screen-only rows out of the image.
+- Account Info card (GOLDEN DRAGON details): the Image / Text copy buttons live in `account.js` (`initGdDetailsCopy`).
 
 ## Permissions model
 
@@ -109,6 +133,21 @@ Stored in `user_info.PERMISSIONS`, copied to `req.session.permissions` on login.
 | `11` | Manager — password gate via `/verify-password` for elevated actions |
 
 Check permissions in route handlers **and** EJS (`sidebar.ejs`, page conditionals). Frontend checks `#user-role` data attribute.
+
+Role names live in the `user_role` table (`user_role.IDNo = user_info.PERMISSIONS`); `1` is labelled Administrator there.
+
+### Game Book: changing a game's status
+
+Clicking the Game End / ON GAME cell opens the change-status modal. The rule is applied in `game_list.js` when the row is rendered:
+
+| Role | On game / pending, not settled | On game / pending, settled | Finished, not settled | Finished and settled |
+|------|------|------|------|------|
+| `0` Super Admin | Yes | Yes | Yes | No — "Game Settled" notice |
+| `11` Manager | Yes | Yes | Yes | No — "Game Settled" notice |
+| `1` Administrator | Yes | No — "Game Settled" notice | Yes | No — "Game Settled" notice |
+| others | No — "Access Denied" | No | No — "Access Denied" | No |
+
+A finished and settled game is locked for everyone. This is enforced **in the browser only**: `PUT /game_list/change_status/:id` in `routes/gamebook.js` does not check the role or the settled flag.
 
 ## Domain vocabulary
 
@@ -127,6 +166,7 @@ Understanding these terms prevents bad SQL/UI changes:
 | **Marker** | Credit/marker transactions on accounts |
 | **Settlement** | End-of-game settlement flow in gamebook |
 | **Daily report** | Table-level junket daily reports (`table_daily_report.js`) |
+| **Cutoff period** | Month-end settlement range, e.g. Sep 30 – Oct 30 (`getMonthEndCutoffRange()` in `month_end_cutoff_range.js`); the default date range on most lists |
 | **Net profit** | Super-admin financial reporting (`net_profit.js`) |
 
 Rolling formula (used in `api.js` and game list):  
@@ -172,6 +212,21 @@ Rolling formula (used in `api.js` and game list):
 2. Match existing response shapes and rolling/balance formulas from `utils/dashboardQueries.js`.
 3. Document any new env vars.
 
+### Game Book list filters
+
+The Game Book loads a program-date range (default: the whole cutoff period) and narrows it in the browser with DataTables `ext.search` filters in `game_list.js`:
+
+- **Status tabs** (All / On Game / Finished / Settled / Unsettled) — `window.gameListStatusFilter`.
+- **Yesterday / Today tabs** — `window.gameListDayFilter`. Each toggles on/off and they combine; Today is on by default; both off shows everything loaded. Picking dates in the calendar or with the arrows turns both off. A deep link (`?date=`, `?id=`, `?unreturned_roller=`) starts with Today off so the target row is not hidden.
+- The footer **Grand Total is computed from all loaded rows**, not from the rows left after these filters.
+
+### Deploying
+
+Production runs under PM2 as `GDCAGE` (`ecosystem.config.js`). After `git pull`:
+
+- Changes under `routes/`, `utils/`, `app.js`, `config/` or `locales/` need `pm2 restart GDCAGE` — the old code stays in memory until then. A page that shows new frontend behaviour but old data shapes usually means the restart was skipped.
+- Changes under `public/` only need a browser hard refresh (and a `?v=` bump).
+
 ### Excel export
 
 Use **ExcelJS** + `utils/excelAmountFormat.js` (`applyCommaThousandsToNumericCells`). Follow patterns in `net_profit.js` or `table_daily_report.js`.
@@ -200,6 +255,8 @@ Golden Dragon theme: dark sidebar (`gd-sidebar`), gold accents (`#c8a24c`). Cust
 - Add a new `checkSession` copy — import from `routes/auth.js`.
 - Break view-only mode (permission 2) by adding buttons without `data-view-only-disable` or modal disable logic.
 - Change rolling/winloss SQL without cross-checking `dashboard.js`, `gamebook.js`, and `routes/api.js` formulas.
+- Put new JavaScript logic in an inline `<script>` inside an `.ejs` view — add it to the page's `.js` file.
+- Centre an amount column that can hold negatives; right-align it and use `gdAlignParenNumbers`.
 
 ## Additional reference
 
