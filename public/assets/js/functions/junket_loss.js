@@ -1374,3 +1374,9 @@ $(document).ready(function () {
         });
     });
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right
+// (all four tabs share this table; no-op where the helper or the table is not loaded)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('.junket-loss-page', ['#junket-loss-tbl tbody td.text-end', '#junket-loss-total-amount']);
+}

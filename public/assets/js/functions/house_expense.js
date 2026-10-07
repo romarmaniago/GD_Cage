@@ -4727,3 +4727,8 @@ function onlyNumberKey(evt) {
         return false;
     return true;
 }
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('.expense-item-table-wrap', ['#expense-item-cat-tbl tbody td:nth-child(7)', '#TOTAL_EXPENSE_AMOUNT']);
+}
