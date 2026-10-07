@@ -571,3 +571,8 @@
 
 	document.addEventListener('DOMContentLoaded', bind);
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#dash-cage-manual-cash-history-tbl', ['tbody td.cage-manual-cash-col-amount']);
+}

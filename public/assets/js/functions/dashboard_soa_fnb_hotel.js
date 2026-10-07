@@ -582,3 +582,8 @@
 
   document.addEventListener('DOMContentLoaded', bind);
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#dash-soa-history-tbl', ['tbody td.soa-col-amount', '#dash-soa-history-total']);
+}

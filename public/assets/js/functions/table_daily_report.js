@@ -1541,3 +1541,8 @@
     $(document).on('init.dt draw.dt', '#daily-report-view-table', applyDailyReportControlsLayout);
   }
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#daily-report-view-table', ['td.daily-report-amount-col', 'td.daily-report-total-col', 'tfoot th.daily-report-amount-col', 'tfoot th.daily-report-total-col']);
+}

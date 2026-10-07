@@ -113,6 +113,9 @@ Negatives display as red `(1,234)`. In a right-aligned column the digits must li
 - It is loaded on every page by `views/partials/footer.ejs`; call it from the page script behind `if (window.gdAlignParenNumbers)`. (Some views still carry their own older `<script src>` for it — harmless.)
 - The column must be right-aligned with some right padding, and body and footer cells need the same right padding or the totals will not line up with the rows.
 - Already wired: dashboard (`dashboard_num_align.js`), Game Book, Game Information, Agent Win/Loss, Commission, Commission Analytics, Add Charge (`fnb_hotel.js`), Loss Amount, Junket Expenses, the account ledger / credit details modals (`account.js`), and Credit History plus the dashboard Credit modal (`marker_common.js`).
+- Also wired (each from its own page script): Additional Commission, Commission Settle (list + detail) and the compare/merge modal, Tip page, Daily Report Win/Loss, game history modal, and the dashboard modals — W/L details, Daily Report, F&B / Hotel / Incidental / The Dine / Delivery, SOA, Tip, USD/GCASH, Company, Line, cash balance history.
+- **Not wired because the amount column is centred or left-aligned** (right-align it first): Categorize Group summary and its group-games modal, Multipurpose Ledger, the dashboard NN / CC chips, Cash In / Cash Out, Chips Transaction and Expenses modals, and the game services (Add Chg) list.
+- Tables that never show `( )` do not need it: Money Exchange, Net Profit, Agent Statistic, Dashboard History, transaction history, agent list, game record modal.
 - Receipts use a different trick for the same goal: positives get a hidden `)` after them (`gsr-paren-pad` in `game_list.js`, `::after` in `_settlement_slip_styles.ejs`).
 
 ### Receipts and Copy image / Copy text

@@ -1534,3 +1534,8 @@ $(document).ready(function () {
 		if (this.value !== formatted) this.value = formatted;
 	});
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#dash-tip-table', ['tbody td.tip-col-roller', 'tbody td.tip-col-dealer', 'tfoot th']);
+}

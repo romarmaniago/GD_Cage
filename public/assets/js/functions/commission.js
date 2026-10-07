@@ -1946,4 +1946,5 @@ $(document).ready(function() {
 if (window.gdAlignParenNumbers) {
     var commissionAmountCols = ['col-buyin', 'col-cashout', 'col-winloss', 'col-total-rolling', 'col-commission', 'col-fb', 'col-payment'];
     window.gdAlignParenNumbers('.commission-table-wrap', commissionAmountCols.map(function (c) { return 'tbody td.' + c + ', tfoot th.' + c; }));
+    window.gdAlignParenNumbers('#commission-compare-modal-tbl', ['tbody td:nth-child(n+8)', 'tfoot th:nth-child(n+7)']);
 }

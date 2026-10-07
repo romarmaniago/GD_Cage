@@ -1881,3 +1881,12 @@
   border: none;
   border-radius: 0;
 }
+
+/* Commission settlement amounts: rows and totals share one right padding so the digits line up
+   (the ")" of a negative hangs into it — num_paren_align.js) */
+#commission-settlement-tbl.commission-fit-table tbody td:nth-child(n+4),
+#commission-settlement-detail-tbl.commission-fit-table tbody td:nth-child(n+4),
+#commission-settlement-tbl.commission-fit-table tfoot th[class*="col-"],
+#commission-settlement-detail-tbl.commission-fit-table tfoot th[class*="col-"] {
+  padding-right: 8px !important;
+}

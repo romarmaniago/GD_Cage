@@ -9,3 +9,7 @@ window.gdAlignParenNumbers('.dash-top-row', [
 	'.dash-wl-body-cell.is-col-gold',
 	'.dash-wl-body-cell.is-col-diff'
 ]);
+
+// Dashboard modals rendered by inline view scripts (W/L details, cash balance history)
+window.gdAlignParenNumbers('#winloss-details-tbl', ['tbody td.text-end', 'tfoot th.text-end']);
+window.gdAlignParenNumbers('#cash-balance-history-tbl', ['tbody td.text-end']);

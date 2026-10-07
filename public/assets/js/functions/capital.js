@@ -3013,3 +3013,8 @@ $(document).ready(function () {
     }
 });
 
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#capital-tbl', ['tbody td:nth-child(3)']);
+}

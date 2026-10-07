@@ -304,3 +304,9 @@ $('#modal-transfer_account').on('hidden.bs.modal', function () {
 });
 
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#guestAccount-tbl-with-balance', ['tbody td:last-child', 'tfoot th']);
+	window.gdAlignParenNumbers('#guestAccount-tbl-all', ['tbody td:last-child', 'tfoot th']);
+}

@@ -1085,3 +1085,9 @@ $(document).ready(function () {
 		}, 250);
 	});
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#commission-settlement-tbl', ['tbody td:nth-child(n+4)', 'tfoot th[class*="col-"]']);
+	window.gdAlignParenNumbers('#commission-settlement-detail-tbl', ['tbody td:nth-child(n+4)', 'tfoot th[class*="col-"]']);
+}

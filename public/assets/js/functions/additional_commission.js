@@ -1231,3 +1231,8 @@
     initAdditionalCommission();
   }
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#additional-commission-tbl', ['tbody td:nth-child(4)', '#additional-commission-total-amount']);
+}

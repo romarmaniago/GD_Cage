@@ -1536,3 +1536,8 @@ $(document).ready(function () {
 		tipPageSplitDateRange.fitWidths();
 	}
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#tip-tbl', ['tbody td.tip-col-roller', 'tbody td.tip-col-dealer', 'tfoot th']);
+}

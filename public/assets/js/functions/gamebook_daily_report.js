@@ -500,3 +500,8 @@
   bindCopyImage(btnCopySide, renderSideCardBlob, 'daily-report-summary.png');
   bindCopyImage(btnCopyMain, renderMainReportBlob, 'daily-report.png');
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#gamebook-daily-report-table', ['tbody td.gdr-amount-col', 'tfoot th.gdr-amount-col', 'tfoot td.gdr-amount-col']);
+}
