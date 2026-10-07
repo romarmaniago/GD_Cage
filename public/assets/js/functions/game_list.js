@@ -4596,7 +4596,9 @@ $(document).ready(function () {
 		syncGameDayFilterTabs();
 	}
 
-	/** Yesterday / Today quick tabs: highlight the tab matching the selected single program date. */
+	/** Yesterday / Today quick tabs: an extra filter on top of the loaded program-date range
+	 *  (the whole cutoff period by default). Each tab toggles on/off and they combine:
+	 *  Today on (default) = today's games; both on = yesterday + today; both off = everything loaded. */
 	function getClientYesterdayYmd() {
 		var d = new Date();
 		d.setDate(d.getDate() - 1);
@@ -4609,23 +4611,86 @@ $(document).ready(function () {
 		);
 	}
 
+	if (typeof window.gameListDayFilter === 'undefined') {
+		// A deep link to a date / game / unreturned-roller list must not be hidden by the Today filter
+		var gameListHasDeepLink = /[?&](date|id|unreturned_roller)=/.test(window.location.search);
+		window.gameListDayFilter = { yesterday: false, today: !gameListHasDeepLink };
+	}
+	var gameDayFilterSettingRange = false;
+
 	function syncGameDayFilterTabs() {
 		var $tabs = $('#game-day-filter-wrapper .game-day-filter-tab');
 		if (!$tabs.length) return;
-		$tabs.removeClass('active');
-		if (window.selectedProgramDateRangeMultiDay) return;
-		var sel = String(window.selectedProgramDate || '').slice(0, 10);
-		if (sel === getClientTodayYmd()) {
-			$tabs.filter('[data-day="today"]').addClass('active');
-		} else if (sel === getClientYesterdayYmd()) {
-			$tabs.filter('[data-day="yesterday"]').addClass('active');
+		var f = window.gameListDayFilter || {};
+		$tabs.filter('[data-day="yesterday"]').toggleClass('active', !!f.yesterday);
+		$tabs.filter('[data-day="today"]').toggleClass('active', !!f.today);
+	}
+
+	/** Picking dates by hand (calendar / arrows) turns the quick tabs off, so the chosen dates show in full. */
+	function resetGameDayFilter() {
+		if (gameDayFilterSettingRange) return;
+		window.gameListDayFilter = { yesterday: false, today: false };
+		syncGameDayFilterTabs();
+	}
+
+	if (!window._gameListDayFilterRegistered) {
+		window._gameListDayFilterRegistered = true;
+		$.fn.dataTable.ext.search.push(function (settings, searchData, index) {
+			if (settings.nTable.id !== 'game_list-tbl') return true;
+			var f = window.gameListDayFilter || {};
+			if (!f.today && !f.yesterday) return true;
+			var tr = settings.aoData[index] && settings.aoData[index].nTr;
+			var btn = tr && tr.querySelector('[data-program-date]');
+			var ymd = btn ? String(btn.getAttribute('data-program-date') || '').slice(0, 10) : '';
+			if (!ymd) {
+				var m = String(searchData[0] || '').match(/\d{4}-\d{2}-\d{2}/);
+				ymd = m ? m[0] : '';
+			}
+			if (!ymd) return true; // rows without a program date (e.g. account summary) always show
+			return (!!f.today && ymd === getClientTodayYmd()) || (!!f.yesterday && ymd === getClientYesterdayYmd());
+		});
+	}
+
+	/** Selects a program date range in the picker; its onChange reloads the list. */
+	function setProgramDateRange(fromYmd, toYmd) {
+		var pickerEl = document.getElementById('program-date-range-picker');
+		if (!pickerEl || !pickerEl._flatpickr) return;
+		pickerEl._flatpickr.setDate([fromYmd, toYmd], true);
+	}
+
+	/** If a switched-on day is outside the loaded range, load the cutoff period (widened to include it).
+	 *  Returns true when that reloaded the list. */
+	function loadRangeForGameDayFilter() {
+		var f = window.gameListDayFilter || {};
+		var days = [];
+		if (f.yesterday) days.push(getClientYesterdayYmd());
+		if (f.today) days.push(getClientTodayYmd());
+		if (!days.length) return false;
+		var first = days[0];
+		var last = days[days.length - 1];
+		var rng = getProgramDateRangeYmdFromPicker();
+		if (rng && first >= rng.from && last <= rng.to) return false;
+		var period = typeof window.getMonthEndCutoffRange === 'function' ? window.getMonthEndCutoffRange() : null;
+		var from = period && period.startDate < first ? period.startDate : first;
+		var to = period && period.endDate > last ? period.endDate : last;
+		gameDayFilterSettingRange = true;
+		try {
+			setProgramDateRange(from, to);
+		} finally {
+			gameDayFilterSettingRange = false;
 		}
+		return true;
 	}
 
 	$(document).off('click.gameListDayFilter').on('click.gameListDayFilter', '#game-day-filter-wrapper .game-day-filter-tab', function () {
-		var target = $(this).data('day') === 'yesterday' ? getClientYesterdayYmd() : getClientTodayYmd();
-		if (typeof window.navigateToDate === 'function') {
-			window.navigateToDate(target);
+		var day = $(this).data('day') === 'yesterday' ? 'yesterday' : 'today';
+		var f = window.gameListDayFilter || {};
+		window.gameListDayFilter = { yesterday: !!f.yesterday, today: !!f.today };
+		window.gameListDayFilter[day] = !window.gameListDayFilter[day];
+		syncGameDayFilterTabs();
+		if (loadRangeForGameDayFilter()) return;
+		if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+			$('#game_list-tbl').DataTable().draw();
 		}
 	});
 
@@ -6358,6 +6423,7 @@ $(document).ready(function () {
         window.selectedProgramDate = targetDate;
         window.selectedProgramDate = targetDate;
         window.selectedProgramDateRangeMultiDay = false;
+        resetGameDayFilter();
 
         var pickerEl = document.getElementById('program-date-range-picker');
         if (pickerEl && pickerEl._flatpickr) {
@@ -6519,6 +6585,7 @@ $(document).ready(function () {
                 var fromD = d0 <= d1 ? d0 : d1;
                 var toD = d0 <= d1 ? d1 : d0;
                 window.selectedProgramDateRangeMultiDay = fromD !== toD;
+                resetGameDayFilter();
                 window.selectedProgramDate = fromD;
                 window.selectedProgramDate = fromD;
                 if (typeof window.updateNavigationButtons === 'function') {
