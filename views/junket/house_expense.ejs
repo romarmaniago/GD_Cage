@@ -401,6 +401,10 @@
         </script>
         
         <script src="/assets/js/functions/house_expense.js?v=3"></script>
+        <script src="/assets/js/functions/num_paren_align.js"></script>
+        <script>
+            window.gdAlignParenNumbers('.expense-item-table-wrap', ['#expense-item-cat-tbl tbody td:nth-child(7)', '#TOTAL_EXPENSE_AMOUNT']);
+        </script>
         <script>
             /* Category modals — wired like #modal-new-house-expense (see $(document).ready in house_expense.js) */
             $(function () {
@@ -2162,6 +2166,13 @@ body.open-pool-select-mode .house-expense-select-all-slot {
             .expense-item-tbl tbody td.text-end {
                 text-align: center !important;
                 vertical-align: middle;
+            }
+            /* AMOUNT: right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+            .expense-item-tbl thead th:nth-child(7),
+            .expense-item-tbl tbody td:nth-child(7),
+            .expense-item-tbl tfoot th#TOTAL_EXPENSE_AMOUNT {
+                text-align: right !important;
+                padding-right: 1.25rem;
             }
             .expense-item-tbl tbody td:nth-child(1),
             .expense-item-tbl tbody td:nth-child(2),
