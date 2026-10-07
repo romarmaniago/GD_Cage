@@ -3017,4 +3017,10 @@ $(document).ready(function () {
 // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
 if (window.gdAlignParenNumbers) {
 	window.gdAlignParenNumbers('#capital-tbl', ['tbody td:nth-child(3)']);
+	window.gdAlignParenNumbers('#nn-chips-tbl', ['tbody td:nth-child(2)']);
+	window.gdAlignParenNumbers('#cc-chips-tbl', ['tbody td:nth-child(2)']);
+	window.gdAlignParenNumbers('#cash-in-tbl', ['tbody td:nth-child(3)']);
+	window.gdAlignParenNumbers('#cash-out-tbl', ['tbody td:nth-child(3)']);
+	window.gdAlignParenNumbers('#chips_transaction-tbl', ['tbody td:nth-child(2)']);
+	window.gdAlignParenNumbers('#junket-expense-tbl', ['tbody td:nth-child(2)']);
 }

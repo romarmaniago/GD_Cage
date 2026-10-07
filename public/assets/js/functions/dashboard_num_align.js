@@ -13,3 +13,7 @@ window.gdAlignParenNumbers('.dash-top-row', [
 // Dashboard modals rendered by inline view scripts (W/L details, cash balance history)
 window.gdAlignParenNumbers('#winloss-details-tbl', ['tbody td.text-end', 'tfoot th.text-end']);
 window.gdAlignParenNumbers('#cash-balance-history-tbl', ['tbody td.text-end']);
+
+// Dashboard modals rendered by dashboard_grid.js (On Game Details, Beyond Chips history)
+window.gdAlignParenNumbers('#dash-on-game-details-tbl', ['tbody td.text-end']);
+window.gdAlignParenNumbers('#dash-beyond-chips-history-tbl', ['tbody td.text-end', 'tbody td:nth-child(2)']);

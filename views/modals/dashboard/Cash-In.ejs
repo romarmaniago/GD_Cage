@@ -139,4 +139,10 @@
     border-color: var(--gd-dash-jade, #6b4a12);
     color: #fff;
 }
+/* Amount column right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+#cash-in-tbl thead th:nth-child(3),
+#cash-in-tbl tbody td:nth-child(3) {
+	text-align: right !important;
+	padding-right: 15px !important;
+}
 </style>

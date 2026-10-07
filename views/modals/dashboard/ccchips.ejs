@@ -209,4 +209,10 @@ window.ccChipsHistoryTranslations = {
         border-color: #dee2e6 !important;
         background-color: #fff !important;
     }
+/* Amount column right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+#cc-chips-tbl thead th:nth-child(2),
+#cc-chips-tbl tbody td:nth-child(2) {
+	text-align: right !important;
+	padding-right: 15px !important;
+}
 </style>

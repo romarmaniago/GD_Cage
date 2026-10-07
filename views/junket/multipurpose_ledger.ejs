@@ -321,7 +321,7 @@
     window.jflPhpCurrencyId = raw ? Number(raw) : null;
   })();
 </script>
-<script src="/assets/js/functions/multipurpose_ledger.js"></script>
+<script src="/assets/js/functions/multipurpose_ledger.js?v=2"></script>
 <script src="/assets/js/functions/multipurpose_ledger_exchange.js"></script>
 
 <style>
@@ -701,6 +701,12 @@
   #jfl-tbl_wrapper #jfl-tbl {
     margin-top: 0 !important;
   }
+/* Amount column right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+#jfl-tbl thead th:nth-child(6),
+#jfl-tbl tbody td:nth-child(6) {
+	text-align: right !important;
+	padding-right: 15px !important;
+}
 </style>
 
 <script>

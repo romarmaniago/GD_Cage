@@ -4205,4 +4205,5 @@ if (window.gdAlignParenNumbers) {
 	window.gdAlignParenNumbers('#modal-credit-details', ['#credit-details-table tbody td:nth-child(2)', '#credit-details-table tbody td:nth-child(3)']);
 	// Game history modal (same amount columns as the Game Book)
 	window.gdAlignParenNumbers('#game-history-tbl', ['tbody td.col-buyin', 'tbody td.col-cashout', 'tbody td.col-winloss', 'tbody td.col-total-rolling', 'tbody td.col-commission', 'tbody td.col-total-settle', 'tfoot th']);
+	window.gdAlignParenNumbers('#modal-account-tbl', ['tbody td:nth-child(6)', 'tfoot th']);
 }

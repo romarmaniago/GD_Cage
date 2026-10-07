@@ -12102,4 +12102,7 @@ if (window.gdAlignParenNumbers) {
 	window.gdAlignParenNumbers('.game-list-page', gameListAmountCols.map(function (c) { return 'td.' + c + ', tfoot th.' + c; })
 		// Add Chg has no class of its own: it sits right after Commission
 		.concat(['td.col-commission + td', '#GRAND_ADD_CHG']));
+	// Add Chg / services lists of a game
+	window.gdAlignParenNumbers('#services-list-tbl', ['td.text-end']);
+	window.gdAlignParenNumbers('#history-services-list-tbl', ['td.text-end']);
 }

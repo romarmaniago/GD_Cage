@@ -106,4 +106,10 @@
         background-color: #f4f6fa;
         border-top: 2px solid #dee2e6;
     }
+/* Amount column right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+#chips_transaction-tbl thead th:nth-child(2),
+#chips_transaction-tbl tbody td:nth-child(2) {
+	text-align: right !important;
+	padding-right: 15px !important;
+}
 </style>

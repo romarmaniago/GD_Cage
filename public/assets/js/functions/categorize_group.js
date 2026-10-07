@@ -1234,3 +1234,9 @@
 		applyCgSummaryControlsLayout();
 	});
 })();
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#gi-group-summary-tbl', ['tbody td:nth-child(n+4)', 'tfoot th:nth-child(n+2)']);
+	window.gdAlignParenNumbers('#cg-group-games-tbl', ['tbody td:nth-child(n+7)', 'tfoot th:nth-child(n+2)']);
+}
