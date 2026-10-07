@@ -6036,7 +6036,7 @@ $(document).ready(function () {
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
 								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
-									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
+									if (isSettled && userPermissions !== 0 && userPermissions !== 11) { // Super admin (0) and role 11 can change status even when settled
 										status = `<button type="button" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
 											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
 											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
@@ -6159,7 +6159,7 @@ $(document).ready(function () {
 								// PENDING STATUS (discrepancy in roller chips return)
 								var pendingChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', 3, ' + (row.GUEST_ID || 'null') + ', ' + (row.CUTOFF_PARENT_GAME_ID || 'null') + ', ' + (row.CUTOFF_CONTINUED_GAME_ID || 'null') + ', ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
-									if (isSettled && userPermissions !== 0) {
+									if (isSettled && userPermissions !== 0 && userPermissions !== 11) {
 										status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showSettledAlert(); return false;' });
 									} else {
 										status = buildPendingGameEndStatusHtml(row, pendingChangeOnclick);
@@ -6265,11 +6265,11 @@ $(document).ready(function () {
 									at1.total_settle += totalSettleValue;
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
-								// END GAME STATUS (status = 1)
+								// END GAME STATUS (status = 1) — once settled, nobody can change the status (settled notice instead)
 								var endGameChangeOnclick = 'changeStatus(' + row.game_list_id + ', ' + net + ', ' + row.ACCOUNT_ID + ', ' + total_amount + ', ' + total_cash_out_chips + ', ' + total_rolling_chips + ', ' + WinLoss + ', null, null, null, null, ' + gameListAgentOnclickArgs(row.agent_code, row.guest_name) + ')';
 								if (isPendingRollerOrangeRow(row)) {
 									if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
-										if (isSettled && userPermissions !== 0) {
+										if (isSettled) {
 											status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showSettledAlert(); return false;' });
 										} else {
 											status = buildPendingGameEndStatusHtml(row, endGameChangeOnclick);
@@ -6278,7 +6278,7 @@ $(document).ready(function () {
 										status = buildPendingGameEndStatusHtml(row, null, { readonlyOnclick: 'showEndGameAlert()' });
 									}
 								} else if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
-									if (isSettled && userPermissions !== 0) {
+									if (isSettled) {
 										status = `<a href="#" class="${statusDateClass}" style="font-size:15px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
 									} else {
 										status = `<a href="#" class="${statusDateClass}" style="font-size:15px !important;" onclick="${endGameChangeOnclick}">${moment(row.GAME_ENDED).format('YYYY-MM-DD HH:mm')}</a>`;
