@@ -4197,3 +4197,10 @@ document.addEventListener('DOMContentLoaded', function () {
 		initGdDetailsCopy();
 	}
 })();
+
+// Account ledger / credit details modals: Amount and Balance digits line up right-to-left;
+// the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+	window.gdAlignParenNumbers('#modal-account-details', ['#accountDetails tbody td:nth-child(2)', '#accountDetails tbody td:nth-child(3)']);
+	window.gdAlignParenNumbers('#modal-credit-details', ['#credit-details-table tbody td:nth-child(2)', '#credit-details-table tbody td:nth-child(3)']);
+}
