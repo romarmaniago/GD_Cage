@@ -1313,6 +1313,12 @@ body.open-pool-select-mode .house-expense-select-all-slot {
     word-break: normal;
     overflow-wrap: normal;
 }
+/* AMOUNT: right-aligned so the digits line up; the ")" of a negative hangs right (num_paren_align.js) */
+.expense-item-tbl thead th[data-sort-key="amount"],
+.expense-item-tbl tbody td.text-end {
+    text-align: right !important;
+    padding-right: 1.25rem;
+}
 .expense-item-tbl tbody td.expense-item-action-cell,
 .expense-item-tbl thead th:last-child {
     width: 11rem;

@@ -17,3 +17,4 @@ window.gdAlignParenNumbers('#cash-balance-history-tbl', ['tbody td.text-end']);
 // Dashboard modals rendered by dashboard_grid.js (On Game Details, Beyond Chips history)
 window.gdAlignParenNumbers('#dash-on-game-details-tbl', ['tbody td.text-end']);
 window.gdAlignParenNumbers('#dash-beyond-chips-history-tbl', ['tbody td.text-end', 'tbody td:nth-child(2)']);
+window.gdAlignParenNumbers('#modal-guest-summary-quick-view', ['.dash-line-qv-guest-table tbody td:nth-child(n+3)', '.dash-line-qv-list-balance']);
