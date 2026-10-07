@@ -118,6 +118,11 @@
   };
 </script>
 <script src="/assets/js/functions/junket_loss.js?v=2"></script>
+<script src="/assets/js/functions/num_paren_align.js"></script>
+<script>
+  // Amount digits line up right-to-left; the ")" of a negative hangs right (all four tabs share this table)
+  window.gdAlignParenNumbers('.junket-loss-page', ['#junket-loss-tbl tbody td.text-end', '#junket-loss-total-amount']);
+</script>
 
 <style>
   .card-body {
