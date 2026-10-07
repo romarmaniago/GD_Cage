@@ -3930,6 +3930,223 @@ function buildGameGroupBadge(row) {
 	);
 }
 
+/** Change account: Super Admin (0) and Manager (11) only — the server enforces the same rule. */
+function canChangeGameAccount() {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	return userPermissions === 0 || userPermissions === 11;
+}
+
+/** Small "change account" button beside the account code (ON GAME, unsettled rows only). */
+function buildGameAccountChangeButton(row) {
+	if (!row.game_list_id || !canChangeGameAccount()) return '';
+	if (parseInt(row.game_status, 10) !== 2 || parseInt(row.SETTLED, 10) === 1) return '';
+	var guestName = row.guest_name && row.guest_name !== '-' ? String(row.guest_name).trim() : '';
+	return (
+		' <button type="button" class="js-change-game-account game-list-acct-change-btn"' +
+		' data-game-id="' + row.game_list_id + '"' +
+		' data-account-id="' + (row.ACCOUNT_ID || row.account_no || '') + '"' +
+		' data-agent-code="' + escapeHtmlText(row.agent_code || '') + '"' +
+		' data-agent-name="' + escapeHtmlText(row.agent_name || '') + '"' +
+		' data-guest-name="' + escapeHtmlText(guestName) + '"' +
+		' data-bs-toggle="tooltip" title="Change account" aria-label="Change account">' +
+		'<i class="fa fa-exchange-alt" aria-hidden="true"></i></button>'
+	);
+}
+
+function updateChangeGameAccountSaveState() {
+	var hasAccount = (parseInt($('#change_game_account_select').val(), 10) || 0) > 0;
+	var hasRemarks = String($('#change_game_account_remarks').val() || '').trim() !== '';
+	$('#submit-change-game-account-btn').prop('disabled', !(hasAccount && hasRemarks));
+}
+
+function resetChangeGameAccountSelect($select, placeholder) {
+	if ($select.data('select2')) $select.select2('destroy');
+	$select.empty().append($('<option>', { value: '', text: placeholder }));
+}
+
+function loadChangeGameAccountGuests(agentId) {
+	var $guestSelect = $('#change_game_account_guest_select');
+	resetChangeGameAccountSelect($guestSelect, '-- Select guest --');
+	$guestSelect.prop('disabled', true);
+	// The guest dropdown only shows once a new account is picked
+	$('#change-game-account-guest-wrap').toggleClass('d-none', !agentId);
+	if (!agentId) return;
+
+	$.ajax({
+		url: '/guest_data?agentId=' + encodeURIComponent(agentId),
+		method: 'GET',
+		success: function (rows) {
+			(Array.isArray(rows) ? rows : []).forEach(function (guest) {
+				$guestSelect.append($('<option>', { value: guest.guest_id, text: String(guest.guest_name || '').toUpperCase() }));
+			});
+			$guestSelect.select2({
+				placeholder: 'Select guest',
+				allowClear: true,
+				dropdownParent: '#modal-change-game-account',
+				width: '100%'
+			});
+			$guestSelect.prop('disabled', false);
+		},
+		error: function () {
+			Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load guests.' });
+		}
+	});
+}
+
+function loadChangeGameAccountHistory(gameId) {
+	var $tbody = $('#change-game-account-history-tbody');
+	var $wrap = $('#change-game-account-history-wrap');
+	$tbody.empty();
+	$wrap.addClass('d-none');
+	if (!gameId) return;
+
+	$.ajax({
+		url: '/game_list/' + gameId + '/account_history',
+		method: 'GET',
+		success: function (rows) {
+			var list = Array.isArray(rows) ? rows : [];
+			if (!list.length) return;
+			$wrap.removeClass('d-none');
+			list.forEach(function (row) {
+				var from = String(row.prev_agent_code || '-').toUpperCase() + ' · ' + String(row.prev_guest_name || '-').toUpperCase();
+				var to = String(row.new_agent_code || '-').toUpperCase() + ' · ' + String(row.new_guest_name || '-').toUpperCase();
+				$tbody.append(
+					'<tr>' +
+					'<td class="text-nowrap">' + escapeHtmlText(row.changed_at || '-') + '</td>' +
+					'<td>' + escapeHtmlText(from) + '</td>' +
+					'<td>' + escapeHtmlText(to) + '</td>' +
+					'<td class="change-game-account-history-remarks">' + escapeHtmlText(row.remarks || '') + '</td>' +
+					'<td>' + escapeHtmlText(row.changed_by || '') + '</td>' +
+					'</tr>'
+				);
+			});
+		}
+	});
+}
+
+function openChangeGameAccountModal($btn) {
+	if (!canChangeGameAccount()) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot change the account of a game.' });
+		return;
+	}
+	var gameId = parseInt($btn.attr('data-game-id'), 10);
+	var currentAccountId = parseInt($btn.attr('data-account-id'), 10) || 0;
+	if (!gameId) return;
+
+	var currentLabel = String($btn.attr('data-agent-code') || '').toUpperCase();
+	var agentName = String($btn.attr('data-agent-name') || '').trim().toUpperCase();
+	var guestName = String($btn.attr('data-guest-name') || '').trim().toUpperCase();
+	if (agentName) currentLabel += ' (' + agentName + ')';
+	if (guestName) currentLabel += ' — ' + guestName;
+
+	$('#change_game_account_game_id').val(gameId);
+	$('#change-game-account-game-id-label').text(gameId);
+	$('#change-game-account-current').text(currentLabel || '—');
+	$('#change_game_account_remarks').val('');
+	$('#submit-change-game-account-btn').prop('disabled', true);
+
+	var $accountSelect = $('#change_game_account_select');
+	resetChangeGameAccountSelect($accountSelect, '-- Select account --');
+	$accountSelect.prop('disabled', true);
+	loadChangeGameAccountGuests(null);
+	loadChangeGameAccountHistory(gameId);
+
+	$.getJSON('/account_data').done(function (rows) {
+		(Array.isArray(rows) ? rows : []).forEach(function (acc) {
+			if (parseInt(acc.account_id, 10) === currentAccountId) return;
+			var label = String(acc.agent_code || '').toUpperCase() + (acc.agent_name ? ' (' + String(acc.agent_name).toUpperCase() + ')' : '');
+			var $opt = $('<option>', { value: acc.account_id, text: label });
+			$opt.attr('data-agent-id', acc.agent_id || acc.AGENT_ID || '');
+			$accountSelect.append($opt);
+		});
+		$accountSelect.select2({
+			placeholder: 'Select account',
+			allowClear: false,
+			dropdownParent: '#modal-change-game-account',
+			width: '100%'
+		});
+		$accountSelect.prop('disabled', false);
+	}).fail(function () {
+		Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load accounts.' });
+	});
+
+	$('#modal-change-game-account').modal('show');
+}
+
+$(function () {
+	$(document).on('click', '#game_list-tbl .js-change-game-account', function (e) {
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		openChangeGameAccountModal($(this));
+		return false;
+	});
+
+	$(document).on('change', '#change_game_account_select', function () {
+		var agentId = parseInt($(this).find('option:selected').attr('data-agent-id'), 10) || null;
+		loadChangeGameAccountGuests(agentId);
+		updateChangeGameAccountSaveState();
+	});
+
+	$(document).on('input', '#change_game_account_remarks', updateChangeGameAccountSaveState);
+
+	$(document).on('submit', '#change_game_account_form', function (event) {
+		event.preventDefault();
+		var gameId = parseInt($('#change_game_account_game_id').val(), 10);
+		var accountId = parseInt($('#change_game_account_select').val(), 10);
+		var guestId = parseInt($('#change_game_account_guest_select').val(), 10) || null;
+		var remarks = String($('#change_game_account_remarks').val() || '').trim();
+		if (!gameId || !accountId || !remarks) {
+			updateChangeGameAccountSaveState();
+			return;
+		}
+		var guestLabel = guestId ? $('#change_game_account_guest_select option:selected').text() : '-';
+
+		// Own layout instead of SwalConfirm rows: those are fixed-width and never wrap, so long
+		// account names / remarks made the dialog scroll sideways.
+		var confirmRows = [
+			['From', $('#change-game-account-current').text()],
+			['To', $('#change_game_account_select option:selected').text()],
+			['Guest', guestLabel],
+			['Remarks', remarks]
+		];
+		var confirmHtml = '<div style="display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;row-gap:4px;text-align:left;">' +
+			confirmRows.map(function (r) {
+				return '<span style="font-weight:600;text-align:right;white-space:nowrap;">' + escapeHtmlText(r[0]) + ':</span>' +
+					'<span style="overflow-wrap:anywhere;">' + escapeHtmlText(String(r[1] || '-').trim()) + '</span>';
+			}).join('') + '</div>';
+
+		SwalConfirm.fire({
+			title: 'Change account of Game #' + gameId + '?',
+			html: confirmHtml,
+			width: '500px',
+			confirmButtonText: 'Yes, change',
+			cancelButtonText: 'Cancel'
+		}).then(function (result) {
+			if (!result.isConfirmed) return;
+			var $submitBtn = $('#submit-change-game-account-btn');
+			$submitBtn.prop('disabled', true).text('Saving...');
+			$.ajax({
+				url: '/game_list/' + gameId + '/account',
+				method: 'PUT',
+				contentType: 'application/json',
+				data: JSON.stringify({ account_id: accountId, guest_id: guestId, remarks: remarks }),
+				success: function () {
+					$('#modal-change-game-account').modal('hide');
+					Swal.fire({ icon: 'success', title: 'Account changed', timer: 1200, showConfirmButton: false });
+					if (typeof window.reloadData === 'function') window.reloadData();
+				},
+				error: function (xhr) {
+					Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.error || 'Failed to change the account.' });
+				},
+				complete: function () {
+					$submitBtn.text('Save');
+					updateChangeGameAccountSaveState();
+				}
+			});
+		});
+	});
+});
+
 /** Captures the already-computed numbers for one row for the detailed (grouped-header) export,
  *  keyed by game_list_id, so the export reuses the exact same figures shown on screen instead
  *  of recomputing buy-in/cash-out/rolling/settlement business logic a second time. */
@@ -6091,7 +6308,7 @@ $(document).ready(function () {
                                 }
                                 actionButtons = '<div class="game-list-action-btns">' + actionButtons + '</div>';
 
-                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row);
+                                var acct_no_link = buildGameAccountCell(row.ACCOUNT_ID || row.account_no, row.agent_code, row.agent_name) + buildGameGroupBadge(row) + buildGameAccountChangeButton(row);
                                 var add_chg_td = buildAddChgTd(row.game_list_id, row.agent_code, row.guest_name, addChgValue, row.game_status, row.SETTLED, row.AGENT_ID);
                                 (window._gameListStatusMap || (window._gameListStatusMap = {}))[row.game_list_id] = 'ongame';
                                 (window._gameListSettledMap || (window._gameListSettledMap = {}))[row.game_list_id] = isSettled;

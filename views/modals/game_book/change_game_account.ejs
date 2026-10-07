@@ -1,0 +1,119 @@
+<style>
+/* Wider than the default dialog so the history columns have room (still centred) */
+@media (min-width: 576px) {
+	#modal-change-game-account .modal-dialog {
+		max-width: 680px;
+	}
+}
+#modal-change-game-account .change-game-account-current {
+	font-weight: 600;
+}
+#modal-change-game-account .change-game-account-history-scroll {
+	max-height: 170px;
+}
+#modal-change-game-account .change-game-account-history-tbl thead th {
+	background: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary);
+	font-size: 0.75rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+#modal-change-game-account .change-game-account-history-tbl tbody td {
+	font-size: 0.75rem;
+	vertical-align: top;
+}
+/* History fits the modal width: fixed columns, every cell wraps, no sideways scroll */
+#modal-change-game-account .change-game-account-history-scroll {
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+#modal-change-game-account .change-game-account-history-tbl {
+	table-layout: fixed;
+	width: 100% !important;
+	min-width: 0 !important;
+}
+#modal-change-game-account .change-game-account-history-tbl thead th,
+#modal-change-game-account .change-game-account-history-tbl tbody td {
+	white-space: normal !important;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	padding: 4px 6px;
+}
+#modal-change-game-account .change-game-account-history-tbl th:nth-child(1) { width: 19%; }
+#modal-change-game-account .change-game-account-history-tbl th:nth-child(2),
+#modal-change-game-account .change-game-account-history-tbl th:nth-child(3) { width: 24%; }
+#modal-change-game-account .change-game-account-history-tbl th:nth-child(4) { width: 21%; }
+#modal-change-game-account .change-game-account-history-tbl th:nth-child(5) { width: 12%; }
+#game_list-tbl td.col-acct-no .game-list-acct-change-btn {
+	border: 0;
+	background: transparent;
+	padding: 0 2px;
+	margin-left: 2px;
+	font-size: 0.72rem;
+	line-height: 1;
+	color: #8a6c27;
+	cursor: pointer;
+	vertical-align: baseline;
+}
+#game_list-tbl td.col-acct-no .game-list-acct-change-btn:hover,
+#game_list-tbl td.col-acct-no .game-list-acct-change-btn:focus {
+	color: #3a2e12;
+}
+</style>
+<div class="modal fade" id="modal-change-game-account" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="changeGameAccountLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary py-2">
+				<h6 class="modal-title text-white mb-0" id="changeGameAccountLabel">Change account — Game #<span id="change-game-account-game-id-label"></span></h6>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="change_game_account_form">
+				<div class="modal-body">
+					<input type="hidden" id="change_game_account_game_id" name="game_id">
+					<div class="mb-3">
+						<label class="form-label mb-1">Current account</label>
+						<div class="change-game-account-current" id="change-game-account-current">—</div>
+					</div>
+					<div class="mb-3">
+						<label class="form-label mb-1" for="change_game_account_select">New account <span class="text-danger">*</span></label>
+						<select class="form-select" id="change_game_account_select" name="account_id" style="width: 100%;" data-placeholder="Select account" required>
+							<option value="">-- Select account --</option>
+						</select>
+					</div>
+					<div class="mb-3 d-none" id="change-game-account-guest-wrap">
+						<label class="form-label mb-1" for="change_game_account_guest_select">Guest</label>
+						<select class="form-select" id="change_game_account_guest_select" name="guest_id" style="width: 100%;" data-placeholder="Select guest" disabled>
+							<option value="">-- Select guest --</option>
+						</select>
+						<small class="text-muted d-block mt-1 mb-0">Guests of the new account. The current guest is removed from this game.</small>
+					</div>
+					<div class="mb-0">
+						<label class="form-label mb-1" for="change_game_account_remarks">Remarks <span class="text-danger">*</span></label>
+						<textarea class="form-control" id="change_game_account_remarks" name="remarks" rows="2" maxlength="500" placeholder="Reason for changing the account" required></textarea>
+					</div>
+					<div id="change-game-account-history-wrap" class="mt-3 d-none">
+						<label class="form-label mb-1">History</label>
+						<div class="table-responsive change-game-account-history-scroll">
+							<table class="table table-bordered table-hover align-middle small-text mb-0 change-game-account-history-tbl" style="width:100%">
+								<thead>
+									<tr>
+										<th>Date / time</th>
+										<th>From</th>
+										<th>To</th>
+										<th>Remarks</th>
+										<th>By</th>
+									</tr>
+								</thead>
+								<tbody id="change-game-account-history-tbody"></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer py-2">
+					<button type="submit" id="submit-change-game-account-btn" class="btn btn-sm btn-primary" disabled>Save</button>
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

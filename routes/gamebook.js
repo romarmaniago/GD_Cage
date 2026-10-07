@@ -5281,6 +5281,172 @@ router.get('/game_list/:id/guest_history', async (req, res) => {
 	}
 });
 
+// Change the account (and guest) of an ON GAME game.
+// Only game_list changes (ACCOUNT_ID, GUEST_ID). Transactions already recorded for the game —
+// account_ledger, credit_transaction, junket_loss, tip, game_services — stay on the account they
+// were made under, and nothing is written to either account's ledger. Every change is logged in
+// game_account_history.
+const GAME_ACCOUNT_CHANGE_ROLES = [0, 11]; // Super Admin, Manager
+
+router.put('/game_list/:id/account', commissionLock(gameFromParamId), async (req, res) => {
+	const encodedBy = req.session.user_id;
+	if (!encodedBy) return res.status(401).json({ error: 'User session not found' });
+	if (!GAME_ACCOUNT_CHANGE_ROLES.includes(parseInt(req.session.permissions, 10))) {
+		return res.status(403).json({ error: 'You do not have permission to change the account of a game.' });
+	}
+
+	const gameId = parseInt(req.params.id, 10);
+	if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+	const newAccountId = parseInt(req.body.account_id, 10);
+	if (!newAccountId) return res.status(400).json({ error: 'Please select the new account.' });
+
+	const guestIdRaw = req.body.guest_id;
+	let newGuestId = null;
+	if (guestIdRaw !== undefined && guestIdRaw !== null && String(guestIdRaw).trim() !== '' && String(guestIdRaw).toLowerCase() !== 'null') {
+		newGuestId = parseInt(guestIdRaw, 10) || null;
+		if (!newGuestId) return res.status(400).json({ error: 'Invalid guest ID.' });
+	}
+
+	const remarks = String(req.body.remarks == null ? '' : req.body.remarks).trim().slice(0, 500);
+	if (!remarks) return res.status(400).json({ error: 'Remarks is required.' });
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const fail = async (status, message) => {
+			await connection.rollback();
+			return res.status(status).json({ error: message });
+		};
+
+		const [gameRows] = await connection.execute(
+			`SELECT gl.IDNo, gl.ACTIVE, gl.SETTLED, gl.ACCOUNT_ID, gl.GUEST_ID, acc.AGENT_ID
+			 FROM game_list gl
+			 JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			 WHERE gl.IDNo = ? AND gl.ACTIVE != 0
+			 LIMIT 1
+			 FOR UPDATE`,
+			[gameId]
+		);
+		if (!gameRows.length) return fail(404, 'Game not found.');
+		const game = gameRows[0];
+		if (parseInt(game.ACTIVE, 10) !== 2) {
+			return fail(400, 'The account can only be changed while the game is ON GAME.');
+		}
+		if (parseInt(game.SETTLED, 10) === 1) {
+			return fail(400, 'This game is already settled.');
+		}
+
+		const oldAccountId = parseInt(game.ACCOUNT_ID, 10);
+		const prevGuestId = parseInt(game.GUEST_ID, 10) || null;
+		if (newAccountId === oldAccountId) {
+			return fail(400, 'Select a different account.');
+		}
+
+		// A game tied to another one by a cut-off shares that game's account — leave both alone.
+		try {
+			const [linkRows] = await connection.execute(
+				`SELECT CUTOFF_PARENT_GAME_ID, CUTOFF_CONTINUED_GAME_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[gameId]
+			);
+			if (linkRows.length && (parseInt(linkRows[0].CUTOFF_PARENT_GAME_ID, 10) || parseInt(linkRows[0].CUTOFF_CONTINUED_GAME_ID, 10))) {
+				return fail(400, 'This game is linked to another game by a cut-off, so its account cannot be changed.');
+			}
+		} catch (linkErr) {
+			// CUTOFF_* columns may be missing
+		}
+
+		const [accountRows] = await connection.execute(
+			`SELECT acc.IDNo, acc.AGENT_ID, ag.AGENT_CODE, ag.NAME
+			 FROM account acc
+			 JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			 WHERE acc.IDNo = ? AND acc.ACTIVE = 1 AND ag.ACTIVE = 1
+			 LIMIT 1`,
+			[newAccountId]
+		);
+		if (!accountRows.length) return fail(400, 'The selected account is not available.');
+		const newAgentId = parseInt(accountRows[0].AGENT_ID, 10);
+
+		if (newGuestId) {
+			const [guestRows] = await connection.execute(
+				`SELECT IDNo FROM guest WHERE IDNo = ? AND AGENT_ID = ? AND ACTIVE = 1 LIMIT 1`,
+				[newGuestId, newAgentId]
+			);
+			if (!guestRows.length) return fail(400, 'Guest does not belong to the selected account.');
+		}
+
+		const dateNow = new Date();
+		await connection.execute(
+			`UPDATE game_list SET ACCOUNT_ID = ?, GUEST_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+			[newAccountId, newGuestId, encodedBy, dateNow, gameId]
+		);
+
+		await connection.execute(
+			`INSERT INTO game_account_history
+				(GAME_ID, PREV_ACCOUNT_ID, NEW_ACCOUNT_ID, PREV_GUEST_ID, NEW_GUEST_ID, REMARKS, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[gameId, oldAccountId, newAccountId, prevGuestId, newGuestId, remarks, encodedBy, dateNow]
+		);
+
+		await connection.commit();
+
+		const guestName = newGuestId ? await fetchGuestDisplayNameById(pool, newGuestId) : '';
+		return res.json({
+			success: true,
+			game_id: gameId,
+			account_id: newAccountId,
+			agent_code: accountRows[0].AGENT_CODE || '',
+			agent_name: accountRows[0].NAME || '',
+			guest_id: newGuestId,
+			guest_name: guestName || '-'
+		});
+	} catch (error) {
+		if (connection) {
+			try { await connection.rollback(); } catch (rollbackErr) { /* ignore */ }
+		}
+		console.error('PUT /game_list/:id/account:', error);
+		return res.status(500).json({ error: error.message || 'Error changing account.' });
+	} finally {
+		if (connection) connection.release();
+	}
+});
+
+router.get('/game_list/:id/account_history', async (req, res) => {
+	try {
+		const gameId = parseInt(req.params.id, 10);
+		if (!gameId) return res.status(400).json({ error: 'Invalid game ID.' });
+
+		const [rows] = await pool.execute(
+			`SELECT
+				h.IDNo AS id,
+				DATE_FORMAT(h.ENCODED_DT, '%Y-%m-%d %H:%i') AS changed_at,
+				COALESCE(ag1.AGENT_CODE, CAST(h.PREV_ACCOUNT_ID AS CHAR)) AS prev_agent_code,
+				COALESCE(ag2.AGENT_CODE, CAST(h.NEW_ACCOUNT_ID AS CHAR)) AS new_agent_code,
+				COALESCE(NULLIF(TRIM(g1.NAME), ''), '-') AS prev_guest_name,
+				COALESCE(NULLIF(TRIM(g2.NAME), ''), '-') AS new_guest_name,
+				COALESCE(h.REMARKS, '') AS remarks,
+				COALESCE(ui.USERNAME, CAST(h.ENCODED_BY AS CHAR)) AS changed_by
+			FROM game_account_history h
+			LEFT JOIN account a1 ON a1.IDNo = h.PREV_ACCOUNT_ID
+			LEFT JOIN agent ag1 ON ag1.IDNo = a1.AGENT_ID
+			LEFT JOIN account a2 ON a2.IDNo = h.NEW_ACCOUNT_ID
+			LEFT JOIN agent ag2 ON ag2.IDNo = a2.AGENT_ID
+			LEFT JOIN guest g1 ON g1.IDNo = h.PREV_GUEST_ID
+			LEFT JOIN guest g2 ON g2.IDNo = h.NEW_GUEST_ID
+			LEFT JOIN user_info ui ON ui.IDNo = h.ENCODED_BY
+			WHERE h.GAME_ID = ?
+			ORDER BY h.ENCODED_DT DESC, h.IDNo DESC`,
+			[gameId]
+		);
+		return res.json(rows || []);
+	} catch (error) {
+		console.error('GET /game_list/:id/account_history:', error);
+		return res.status(500).json({ error: error.message || 'Error loading account history.' });
+	}
+});
+
 // PENDING resolve — Loss Amount + Deposit (selected account) + Cash Paid must equal the outstanding
 // roller balance. All three are recorded as buy-ins on the pending game (Additional Buy-in) or on a
 // new game for the same guest (New Game). The Loss portion is a non-cash LOSS buy-in plus a

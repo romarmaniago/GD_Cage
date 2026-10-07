@@ -152,6 +152,15 @@ Clicking the Game End / ON GAME cell opens the change-status modal. The rule is 
 
 A finished and settled game is locked for everyone. This is enforced **in the browser only**: `PUT /game_list/change_status/:id` in `routes/gamebook.js` does not check the role or the settled flag.
 
+### Game Book: changing a game's account
+
+`PUT /game_list/:id/account` (`routes/gamebook.js`) moves an **ON GAME, unsettled** game to another account and guest. Super Admin and Manager only, checked on the server. Remarks are required and every change is logged in `game_account_history` (`GET /game_list/:id/account_history`).
+
+- **Only `game_list` changes** (`ACCOUNT_ID`, `GUEST_ID`, `EDITED_BY`, `EDITED_DT`). `game_record` has no account or guest column. Transactions already recorded for the game (`account_ledger`, `credit_transaction`, `junket_loss`, `tip`, `game_services`) stay on the account they were made under — the user decided this on 2026-10-07.
+- Consequence: transactions made after the change (add buy-in, cash-out, settlement) go to the new account, so one game's ledger rows can sit on two accounts.
+- Nothing is written to `account_ledger` for the change itself — the only record is `game_account_history` (shown in the modal's History).
+- Blocked when the game is linked to another by a cut-off or is in a commission settlement.
+
 ## Domain vocabulary
 
 Understanding these terms prevents bad SQL/UI changes:
