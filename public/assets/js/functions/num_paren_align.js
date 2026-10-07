@@ -31,7 +31,7 @@
 			var padRight = parseFloat(window.getComputedStyle(el).paddingRight) || 0;
 			// Cells with their own padding: the ")" moves into the padding;
 			// values without any slide into their row's padding instead.
-			if (padRight > 0) el.style.paddingRight = Math.max(0, padRight - w) + 'px';
+			if (padRight > 0) el.style.setProperty('padding-right', Math.max(0, padRight - w) + 'px', 'important');
 			else el.style.marginRight = -w + 'px';
 		});
 	}

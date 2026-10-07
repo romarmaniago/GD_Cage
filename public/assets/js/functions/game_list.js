@@ -12028,3 +12028,11 @@ $('#txtTrans').on('change', function () {
 });
 
 
+
+// Game book amounts: digits line up right-to-left, the ")" of a negative hangs outside the digit column
+if (window.gdAlignParenNumbers) {
+	var gameListAmountCols = ['col-buyin', 'col-cashout', 'col-winloss', 'col-total-rolling', 'col-commission', 'col-total-settle', 'col-roller-chips'];
+	window.gdAlignParenNumbers('.game-list-page', gameListAmountCols.map(function (c) { return 'td.' + c + ', tfoot th.' + c; })
+		// Add Chg has no class of its own: it sits right after Commission
+		.concat(['td.col-commission + td', '#GRAND_ADD_CHG']));
+}
