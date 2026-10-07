@@ -3992,3 +3992,16 @@
         getTransactionLabel: getTransactionLabel
     };
 })(window);
+
+// Credit amounts: digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js).
+// Covers the Credit History page and the dashboard Credit modal.
+if (window.gdAlignParenNumbers && !window._markerAmountAlignRegistered) {
+    window._markerAmountAlignRegistered = true;
+    var markerAmountCells = [
+        'tbody td.marker-history-col-amount',
+        'tbody td.marker-total-col-amount',
+        'tbody td.marker-balance-col-amount'
+    ];
+    window.gdAlignParenNumbers('.marker-history-page', markerAmountCells);
+    window.gdAlignParenNumbers('#modal-new-marker', markerAmountCells);
+}

@@ -112,7 +112,7 @@ Negatives display as red `(1,234)`. In a right-aligned column the digits must li
 - Shared helper: `public/assets/js/functions/num_paren_align.js` → `window.gdAlignParenNumbers(rootSelector, targetSelectors)`. It measures `)` in the cell's font and shifts negative values right by that width (into the cell's right padding), and re-applies whenever the root's content changes (DataTables redraws, re-rendered panels).
 - It is loaded on every page by `views/partials/footer.ejs`; call it from the page script behind `if (window.gdAlignParenNumbers)`. (Some views still carry their own older `<script src>` for it — harmless.)
 - The column must be right-aligned with some right padding, and body and footer cells need the same right padding or the totals will not line up with the rows.
-- Already wired: dashboard (`dashboard_num_align.js`), Game Book, Game Information, Agent Win/Loss, Commission, Commission Analytics, Add Charge (`fnb_hotel.js`), Loss Amount, Junket Expenses, and the account ledger / credit details modals (`account.js`).
+- Already wired: dashboard (`dashboard_num_align.js`), Game Book, Game Information, Agent Win/Loss, Commission, Commission Analytics, Add Charge (`fnb_hotel.js`), Loss Amount, Junket Expenses, the account ledger / credit details modals (`account.js`), and Credit History plus the dashboard Credit modal (`marker_common.js`).
 - Receipts use a different trick for the same goal: positives get a hidden `)` after them (`gsr-paren-pad` in `game_list.js`, `::after` in `_settlement_slip_styles.ejs`).
 
 ### Receipts and Copy image / Copy text
