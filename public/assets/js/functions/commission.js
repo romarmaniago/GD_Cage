@@ -1941,3 +1941,9 @@ $(document).ready(function() {
 
     updateCompareUi();
 });
+
+// Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+if (window.gdAlignParenNumbers) {
+    var commissionAmountCols = ['col-buyin', 'col-cashout', 'col-winloss', 'col-total-rolling', 'col-commission', 'col-fb', 'col-payment'];
+    window.gdAlignParenNumbers('.commission-table-wrap', commissionAmountCols.map(function (c) { return 'tbody td.' + c + ', tfoot th.' + c; }));
+}

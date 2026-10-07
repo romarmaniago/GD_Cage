@@ -28,6 +28,17 @@ $(document).ready(function () {
         return '';
     }
 
+    // On-screen amount: a negative shows in red with parentheses, e.g. (143,500).
+    // signed: also bold, and positives in green (NGR, Win/Loss total).
+    function formatAmountHtml(v, signed) {
+        var n = Number(v) || 0;
+        if (n < 0) {
+            return '<span style="color:#dc2626;' + (signed ? 'font-weight:600;' : '') + '">(' + formatNumber(Math.abs(n)) + ')</span>';
+        }
+        if (signed && n > 0) return '<span style="' + signedColorStyle(n) + '">' + formatNumber(n) + '</span>';
+        return formatNumber(n);
+    }
+
     function parseSortDate(v) {
         var m = moment(v, ['MMMM DD, YYYY HH:mm:ss', moment.ISO_8601], true);
         return m.isValid() ? m.valueOf() : 0;
@@ -817,11 +828,7 @@ $(document).ready(function () {
             ];
             metricOrder.forEach(function (metricKey) {
                 var value = getAgentRankingSortValue(row, metricKey);
-                if (metricKey === 'ngr') {
-                    rowData.push('<span style="' + signedColorStyle(value) + '">' + formatNumber(value) + '</span>');
-                } else {
-                    rowData.push(formatNumber(value));
-                }
+                rowData.push(formatAmountHtml(value, metricKey === 'ngr'));
             });
             rankTable.row.add(rowData);
         });
@@ -865,14 +872,14 @@ $(document).ready(function () {
                 return [
                     '<tr>',
                     '<td>' + t.gameNo + '</td>',
-                    '<td class="text-end">' + formatNumber(t.totalBuyIn) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.chipsReturn) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.winLoss) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.totalRolling) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.totalBuyIn) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.chipsReturn) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.winLoss) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.totalRolling) + '</td>',
                     '<td class="text-end">' + formatRate(t.rollingRate) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.settlement) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.fnb) + '</td>',
-                    '<td class="text-end">' + formatNumber(t.payment) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.settlement) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.fnb) + '</td>',
+                    '<td class="text-end">' + formatAmountHtml(t.payment) + '</td>',
                     '<td>' + t.dateTime + '</td>',
                     '</tr>'
                 ].join('');
@@ -881,15 +888,15 @@ $(document).ready(function () {
         $('#commission-panel-modal-body').html(body);
         $('#commission-panel-modal-subtitle').text(agent.name);
         $('#commission-panel-modal-count').text(txns.length + ' transaction(s)');
-        $('#commission-panel-total-buyin').text(formatNumber(totals.buyIn));
-        $('#commission-panel-total-return').text(formatNumber(totals.chipsReturn));
+        $('#commission-panel-total-buyin').html(formatAmountHtml(totals.buyIn));
+        $('#commission-panel-total-return').html(formatAmountHtml(totals.chipsReturn));
         $('#commission-panel-total-winloss')
-            .text(formatNumber(totals.winLoss))
-            .attr('style', signedColorStyle(totals.winLoss));
-        $('#commission-panel-total-rolling').text(formatNumber(totals.rolling));
-        $('#commission-panel-total-settlement').text(formatNumber(totals.settlement));
-        $('#commission-panel-total-fnb').text(formatNumber(totals.fnb));
-        $('#commission-panel-total-payment').text(formatNumber(totals.payment));
+            .html(formatAmountHtml(totals.winLoss, true))
+            .attr('style', '');
+        $('#commission-panel-total-rolling').html(formatAmountHtml(totals.rolling));
+        $('#commission-panel-total-settlement').html(formatAmountHtml(totals.settlement));
+        $('#commission-panel-total-fnb').html(formatAmountHtml(totals.fnb));
+        $('#commission-panel-total-payment').html(formatAmountHtml(totals.payment));
         syncPanelModalTableGutter();
         renderPanelTxnSortIndicators();
         applyPanelTxnColumnHighlight();
@@ -1147,5 +1154,11 @@ $(document).ready(function () {
 
     updateCompareModeBanner();
     loadRankingData();
+
+    // Amount digits line up right-to-left; the ")" of a negative hangs right (num_paren_align.js)
+    if (window.gdAlignParenNumbers) {
+        window.gdAlignParenNumbers('.commission-analytics-page', ['#commission-panel-tbl tbody td:nth-child(n+3)']);
+        window.gdAlignParenNumbers('#modal-commission-panel-transactions', ['td.text-end', 'tfoot th.text-end']);
+    }
 });
 
