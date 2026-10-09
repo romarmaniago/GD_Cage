@@ -860,6 +860,30 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	border-right: none;
 }
 
+/* History scrollbars: cream / gold like the Agent Portal popups */
+#modal-change_status .change-status-side-panels,
+#modal-change_status .change-status-history-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #d9c79a #faf6ea;
+}
+#modal-change_status .change-status-side-panels::-webkit-scrollbar,
+#modal-change_status .change-status-history-wrap::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+#modal-change_status .change-status-side-panels::-webkit-scrollbar-track,
+#modal-change_status .change-status-history-wrap::-webkit-scrollbar-track {
+    background: #faf6ea;
+}
+#modal-change_status .change-status-side-panels::-webkit-scrollbar-thumb,
+#modal-change_status .change-status-history-wrap::-webkit-scrollbar-thumb {
+    background: #d9c79a;
+    border-radius: 8px;
+}
+#modal-change_status .change-status-side-panels::-webkit-scrollbar-thumb:hover,
+#modal-change_status .change-status-history-wrap::-webkit-scrollbar-thumb:hover {
+    background: #c8a24c;
+}
 #modal-change_status .change-status-history-wrap {
 	max-height: 14rem;
 	overflow: auto;
@@ -876,8 +900,10 @@ body > .flatpickr-calendar.change-status-cutoff-date-calendar {
 	padding: 0.2rem 0.25rem;
 }
 
+/* Row being entered: green */
 #modal-change_status .change-status-history-tbl tr.is-pending td {
-	background: #fff8e1;
+	background: #d1f2dc;
+	font-weight: 600;
 }
 
 #modal-change_status .text-amount-negative {

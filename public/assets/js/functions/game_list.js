@@ -991,6 +991,18 @@ function renderChangeStatusInGameHistoryTable(settlementAmount, chipsWithdrawal,
 	}
 
 	$body.html(html);
+	revealPendingHistoryRow($body);
+}
+
+// Keep the row being entered (last row) in view while typing, without manual scrolling.
+function revealPendingHistoryRow($body) {
+	requestAnimationFrame(function () {
+		var row = $body && $body.find('tr.is-pending').last()[0];
+		if (!row) return;
+		var wrap = row.closest('.change-status-history-wrap');
+		if (wrap) wrap.scrollTop = wrap.scrollHeight;
+		row.scrollIntoView({ block: 'nearest' });
+	});
 }
 
 var changeStatusRollerTipHistory = [];
@@ -1153,6 +1165,7 @@ function renderChangeStatusTipHistoryTable(bodyEl, rows, pendingAmount, pendingS
 	}
 
 	bodyEl.html(html);
+	revealPendingHistoryRow(bodyEl);
 }
 
 function toggleChangeStatusSidePanel($panel, visible) {
@@ -5467,11 +5480,11 @@ $(document).ready(function () {
 		info: true,
 		autoWidth: false,
 		order: [[0, 'desc']],  // Program Date, then Game Start, then Game # (see orderData on column 0)
-		// Default and minimum page length set to 100 (no 10/25/etc. options)
-		pageLength: 100,
+		// Default: all rows on one page
+		pageLength: -1,
 		lengthMenu: [
-			[100, 50, 25, 10, -1],
-			[100, 50, 25, 10, 'All']
+			[-1, 100, 50, 25, 10],
+			['All', 100, 50, 25, 10]
 		],
 	
 		columnDefs: [

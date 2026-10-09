@@ -48,76 +48,67 @@
 
         <div class="buyin-side-panels buyin-side-panels-empty" id="buyin-side-panels">
             <div class="buyin-side-resize-handle" id="buyin-side-resize-handle" title="Drag to resize" aria-hidden="true">⇔</div>
-            <div class="buyin-side-panel d-none" id="buyin-cash-panel" aria-hidden="true">
-                <div class="buyin-side-panel-title">Cash</div>
-                <div class="buyin-panel-sheet">
-                    <div class="buyin-cash-balance-head">
-                        <div class="buyin-balance-head-cell">Current NN Balance Of Company</div>
-                        <div class="buyin-balance-head-cell">Anticipated NN Balance Of Company</div>
-                        <div class="buyin-balance-head-cell">Current CC Balance Of Company</div>
-                        <div class="buyin-balance-head-cell">Anticipated CC Balance Of Company</div>
+            <!-- Cash: two Excel-style boxes — company balances, then the Cash entry -->
+            <div class="buyin-side-panel buyin-xl-panel d-none" id="buyin-cash-panel" aria-hidden="true">
+                <div class="xl-box">
+                    <div class="xl-grid xl-grid-4">
+                        <div class="xl-head">Current NN Balance</div>
+                        <div class="xl-head">Anticipated NN Balance</div>
+                        <div class="xl-head">Current CC Balance</div>
+                        <div class="xl-head">Anticipated CC Balance</div>
+                        <div class="xl-value" id="buyin-cash-nn-current">—</div>
+                        <div class="xl-value" id="buyin-cash-nn-anticipated">—</div>
+                        <div class="xl-value" id="buyin-cash-cc-current">—</div>
+                        <div class="xl-value" id="buyin-cash-cc-anticipated">—</div>
                     </div>
-                    <div class="buyin-cash-balance-values">
-                        <div class="buyin-balance-value-cell" id="buyin-cash-nn-current">—</div>
-                        <div class="buyin-balance-value-cell" id="buyin-cash-nn-anticipated">—</div>
-                        <div class="buyin-balance-value-cell" id="buyin-cash-cc-current">—</div>
-                        <div class="buyin-balance-value-cell" id="buyin-cash-cc-anticipated">—</div>
-                    </div>
-                    <div class="buyin-processing-row">
-                        <div class="buyin-processing-col">
-                            <div class="buyin-processing-head">Processing Amount</div>
-                            <div class="buyin-processing-body" id="buyin-cash-processing-wrap">
-                                <span id="buyin-cash-processing">0</span>
-                            </div>
+                </div>
+                <div class="xl-box">
+                    <div class="xl-title">Cash</div>
+                    <div class="xl-grid xl-grid-2">
+                        <div class="xl-head">Processing Amount</div>
+                        <div class="xl-head">Remarks</div>
+                        <div class="xl-value buyin-processing-body" id="buyin-cash-processing-wrap">
+                            <span id="buyin-cash-processing">0</span>
                         </div>
-                        <div class="buyin-remarks-col">
-                            <div class="buyin-processing-head">Cash Buy In</div>
-                            <div class="buyin-remarks-body">
-                                <input type="text" class="form-control form-control-sm text-center buyin-cash-remarks-input" id="buyin-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
-                            </div>
+                        <div class="xl-value xl-input-cell">
+                            <input type="text" class="form-control form-control-sm text-center buyin-cash-remarks-input" id="buyin-cash-remarks" name="txtCashRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="buyin-side-panel d-none" id="buyin-deposit-panel" aria-hidden="true">
-                <div class="buyin-side-panel-title">Deposit</div>
-                <div class="buyin-panel-sheet">
-                    <div class="buyin-balance-head">
-                        <div class="buyin-balance-head-cell" id="buyin-deposit-current-label">Current Balance Of Account</div>
-                        <div class="buyin-balance-head-cell" id="buyin-deposit-anticipated-label">Anticipated Balance Of Account</div>
-                    </div>
-                    <div class="buyin-balance-values">
-                        <div class="buyin-balance-value-cell" id="buyin-deposit-current">—</div>
-                        <div class="buyin-balance-value-cell" id="buyin-deposit-anticipated">—</div>
-                    </div>
-                    <div class="buyin-processing-row">
-                        <div class="buyin-processing-col">
-                            <div class="buyin-processing-head">Processing Amount</div>
-                            <div class="buyin-processing-body" id="buyin-deposit-processing-wrap">
-                                <span id="buyin-deposit-processing">0</span>
-                            </div>
+            <!-- Deposit: one Excel-style box — balances, entry, then the account ledger with running balance -->
+            <div class="buyin-side-panel buyin-xl-panel d-none" id="buyin-deposit-panel" aria-hidden="true">
+                <div class="xl-box">
+                    <div class="xl-title">Deposit</div>
+                    <div class="xl-grid xl-grid-2">
+                        <div class="xl-head" id="buyin-deposit-current-label">Current Balance of Account</div>
+                        <div class="xl-head" id="buyin-deposit-anticipated-label">Anticipated Balance of Account</div>
+                        <div class="xl-value xl-row-sep" id="buyin-deposit-current">—</div>
+                        <div class="xl-value xl-row-sep" id="buyin-deposit-anticipated">—</div>
+                        <div class="xl-head">Processing Amount</div>
+                        <div class="xl-head">Remarks</div>
+                        <div class="xl-value buyin-processing-body" id="buyin-deposit-processing-wrap">
+                            <span id="buyin-deposit-processing">0</span>
                         </div>
-                        <div class="buyin-remarks-col">
-                            <div class="buyin-processing-head">Remarks</div>
-                            <div class="buyin-remarks-body">
-                                <input type="text" class="form-control form-control-sm text-center buyin-deposit-remarks-input" id="buyin-deposit-remarks" name="txtDepositRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
-                            </div>
+                        <div class="xl-value xl-input-cell">
+                            <input type="text" class="form-control form-control-sm text-center buyin-deposit-remarks-input" id="buyin-deposit-remarks" name="txtDepositRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
                         </div>
                     </div>
-                    <div class="buyin-history-wrap">
-                        <table class="table table-bordered table-sm mb-0 buyin-history-tbl">
+                    <div class="buyin-history-wrap xl-history-wrap">
+                        <table class="xl-history-tbl xl-deposit-tbl buyin-history-tbl">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
+                                    <th>Date &amp; Time</th>
+                                    <th>Amount</th>
+                                    <th>Balance</th>
                                     <th>Transaction</th>
-                                    <th class="text-end">Amount</th>
                                     <th>Remarks</th>
                                 </tr>
                             </thead>
                             <tbody id="buyin-deposit-history-body">
                                 <tr class="text-muted">
-                                    <td colspan="4" class="text-center small py-2">No history.</td>
+                                    <td colspan="5" class="text-center small py-2">No history.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -125,57 +116,48 @@
                 </div>
             </div>
 
-            <div class="buyin-side-panel d-none buyin-side-panel-credit" id="buyin-credit-panel" aria-hidden="true">
-                <div class="buyin-side-panel-title">Credit</div>
-                <div class="buyin-panel-sheet buyin-credit-sheet">
-                    <div class="buyin-credit-summary-grid">
-                        <div class="buyin-credit-summary-col">
-                            <div class="buyin-balance-head-cell" id="buyin-credit-current-label">Current Credit Balance Of Account</div>
-                            <div class="buyin-balance-value-cell" id="buyin-credit-current">—</div>
-                        </div>
-                        <div class="buyin-credit-summary-col">
-                            <div class="buyin-balance-head-cell" id="buyin-credit-anticipated-label">Anticipated Credit Balance Of Account</div>
-                            <div class="buyin-balance-value-cell" id="buyin-credit-anticipated">—</div>
-                        </div>
-                        <div class="buyin-credit-guest-cols" id="buyin-credit-guest-cols"></div>
+            <!-- Credit: one Excel-style box — balances (+ one column per guest), entry, then the credit ledger -->
+            <div class="buyin-side-panel buyin-xl-panel d-none buyin-side-panel-credit" id="buyin-credit-panel" aria-hidden="true">
+                <div class="xl-box">
+                    <div class="xl-title">Credit</div>
+                    <!-- Columns flow head-over-value; guest columns are added by renderGuestCreditBreakdown() -->
+                    <div class="xl-grid xl-grid-cols">
+                        <div class="xl-head" id="buyin-credit-current-label">Current Credit Balance of Account</div>
+                        <div class="xl-value xl-row-sep" id="buyin-credit-current">—</div>
+                        <div class="xl-head" id="buyin-credit-anticipated-label">Anticipated Credit Balance of Account</div>
+                        <div class="xl-value xl-row-sep" id="buyin-credit-anticipated">—</div>
+                        <div class="xl-contents" id="buyin-credit-guest-cols"></div>
                     </div>
-                    <div class="buyin-credit-processing-row">
-                        <div class="buyin-credit-proc-col">
-                            <div class="buyin-processing-head">Processing Amount</div>
-                            <div class="buyin-processing-body" id="buyin-credit-processing-wrap">
-                                <span id="buyin-credit-processing">0</span>
-                            </div>
+                    <div class="xl-grid xl-grid-4">
+                        <div class="xl-head">Processing Amount</div>
+                        <div class="xl-head">채무자 Debtor</div>
+                        <div class="xl-head">보증인 Guarantor</div>
+                        <div class="xl-head">Remarks</div>
+                        <div class="xl-value buyin-processing-body" id="buyin-credit-processing-wrap">
+                            <span id="buyin-credit-processing">0</span>
                         </div>
-                        <div class="buyin-credit-proc-col">
-                            <div class="buyin-processing-head">채무자 Debtor</div>
-                            <div class="buyin-credit-party-body buyin-credit-debtor-body" id="buyin-credit-debtor">
-                                <div id="buyin-credit-debtor-account">—</div>
-                                <div class="buyin-credit-debtor-guest" id="buyin-credit-debtor-guest">—</div>
-                            </div>
+                        <div class="xl-value xl-debtor-cell" id="buyin-credit-debtor">
+                            <div id="buyin-credit-debtor-account">—</div>
+                            <div class="xl-debtor-guest" id="buyin-credit-debtor-guest">—</div>
                         </div>
-                        <div class="buyin-credit-proc-col">
-                            <div class="buyin-processing-head">보증인 Guarantor</div>
-                            <div class="buyin-credit-party-body buyin-credit-guarantor-body">
-                                <input type="text" class="form-control form-control-sm text-center buyin-credit-guarantor-input" id="buyin-credit-guarantor" name="txtCreditGuarantor" placeholder="Guarantor" autocomplete="off" form="add_buyin">
-                            </div>
+                        <div class="xl-value xl-input-cell">
+                            <input type="text" class="form-control form-control-sm text-center buyin-credit-guarantor-input" id="buyin-credit-guarantor" name="txtCreditGuarantor" placeholder="Guarantor" autocomplete="off" form="add_buyin">
                         </div>
-                        <div class="buyin-credit-proc-col">
-                            <div class="buyin-processing-head">Credit Buy In</div>
-                            <div class="buyin-remarks-body">
-                                <input type="text" class="form-control form-control-sm text-center buyin-credit-remarks-input" id="buyin-credit-remarks" name="txtCreditRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
-                            </div>
+                        <div class="xl-value xl-input-cell">
+                            <input type="text" class="form-control form-control-sm text-center buyin-credit-remarks-input" id="buyin-credit-remarks" name="txtCreditRemarks" placeholder="Remarks" autocomplete="off" form="add_buyin">
                         </div>
                     </div>
-                    <div class="buyin-history-wrap buyin-credit-history-wrap">
-                        <table class="table table-bordered table-sm mb-0 buyin-history-tbl buyin-credit-history-tbl">
+                    <div class="buyin-history-wrap buyin-credit-history-wrap xl-history-wrap">
+                        <table class="xl-history-tbl xl-credit-tbl buyin-history-tbl">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
+                                    <th>Date &amp; Time</th>
+                                    <th>Account</th>
+                                    <th>Debtor</th>
+                                    <th>Credit</th>
+                                    <th>Balance</th>
+                                    <th>Guarantor</th>
                                     <th>Transaction</th>
-                                    <th colspan="2" class="text-center">채무자 Debtor</th>
-                                    <th>보증인 Guarantor</th>
-                                    <th class="text-end">Amount</th>
-                                    <th class="text-end">Balance</th>
                                     <th>Remarks</th>
                                 </tr>
                             </thead>
@@ -390,6 +372,218 @@ body.buyin-side-resize-active {
     min-width: 0;
     pointer-events: auto;
 }
+/* Excel-style panel (Cash): yellow headers, black grid lines, two separate boxes */
+#modal-add-buyin .buyin-xl-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.6rem;
+}
+#modal-add-buyin .buyin-xl-panel.d-none {
+    display: none !important;
+}
+#modal-add-buyin .xl-box {
+    border: 3px solid #000; /* Excel "Thick Outside Borders" */
+    background: #fff;
+}
+#modal-add-buyin .xl-title {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #000;
+    text-align: center;
+    background: #ffe699;
+    border-bottom: 1px solid #000;
+}
+#modal-add-buyin .xl-grid {
+    display: grid;
+}
+#modal-add-buyin .xl-grid-4 { grid-template-columns: repeat(4, 1fr); }
+#modal-add-buyin .xl-grid-2 { grid-template-columns: 1fr 1fr; }
+#modal-add-buyin .xl-head,
+#modal-add-buyin .xl-value {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.4rem;
+    font-weight: 700;
+    color: #000;
+    text-align: center;
+    border-right: 1px solid #000;
+}
+#modal-add-buyin .xl-grid-4 > :nth-child(4n),
+#modal-add-buyin .xl-grid-2 > :nth-child(2n) {
+    border-right: 0;
+}
+#modal-add-buyin .xl-head {
+    font-size: 0.8rem;
+    background: #fff2cc;
+    
+}
+/* line between a value row and the header row below it (also matches the guest columns) */
+#modal-add-buyin .xl-grid .xl-row-sep {
+    border-bottom: 1px solid #000;
+}
+#modal-add-buyin .xl-value {
+    min-height: 1.9rem;
+    font-size: 0.9rem;
+    background: #fff;
+}
+#modal-add-buyin .xl-value.buyin-processing-body {
+    padding: 0.2rem 0.4rem;
+    min-height: 1.9rem;
+    font-size: 0.95rem;
+}
+#modal-add-buyin .xl-value.buyin-processing-body.is-positive {
+    color: #00b050;
+}
+/*/* Ledger table inside an Excel-style box.
+   Separate borders (not collapsed): a sticky header keeps its lines while the rows scroll under it. */
+#modal-add-buyin table.xl-history-tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.78rem;
+    color: #000;
+}
+#modal-add-buyin table.xl-history-tbl th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.2rem 0.4rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: none;
+    color: #000;
+    background: #f2f2f2;
+    border: 0;
+    border-top: 1px solid #000;
+    border-right: 1px solid #000;
+    border-bottom: 1px solid #000;
+}
+#modal-add-buyin table.xl-history-tbl td {
+    padding: 0.15rem 0.4rem;
+    white-space: nowrap;
+    border: 0;
+    border-right: 1px solid #000;
+    border-bottom: 1px solid #000;
+    background: #fff;
+}
+#modal-add-buyin table.xl-history-tbl tbody tr:last-child td {
+    border-bottom: 0;
+}
+#modal-add-buyin table.xl-history-tbl th:last-child,
+#modal-add-buyin table.xl-history-tbl td:last-child {
+    border-right: 0;
+}
+#modal-add-buyin table.xl-history-tbl td:first-child {
+    border-left: 0;
+}
+#modal-add-buyin table.xl-history-tbl th:last-child,
+#modal-add-buyin table.xl-history-tbl td:last-child {
+    border-right: 0;
+}
+#modal-add-buyin table.xl-history-tbl td:first-child {
+    font-size: 0.72rem;
+}
+#modal-add-buyin table.xl-history-tbl td.text-end {
+    font-variant-numeric: tabular-nums;
+}
+#modal-add-buyin table.xl-history-tbl .text-amount-negative {
+    color: #ff0000;
+}
+#modal-add-buyin table.xl-history-tbl tr.is-pending td {
+    font-weight: 400;
+    background: #e2efda;
+}
+/* Any number of equal columns, each a head cell over a value cell (Credit balances + guests) */
+#modal-add-buyin .xl-grid-cols {
+    grid-template-rows: auto auto;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    /* the last column's right line would double the box border */
+    margin-right: -1px;
+}
+#modal-add-buyin .xl-box {
+    overflow: hidden;
+}
+#modal-add-buyin .xl-contents {
+    display: contents;
+}
+#modal-add-buyin .xl-value.text-amount-negative {
+    color: #ff0000;
+}
+#modal-add-buyin .xl-debtor-cell {
+    flex-direction: column;
+    line-height: 1.15;
+}
+#modal-add-buyin .xl-debtor-guest {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+#modal-add-buyin table.xl-credit-tbl td.xl-debtor-name {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+}
+/* Ledger columns sit on the same 8-unit grid as the Excel sheet (fixed widths, not content-sized):
+   Deposit = 1 | 1 | 1 | 3 | 2, Credit = 8 x 1 — so the lines meet the 4- / 2-column rows above. */
+#modal-add-buyin table.xl-deposit-tbl,
+#modal-add-buyin table.xl-credit-tbl {
+    table-layout: fixed;
+}
+#modal-add-buyin table.xl-deposit-tbl th:nth-child(-n+3) { width: 12.5%; }
+#modal-add-buyin table.xl-deposit-tbl th:nth-child(4) { width: 37.5%; }
+#modal-add-buyin table.xl-deposit-tbl th:nth-child(5) { width: 25%; }
+#modal-add-buyin table.xl-credit-tbl th { width: 12.5%; }
+#modal-add-buyin table.xl-deposit-tbl td,
+#modal-add-buyin table.xl-credit-tbl td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#modal-add-buyin div.xl-history-wrap {
+    overflow-x: hidden;
+}
+#modal-add-buyin table.xl-history-tbl {
+    width: calc(100% + var(--xl-sb, 0px));
+    max-width: none;
+}
+#modal-add-buyin .xl-input-cell {
+    padding: 0.15rem 0.25rem;
+}
+#modal-add-buyin .xl-input-cell .form-control {
+    width: 100%;
+    min-width: 0;
+    height: 1.6rem;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: auto;
+}
+/* History scrollbars: cream / gold like the Agent Portal popups */
+#modal-add-buyin .buyin-side-panels,
+#modal-add-buyin .buyin-history-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #d9c79a #faf6ea;
+}
+#modal-add-buyin .buyin-side-panels::-webkit-scrollbar,
+#modal-add-buyin .buyin-history-wrap::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+#modal-add-buyin .buyin-side-panels::-webkit-scrollbar-track,
+#modal-add-buyin .buyin-history-wrap::-webkit-scrollbar-track {
+    background: #faf6ea;
+}
+#modal-add-buyin .buyin-side-panels::-webkit-scrollbar-thumb,
+#modal-add-buyin .buyin-history-wrap::-webkit-scrollbar-thumb {
+    background: #d9c79a;
+    border-radius: 8px;
+}
+#modal-add-buyin .buyin-side-panels::-webkit-scrollbar-thumb:hover,
+#modal-add-buyin .buyin-history-wrap::-webkit-scrollbar-thumb:hover {
+    background: #c8a24c;
+}
 #modal-add-buyin .buyin-history-wrap {
     overflow: auto;
     min-height: 4.5rem;
@@ -406,54 +600,16 @@ body.buyin-side-resize-active {
     font-weight: 600;
     padding: 0.2rem 0.3rem;
 }
+/* Row being entered: green */
 #modal-add-buyin .buyin-history-tbl tr.is-pending td {
-    background: #cfe2ff;
-}
-#modal-add-buyin .buyin-credit-summary-grid {
-    display: flex;
-    border-bottom: 1px solid #dee2e6;
+    background: #d1f2dc;
+    font-weight: 600;
 }
 #modal-add-buyin .buyin-side-panels:has(#buyin-credit-panel:not(.d-none)):not([data-user-sized]) {
-    width: 40rem;
+    width: 50rem;
 }
 #modal-add-buyin .buyin-processing-body.is-negative {
     color: #dc3545;
-}
-#modal-add-buyin .buyin-credit-guest-cols {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-}
-#modal-add-buyin .buyin-credit-guest-col {
-    flex: 1 1 0;
-    min-width: 4.5rem;
-    border-right: 1px solid #dee2e6;
-    display: flex;
-    flex-direction: column;
-}
-#modal-add-buyin .buyin-credit-guest-col:last-child {
-    border-right: none;
-}
-#modal-add-buyin .buyin-credit-history-tbl {
-    min-width: 36rem;
-}
-#modal-add-buyin .buyin-credit-history-tbl th {
-    background: #f5f5f5;
-    color: #555;
-    text-transform: uppercase;
-    font-size: 0.68rem;
-    padding: 0.25rem 0.25rem;
-    vertical-align: middle;
-}
-#modal-add-buyin .buyin-credit-history-tbl td {
-    font-size: 0.68rem;
-    padding: 0.2rem 0.25rem;
-}
-#modal-add-buyin .buyin-credit-history-tbl .buyin-debtor-account {
-    font-weight: 600;
-}
-#modal-add-buyin .buyin-credit-guarantor-body {
-    padding: 0.3rem 0.35rem;
 }
 #modal-add-buyin .buyin-credit-guarantor-input,
 #modal-add-buyin .buyin-credit-remarks-input {
@@ -461,38 +617,9 @@ body.buyin-side-resize-active {
     min-width: 0;
     pointer-events: auto;
 }
-#modal-add-buyin .buyin-credit-debtor-guest {
-    font-size: 0.72rem;
-    font-weight: 600;
-}
 #modal-add-buyin .buyin-history-tbl .text-amount-negative {
     color: #dc3545;
     font-weight: 600;
-}
-#modal-add-buyin .buyin-credit-summary-col {
-    flex: 1 1 0;
-    min-width: 0;
-    border-right: 1px solid #dee2e6;
-    display: flex;
-    flex-direction: column;
-}
-#modal-add-buyin .buyin-credit-processing-row {
-    display: grid;
-    grid-template-columns: minmax(4.5rem, 0.9fr) minmax(4rem, 0.8fr) minmax(4.5rem, 0.9fr) minmax(4.5rem, 1fr);
-}
-#modal-add-buyin .buyin-credit-proc-col + .buyin-credit-proc-col {
-    border-left: 1px solid #dee2e6;
-}
-#modal-add-buyin .buyin-credit-party-body {
-    padding: 0.45rem 0.35rem;
-    text-align: center;
-    font-size: 0.78rem;
-    font-weight: 600;
-    min-height: 2.1rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 }
 #modal-add-buyin .text-amount-negative {
     color: #dc3545;
@@ -887,11 +1014,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
+    // Keep the row being entered (last row) in view while typing, without manual scrolling.
+    // The ledger runs full width under its scrollbar (like a sheet), so its column lines meet the rows above.
+    const syncLedgerGutter = function (body) {
+        const wrap = body && body.closest('.xl-history-wrap');
+        if (!wrap) return;
+        wrap.style.setProperty('--xl-sb', Math.max(0, wrap.offsetWidth - wrap.clientWidth) + 'px');
+    };
+
+    const revealPendingRow = function (body) {
+        syncLedgerGutter(body);
+        const row = body && body.querySelector('tr.is-pending');
+        if (!row) return;
+        const wrap = row.closest('.buyin-history-wrap');
+        if (wrap) wrap.scrollTop = wrap.scrollHeight;
+        row.scrollIntoView({ block: 'nearest' });
+    };
+
     const applySidePanelsDefaultWidth = function () {
         const sidePanels = document.getElementById('buyin-side-panels');
         if (!sidePanels || sidePanels.dataset.userSized === '1') return;
         const creditOpen = creditPanel && !creditPanel.classList.contains('d-none');
-        sidePanels.style.width = creditOpen ? '40rem' : '36rem';
+        sidePanels.style.width = creditOpen ? '50rem' : '36rem';
     };
 
     const resetSidePanelsWidth = function () {
@@ -991,15 +1135,18 @@ document.addEventListener('DOMContentLoaded', function () {
             creditGuestColsEl.innerHTML = '';
             return;
         }
+        // The debtor guest's column already includes the amount being entered.
+        const debtorGuest = String(getGuestName() || '').trim().toUpperCase();
+        const pending = shouldShowCreditPanel() ? computeCreditProcessing() : 0;
         let html = '';
         guests.forEach(function (g) {
-            const bal = Number(g.creditBalance) || 0;
-            if (bal <= 0) return;
             const name = (g.guestName || '').trim() || 'Guest';
-            html += '<div class="buyin-credit-guest-col">' +
-                '<div class="buyin-balance-head-cell">' + name + '</div>' +
-                '<div class="buyin-balance-value-cell text-amount-negative">' + formatCreditOwed(bal) + '</div>' +
-                '</div>';
+            let bal = Number(g.creditBalance) || 0;
+            if (pending > 0 && debtorGuest && name.toUpperCase() === debtorGuest) bal += pending;
+            if (bal <= 0) return;
+            // Head and value are separate grid cells (the wrapper is display: contents).
+            html += '<div class="xl-head">' + escapeCell(name.toUpperCase()) + '</div>' +
+                '<div class="xl-value xl-row-sep text-amount-negative">' + formatCreditOwed(bal) + '</div>';
         });
         creditGuestColsEl.innerHTML = html;
     };
@@ -1034,46 +1181,66 @@ document.addEventListener('DOMContentLoaded', function () {
         return transactionId === 3 || transactionId === 10;
     };
 
+    const currentGameId = function () {
+        const el = modal && modal.querySelector('.game_list_id');
+        return el ? String(el.value || '').trim() : '';
+    };
+
+    // Transaction column text, Excel style: "Buy In - #100000", "Withdrawal - Cash", ...
+    const creditLedgerTransactionText = function (row) {
+        switch (row.CREDIT_ACTION) {
+            case 'Buy-in': return 'Buy In' + (row.GAME_ID ? ' - #' + row.GAME_ID : '');
+            case 'Cash-out': return 'Withdrawal - Cash';
+            default: return renderCreditTransactionLabel(row);
+        }
+    };
+
+    let creditDigitsAligned = false;
+    const alignCreditDigits = function () {
+        if (creditDigitsAligned || !window.gdAlignParenNumbers) return;
+        creditDigitsAligned = true;
+        window.gdAlignParenNumbers('#buyin-credit-history-body', ['td:nth-child(4)', 'td:nth-child(5)']);
+    };
+
+    const creditLedgerRow = function (cls, dt, account, guest, amountHtml, amountNegative, balance, guarantor, txn, remarks) {
+        return '<tr' + (cls ? ' class="' + cls + '"' : '') + '>' +
+            '<td>' + formatLedgerDateTime(dt) + '</td>' +
+            '<td class="text-center">' + escapeCell(account || '—') + '</td>' +
+            '<td class="xl-debtor-name">' + escapeCell(guest || '—') + '</td>' +
+            '<td class="text-end' + (amountNegative ? ' text-amount-negative' : '') + '">' + amountHtml + '</td>' +
+            '<td class="text-end ' + creditAmountClass(balance) + '">' + formatCreditOwed(balance) + '</td>' +
+            '<td class="text-center">' + escapeCell(guarantor || '—') + '</td>' +
+            '<td>' + escapeCell(txn) + '</td>' +
+            '<td>' + escapeCell(remarks || '') + '</td>' +
+            '</tr>';
+    };
+
+    // Oldest at the top, newest (and the row being entered) at the bottom.
     const renderCreditHistoryTable = function (pendingAmount, pendingRemarks, pendingGuarantor) {
         if (!creditHistoryBody) return;
-        const rows = creditHistory.slice();
+        alignCreditDigits();
+        const rows = creditHistory.slice().sort(function (a, b) {
+            const ta = new Date(a.ENCODED_DT || a.encoded_date).getTime() || 0;
+            const tb = new Date(b.ENCODED_DT || b.encoded_date).getTime() || 0;
+            return ta - tb || (Number(a.CREDIT_TXN_ID) || 0) - (Number(b.CREDIT_TXN_ID) || 0);
+        });
         let html = '';
 
         rows.forEach(function (row) {
             const amount = parseAmt(row.AMOUNT);
             const isOut = isCreditOutTxn(row);
-            const displayAmt = isOut ? formatNegativeAmt(amount) : formatAmt(amount);
-            const amtClass = 'text-end' + (isOut ? ' text-amount-negative' : '');
-            const balance = parseAmt(row.BALANCE_AFTER);
             const debtor = getCreditHistoryDebtorParts(row);
             const parsed = parseCreditRemarks(row.REMARKS);
-            html += '<tr>' +
-                '<td>' + formatHistoryDate(row.ENCODED_DT || row.encoded_date) + '</td>' +
-                '<td>' + renderCreditTransactionLabel(row) + '</td>' +
-                '<td class="buyin-debtor-account">' + debtor.account + '</td>' +
-                '<td>' + debtor.guest + '</td>' +
-                '<td>' + (row.GUARANTOR || parsed.guarantor || '—') + '</td>' +
-                '<td class="' + amtClass + '">' + displayAmt + '</td>' +
-                '<td class="text-end ' + creditAmountClass(balance) + '">' + formatCreditOwed(balance) + '</td>' +
-                '<td>' + (parsed.remarks || '—') + '</td>' +
-                '</tr>';
+            html += creditLedgerRow('', row.ENCODED_DT || row.encoded_date, debtor.account, debtor.guest,
+                isOut ? formatNegativeAmt(amount) : formatAmt(amount), isOut,
+                parseAmt(row.BALANCE_AFTER), row.GUARANTOR || parsed.guarantor,
+                creditLedgerTransactionText(row), parsed.remarks);
         });
 
         if (pendingAmount > 0) {
-            const currentOwed = parseAmt(creditMeta.totalCredit);
-            const pendingBalance = currentOwed + pendingAmount;
-            const code = getCreditAccountCode();
-            const guest = getGuestName() || '—';
-            html += '<tr class="is-pending">' +
-                '<td>' + formatHistoryDate(new Date()) + '</td>' +
-                '<td>Chips Credit</td>' +
-                '<td class="buyin-debtor-account">' + (code || '—') + '</td>' +
-                '<td>' + guest + '</td>' +
-                '<td>' + (pendingGuarantor || '—') + '</td>' +
-                '<td class="text-end text-amount-negative">' + formatNegativeAmt(pendingAmount) + '</td>' +
-                '<td class="text-end ' + creditAmountClass(pendingBalance) + '">' + formatCreditOwed(pendingBalance) + '</td>' +
-                '<td>' + (pendingRemarks || '—') + '</td>' +
-                '</tr>';
+            const pendingBalance = parseAmt(creditMeta.totalCredit) + pendingAmount;
+            html += creditLedgerRow('is-pending', new Date(), getCreditAccountCode(), getGuestName(),
+                formatNegativeAmt(pendingAmount), true, pendingBalance, pendingGuarantor, 'Buy In' + (currentGameId() ? ' - #' + currentGameId() : ''), pendingRemarks);
         }
 
         if (!html) {
@@ -1081,7 +1248,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         creditHistoryBody.innerHTML = html;
-        requestAnimationFrame(applyHistoryWrapHeights);
+        requestAnimationFrame(function () {
+            applyHistoryWrapHeights();
+            revealPendingRow(creditHistoryBody);
+        });
     };
 
     const formatHistoryDate = function (raw) {
@@ -1091,33 +1261,88 @@ document.addEventListener('DOMContentLoaded', function () {
         return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
     };
 
-    const renderDepositHistory = function (pendingAmount, pendingRemarks) {
+    // "2026-10-4 0:16"
+    const formatLedgerDateTime = function (raw) {
+        const d = raw instanceof Date ? raw : new Date(raw);
+        if (!raw || Number.isNaN(d.getTime())) return '—';
+        return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate() + ' ' +
+            d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    };
+
+    const escapeCell = function (value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    // Signed effect on the account balance — same rule as the balance total in loadLedgerHistory.
+    const ledgerSignedAmount = function (row) {
+        const amount = parseAmt(row.AMOUNT);
+        const txn = String(row.TRANSACTION || '').toUpperCase();
+        if (txn === 'DEPOSIT' || txn === 'MARKER REDEEM') return amount;
+        if (txn === 'WITHDRAW' || txn === 'IOU RETURN DEPOSIT') return -amount;
+        return 0;
+    };
+
+    // Same TRANSACTION text as the Agent Portal ledger (from AUTO_REMARKS).
+    const ledgerTransactionText = function (row) {
+        if (typeof window.formatAgentPortalTransactionText === 'function' && row.AUTO_REMARKS) {
+            return window.formatAgentPortalTransactionText(row.AUTO_REMARKS);
+        }
+        return String(row.AUTO_REMARKS || row.TRANSACTION || row.TRANSACTION_DESC || '—').toUpperCase();
+    };
+
+    const formatSignedAmt = function (n) {
+        return n < 0 ? formatNegativeAmt(Math.abs(n)) : formatAmt(n);
+    };
+
+    // Amount / Balance digits line up whether or not the value is in "( )". Started on first render:
+    // the shared helper (footer script) loads after this modal's script.
+    let depositDigitsAligned = false;
+    const alignDepositDigits = function () {
+        if (depositDigitsAligned || !window.gdAlignParenNumbers) return;
+        depositDigitsAligned = true;
+        window.gdAlignParenNumbers('#buyin-deposit-history-body', ['td:nth-child(2)', 'td:nth-child(3)']);
+    };
+
+    // Oldest at the top, newest (and the row being entered) at the bottom, with a running balance.
+    const renderDepositHistory = function (pendingAmount, pendingRemarks, currentBalance) {
         if (!depositHistoryBody) return;
+        alignDepositDigits();
         let html = '';
-        ledgerHistory.forEach(function (row) {
-            const txn = row.TRANSACTION || row.TRANSACTION_DESC || '—';
-            const amount = parseAmt(row.AMOUNT);
-            const isNeg = (txn || '').toUpperCase().indexOf('WITHDRAW') !== -1;
+        const rows = ledgerHistory.slice().sort(function (a, b) {
+            return (Number(a.account_details_id || a.IDNo) || 0) - (Number(b.account_details_id || b.IDNo) || 0);
+        });
+        let balance = 0;
+        rows.forEach(function (row) {
+            const signed = ledgerSignedAmount(row);
+            balance += signed;
             html += '<tr>' +
-                '<td>' + formatHistoryDate(row.encoded_date || row.ENCODED_DT) + '</td>' +
-                '<td>' + txn + '</td>' +
-                '<td class="text-end' + (isNeg ? ' text-amount-negative' : '') + '">' +
-                    (isNeg ? formatNegativeAmt(amount) : formatAmt(amount)) + '</td>' +
-                '<td>' + (row.REMARKS || '—') + '</td>' +
+                '<td>' + formatLedgerDateTime(row.encoded_date || row.ENCODED_DT) + '</td>' +
+                '<td class="text-end' + (signed < 0 ? ' text-amount-negative' : '') + '">' + formatSignedAmt(signed || parseAmt(row.AMOUNT)) + '</td>' +
+                '<td class="text-end' + (balance < 0 ? ' text-amount-negative' : '') + '">' + formatSignedAmt(balance) + '</td>' +
+                '<td>' + escapeCell(ledgerTransactionText(row)) + '</td>' +
+                '<td>' + escapeCell(row.REMARKS || '—') + '</td>' +
                 '</tr>';
         });
         if (pendingAmount > 0) {
+            const gameIdEl = modal && modal.querySelector('.game_list_id');
+            const gameId = gameIdEl ? String(gameIdEl.value || '').trim() : '';
+            const after = parseAmt(currentBalance) - pendingAmount;
             html += '<tr class="is-pending">' +
-                '<td>' + formatHistoryDate(new Date()) + '</td>' +
-                '<td>Chips Buy In</td>' +
-                '<td class="text-end">' + formatAmt(pendingAmount) + '</td>' +
-                '<td>' + (pendingRemarks || '—') + '</td>' +
+                '<td>' + formatLedgerDateTime(new Date()) + '</td>' +
+                '<td class="text-end text-amount-negative">' + formatNegativeAmt(pendingAmount) + '</td>' +
+                '<td class="text-end' + (after < 0 ? ' text-amount-negative' : '') + '">' + formatSignedAmt(after) + '</td>' +
+                '<td>BUY IN' + (gameId ? ' - #' + escapeCell(gameId) : '') + '</td>' +
+                '<td>' + escapeCell(pendingRemarks || '') + '</td>' +
                 '</tr>';
         }
         if (!html) {
-            html = '<tr class="text-muted"><td colspan="4" class="text-center small py-2">No history.</td></tr>';
+            html = '<tr class="text-muted"><td colspan="5" class="text-center small py-2">No history.</td></tr>';
         }
         depositHistoryBody.innerHTML = html;
+        requestAnimationFrame(function () {
+            revealPendingRow(depositHistoryBody);
+        });
     };
 
     const updateDebtorDisplay = function () {
@@ -1163,12 +1388,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const hasInput = shouldShowDepositPanel();
         const pendingRemarks = depositRemarksInput ? depositRemarksInput.value.trim() : '';
 
-        if (depositCurrentLabelEl) depositCurrentLabelEl.textContent = 'Current Balance Of ' + code;
-        if (depositAnticipatedLabelEl) depositAnticipatedLabelEl.textContent = 'Anticipated Balance Of ' + code;
+        if (depositCurrentLabelEl) depositCurrentLabelEl.textContent = 'Current Balance of ' + code;
+        if (depositAnticipatedLabelEl) depositAnticipatedLabelEl.textContent = 'Anticipated Balance of ' + code;
         if (depositCurrentEl) depositCurrentEl.textContent = formatAmt(base);
         if (depositAnticipatedEl) depositAnticipatedEl.textContent = hasInput ? formatAmt(Math.max(0, base - processing)) : '—';
         setProcessingDisplay(depositProcessingEl, depositProcessingWrap, hasInput ? processing : 0);
-        renderDepositHistory(hasInput ? processing : 0, pendingRemarks);
+        renderDepositHistory(hasInput ? processing : 0, pendingRemarks, base);
         togglePanel(depositPanel, true);
     };
 
@@ -1186,8 +1411,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const pendingRemarks = creditRemarksInput ? creditRemarksInput.value.trim() : '';
         const pendingGuarantor = creditGuarantorInput ? creditGuarantorInput.value.trim() : '';
 
-        if (creditCurrentLabelEl) creditCurrentLabelEl.textContent = 'Current Credit Balance Of ' + code;
-        if (creditAnticipatedLabelEl) creditAnticipatedLabelEl.textContent = 'Anticipated Credit Balance Of ' + code;
+        if (creditCurrentLabelEl) creditCurrentLabelEl.textContent = 'Current Credit Balance of ' + code;
+        if (creditAnticipatedLabelEl) creditAnticipatedLabelEl.textContent = 'Anticipated Credit Balance of ' + code;
         if (creditCurrentEl) {
             creditCurrentEl.textContent = formatCreditOwed(base);
             creditCurrentEl.classList.remove('text-amount-negative', 'text-amount-positive');
